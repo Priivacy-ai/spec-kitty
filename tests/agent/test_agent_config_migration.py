@@ -76,10 +76,13 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 14 agents (fallback)
-        assert len(agent_dirs) == 14
+        # Should return all 13 slash-command agents (fallback).
+        # Count is 13 post PR #626 (Kiro registration); codex+vibe use AGENT_SKILL_CONFIG
+        # and are not listed in AGENT_DIRS.
+        assert len(agent_dirs) == 13
         assert (".claude", "commands") in agent_dirs
         assert (".opencode", "command") in agent_dirs
+        assert (".kiro", "prompts") in agent_dirs
 
     def test_fallback_when_config_empty(self, tmp_path):
         """Test fallback when config.available is empty."""
@@ -91,8 +94,9 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 14 agents (fallback for empty)
-        assert len(agent_dirs) == 14
+        # Should return all 13 slash-command agents (fallback for empty).
+        # See test_fallback_to_all_agents_when_no_config for count history.
+        assert len(agent_dirs) == 13
 
 
 class TestMigrationRespectsConfig:
@@ -224,8 +228,9 @@ class TestAgentDirMapping:
 
     def test_agent_dir_to_key_complete(self):
         """Verify all agents have key mappings."""
-        # All 13 agents should be mapped
-        assert len(AGENT_DIR_TO_KEY) == 14
+        # All 13 slash-command agents should be mapped
+        # (codex and vibe use AGENT_SKILL_CONFIG, not AGENT_DIR_TO_KEY).
+        assert len(AGENT_DIR_TO_KEY) == 13
 
         # Verify special mappings
         assert AGENT_DIR_TO_KEY[".github"] == "copilot"

@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-14T21:14:00.081882+00:00",
+  "friendly_name": "123 test feature",
+  "mission_id": "01KP6XG3CE1WE4Y6369QDCYZ2Z",
+  "mission_number": null,
+  "mission_slug": "test-feature-01KP6XG3",
+  "mission_type": "software-dev",
+  "slug": "test-feature-01KP6XG3",
+  "target_branch": "pr632-refresh"
+}

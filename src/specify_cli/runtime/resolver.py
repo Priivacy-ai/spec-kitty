@@ -17,33 +17,21 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
+
+# Single source of truth for the resolution enum / result dataclass.
+# Re-exported from doctrine.resolver so every importer shares one class
+# identity — otherwise `ResolutionTier.X == ResolutionTier.X` fails across
+# modules and test suites that import from both paths flake on `is`/`==`.
+# Historical note: prior to 2026-04-15 this module defined its own
+# duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
+# on the release-readiness job where doctrine.test_resolver and
+# runtime.test_resolver_unit ran in the same session.
+from doctrine.resolver import ResolutionResult, ResolutionTier
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Public data types
-# ---------------------------------------------------------------------------
-
-
-class ResolutionTier(Enum):
-    OVERRIDE = "override"
-    LEGACY = "legacy"
-    GLOBAL_MISSION = "global_mission"
-    GLOBAL = "global"
-    PACKAGE_DEFAULT = "package_default"
-
-
-@dataclass(frozen=True)
-class ResolutionResult:
-    path: Path
-    tier: ResolutionTier
-    mission: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -98,13 +86,22 @@ def _emit_migrate_nudge() -> None:
     Uses a module-level flag so the nudge appears at most once per CLI
     invocation regardless of how many assets are resolved.  Output goes
     to stderr so it never interferes with ``--json`` output on stdout.
+
+    The runtime path shown in the message is rendered via
+    :func:`specify_cli.paths.render_runtime_path` so Windows users see the
+    real ``%LOCALAPPDATA%\\spec-kitty\\`` path and not a POSIX tilde literal
+    (SC-002 of the Windows Compatibility Hardening mission).
     """
     global _migrate_nudge_shown  # noqa: PLW0603
     if _migrate_nudge_shown:
         return
     _migrate_nudge_shown = True
+    from specify_cli.paths import render_runtime_path  # noqa: PLC0415
+    from specify_cli.runtime.home import get_kittify_home  # noqa: PLC0415
+    runtime_display = render_runtime_path(get_kittify_home())
     print(
-        "Note: Run `spec-kitty migrate` to clean up legacy project files and use the global runtime (~/.kittify/).",
+        "Note: Run `spec-kitty migrate` to clean up legacy project files and use the "
+        f"global runtime ({runtime_display}).",
         file=sys.stderr,
     )
 

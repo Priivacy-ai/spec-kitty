@@ -17,10 +17,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-pytestmark = pytest.mark.fast
-
 from specify_cli.sync.clock import LamportClock
 from specify_cli.sync.client import WebSocketClient
+
+pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------
@@ -408,6 +408,8 @@ class TestValidEventTypesOnlyGatesOutgoing:
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
 
         expected = {
+            "BuildHeartbeat",
+            "BuildRegistered",
             "WPStatusChanged",
             "WPCreated",
             "WPAssigned",

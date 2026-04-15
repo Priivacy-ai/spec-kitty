@@ -16,12 +16,16 @@ Usage examples::
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.console import Console
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.paths import get_runtime_root, render_runtime_path
+from specify_cli.paths.windows_migrate import MigrationOutcome
 from specify_cli.runtime.bootstrap import ensure_runtime
 from specify_cli.runtime.migrate import execute_migration
 
@@ -52,10 +56,10 @@ def migrate(  # noqa: C901
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
-    First ensures the global runtime (~/.kittify/) is up to date, then
-    classifies per-project files as identical (removed), customized
-    (moved to overrides/), or project-specific (kept). Use --dry-run
-    to preview changes before applying.
+    First ensures the global runtime is up to date, then classifies
+    per-project files as identical (removed), customized (moved to
+    overrides/), or project-specific (kept). Use --dry-run to preview
+    changes before applying.
 
     Running this command multiple times is safe (idempotent). After the
     first successful run, subsequent invocations are a near-instant no-op.
@@ -67,6 +71,19 @@ def migrate(  # noqa: C901
     # If a subcommand was invoked, don't run the migrate callback body.
     if ctx.invoked_subcommand is not None:
         return
+
+    # Windows-only: run legacy state migration BEFORE any tracker/sync/daemon reads.
+    # This ensures post-upgrade invocations pick up state from the correct root.
+    # --dry-run is plumbed through: in preview mode the function computes outcomes
+    # without performing any filesystem moves (FR-006, contracts/cli-migrate.md).
+    if sys.platform == "win32":
+        from specify_cli.paths.windows_migrate import migrate_windows_state  # noqa: PLC0415
+        try:
+            outcomes = migrate_windows_state(dry_run=dry_run)
+        except TimeoutError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(69)
+        _render_windows_migration_summary(console, outcomes, dry_run=dry_run)
 
     project_dir = locate_project_root()
     if project_dir is None:
@@ -90,7 +107,11 @@ def migrate(  # noqa: C901
     if dry_run:
         console.print("[bold]Step 1:[/bold] Global runtime check (no changes in dry-run)")
     else:
-        console.print("[bold]Step 1:[/bold] Ensuring global runtime (~/.kittify/) is up to date...")
+        runtime_root = get_runtime_root()
+        runtime_path_display = render_runtime_path(runtime_root.base)
+        console.print(
+            f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date..."
+        )
         ensure_runtime()
         console.print("  [green]Global runtime is current.[/green]")
 
@@ -141,7 +162,7 @@ def migrate(  # noqa: C901
             "Run `spec-kitty config --show-origin` to verify resolution tiers."
         )
 
-    # Credential path decision: ~/.spec-kitty/credentials stays separate.
+    # Credential path decision: auth credentials stay in the runtime auth/ subdir.
     # This is a security boundary decision -- credentials have a different
     # lifecycle and permission model from runtime assets.  Documented here
     # per WP08 acceptance criteria.
@@ -280,3 +301,80 @@ def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
     err_console = Console(stderr=True)
     err_console.print(f"[red]Error:[/red] {message}")
+
+
+def _render_windows_migration_summary(
+    con: Console,
+    outcomes: list[MigrationOutcome],
+    *,
+    dry_run: bool = False,
+) -> None:
+    """Render the Windows runtime state migration summary per contracts/cli-migrate.md.
+
+    Uses ``render_runtime_path`` for every path shown to the user.
+    Exits with code 78 if ``%LOCALAPPDATA%`` is unresolvable.
+    (Lock-contention exit-69 is handled at the call site before this function.)
+
+    When ``dry_run`` is True, the header labels each reported move as a preview
+    so users understand that no filesystem changes have occurred.
+    """
+    if not outcomes:
+        return
+
+    # Check for unresolvable %LOCALAPPDATA% error
+    localappdata_errors = [o for o in outcomes if o.status == "error" and o.dest_path is None]
+    if localappdata_errors:
+        con.print(
+            "[red]Could not resolve %LOCALAPPDATA% on this machine. "
+            "Spec Kitty needs a writable Windows app-data directory to store runtime state.\n"
+            "Diagnose with: echo %LOCALAPPDATA% (cmd.exe) or $env:LOCALAPPDATA (PowerShell).[/red]"
+        )
+        raise typer.Exit(78)
+
+    moved = [o for o in outcomes if o.status == "moved"]
+    quarantined = [o for o in outcomes if o.status == "quarantined"]
+    errors = [o for o in outcomes if o.status == "error"]
+
+    if not moved and not quarantined and not errors:
+        # All absent — idempotent no-op, nothing to show
+        return
+
+    # Determine canonical destination from any non-absent outcome
+    canonical_dest: str | None = None
+    for o in outcomes:
+        if o.dest_path is not None:
+            canonical_dest = render_runtime_path(Path(o.dest_path))
+            break
+
+    header = (
+        "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows."
+        if dry_run
+        else "\nMigrated Spec Kitty runtime state on Windows."
+    )
+    con.print(header)
+    if canonical_dest:
+        con.print(f"  Canonical location: {canonical_dest}")
+
+    move_verb = "Would move" if dry_run else "Moved"
+    for o in moved:
+        legacy_display = render_runtime_path(Path(o.legacy_path))
+        dest_display = render_runtime_path(Path(o.dest_path)) if o.dest_path else canonical_dest or ""
+        con.print(f"  {move_verb}: {legacy_display} -> {dest_display}")
+
+    if quarantined:
+        quarantine_header = (
+            "  Destination already contains state; legacy trees would be preserved as backups:"
+            if dry_run
+            else "  Destination already contained state; legacy trees preserved as backups:"
+        )
+        con.print(quarantine_header)
+        for o in quarantined:
+            legacy_display = render_runtime_path(Path(o.legacy_path))
+            bak_display = render_runtime_path(Path(o.quarantine_path)) if o.quarantine_path else "?"
+            con.print(f"    {legacy_display} -> {bak_display}")
+        if not dry_run:
+            con.print("  Review the canonical location and delete the backup directories when safe.")
+
+    for o in errors:
+        legacy_display = render_runtime_path(Path(o.legacy_path))
+        con.print(f"  [yellow]Warning:[/yellow] Could not migrate {legacy_display}: {o.error}")

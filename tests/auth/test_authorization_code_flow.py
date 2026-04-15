@@ -154,7 +154,7 @@ class TestExchangeCode:
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
         tokens = _token_response()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, tokens)
@@ -180,7 +180,7 @@ class TestExchangeCode:
         bad = _token_response()
         del bad["access_token"]
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, bad)
@@ -196,7 +196,7 @@ class TestExchangeCode:
     async def test_http_400_raises_authentication_error(self):
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(
@@ -214,10 +214,12 @@ class TestExchangeCode:
     async def test_network_error_raises_network_error(self):
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("DNS failed")
+            # PublicHttpClient wraps httpx.RequestError as NetworkError internally;
+            # the flow now catches NetworkError from the client directly.
+            mock_client.post.side_effect = NetworkError("DNS failed")
 
             with pytest.raises(NetworkError, match="Network error during code exchange"):
                 await flow._exchange_code(
@@ -240,7 +242,7 @@ class TestBuildSession:
         tokens = _token_response(refresh_token_expires_at=_FUTURE_ISO)
         me = _me_response()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -271,7 +273,7 @@ class TestBuildSession:
         me = _me_response()
 
         before = datetime.now(UTC)
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -294,7 +296,7 @@ class TestBuildSession:
         tokens = _token_response(refresh_token_expires_at=token_iso)
         me = _me_response(refresh_token_expires_at=me_iso)
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -311,7 +313,7 @@ class TestBuildSession:
         # Also no relative form in tokens
         me = _me_response(refresh_token_expires_at="2099-01-01T00:00:00Z")
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -327,7 +329,7 @@ class TestBuildSession:
         tokens = _token_response(refresh_token_expires_at="2099-01-01T00:00:00Z")
         me = _me_response()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -342,7 +344,7 @@ class TestBuildSession:
         tokens = _token_response()
         me = _me_response(teams=[])
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -355,7 +357,7 @@ class TestBuildSession:
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
         tokens = _token_response()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(401, {})
@@ -368,10 +370,12 @@ class TestBuildSession:
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
         tokens = _token_response()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
-            mock_client.get.side_effect = httpx.ConnectError("DNS failed")
+            # PublicHttpClient wraps httpx.RequestError as NetworkError internally;
+            # the flow now catches NetworkError from the client directly.
+            mock_client.get.side_effect = NetworkError("DNS failed")
 
             with pytest.raises(NetworkError, match="Network error fetching user info"):
                 await flow._build_session(tokens)
@@ -384,7 +388,7 @@ class TestBuildSession:
         tokens = _token_response()
         me = _me_response()
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.return_value = _mock_httpx_response(200, me)
@@ -464,7 +468,7 @@ class TestLogin:
                 AuthorizationCodeFlow,
                 "_build_auth_url",
                 _patched_build,
-            ), patch("httpx.AsyncClient") as mock_client_class:
+            ), patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
                 mock_client.post.return_value = _mock_httpx_response(200, tokens)

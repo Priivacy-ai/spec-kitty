@@ -253,8 +253,14 @@ def _make_interview_yaml(path: Path, local_files: list[dict[str, str]]) -> None:
 
 def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
     """Full scenario: interview with local support → generate → context (2x) → additive warning."""
+    import subprocess
+
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    # Charter bundle chokepoint (PR #634) now resolves the project root via
+    # `git rev-parse --git-common-dir` — initialise a minimal git repo so the
+    # canonical-root resolver doesn't raise NotInsideRepositoryError.
+    subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     interview_dir = charter_dir / "interview"

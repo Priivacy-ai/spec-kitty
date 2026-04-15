@@ -152,9 +152,14 @@ def test_command_output_unchanged(agent: str, command: str) -> None:
 
 
 def test_non_migrated_agents_count() -> None:
-    """Exactly 12 agents are in AGENT_COMMAND_CONFIG (codex and vibe are absent)."""
-    assert len(NON_MIGRATED_AGENTS) == 12, (
-        f"Expected 12 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: "
+    """Exactly 13 agents are in AGENT_COMMAND_CONFIG (codex and vibe are migrated to skills).
+
+    Count rose from 12 to 13 when PR #626 registered Kiro as a first-class slash-command
+    agent alongside the 12 existing non-migrated agents. Codex and Vibe remain absent
+    (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
+    """
+    assert len(NON_MIGRATED_AGENTS) == 13, (
+        f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: "
         f"{NON_MIGRATED_AGENTS}"
     )
 

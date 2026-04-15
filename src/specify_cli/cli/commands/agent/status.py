@@ -366,7 +366,7 @@ def doctor(
 ) -> None:
     """Run health checks for status hygiene and global runtime.
 
-    Detects global runtime issues (missing ~/.kittify/, version mismatch,
+    Detects global runtime issues (missing runtime directory, version mismatch,
     corrupted missions) and project-level issues (stale claims, orphan
     workspaces, drift).
     Exit code 0 = healthy, 1 = issues found.

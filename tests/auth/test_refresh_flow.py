@@ -111,7 +111,7 @@ class TestRefreshHappyPath:
         session = _make_session()
         body = _refresh_body()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -132,7 +132,7 @@ class TestRefreshHappyPath:
         session = _make_session(refresh_token="refresh-v1")
         body = _refresh_body(refresh_token=None)
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -148,7 +148,7 @@ class TestRefreshHappyPath:
         session = _make_session()
         body = _refresh_body()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -181,7 +181,7 @@ class TestRefreshTTLAmendment:
             refresh_token_expires_in=86400,
         )
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -201,7 +201,7 @@ class TestRefreshTTLAmendment:
         )
 
         before = datetime.now(UTC)
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -220,7 +220,7 @@ class TestRefreshTTLAmendment:
         session = _make_session()
         body = _refresh_body(refresh_token_expires_at="2099-01-01T00:00:00Z")
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -240,7 +240,7 @@ class TestRefreshTTLAmendment:
             refresh_token_expires_in=None,
         )
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
@@ -262,7 +262,7 @@ class TestRefreshErrors:
         flow = TokenRefreshFlow()
         session = _make_session()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(
@@ -277,7 +277,7 @@ class TestRefreshErrors:
         flow = TokenRefreshFlow()
         session = _make_session()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(
@@ -292,7 +292,7 @@ class TestRefreshErrors:
         flow = TokenRefreshFlow()
         session = _make_session()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(
@@ -307,7 +307,7 @@ class TestRefreshErrors:
         flow = TokenRefreshFlow()
         session = _make_session()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(
@@ -322,10 +322,12 @@ class TestRefreshErrors:
         flow = TokenRefreshFlow()
         session = _make_session()
 
-        with patch("httpx.AsyncClient") as mock_cls:
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.side_effect = httpx.ConnectError("DNS failed")
+            # PublicHttpClient wraps httpx.RequestError as NetworkError internally;
+            # the flow now catches NetworkError from the client directly.
+            mock_client.post.side_effect = NetworkError("DNS failed")
 
             with pytest.raises(NetworkError, match="Network error during refresh"):
                 await flow.refresh(session)

@@ -19,14 +19,24 @@ def _is_windows() -> bool:
 
 
 def get_kittify_home() -> Path:
-    """Return the path to the user-global ~/.kittify/ directory."""
+    """Return the path to the user-global runtime directory.
+
+    On Windows this resolves to the unified ``%LOCALAPPDATA%\\spec-kitty\\``
+    root (via ``specify_cli.paths.get_runtime_root()``) so that every consumer
+    in ``specify_cli`` sees the same Windows runtime root per Q3=C of the
+    Windows Compatibility Hardening mission.  POSIX behavior is unchanged
+    (returns ``~/.kittify`` for back-compat with existing installs).
+
+    The ``SPEC_KITTY_HOME`` environment variable always wins regardless of
+    platform.
+    """
     if env_home := os.environ.get("SPEC_KITTY_HOME"):
         return Path(env_home)
 
     if _is_windows():
-        from platformdirs import user_data_dir
+        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
 
-        return Path(user_data_dir("kittify"))
+        return get_runtime_root().base
 
     return Path.home() / ".kittify"
 

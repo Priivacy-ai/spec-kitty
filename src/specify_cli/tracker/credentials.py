@@ -26,12 +26,21 @@ class TrackerCredentialError(RuntimeError):
     """Raised when credentials cannot be loaded or stored."""
 
 
-def _spec_kitty_dir() -> Path:
+def _tracker_root() -> Path:
+    """Return the tracker state directory for the current platform.
+
+    On Windows: resolves to ``%LOCALAPPDATA%\\spec-kitty\\tracker\\``
+    via the unified RuntimeRoot.
+    On POSIX: returns ``~/.spec-kitty`` unchanged (preserving existing behavior).
+    """
+    if sys.platform == "win32":
+        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+        return get_runtime_root().tracker_dir
     return Path.home() / ".spec-kitty"
 
 
 def _credentials_path() -> Path:
-    return _spec_kitty_dir() / "credentials"
+    return _tracker_root() / "credentials"
 
 
 def _toml_scalar(value: Any) -> str:
@@ -96,7 +105,7 @@ def _locked_file(path: Path, mode: str) -> Iterator[Any]:
 
 
 class TrackerCredentialStore:
-    """Store tracker provider credentials in ~/.spec-kitty/credentials."""
+    """Store tracker provider credentials under the platform runtime root."""
 
     def __init__(self, path: Path | None = None) -> None:
         self.path = path or _credentials_path()

@@ -27,6 +27,7 @@ import http.client
 import socket
 import ssl
 from datetime import datetime, timedelta, UTC
+from types import TracebackType
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -56,11 +57,12 @@ class _ResolvedHTTPSConnection(http.client.HTTPSConnection):
         family: socket.AddressFamily,
         sockaddr: tuple[Any, ...],
     ) -> None:
+        self._ssl_context = ssl.create_default_context()
         super().__init__(
             host,
             port=port,
             timeout=timeout,
-            context=ssl.create_default_context(),
+            context=self._ssl_context,
         )
         self._family = family
         self._sockaddr = sockaddr
@@ -69,7 +71,7 @@ class _ResolvedHTTPSConnection(http.client.HTTPSConnection):
         raw = socket.socket(self._family, socket.SOCK_STREAM)
         raw.settimeout(self.timeout)
         raw.connect(self._sockaddr)
-        self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+        self.sock = self._ssl_context.wrap_socket(raw, server_hostname=self.host)
 
 
 class _BaseHttpClient:
@@ -87,7 +89,12 @@ class _BaseHttpClient:
     async def __aenter__(self) -> _BaseHttpClient:
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         return None
 
     async def aclose(self) -> None:
@@ -113,11 +120,10 @@ class _BaseHttpClient:
         url: str,
         **kwargs: Any,
     ) -> httpx.Response:
-        request_method = method.lower()
         if self._client is not None:
-            return await getattr(self._client, request_method)(url, **kwargs)
+            return await self._client.request(method, url, **kwargs)
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            return await getattr(client, request_method)(url, **kwargs)
+            return await client.request(method, url, **kwargs)
 
     async def _try_stdlib_fallback(
         self,
@@ -153,6 +159,14 @@ class _BaseHttpClient:
 
     async def delete(self, url: str, **kwargs: Any) -> httpx.Response:
         return await self.request("DELETE", url, **kwargs)
+
+    async def request(
+        self,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        raise NotImplementedError
 
 
 class PublicHttpClient(_BaseHttpClient):
@@ -277,7 +291,10 @@ class OAuthHttpClient(_BaseHttpClient):
 
 def _targets_configured_saas(url: str) -> bool:
     target = urlsplit(url)
-    saas = urlsplit(get_saas_base_url())
+    try:
+        saas = urlsplit(get_saas_base_url())
+    except Exception:
+        return False
     return (
         bool(target.hostname)
         and target.scheme == saas.scheme

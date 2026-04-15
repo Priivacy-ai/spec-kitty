@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-
-import httpx
 import pytest
 
-from specify_cli.auth.errors import AuthenticationError
+from specify_cli.auth.errors import AuthenticationError, NetworkError
 from specify_cli.cli.commands.sync import _check_server_connection
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
@@ -53,7 +51,7 @@ def _mock_response(status_code=200, text=""):
     return mock_response
 
 
-def _mock_httpx_client(
+def _mock_response_for_probe(
     *,
     get_status=200,
     get_text="",
@@ -62,19 +60,20 @@ def _mock_httpx_client(
     post_text="",
     post_side_effect=None,
 ):
-    """Create a mock httpx.Client context manager with get/post responses."""
-    mock_client = MagicMock()
-    if get_side_effect:
-        mock_client.get.side_effect = get_side_effect
-    else:
-        mock_client.get.return_value = _mock_response(get_status, get_text)
-    if post_side_effect:
-        mock_client.post.side_effect = post_side_effect
-    else:
-        mock_client.post.return_value = _mock_response(post_status, post_text)
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    return mock_client
+    """Create a request_with_fallback_sync side effect for health/batch probes."""
+
+    def _request(method: str, url: str, **kwargs):
+        if method == "GET":
+            if get_side_effect is not None:
+                raise get_side_effect
+            return _mock_response(get_status, get_text)
+        if method == "POST":
+            if post_side_effect is not None:
+                raise post_side_effect
+            return _mock_response(post_status, post_text)
+        raise AssertionError(f"Unexpected method {method}")
+
+    return MagicMock(side_effect=_request)
 
 
 def test_check_server_connection_reports_disabled_when_flag_off(monkeypatch):
@@ -112,10 +111,10 @@ class TestCheckServerConnectionExpiredToken:
         assert "Session expired" in status
         assert "spec-kitty auth login" in note
 
-    @patch("httpx.Client")
-    def test_expired_token_refresh_succeeds(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_expired_token_refresh_succeeds(self, mock_request):
         """When access token is refreshed successfully, probe with the new token."""
-        MockClient.return_value = _mock_httpx_client(get_status=200)
+        mock_request.side_effect = _mock_response_for_probe(get_status=200)
         fake_tm = _fake_token_manager(access_token="refreshed-access-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -145,11 +144,10 @@ class TestCheckServerConnectionTokenProbeErrors:
 class TestCheckServerConnectionValidToken:
     """Test behavior when a valid access token is available."""
 
-    @patch("httpx.Client")
-    def test_server_returns_200(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_server_returns_200(self, mock_request):
         """When server returns 200, report connected and auth valid."""
-        mock_client = _mock_httpx_client(get_status=200)
-        MockClient.return_value = mock_client
+        mock_request.side_effect = _mock_response_for_probe(get_status=200)
         fake_tm = _fake_token_manager(access_token="valid-access-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -159,14 +157,14 @@ class TestCheckServerConnectionValidToken:
         assert "authentication valid" in note
 
         # Verify it used real token, not a hardcoded test token
-        call_args = mock_client.get.call_args
+        call_args = mock_request.call_args
         auth_header = call_args.kwargs.get("headers", {}).get("Authorization", "")
         assert auth_header == "Bearer valid-access-token"
 
-    @patch("httpx.Client")
-    def test_server_returns_401(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_server_returns_401(self, mock_request):
         """When server returns 401, report authentication failed."""
-        MockClient.return_value = _mock_httpx_client(get_status=401)
+        mock_request.side_effect = _mock_response_for_probe(get_status=401)
         fake_tm = _fake_token_manager(access_token="stale-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -175,10 +173,10 @@ class TestCheckServerConnectionValidToken:
         assert "Authentication failed" in status
         assert "spec-kitty auth login" in note
 
-    @patch("httpx.Client")
-    def test_server_returns_403(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_server_returns_403(self, mock_request):
         """When server returns 403, report permission denied."""
-        MockClient.return_value = _mock_httpx_client(get_status=403)
+        mock_request.side_effect = _mock_response_for_probe(get_status=403)
         fake_tm = _fake_token_manager(access_token="valid-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -187,10 +185,10 @@ class TestCheckServerConnectionValidToken:
         assert "Permission denied" in status
         assert "team membership" in note
 
-    @patch("httpx.Client")
-    def test_server_returns_unexpected_status(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_server_returns_unexpected_status(self, mock_request):
         """When server returns an unexpected status code, report it."""
-        MockClient.return_value = _mock_httpx_client(get_status=500)
+        mock_request.side_effect = _mock_response_for_probe(get_status=500)
         fake_tm = _fake_token_manager(access_token="valid-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -203,11 +201,11 @@ class TestCheckServerConnectionValidToken:
 class TestCheckServerConnectionUnreachable:
     """Test behavior when server is unreachable."""
 
-    @patch("httpx.Client")
-    def test_connection_timeout(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_connection_timeout(self, mock_request):
         """When server times out, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(
-            get_side_effect=httpx.TimeoutException("Connection timed out")
+        mock_request.side_effect = _mock_response_for_probe(
+            get_side_effect=NetworkError("Connection timed out")
         )
         fake_tm = _fake_token_manager(access_token="valid-token")
 
@@ -217,11 +215,11 @@ class TestCheckServerConnectionUnreachable:
         assert "Unreachable" in status
         assert "queued for later sync" in note
 
-    @patch("httpx.Client")
-    def test_connection_refused(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_connection_refused(self, mock_request):
         """When connection is refused, report unreachable."""
-        MockClient.return_value = _mock_httpx_client(
-            get_side_effect=httpx.ConnectError("Connection refused")
+        mock_request.side_effect = _mock_response_for_probe(
+            get_side_effect=NetworkError("Connection refused")
         )
         fake_tm = _fake_token_manager(access_token="valid-token")
 
@@ -235,46 +233,43 @@ class TestCheckServerConnectionUnreachable:
 class TestCheckServerConnectionNoHardcodedTokens:
     """Regression tests: ensure no hardcoded test tokens remain."""
 
-    @patch("httpx.Client")
-    def test_no_test_token_in_request(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_no_test_token_in_request(self, mock_request):
         """Verify that the probe never sends a hardcoded 'test-token'."""
-        mock_client = _mock_httpx_client(get_status=200)
-        MockClient.return_value = mock_client
+        mock_request.side_effect = _mock_response_for_probe(get_status=200)
         fake_tm = _fake_token_manager(access_token="real-user-jwt-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
             _check_server_connection(SERVER_URL)
 
-        call_args = mock_client.get.call_args
+        call_args = mock_request.call_args
         auth_header = call_args.kwargs.get("headers", {}).get("Authorization", "")
         assert "test-token" not in auth_header
         assert "real-user-jwt-token" in auth_header
 
-    @patch("httpx.Client")
-    def test_probes_health_endpoint_not_websocket(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_probes_health_endpoint_not_websocket(self, mock_request):
         """Verify probe hits the HTTP health endpoint, not a WebSocket URL."""
-        mock_client = _mock_httpx_client(get_status=200)
-        MockClient.return_value = mock_client
+        mock_request.side_effect = _mock_response_for_probe(get_status=200)
         fake_tm = _fake_token_manager(access_token="valid-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
             _check_server_connection(SERVER_URL)
 
-        call_args = mock_client.get.call_args
-        probe_url = call_args.args[0] if call_args.args else call_args.kwargs.get("url", "")
+        call_args = mock_request.call_args
+        probe_url = call_args.args[1] if len(call_args.args) > 1 else call_args.kwargs.get("url", "")
         assert "api/v1/sync/health" in probe_url
         assert "wss://" not in probe_url
         assert "ws://" not in probe_url
 
-    @patch("httpx.Client")
-    def test_falls_back_to_legacy_batch_probe_when_health_endpoint_missing(self, MockClient):
+    @patch("specify_cli.auth.http.request_with_fallback_sync")
+    def test_falls_back_to_legacy_batch_probe_when_health_endpoint_missing(self, mock_request):
         """404 health probes should fall back to the legacy batch probe."""
-        mock_client = _mock_httpx_client(
+        mock_request.side_effect = _mock_response_for_probe(
             get_status=404,
             post_status=400,
             post_text='{"error":"No events provided"}',
         )
-        MockClient.return_value = mock_client
         fake_tm = _fake_token_manager(access_token="valid-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -282,5 +277,4 @@ class TestCheckServerConnectionNoHardcodedTokens:
 
         assert "Connected" in status
         assert "legacy batch probe" in note
-        assert mock_client.get.called
-        assert mock_client.post.called
+        assert mock_request.call_count == 2

@@ -640,10 +640,20 @@ class TestWP01InitCoherence:
             f"git log output: {git_log.stdout}"
         )
 
-    def test_init_does_not_create_agents_skills(
+    def test_init_creates_agents_skills_for_codex(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """T1.3: init must not create .agents/skills/ in the project directory."""
+        """T1.3: init creates .agents/skills/ when a skills-pipeline agent is chosen.
+
+        Mission 083 migrated Codex from the slash-command pipeline to the Agent Skills
+        pipeline. The correct post-083 behavior is: if a skills agent is configured
+        (codex, vibe), init MUST populate .agents/skills/spec-kitty.<command>/SKILL.md
+        for every canonical command. See CLAUDE.md "Agent Skills Agents" section.
+
+        The earlier form of this test asserted the *inverse* (no .agents/skills/) — that
+        was correct for the brief window between #555 and mission 083 when shared-skills
+        seeding was temporarily disabled. Mission 083 restored it.
+        """
         app = _make_init_app(monkeypatch)
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(_init_module, "get_local_repo_root", lambda override_path=None: None)
@@ -652,14 +662,23 @@ class TestWP01InitCoherence:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["init", "no-agents-skills-proj", "--ai", "codex", "--non-interactive"],
+            ["init", "agents-skills-proj", "--ai", "codex", "--non-interactive"],
         )
 
         assert result.exit_code == 0, f"init failed: {result.output}"
-        project = tmp_path / "no-agents-skills-proj"
+        project = tmp_path / "agents-skills-proj"
 
-        assert not (project / ".agents" / "skills").exists(), (
-            "init created .agents/skills/ — this must not happen (T002).\n"
-            "The shared skills root seeding was removed in the post-#555 "
-            "init-coherence change."
+        skills_root = project / ".agents" / "skills"
+        assert skills_root.exists(), (
+            "init failed to create .agents/skills/ for the codex agent.\n"
+            "Post-083 codex uses the Agent Skills pipeline; the shared root must exist."
         )
+
+        # Every canonical command should have a skill package with SKILL.md
+        expected_commands = {
+            "specify", "plan", "tasks", "tasks-outline", "tasks-packages",
+            "implement", "review", "analyze", "checklist", "research", "charter",
+        }
+        packages = {p.name for p in skills_root.iterdir() if p.is_dir()}
+        missing = {f"spec-kitty.{c}" for c in expected_commands} - packages
+        assert not missing, f"Missing skill packages: {missing}"

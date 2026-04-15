@@ -32,7 +32,7 @@ def test_resolve_command_template_with_project_context_uses_runtime_chain(
 
     assert result.content == "override command"
     assert result.origin == "override/software-dev/command-templates/plan.md"
-    assert result.tier is ResolutionTier.OVERRIDE
+    assert result.tier.name == ResolutionTier.OVERRIDE.name
 
 
 def test_resolve_content_template_with_project_context_uses_runtime_chain(
@@ -52,7 +52,7 @@ def test_resolve_content_template_with_project_context_uses_runtime_chain(
 
     assert result.content == "legacy content"
     assert result.origin == "legacy/software-dev/templates/spec-template.md"
-    assert result.tier is ResolutionTier.LEGACY
+    assert result.tier.name == ResolutionTier.LEGACY.name
 
 
 def test_resolve_templates_without_project_context_use_doctrine_repo() -> None:
@@ -68,10 +68,10 @@ def test_resolve_templates_without_project_context_use_doctrine_repo() -> None:
 
     assert command.content == "command body"
     assert command.origin == "doctrine/software-dev/command-templates/plan.md"
-    assert command.tier is ResolutionTier.PACKAGE_DEFAULT
+    assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert content.content == "template body"
     assert content.origin == "doctrine/software-dev/templates/spec-template.md"
-    assert content.tier is ResolutionTier.PACKAGE_DEFAULT
+    assert content.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
 
 
 def test_resolve_templates_raise_when_doctrine_repo_has_no_match() -> None:

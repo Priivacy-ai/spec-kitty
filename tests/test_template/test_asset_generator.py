@@ -81,12 +81,15 @@ def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
     project_path = tmp_path / "project"
     project_path.mkdir()
 
-    generate_agent_assets(commands_dir, project_path, "codex", "sh")
+    # Use 'claude' (a canonical slash-command agent). Previously used 'codex',
+    # but mission 083 moved codex to the Agent Skills pipeline — it's no longer
+    # in AGENT_COMMAND_CONFIG, so generate_agent_assets(...) raises KeyError for it.
+    generate_agent_assets(commands_dir, project_path, "claude", "sh")
 
-    output_file = project_path / ".codex" / "prompts" / "spec-kitty.demo.md"
+    output_file = project_path / ".claude" / "commands" / "spec-kitty.demo.md"
     assert output_file.exists()
     content = output_file.read_text(encoding="utf-8")
-    assert "Run echo hi $ARGUMENTS source env for codex." in content
+    assert "Run echo hi $ARGUMENTS source env for claude." in content
 
 
 def test_render_command_template_injects_agent_placeholder(tmp_path: Path) -> None:
@@ -127,14 +130,16 @@ def test_prepare_command_templates_overlays_mission(tmp_path: Path) -> None:
 
     project_path = tmp_path / "project"
     project_path.mkdir()
-    generate_agent_assets(merged_dir, project_path, "codex", "sh")
+    # See note in test_generate_agent_assets_creates_expected_files re: using
+    # 'claude' (canonical slash-command agent) rather than the migrated 'codex'.
+    generate_agent_assets(merged_dir, project_path, "claude", "sh")
 
-    demo_output = project_path / ".codex" / "prompts" / "spec-kitty.demo.md"
-    base_output = project_path / ".codex" / "prompts" / "spec-kitty.baseonly.md"
+    demo_output = project_path / ".claude" / "commands" / "spec-kitty.demo.md"
+    base_output = project_path / ".claude" / "commands" / "spec-kitty.baseonly.md"
 
     assert demo_output.exists()
     assert base_output.exists()
-    assert "Mission override for codex." in demo_output.read_text(encoding="utf-8")
+    assert "Mission override for claude." in demo_output.read_text(encoding="utf-8")
     assert "Base-only template." in base_output.read_text(encoding="utf-8")
 
 

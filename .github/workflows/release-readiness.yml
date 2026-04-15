@@ -94,7 +94,8 @@ jobs:
       - name: Run tests
         run: |
           echo "::group::Running test suite"
-          python -m pytest -v --import-mode=importlib
+          # Exclude windows_ci tests — they run on the native windows-latest job (ci-windows.yml).
+          python -m pytest -v --import-mode=importlib -m "not windows_ci"
           echo "::endgroup::"
 
       - name: Validate release metadata

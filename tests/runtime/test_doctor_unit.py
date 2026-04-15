@@ -339,6 +339,8 @@ class TestRunGlobalChecks:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """All checks pass with a properly configured runtime."""
+        import subprocess
+
         from specify_cli import __version__
 
         home = tmp_path / "kittify"
@@ -350,6 +352,11 @@ class TestRunGlobalChecks:
 
         project = tmp_path / "project"
         project.mkdir()
+        # check_governance_resolution → resolve_governance → ensure_charter_bundle_fresh
+        # (PR #634) calls `git rev-parse --git-common-dir`, which requires a real git
+        # repo at project_dir. Initialise one so the doctor happy-path check has all
+        # its preconditions satisfied.
+        subprocess.run(["git", "init", "-q"], cwd=project, check=True)
 
         checks = run_global_checks(project_dir=project)
         assert all(c.passed for c in checks)

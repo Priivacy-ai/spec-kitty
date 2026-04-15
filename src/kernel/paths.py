@@ -27,7 +27,15 @@ def get_kittify_home() -> Path:
     Resolution order:
     1. SPEC_KITTY_HOME environment variable (all platforms)
     2. ~/.kittify/ on macOS/Linux (Path.home() / ".kittify")
-    3. %LOCALAPPDATA%\\kittify\\ on Windows (via platformdirs)
+    3. %LOCALAPPDATA%\\spec-kitty\\ on Windows (via platformdirs, app name "spec-kitty")
+
+    On Windows the app name used is ``"spec-kitty"`` so that ``kernel.paths``
+    resolves to the same root as ``specify_cli.paths.get_runtime_root().base``
+    (FR-005 / C-002: unified Windows root, no long-term dual root).
+    The ``roaming=False`` flag matches ``get_runtime_root()`` exactly so that
+    both resolve to ``%LOCALAPPDATA%\\spec-kitty``.
+
+    On POSIX the behaviour is unchanged: ``~/.kittify/``.
 
     Returns:
         Path: Absolute path to the global runtime directory.
@@ -40,11 +48,14 @@ def get_kittify_home() -> Path:
 
     if _is_windows():
         # platformdirs is the only sanctioned third-party import in kernel/.
-        # It is imported lazily here for Windows-only home directory resolution.
-        # On Linux/macOS this branch is never executed. See architecture/2.x docs.
+        # Use app name "spec-kitty" (not "kittify") so this matches
+        # specify_cli.paths.get_runtime_root().base — the two resolutions must
+        # agree to satisfy the single-root invariant (FR-005 / C-002).
+        # kernel/ must not import specify_cli (architectural layer rule), so we
+        # call platformdirs directly with the same arguments.
         from platformdirs import user_data_dir  # noqa: PLC0415
 
-        return Path(user_data_dir("kittify"))
+        return Path(str(user_data_dir("spec-kitty", appauthor=False, roaming=False)))
 
     return Path.home() / ".kittify"
 
@@ -80,4 +91,31 @@ def get_package_asset_root() -> Path:
     raise FileNotFoundError("Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli.")
 
 
-__all__ = ["get_kittify_home", "get_package_asset_root"]
+def render_runtime_path(path: Path, *, for_user: bool = True) -> str:
+    """Render a runtime-state path for user-facing output.
+
+    - On Windows: returns the real absolute path string (no tilde substitution).
+    - On POSIX: if ``for_user=True`` and ``path`` is under ``$HOME``, returns
+      ``~/<relpath>`` form; otherwise returns the absolute path.
+
+    This helper exists in ``kernel`` so that every layer can render runtime
+    paths without reintroducing POSIX-tilde literals in user-facing output
+    on Windows (SC-002 of the Windows Compatibility Hardening mission).
+    Mirrors :func:`specify_cli.paths.render_runtime_path` with identical
+    semantics; kept here to preserve the kernel<-doctrine<-charter<-specify_cli
+    dependency direction.
+    """
+    abs_path = Path(path).resolve(strict=False)
+    if not for_user:
+        return str(abs_path)
+    if _is_windows():
+        return str(abs_path)
+    try:
+        home = Path.home().resolve(strict=False)
+        rel = abs_path.relative_to(home)
+        return "~/" + str(rel).replace("\\", "/")
+    except ValueError:
+        return str(abs_path)
+
+
+__all__ = ["get_kittify_home", "get_package_asset_root", "render_runtime_path"]

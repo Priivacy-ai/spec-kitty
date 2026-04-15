@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from kernel.paths import get_kittify_home, get_package_asset_root
+from kernel.paths import get_kittify_home, get_package_asset_root, render_runtime_path
 
 pytestmark = pytest.mark.fast
 
@@ -51,10 +51,14 @@ class TestGetKittifyHomeUnix:
 
 
 class TestGetKittifyHomeWindows:
-    """Windows default path resolution via platformdirs."""
+    """Windows default path resolution via platformdirs (app name: spec-kitty)."""
 
     def test_windows_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On Windows, default uses platformdirs user_data_dir."""
+        """On Windows, default uses platformdirs user_data_dir('spec-kitty').
+
+        The app name 'spec-kitty' (not 'kittify') ensures kernel.paths resolves
+        to the same root as specify_cli.paths.get_runtime_root().base (FR-005 / C-002).
+        """
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
@@ -62,10 +66,10 @@ class TestGetKittifyHomeWindows:
         monkeypatch.setattr(
             platformdirs,
             "user_data_dir",
-            lambda *_a, **_kw: r"C:\Users\test\AppData\Local\kittify",
+            lambda *_a, **_kw: r"C:\Users\test\AppData\Local\spec-kitty",
         )
         result = get_kittify_home()
-        assert result == Path(r"C:\Users\test\AppData\Local\kittify")
+        assert result == Path(r"C:\Users\test\AppData\Local\spec-kitty")
 
 
 # ---------------------------------------------------------------------------
@@ -161,3 +165,30 @@ class TestGetPackageAssetRoot:
             lambda _pkg: (_ for _ in ()).throw(ModuleNotFoundError("should not be called")),
         )
         assert get_package_asset_root() == missions
+
+
+class TestRenderRuntimePath:
+    """User-facing rendering for runtime paths lives in kernel for shared use."""
+
+    def test_windows_always_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        rendered = render_runtime_path(Path("/tmp/spec-kitty/auth"))
+        assert rendered == str(Path("/tmp/spec-kitty/auth").resolve(strict=False))
+
+    def test_posix_tilde_compression_under_home(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(tmp_path / ".kittify" / "auth")
+        assert rendered == "~/.kittify/auth"
+
+    def test_posix_outside_home_stays_absolute(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(Path("/var/lib/spec-kitty"))
+        assert rendered == str(Path("/var/lib/spec-kitty").resolve(strict=False))
+
+    def test_for_user_false_disables_tilde_shortening(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(tmp_path / ".kittify" / "auth", for_user=False)
+        assert rendered == str((tmp_path / ".kittify" / "auth").resolve(strict=False))

@@ -243,7 +243,12 @@ class TestRefreshThroughTransport:
 
         captured_auth_headers: list[str] = []
 
-        def _fake_get(url: str, *, headers: dict | None = None, **kw: Any) -> httpx.Response:
+        def _fake_request(
+            method: str, url: str, *, headers: dict | None = None, **kw: Any
+        ) -> httpx.Response:
+            # Commit 533e47d2 routes sync health probes through
+            # request_with_fallback_sync, which calls httpx.Client.request(...)
+            # rather than .get(...). Capture headers on every request.
             if headers:
                 captured_auth_headers.append(headers.get("Authorization", ""))
             return httpx.Response(200, json={"status": "ok"})
@@ -251,7 +256,8 @@ class TestRefreshThroughTransport:
         mock_http_client = MagicMock(spec=httpx.Client)
         mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)
         mock_http_client.__exit__ = MagicMock(return_value=False)
-        mock_http_client.get = _fake_get
+        mock_http_client.request = _fake_request
+        mock_http_client.get = _fake_request  # Legacy compat, same behavior.
         mock_http_client.post = MagicMock(
             return_value=httpx.Response(200, json={"status": "ok"})
         )

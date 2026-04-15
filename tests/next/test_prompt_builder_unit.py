@@ -373,6 +373,8 @@ class TestBuildPromptTemplate:
 
     @patch("specify_cli.next.prompt_builder.resolve_command")
     def test_template_prompt_bootstrap_context_first_load(self, mock_resolve, feature_with_wp: Path) -> None:
+        import subprocess
+
         mock_path = feature_with_wp / "fake-template.md"
         mock_path.write_text("# Specify Template\nCreate spec.md.\n", encoding="utf-8")
         mock_result = MagicMock()
@@ -380,6 +382,9 @@ class TestBuildPromptTemplate:
         mock_resolve.return_value = mock_result
 
         repo_root = feature_with_wp.parent.parent
+        # Charter bundle chokepoint (PR #634) resolves project root via
+        # `git rev-parse --git-common-dir`; initialise a minimal git repo.
+        subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
         charter_dir = repo_root / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text(

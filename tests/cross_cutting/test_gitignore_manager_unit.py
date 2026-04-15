@@ -351,8 +351,9 @@ class TestGitignoreManager:
 
         # Modifying one shouldn't affect the other
         dirs1.append(AgentDirectory("test", ".test/", False, "Test"))
-        assert len(dirs1) == 14  # 13 original + 1 test agent
-        assert len(dirs2) == 13  # Original unchanged
+        # Count rose from 13 → 14 when PR #626 added Kiro.
+        assert len(dirs1) == 16  # 15 original + 1 test agent
+        assert len(dirs2) == 15  # Original unchanged
 
     def test_all_agent_directories_have_trailing_slash(self):
         """Test that all agent directories end with trailing slash."""

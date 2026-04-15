@@ -114,8 +114,14 @@ class TestRewriteAgentShims:
         assert stale in result.files_deleted
 
     def test_result_counts(self, tmp_path: Path) -> None:
-        """T063-4: RewriteResult fields are populated."""
-        _setup_project(tmp_path, agents=["claude", "codex"])
+        """T063-4: RewriteResult fields are populated.
+
+        Post-mission-083 codex uses the Agent Skills pipeline, not the slash-command
+        shim pipeline, so it's NOT processed by ``rewrite_agent_shims``. To verify
+        the counter with multiple agents we use two slash-command agents (claude,
+        opencode) instead.
+        """
+        _setup_project(tmp_path, agents=["claude", "opencode"])
         result = rewrite_agent_shims(tmp_path)
         assert result.agents_processed >= 2
         assert len(result.files_written) > 0
