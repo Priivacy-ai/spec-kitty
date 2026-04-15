@@ -101,7 +101,7 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current release 3.1.3 on `main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v3.1.x` (current release 3.1.4 on `main`, GitHub Releases, and PyPI)
 
 **3.1.0 highlights:**
 - **Planning integrity** — read-only status commands no longer dirty the git tree; `spec-kitty next` without `--result` is a safe query-only operation

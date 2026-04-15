@@ -125,8 +125,8 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
         "---\n"
         f"<!-- spec-kitty-command-version: {version} -->\n"
         "Run this exact command and treat its output as authoritative.\n"
-        "Do not rediscover context from branches, files, or prompt contents.\n"
-        "In repos with multiple missions, pass --mission <slug> in your arguments.\n"
+        "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
+        "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
         "\n"
         f"`{cli_call}`\n"
     )

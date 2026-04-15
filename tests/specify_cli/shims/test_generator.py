@@ -115,7 +115,9 @@ class TestGenerateShimContent:
     def test_prohibition_line_position(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        assert lines[5] == "Do not rediscover context from branches, files, or prompt contents."
+        assert lines[5] == (
+            "Do not rediscover context from branches, files, prompt contents, or separate charter loads."
+        )
 
     def test_direct_implement_command(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -161,7 +163,9 @@ class TestGenerateShimContent:
         lines = content.splitlines()
         # Frontmatter occupies lines 0..2, version marker line 3, invariant
         # line 4, prohibition line 5, mission hint line 6.
-        assert lines[6] == "In repos with multiple missions, pass --mission <slug> in your arguments."
+        assert lines[6] == (
+            "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug)."
+        )
 
     def test_shim_content_version_marker_present_in_head(self) -> None:
         """Marker must appear in the file head (no longer line 0 — line 3)."""

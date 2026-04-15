@@ -35,11 +35,16 @@ You **MUST** consider this user input before proceeding (if not empty).
 Run:
 
 ```bash
-spec-kitty agent context resolve --action review --mission <mission-slug> --json
+spec-kitty agent context resolve --action review --mission <handle> --json
 ```
 
 Then execute the returned `check_prerequisites` command and capture
 `feature_dir`. All paths must be absolute.
+
+The output of `spec-kitty agent action review ...` is the authoritative work
+package prompt and review context. Do **not** separately call
+`spec-kitty charter context` or go hunting for alternate prompt files unless
+the command output tells you to.
 
 ### 2. Load Work Package Prompt
 
