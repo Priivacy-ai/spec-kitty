@@ -1085,7 +1085,7 @@ my-project/                    # Main repo (main branch)
 3. **Trust the path printed by Spec Kitty** instead of guessing the worktree name
 4. **Swim-lane features** reuse `.worktrees/<feature>-lane-<id>` when multiple WPs share a swim lane
 5. **One computed swim lane means one worktree** for the whole feature
-6. **Automatic cleanup** removes execution worktrees after merge
+6. **Automatic cleanup** removes swim-lane worktrees after merge
 
 ### The Complete Workflow
 
