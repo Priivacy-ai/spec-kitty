@@ -1,14 +1,33 @@
 """Integration test for upgrade version update behavior."""
 
+import subprocess
 from datetime import datetime
 
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.runner import MigrationRunner
 
 
+def _init_git_repo(root):
+    """Initialize a git repo so upgrade migrations can resolve canonical roots."""
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-m", "init"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+
+
 def test_upgrade_updates_metadata_to_correct_version(tmp_path):
     """Verify upgrade updates metadata.yaml to actual CLI version, not fallback."""
     from specify_cli import __version__
+
+    _init_git_repo(tmp_path)
 
     # Create mock project structure
     kittify_dir = tmp_path / ".kittify"
@@ -44,6 +63,8 @@ def test_upgrade_updates_metadata_to_correct_version(tmp_path):
 def test_upgrade_dry_run_does_not_update_version(tmp_path):
     """Verify dry-run mode doesn't update metadata.yaml."""
     from specify_cli import __version__
+
+    _init_git_repo(tmp_path)
 
     # Create mock project
     kittify_dir = tmp_path / ".kittify"
