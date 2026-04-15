@@ -11,16 +11,17 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Latest Release: 3.1.4
+## Latest Release: 4.1.5
 
-Spec Kitty 3.1.4 (released 2026-04-15) rounds out the `3.1.x` line with runtime, auth, charter, and command-surface cleanup. Key changes across `3.1.1` through `3.1.4`:
+Spec Kitty 4.1.5 (released 2026-04-15) starts the `4.1.x` stable line with upgrade hardening, neutral charter defaults, and release-surface cleanup:
 
 - **Runtime loop is now the primary mental model** — `spec-kitty next` remains the canonical driver, and query mode is safe and read-only
 - **Hosted auth and SaaS sync are first-class** — browser-based `spec-kitty auth login`, explicit hosted rollout gating, and clearer tracker readiness checks
 - **13 slash-command agents are supported** — including first-class Kiro support while retaining legacy `q` compatibility
 - **Review and merge resilience improved again** — persisted review-cycle artifacts, focused fix prompts, sparse-checkout preflights, and `spec-kitty doctor sparse-checkout --fix`
 - **Charter bundle is a validated contract** — `spec-kitty charter bundle validate` checks the canonical charter outputs and worktrees now resolve them from the main checkout
-- **Generated command prompts were cleaned up in 3.1.3/3.1.4** — `charter`, `specify`, `plan`, `implement`, `review`, and `merge` now teach the actual mission/runtime flow instead of stale shim-era guidance
+- **Upgrade auto-commit no longer trips on rename-heavy migrations** — `safe_commit` keeps a one-path-per-line probe and upgrade staging expands changed directories before validation
+- **Charter defaults are language-neutral by design** — no pytest/junit bias in packaged defaults or plan templates, and scoped doctrine assets still load when the repo has not declared an active language set yet
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 
@@ -30,7 +31,7 @@ See the full [CHANGELOG](../CHANGELOG.md) for complete release notes.
 
 | Track | Use when | Entry point |
 |---|---|---|
-| `3.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
+| `4.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
 | `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | [Open 1.x docs](1x/index.md) |
 
 ## Verification Notes
