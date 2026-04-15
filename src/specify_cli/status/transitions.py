@@ -239,9 +239,18 @@ def _guard_review_result_required(
 def _run_guard(
     from_lane: str,
     to_lane: str,
-    ctx: GuardContext,
+    ctx: GuardContext | None = None,
+    /,
+    **legacy_kwargs: Any,
 ) -> tuple[bool, str | None]:
     """Run the guard condition for a specific transition, if any."""
+    if ctx is not None and legacy_kwargs:
+        raise TypeError("_run_guard accepts either a GuardContext or legacy keyword arguments, not both")
+    if ctx is None:
+        ctx = GuardContext(**legacy_kwargs)
+    elif not isinstance(ctx, GuardContext):
+        raise TypeError("_run_guard expects a GuardContext or legacy keyword arguments")
+
     guard_name = _GUARDED_TRANSITIONS.get((from_lane, to_lane))
     if guard_name is None:
         return True, None

@@ -187,7 +187,7 @@ CONTRACT_MATRIX: tuple[ContractSurface, ...] = (
     ContractSurface(
         name="wp_status_event",
         builder=_build_wp_status_event,
-        identity_locations=("mission_id", "mission_slug", "legacy_aggregate_id"),
+        identity_locations=("mission_id", "mission_slug"),
         ulid_equals=("mission_id",),
     ),
     ContractSurface(

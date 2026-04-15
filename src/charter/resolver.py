@@ -196,6 +196,9 @@ def resolve_governance_for_profile(
     role: str | None,
     doctrine_service: DoctrineService,
     interview: CharterInterview,
+    *,
+    graph: object | None = None,
+    repo_root: Path | None = None,
 ) -> GovernanceResolution:
     """Resolve governance selections for a specific agent profile."""
     normalized_profile_id = profile_id.strip()
@@ -209,18 +212,23 @@ def resolve_governance_for_profile(
 
     profile_directives = [ref.code.strip() for ref in profile.directive_references if ref.code.strip()]
     merged_directives = _merge_unique(profile_directives, interview.selected_directives)
-    graph = resolve_references_transitively(merged_directives, doctrine_service)
+    resolution_graph = resolve_references_transitively(
+        merged_directives,
+        doctrine_service,
+        graph=graph,
+        repo_root=repo_root,
+    )
     diagnostics = [
-        f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in graph.unresolved
+        f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in resolution_graph.unresolved
     ]
 
     return GovernanceResolution(
         paradigms=list(interview.selected_paradigms),
         directives=merged_directives,
-        tactics=list(graph.tactics),
-        styleguides=list(graph.styleguides),
-        toolguides=list(graph.toolguides),
-        procedures=list(graph.procedures),
+        tactics=list(resolution_graph.tactics),
+        styleguides=list(resolution_graph.styleguides),
+        toolguides=list(resolution_graph.toolguides),
+        procedures=list(resolution_graph.procedures),
         tools=list(interview.available_tools),
         template_set=DEFAULT_TEMPLATE_SET,
         metadata={

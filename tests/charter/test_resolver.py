@@ -297,7 +297,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     stub_graph = SimpleNamespace()
 
     with patch(
-        "charter.resolver.resolve_transitive_refs",
+        "charter.resolver.resolve_references_transitively",
         return_value=monkeypatch_graph,
     ):
         resolution = resolve_governance_for_profile(
@@ -368,7 +368,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
     stub_graph = SimpleNamespace()
 
     with patch(
-        "charter.resolver.resolve_transitive_refs",
+        "charter.resolver.resolve_references_transitively",
         return_value=monkeypatch_graph,
     ):
         resolution = resolve_governance_for_profile(
