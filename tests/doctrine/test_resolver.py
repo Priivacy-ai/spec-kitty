@@ -21,6 +21,19 @@ from doctrine.resolver import (
 pytestmark = pytest.mark.fast
 
 
+# Note: tier equality is asserted via ``.name == .name`` rather than ``is``
+# or ``==``. Under pytest ``--import-mode=importlib`` combined with
+# ``pytestarch`` (which walks ``src/`` and can load ``doctrine/resolver.py``
+# under alternate module names), ``ResolutionTier`` can end up defined twice
+# in-process with identical members but distinct class identities. Python
+# enums' ``==`` delegates to ``is`` after a type check, so cross-class
+# comparison returns False even when ``.name`` / ``.value`` match. Comparing
+# ``.name`` verifies the semantic invariant these tests care about
+# ("resolve_* returned a PACKAGE_DEFAULT tier") without coupling to which
+# of the possibly-duplicated class objects the resolver implementation
+# happened to reference.
+
+
 def _build_fake_repo(root: Path) -> SimpleNamespace:
     missions_root = root / "missions"
     mission_root = missions_root / "software-dev"
@@ -103,9 +116,9 @@ def test_resolve_template_and_command_use_package_default_when_global_home_unava
     template = resolve_template("spec-template.md", project, mission="software-dev")
     command = resolve_command("plan.md", project, mission="software-dev")
 
-    assert template.tier is ResolutionTier.PACKAGE_DEFAULT
+    assert template.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert template.path.read_text(encoding="utf-8") == "package template"
-    assert command.tier is ResolutionTier.PACKAGE_DEFAULT
+    assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert command.path.read_text(encoding="utf-8") == "package command"
 
 
@@ -124,7 +137,7 @@ def test_resolve_asset_unknown_subdir_uses_package_root_and_raises_when_missing(
     monkeypatch.setattr(missions_module.MissionTemplateRepository, "default", lambda: fake_repo)
 
     custom = _resolve_asset("custom.txt", "extras", project, mission="software-dev")
-    assert custom.tier is ResolutionTier.PACKAGE_DEFAULT
+    assert custom.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert custom.path.read_text(encoding="utf-8") == "custom asset"
 
     (fake_repo._missions_root / "software-dev" / "extras" / "custom.txt").unlink()
@@ -150,7 +163,7 @@ def test_resolve_mission_covers_all_resolution_tiers(
     monkeypatch.setattr(missions_module.MissionTemplateRepository, "default", lambda: fake_repo)
 
     result = resolve_mission("software-dev", project)
-    assert result.tier is ResolutionTier.OVERRIDE
+    assert result.tier.name == ResolutionTier.OVERRIDE.name
 
     override.unlink()
     (kittify / "missions" / "software-dev").mkdir(parents=True)
@@ -158,7 +171,7 @@ def test_resolve_mission_covers_all_resolution_tiers(
     legacy.write_text("name: legacy\n", encoding="utf-8")
 
     result = resolve_mission("software-dev", project)
-    assert result.tier is ResolutionTier.LEGACY
+    assert result.tier.name == ResolutionTier.LEGACY.name
 
     legacy.unlink()
     (fake_home / "missions" / "software-dev").mkdir(parents=True)
@@ -166,11 +179,11 @@ def test_resolve_mission_covers_all_resolution_tiers(
     global_mission.write_text("name: global\n", encoding="utf-8")
 
     result = resolve_mission("software-dev", project)
-    assert result.tier is ResolutionTier.GLOBAL_MISSION
+    assert result.tier.name == ResolutionTier.GLOBAL_MISSION.name
 
     global_mission.unlink()
     result = resolve_mission("software-dev", project)
-    assert result.tier is ResolutionTier.PACKAGE_DEFAULT
+    assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
 
     monkeypatch.setattr(
         missions_module.MissionTemplateRepository,

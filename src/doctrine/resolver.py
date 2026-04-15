@@ -31,25 +31,6 @@ from pathlib import Path
 
 from kernel.paths import get_kittify_home, render_runtime_path
 
-# Module-identity guard: ensure any import of this file — whether resolved as
-# ``doctrine.resolver`` (via ``src/`` on sys.path), ``src.doctrine.resolver``
-# (via the repo root on sys.path), or by a pytest plugin that loads modules via
-# ``importlib.util.spec_from_file_location`` — returns the *same* module object
-# and therefore the same ``ResolutionTier`` class identity. Without this guard,
-# ``some_tier is ResolutionTier.PACKAGE_DEFAULT`` in tests flakes across runs
-# whenever two different loader paths happen to fire. See
-# tests/doctrine/test_resolver.py for the tests that exercise identity.
-_canonical = sys.modules.get("doctrine.resolver")
-if _canonical is not None and _canonical is not sys.modules[__name__]:
-    # A canonical `doctrine.resolver` is already loaded — redirect this import
-    # so all public symbols land on the existing class objects.
-    sys.modules[__name__] = _canonical
-else:
-    # We are the first / canonical load. Register additional aliases so
-    # subsequent attempts to import under alternate names see this module.
-    sys.modules.setdefault("doctrine.resolver", sys.modules[__name__])
-    sys.modules.setdefault("src.doctrine.resolver", sys.modules[__name__])
-
 logger = logging.getLogger(__name__)
 
 
