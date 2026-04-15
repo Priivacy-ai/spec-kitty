@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-04-15
+
+### Fixed — CI recovery & release readiness
+
+- **`release-readiness` workflow now filters `windows_ci` tests** on the Linux runner. The job was running the full suite with no marker filter, failing 10 Windows-only tests (auth file-fallback, kernel paths, sync daemon paths, tracker credentials, migrate messaging, keyring packaging, lock contention, Windows home path). Those tests continue to run on the native `ci-windows.yml` job.
+- **Kiro agent registration completed**: added `.kiro/` to `gitignore_manager.AGENT_DIRECTORIES`, regenerated 11 canonical command baselines under `tests/specify_cli/regression/_twelve_agent_baseline/kiro/`, and updated the four count constants that had drifted after PR #626 (13 slash-command agents, 15 `AGENT_DIRECTORIES` entries).
+- **Auth test fixtures aligned with the hardened HTTP transport** introduced in `Harden SaaS auth and restore build sync emission`. Tests for `AuthorizationCodeFlow`, `TokenRefreshFlow`, `WebSocketTokenProvisioner`, and the browser-login/refresh-transport integration paths now patch `PublicHttpClient` in each flow module's own namespace (matching the production call graph) instead of raw `httpx.AsyncClient`. Network-error paths raise `NetworkError` from the client mock rather than `httpx.ConnectError` to match the new `except NetworkError` contract.
+- **`ResolutionTier` unified across `doctrine.resolver` and `specify_cli.runtime.resolver`**. `specify_cli.runtime.resolver` is now a thin re-export shim, as its own docstring had claimed. Tests assert tier equivalence via `.name` to stay robust against `pytestarch`'s filesystem-walk loader, which can load the same source file under alternate module names during `pytest --import-mode=importlib`.
+- **Post-`unified-charter-bundle-chokepoint` test fixture hardening**: three pre-existing tests (`test_local_support_declarations_end_to_end`, `test_template_prompt_bootstrap_context_first_load`, `test_all_pass_with_healthy_setup`) now `git init` their tmp directories to satisfy the new `resolve_canonical_repo_root` precondition that calls `git rev-parse --git-common-dir`.
+- **Codex / Vibe Agent Skills migration test alignment**: five tests that pre-dated mission 083 were updated to assert the new `.agents/skills/spec-kitty.<cmd>/SKILL.md` layout rather than the retired `.codex/prompts/` layout. Invariants preserved (direct `spec-kitty agent action` CLI calls, per-agent argument handling, agent assets generation); only the probe path changed to match the post-083 architecture.
+- **Contract handoff fixture** updated to include `BuildRegistered` and `BuildHeartbeat` event types added on the emitter side by the SaaS-auth hardening.
+- **Miscellaneous tails**: redacted a dev-machine path literal in an architecture review doc (caught by `test_command_template_cleanliness`); fixed `test_rewrite_shims.py::test_result_counts` to use two slash-command agents since codex is no longer one; marked `test_home_unit.py::TestGetKittifyHomeWindows::test_windows_default_path` `windows_ci` since DRIFT-3 of the Windows Compatibility Hardening mission made `get_kittify_home()` delegate to `specify_cli.paths.get_runtime_root().base`, which the monkeypatch-based simulation no longer drives reliably on non-Windows runners.
+- **Kiro regenerated baselines** for all 12 canonical commands, closing the `tests/specify_cli/regression/test_twelve_agent_parity.py` baseline-missing cluster introduced by PR #626.
+
 ### Added
 
 - **Unified charter bundle manifest v1.0.0** at `src/charter/bundle.py` declaring the three `sync()`-produced derivatives (`governance.yaml`, `directives.yaml`, `metadata.yaml`) as the authoritative bundle contract. `references.yaml` and `context-state.json` are explicitly out of v1.0.0 scope; they are produced by other pipelines.
