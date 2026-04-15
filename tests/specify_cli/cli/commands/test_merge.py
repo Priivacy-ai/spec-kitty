@@ -213,10 +213,11 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     tasks_dir.mkdir(parents=True)
     _write_wp(tasks_dir / "WP01-test.md", reviewed_by="reviewer-1")
 
-    emit_calls: list[dict] = []
+    from specify_cli.status.models import TransitionRequest
+    emit_calls: list[TransitionRequest] = []
 
-    def fake_emit(**kwargs: object) -> None:
-        emit_calls.append(kwargs)
+    def fake_emit(request: TransitionRequest) -> None:
+        emit_calls.append(request)
 
     monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", fake_emit)
     monkeypatch.setattr(
@@ -227,8 +228,8 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
 
     assert len(emit_calls) == 1
-    assert emit_calls[0]["to_lane"] == "done"
-    assert emit_calls[0]["actor"] == "merge"
+    assert emit_calls[0].to_lane == "done"
+    assert emit_calls[0].actor == "merge"
 
 
 def test_mark_wp_merged_done_skips_when_already_done(

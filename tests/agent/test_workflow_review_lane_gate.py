@@ -14,7 +14,7 @@ from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.store import append_event
-from specify_cli.status.models import StatusEvent, Lane
+from specify_cli.status.models import StatusEvent, Lane, TransitionRequest
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 pytestmark = pytest.mark.fast
@@ -218,7 +218,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
 
-    emit_status_transition(
+    emit_status_transition(TransitionRequest(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id="WP01",
@@ -227,7 +227,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
         force=True,
         reason="seed canonical lane",
         repo_root=workflow_repo,
-    )
+    ))
 
     result = CliRunner().invoke(
         workflow.app,

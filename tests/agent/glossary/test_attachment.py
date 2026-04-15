@@ -9,7 +9,7 @@ from specify_cli.glossary.attachment import (
     run_with_glossary,
 )
 from specify_cli.glossary.strictness import Strictness
-from specify_cli.missions.primitives import PrimitiveExecutionContext
+from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
 

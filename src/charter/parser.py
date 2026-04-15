@@ -167,13 +167,12 @@ class CharterParser:
         for line in lines:
             if self.TABLE_ROW_PATTERN.match(line):
                 table_lines.append(line)
-            else:
+            elif table_lines:
                 # Process accumulated table if any
-                if table_lines:
-                    table_data = self._parse_single_table(table_lines)
-                    if table_data:
-                        tables.extend(table_data)
-                    table_lines = []
+                table_data = self._parse_single_table(table_lines)
+                if table_data:
+                    tables.extend(table_data)
+                table_lines = []
 
         # Process final table if any
         if table_lines:

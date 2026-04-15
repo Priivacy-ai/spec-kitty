@@ -10,17 +10,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from charter._drg_helpers import load_validated_graph
-from charter.catalog import load_doctrine_catalog
+from charter.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.reference_resolver import resolve_references_transitively
+from charter.schemas import DirectivesConfig, DoctrineSelectionConfig
 from charter.sync import (
     load_directives_config,
     load_governance_config,
 )
-from doctrine.drg.models import Relation
-from doctrine.drg.query import resolve_transitive_refs
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
     from doctrine.service import DoctrineService
     from charter.interview import CharterInterview
 
@@ -55,6 +53,103 @@ class GovernanceResolution:
     diagnostics: list[str] = field(default_factory=list)
 
 
+def _validate_paradigm_selection(
+    selected_paradigms: list[str],
+    doctrine_catalog: DoctrineCatalog,
+) -> None:
+    """Raise GovernanceResolutionError if any selected paradigm is not in the shipped catalog."""
+    if not selected_paradigms or "paradigms" not in doctrine_catalog.domains_present:
+        return
+    missing = sorted(p for p in selected_paradigms if p not in doctrine_catalog.paradigms)
+    if missing:
+        raise GovernanceResolutionError(
+            [
+                "Charter selected unavailable paradigm(s): " + ", ".join(missing),
+                "Available shipped paradigms: "
+                + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
+                "Update charter selected_paradigms to values present in doctrine/paradigms/shipped/.",
+            ]
+        )
+
+
+def _resolve_tools_selection(
+    doctrine: DoctrineSelectionConfig,
+    available_tools: set[str],
+    diagnostics: list[str],
+) -> tuple[list[str], str]:
+    """Resolve tool list from charter selection or registry fallback."""
+    selected_tools = doctrine.available_tools
+    if selected_tools:
+        missing_tools = sorted(tool for tool in selected_tools if tool not in available_tools)
+        if missing_tools:
+            raise GovernanceResolutionError(
+                [
+                    "Charter selected unavailable tool(s): " + ", ".join(missing_tools),
+                    "Update charter available_tools or register those tools in the runtime tool registry.",
+                ]
+            )
+        return list(selected_tools), "charter"
+
+    diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
+    return sorted(available_tools), "registry_fallback"
+
+
+def _resolve_directives_selection(
+    doctrine: DoctrineSelectionConfig,
+    directives_cfg: DirectivesConfig,
+    doctrine_catalog: DoctrineCatalog,
+) -> tuple[list[str], str]:
+    """Resolve directive list from charter selection, local declarations, or catalog fallback."""
+    local_ids = {d.id for d in directives_cfg.directives}
+    valid_ids = set(local_ids)
+    if doctrine_catalog.directives:
+        valid_ids.update(doctrine_catalog.directives)
+
+    if doctrine.selected_directives:
+        missing = sorted(d for d in doctrine.selected_directives if d not in valid_ids)
+        if missing:
+            raise GovernanceResolutionError(
+                [
+                    "Charter selected unavailable directive(s): " + ", ".join(missing),
+                    "Declare these IDs in directives.yaml or add them to doctrine/directives/shipped/.",
+                ]
+            )
+        return list(doctrine.selected_directives), "charter"
+
+    fallback = (
+        [d.id for d in directives_cfg.directives]
+        if directives_cfg.directives
+        else sorted(doctrine_catalog.directives)
+    )
+    return fallback, "catalog_fallback"
+
+
+def _resolve_template_set_selection(
+    doctrine: DoctrineSelectionConfig,
+    doctrine_catalog: DoctrineCatalog,
+    fallback_template_set: str,
+    diagnostics: list[str],
+) -> tuple[str, str]:
+    """Resolve template set from charter selection or fallback."""
+    if doctrine.template_set:
+        if (
+            "template_sets" in doctrine_catalog.domains_present
+            and doctrine.template_set not in doctrine_catalog.template_sets
+        ):
+            raise GovernanceResolutionError(
+                [
+                    f"Charter selected unavailable template_set: '{doctrine.template_set}'",
+                    "Available template sets: "
+                    + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
+                    "Update charter template_set to a value available in doctrine missions.",
+                ]
+            )
+        return doctrine.template_set, "charter"
+
+    diagnostics.append(f"Template set not selected in charter; fallback '{fallback_template_set}' applied.")
+    return fallback_template_set, "fallback"
+
+
 def resolve_governance(
     repo_root: Path,
     *,
@@ -69,83 +164,14 @@ def resolve_governance(
     diagnostics: list[str] = []
 
     selected_paradigms = list(doctrine.selected_paradigms)
-    if selected_paradigms and "paradigms" in doctrine_catalog.domains_present:
-        missing_paradigms = sorted(p for p in selected_paradigms if p not in doctrine_catalog.paradigms)
-        if missing_paradigms:
-            raise GovernanceResolutionError(
-                [
-                    "Charter selected unavailable paradigm(s): " + ", ".join(missing_paradigms),
-                    "Available shipped paradigms: "
-                    + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
-                    "Update charter selected_paradigms to values present in doctrine/paradigms/shipped/.",
-                ]
-            )
+    _validate_paradigm_selection(selected_paradigms, doctrine_catalog)
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
-    selected_tools = doctrine.available_tools
-    if selected_tools:
-        missing_tools = sorted(tool for tool in selected_tools if tool not in available_tools)
-        if missing_tools:
-            raise GovernanceResolutionError(
-                [
-                    "Charter selected unavailable tool(s): " + ", ".join(missing_tools),
-                    "Update charter available_tools or register those tools in the runtime tool registry.",
-                ]
-            )
-        resolved_tools = list(selected_tools)
-        tools_source = "charter"
-    else:
-        resolved_tools = sorted(available_tools)
-        tools_source = "registry_fallback"
-        diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
-
-    # Local support declarations (directives.yaml entries) are always valid — they
-    # bypass shipped-catalog ID validation since they are free-form Markdown-derived.
-    local_directive_ids = {directive.id for directive in directives_cfg.directives}
-    directive_catalog_ids = set(local_directive_ids)
-    if doctrine_catalog.directives:
-        directive_catalog_ids.update(doctrine_catalog.directives)
-
-    if doctrine.selected_directives:
-        missing_directives = sorted(
-            directive for directive in doctrine.selected_directives if directive not in directive_catalog_ids
-        )
-        if missing_directives:
-            raise GovernanceResolutionError(
-                [
-                    "Charter selected unavailable directive(s): " + ", ".join(missing_directives),
-                    "Declare these IDs in directives.yaml or add them to doctrine/directives/shipped/.",
-                ]
-            )
-        resolved_directives = list(doctrine.selected_directives)
-        directives_source = "charter"
-    else:
-        resolved_directives = (
-            [directive.id for directive in directives_cfg.directives]
-            if directives_cfg.directives
-            else sorted(doctrine_catalog.directives)
-        )
-        directives_source = "catalog_fallback"
-
-    if doctrine.template_set:
-        if (
-            "template_sets" in doctrine_catalog.domains_present
-            and doctrine.template_set not in doctrine_catalog.template_sets
-        ):
-            raise GovernanceResolutionError(
-                [
-                    f"Charter selected unavailable template_set: '{doctrine.template_set}'",
-                    "Available template sets: "
-                    + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
-                    "Update charter template_set to a value available in doctrine missions.",
-                ]
-            )
-        template_set = doctrine.template_set
-        template_set_source = "charter"
-    else:
-        template_set = fallback_template_set
-        template_set_source = "fallback"
-        diagnostics.append(f"Template set not selected in charter; fallback '{template_set}' applied.")
+    resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
+    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog)
+    template_set, template_set_source = _resolve_template_set_selection(
+        doctrine, doctrine_catalog, fallback_template_set, diagnostics
+    )
 
     return GovernanceResolution(
         paradigms=selected_paradigms,
@@ -170,33 +196,8 @@ def resolve_governance_for_profile(
     role: str | None,
     doctrine_service: DoctrineService,
     interview: CharterInterview,
-    *,
-    graph: DRGGraph | None = None,
-    repo_root: Path | None = None,
 ) -> GovernanceResolution:
-    """Resolve governance selections for a specific agent profile.
-
-    Transitive reference resolution walks the Doctrine Reference Graph
-    (DRG) using ``{Relation.REQUIRES, Relation.SUGGESTS}`` seeded from the
-    merged directive URNs, replacing the pre-WP03 legacy transitive
-    resolver path.
-
-    Args:
-        profile_id: Agent profile handle from the shipped agent_profile set.
-        role: Optional role string attached to the resolution.
-        doctrine_service: Doctrine service providing agent-profile lookup.
-        interview: Charter interview selections.
-        graph: Pre-loaded validated DRG graph. When ``None`` and
-            ``repo_root`` is provided, the graph is loaded via
-            :func:`charter._drg_helpers.load_validated_graph`. When both
-            are ``None``, transitive resolution is skipped and the
-            per-kind lists in the return value stay empty (useful for
-            environments that do not ship a DRG overlay yet).
-
-    Returns:
-        :class:`GovernanceResolution` with transitively-resolved tactics,
-        styleguides, toolguides, and procedures populated from the DRG.
-    """
+    """Resolve governance selections for a specific agent profile."""
     normalized_profile_id = profile_id.strip()
     if not normalized_profile_id:
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
@@ -208,40 +209,18 @@ def resolve_governance_for_profile(
 
     profile_directives = [ref.code.strip() for ref in profile.directive_references if ref.code.strip()]
     merged_directives = _merge_unique(profile_directives, interview.selected_directives)
-
-    resolved_graph = graph
-    if resolved_graph is None and repo_root is not None:
-        resolved_graph = load_validated_graph(repo_root)
-
-    tactics: list[str] = []
-    styleguides: list[str] = []
-    toolguides: list[str] = []
-    procedures: list[str] = []
-    diagnostics: list[str] = []
-
-    if resolved_graph is not None and merged_directives:
-        start_urns = {f"directive:{d}" for d in merged_directives}
-        resolution = resolve_transitive_refs(
-            resolved_graph,
-            start_urns=start_urns,
-            relations={Relation.REQUIRES, Relation.SUGGESTS},
-        )
-        tactics = list(resolution.tactics)
-        styleguides = list(resolution.styleguides)
-        toolguides = list(resolution.toolguides)
-        procedures = list(resolution.procedures)
-        diagnostics = [
-            f"Unresolved reference: {src}/{tgt}"
-            for src, tgt in resolution.unresolved
-        ]
+    graph = resolve_references_transitively(merged_directives, doctrine_service)
+    diagnostics = [
+        f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in graph.unresolved
+    ]
 
     return GovernanceResolution(
         paradigms=list(interview.selected_paradigms),
         directives=merged_directives,
-        tactics=tactics,
-        styleguides=styleguides,
-        toolguides=toolguides,
-        procedures=procedures,
+        tactics=list(graph.tactics),
+        styleguides=list(graph.styleguides),
+        toolguides=list(graph.toolguides),
+        procedures=list(graph.procedures),
         tools=list(interview.available_tools),
         template_set=DEFAULT_TEMPLATE_SET,
         metadata={

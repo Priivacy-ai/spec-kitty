@@ -26,6 +26,9 @@ from doctrine.shared.scoping import applies_to_languages_match, normalize_langua
 from .profile import AgentProfile, Role, TaskContext
 from .validation import reject_agent_profile_inline_refs
 
+_MAX_LOW_WORKLOAD = 2
+_MAX_MEDIUM_WORKLOAD = 4
+
 
 def _filter_candidates_by_role(candidates: list[AgentProfile], required_role: str | None) -> list[AgentProfile]:
     """Return candidates matching required_role, or all candidates when role is unset."""
@@ -89,9 +92,9 @@ def _exact_id_signal(context: TaskContext, profile: AgentProfile) -> float:
 
 def _workload_penalty(workload: int) -> float:
     """Return score multiplier based on current workload (DDR-011)."""
-    if workload <= 2:
+    if workload <= _MAX_LOW_WORKLOAD:
         return 1.0
-    if workload <= 4:
+    if workload <= _MAX_MEDIUM_WORKLOAD:
         return 0.85
     return 0.70
 

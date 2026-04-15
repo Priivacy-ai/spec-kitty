@@ -17,12 +17,13 @@ from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.charter.context import build_charter_context
+from charter.context import build_charter_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.models import TransitionRequest
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -655,40 +656,41 @@ def implement(
             # Must follow allowed transitions: planned→claimed→in_progress
             try:
                 from specify_cli.status.emit import emit_status_transition
+                from specify_cli.status.models import TransitionRequest
 
                 _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
                 _actor = agent or "unknown"
 
                 if current_lane == Lane.PLANNED or current_lane == Lane.CANCELED:
                     # Two-step: planned→claimed, claimed→in_progress
-                    emit_status_transition(
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane=Lane.CLAIMED,
                         actor=_actor,
                         execution_mode=status_execution_mode,
-                    )
-                    emit_status_transition(
+                    ))
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                         execution_mode=status_execution_mode,
-                    )
+                    ))
                 elif current_lane == Lane.CLAIMED:
-                    emit_status_transition(
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                         execution_mode=status_execution_mode,
-                    )
+                    ))
                 elif current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
                     # Re-implementing after review — force back to in_progress
-                    emit_status_transition(
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
@@ -697,7 +699,7 @@ def implement(
                         force=True,
                         reason="Re-implementing after review feedback",
                         execution_mode=status_execution_mode,
-                    )
+                    ))
                 # If already in_progress, no event needed
             except Exception as _evt_err:
                 logger.warning("Could not emit status event: %s", _evt_err)
@@ -1404,7 +1406,7 @@ def review(
 
             with feature_status_lock(main_repo_root, mission_slug):
                 # Emit the actual for_review -> in_progress transition
-                emit_status_transition(
+                emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=normalized_wp_id,
@@ -1416,7 +1418,7 @@ def review(
                     workspace_context=f"action-review:{main_repo_root}",
                     execution_mode=status_execution_mode,
                     repo_root=main_repo_root,
-                )
+                ))
 
                 # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
                 wp_content = wp.path.read_text(encoding="utf-8-sig")

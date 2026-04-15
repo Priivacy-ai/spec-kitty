@@ -92,7 +92,7 @@ class Extractor:
             metadata=metadata,
         )
 
-    def _extract_governance(self, sections: list[CharterSection]) -> GovernanceConfig:  # noqa: C901
+    def _extract_governance(self, sections: list[CharterSection]) -> GovernanceConfig:
         """Extract governance configuration from classified sections.
 
         Args:

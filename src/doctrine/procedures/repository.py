@@ -2,22 +2,18 @@
 Procedure repository with two-source loading (shipped + project).
 """
 
-import warnings
 from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
-from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
-
+from doctrine.base import BaseDoctrineRepository
 from .models import Procedure
 from .validation import reject_procedure_inline_refs
 
 
-class ProcedureRepository:
+class ProcedureRepository(BaseDoctrineRepository[Procedure]):
     """Repository for loading and managing procedure YAML files."""
 
     def __init__(
@@ -26,11 +22,11 @@ class ProcedureRepository:
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
-        self._procedures: dict[str, Procedure] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+            active_languages=active_languages,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -43,80 +39,16 @@ class ProcedureRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        """Load procedures from shipped and project directories."""
-        yaml = YAML(typ="safe")
-        shipped: dict[str, Procedure] = {}
+    @property
+    def _schema(self) -> type[Procedure]:
+        return Procedure
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob("*.procedure.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_procedure_inline_refs(data, file_path=str(yaml_file))
-                    procedure = Procedure.model_validate(data)
-                    if not applies_to_languages_match(procedure.applies_to_languages, self._active_languages):
-                        continue
-                    shipped[procedure.id] = procedure
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped procedure {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    @property
+    def _glob(self) -> str:
+        return "*.procedure.yaml"
 
-        self._procedures = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.glob("*.procedure.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_procedure_inline_refs(data, file_path=str(yaml_file))
-                    procedure_id = data.get("id")
-                    if not procedure_id:
-                        warnings.warn(
-                            f"Skipping project procedure {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if procedure_id in shipped:
-                        merged = self._merge_procedures(shipped[procedure_id], data)
-                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                            continue
-                        self._procedures[procedure_id] = merged
-                    else:
-                        procedure = Procedure.model_validate(data)
-                        if not applies_to_languages_match(procedure.applies_to_languages, self._active_languages):
-                            continue
-                        self._procedures[procedure.id] = procedure
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project procedure {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    @staticmethod
-    def _merge_procedures(
-        shipped: Procedure, project_data: dict[str, Any]
-    ) -> Procedure:
-        """Merge project data into shipped procedure at field level."""
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return Procedure.model_validate(merged)
-
-    def list_all(self) -> list[Procedure]:
-        """Return all loaded procedures sorted by ID."""
-        return sorted(self._procedures.values(), key=lambda p: p.id)
-
-    def get(self, procedure_id: str) -> Procedure | None:
-        """Get procedure by ID."""
-        return self._procedures.get(procedure_id)
+    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
+        reject_procedure_inline_refs(data, file_path=str(yaml_file))
 
     def save(self, procedure: Procedure) -> Path:
         """Save procedure to project directory."""
@@ -134,5 +66,5 @@ class ProcedureRepository:
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
 
-        self._procedures[procedure.id] = procedure
+        self._items[procedure.id] = procedure
         return yaml_file

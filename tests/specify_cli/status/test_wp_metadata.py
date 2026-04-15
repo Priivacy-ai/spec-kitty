@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from specify_cli.status.models import AgentAssignment
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
@@ -261,6 +262,93 @@ class TestWPMetadataDisplayTitle:
     def test_strips_whitespace_from_title(self) -> None:
         meta = WPMetadata(work_package_id="WP02", title="  Padded Title  ")
         assert meta.display_title == "Padded Title"
+
+
+class TestWPMetadataResolvedAgent:
+    """Characterization coverage for legacy resolved_agent input shapes."""
+
+    def test_resolved_agent_when_already_agent_assignment(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            agent=AgentAssignment(tool="claude", model="sonnet"),
+        )
+
+        result = meta.resolved_agent()
+
+        assert result.tool == "claude"
+        assert result.model == "sonnet"
+
+    def test_resolved_agent_when_string(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            agent="claude",
+            model="opus",
+        )
+
+        result = meta.resolved_agent()
+
+        assert result.tool == "claude"
+        assert result.model == "opus"
+
+    def test_resolved_agent_when_dict(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            agent={"tool": "cursor", "model": "gpt-4o", "profile_id": "arch"},
+        )
+
+        result = meta.resolved_agent()
+
+        assert result.tool == "cursor"
+        assert result.model == "gpt-4o"
+        assert result.profile_id == "arch"
+
+    def test_resolved_agent_when_none_uses_fallbacks(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            agent=None,
+            model="haiku",
+            agent_profile="architect",
+            role="reviewer",
+        )
+
+        result = meta.resolved_agent()
+
+        assert result.tool == "unknown"
+        assert result.model == "haiku"
+        assert result.profile_id == "architect"
+        assert result.role == "reviewer"
+
+    def test_resolved_agent_when_empty_dict_uses_fallbacks(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            agent={},
+            model="haiku",
+            agent_profile="architect",
+            role="reviewer",
+        )
+
+        result = meta.resolved_agent()
+
+        assert result.tool == "unknown"
+        assert result.model == "haiku"
+        assert result.profile_id == "architect"
+        assert result.role == "reviewer"
+
+    def test_resolved_agent_when_empty_string_uses_fallbacks(self) -> None:
+        meta = WPMetadata(
+            work_package_id="WP01",
+            agent="",
+            model="haiku",
+            agent_profile="architect",
+            role="reviewer",
+        )
+
+        result = meta.resolved_agent()
+
+        assert result.tool == "unknown"
+        assert result.model == "haiku"
+        assert result.profile_id == "architect"
+        assert result.role == "reviewer"
 
 
 class TestWPMetadataFrozen:

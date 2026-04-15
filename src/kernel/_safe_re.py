@@ -38,15 +38,17 @@ from __future__ import annotations
 import re as _stdlib_re
 import sys
 import types
-from collections.abc import Iterator
 from contextlib import suppress
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 __all__ = ["re", "is_re2_active"]
 
 # ── RE2 import (hard dependency — fails loudly if google-re2 not installed) ──
 
-import re2 as _re2_mod  # type: ignore[import-untyped]  # noqa: E402
-
+import re2 as _re2_mod  # noqa: E402
 
 # ── Inline-flag prefix map ───────────────────────────────────────────────────
 # RE2 does not expose re.MULTILINE / re.DOTALL etc. as integer constants.

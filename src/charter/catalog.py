@@ -192,6 +192,8 @@ def _load_yaml_id_catalog(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
+        include_proposed: Whether `_proposed/` artifacts should be included in
+                  addition to `shipped/` artifacts. Defaults to shipped-only.
     """
     ids, _ = _load_yaml_id_catalog_with_presence(
         directory,
@@ -203,46 +205,22 @@ def _load_yaml_id_catalog(
     return ids
 
 
-def _load_yaml_id_catalog_with_presence(
-    directory: Path,
+def _collect_ids_from_roots(
+    scan_roots: list[Path],
     pattern: str,
-    *,
-    id_field: str = "id",
-    include_proposed: bool = False,
+    id_field: str,
     active_languages: list[str] | tuple[str, ...] | None = None,
-) -> tuple[set[str], bool]:
-    """Load ID values from doctrine YAML files, also reporting domain presence.
-
-    Returns:
-        Tuple of (ids, present) where ``present`` is ``True`` when the artifact
-        directory exists and has a recognisable ``shipped/`` or flat layout.
-        A ``True`` ``present`` value with an empty id set means the shipped
-        catalog is explicitly empty — every selection against this domain is
-        invalid.  A ``False`` ``present`` value means the domain is not
-        deployed in this install and validation should be skipped.
+) -> set[str]:
+    """Collect artifact IDs from one or more scan roots.
 
     Args:
-        directory: Artifact root directory to search.
-        pattern: Glob pattern (supports ``**`` for recursive search).
-        id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
-                  Use ``"profile-id"`` for agent profile files.
+        scan_roots: Directories to scan (shipped/ and/or _proposed/).
+        pattern: Glob pattern for artifact files (supports ``**``).
+        id_field: YAML key containing the artifact ID.
+
+    Returns:
+        Set of discovered IDs (falls back to stem when YAML id_field is absent).
     """
-    if not directory.is_dir():
-        return set(), False
-
-    shipped_dir = directory / "shipped"
-    proposed_dir = directory / "_proposed"
-    if shipped_dir.is_dir() or proposed_dir.is_dir():
-        # Structured layout: domain is present regardless of content.
-        present = True
-        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
-        if include_proposed and proposed_dir.is_dir():
-            scan_roots.append(proposed_dir)
-    else:
-        # Preserve generic helper behavior for tests or flat directories.
-        present = True
-        scan_roots = [directory]
-
     yaml = YAML(typ="safe")
     ids: set[str] = set()
     for scan_root in scan_roots:
@@ -268,6 +246,69 @@ def _load_yaml_id_catalog_with_presence(
             if fallback:
                 ids.add(fallback)
 
+    return ids
+
+
+def _resolve_scan_roots(
+    directory: Path,
+    *,
+    include_proposed: bool,
+) -> tuple[list[Path], bool]:
+    """Determine which subdirectories to scan and whether the domain is present.
+
+    Returns:
+        Tuple of (scan_roots, present).  ``present`` is ``True`` whenever the
+        shipped/ or _proposed/ subdirectory exists, or the directory itself is
+        a valid flat layout.
+    """
+    shipped_dir = directory / "shipped"
+    proposed_dir = directory / "_proposed"
+    if shipped_dir.is_dir() or proposed_dir.is_dir():
+        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
+        if include_proposed and proposed_dir.is_dir():
+            scan_roots.append(proposed_dir)
+        return scan_roots, True
+
+    # Preserve generic helper behavior for tests or flat directories.
+    return [directory], True
+
+
+def _load_yaml_id_catalog_with_presence(
+    directory: Path,
+    pattern: str,
+    *,
+    id_field: str = "id",
+    include_proposed: bool = False,
+    active_languages: list[str] | tuple[str, ...] | None = None,
+) -> tuple[set[str], bool]:
+    """Load ID values from doctrine YAML files, also reporting domain presence.
+
+    Returns:
+        Tuple of (ids, present) where ``present`` is ``True`` when the artifact
+        directory exists and has a recognisable ``shipped/`` or flat layout.
+        A ``True`` ``present`` value with an empty id set means the shipped
+        catalog is explicitly empty — every selection against this domain is
+        invalid.  A ``False`` ``present`` value means the domain is not
+        deployed in this install and validation should be skipped.
+
+    Args:
+        directory: Artifact root directory to search.
+        pattern: Glob pattern (supports ``**`` for recursive search).
+        id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
+                  Use ``"profile-id"`` for agent profile files.
+        include_proposed: Whether `_proposed/` artifacts should be included in
+                  addition to ``shipped/`` artifacts. Defaults to shipped-only.
+    """
+    if not directory.is_dir():
+        return set(), False
+
+    scan_roots, present = _resolve_scan_roots(directory, include_proposed=include_proposed)
+    ids = _collect_ids_from_roots(
+        scan_roots,
+        pattern,
+        id_field,
+        active_languages,
+    )
     return ids, present
 
 

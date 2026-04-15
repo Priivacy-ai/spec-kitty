@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, ClassVar, Optional
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
@@ -264,7 +265,7 @@ class StatusSnapshot:
     mission_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return with_tracked_mission_slug_aliases(
+        result: dict[str, Any] = with_tracked_mission_slug_aliases(
             {
                 **mission_identity_fields(
                     self.mission_slug,
@@ -278,6 +279,7 @@ class StatusSnapshot:
                 "summary": self.summary,
             }
         )
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:
@@ -323,3 +325,59 @@ class AgentAssignment:
     model: str
     profile_id: Optional[str] = None
     role: Optional[str] = None
+
+
+@dataclass
+class TransitionRequest:
+    """All inputs for a single status transition.
+
+    Consolidates the 19 parameters of ``emit_status_transition`` into one
+    typed object so call sites are self-documenting and the function
+    signature stays stable as new fields are added.
+    """
+
+    # Mission identity
+    feature_dir: Path | None = None
+    mission_dir: Path | None = None
+    mission_slug: str | None = None
+    _legacy_mission_slug: str | None = None
+    repo_root: Path | None = None
+    # Transition target
+    wp_id: str | None = None
+    to_lane: str | None = None
+    force: bool = False
+    reason: str | None = None
+    # Actor
+    actor: str | None = None
+    execution_mode: str = "worktree"
+    # Evidence
+    evidence: dict[str, Any] | None = None
+    review_ref: str | None = None
+    review_result: Any = None
+    # Guard hints (callers may pre-compute these; emit derives them otherwise)
+    workspace_context: str | None = None
+    subtasks_complete: bool | None = None
+    implementation_evidence_present: bool | None = None
+    policy_metadata: dict[str, Any] | None = None
+
+
+@dataclass
+class GuardContext:
+    """Inputs required by guard condition evaluators.
+
+    Consolidates the 10 keyword-only parameters shared between
+    ``validate_transition`` and ``_run_guard`` so guard functions
+    receive a single typed context object instead of an expanding
+    keyword list.
+    """
+
+    actor: str | None = None
+    workspace_context: str | None = None
+    subtasks_complete: bool | None = None
+    implementation_evidence_present: bool | None = None
+    reason: str | None = None
+    review_ref: str | None = None
+    evidence: Any = None
+    force: bool = False
+    review_result: Any = None
+    current_actor: str | None = None

@@ -200,25 +200,31 @@ def current_cmd(
             )
             if missions:
                 console.print("\n[cyan]Available missions:[/cyan]")
-                for mission_slug in missions[:10]:
-                    console.print(f"  - {mission_slug}")
+                for slug in missions[:10]:
+                    console.print(f"  - {slug}")
                 if len(missions) > 10:
                     console.print(f"  ... and {len(missions) - 10} more")
         raise typer.Exit(1)
 
-    try:
-        resolved = resolve_selector(
-            canonical_value=mission or detected_mission,
-            canonical_flag="--mission",
-            alias_value=feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        )
-        mission_slug = resolved.canonical_value
-    except typer.BadParameter as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
+    mission_slug: str
+    if mission is None and feature is None:
+        # Neither flag was explicitly provided — use auto-detected mission as-is.
+        # (We already exited above when detected_mission was also None.)
+        mission_slug = detected_mission  # type: ignore[assignment]
+    else:
+        try:
+            resolved = resolve_selector(
+                canonical_value=mission,
+                canonical_flag="--mission",
+                alias_value=feature,
+                alias_flag="--feature",
+                suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+                command_hint="--mission <slug>",
+            )
+            mission_slug = resolved.canonical_value
+        except typer.BadParameter as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
 
     try:
         feature_dir = project_root / "kitty-specs" / mission_slug

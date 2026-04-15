@@ -17,7 +17,7 @@ from specify_cli.glossary.pipeline import (
     create_standard_pipeline,
 )
 from specify_cli.glossary.strictness import Strictness
-from specify_cli.missions.primitives import PrimitiveExecutionContext
+from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
 
@@ -841,7 +841,7 @@ class TestExecuteWithGlossaryProductionHook:
     def test_execute_with_glossary_runs_pipeline(self, tmp_path):
         """execute_with_glossary() calls the glossary pipeline before the
         primitive function runs."""
-        from specify_cli.missions.glossary_hook import execute_with_glossary
+        from specify_cli.missions import execute_with_glossary
 
         (tmp_path / ".kittify").mkdir()
 
@@ -865,7 +865,7 @@ class TestExecuteWithGlossaryProductionHook:
     def test_execute_with_glossary_skips_when_disabled(self, tmp_path):
         """When glossary_check is disabled, the pipeline is skipped but the
         primitive still runs."""
-        from specify_cli.missions.glossary_hook import execute_with_glossary
+        from specify_cli.missions import execute_with_glossary
 
         (tmp_path / ".kittify").mkdir()
 
@@ -886,7 +886,7 @@ class TestExecuteWithGlossaryProductionHook:
     def test_execute_with_glossary_propagates_blocked_by_conflict(self, tmp_path):
         """BlockedByConflict from the pipeline propagates through
         execute_with_glossary."""
-        from specify_cli.missions.glossary_hook import execute_with_glossary
+        from specify_cli.missions import execute_with_glossary
 
         _create_seed_file(
             tmp_path,
@@ -1209,7 +1209,7 @@ class TestExecuteWithGlossaryEndToEnd:
         the pipeline, clarification resolves the conflict, and the primitive
         function executes successfully.
         """
-        from specify_cli.missions.glossary_hook import execute_with_glossary
+        from specify_cli.missions import execute_with_glossary
 
 
         self._setup_ambiguous_workspace(tmp_path)

@@ -22,7 +22,7 @@ from specify_cli.glossary.pipeline import (
     create_standard_pipeline,
 )
 from specify_cli.glossary.strictness import Strictness
-from specify_cli.missions.primitives import PrimitiveExecutionContext
+from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
@@ -1122,7 +1122,7 @@ class TestProductionCodePath:
 
     def test_full_e2e_production_specify_clarify_proceed(self, tmp_path, monkeypatch):
         """Full production path: hook -> pipeline -> clarify -> primitive."""
-        from specify_cli.missions.glossary_hook import execute_with_glossary
+        from specify_cli.missions import execute_with_glossary
 
         _setup_multi_scope_repo(tmp_path)
 
@@ -1179,7 +1179,7 @@ class TestProductionCodePath:
 
     def test_production_path_disabled_skips_pipeline_runs_primitive(self, tmp_path):
         """When glossary is disabled, the primitive still runs."""
-        from specify_cli.missions.glossary_hook import execute_with_glossary
+        from specify_cli.missions import execute_with_glossary
 
 
         _setup_multi_scope_repo(tmp_path)

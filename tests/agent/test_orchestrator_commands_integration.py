@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
+from specify_cli.status.models import TransitionRequest
 
 import pytest
 
@@ -73,36 +74,35 @@ def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, act
     """Helper to emit a status event directly."""
     from specify_cli.status.emit import emit_status_transition
 
+    slug = mission_dir.parent.parent.name + "-" + mission_dir.name
     if to_lane == "in_progress" and from_lane == "planned":
-        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name, wp_id, "claimed", actor)
-        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name, wp_id, "in_progress", actor)
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=slug, wp_id=wp_id, to_lane="claimed", actor=actor))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     else:
-        emit_status_transition(
-            mission_dir,
-            mission_dir.parent.parent.name + "-" + mission_dir.name,
-            wp_id,
-            to_lane,
-            actor,
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=slug,
+            wp_id=wp_id,
+            to_lane=to_lane,
+            actor=actor,
+        ))
 
 
 def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, actor: str = "test") -> None:
     """Transition a WP all the way to done."""
     from specify_cli.status.emit import emit_status_transition
-
-    emit_status_transition(mission_dir, mission_slug, wp_id, "claimed", actor)
-    emit_status_transition(mission_dir, mission_slug, wp_id, "in_progress", actor)
-    emit_status_transition(mission_dir, mission_slug, wp_id, "for_review", actor)
-    emit_status_transition(mission_dir, mission_slug, wp_id, "in_review", actor)
-
     from specify_cli.status.models import ReviewResult
 
-    emit_status_transition(
-        mission_dir,
-        mission_slug,
-        wp_id,
-        "done",
-        actor,
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="claimed", actor=actor))
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
+    emit_status_transition(TransitionRequest(
+        feature_dir=mission_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane="done",
+        actor=actor,
         evidence={
             "review": {
                 "reviewer": "reviewer-agent",
@@ -115,7 +115,7 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
             verdict="approved",
             reference="review-001",
         ),
-    )
+    ))
 
 
 # ── contract-version ──────────────────────────────────────────────
@@ -144,7 +144,7 @@ class TestMissionState:
         # Emit one transition
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "test-actor")
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="test-actor"))
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -220,8 +220,8 @@ class TestListReady:
 
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "test")
-        emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "test")
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="test"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="test"))
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -308,8 +308,8 @@ class TestStartImplementation:
         # First put WP01 in_progress as claude
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "claude")
-        emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "claude")
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="claude"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="claude"))
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -342,7 +342,7 @@ class TestStartImplementation:
         # Put WP01 in claimed state as "other-agent"
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "other-agent")
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="other-agent"))
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -404,9 +404,9 @@ class TestStartReview:
         # Put WP01 in for_review state
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "claude")
-        emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "claude")
-        emit_status_transition(mission_dir, mission_slug, "WP01", "for_review", "claude")
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="claude"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="claude"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="for_review", actor="claude"))
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -561,9 +561,9 @@ class TestTransition:
             )
 
         assert result.exit_code == 0, result.output
-        kwargs = emit_mock.call_args.kwargs
-        assert kwargs["subtasks_complete"] is True
-        assert kwargs["implementation_evidence_present"] is True
+        req = emit_mock.call_args.args[0]
+        assert req.subtasks_complete is True
+        assert req.implementation_evidence_present is True
 
     def test_transition_passes_done_evidence_to_status_emit(self, tmp_path):
         repo_root, _ = _make_mission(tmp_path, "099-test-feature")
@@ -600,9 +600,9 @@ class TestTransition:
             )
 
         assert result.exit_code == 0, result.output
-        kwargs = emit_mock.call_args.kwargs
-        assert kwargs["review_ref"] == "review-001"
-        assert kwargs["evidence"] == {
+        req = emit_mock.call_args.args[0]
+        assert req.review_ref == "review-001"
+        assert req.evidence == {
             "review": {
                 "reviewer": "reviewer",
                 "verdict": "approved",
@@ -1127,8 +1127,8 @@ class TestSuffixedWPFilenames:
 
         repo_root, mission_dir = _make_mission_with_suffixed_wps(tmp_path)
         # Put WP07 in_progress so we can cancel it
-        emit_status_transition(mission_dir, "040-test-mission", "WP07", "claimed", "claude")
-        emit_status_transition(mission_dir, "040-test-mission", "WP07", "in_progress", "claude")
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug="040-test-mission", wp_id="WP07", to_lane="claimed", actor="claude"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug="040-test-mission", wp_id="WP07", to_lane="in_progress", actor="claude"))
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",

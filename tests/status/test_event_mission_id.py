@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane, ULID_PATTERN, StatusEvent
+from specify_cli.status.models import Lane, StatusEvent, TransitionRequest, ULID_PATTERN
 from specify_cli.status.store import EVENTS_FILENAME, read_events
 
 pytestmark = pytest.mark.fast
@@ -370,13 +370,13 @@ class TestRoundTripMissionId:
         feature_dir = feature_dir_with_meta
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="claude",
-            )
+            ))
 
         events = read_events(feature_dir)
         # Filter to the WP01 claimed transition (bootstrap may already exist)
@@ -393,13 +393,13 @@ class TestRoundTripMissionId:
         feature_dir = feature_dir_with_meta
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="claude",
-            )
+            ))
 
         events = read_events(feature_dir)
         claimed_events = [e for e in events if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]
@@ -420,13 +420,13 @@ class TestRoundTripMissionId:
         feature_dir = feature_dir_with_meta
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="claude",
-            )
+            ))
 
         events_path = feature_dir / EVENTS_FILENAME
         raw_lines = events_path.read_text(encoding="utf-8").strip().splitlines()
@@ -456,13 +456,13 @@ class TestRoundTripMissionId:
         expected_slug = meta["mission_slug"]
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="claude",
-            )
+            ))
 
         events = read_events(feature_dir)
         claimed_events = [e for e in events if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]
@@ -486,13 +486,13 @@ class TestRoundTripMissionId:
         (feature_dir / "meta.json").write_text(json.dumps(meta_without_id), encoding="utf-8")
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="claude",
-            )
+            ))
 
         events = read_events(feature_dir)
         claimed_events = [e for e in events if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]

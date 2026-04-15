@@ -10,8 +10,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from specify_cli.charter.context import build_charter_context
-from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
+from charter.context import build_charter_context
+from charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.status.wp_metadata import read_wp_frontmatter

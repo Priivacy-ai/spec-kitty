@@ -52,6 +52,7 @@ def _get_recovery_transitions(current_lane: Lane) -> list[Lane]:
     Returns an empty list when no recovery transition is possible.
     """
     from specify_cli.status.transitions import validate_transition
+    from specify_cli.status.models import GuardContext
 
     # Ordered progression that recovery may advance through, capped at ceiling
     _PROGRESSION = [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS]
@@ -70,8 +71,7 @@ def _get_recovery_transitions(current_lane: Lane) -> list[Lane]:
         ok, _err = validate_transition(
             from_lane.value,
             target.value,
-            actor=RECOVERY_ACTOR,
-            workspace_context="recovery",
+            GuardContext(actor=RECOVERY_ACTOR, workspace_context="recovery"),
         )
         if ok:
             result.append(target)
@@ -187,10 +187,10 @@ def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return Lane(state.get("lane", Lane.PLANNED)).value
+                return str(Lane(state.get("lane", Lane.PLANNED)).value)
     except Exception:
         logger.debug("Could not read status events for %s in %s", wp_id, feature_dir)
-    return Lane.PLANNED.value
+    return str(Lane.PLANNED.value)
 
 
 def _find_wp_ids_for_lane(
@@ -218,7 +218,7 @@ def _find_mission_branch(feature_dir: Path) -> str:
 
         manifest = read_lanes_json(feature_dir)
         if manifest is not None:
-            return manifest.mission_branch
+            return str(manifest.mission_branch)
     except Exception:
         logger.debug("Could not read mission branch from %s", feature_dir)
     return ""
@@ -254,7 +254,7 @@ def _read_wp_dependencies(feature_dir: Path, wp_id: str) -> list[str]:
         if wp_id_re.match(md_file.name):
             try:
                 from specify_cli.core.dependency_graph import parse_wp_dependencies
-                return parse_wp_dependencies(md_file)
+                return list(parse_wp_dependencies(md_file))
             except Exception:
                 logger.debug("Could not parse dependencies from %s", md_file)
             break
@@ -614,6 +614,7 @@ def reconcile_status(
     Returns the number of transitions emitted.
     """
     from specify_cli.status.emit import emit_status_transition
+    from specify_cli.status.models import TransitionRequest
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     current_lane = state.status_lane
@@ -637,7 +638,7 @@ def reconcile_status(
     emitted = 0
     for next_lane in transitions:
         try:
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=mission_slug,
                 wp_id=state.wp_id,
@@ -647,7 +648,7 @@ def reconcile_status(
                 + (" with commits" if state.has_commits else ""),
                 execution_mode="worktree",
                 repo_root=repo_root,
-            )
+            ))
             emitted += 1
         except Exception:
             break

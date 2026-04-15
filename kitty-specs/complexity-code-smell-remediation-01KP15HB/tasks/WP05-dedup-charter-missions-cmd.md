@@ -9,12 +9,17 @@ requirement_refs:
 planning_base_branch: feat/complexity-debt-remediation
 merge_target_branch: feat/complexity-debt-remediation
 branch_strategy: Planning artifacts for this feature were generated on feat/complexity-debt-remediation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/complexity-debt-remediation unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-complexity-code-smell-remediation-01KP15HB
+base_commit: ecc87e37bb5b84835324bad96d0e3992f5d43276
+created_at: '2026-04-15T06:31:50.615470+00:00'
 subtasks:
 - T026
 - T027
 - T028
 - T029
 - T030
+shell_pid: "291734"
+agent: "claude"
 history:
 - date: '2026-04-13'
   action: created
@@ -100,11 +105,22 @@ The `src/charter/` canonical module has all the same exports plus additional fil
 (`defaults.yaml`, `reference_resolver.py`, `template_resolver.py`). No behaviour changes
 are expected from redirecting to the canonical module.
 
-**IMPORTANT (C-002, pre-existing)**: This WP must not touch `src/specify_cli/charter/`
-files that are scope of WP03 (extractor.py, resolver.py, compiler.py, context.py, parser.py).
-WP05 only handles deletion of the deprecated `specify_cli/charter/` copies; WP03 handles
-refactoring the canonical `src/charter/` implementations. These are separate concerns on
-separate branches. Do not merge WP05 into the same lane as WP03.
+**IMPORTANT (C-002, pre-existing — now resolved)**: WP05 must not *modify* WP03-owned files
+(extractor.py, resolver.py, compiler.py, context.py, parser.py). Deletion is fine and is
+exactly what T027 does. WP03 is approved; the constraint no longer restricts WP05.
+
+**Post-rebase adjustments (2026-04-15)**:
+
+1. `src/specify_cli/charter/sync.py` is already a thin re-export of `charter.sync` —
+   the `unified-charter-bundle-chokepoint` mission on main completed that part of T027.
+   T027 Step 1 only needs to write `__init__.py`; `sync.py` still must be deleted in
+   Step 2 (it becomes redundant once `__init__.py` is the comprehensive re-export).
+
+2. `src/specify_cli/charter/_drg_helpers.py` was added by the
+   `excise-doctrine-curation-and-inline-references` mission after this WP was planned.
+   It has no external callers (per its docstring) and imports `resolve_doctrine_root`
+   from `specify_cli.charter.catalog` — which will be deleted. Add `_drg_helpers.py`
+   to the T027 Step 2 deletion list.
 
 ### Missions shim chain
 
@@ -281,6 +297,7 @@ __all__ = [
 **Step 2 — Delete internal files** (after verifying `__init__.py` imports cleanly):
 
 Delete these files from `src/specify_cli/charter/`:
+- `_drg_helpers.py` *(added post-plan by excise-doctrine-curation mission; no callers)*
 - `catalog.py`
 - `compiler.py`
 - `context.py`
@@ -291,7 +308,7 @@ Delete these files from `src/specify_cli/charter/`:
 - `parser.py`
 - `resolver.py`
 - `schemas.py`
-- `sync.py`
+- `sync.py` *(already a thin re-export after main rebase; redundant once __init__.py is comprehensive)*
 
 **Do NOT delete `__init__.py`** (required by C-005).
 
@@ -419,3 +436,10 @@ pytest tests/ -x --timeout=120
 4. Run `python -c "from specify_cli.charter import GovernanceConfig, resolve_governance; print('ok')"` — must print `ok`.
 5. Run `python -c "from specify_cli.missions import PrimitiveExecutionContext; print('ok')"` — must print `ok`.
 6. Confirm `mission.py` is ≤ 10 lines and contains only the shim.
+
+## Activity Log
+
+- 2026-04-15T06:31:50Z – claude – shell_pid=232007 – Assigned agent via action command
+- 2026-04-15T18:04:46Z – claude – shell_pid=232007 – Ready for review: all subtasks done, 11827+ tests passing, zero ruff violations on owned files, mypy clean, all baseline failures pre-existing
+- 2026-04-15T18:05:03Z – claude – shell_pid=291734 – Started review via action command
+- 2026-04-15T18:43:48Z – claude – shell_pid=291734 – Review passed: C-005 shim works, C-006 shim works, mission.py is 10-line shim, zero submodule imports from deleted files, mypy clean, 5220 fast tests pass (4 pre-existing failures unrelated to WP05)

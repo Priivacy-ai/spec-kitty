@@ -36,11 +36,11 @@
 | T023 | Replace magic workload thresholds `2`, `4` with named constants in `agent_profiles/repository.py` | WP04 | [P] trivial |
 | T024 | Fix TC003, PTH105, PTH108 violations in `kernel/atomic.py`; TC003 in `glossary_runner.py`; I001+TC003 in `_safe_re.py` | WP04 | [P] independent |
 | T025 | Quality gate: ruff + mypy + pytest green on WP04 | WP04 | — |
-| T026 | Redirect 2 external callers from `specify_cli.charter.*` submodule imports to `charter.*` (workflow.py handled by WP01/T031) | WP05 | — |
-| T027 | Convert `specify_cli/charter/__init__.py` to re-export shim; delete all internal `.py` files | WP05 | — |
-| T028 | Flatten `specify_cli/missions/` shim chain: update `__init__.py` to import from `doctrine.missions`; delete `primitives.py` and `glossary_hook.py` | WP05 | [P] independent of T026 |
-| T029 | Make `mission.py` a thin shim re-exporting `app` from `mission_type.py` | WP05 | [P] independent |
-| T030 | Quality gate: ruff + mypy + pytest green on WP05 | WP05 | — |
+| T026 | Redirect 2 external callers from `specify_cli.charter.*` submodule imports to `charter.*` (workflow.py handled by WP01/T031) | WP05 | — | [D] |
+| T027 | Convert `specify_cli/charter/__init__.py` to re-export shim; delete all internal `.py` files | WP05 | — | [D] |
+| T028 | Flatten `specify_cli/missions/` shim chain: update `__init__.py` to import from `doctrine.missions`; delete `primitives.py` and `glossary_hook.py` | WP05 | [P] independent of T026 | [D] |
+| T029 | Make `mission.py` a thin shim re-exporting `app` from `mission_type.py` | WP05 | [P] independent | [D] |
+| T030 | Quality gate: ruff + mypy + pytest green on WP05 | WP05 | — | [D] |
 | T031 | Guard `workflow.py` call to `top_level_implement()` against OptionInfo leakage; redirect charter import; add programmatic regression test (#571) | WP01 | [P] independent of T001–T006 | [D] |
 | T032 | Characterize and decompose S3776-violating functions in `src/charter/catalog.py` (#594) | WP03 | — | [D] |
 
@@ -228,11 +228,11 @@ repositories.
 
 #### Included subtasks
 
-- [ ] T026 Redirect 2 external callers from `specify_cli.charter.*` to `charter.*` (workflow.py handled by WP01/T031) (WP05)
-- [ ] T027 Convert `specify_cli/charter/__init__.py` to re-export shim; delete internal `.py` files (WP05)
-- [ ] T028 Flatten `specify_cli/missions/` shim chain (WP05)
-- [ ] T029 Make `mission.py` a thin shim (WP05)
-- [ ] T030 Quality gate: ruff + mypy + pytest green on WP05 (WP05)
+- [x] T026 Redirect 2 external callers from `specify_cli.charter.*` to `charter.*` (workflow.py handled by WP01/T031) (WP05)
+- [x] T027 Convert `specify_cli/charter/__init__.py` to re-export shim; delete internal `.py` files (WP05)
+- [x] T028 Flatten `specify_cli/missions/` shim chain (WP05)
+- [x] T029 Make `mission.py` a thin shim (WP05)
+- [x] T030 Quality gate: ruff + mypy + pytest green on WP05 (WP05)
 
 #### Implementation sketch
 

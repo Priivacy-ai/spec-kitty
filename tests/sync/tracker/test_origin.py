@@ -88,7 +88,6 @@ def _setup_feature(
         "mission_number": "061",
         "slug": mission_slug,
         "mission_slug": mission_slug,
-        "mission_id": "01KNRQK0R1ZDS8Z57M1TRXF001",
         "friendly_name": "add clerk auth",
         "mission_type": "software-dev",
         "target_branch": "main",
@@ -499,7 +498,6 @@ class TestBindMissionOrigin:
 
         mock_emitter.emit_mission_origin_bound.assert_called_once_with(
             mission_slug="061-add-clerk-auth",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="linear",
             external_issue_id="issue-uuid-1",
             external_issue_key="WEB-123",

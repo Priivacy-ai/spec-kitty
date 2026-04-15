@@ -8,22 +8,18 @@ Provides:
 - Save for project tactics
 """
 
-import warnings
 from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
-from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
-
+from doctrine.base import BaseDoctrineRepository
 from .models import Tactic
 from .validation import reject_tactic_inline_refs
 
 
-class TacticRepository:
+class TacticRepository(BaseDoctrineRepository[Tactic]):
     """Repository for loading and managing tactic YAML files."""
 
     def __init__(
@@ -32,11 +28,11 @@ class TacticRepository:
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
-        self._tactics: dict[str, Tactic] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+            active_languages=active_languages,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -49,80 +45,16 @@ class TacticRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        """Load tactics from shipped and project directories."""
-        yaml = YAML(typ="safe")
-        shipped: dict[str, Tactic] = {}
+    @property
+    def _schema(self) -> type[Tactic]:
+        return Tactic
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob("*.tactic.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_tactic_inline_refs(data, file_path=str(yaml_file))
-                    tactic = Tactic.model_validate(data)
-                    if not applies_to_languages_match(tactic.applies_to_languages, self._active_languages):
-                        continue
-                    shipped[tactic.id] = tactic
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped tactic {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    @property
+    def _glob(self) -> str:
+        return "*.tactic.yaml"
 
-        self._tactics = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.glob("*.tactic.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_tactic_inline_refs(data, file_path=str(yaml_file))
-                    tactic_id = data.get("id")
-                    if not tactic_id:
-                        warnings.warn(
-                            f"Skipping project tactic {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if tactic_id in shipped:
-                        merged = self._merge_tactics(shipped[tactic_id], data)
-                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                            continue
-                        self._tactics[tactic_id] = merged
-                    else:
-                        tactic = Tactic.model_validate(data)
-                        if not applies_to_languages_match(tactic.applies_to_languages, self._active_languages):
-                            continue
-                        self._tactics[tactic.id] = tactic
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project tactic {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    @staticmethod
-    def _merge_tactics(
-        shipped: Tactic, project_data: dict[str, Any]
-    ) -> Tactic:
-        """Merge project data into shipped tactic at field level."""
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return Tactic.model_validate(merged)
-
-    def list_all(self) -> list[Tactic]:
-        """Return all loaded tactics sorted by ID."""
-        return sorted(self._tactics.values(), key=lambda t: t.id)
-
-    def get(self, tactic_id: str) -> Tactic | None:
-        """Get tactic by ID (kebab-case, e.g. 'zombies-tdd')."""
-        return self._tactics.get(tactic_id)
+    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
+        reject_tactic_inline_refs(data, file_path=str(yaml_file))
 
     def save(self, tactic: Tactic) -> Path:
         """Save tactic to project directory.
@@ -148,5 +80,5 @@ class TacticRepository:
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
 
-        self._tactics[tactic.id] = tactic
+        self._items[tactic.id] = tactic
         return yaml_file

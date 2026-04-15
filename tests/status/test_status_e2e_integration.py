@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 from specify_cli.status.emit import TransitionError, emit_status_transition
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, materialize_to_json
 from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_raw
 from specify_cli.status.validate import (
@@ -66,28 +66,28 @@ class TestE2EFullPipeline:
         repo_root = feature_dir.parent.parent
 
         # Emit transitions for WP01 through the lifecycle
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
-        emit_status_transition(
+        ))
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="in_progress", actor="agent-1",
             repo_root=repo_root,
-        )
-        emit_status_transition(
+        ))
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="for_review", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Emit a transition for WP02
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP02", to_lane="claimed", actor="agent-2",
             repo_root=repo_root,
-        )
+        ))
 
         # Verify event count
         events = read_events(feature_dir)
@@ -126,11 +126,11 @@ class TestE2EEmitInvalidTransition:
 
         # planned -> for_review is not a legal transition
         with pytest.raises(TransitionError) as exc_info:
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir, mission_slug=slug,
                 wp_id="WP01", to_lane="for_review", actor="agent-1",
                 repo_root=repo_root,
-            )
+            ))
 
         assert "Illegal transition" in str(exc_info.value)
 
@@ -148,19 +148,19 @@ class TestE2EEmitInvalidTransition:
         repo_root = feature_dir.parent.parent
 
         # Valid transition
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Invalid transition (claimed -> done is not allowed)
         with pytest.raises(TransitionError):
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir, mission_slug=slug,
                 wp_id="WP01", to_lane="done", actor="agent-1",
                 repo_root=repo_root,
-            )
+            ))
 
         # Only the valid event should exist
         events = read_events(feature_dir)
@@ -177,13 +177,13 @@ class TestE2EEmitForceTransition:
         repo_root = feature_dir.parent.parent
 
         # planned -> done is illegal normally
-        event = emit_status_transition(
+        event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="done", actor="admin",
             force=True,
             reason="Emergency closure for abandoned work",
             repo_root=repo_root,
-        )
+        ))
 
         assert event.force is True
         assert event.to_lane == Lane.DONE
@@ -200,13 +200,13 @@ class TestE2EEmitForceTransition:
         repo_root = feature_dir.parent.parent
 
         with pytest.raises(TransitionError) as exc_info:
-            emit_status_transition(
+            emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir, mission_slug=slug,
                 wp_id="WP01", to_lane="done", actor="admin",
                 force=True,
                 # No reason provided
                 repo_root=repo_root,
-            )
+            ))
 
         assert "require" in str(exc_info.value).lower()
 
@@ -219,11 +219,11 @@ class TestE2EJsonOutputFormat:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Read raw JSON from disk
         raw_json = (feature_dir / SNAPSHOT_FILENAME).read_text(encoding="utf-8")
@@ -262,16 +262,16 @@ class TestE2EMaterializeIdempotent:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
-        emit_status_transition(
+        ))
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP02", to_lane="claimed", actor="agent-2",
             repo_root=repo_root,
-        )
+        ))
 
         # First materialize
         snapshot1 = materialize(feature_dir)

@@ -1,13 +1,13 @@
 {
+  "change_mode": "not_bulk_edit",
   "created_at": "2026-04-12T15:39:03.191338+00:00",
   "friendly_name": "Complexity and Code Smell Remediation",
-  "source_description": "Issue #264 — tech-debt: refactor high-complexity functions suppressed with # noqa: C901. Informed by Sonar project analysis (15,596 cognitive complexity, 557 smells). Analysis: work/development/complexity-analysis-2026-04-12.md.",
-  "vcs": "git",
   "mission_id": "01KP15HBKQH3EAK44QEAJBV4Q5",
-  "mission_number": null,
+  "mission_number": 85,
   "mission_slug": "complexity-code-smell-remediation-01KP15HB",
   "mission_type": "software-dev",
   "slug": "complexity-code-smell-remediation-01KP15HB",
+  "source_description": "Issue #264 — tech-debt: refactor high-complexity functions suppressed with # noqa: C901. Informed by Sonar project analysis (15,596 cognitive complexity, 557 smells). Analysis: work/development/complexity-analysis-2026-04-12.md.",
   "target_branch": "feat/complexity-debt-remediation",
-  "change_mode": "not_bulk_edit"
+  "vcs": "git"
 }

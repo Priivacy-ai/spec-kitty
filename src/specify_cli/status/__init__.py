@@ -9,12 +9,14 @@ WP state. No frontmatter reads or writes occur in this module.
 from .models import (
     AgentAssignment,
     DoneEvidence,
+    GuardContext,
     Lane,
     RepoEvidence,
     ReviewApproval,
     ReviewResult,
     StatusEvent,
     StatusSnapshot,
+    TransitionRequest,
     ULID_PATTERN,
     VerificationResult,
     get_all_lanes,
@@ -88,6 +90,8 @@ from .validate import (
 __all__ = [
     "AgentAssignment",
     "ALLOWED_TRANSITIONS",
+    "GuardContext",
+    "TransitionRequest",
     "CanonicalStatusNotFoundError",
     "DEFAULT_LANE_WEIGHTS",
     "InvalidTransitionError",

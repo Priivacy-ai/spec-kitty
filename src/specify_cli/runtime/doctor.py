@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.charter.resolver import (
+from charter.resolver import (
     GovernanceResolutionError,
     resolve_governance,
 )
@@ -172,7 +172,7 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
 _VERSION_MARKER_HEAD_LINES = 15
 
 
-def check_command_file_health(project_path: Path) -> list[dict]:
+def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
     """Check all agent command files for correctness.
 
     For each configured agent and each of the 16 consumer commands, this
@@ -220,7 +220,7 @@ def check_command_file_health(project_path: Path) -> list[dict]:
             stem = stem.replace("-", "_")
         return f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
 
-    issues: list[dict] = []
+    issues: list[dict[str, str]] = []
     agent_dirs = get_agent_dirs_for_project(project_path)
 
     for agent_root, subdir in agent_dirs:

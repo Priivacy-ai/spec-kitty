@@ -201,8 +201,9 @@ def emit(
             TransitionError,
             emit_status_transition,
         )
+        from specify_cli.status.models import TransitionRequest
 
-        event = emit_status_transition(
+        event = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
@@ -217,7 +218,7 @@ def emit(
             implementation_evidence_present=implementation_evidence_present,
             execution_mode=execution_mode,
             repo_root=main_repo_root,
-        )
+        ))
 
         # Build result
         result = {

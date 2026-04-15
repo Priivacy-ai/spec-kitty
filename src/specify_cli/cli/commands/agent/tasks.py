@@ -22,7 +22,7 @@ from specify_cli.sync.events import (
 )
 
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
@@ -1425,7 +1425,7 @@ def move_task(
                         verdict=review_section.get("verdict", Lane.APPROVED),
                         reference=review_section.get("reference", f"auto-forward:{task_id}"),
                     )
-                event = emit_status_transition(
+                event = emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=task_id,
@@ -1440,7 +1440,7 @@ def move_task(
                     implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                     repo_root=main_repo_root,
                     review_result=hop_review_result,
-                )
+                ))
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
 

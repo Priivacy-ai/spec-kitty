@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.status.models import DoneEvidence, ReviewApproval, ReviewResult
+from specify_cli.status.models import DoneEvidence, GuardContext, ReviewApproval, ReviewResult
 from specify_cli.status.transitions import (
     ALLOWED_TRANSITIONS,
     CANONICAL_LANES,
@@ -158,7 +158,7 @@ class TestLegalTransitions:
         to_lane: str,
         kwargs: dict,
     ) -> None:
-        ok, error = validate_transition(from_lane, to_lane, **kwargs)
+        ok, error = validate_transition(from_lane, to_lane, GuardContext(**kwargs))
         assert ok is True, f"Expected ok for {from_lane}->{to_lane}: {error}"
         assert error is None
 
@@ -193,7 +193,7 @@ class TestIllegalTransitions:
         ],
     )
     def test_illegal_transition_rejected(self, from_lane: str, to_lane: str) -> None:
-        ok, error = validate_transition(from_lane, to_lane)
+        ok, error = validate_transition(from_lane, to_lane, GuardContext())
         assert ok is False
         assert error is not None
         assert "Illegal transition" in error
@@ -204,29 +204,27 @@ class TestForceOverride:
         ok, error = validate_transition(
             "done",
             "planned",
-            force=True,
-            actor="admin",
-            reason="reopening",
+            GuardContext(force=True, actor="admin", reason="reopening"),
         )
         assert ok is True
         assert error is None
 
     def test_force_without_actor_rejected(self) -> None:
-        ok, error = validate_transition("done", "planned", force=True, reason="reopening")
+        ok, error = validate_transition("done", "planned", GuardContext(force=True, reason="reopening"))
         assert ok is False
         assert "actor and reason" in error
 
     def test_force_without_reason_rejected(self) -> None:
-        ok, error = validate_transition("done", "planned", force=True, actor="admin")
+        ok, error = validate_transition("done", "planned", GuardContext(force=True, actor="admin"))
         assert ok is False
         assert "actor and reason" in error
 
     def test_force_with_empty_actor_rejected(self) -> None:
-        ok, error = validate_transition("done", "planned", force=True, actor="", reason="reopening")
+        ok, error = validate_transition("done", "planned", GuardContext(force=True, actor="", reason="reopening"))
         assert ok is False
 
     def test_force_with_empty_reason_rejected(self) -> None:
-        ok, error = validate_transition("done", "planned", force=True, actor="admin", reason="")
+        ok, error = validate_transition("done", "planned", GuardContext(force=True, actor="admin", reason=""))
         assert ok is False
 
     def test_force_on_legal_transition_bypasses_guards(self) -> None:
@@ -234,9 +232,7 @@ class TestForceOverride:
         ok, error = validate_transition(
             "in_review",
             "done",
-            force=True,
-            actor="admin",
-            reason="emergency override",
+            GuardContext(force=True, actor="admin", reason="emergency override"),
         )
         assert ok is True
         assert error is None
@@ -244,23 +240,23 @@ class TestForceOverride:
 
 class TestGuardConditions:
     def test_actor_required_for_claim(self) -> None:
-        ok, error = validate_transition("planned", "claimed")
+        ok, error = validate_transition("planned", "claimed", GuardContext())
         assert ok is False
         assert "actor" in error.lower()
 
     def test_actor_required_for_claim_empty_string(self) -> None:
-        ok, error = validate_transition("planned", "claimed", actor="")
+        ok, error = validate_transition("planned", "claimed", GuardContext(actor=""))
         assert ok is False
 
     def test_review_result_for_in_review_to_in_progress(self) -> None:
         """in_review -> in_progress requires review_result."""
-        ok, error = validate_transition("in_review", "in_progress")
+        ok, error = validate_transition("in_review", "in_progress", GuardContext())
         assert ok is False
         assert "review_result" in error.lower()
 
     def test_review_result_for_in_review_to_planned(self) -> None:
         """in_review -> planned requires review_result."""
-        ok, error = validate_transition("in_review", "planned")
+        ok, error = validate_transition("in_review", "planned", GuardContext())
         assert ok is False
         assert "review_result" in error.lower()
 
@@ -268,7 +264,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_review",
             "planned",
-            review_result=ReviewResult(reviewer="r", verdict="changes_requested", reference="feedback://1"),
+            GuardContext(review_result=ReviewResult(reviewer="r", verdict="changes_requested", reference="feedback://1")),
         )
         assert ok is True
         assert error is None
@@ -277,7 +273,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_review",
             "planned",
-            review_result=ReviewResult(reviewer="", verdict="changes_requested", reference="feedback://1"),
+            GuardContext(review_result=ReviewResult(reviewer="", verdict="changes_requested", reference="feedback://1")),
         )
         assert ok is False
         assert "reviewer" in error.lower()
@@ -286,14 +282,14 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_review",
             "planned",
-            review_result=ReviewResult(reviewer="r", verdict="changes_requested", reference="   "),
+            GuardContext(review_result=ReviewResult(reviewer="r", verdict="changes_requested", reference="   ")),
         )
         assert ok is False
         assert "reference" in error.lower()
 
     def test_review_result_for_in_review_to_approved(self) -> None:
         """in_review -> approved requires review_result."""
-        ok, error = validate_transition("in_review", "approved")
+        ok, error = validate_transition("in_review", "approved", GuardContext())
         assert ok is False
         assert "review_result" in error.lower()
 
@@ -301,12 +297,12 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_review",
             "approved",
-            review_result=ReviewResult(reviewer="r", verdict="approved", reference="PR#42"),
+            GuardContext(review_result=ReviewResult(reviewer="r", verdict="approved", reference="PR#42")),
         )
         assert ok is True
 
     def test_workspace_context_required_for_claimed_to_in_progress(self) -> None:
-        ok, error = validate_transition("claimed", "in_progress")
+        ok, error = validate_transition("claimed", "in_progress", GuardContext())
         assert ok is False
         assert "workspace context" in error.lower()
 
@@ -314,7 +310,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "claimed",
             "in_progress",
-            workspace_context="worktree:/tmp/wt1",
+            GuardContext(workspace_context="worktree:/tmp/wt1"),
         )
         assert ok is True
 
@@ -322,7 +318,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_progress",
             "for_review",
-            implementation_evidence_present=True,
+            GuardContext(implementation_evidence_present=True),
         )
         assert ok is False
         assert "completed subtasks" in error.lower()
@@ -331,7 +327,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_progress",
             "for_review",
-            subtasks_complete=True,
+            GuardContext(subtasks_complete=True),
         )
         assert ok is False
         assert "implementation evidence" in error.lower()
@@ -340,18 +336,17 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "in_progress",
             "for_review",
-            subtasks_complete=True,
-            implementation_evidence_present=True,
+            GuardContext(subtasks_complete=True, implementation_evidence_present=True),
         )
         assert ok is True
 
     def test_reason_required_for_abandon(self) -> None:
-        ok, error = validate_transition("in_progress", "planned")
+        ok, error = validate_transition("in_progress", "planned", GuardContext())
         assert ok is False
         assert "reason" in error.lower()
 
     def test_reason_for_abandon_provided(self) -> None:
-        ok, error = validate_transition("in_progress", "planned", reason="reassigning to other agent")
+        ok, error = validate_transition("in_progress", "planned", GuardContext(reason="reassigning to other agent"))
         assert ok is True
 
     def test_conflict_detection_rejects_double_claim(self) -> None:
@@ -359,8 +354,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "for_review",
             "in_review",
-            actor="reviewer-B",
-            current_actor="reviewer-A",
+            GuardContext(actor="reviewer-B", current_actor="reviewer-A"),
         )
         assert ok is False
         assert "already claimed" in error.lower()
@@ -370,8 +364,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "for_review",
             "in_review",
-            actor="reviewer-A",
-            current_actor="reviewer-A",
+            GuardContext(actor="reviewer-A", current_actor="reviewer-A"),
         )
         assert ok is True
 
@@ -380,7 +373,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "for_review",
             "in_review",
-            actor="reviewer-A",
+            GuardContext(actor="reviewer-A"),
         )
         assert ok is True
 
@@ -390,8 +383,7 @@ class TestAliasInTransitions:
         ok, error = validate_transition(
             "doing",
             "for_review",
-            subtasks_complete=True,
-            implementation_evidence_present=True,
+            GuardContext(subtasks_complete=True, implementation_evidence_present=True),
         )
         assert ok is True
 
@@ -399,23 +391,23 @@ class TestAliasInTransitions:
         ok, error = validate_transition(
             "claimed",
             "doing",
-            workspace_context="worktree:/tmp/wt1",
+            GuardContext(workspace_context="worktree:/tmp/wt1"),
         )
         assert ok is True
 
     def test_doing_alias_both_lanes(self) -> None:
         # doing -> doing means in_progress -> in_progress — not a legal transition
-        ok, error = validate_transition("doing", "doing")
+        ok, error = validate_transition("doing", "doing", GuardContext())
         assert ok is False
 
 
 class TestUnknownLanes:
     def test_unknown_from_lane(self) -> None:
-        ok, error = validate_transition("nonexistent", "planned")
+        ok, error = validate_transition("nonexistent", "planned", GuardContext())
         assert ok is False
         assert "Unknown lane" in error
 
     def test_unknown_to_lane(self) -> None:
-        ok, error = validate_transition("planned", "nonexistent")
+        ok, error = validate_transition("planned", "nonexistent", GuardContext())
         assert ok is False
         assert "Unknown lane" in error

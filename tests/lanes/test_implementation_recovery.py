@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.status.models import TransitionRequest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.recovery import (
     RECOVERY_ACTOR,
@@ -387,20 +388,20 @@ class TestStatusReconciliation:
         # First, emit events to get to in_progress
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="010-feat",
             wp_id="WP01",
             to_lane="claimed",
             actor="test",
-        )
-        emit_status_transition(
+        ))
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="010-feat",
             wp_id="WP01",
             to_lane="in_progress",
             actor="test",
-        )
+        ))
 
         state = RecoveryState(
             wp_id="WP01",
@@ -459,13 +460,13 @@ class TestStatusReconciliation:
         # Get to claimed first
         from specify_cli.status.emit import emit_status_transition
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="010-feat",
             wp_id="WP01",
             to_lane="claimed",
             actor="test",
-        )
+        ))
 
         state = RecoveryState(
             wp_id="WP01",

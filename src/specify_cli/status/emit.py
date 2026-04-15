@@ -38,10 +38,12 @@ from .wp_metadata import read_wp_frontmatter
 
 from .models import (
     DoneEvidence,
+    GuardContext,
     Lane,
     RepoEvidence,
     ReviewApproval,
     StatusEvent,
+    TransitionRequest,
     VerificationResult,
 )
 from .transitions import resolve_lane_alias, validate_transition
@@ -251,7 +253,6 @@ def _legacy_alias_collapses_to_current_lane(
     normalized = raw_lane.strip().lower()
     return normalized != resolved_lane and resolved_lane == from_lane
 
-
 def emit_status_transition(
     feature_dir: Path | None = None,
     _legacy_mission_slug: str | None = None,
@@ -370,15 +371,17 @@ def emit_status_transition(
     ok, error_msg = validate_transition(
         from_lane,
         resolved_lane,
-        force=force,
-        actor=actor,
-        workspace_context=workspace_context,
-        subtasks_complete=subtasks_complete,
-        implementation_evidence_present=implementation_evidence_present,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=done_evidence,
-        review_result=review_result,
+        GuardContext(
+            force=force,
+            actor=actor,
+            workspace_context=workspace_context,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
+            reason=reason,
+            review_ref=review_ref,
+            evidence=done_evidence,
+            review_result=review_result,
+        ),
     )
     if not ok:
         raise TransitionError(error_msg)

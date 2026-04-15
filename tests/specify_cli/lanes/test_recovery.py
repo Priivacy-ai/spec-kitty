@@ -22,7 +22,7 @@ from specify_cli.lanes.recovery import (
     reconcile_status,
     scan_recovery_state,
 )
-from specify_cli.status.models import Lane
+from specify_cli.status.models import GuardContext, Lane
 from specify_cli.status.transitions import validate_transition
 
 pytestmark = pytest.mark.fast
@@ -122,13 +122,17 @@ def test_canceled_lane_has_no_recovery_transitions() -> None:
 def test_recovery_transitions_align_with_canonical_matrix() -> None:
     """Recovery transitions must be a subset of ALLOWED_TRANSITIONS."""
     # planned -> claimed must be in the canonical matrix
-    ok_pc, _ = validate_transition(Lane.PLANNED.value, Lane.CLAIMED.value,
-                                    actor=RECOVERY_ACTOR, workspace_context="recovery")
+    ok_pc, _ = validate_transition(
+        Lane.PLANNED.value, Lane.CLAIMED.value,
+        GuardContext(actor=RECOVERY_ACTOR, workspace_context="recovery"),
+    )
     assert ok_pc, "planned -> claimed must be in canonical transition matrix"
 
     # claimed -> in_progress must be in the canonical matrix
-    ok_ci, _ = validate_transition(Lane.CLAIMED.value, Lane.IN_PROGRESS.value,
-                                    actor=RECOVERY_ACTOR, workspace_context="recovery")
+    ok_ci, _ = validate_transition(
+        Lane.CLAIMED.value, Lane.IN_PROGRESS.value,
+        GuardContext(actor=RECOVERY_ACTOR, workspace_context="recovery"),
+    )
     assert ok_ci, "claimed -> in_progress must be in canonical transition matrix"
 
 
