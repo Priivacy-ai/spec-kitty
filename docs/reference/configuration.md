@@ -330,7 +330,7 @@ agents:
 - [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Command syntax and options
 - [ADR #6: Config-Driven Agent Management](../../architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
 
-> **Legacy behavior**: Projects without `agents.available` field default to all 12 agents for backward compatibility. To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
+> **Legacy behavior**: Projects without `agents.available` field default to the full slash-command agent set for backward compatibility (currently 13 agent keys in the active CLI surface). To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
 
 ### Managing Agents
 
@@ -446,7 +446,7 @@ Selected agents are stored in `config.yaml` and their directories are created au
 
 - **Upgrades only process configured agents** - If you remove an agent, upgrades won't recreate it
 - **Deleted agents stay deleted** - Manual deletions are respected
-- **Legacy projects fallback gracefully** - Projects without `config.yaml` process all 12 agents
+- **Legacy projects fallback gracefully** - Projects without `config.yaml` process the full supported slash-command agent set
 
 This ensures your agent preferences are preserved across upgrades.
 
@@ -492,8 +492,10 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [CLI Commands](cli-commands.md) — Command reference including `--vcs` flag
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## Practical Usage
+
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)

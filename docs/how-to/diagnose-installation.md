@@ -8,7 +8,7 @@ the runtime reports errors -- use this guide to identify the problem and recover
 Start every investigation with `verify-setup`:
 
 ```bash
-spec-kitty verify-setup-setup
+spec-kitty verify-setup
 ```
 
 The output is divided into three sections:
@@ -34,13 +34,13 @@ The output is divided into three sections:
 To get machine-readable output for scripting or agent consumption:
 
 ```bash
-spec-kitty verify-setup-setup --json
+spec-kitty verify-setup --json
 ```
 
 For extended diagnostics including dashboard health:
 
 ```bash
-spec-kitty verify-setup-setup --diagnostics
+spec-kitty verify-setup --diagnostics
 ```
 
 ---
@@ -62,7 +62,7 @@ root cause, and recovery steps.
 **Recovery:**
 
 ```bash
-spec-kitty init --here
+spec-kitty init . --ai <your-agent>
 ```
 
 This regenerates the skill root and all skill files from the canonical
@@ -82,7 +82,7 @@ deleted or `spec-kitty init` was interrupted before wrapper files were written.
 **Recovery:**
 
 ```bash
-spec-kitty init --here
+spec-kitty agent config sync --create-missing
 ```
 
 This regenerates wrapper files for every configured agent.
@@ -102,7 +102,7 @@ leave partially resolved content in skill files.
 **Recovery:**
 
 ```bash
-spec-kitty init --here
+spec-kitty upgrade
 ```
 
 This overwrites drifted files with canonical content and updates the manifest
@@ -132,7 +132,7 @@ repository root.
 2. Re-initialize:
 
    ```bash
-   spec-kitty init --here
+   spec-kitty init . --ai <your-agent>
    ```
 
 ---
@@ -203,7 +203,7 @@ write operation was interrupted mid-file.
 
    ```bash
    rm .kittify/config.yaml
-   spec-kitty init --here
+   spec-kitty init . --ai <your-agent>
    ```
 
 3. If you had custom settings (e.g., a non-default agent list), restore them
@@ -287,14 +287,14 @@ would be affected before executing a sync with orphan removal.
 
 | Problem | Recovery command |
 |---------|----------------|
-| Missing skill files | `spec-kitty init --here` |
-| Missing wrapper root | `spec-kitty init --here` |
-| Missing skill root | `spec-kitty init --here` |
-| Manifest drift | `spec-kitty init --here` |
-| Runtime not found | `cd "$(git rev-parse --show-toplevel)" && spec-kitty init --here` |
+| Missing skill files | `spec-kitty agent config sync --create-missing` |
+| Missing wrapper root | `spec-kitty agent config sync --create-missing` |
+| Missing skill root | `spec-kitty init . --ai <your-agent>` |
+| Manifest drift | `spec-kitty upgrade` |
+| Runtime not found | `cd "$(git rev-parse --show-toplevel)" && spec-kitty init . --ai <your-agent>` |
 | Dashboard not starting | `spec-kitty dashboard` |
 | Stale agent config | `spec-kitty agent config sync` |
-| Corrupted config | `cp .kittify/config.yaml .kittify/config.yaml.bak && rm .kittify/config.yaml && spec-kitty init --here` |
+| Corrupted config | `cp .kittify/config.yaml .kittify/config.yaml.bak && rm .kittify/config.yaml && spec-kitty init . --ai <your-agent>` |
 | Broken worktree | `git worktree prune && spec-kitty agent action implement WP01 --agent <name>` |
 
 ## See Also

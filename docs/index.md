@@ -11,19 +11,16 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Latest Release: 3.1.0
+## Latest Release: 3.1.4
 
-Spec Kitty 3.1.0 (released 2026-04-07) stabilises planning and execution reliability and adds recovery workflows. Key changes:
+Spec Kitty 3.1.4 (released 2026-04-15) rounds out the `3.1.x` line with runtime, auth, charter, and command-surface cleanup. Key changes across `3.1.1` through `3.1.4`:
 
-- **Read-only commands no longer dirty the git tree** — `status`, `next` (query mode), and `dashboard` leave `git status --porcelain` clean
-- **`wps.yaml` manifest** — structured dependency source eliminates prose-parser lane corruption; `finalize-tasks` derives deps from YAML, `tasks.md` becomes a generated artifact
-- **`spec-kitty next` query mode** — `spec-kitty next --mission <slug>` is the read-only query form; fresh runs return `mission_state: not_started` plus `preview_step`, and the command does not advance the state machine
-- **Execution resilience** — `merge --resume`, `implement --recover`, `doctor` for stale-claim diagnostics
-- **Planning-artifact work packages** — planning-artifact execution runs in repository root outside the lane graph rather than in a lane worktree
-- **Stale status JSON** — the canonical shape now uses a nested `stale` object; temporary flat stale fields remain as a compatibility surface during the transition
-- **Review resilience** — versioned review-cycle artifacts, focused fix prompts, dirty-state classification
-- **Charter** — `spec-kitty charter` replaces `spec-kitty constitution`; auto-migrated by `spec-kitty upgrade`
-- **`--mission`** — canonical flag everywhere; `--feature` retained only as a hidden deprecated alias during migration
+- **Runtime loop is now the primary mental model** — `spec-kitty next` remains the canonical driver, and query mode is safe and read-only
+- **Hosted auth and SaaS sync are first-class** — browser-based `spec-kitty auth login`, explicit hosted rollout gating, and clearer tracker readiness checks
+- **13 slash-command agents are supported** — including first-class Kiro support while retaining legacy `q` compatibility
+- **Review and merge resilience improved again** — persisted review-cycle artifacts, focused fix prompts, sparse-checkout preflights, and `spec-kitty doctor sparse-checkout --fix`
+- **Charter bundle is a validated contract** — `spec-kitty charter bundle validate` checks the canonical charter outputs and worktrees now resolve them from the main checkout
+- **Generated command prompts were cleaned up in 3.1.3/3.1.4** — `charter`, `specify`, `plan`, `implement`, `review`, and `merge` now teach the actual mission/runtime flow instead of stale shim-era guidance
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 

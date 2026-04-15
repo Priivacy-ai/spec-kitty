@@ -55,13 +55,13 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 | **Live project visibility** | Local dashboard for kanban and mission progress (`spec-kitty dashboard`) |
 | **Review resilience** | Persisted versioned review artifacts, focused fix prompts, dirty-state classification, and arbiter checklists |
 | **Execution resilience** | Interrupted merge recovery (`merge --resume`), crash recovery (`implement --recover`), stale-claim diagnostics (`doctor`) |
-| **Multi-agent support** | Template and command generation for 14 AI agent integrations |
+| **Multi-agent support** | Template and command generation for 13 slash-command AI agent integrations |
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
     <a href="docs/tutorials/claude-code-integration.md"><strong>Claude Code Guide</strong></a> •
     <a href="#-real-time-dashboard">Live Dashboard</a> •
-    <a href="#-supported-ai-tools">14 AI Tools</a> •
+    <a href="#-supported-ai-tools">13 AI Agents</a> •
     <a href="https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md">Full Docs</a>
 </p>
 
@@ -95,28 +95,27 @@ graph LR
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=for-the-badge)](https://www.python.org/downloads/)
 
-[![AI Tools](https://img.shields.io/badge/AI_Tools-12_Supported-brightgreen?style=for-the-badge)](#-supported-ai-tools)
+[![AI Tools](https://img.shields.io/badge/AI_Tools-13_Supported-brightgreen?style=for-the-badge)](#-supported-ai-tools)
 [![Dashboard](https://img.shields.io/badge/Dashboard-Kanban-orange?style=for-the-badge)](#-real-time-dashboard)
 [![Workflow](https://img.shields.io/badge/Workflow-Spec--Plan--Tasks-6c757d?style=for-the-badge)](#-getting-started-complete-workflow)
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current release 3.1.4 on `main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v3.1.x` (current release: `3.1.4` on `main`, GitHub Releases, and PyPI)
 
-**3.1.0 highlights:**
-- **Planning integrity** — read-only status commands no longer dirty the git tree; `spec-kitty next` without `--result` is a safe query-only operation
-- **Structured WP manifest** — new `wps.yaml` format is the primary dependency source for `finalize-tasks`, eliminating prose-parser corruption of lane assignments
-- **Review resilience** — focused fix prompts (~40 lines vs 400+), persisted versioned `review-cycle-N.md` artifacts, dirty-state classification, baseline test context, and arbiter checklists
-- **Execution resilience** — `merge --resume` recovers interrupted merges; `implement --recover` handles crash recovery; `doctor` diagnoses stale claims and zombie worktrees
-- **Tasks stabilization** — dependency preservation, lane-graph completeness, parallelism protection, and consistent `--mission` flag naming across all commands
-- **Merge strategy** — MERGE / SQUASH / REBASE via `--strategy` flag or `config.yaml`; linear-history protection hint on push failures
-- **Charter** — `spec-kitty charter` replaces `spec-kitty constitution` across all surfaces; auto-migrated by `spec-kitty upgrade`
-- **Mission identity** — `--mission` is now the canonical flag; `--feature` is retained only as a hidden deprecated alias during migration
+**3.1.x highlights:**
+- **Runtime loop is the primary workflow** — `spec-kitty next` drives implementation and review, and omitting `--result` is a safe query-only mode
+- **Review and merge resilience** — focused fix prompts, persisted `review-cycle-N.md` artifacts, `merge --resume`, `implement --recover`, and stronger recovery diagnostics in `doctor`
+- **Hosted auth and sync are first-class** — browser-based `spec-kitty auth login`, explicit SaaS rollout gating, and clearer tracker/discovery readiness checks
+- **Charter bundle is now a validated contract** — bundle health can be checked with `spec-kitty charter bundle validate`, and worktrees read canonical charter outputs from the main checkout
+- **Sparse-checkout failures are defended in depth** — merge/implement preflights fail closed, `safe_commit` rejects out-of-scope staging, and `spec-kitty doctor sparse-checkout --fix` repairs legacy repos
+- **13 slash-command agents are supported** — including first-class Kiro support while retaining legacy `q` compatibility during the rebrand
+- **Slash-command wording is cleaner in 3.1.3/3.1.4** — generated `specify`, `plan`, `implement`, `review`, and `merge` prompts now teach the canonical mission/runtime flow instead of stale command shims
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
 [Examples](#-examples) •
-[12 AI Tools](#-supported-ai-tools) •
+[13 AI Agents](#-supported-ai-tools) •
 [CLI Reference](#-spec-kitty-cli-reference) •
 [Worktrees](#-worktree-strategy) •
 [Troubleshooting](#-troubleshooting)
@@ -208,7 +207,7 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
-The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port <PORT>` (defaults to auto-select from 3000-5000), or stop it cleanly with `--kill`.
+Start the dashboard when you want it with `/spec-kitty.dashboard` or `spec-kitty dashboard`. The CLI starts the correct project dashboard if it is not already running, lets you request a specific port with `--port <PORT>` (defaults to auto-select from `3000-5000`), can open the browser for you with `--open`, and stops the instance cleanly with `--kill`.
 
 **Key Features:**
 - 📋 **Kanban Board**: Visual workflow across canonical lifecycle lanes (including `blocked` and `canceled`) with `Doing` rendered as `in_progress`
@@ -324,7 +323,7 @@ The upgrade command automatically migrates your project structure across version
 | **0.6.7** | Ensure software-dev and research missions present                   |
 | **0.6.5** | Rename commands/ → command-templates/                               |
 | **0.5.0** | Install encoding validation git hooks                               |
-| **0.4.8** | Add all 12 AI agent tooling directories to .gitignore               |
+| **0.4.8** | Add supported agent tooling directories to `.gitignore`             |
 | **0.2.0** | Rename .specify/ → .kittify/ and /specs/ → /kitty-specs/            |
 
 > Run `spec-kitty upgrade --verbose` to see which migrations apply to your project.
@@ -563,7 +562,7 @@ These directories may contain:
 Spec Kitty automatically protects you with multiple layers:
 
 **During `spec-kitty init`:**
-- ✅ Adds all 12 agent directories to `.gitignore`
+- ✅ Adds supported agent directories to `.gitignore`
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
 
 **Worktree Charter Sharing:**
@@ -725,7 +724,7 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 
 ## 🤖 Supported AI Tools
 
-Spec Kitty integrates with 15 AI tools. Thirteen tools receive **slash commands** written to an agent-specific directory (e.g. `.claude/commands/`). Two tools — Codex CLI and Mistral Vibe — use the **Agent Skills** pipeline: Spec Kitty installs command skills once under `.agents/skills/spec-kitty.<command>/`, Codex reads that shared tree directly, and Vibe is wired to it through project-local `.vibe/config.toml` `skill_paths`.
+Spec Kitty integrates with 14 AI tools. Thirteen tools receive project-local **slash commands or prompt files** written to an agent-specific directory (for example `.claude/commands/` or `.codex/prompts/`). One tool — Mistral Vibe — uses the **Agent Skills** pipeline: Spec Kitty installs shared skills once under `.agents/skills/spec-kitty.<command>/`, and Vibe discovers them through project-local `.vibe/config.toml` `skill_paths`.
 
 | Tool                                                      | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
@@ -739,7 +738,7 @@ Spec Kitty integrates with 15 AI tools. Thirteen tools receive **slash commands*
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
-| [Codex CLI](https://github.com/openai/codex)              | ✅ | Agent Skills under `.agents/skills/`. |
+| [Codex CLI](https://github.com/openai/codex)              | ✅ | Project-local prompts under `.codex/prompts/`. |
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | ✅ | Agent Skills under `.agents/skills/`, registered through `.vibe/config.toml` `skill_paths`. |
 | [Kiro CLI](https://kiro.dev/docs/cli/) (formerly Amazon Q Developer CLI) | ✅ | Saved-prompt arguments work via `$ARGUMENTS`, but the full invocation must be shell-quoted (e.g. `kiro '@speckit.specify my description'`). See [kirodotdev/Kiro#4141](https://github.com/kirodotdev/Kiro/issues/4141). |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) (legacy) | ⚠️ | Legacy surface retained as `q`; rebranded to Kiro CLI, and custom arguments are still unsupported. |
@@ -747,42 +746,37 @@ Spec Kitty integrates with 15 AI tools. Thirteen tools receive **slash commands*
 <details>
 <summary><h2>🔧 Spec Kitty CLI Reference</h2></summary>
 
-The `spec-kitty` command supports the following options. Every run begins with a discovery interview, so be prepared to answer follow-up questions before files are touched.
+The `spec-kitty` command supports the following user-facing commands. Planning commands begin with guided interviews, so be prepared to answer follow-up questions before files are touched.
 
 ### Commands
 
-| Command     | Description                                                    |
-|-------------|----------------------------------------------------------------|
-| `init`      | Initialize a new Spec Kitty project from templates |
-| `upgrade`   | **Upgrade project structure to current version** (run after updating spec-kitty-cli) |
-| `repair`    | **Repair broken template installations** (fixes bash script references from v0.10.0-0.10.8) |
-| `accept`    | Validate mission readiness before merging to main |
-| `check`     | Check that required tooling is available |
-| `dashboard` | Open or stop the Spec Kitty dashboard |
-| `diagnostics` | Show project health and diagnostics information |
-| `merge`     | Merge a completed feature branch into main and clean up resources |
-| `orchestrator-api` | Host contract for external orchestrators (JSON envelope interface) |
-| `research`  | Execute Phase 0 research workflow to scaffold artifacts |
-| `verify-setup` | Verify that the current environment matches Spec Kitty expectations |
+| Command | Description |
+|---------|-------------|
+| `init` | Initialize a new Spec Kitty project scaffold |
+| `specify` | Create a mission scaffold under `kitty-specs/` |
+| `plan` | Scaffold `plan.md` for a mission |
+| `tasks` | Finalize work-package metadata after task planning |
+| `next` | Decide and emit the next runtime action for an agent |
+| `accept` | Validate mission readiness before merging |
+| `merge` | Merge a completed mission and clean up lane worktrees |
+| `dashboard` | Start, inspect, or stop the Spec Kitty dashboard |
+| `upgrade` | Upgrade a project to the current CLI/project contract |
+| `verify-setup` | Verify tooling, mission files, and environment health |
+| `doctor` | Run project health diagnostics and recovery checks |
+| `auth` | Authenticate against the Spec Kitty SaaS surface |
+| `charter` | Manage charter generation, sync, and validation |
+| `tracker` | Task-tracker commands and hosted discovery flows |
+| `orchestrator-api` | Host contract for external orchestrators |
 
 ### `spec-kitty init` Arguments & Options
 
-| Argument/Option        | Type     | Description                                                                  |
-|------------------------|----------|------------------------------------------------------------------------------|
-| `<project-name>`       | Argument | Name for your new project directory (omit to initialize in the current directory, same as `--here`) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `q`, or `vibe` |
-| `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI     |
-| `--mission`            | Option   | Mission type key to seed templates (`software-dev`, `research`, ...)        |
-| `--template-root`      | Option   | Override template location (useful for development mode or custom sources)   |
-| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
-| `--no-git`             | Flag     | Skip git repository initialization                                          |
-| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
-| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation) |
-| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                 |
-| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                            |
-| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)  |
+| Argument/Option | Type | Description |
+|-----------------|------|-------------|
+| `<project-name>` | Argument | Name for your new project directory. Omit it, or pass `.`, to initialize the current directory. |
+| `--ai` | Option | Comma-separated AI assistant keys. Current `init --help` examples include `codex`, `claude`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `roo`, `copilot`, `q`, and `kiro`. |
+| `--non-interactive`, `--yes` | Flag | Run without prompts. Suitable for CI/CD and automation; `--ai` is required in this mode. |
 
-If you omit `--mission`, the CLI will prompt you to pick one during `spec-kitty init`.
+`spec-kitty init` creates project files only. It does not initialize Git, does not create commits, and missions are selected later during `/spec-kitty.specify`.
 
 ### Examples
 
@@ -796,42 +790,26 @@ spec-kitty init my-project
 # Initialize with specific AI assistant
 spec-kitty init my-project --ai claude
 
-# Initialize with the Deep Research mission
-spec-kitty init my-project --mission research
-
 # Initialize with Cursor support
 spec-kitty init my-project --ai cursor
 
 # Initialize with Windsurf support
 spec-kitty init my-project --ai windsurf
 
-# Initialize with PowerShell scripts (Windows/cross-platform)
-spec-kitty init my-project --ai copilot --script ps
-
 # Initialize in current directory
 spec-kitty init . --ai copilot
-# or use the --here flag
-spec-kitty init --here --ai copilot
 
-# Force merge into current (non-empty) directory without confirmation
-spec-kitty init . --force --ai copilot
-# or 
-spec-kitty init --here --force --ai copilot
+# Initialize multiple agents in one pass
+spec-kitty init my-project --ai claude,codex
 
-# Skip git initialization
-spec-kitty init my-project --ai gemini --no-git
+# Non-interactive setup for automation
+spec-kitty init my-project --ai gemini --non-interactive
 
-# Enable debug output for troubleshooting
-spec-kitty init my-project --ai claude --debug
-
-# Use GitHub token for API requests (helpful for corporate environments)
-spec-kitty init my-project --ai claude --github-token ghp_your_token_here
-
-# Use custom template location (development mode)
-spec-kitty init my-project --ai claude --template-root=/path/to/local/spec-kitty
+# Use a local template checkout during Spec Kitty development
+SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty spec-kitty init my-project --ai claude
 
 # Check system requirements
-spec-kitty check
+spec-kitty verify-setup --diagnostics
 ```
 
 ### `spec-kitty upgrade` Options
@@ -1181,9 +1159,11 @@ cat .kittify/metadata.yaml
 
 | Variable         | Description                                                                                    |
 |------------------|------------------------------------------------------------------------------------------------|
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands. |
 | `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
+| `SPEC_KITTY_NON_INTERACTIVE` | Force non-interactive init behavior. Equivalent to passing `--non-interactive` / `--yes`. |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted auth, tracker, and sync flows. Leave unset for local-only workflows. |
+| `SPEC_KITTY_SAAS_URL` | Override the SaaS base URL used by `spec-kitty auth`, tracker discovery, and hosted sync flows. |
 | `CODEX_HOME` | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
 
 ## 🔧 Prerequisites
@@ -1336,12 +1316,11 @@ spec-kitty init <PROJECT_NAME> --ai=claude --template-root=/path/to/spec-kitty
 ### Template Discovery Priority
 
 The CLI searches for templates in this order:
-1. **Command-line override**: `--template-root` flag (highest priority)
-2. **Environment variable**: `SPEC_KITTY_TEMPLATE_ROOT` (local checkout)
-3. **Packaged resources**: Built-in templates from PyPI installation
-4. **Remote repository**: `SPECIFY_TEMPLATE_REPO` environment variable
+1. **Packaged resources**: Built-in templates from the installed `spec-kitty-cli`
+2. **Environment override**: `SPEC_KITTY_TEMPLATE_ROOT` for local development or source checkouts
+3. **Remote repository**: `SPECIFY_TEMPLATE_REPO` when you explicitly want a remote template source
 
-This means development installs automatically find templates when running from the cloned repository, but you may need to set `SPEC_KITTY_TEMPLATE_ROOT` if you move the directory.
+For development installs from source, set `SPEC_KITTY_TEMPLATE_ROOT` to your checkout before running `spec-kitty init`.
 
 ---
 

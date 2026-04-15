@@ -14,7 +14,7 @@ This tutorial walks you through the entire Spec Kitty workflow from specificatio
 Workflow path:
 
 ```
-/spec-kitty.specify → /spec-kitty.plan → /spec-kitty.tasks → /spec-kitty.implement → /spec-kitty.review → /spec-kitty.accept → /spec-kitty.merge
+/spec-kitty.specify → /spec-kitty.plan → /spec-kitty.tasks → spec-kitty next → /spec-kitty.accept → /spec-kitty.merge
 ```
 
 You will build a tiny "task list" feature as the concrete example.
@@ -32,7 +32,7 @@ Answer the discovery interview until it completes.
 Expected results:
 
 - `kitty-specs/###-task-list/spec.md`
-- A git commit on `main` with the new spec
+- A new mission directory created under `kitty-specs/`
 
 ## Step 2: Create the Technical Plan
 
@@ -49,7 +49,7 @@ Answer the planning questions and confirm the Engineering Alignment summary.
 Expected results:
 
 - `kitty-specs/###-task-list/plan.md`
-- A git commit on `main` with the plan
+- Updated planning artifacts in the main repository checkout
 
 ## Step 3: Generate Work Packages
 
@@ -67,53 +67,39 @@ kitty-specs/###-task-list/tasks/
 
 Each WP file includes frontmatter with its `lane` and dependencies.
 
-## Step 4: Implement a Work Package
+## Step 4: Enter the Runtime Loop
 
-Start with the first planned package (example uses `WP01`).
-
-In your agent:
-
-```text
-/spec-kitty.implement
-```
-
-This moves the WP to `doing` and prints the implementation prompt. Then create the workspace from your terminal:
+Start the mission loop from your terminal:
 
 ```bash
-spec-kitty implement WP01
+spec-kitty next --agent claude --mission ###-task-list --json
 ```
 
-Expected output (abridged):
+The runtime returns the next action to take. During implementation you will usually see an `implement` decision for a specific WP.
 
-```
-OK Created workspace: .worktrees/###-task-list-lane-a
-```
-
-Move into the new worktree and implement the required changes:
+Execute that action with the lower-level command the runtime expects:
 
 ```bash
-cd .worktrees/###-task-list-lane-a
+spec-kitty agent action implement WP01 --agent claude
 ```
 
-When finished, return to the main repo and run the review step.
-
-## Step 5: Review Your Work
-
-From the main repo, ask your agent to review the work package.
-
-In your agent:
-
-```text
-/spec-kitty.review
-```
-
-Or via CLI:
+That command allocates or reuses the correct lane workspace. Make your code changes there, run the relevant tests, then report the result back to the runtime:
 
 ```bash
-spec-kitty agent action review WP01
+spec-kitty next --agent claude --mission ###-task-list --result success --json
 ```
 
-Follow the review instructions and address any feedback.
+Repeat the loop until the runtime starts issuing review work instead of implementation work.
+
+## Step 5: Review the Work Package
+
+When the runtime points you at review work, run the matching action:
+
+```bash
+spec-kitty agent action review WP01 --agent claude
+```
+
+Address any review feedback, then continue the `spec-kitty next` loop until the mission is ready for acceptance.
 
 ## Step 6: Accept and Merge
 
@@ -149,8 +135,8 @@ You should see the feature merged into `main` and the worktrees cleaned up.
 
 ## Troubleshooting
 
-- **"Planning created a worktree"**: In v0.11.0+, planning stays in `main`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
-- **"WP has dependencies"**: If the WP frontmatter lists dependencies, run `spec-kitty implement WP02` as suggested. The returned workspace may be a shared lane worktree such as `...-lane-a`.
+- **"Planning created a worktree"**: Planning stays in the main checkout in `3.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
+- **"WP has dependencies"**: Keep following the `spec-kitty next` decisions; the runtime will only issue implementation work when its dependencies are satisfied.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 
 ## What's Next?
