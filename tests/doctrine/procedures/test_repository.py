@@ -99,3 +99,38 @@ class TestProcedureRepository:
         shipped.mkdir()
         repo = ProcedureRepository(shipped_dir=shipped)
         assert repo.list_all() == []
+
+    def test_skips_project_procedures_when_language_scope_does_not_match(
+        self, tmp_path: Path, sample_procedure_data: dict
+    ) -> None:
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+        with (shipped / "curation-interview.procedure.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(sample_procedure_data, handle)
+
+        project = tmp_path / "project"
+        project.mkdir()
+        with (project / "curation-interview.procedure.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump({**sample_procedure_data, "applies_to_languages": ["python"]}, handle)
+        with (project / "python-only.procedure.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    **sample_procedure_data,
+                    "id": "python-only",
+                    "name": "Python Only",
+                    "applies_to_languages": ["python"],
+                },
+                handle,
+            )
+
+        repo = ProcedureRepository(
+            shipped_dir=shipped,
+            project_dir=project,
+            active_languages=["typescript"],
+        )
+
+        assert repo.get("curation-interview") is not None
+        assert repo.get("python-only") is None

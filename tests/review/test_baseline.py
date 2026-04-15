@@ -589,6 +589,24 @@ class TestCoverageEdgeCases:
         assert result is not None
         assert result.failed == -1
 
+    def test_capture_baseline_skips_unsupported_output_format(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        (repo / ".git").mkdir(parents=True)
+        feature_dir = repo / "kitty-specs" / "066-test"
+        (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
+
+        with patch("specify_cli.review.baseline._get_test_command", return_value=("pytest-json", "json")):
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+            )
+
+        assert result is None
+
     def test_capture_baseline_junit_xml_missing(self, tmp_path: Path) -> None:
         """Sentinel when JUnit XML is not produced (test runner didn't write it)."""
         repo = tmp_path / "repo"

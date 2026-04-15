@@ -1,11 +1,13 @@
 """Scope: mock-boundary tests for charter interview persistence — no real git."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from charter.interview import (
     MINIMAL_QUESTION_ORDER,
     QUESTION_ORDER,
+    _load_packaged_defaults,
     apply_answer_overrides,
     default_interview,
     read_interview_answers,
@@ -94,3 +96,61 @@ def test_apply_answer_overrides_updates_agent_identity_fields() -> None:
 
     assert updated.agent_profile == "architect"
     assert updated.agent_role == "reviewer"
+
+
+def test_load_packaged_defaults_returns_empty_when_resource_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "charter.interview.importlib.resources.files",
+        lambda package: (_ for _ in ()).throw(FileNotFoundError("missing")),
+    )
+
+    defaults = _load_packaged_defaults()
+
+    assert defaults == {
+        "answers": {},
+        "selected_paradigms": [],
+        "selected_directives": [],
+        "available_tools": [],
+    }
+
+
+def test_load_packaged_defaults_returns_empty_on_invalid_yaml(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class StubResource:
+        def joinpath(self, name: str) -> "StubResource":
+            assert name == "defaults.yaml"
+            return self
+
+        def read_text(self, encoding: str = "utf-8") -> str:
+            assert encoding == "utf-8"
+            return "answers: ["
+
+    monkeypatch.setattr("charter.interview.importlib.resources.files", lambda package: StubResource())
+
+    defaults = _load_packaged_defaults()
+
+    assert defaults["answers"] == {}
+    assert defaults["selected_paradigms"] == []
+
+
+def test_load_packaged_defaults_returns_empty_when_yaml_is_not_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class StubResource:
+        def joinpath(self, name: str) -> "StubResource":
+            assert name == "defaults.yaml"
+            return self
+
+        def read_text(self, encoding: str = "utf-8") -> str:
+            assert encoding == "utf-8"
+            return "- not-a-mapping\n"
+
+    monkeypatch.setattr("charter.interview.importlib.resources.files", lambda package: StubResource())
+
+    defaults = _load_packaged_defaults()
+
+    assert defaults["answers"] == {}
+    assert defaults["available_tools"] == []

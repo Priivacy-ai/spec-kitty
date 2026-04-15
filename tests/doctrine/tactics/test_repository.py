@@ -202,3 +202,58 @@ class TestTacticRepository:
 
         assert "generic-tactic" in tactic_ids
         assert "python-tactic" not in tactic_ids
+
+    def test_skips_project_tactics_when_language_scope_does_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+        project = tmp_path / "project"
+        project.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "merge-test.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "name": "Base Name",
+                    "steps": [{"title": "Base Step"}],
+                },
+                handle,
+            )
+        with (project / "merge-test.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "name": "Python Override",
+                    "applies_to_languages": ["python"],
+                    "steps": [{"title": "Python Step"}],
+                },
+                handle,
+            )
+        with (project / "python-only.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-only",
+                    "name": "Python Only",
+                    "applies_to_languages": ["python"],
+                    "steps": [{"title": "Python Step"}],
+                },
+                handle,
+            )
+
+        repo = TacticRepository(
+            shipped_dir=shipped,
+            project_dir=project,
+            active_languages=["typescript"],
+        )
+
+        merge_test = repo.get("merge-test")
+        assert merge_test is not None
+        assert merge_test.name == "Base Name"
+        assert repo.get("python-only") is None

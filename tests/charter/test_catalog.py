@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.catalog import load_doctrine_catalog
+from charter.catalog import _load_yaml_id_catalog, load_doctrine_catalog
 
 pytestmark = pytest.mark.fast
 
@@ -169,3 +169,28 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
     assert "python-style" in catalog.styleguides
     assert "python-toolguide" in catalog.toolguides
     assert "python-implementer" in catalog.agent_profiles
+
+
+def test_load_yaml_id_catalog_scans_proposed_when_requested(tmp_path: Path) -> None:
+    doctrine_dir = tmp_path / "styleguides"
+    shipped_dir = doctrine_dir / "shipped"
+    proposed_dir = doctrine_dir / "_proposed"
+    shipped_dir.mkdir(parents=True)
+    proposed_dir.mkdir(parents=True)
+
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (shipped_dir / "shipped.styleguide.yaml").open("w", encoding="utf-8") as handle:
+        yaml.dump(
+            {"schema_version": "1.0", "id": "shipped-style", "title": "Shipped", "scope": "code"},
+            handle,
+        )
+    with (proposed_dir / "proposed.styleguide.yaml").open("w", encoding="utf-8") as handle:
+        yaml.dump(
+            {"schema_version": "1.0", "id": "proposed-style", "title": "Proposed", "scope": "code"},
+            handle,
+        )
+
+    ids = _load_yaml_id_catalog(doctrine_dir, "*.styleguide.yaml", include_proposed=True)
+
+    assert ids == {"shipped-style", "proposed-style"}
