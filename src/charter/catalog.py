@@ -58,7 +58,7 @@ def load_doctrine_catalog(
     present but shipped set is empty" (every selection is invalid).
     """
     doctrine_root = resolve_doctrine_root()
-    normalized_languages = normalize_languages(active_languages)
+    normalized_languages = None if active_languages is None else normalize_languages(active_languages)
 
     domains_present: set[str] = set()
 

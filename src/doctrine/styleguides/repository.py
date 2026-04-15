@@ -37,7 +37,7 @@ class StyleguideRepository:
         self._styleguides: dict[str, Styleguide] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
         self._project_dir = project_dir
-        self._active_languages = normalize_languages(active_languages)
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._load()
 
     @staticmethod

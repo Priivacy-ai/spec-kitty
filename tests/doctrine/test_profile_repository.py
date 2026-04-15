@@ -231,6 +231,41 @@ specialization:
         assert "generic" in profile_ids
         assert "python-only" not in profile_ids
 
+    def test_keeps_language_scoped_profiles_when_active_languages_are_unset(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        (shipped / "python-only.agent.yaml").write_text(
+            """profile-id: python-only
+name: Python Only
+purpose: Python specialist
+role: implementer
+applies_to_languages:
+  - python
+specialization:
+  primary-focus: Python implementation
+""",
+            encoding="utf-8",
+        )
+        (shipped / "generic.agent.yaml").write_text(
+            """profile-id: generic
+name: Generic
+purpose: Generic specialist
+role: implementer
+specialization:
+  primary-focus: General implementation
+""",
+            encoding="utf-8",
+        )
+
+        repo = AgentProfileRepository(shipped_dir=shipped)
+        profile_ids = {profile.profile_id for profile in repo.list_all()}
+
+        assert "generic" in profile_ids
+        assert "python-only" in profile_ids
+
 
 class TestAgentProfileRepositoryBoundaries:
     """Test boundary conditions."""

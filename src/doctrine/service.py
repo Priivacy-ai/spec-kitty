@@ -27,7 +27,7 @@ class DoctrineService:
     ) -> None:
         self._shipped_root = shipped_root
         self._project_root = project_root
-        self._active_languages = normalize_languages(active_languages)
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._cache: dict[str, object] = {}
 
     def _shipped_dir(self, artifact: str) -> Path | None:

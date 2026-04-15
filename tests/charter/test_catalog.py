@@ -115,3 +115,57 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
     assert "python-toolguide" not in catalog.toolguides
     assert "generic-implementer" in catalog.agent_profiles
     assert "python-implementer" not in catalog.agent_profiles
+
+
+def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    doctrine_root = tmp_path / "doctrine"
+    yaml = YAML()
+    yaml.default_flow_style = False
+
+    fixtures = {
+        Path("styleguides/shipped/python.styleguide.yaml"): {
+            "schema_version": "1.0",
+            "id": "python-style",
+            "title": "Python Style",
+            "scope": "code",
+            "applies_to_languages": ["python"],
+            "principles": ["Use Python idioms"],
+        },
+        Path("toolguides/shipped/python.toolguide.yaml"): {
+            "schema_version": "1.0",
+            "id": "python-toolguide",
+            "tool": "pytest",
+            "title": "Python Toolguide",
+            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "summary": "Python checks",
+            "applies_to_languages": ["python"],
+        },
+        Path("agent_profiles/shipped/python.agent.yaml"): {
+            "profile-id": "python-implementer",
+            "name": "Python Implementer",
+            "role": "implementer",
+            "purpose": "Python specialist",
+            "applies_to_languages": ["python"],
+            "specialization": {"primary-focus": "python"},
+        },
+        Path("missions/software-dev/mission.yaml"): {
+            "name": "software-dev",
+            "description": "Software development mission",
+        },
+    }
+
+    for relative_path, data in fixtures.items():
+        path = doctrine_root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as handle:
+            yaml.dump(data, handle)
+
+    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+
+    catalog = load_doctrine_catalog()
+
+    assert "python-style" in catalog.styleguides
+    assert "python-toolguide" in catalog.toolguides
+    assert "python-implementer" in catalog.agent_profiles

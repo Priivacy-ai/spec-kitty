@@ -29,11 +29,15 @@ def applies_to_languages_match(
 
     Rules:
     - Unscoped artifacts always load.
-    - When active languages are unknown/empty, scoped artifacts do not load.
+    - When no active language filter is provided, scoped artifacts still load.
+    - When active languages are explicitly empty/unknown, scoped artifacts do not load.
     - Otherwise any overlap between artifact and active languages is sufficient.
     """
     artifact_scope = set(normalize_languages(artifact_languages))
     if not artifact_scope:
+        return True
+
+    if active_languages is None:
         return True
 
     active_scope = set(normalize_languages(active_languages))

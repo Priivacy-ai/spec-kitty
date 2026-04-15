@@ -225,3 +225,55 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
     assert service.toolguides.get("python-tool") is None
     assert service.agent_profiles.get("generic-implementer") is not None
     assert service.agent_profiles.get("python-implementer") is None
+
+
+def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset(
+    tmp_path: Path,
+) -> None:
+    shipped_root = tmp_path / "shipped-root"
+
+    _write_yaml(
+        shipped_root / "styleguides" / "shipped" / "python.styleguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "python-style",
+            "title": "Python Style",
+            "scope": "code",
+            "applies_to_languages": ["python"],
+            "principles": ["Use Python idioms"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "toolguides" / "shipped" / "python.toolguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "python-tool",
+            "tool": "pytest",
+            "title": "Python Tool",
+            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "summary": "Python tool",
+            "applies_to_languages": ["python"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
+        {
+            "profile-id": "python-implementer",
+            "name": "Python Implementer",
+            "role": "implementer",
+            "purpose": "Python specialist",
+            "applies_to_languages": ["python"],
+            "specialization": {
+                "primary-focus": "python",
+                "secondary-awareness": "testing",
+                "avoidance-boundary": "other stacks",
+                "success-definition": "ship Python changes safely",
+            },
+        },
+    )
+
+    service = DoctrineService(shipped_root=shipped_root)
+
+    assert service.styleguides.get("python-style") is not None
+    assert service.toolguides.get("python-tool") is not None
+    assert service.agent_profiles.get("python-implementer") is not None
