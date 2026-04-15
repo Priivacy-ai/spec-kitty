@@ -374,16 +374,29 @@ and per-file sizes. If `stale`, run sync before relying on governance config.
 
 ## Step 2: Run the Charter Interview
 
-**Fast path (deterministic defaults):**
+For agent-mediated governance setup, the preferred interview surface is the chat
+itself, not the CLI questionnaire.
+
+Recommended flow:
+
+1. Inspect the repo quickly.
+2. Ask the user a short targeted governance interview in chat.
+3. Synthesize `.kittify/charter/interview/answers.yaml` directly.
+4. Run `spec-kitty charter generate --from-interview --json`.
+
+Use the CLI interview only as a fallback when the user explicitly wants the CLI
+prompt loop or wants deterministic defaults.
+
+**CLI defaults path (fallback only):**
 
 ```bash
-spec-kitty charter interview --mission software-dev --profile minimal --defaults --json
+spec-kitty charter interview --mission-type software-dev --profile minimal --defaults --json
 ```
 
-**Full interactive interview:**
+**CLI comprehensive path (fallback only):**
 
 ```bash
-spec-kitty charter interview --mission software-dev --profile comprehensive
+spec-kitty charter interview --mission-type software-dev --profile comprehensive
 ```
 
 Key flags: `--profile minimal|comprehensive`, `--defaults`, `--json`,
@@ -412,17 +425,17 @@ and `library/*.md` reference documents.
 
 ## Step 4: Load Context for Workflow Actions
 
-Load governance context before each workflow action:
-
-```bash
-spec-kitty charter context --action specify --json
-spec-kitty charter context --action plan --json
-spec-kitty charter context --action implement --json
-spec-kitty charter context --action review --json
-```
+Do not preload all action contexts after generation.
 
 The runtime calls context automatically during slash commands. Manual
-invocation is useful for debugging what governance policy an action receives.
+invocation is useful only for debugging one immediate action, and should avoid
+consuming first-load state:
+
+```bash
+spec-kitty charter context --action specify --json --no-mark-loaded
+```
+
+Load context iteratively at the action boundary, not as part of charter setup.
 
 ---
 
