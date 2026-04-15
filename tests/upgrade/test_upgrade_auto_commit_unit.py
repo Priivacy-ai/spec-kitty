@@ -189,6 +189,61 @@ def test_prepare_upgrade_commit_files_skips_home_level_kittify(monkeypatch) -> N
     }
 
 
+def test_prepare_upgrade_commit_files_expands_untracked_directories(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    project_path = tmp_path / "project"
+    skill_dir = project_path / ".agents" / "skills" / "new-skill"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("# Skill\n", encoding="utf-8")
+    refs_dir = skill_dir / "references"
+    refs_dir.mkdir()
+    (refs_dir / "guide.md").write_text("guide\n", encoding="utf-8")
+
+    backup_dir = project_path / ".kittify" / ".migration-backup"
+    backup_dir.mkdir(parents=True)
+    (backup_dir / "manifest.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "_git_status_paths",
+        lambda _repo: {
+            ".agents/skills/new-skill",
+            ".kittify/.migration-backup",
+        },
+    )
+
+    files = upgrade_cmd._prepare_upgrade_commit_files(project_path, baseline_paths=set())
+
+    assert [str(path) for path in files] == [
+        ".agents/skills/new-skill/SKILL.md",
+        ".agents/skills/new-skill/references/guide.md",
+        ".kittify/.migration-backup/manifest.json",
+    ]
+
+
+def test_prepare_upgrade_commit_files_skips_empty_directories(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    project_path = tmp_path / "project"
+    empty_dir = project_path / ".agents" / "skills" / "empty-skill"
+    empty_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "_git_status_paths",
+        lambda _repo: {
+            ".agents/skills/empty-skill",
+        },
+    )
+
+    files = upgrade_cmd._prepare_upgrade_commit_files(project_path, baseline_paths=set())
+
+    assert files == []
+
+
 def test_prepare_skips_when_baseline_is_none(tmp_path: Path) -> None:
     """When baseline git status failed (None), skip auto-commit entirely."""
     files = upgrade_cmd._prepare_upgrade_commit_files(tmp_path, baseline_paths=None)

@@ -74,6 +74,28 @@ def _is_upgrade_commit_eligible(path: str, project_path: Path) -> bool:
     return not (project_path.resolve() == Path.home().resolve() and normalized.startswith(".kittify/"))
 
 
+def _expand_upgrade_commit_path(project_path: Path, relative_path: str) -> list[Path]:
+    """Expand a changed path into the concrete file paths git will stage.
+
+    ``git status --porcelain -z`` may report untracked directories as a single
+    path (for example ``.agents/skills/new-skill``). ``git add <dir>`` stages
+    the files inside that directory, but ``safe_commit``'s backstop compares the
+    staged file paths against the requested path list. Expand directories here
+    so the expected set matches what git will actually stage.
+    """
+    normalized = relative_path.strip().replace("\\", "/")
+    absolute_path = project_path / normalized
+
+    if absolute_path.exists() and absolute_path.is_dir() and not absolute_path.is_symlink():
+        return sorted(
+            child.relative_to(project_path)
+            for child in absolute_path.rglob("*")
+            if not child.is_dir()
+        )
+
+    return [Path(normalized)]
+
+
 def _prepare_upgrade_commit_files(
     project_path: Path,
     baseline_paths: set[str] | None,
@@ -93,7 +115,16 @@ def _prepare_upgrade_commit_files(
     new_paths = sorted(
         path for path in current_paths if path not in baseline_paths and _is_upgrade_commit_eligible(path, project_path)
     )
-    return [Path(path) for path in new_paths]
+    files_to_commit: list[Path] = []
+    seen_paths: set[str] = set()
+    for path in new_paths:
+        for expanded_path in _expand_upgrade_commit_path(project_path, path):
+            normalized = str(expanded_path).replace("\\", "/")
+            if normalized in seen_paths:
+                continue
+            seen_paths.add(normalized)
+            files_to_commit.append(Path(normalized))
+    return files_to_commit
 
 
 def _auto_commit_upgrade_changes(
