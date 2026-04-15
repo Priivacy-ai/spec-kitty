@@ -10,8 +10,9 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HOOK_TEMPLATE = """\
@@ -25,6 +26,7 @@ exec "{interpreter}" -m specify_cli.policy.commit_guard_hook "$@"
 
 MODULE = "specify_cli.policy.commit_guard_hook"
 SHEBANG = "#!/bin/sh"
+HOOK_MODE = 0o700
 
 
 @dataclass(frozen=True)
@@ -43,7 +45,7 @@ def install(repo_root: Path) -> HookInstallRecord:
 
     Captures ``sys.executable`` at install time so the generated hook does not
     rely on ``python``, ``python3``, or ``py`` being on PATH.  The hook is
-    written atomically (temp-file + ``os.replace``) with mode ``0o755`` and
+    written atomically (temp-file + ``os.replace``) with mode ``0o700`` and
     LF line endings.
 
     Args:
@@ -62,7 +64,7 @@ def install(repo_root: Path) -> HookInstallRecord:
             f"resolves to {interpreter}, which does not exist."
         )
 
-    installed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    installed_at = datetime.now(UTC).isoformat(timespec="seconds")
     rendered = HOOK_TEMPLATE.format(
         installed_at=installed_at,
         interpreter=str(interpreter),
@@ -72,17 +74,14 @@ def install(repo_root: Path) -> HookInstallRecord:
     hooks_dir.mkdir(parents=True, exist_ok=True)
 
     fd, tmp_path_str = tempfile.mkstemp(prefix="pre-commit.", dir=str(hooks_dir))
-    tmp_path = Path(tmp_path_str)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
             f.write(rendered)
-        os.chmod(tmp_path_str, 0o755)
+        os.chmod(tmp_path_str, HOOK_MODE)
         os.replace(tmp_path_str, str(hooks_dir / "pre-commit"))
     except Exception:
-        try:
+        with suppress(OSError):
             os.unlink(tmp_path_str)
-        except OSError:
-            pass
         raise
 
     return HookInstallRecord(
@@ -90,11 +89,11 @@ def install(repo_root: Path) -> HookInstallRecord:
         interpreter=interpreter,
         module=MODULE,
         shebang=SHEBANG,
-        mode=0o755,
+        mode=HOOK_MODE,
     )
 
 
-def install_commit_guard(worktree_path: Path, repo_root: Path) -> Path | None:
+def install_commit_guard(_worktree_path: Path, repo_root: Path) -> Path | None:
     """Install pre-commit hook into a worktree.
 
     Resolves the worktree's git hooks directory and installs the hook there.

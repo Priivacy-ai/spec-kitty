@@ -23,6 +23,10 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SCHEMA_VERSION: str = "1.0.0"
+CHARTER_MD = Path(".kittify/charter/charter.md")
+GOVERNANCE_YAML = Path(".kittify/charter/governance.yaml")
+DIRECTIVES_YAML = Path(".kittify/charter/directives.yaml")
+METADATA_YAML = Path(".kittify/charter/metadata.yaml")
 
 
 class CharterBundleManifest(BaseModel):
@@ -37,7 +41,7 @@ class CharterBundleManifest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     @model_validator(mode="after")
-    def _validate(self) -> "CharterBundleManifest":
+    def _validate(self) -> CharterBundleManifest:
         # No path may appear in both tracked and derived.
         tracked = set(self.tracked_files)
         derived = set(self.derived_files)
@@ -65,21 +69,21 @@ class CharterBundleManifest(BaseModel):
 
 CANONICAL_MANIFEST: CharterBundleManifest = CharterBundleManifest(
     schema_version=SCHEMA_VERSION,
-    tracked_files=[Path(".kittify/charter/charter.md")],
+    tracked_files=[CHARTER_MD],
     derived_files=[
-        Path(".kittify/charter/governance.yaml"),
-        Path(".kittify/charter/directives.yaml"),
-        Path(".kittify/charter/metadata.yaml"),
+        GOVERNANCE_YAML,
+        DIRECTIVES_YAML,
+        METADATA_YAML,
     ],
     derivation_sources={
-        Path(".kittify/charter/governance.yaml"): Path(".kittify/charter/charter.md"),
-        Path(".kittify/charter/directives.yaml"): Path(".kittify/charter/charter.md"),
-        Path(".kittify/charter/metadata.yaml"): Path(".kittify/charter/charter.md"),
+        GOVERNANCE_YAML: CHARTER_MD,
+        DIRECTIVES_YAML: CHARTER_MD,
+        METADATA_YAML: CHARTER_MD,
     },
     gitignore_required_entries=[
-        ".kittify/charter/directives.yaml",
-        ".kittify/charter/governance.yaml",
-        ".kittify/charter/metadata.yaml",
+        str(DIRECTIVES_YAML),
+        str(GOVERNANCE_YAML),
+        str(METADATA_YAML),
     ],
 )
 

@@ -2,7 +2,7 @@
 
 Verifies the generated hook has the correct structure: #!/bin/sh shebang,
 a single quoted exec line with the absolute interpreter, LF line endings,
-and mode 0o755.  No windows_ci marker — pure-Python rendering check.
+and mode 0o700.  No windows_ci marker — pure-Python rendering check.
 """
 
 import os
@@ -10,7 +10,7 @@ import stat
 import sys
 from pathlib import Path
 
-from specify_cli.policy.hook_installer import HookInstallRecord, install
+from specify_cli.policy.hook_installer import HOOK_MODE, HookInstallRecord, install
 
 
 def test_hook_rendering_shape(tmp_path: Path) -> None:
@@ -51,14 +51,14 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     assert "python3 " not in content, "Hook must not contain bare 'python3 ' lookup"
     assert "python " not in content, "Hook must not contain bare 'python ' lookup"
 
-    # Mode 0o755
+    # Mode 0o700
     mode = stat.S_IMODE(os.stat(hook).st_mode)
-    assert mode == 0o755, f"Expected mode 0o755, got {oct(mode)}"
+    assert mode == HOOK_MODE, f"Expected mode {oct(HOOK_MODE)}, got {oct(mode)}"
 
     # HookInstallRecord fields
     assert isinstance(record, HookInstallRecord)
     assert record.shebang == "#!/bin/sh"
     assert record.module == "specify_cli.policy.commit_guard_hook"
     assert record.interpreter == Path(sys.executable).resolve(strict=False)
-    assert record.mode == 0o755
+    assert record.mode == HOOK_MODE
     assert record.hook_path == hook
