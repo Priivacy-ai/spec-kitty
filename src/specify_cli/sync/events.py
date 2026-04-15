@@ -40,9 +40,9 @@ def _resolve_repo_root() -> Path | None:
         return None
 
 
-def _ensure_dashboard_sync_daemon(repo_root: Path | None) -> None:
+def _ensure_dashboard_sync_daemon(repo_root: Path | None, *, ensure_daemon: bool = True) -> None:
     """Keep the machine-global sync daemon alive for authenticated sync sessions."""
-    if repo_root is None or not is_saas_sync_enabled():
+    if not ensure_daemon or repo_root is None or not is_saas_sync_enabled():
         return
 
     if not (repo_root / ".kittify").is_dir():
@@ -78,10 +78,10 @@ def _ensure_dashboard_sync_daemon(repo_root: Path | None) -> None:
         logger.warning("Could not ensure global sync daemon: %s", exc)
 
 
-def _ensure_dashboard_sync_daemon_for_active_project() -> Path | None:
+def _ensure_dashboard_sync_daemon_for_active_project(*, ensure_daemon: bool = True) -> Path | None:
     """Resolve the active project and keep its dashboard daemon healthy."""
     repo_root = _resolve_repo_root()
-    _ensure_dashboard_sync_daemon(repo_root)
+    _ensure_dashboard_sync_daemon(repo_root, ensure_daemon=ensure_daemon)
     return repo_root
 
 
@@ -189,9 +189,11 @@ def emit_wp_status_changed(
     mission_slug: str | None = None,
     causation_id: str | None = None,
     policy_metadata: dict[str, Any] | None = None,
+    *,
+    ensure_daemon: bool = True,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton."""
-    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
     event = get_emitter().emit_wp_status_changed(
         wp_id=wp_id,
         from_lane=from_lane,
@@ -213,9 +215,11 @@ def emit_wp_created(
     mission_slug: str,
     dependencies: list[str] | None = None,
     causation_id: str | None = None,
+    *,
+    ensure_daemon: bool = True,
 ) -> dict[str, Any] | None:
     """Emit WPCreated event via singleton."""
-    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
     event = get_emitter().emit_wp_created(
         wp_id=wp_id,
         title=title,
@@ -235,9 +239,11 @@ def emit_wp_assigned(
     phase: str,
     retry_count: int = 0,
     causation_id: str | None = None,
+    *,
+    ensure_daemon: bool = True,
 ) -> dict[str, Any] | None:
     """Emit WPAssigned event via singleton."""
-    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
     event = get_emitter().emit_wp_assigned(
         wp_id=wp_id,
         agent_id=agent_id,

@@ -600,10 +600,27 @@ class TestConvenienceFunctions:
             patch("specify_cli.sync.events._request_dashboard_sync") as mock_trigger,
         ):
             emit_wp_status_changed("WP01", "planned", "in_progress")
-        mock_daemon.assert_called_once_with()
+        mock_daemon.assert_called_once_with(ensure_daemon=True)
         mock_publish.assert_called_once_with({"event_id": "evt-1"}, Path("/tmp/project"))
         mock_trigger.assert_called_once_with(Path("/tmp/project"))
         mock_emitter.emit_wp_status_changed.assert_called_once()
+
+    @patch("specify_cli.sync.events.get_emitter")
+    def test_emit_wp_status_changed_can_skip_daemon_start(self, mock_get):
+        """emit_wp_status_changed can suppress daemon startup during merge batching."""
+        mock_emitter = MagicMock()
+        mock_emitter.emit_wp_status_changed.return_value = {"event_id": "evt-1"}
+        mock_get.return_value = mock_emitter
+        with (
+            patch(
+                "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
+                return_value=Path("/tmp/project"),
+            ) as mock_daemon,
+            patch("specify_cli.sync.events._publish_event_via_sync_daemon"),
+            patch("specify_cli.sync.events._request_dashboard_sync"),
+        ):
+            emit_wp_status_changed("WP01", "planned", "in_progress", ensure_daemon=False)
+        mock_daemon.assert_called_once_with(ensure_daemon=False)
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emit_wp_created_delegates(self, mock_get):
