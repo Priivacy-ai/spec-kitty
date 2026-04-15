@@ -52,6 +52,7 @@ from specify_cli.merge.state import (
 from specify_cli.mission_metadata import resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
+from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
@@ -196,6 +197,8 @@ def _mark_wp_merged_done(
                     evidence=evidence.to_dict(),
                     workspace_context=f"merge:{repo_root}",
                     repo_root=repo_root,
+                    ensure_sync_daemon=False,
+                    sync_dossier=False,
                 )
             except TransitionError as exc:
                 console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
@@ -217,6 +220,8 @@ def _mark_wp_merged_done(
             evidence=evidence.to_dict(),
             workspace_context=f"merge:{repo_root}",
             repo_root=repo_root,
+            ensure_sync_daemon=False,
+            sync_dossier=False,
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
@@ -741,6 +746,7 @@ def _run_lane_based_merge_locked(
             console.print(f"  [dim]Skipping {lane.lane_id} (all WPs already done)[/dim]")
             continue
 
+        console.print(f"  [dim]Checking and merging {lane.lane_id}...[/dim]")
         lane_result = merge_lane_to_mission(main_repo, mission_slug, lane.lane_id, lanes_manifest)
         if lane_result.success:
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
@@ -776,6 +782,7 @@ def _run_lane_based_merge_locked(
     )
 
     # -- Mission-to-target merge (T010: honor strategy for this step only) --
+    console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
     mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest, strategy=strategy)
     if not mission_result.success:
         # T005: tolerate already-merged on retry
@@ -792,6 +799,7 @@ def _run_lane_based_merge_locked(
             console.print(f"  Commit: {mission_result.commit[:7]}")
 
     # -- T001: Mark WPs done with per-WP state tracking --
+    console.print("  [dim]Recording merged work packages as done...[/dim]")
     for lane in lanes_manifest.lanes:
         for wp_id in lane.wp_ids:
             if wp_id in completed_set:
@@ -891,7 +899,15 @@ def _run_lane_based_merge_locked(
         allow_empty=False,
     )
 
+    console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")
+    trigger_feature_dossier_sync_if_enabled(
+        feature_dir,
+        mission_slug,
+        main_repo,
+    )
+
     # -- T013: Stale-assertion check (WP01 library import — NOT subprocess) --
+    console.print("  [dim]Running stale-assertion check...[/dim]")
     try:
         stale_report: StaleAssertionReport = run_check(
             base_ref=merge_base_sha,

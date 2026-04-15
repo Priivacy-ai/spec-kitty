@@ -272,6 +272,8 @@ def emit_status_transition(
     repo_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
     review_result: Any = None,
+    ensure_sync_daemon: bool = True,
+    sync_dossier: bool = True,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -298,6 +300,8 @@ def emit_status_transition(
         repo_root: Repository root for SaaS fan-out (optional).
         policy_metadata: Orchestrator policy metadata dict (optional).
         review_result: Structured ReviewResult for in_review -> * transitions (optional).
+        ensure_sync_daemon: If False, emit SaaS events without starting the local sync daemon.
+        sync_dossier: If False, skip dossier sync for this transition.
 
     Returns:
         The persisted StatusEvent.
@@ -414,10 +418,16 @@ def emit_status_transition(
     _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
 
     # Step 7: SaaS fan-out (never blocks canonical persistence)
-    _saas_fan_out(event, mission_slug, repo_root, policy_metadata=policy_metadata)
+    _saas_fan_out(
+        event,
+        mission_slug,
+        repo_root,
+        policy_metadata=policy_metadata,
+        ensure_sync_daemon=ensure_sync_daemon,
+    )
 
     # Step 8: Dossier sync (fire-and-forget, never blocks)
-    if repo_root is not None:
+    if sync_dossier and repo_root is not None:
         try:
             from specify_cli.sync.dossier_pipeline import (
                 trigger_feature_dossier_sync_if_enabled,
@@ -441,6 +451,7 @@ def _saas_fan_out(
     _repo_root: Path | None,
     *,
     policy_metadata: dict[str, Any] | None = None,
+    ensure_sync_daemon: bool = True,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 
@@ -458,6 +469,7 @@ def _saas_fan_out(
             actor=event.actor,
             mission_slug=mission_slug,
             policy_metadata=policy_metadata,
+            ensure_daemon=ensure_sync_daemon,
         )
     except ImportError:
         pass  # SaaS sync not available (0.1x branch)
