@@ -10,23 +10,23 @@ steps:
   - title: Run fast unit tests first
     description: Execute all tests marked `fast` before anything else. These tests are cheap, isolated, and provide the quickest signal on regressions.
     examples:
-      - "pytest tests/ -m fast -q"
+      - "<project-test-command>  # fastest unit-focused subset first"
   - title: Run integration tests second
     description: If fast tests pass, run tests that require real git repositories or filesystem state (marked `git_repo`).
     examples:
-      - "pytest tests/ -m git_repo -q"
+      - "<project-test-command>  # integration-focused subset second"
   - title: Run slow tests third
     description: If integration tests pass, run slower integration or system-level tests (marked `slow`).
     examples:
-      - "pytest tests/ -m slow -q"
+      - "<project-test-command>  # slow/system subset third"
   - title: Run end-to-end tests fourth
     description: If all prior layers pass, run E2E and cross-cutting tests. Exclude distribution tests unless doing a release verification.
     examples:
-      - "pytest tests/e2e/ tests/cross_cutting/ -m 'not distribution' -q"
+      - "<project-test-command>  # end-to-end and cross-cutting checks"
   - title: Run distribution/smoke tests last
     description: Only run distribution or UI smoke tests when a release is being validated.
     examples:
-      - "pytest tests/ -m distribution -q  # release validation only"
+      - "<project-test-command>  # release validation only"
   - title: Stop at first failing layer
     description: >
       If any layer fails, do not proceed to the next. Fix the failures at the

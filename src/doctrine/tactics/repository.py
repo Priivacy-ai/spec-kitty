@@ -17,6 +17,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+
 from .models import Tactic
 from .validation import reject_tactic_inline_refs
 
@@ -28,10 +30,12 @@ class TacticRepository:
         self,
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
+        active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._tactics: dict[str, Tactic] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
         self._project_dir = project_dir
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._load()
 
     @staticmethod
@@ -58,6 +62,8 @@ class TacticRepository:
                         continue
                     reject_tactic_inline_refs(data, file_path=str(yaml_file))
                     tactic = Tactic.model_validate(data)
+                    if not applies_to_languages_match(tactic.applies_to_languages, self._active_languages):
+                        continue
                     shipped[tactic.id] = tactic
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
@@ -86,9 +92,13 @@ class TacticRepository:
 
                     if tactic_id in shipped:
                         merged = self._merge_tactics(shipped[tactic_id], data)
+                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                            continue
                         self._tactics[tactic_id] = merged
                     else:
                         tactic = Tactic.model_validate(data)
+                        if not applies_to_languages_match(tactic.applies_to_languages, self._active_languages):
+                            continue
                         self._tactics[tactic.id] = tactic
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(

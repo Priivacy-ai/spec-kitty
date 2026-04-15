@@ -15,4 +15,5 @@ class Toolguide(BaseModel):
     guide_path: str = Field(pattern=r"^src/doctrine/.+\.md$")
     summary: str
     commands: list[str] = Field(default_factory=list)
+    applies_to_languages: list[str] = Field(default_factory=list)
     last_updated: str | None = None

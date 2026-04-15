@@ -226,7 +226,7 @@ from doctrine.agent_profiles import AgentProfileRepository
 from doctrine.service import DoctrineService
 
 repo = AgentProfileRepository()
-profile = repo.resolve_profile("<profile-id>")  # e.g. "python-implementer"
+profile = repo.resolve_profile("<profile-id>")  # e.g. "implementer"
 
 # Internalize identity — acknowledge this at session start
 print(profile.initialization_declaration)

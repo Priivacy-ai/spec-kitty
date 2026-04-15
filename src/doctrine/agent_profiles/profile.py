@@ -162,6 +162,7 @@ class AgentProfile(BaseModel):
 
     # Optional fields
     specialization_context: SpecializationContext | None = Field(default=None, alias="specialization-context")
+    applies_to_languages: list[str] = Field(default_factory=list)
     directive_references: list[DirectiveRef] = Field(default_factory=list, alias="directive-references")
     # Supports both forms:
     #   excluding: [field_name]            → removes entire field from resolved result

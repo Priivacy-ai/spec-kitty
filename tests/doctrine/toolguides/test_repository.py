@@ -109,3 +109,104 @@ class TestToolguideRepository:
         assert toolguide.title == "Overridden Title"
         assert toolguide.commands == ["spec-kitty"]
 
+    def test_filters_language_scoped_toolguides_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "python.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-toolguide",
+                    "tool": "pytest",
+                    "title": "Python Toolguide",
+                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "summary": "Python checks",
+                    "applies_to_languages": ["python"],
+                },
+                handle,
+            )
+        with (shipped / "generic.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "generic-toolguide",
+                    "tool": "git",
+                    "title": "Generic Toolguide",
+                    "guide_path": "src/doctrine/toolguides/shipped/generic.md",
+                    "summary": "Generic checks",
+                },
+                handle,
+            )
+
+        repo = ToolguideRepository(shipped_dir=shipped, active_languages=["typescript"])
+        toolguide_ids = {toolguide.id for toolguide in repo.list_all()}
+
+        assert "generic-toolguide" in toolguide_ids
+        assert "python-toolguide" not in toolguide_ids
+
+    def test_skips_project_toolguides_when_language_scope_does_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+        project = tmp_path / "project"
+        project.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "merge-test.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "tool": "bash",
+                    "title": "Base Title",
+                    "guide_path": "src/doctrine/toolguides/shipped/base.md",
+                    "summary": "Base summary",
+                },
+                handle,
+            )
+        with (project / "merge-test.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "tool": "pytest",
+                    "title": "Python Override",
+                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "summary": "Python summary",
+                    "applies_to_languages": ["python"],
+                },
+                handle,
+            )
+        with (project / "python-only.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-only",
+                    "tool": "pytest",
+                    "title": "Python Only",
+                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "summary": "Python summary",
+                    "applies_to_languages": ["python"],
+                },
+                handle,
+            )
+
+        repo = ToolguideRepository(
+            shipped_dir=shipped,
+            project_dir=project,
+            active_languages=["typescript"],
+        )
+
+        merge_test = repo.get("merge-test")
+        assert merge_test is not None
+        assert merge_test.tool == "bash"
+        assert repo.get("python-only") is None

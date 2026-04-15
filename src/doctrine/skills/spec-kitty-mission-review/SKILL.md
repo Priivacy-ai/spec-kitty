@@ -296,8 +296,8 @@ For each Non-Functional Requirement (NFR) with a measurable threshold:
 # Count new test files and estimate
 git diff <baseline_merge_commit>..HEAD --stat | grep "tests/"
 
-# Example: NFR-006 — mypy strict clean
-# Check if any mypy ignore directives were added
+# Example: NFR-006 — project type-checking clean
+# Check if any type-check suppression directives were added
 git diff <baseline_merge_commit>..HEAD -- src/ | grep -n "type: ignore\|noqa"
 ```
 

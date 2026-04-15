@@ -21,7 +21,7 @@ class ErrorLog:
         >>> error_log = ErrorLog(storage)
         >>> error_log.log_error(ErrorEntry(
         ...     timestamp=datetime.now(),
-        ...     action_attempted="Run pytest",
+        ...     action_attempted="Run project validation",
         ...     error_message="AssertionError: test failed"
         ... ))
         >>> errors = error_log.get_recent_errors(limit=10)

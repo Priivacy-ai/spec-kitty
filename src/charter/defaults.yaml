@@ -8,22 +8,23 @@
 mission: software-dev
 profile: minimal
 
-selected_paradigms:
-  - test-first
+answers:
+  project_intent: "Deliver predictable changes with clear reviewability."
+  languages_frameworks: "Use only the languages, frameworks, and tools explicitly declared by this project."
+  testing_requirements: "Use the project's declared test approach. If none is declared, mark it as NEEDS CLARIFICATION."
+  quality_gates: "Only require the quality gates explicitly declared by this project before merge."
+  review_policy: "At least one focused reviewer approves before merge."
+  performance_targets: "CLI operations should complete quickly (typically under 2 seconds)."
+  deployment_constraints: "Must run on macOS and Linux developer environments."
+  documentation_policy: "Update docs whenever command behavior or workflow semantics change."
+  risk_boundaries: "Do not relax quality/security standards without explicit maintainer approval."
+  amendment_process: "Changes are proposed via PR and reviewed before adoption."
+  exception_policy: "Exceptions must be documented in PR notes with scope and sunset criteria."
 
-selected_directives:
-  - DIRECTIVE_001   # Architectural Integrity Standard
-  - DIRECTIVE_010   # Specification Fidelity Requirement
-  - DIRECTIVE_025   # Boy Scout Rule
-  - DIRECTIVE_028   # Search Tool Discipline
-  - DIRECTIVE_030   # Test and Typecheck Quality Gate
-  - DIRECTIVE_033   # Targeted Staging Policy
+selected_paradigms: []
+
+selected_directives: []
 
 available_tools:
   - git
-  - mypy
-  - uv
-  - pytest
-  - python
-  - ruff
   - spec-kitty

@@ -66,7 +66,7 @@ from doctrine.agent_profiles.profile import TaskContext
 
 context = TaskContext(
     languages=["python"],
-    frameworks=["fastapi", "pytest"],
+    frameworks=["fastapi", "<project-test-runner>"],
     file_patterns=["src/**/*.py"],
     domain_keywords=["architecture", "design"],
 )

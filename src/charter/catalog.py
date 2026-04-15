@@ -10,6 +10,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
 _log = logging.getLogger(__name__)
@@ -40,15 +41,16 @@ class DoctrineCatalog:
     agent_profiles: frozenset[str]
     domains_present: frozenset[str] = frozenset()
 
-
-def load_doctrine_catalog() -> DoctrineCatalog:
+def load_doctrine_catalog(
+    *,
+    include_proposed: bool = False,
+    active_languages: list[str] | tuple[str, ...] | None = None,
+) -> DoctrineCatalog:
     """Load doctrine catalogs from package assets with development fallbacks.
 
-    Only canonised ``shipped/`` artifacts participate in the catalog. The
-    pre-WP01 opt-in flag for unpromoted artifacts was removed as part of
-    the ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission
-    (EPIC #461, Phase 1); the curation surface that consumed those
-    artifacts has been deleted.
+    By default, only canonised ``shipped/`` artifacts participate in the catalog.
+    Callers may opt into ``_proposed/`` artifacts explicitly to support curation
+    flows that need visibility into pre-canonisation content.
 
     ``DoctrineCatalog.domains_present`` records which artifact domains have a
     ``shipped/`` directory on disk.  The resolver uses this to distinguish between
@@ -56,17 +58,24 @@ def load_doctrine_catalog() -> DoctrineCatalog:
     present but shipped set is empty" (every selection is invalid).
     """
     doctrine_root = resolve_doctrine_root()
+    normalized_languages = None if active_languages is None else normalize_languages(active_languages)
 
     domains_present: set[str] = set()
 
     paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "paradigms", "**/*.paradigm.yaml"
+        doctrine_root / "paradigms",
+        "**/*.paradigm.yaml",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if paradigms_present:
         domains_present.add("paradigms")
 
     directives, directives_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "directives", "**/*.directive.yaml"
+        doctrine_root / "directives",
+        "**/*.directive.yaml",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if directives_present:
         domains_present.add("directives")
@@ -76,25 +85,37 @@ def load_doctrine_catalog() -> DoctrineCatalog:
         domains_present.add("template_sets")
 
     tactics, tactics_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "tactics", "**/*.tactic.yaml"
+        doctrine_root / "tactics",
+        "**/*.tactic.yaml",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if tactics_present:
         domains_present.add("tactics")
 
     styleguides, styleguides_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "styleguides", "**/*.styleguide.yaml"
+        doctrine_root / "styleguides",
+        "**/*.styleguide.yaml",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if styleguides_present:
         domains_present.add("styleguides")
 
     toolguides, toolguides_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "toolguides", "**/*.toolguide.yaml"
+        doctrine_root / "toolguides",
+        "**/*.toolguide.yaml",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if toolguides_present:
         domains_present.add("toolguides")
 
     procedures, procedures_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "procedures", "**/*.procedure.yaml"
+        doctrine_root / "procedures",
+        "**/*.procedure.yaml",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if procedures_present:
         domains_present.add("procedures")
@@ -103,6 +124,8 @@ def load_doctrine_catalog() -> DoctrineCatalog:
         doctrine_root / "agent_profiles",
         "**/*.agent.yaml",
         id_field="profile-id",
+        include_proposed=include_proposed,
+        active_languages=normalized_languages,
     )
     if profiles_present:
         domains_present.add("agent_profiles")
@@ -159,6 +182,8 @@ def _load_yaml_id_catalog(
     pattern: str,
     *,
     id_field: str = "id",
+    include_proposed: bool = False,
+    active_languages: list[str] | tuple[str, ...] | None = None,
 ) -> set[str]:
     """Load ID values from doctrine YAML files in a directory.
 
@@ -168,7 +193,13 @@ def _load_yaml_id_catalog(
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
     """
-    ids, _ = _load_yaml_id_catalog_with_presence(directory, pattern, id_field=id_field)
+    ids, _ = _load_yaml_id_catalog_with_presence(
+        directory,
+        pattern,
+        id_field=id_field,
+        include_proposed=include_proposed,
+        active_languages=active_languages,
+    )
     return ids
 
 
@@ -177,6 +208,8 @@ def _load_yaml_id_catalog_with_presence(
     pattern: str,
     *,
     id_field: str = "id",
+    include_proposed: bool = False,
+    active_languages: list[str] | tuple[str, ...] | None = None,
 ) -> tuple[set[str], bool]:
     """Load ID values from doctrine YAML files, also reporting domain presence.
 
@@ -198,10 +231,13 @@ def _load_yaml_id_catalog_with_presence(
         return set(), False
 
     shipped_dir = directory / "shipped"
-    if shipped_dir.is_dir():
-        # Structured layout: shipped/ is the sole canonical source.
+    proposed_dir = directory / "_proposed"
+    if shipped_dir.is_dir() or proposed_dir.is_dir():
+        # Structured layout: domain is present regardless of content.
         present = True
-        scan_roots = [shipped_dir]
+        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
+        if include_proposed and proposed_dir.is_dir():
+            scan_roots.append(proposed_dir)
     else:
         # Preserve generic helper behavior for tests or flat directories.
         present = True
@@ -214,6 +250,12 @@ def _load_yaml_id_catalog_with_presence(
             try:
                 data = yaml.load(path.read_text(encoding="utf-8")) or {}
             except (OSError, YAMLError, TypeError):
+                continue
+
+            if isinstance(data, dict) and not applies_to_languages_match(
+                data.get("applies_to_languages"),
+                active_languages,
+            ):
                 continue
 
             if isinstance(data, dict):

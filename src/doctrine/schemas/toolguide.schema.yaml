@@ -34,6 +34,10 @@ properties:
     type: array
     items:
       type: string
+  applies_to_languages:
+    type: array
+    items:
+      type: string
   last_updated:
     type: string
     description: ISO 8601 date the guide was last reviewed or updated (e.g. 2026-04-05).

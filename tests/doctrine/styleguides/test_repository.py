@@ -141,3 +141,100 @@ class TestStyleguideRepository:
         assert sg is not None
         assert sg.title == "Overridden Title"
         assert sg.scope.value == "testing"
+
+    def test_filters_language_scoped_styleguides_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "python.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-style",
+                    "title": "Python Style",
+                    "scope": "code",
+                    "applies_to_languages": ["python"],
+                    "principles": ["Use Python idioms"],
+                },
+                handle,
+            )
+        with (shipped / "generic.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "generic-style",
+                    "title": "Generic Style",
+                    "scope": "code",
+                    "principles": ["Be clear"],
+                },
+                handle,
+            )
+
+        repo = StyleguideRepository(shipped_dir=shipped, active_languages=["typescript"])
+        styleguide_ids = {styleguide.id for styleguide in repo.list_all()}
+
+        assert "generic-style" in styleguide_ids
+        assert "python-style" not in styleguide_ids
+
+    def test_skips_project_styleguides_when_language_scope_does_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+        project = tmp_path / "project"
+        project.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "merge-test.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "title": "Base Title",
+                    "scope": "code",
+                    "principles": ["Original principle"],
+                },
+                handle,
+            )
+        with (project / "merge-test.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "title": "Python Override",
+                    "scope": "code",
+                    "applies_to_languages": ["python"],
+                    "principles": ["Override principle"],
+                },
+                handle,
+            )
+        with (project / "python-only.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-only",
+                    "title": "Python Only",
+                    "scope": "code",
+                    "applies_to_languages": ["python"],
+                    "principles": ["Python only"],
+                },
+                handle,
+            )
+
+        repo = StyleguideRepository(
+            shipped_dir=shipped,
+            project_dir=project,
+            active_languages=["typescript"],
+        )
+
+        merge_test = repo.get("merge-test")
+        assert merge_test is not None
+        assert merge_test.title == "Base Title"
+        assert repo.get("python-only") is None

@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import CharterContextResult, build_charter_context
+from charter.context import CharterContextResult, _build_doctrine_service, build_charter_context
 
 pytestmark = pytest.mark.fast
 
@@ -384,3 +384,33 @@ class TestNoPerActionFiltering:
                                         f"comparison with '{other.value}'. "
                                         f"FR-009 prohibits per-action filtering."
                                     )
+
+
+def test_build_doctrine_service_prefers_repo_src_overlay(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: dict[str, object] = {}
+
+    class StubDoctrineService:
+        def __init__(self, *, shipped_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+            calls["shipped_root"] = shipped_root
+            calls["project_root"] = project_root
+            calls["active_languages"] = active_languages
+
+    shipped_root = tmp_path / "shipped-doctrine"
+    shipped_root.mkdir()
+    project_root = tmp_path / "src" / "doctrine"
+    project_root.mkdir(parents=True)
+
+    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: shipped_root)
+    monkeypatch.setattr("charter.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
+    monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
+
+    service = _build_doctrine_service(tmp_path)
+
+    assert isinstance(service, StubDoctrineService)
+    assert calls == {
+        "shipped_root": shipped_root,
+        "project_root": project_root,
+        "active_languages": ["python", "typescript"],
+    }

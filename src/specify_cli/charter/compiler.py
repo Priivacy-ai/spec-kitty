@@ -494,7 +494,10 @@ def _render_charter_markdown(
 ) -> str:
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    testing = interview.answers.get("testing_requirements", "Use pytest with measurable coverage goals.")
+    testing = interview.answers.get(
+        "testing_requirements",
+        "Use the project's declared testing approach, or mark it as NEEDS CLARIFICATION.",
+    )
     quality = interview.answers.get("quality_gates", "Tests, lint, and type checks must pass before merge.")
     performance = interview.answers.get("performance_targets", "No explicit performance policy provided.")
     deployment = interview.answers.get("deployment_constraints", "No deployment constraints provided.")

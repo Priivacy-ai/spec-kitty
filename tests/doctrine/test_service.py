@@ -135,3 +135,145 @@ def test_service_honors_custom_shipped_and_project_roots(tmp_path: Path) -> None
 # relationships are expressed exclusively via edges in
 # ``src/doctrine/graph.yaml`` and are validated by the DRG cycle/shape tests.
 
+
+def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_match(
+    tmp_path: Path,
+) -> None:
+    shipped_root = tmp_path / "shipped-root"
+
+    _write_yaml(
+        shipped_root / "styleguides" / "shipped" / "python.styleguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "python-style",
+            "title": "Python Style",
+            "scope": "code",
+            "applies_to_languages": ["python"],
+            "principles": ["Use Python idioms"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "styleguides" / "shipped" / "generic.styleguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "generic-style",
+            "title": "Generic Style",
+            "scope": "code",
+            "principles": ["Be clear"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "toolguides" / "shipped" / "python.toolguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "python-tool",
+            "tool": "pytest",
+            "title": "Python Tool",
+            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "summary": "Python tool",
+            "applies_to_languages": ["python"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "toolguides" / "shipped" / "generic.toolguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "generic-tool",
+            "tool": "git",
+            "title": "Generic Tool",
+            "guide_path": "src/doctrine/toolguides/shipped/generic.md",
+            "summary": "Generic tool",
+        },
+    )
+    _write_yaml(
+        shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
+        {
+            "profile-id": "python-implementer",
+            "name": "Python Implementer",
+            "role": "implementer",
+            "purpose": "Python specialist",
+            "applies_to_languages": ["python"],
+            "specialization": {
+                "primary-focus": "python",
+                "secondary-awareness": "testing",
+                "avoidance-boundary": "other stacks",
+                "success-definition": "ship Python changes safely",
+            },
+        },
+    )
+    _write_yaml(
+        shipped_root / "agent_profiles" / "shipped" / "generic.agent.yaml",
+        {
+            "profile-id": "generic-implementer",
+            "name": "Generic Implementer",
+            "role": "implementer",
+            "purpose": "General specialist",
+            "specialization": {
+                "primary-focus": "general implementation",
+                "secondary-awareness": "quality",
+                "avoidance-boundary": "none",
+                "success-definition": "ship changes safely",
+            },
+        },
+    )
+
+    service = DoctrineService(shipped_root=shipped_root, active_languages=["typescript"])
+
+    assert service.styleguides.get("generic-style") is not None
+    assert service.styleguides.get("python-style") is None
+    assert service.toolguides.get("generic-tool") is not None
+    assert service.toolguides.get("python-tool") is None
+    assert service.agent_profiles.get("generic-implementer") is not None
+    assert service.agent_profiles.get("python-implementer") is None
+
+
+def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset(
+    tmp_path: Path,
+) -> None:
+    shipped_root = tmp_path / "shipped-root"
+
+    _write_yaml(
+        shipped_root / "styleguides" / "shipped" / "python.styleguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "python-style",
+            "title": "Python Style",
+            "scope": "code",
+            "applies_to_languages": ["python"],
+            "principles": ["Use Python idioms"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "toolguides" / "shipped" / "python.toolguide.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "python-tool",
+            "tool": "pytest",
+            "title": "Python Tool",
+            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "summary": "Python tool",
+            "applies_to_languages": ["python"],
+        },
+    )
+    _write_yaml(
+        shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
+        {
+            "profile-id": "python-implementer",
+            "name": "Python Implementer",
+            "role": "implementer",
+            "purpose": "Python specialist",
+            "applies_to_languages": ["python"],
+            "specialization": {
+                "primary-focus": "python",
+                "secondary-awareness": "testing",
+                "avoidance-boundary": "other stacks",
+                "success-definition": "ship Python changes safely",
+            },
+        },
+    )
+
+    service = DoctrineService(shipped_root=shipped_root)
+
+    assert service.styleguides.get("python-style") is not None
+    assert service.toolguides.get("python-tool") is not None
+    assert service.agent_profiles.get("python-implementer") is not None

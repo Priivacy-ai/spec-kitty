@@ -103,6 +103,10 @@ properties:
     type: array
     items:
       type: string
+  applies_to_languages:
+    type: array
+    items:
+      type: string
   references:
     type: array
     minItems: 1

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
+from doctrine.shared.scoping import normalize_languages
 from doctrine.agent_profiles import AgentProfileRepository
 from doctrine.directives import DirectiveRepository
 from doctrine.mission_step_contracts import MissionStepContractRepository
@@ -22,9 +23,11 @@ class DoctrineService:
         self,
         shipped_root: Path | None = None,
         project_root: Path | None = None,
+        active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._shipped_root = shipped_root
         self._project_root = project_root
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._cache: dict[str, object] = {}
 
     def _shipped_dir(self, artifact: str) -> Path | None:
@@ -52,6 +55,7 @@ class DoctrineService:
             self._cache["tactics"] = TacticRepository(
                 shipped_dir=self._shipped_dir("tactics"),
                 project_dir=self._project_dir("tactics"),
+                active_languages=self._active_languages,
             )
         return cast(TacticRepository, self._cache["tactics"])
 
@@ -61,6 +65,7 @@ class DoctrineService:
             self._cache["styleguides"] = StyleguideRepository(
                 shipped_dir=self._shipped_dir("styleguides"),
                 project_dir=self._project_dir("styleguides"),
+                active_languages=self._active_languages,
             )
         return cast(StyleguideRepository, self._cache["styleguides"])
 
@@ -70,6 +75,7 @@ class DoctrineService:
             self._cache["toolguides"] = ToolguideRepository(
                 shipped_dir=self._shipped_dir("toolguides"),
                 project_dir=self._project_dir("toolguides"),
+                active_languages=self._active_languages,
             )
         return cast(ToolguideRepository, self._cache["toolguides"])
 
@@ -88,6 +94,7 @@ class DoctrineService:
             self._cache["procedures"] = ProcedureRepository(
                 shipped_dir=self._shipped_dir("procedures"),
                 project_dir=self._project_dir("procedures"),
+                active_languages=self._active_languages,
             )
         return cast(ProcedureRepository, self._cache["procedures"])
 
@@ -106,6 +113,6 @@ class DoctrineService:
             self._cache["agent_profiles"] = AgentProfileRepository(
                 shipped_dir=self._shipped_dir("agent_profiles"),
                 project_dir=self._project_dir("agent_profiles"),
+                active_languages=self._active_languages,
             )
         return cast(AgentProfileRepository, self._cache["agent_profiles"])
-

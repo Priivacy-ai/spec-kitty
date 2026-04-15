@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+
 from .models import Toolguide
 from .validation import reject_toolguide_inline_refs
 
@@ -23,10 +25,12 @@ class ToolguideRepository:
         self,
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
+        active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._toolguides: dict[str, Toolguide] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
         self._project_dir = project_dir
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._load()
 
     @staticmethod
@@ -51,6 +55,8 @@ class ToolguideRepository:
                         continue
                     reject_toolguide_inline_refs(data, file_path=str(yaml_file))
                     toolguide = Toolguide.model_validate(data)
+                    if not applies_to_languages_match(toolguide.applies_to_languages, self._active_languages):
+                        continue
                     shipped[toolguide.id] = toolguide
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
@@ -79,9 +85,13 @@ class ToolguideRepository:
 
                     if tg_id in shipped:
                         merged = self._merge(shipped[tg_id], data)
+                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                            continue
                         self._toolguides[tg_id] = merged
                     else:
                         toolguide = Toolguide.model_validate(data)
+                        if not applies_to_languages_match(toolguide.applies_to_languages, self._active_languages):
+                            continue
                         self._toolguides[toolguide.id] = toolguide
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(

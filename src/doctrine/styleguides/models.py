@@ -61,4 +61,5 @@ class Styleguide(BaseModel):
     anti_patterns: list[AntiPattern] = Field(default_factory=list)
     tooling: dict[str, str] = Field(default_factory=dict)
     quality_test: str | None = None
+    applies_to_languages: list[str] = Field(default_factory=list)
     references: list[str] = Field(default_factory=list)

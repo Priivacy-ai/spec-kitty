@@ -165,3 +165,95 @@ class TestTacticRepository:
         assert loaded.purpose == tactic.purpose
         assert len(loaded.steps) == len(tactic.steps)
         assert len(loaded.references) == len(tactic.references)
+
+    def test_filters_language_scoped_tactics_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "python.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-tactic",
+                    "name": "Python Tactic",
+                    "applies_to_languages": ["python"],
+                    "steps": [{"title": "Run Python workflow"}],
+                },
+                handle,
+            )
+        with (shipped / "generic.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "generic-tactic",
+                    "name": "Generic Tactic",
+                    "steps": [{"title": "Run generic workflow"}],
+                },
+                handle,
+            )
+
+        repo = TacticRepository(shipped_dir=shipped, active_languages=["typescript"])
+        tactic_ids = {tactic.id for tactic in repo.list_all()}
+
+        assert "generic-tactic" in tactic_ids
+        assert "python-tactic" not in tactic_ids
+
+    def test_skips_project_tactics_when_language_scope_does_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+        project = tmp_path / "project"
+        project.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "merge-test.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "name": "Base Name",
+                    "steps": [{"title": "Base Step"}],
+                },
+                handle,
+            )
+        with (project / "merge-test.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "merge-test",
+                    "name": "Python Override",
+                    "applies_to_languages": ["python"],
+                    "steps": [{"title": "Python Step"}],
+                },
+                handle,
+            )
+        with (project / "python-only.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-only",
+                    "name": "Python Only",
+                    "applies_to_languages": ["python"],
+                    "steps": [{"title": "Python Step"}],
+                },
+                handle,
+            )
+
+        repo = TacticRepository(
+            shipped_dir=shipped,
+            project_dir=project,
+            active_languages=["typescript"],
+        )
+
+        merge_test = repo.get("merge-test")
+        assert merge_test is not None
+        assert merge_test.name == "Base Name"
+        assert repo.get("python-only") is None

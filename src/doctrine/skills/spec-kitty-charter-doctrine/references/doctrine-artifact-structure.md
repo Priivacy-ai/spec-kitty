@@ -90,9 +90,9 @@ Top-level keys and their purpose:
 |-----|------|-------------|
 | `testing.min_coverage` | int | Minimum test coverage percentage (0 = not enforced) |
 | `testing.tdd_required` | bool | Whether TDD is mandated |
-| `testing.framework` | string | Test framework name (e.g., "pytest") |
-| `testing.type_checking` | string | Type checking tool (e.g., "mypy") |
-| `quality.linting` | string | Linting tool (e.g., "ruff") |
+| `testing.framework` | string | Test framework / runner name (e.g., "project-test-runner") |
+| `testing.type_checking` | string | Type checking tool (e.g., "project-type-checker") |
+| `quality.linting` | string | Linting tool (e.g., "project-linter") |
 | `quality.pr_approvals` | int | Required PR approvals before merge |
 | `quality.pre_commit_hooks` | bool | Whether pre-commit hooks are required |
 | `commits.convention` | string | Commit message convention (e.g., "conventional") |

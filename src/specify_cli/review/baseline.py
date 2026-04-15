@@ -1,15 +1,15 @@
 """Baseline test capture for Spec Kitty review loop stabilization.
 
 Captures baseline test results at implement time (before the agent starts
-coding) by running the test suite on the base branch.  Results are cached
-as a committed artifact (baseline-tests.json).  At review time, the review
-prompt includes a "Baseline Context" section showing which failures are
-pre-existing vs. newly introduced.
+coding) when the project explicitly configures a baseline-capable test
+command. Results are cached as a committed artifact (baseline-tests.json).
+At review time, the review prompt includes a "Baseline Context" section
+showing which failures are pre-existing vs. newly introduced.
 
 Design decisions:
 - Capture timing: implement time, not claim time.
-- Output format: JUnit XML via pytest --junitxml, parsed via xml.etree.ElementTree (stdlib).
-- Non-pytest projects: configure review.test_command in .kittify/config.yaml.
+- Baseline capture is opt-in via ``review.test_command`` in ``.kittify/config.yaml``.
+- Supported output formats are parser-specific; JUnit XML is supported today.
 - Artifact format: structured JSON with test name, status, one-line error for failures only.
 """
 from __future__ import annotations
@@ -112,13 +112,13 @@ class BaselineTestResult:
         path.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
 
 
-def _get_test_command(repo_root: Path) -> tuple[str, str]:
-    """Return (command_template, output_format) from config or defaults.
+def _get_test_command(repo_root: Path) -> tuple[str | None, str | None]:
+    """Return configured ``(command_template, output_format)`` or ``(None, None)``.
 
-    The command template uses ``{output_file}`` as a placeholder that will
-    be substituted at runtime with the path to the JUnit XML output file.
-
-    Default: ``("pytest --junitxml={output_file}", "junit_xml")``
+    The command template may use ``{output_file}`` as a placeholder that will
+    be substituted at runtime with the path to the parser-specific output file.
+    Baseline capture is intentionally opt-in; when no command is configured,
+    callers should skip baseline capture silently.
     """
     config_path = repo_root / ".kittify" / "config.yaml"
     if config_path.exists():
@@ -136,7 +136,7 @@ def _get_test_command(repo_root: Path) -> tuple[str, str]:
         except Exception as exc:
             logger.warning("Could not read config.yaml: %s", exc)
 
-    return ("pytest --junitxml={output_file}", "junit_xml")
+    return (None, None)
 
 
 def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[BaselineFailure]]:
@@ -208,7 +208,7 @@ def capture_baseline(
         feature_dir: Path to the feature directory in kitty-specs/.
         wp_slug: Slug of the WP task file (e.g. "WP04-baseline-test-capture").
         test_command: Optional override for the test command.  If None, reads
-            from config or falls back to pytest.
+            from config; without config, baseline capture is skipped.
     """
     artifact_dir = feature_dir / "tasks" / wp_slug
     artifact_path = artifact_dir / "baseline-tests.json"
@@ -224,6 +224,24 @@ def capture_baseline(
     if repo_root is None:
         logger.warning("Could not find repo root from %s; skipping baseline capture.", worktree_path)
         return _make_sentinel(wp_id, base_branch, "")
+
+    # Determine test command
+    if test_command is None:
+        test_command, output_format = _get_test_command(repo_root)
+    else:
+        output_format = "junit_xml"
+
+    if not test_command:
+        logger.info("No review.test_command configured; skipping baseline capture for %s.", wp_id)
+        return None
+
+    if output_format != "junit_xml":
+        logger.info(
+            "Baseline capture configured with unsupported output format %r; skipping baseline capture for %s.",
+            output_format,
+            wp_id,
+        )
+        return None
 
     # Resolve base commit hash
     try:
@@ -241,10 +259,6 @@ def capture_baseline(
     except Exception as exc:
         logger.warning("git rev-parse failed: %s", exc)
         return _make_sentinel(wp_id, base_branch, "")
-
-    # Determine test command
-    if test_command is None:
-        test_command, _fmt = _get_test_command(repo_root)
 
     # Create temp dir for the worktree and JUnit output
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -286,7 +300,7 @@ def capture_baseline(
                 logger.warning("Test command failed to execute: %s", exc)
                 return _make_sentinel(wp_id, base_branch, base_commit)
 
-            # Parse JUnit XML (pytest exits non-zero when tests fail — that's OK)
+            # Parse JUnit XML (test runners often exit non-zero when tests fail — that's OK)
             if not junit_xml_path.exists():
                 logger.warning(
                     "JUnit XML not produced by baseline test run (exit=%d). stderr: %s",

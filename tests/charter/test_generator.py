@@ -10,7 +10,7 @@ pytestmark = pytest.mark.fast
 
 
 def test_build_charter_draft_defaults() -> None:
-    """Draft built with defaults selects expected template set, directives, and paradigms."""
+    """Draft built with defaults keeps packaged doctrine selections neutral."""
     # Arrange
     # (no precondition)
 
@@ -22,7 +22,8 @@ def test_build_charter_draft_defaults() -> None:
 
     # Assert
     assert draft.template_set == "software-dev-default"
-    assert len(draft.selected_directives) >= 1
+    assert draft.selected_directives == []
+    assert draft.selected_paradigms == []
     assert "selected_directives" in draft.markdown
 
 

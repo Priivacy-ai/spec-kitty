@@ -196,6 +196,113 @@ class TestAgentProfileRepositoryMany:
             "custom-reviewer",
         }
 
+    def test_filters_language_scoped_profiles_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        (shipped / "python-only.agent.yaml").write_text(
+            """profile-id: python-only
+name: Python Only
+purpose: Python specialist
+role: implementer
+applies_to_languages:
+  - python
+specialization:
+  primary-focus: Python implementation
+""",
+            encoding="utf-8",
+        )
+        (shipped / "generic.agent.yaml").write_text(
+            """profile-id: generic
+name: Generic
+purpose: Generic specialist
+role: implementer
+specialization:
+  primary-focus: General implementation
+""",
+            encoding="utf-8",
+        )
+
+        repo = AgentProfileRepository(shipped_dir=shipped, active_languages=["typescript"])
+        profile_ids = {profile.profile_id for profile in repo.list_all()}
+
+        assert "generic" in profile_ids
+        assert "python-only" not in profile_ids
+
+    def test_keeps_language_scoped_profiles_when_active_languages_are_unset(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        (shipped / "python-only.agent.yaml").write_text(
+            """profile-id: python-only
+name: Python Only
+purpose: Python specialist
+role: implementer
+applies_to_languages:
+  - python
+specialization:
+  primary-focus: Python implementation
+""",
+            encoding="utf-8",
+        )
+        (shipped / "generic.agent.yaml").write_text(
+            """profile-id: generic
+name: Generic
+purpose: Generic specialist
+role: implementer
+specialization:
+  primary-focus: General implementation
+""",
+            encoding="utf-8",
+        )
+
+        repo = AgentProfileRepository(shipped_dir=shipped)
+        profile_ids = {profile.profile_id for profile in repo.list_all()}
+
+        assert "generic" in profile_ids
+        assert "python-only" in profile_ids
+
+    def test_skips_project_profiles_when_language_scope_does_not_match(
+        self, shipped_profiles_dir: Path, tmp_path: Path
+    ) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "python-pedro.agent.yaml").write_text(
+            """profile-id: python-pedro
+applies_to_languages:
+  - python
+routing-priority: 99
+""",
+            encoding="utf-8",
+        )
+        (project / "typescript-reviewer.agent.yaml").write_text(
+            """profile-id: typescript-reviewer
+name: TypeScript Reviewer
+purpose: Review TypeScript changes
+role: reviewer
+applies_to_languages:
+  - typescript
+specialization:
+  primary-focus: TypeScript review
+""",
+            encoding="utf-8",
+        )
+
+        repo = AgentProfileRepository(
+            shipped_dir=shipped_profiles_dir,
+            project_dir=project,
+            active_languages=["go"],
+        )
+
+        python_pedro = repo.get("python-pedro")
+        assert python_pedro is not None
+        assert python_pedro.routing_priority == 90
+        assert repo.get("typescript-reviewer") is None
+
 
 class TestAgentProfileRepositoryBoundaries:
     """Test boundary conditions."""

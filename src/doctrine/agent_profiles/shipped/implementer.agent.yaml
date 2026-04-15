@@ -95,8 +95,6 @@ specialization-context:
     - react
     - vue
     - spring
-    - pytest
-    - jest
   file-patterns:
     - "src/**/*.py"
     - "src/**/*.ts"

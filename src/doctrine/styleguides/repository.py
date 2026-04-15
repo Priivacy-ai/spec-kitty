@@ -19,6 +19,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+
 from .models import Styleguide
 from .validation import reject_styleguide_inline_refs
 
@@ -30,10 +32,12 @@ class StyleguideRepository:
         self,
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
+        active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._styleguides: dict[str, Styleguide] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
         self._project_dir = project_dir
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._load()
 
     @staticmethod
@@ -60,6 +64,8 @@ class StyleguideRepository:
                         continue
                     reject_styleguide_inline_refs(data, file_path=str(yaml_file))
                     styleguide = Styleguide.model_validate(data)
+                    if not applies_to_languages_match(styleguide.applies_to_languages, self._active_languages):
+                        continue
                     shipped[styleguide.id] = styleguide
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
@@ -90,9 +96,13 @@ class StyleguideRepository:
                         merged = self._merge_styleguides(
                             shipped[styleguide_id], data
                         )
+                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                            continue
                         self._styleguides[styleguide_id] = merged
                     else:
                         styleguide = Styleguide.model_validate(data)
+                        if not applies_to_languages_match(styleguide.applies_to_languages, self._active_languages):
+                            continue
                         self._styleguides[styleguide.id] = styleguide
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(

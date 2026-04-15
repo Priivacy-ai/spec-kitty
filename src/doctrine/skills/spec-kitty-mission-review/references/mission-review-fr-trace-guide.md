@@ -38,7 +38,7 @@ is dead code. The tests verify the module's internal behavior; they do not
 verify that the module is invoked by the system.
 
 **Example**: A new mission `status_validator` module is introduced with full
-pytest coverage. All tests pass. The module is never imported from any live
+project-test-runner coverage. All tests pass. The module is never imported from any live
 command path. When a user runs `spec-kitty implement WP01`, the validator
 is never called because no code path invokes it.
 

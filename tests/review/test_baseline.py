@@ -151,7 +151,7 @@ class TestCaptureBaseline:
             result.stdout = "abc1234def5\n"
             result.stderr = ""
             # Detect JUnit XML write
-            if isinstance(cmd, str) and "pytest" in cmd:
+            if isinstance(cmd, str) and "--junitxml=" in cmd:
                 # Extract output file path from the command string
                 import re
                 m = re.search(r"--junitxml=(\S+)", cmd)
@@ -167,6 +167,7 @@ class TestCaptureBaseline:
                 mission_slug="066-test",
                 feature_dir=feature_dir,
                 wp_slug="WP04-test",
+                test_command="custom-runner --junitxml={output_file}",
             )
 
         artifact = wp_task_dir / "baseline-tests.json"
@@ -203,6 +204,7 @@ class TestCaptureBaseline:
                 mission_slug="066-test",
                 feature_dir=feature_dir,
                 wp_slug="WP04-test",
+                test_command="custom-runner --junitxml={output_file}",
             )
 
         assert call_count == 0, "No subprocess calls expected when cache exists"
@@ -232,6 +234,7 @@ class TestCaptureBaseline:
                 mission_slug="066-test",
                 feature_dir=feature_dir,
                 wp_slug="WP04-test",
+                test_command="custom-runner --junitxml={output_file}",
             )
 
         assert result is not None
@@ -434,11 +437,10 @@ class TestConfigCustomTestCommand:
     """test_config_custom_test_command — config overrides default pytest command."""
 
     def test_default_command(self, tmp_path: Path) -> None:
-        """Without config, default pytest command is returned."""
+        """Without config, baseline capture remains disabled."""
         cmd, fmt = _get_test_command(tmp_path)
-        assert "pytest" in cmd
-        assert "{output_file}" in cmd
-        assert fmt == "junit_xml"
+        assert cmd is None
+        assert fmt is None
 
     def test_custom_command_from_config(self, tmp_path: Path) -> None:
         """Config review.test_command overrides the default."""
@@ -467,18 +469,19 @@ class TestConfigCustomTestCommand:
         assert fmt == "junit_xml"
 
     def test_missing_config_file(self, tmp_path: Path) -> None:
-        """Missing .kittify/config.yaml falls back to defaults."""
+        """Missing .kittify/config.yaml leaves baseline capture disabled."""
         cmd, fmt = _get_test_command(tmp_path)
-        assert "pytest" in cmd
-        assert fmt == "junit_xml"
+        assert cmd is None
+        assert fmt is None
 
     def test_config_without_review_section(self, tmp_path: Path) -> None:
-        """Config without 'review' key falls back to defaults."""
+        """Config without 'review' key leaves baseline capture disabled."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
         cmd, fmt = _get_test_command(tmp_path)
-        assert "pytest" in cmd
+        assert cmd is None
+        assert fmt is None
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +541,26 @@ class TestCoverageEdgeCases:
         assert result is not None
         assert result.failed == -1
 
+    def test_capture_baseline_skips_when_no_test_command_configured(self, tmp_path: Path) -> None:
+        """No review.test_command means no subprocess work and no sentinel noise."""
+        repo = tmp_path / "repo"
+        (repo / ".git").mkdir(parents=True)
+        feature_dir = repo / "kitty-specs" / "066-test"
+        (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
+
+        with patch("subprocess.run") as run_mock:
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+            )
+
+        assert result is None
+        run_mock.assert_not_called()
+
     def test_capture_baseline_git_rev_parse_fails(self, tmp_path: Path) -> None:
         """Sentinel returned when git rev-parse fails with non-zero exit."""
         repo = tmp_path / "repo"
@@ -560,10 +583,29 @@ class TestCoverageEdgeCases:
                 mission_slug="066-test",
                 feature_dir=feature_dir,
                 wp_slug="WP04-test",
+                test_command="custom-runner --junitxml={output_file}",
             )
 
         assert result is not None
         assert result.failed == -1
+
+    def test_capture_baseline_skips_unsupported_output_format(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        (repo / ".git").mkdir(parents=True)
+        feature_dir = repo / "kitty-specs" / "066-test"
+        (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
+
+        with patch("specify_cli.review.baseline._get_test_command", return_value=("pytest-json", "json")):
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+            )
+
+        assert result is None
 
     def test_capture_baseline_junit_xml_missing(self, tmp_path: Path) -> None:
         """Sentinel when JUnit XML is not produced (test runner didn't write it)."""
@@ -588,6 +630,7 @@ class TestCoverageEdgeCases:
                 mission_slug="066-test",
                 feature_dir=feature_dir,
                 wp_slug="WP04-test",
+                test_command="custom-runner --junitxml={output_file}",
             )
 
         assert result is not None

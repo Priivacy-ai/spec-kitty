@@ -2,6 +2,8 @@ schema_version: "1.0"
 id: python-conventions
 title: Python Conventions Styleguide
 scope: code
+applies_to_languages:
+  - python
 
 principles:
   - "Guard clauses over nesting: validate inputs early and fail fast rather than wrapping logic in conditional branches."

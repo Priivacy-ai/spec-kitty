@@ -11,6 +11,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+
 from .models import Procedure
 from .validation import reject_procedure_inline_refs
 
@@ -22,10 +24,12 @@ class ProcedureRepository:
         self,
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
+        active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._procedures: dict[str, Procedure] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
         self._project_dir = project_dir
+        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._load()
 
     @staticmethod
@@ -52,6 +56,8 @@ class ProcedureRepository:
                         continue
                     reject_procedure_inline_refs(data, file_path=str(yaml_file))
                     procedure = Procedure.model_validate(data)
+                    if not applies_to_languages_match(procedure.applies_to_languages, self._active_languages):
+                        continue
                     shipped[procedure.id] = procedure
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
@@ -80,9 +86,13 @@ class ProcedureRepository:
 
                     if procedure_id in shipped:
                         merged = self._merge_procedures(shipped[procedure_id], data)
+                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                            continue
                         self._procedures[procedure_id] = merged
                     else:
                         procedure = Procedure.model_validate(data)
+                        if not applies_to_languages_match(procedure.applies_to_languages, self._active_languages):
+                            continue
                         self._procedures[procedure.id] = procedure
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
