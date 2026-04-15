@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.4] - 2026-04-15
+
+### Fixed
+
+- Make `/spec-kitty.plan` stop instructing agents to update imaginary
+  agent-specific context files or hunt for non-existent `agent context update`
+  commands. Planning now stays focused on the actual mission artifacts it owns.
+- Clarify `/spec-kitty.specify` mission-handle timing and non-blocking charter
+  behavior so creation-time flows do not assume a mission already exists or stop
+  on missing charter state.
+- Tighten generated `/spec-kitty.implement`, `/spec-kitty.review`, and
+  `/spec-kitty.merge` wrappers so they use the canonical `--mission <handle>`
+  language and explicitly avoid redundant context rediscovery, including
+  separate charter loads.
+
 ## [3.1.3] - 2026-04-15
 
 ### Fixed

@@ -25,7 +25,18 @@ cd /path/to/project/root  # Your project root checkout
 
 **Worktrees are created later** during `/spec-kitty.implement`, after task finalization computes execution lanes.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+## Mission Handle Rule
+
+Before `mission create`, there is no mission handle yet.
+
+- Do **not** pass `--mission` to `spec-kitty agent mission branch-context`.
+- Do **not** pass `--mission` to `spec-kitty agent mission create`.
+- After `create` succeeds, use `--mission <handle>` for commands that operate on
+  the created mission.
+- `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of
+  the ULID), or `mission_slug`.
+- The resolver disambiguates by `mission_id` and returns a structured
+  `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -77,6 +88,8 @@ spec-kitty charter context --action specify --json
 
 - If JSON `mode` is `bootstrap`, treat JSON `text` as the initial governance context and consult referenced docs as needed.
 - If JSON `mode` is `compact`, proceed with concise governance context.
+- If no charter exists yet, note that and continue. Missing charter is not a
+  blocker for `/spec-kitty.specify`.
 
 ## Discovery Gate (mandatory)
 

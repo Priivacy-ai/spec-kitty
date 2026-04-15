@@ -24,7 +24,17 @@ description: Create an implementation plan
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+## Mission Handle Rule
+
+`/spec-kitty.plan` operates on an existing mission, so use `--mission <handle>`
+when the CLI needs a mission selector.
+
+- `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of
+  the ULID), or `mission_slug`.
+- Prefer `mission_id` or `mid8` when the repo has multiple similarly named
+  missions.
+- The resolver disambiguates by `mission_id` and returns a structured
+  `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -67,6 +77,22 @@ This command runs in the **project root checkout**, not in a worktree.
 - The plan template is committed to the target branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
+
+## Agent Context Files (do not mutate)
+
+This command does **not** update agent-specific context files.
+
+- Do **not** search for or mutate `CLAUDE.md`, `AGENTS.md`, or similar
+  agent-specific files as part of `/spec-kitty.plan`.
+- Do **not** hunt for updater scripts or imaginary `spec-kitty agent context update`
+  commands. No supported context-update command exists in this release.
+- Planning outputs are the mission planning artifacts only:
+  - `plan.md`
+  - `research.md`
+  - `data-model.md`
+  - `contracts/`
+  - `quickstart.md`
+  - `occurrence_map.yaml` when bulk-edit planning applies
 
 ## Planning Interrogation (mandatory)
 
@@ -157,7 +183,6 @@ If the mission is not a bulk edit, skip this step.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
    - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
-   - Phase 1: Update agent context by running the agent script
    - Re-evaluate Charter Check post-design, asking the user to resolve new gaps before proceeding
 
 6. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
@@ -202,14 +227,7 @@ If the mission is not a bulk edit, skip this step.
    - Use standard REST/GraphQL patterns
    - Output OpenAPI/GraphQL schema to `/contracts/`
 
-3. **Agent context update**:
-   - Run ``
-   - These scripts detect which AI agent is in use
-   - Update the appropriate agent-specific context file
-   - Add only new technology from current plan
-   - Preserve manual additions between markers
-
-**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
+**Output**: data-model.md, /contracts/*, quickstart.md
 
 ## Key rules
 
@@ -227,7 +245,6 @@ After reporting:
 - `research.md` path (if generated)
 - `data-model.md` path (if generated)
 - `contracts/` contents (if generated)
-- Agent context file updated
 
 **YOU MUST STOP HERE.**
 

@@ -64,9 +64,9 @@ def _write_full_consumer_file_set(
 
 
 def _current_marker() -> str:
-    from importlib.metadata import version
+    from specify_cli.shims.generator import _get_cli_version
 
-    return f"<!-- spec-kitty-command-version: {version('spec-kitty-cli')} -->"
+    return f"<!-- spec-kitty-command-version: {_get_cli_version()} -->"
 
 
 def _new_layout_shim() -> str:
@@ -77,8 +77,8 @@ def _new_layout_shim() -> str:
         "---\n"
         f"{_current_marker()}\n"
         "Run this exact command and treat its output as authoritative.\n"
-        "Do not rediscover context from branches, files, or prompt contents.\n"
-        "In repos with multiple missions, pass --mission <slug> in your arguments.\n"
+        "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
+        "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
         "\n"
         "`spec-kitty agent action implement $ARGUMENTS --agent claude`\n"
     )
@@ -89,8 +89,8 @@ def _legacy_layout_shim() -> str:
     return (
         f"{_current_marker()}\n"
         "Run this exact command and treat its output as authoritative.\n"
-        "Do not rediscover context from branches, files, or prompt contents.\n"
-        "In repos with multiple missions, pass --mission <slug> in your arguments.\n"
+        "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
+        "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
         "\n"
         "`spec-kitty agent action implement $ARGUMENTS --agent claude`\n"
     )
@@ -159,8 +159,8 @@ def test_stale_marker_emits_warning(tmp_path: Path) -> None:
             "---\n"
             f"{stale}\n"
             "Run this exact command and treat its output as authoritative.\n"
-            "Do not rediscover context from branches, files, or prompt contents.\n"
-            "In repos with multiple missions, pass --mission <slug> in your arguments.\n"
+            "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
+            "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
             "\n"
             "`spec-kitty agent action implement $ARGUMENTS --agent claude`\n"
         )

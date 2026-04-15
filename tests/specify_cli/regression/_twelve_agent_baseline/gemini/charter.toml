@@ -12,11 +12,72 @@ prompt = """
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+## Repo Scope
+
+`/spec-kitty.charter` is a repo-scoped governance flow, not a per-mission flow.
+
+- Run it from the repository root.
+- Do **not** try to resolve a mission handle for this command.
+- For charter subcommands, `--mission-type` means the reusable mission blueprint
+  (for example `software-dev` or `documentation`), not a mission instance in
+  `kitty-specs/`.
+- The hidden `--mission` flag on `spec-kitty charter ...` is only a deprecated
+  alias for `--mission-type`.
+
+If you need deterministic context before interviewing:
+
+1. Confirm you are in the repo root.
+2. Check whether a charter already exists:
+
+```bash
+spec-kitty charter status --json
+```
+
+3. If needed, inspect available mission blueprints:
+
+```bash
+spec-kitty mission list
+```
+
+For this command, the default mission type is `software-dev` unless the user
+explicitly wants a different mission blueprint.
+
+## Skill Load
+
+Before proceeding, load the `spec-kitty-charter-doctrine` skill for the charter
+lifecycle model, doctrine access patterns, and action-context rules.
+
+If the skill conflicts with this command contract, follow this command contract.
 
 ## Command Contract
 
-This command delegates charter work to the CLI charter workflow. Do not hand-author long governance content in chat unless the user explicitly asks for manual drafting.
+This command owns the user interview in chat. Do not default to
+`spec-kitty charter interview --defaults` unless the user explicitly asks for a
+fast bootstrap with canned defaults.
+
+The CLI charter workflow is a compiler and persistence surface, not the primary
+interview experience. Your job is to:
+
+1. Inspect the repo quickly to form an initial governance hypothesis.
+2. Ask the user a short, targeted interview in chat.
+3. Synthesize the answers into `.kittify/charter/interview/answers.yaml`.
+4. Run `spec-kitty charter generate --from-interview --json`.
+5. Verify generation with `spec-kitty charter status --json`.
+
+Do not preload governance context for all workflow actions as part of charter
+generation. Action context is loaded iteratively at the actual action boundary.
+
+## Doctrine Gaps
+
+If no shipped paradigm or directive cleanly fits the user's needs:
+
+- Do **not** force a near-match just to populate selections.
+- Keep `selected_paradigms` and `selected_directives` narrow and truthful.
+- Encode the missing policy as project-specific charter policy in the interview
+  answers and generated charter.
+- Say clearly that this is a doctrine gap, not an existing doctrine match.
+- Treat it as a candidate for later doctrine extraction rather than solving it by
+  misclassifying the project now.
 
 ### Output location
 
@@ -27,27 +88,118 @@ This command delegates charter work to the CLI charter workflow. Do not hand-aut
 
 ## Execution Paths
 
-### Path A: Deterministic minimal setup (fast)
+### Path A: LLM-led interview (default)
 
-Use when user wants speed, defaults, or bootstrap:
+Use this for normal `/spec-kitty.charter` runs.
+
+1. Inspect the repo quickly before asking questions. Prefer high-signal files:
+   - `README.md`
+   - `AGENTS.md`
+   - `CLAUDE.md`
+   - `pyproject.toml`, `package.json`, `go.mod`, `Cargo.toml`
+   - existing `.kittify/charter/*` artifacts if present
+   - If `.claudeignore` exists, respect it during repo inspection and do not
+     spend time reading ignored paths unless the user explicitly asks.
+   - If `.claudeignore` does not exist, treat the following as low-signal Spec
+     Kitty bootstrap artifacts by default and do not over-interpret them as
+     project intent:
+     - `.kittify/config.yaml`
+     - `.kittify/metadata.yaml`
+     - `.kittify/skills-manifest.json`
+     - `.kittify/missions/`
+     - `.kittify/templates/`
+     - `.kittify/scripts/`
+     - agent wrapper directories such as `.claude/`, `.codex/`, `.gemini/`,
+       `.cursor/`, `.opencode/`
+   - If the repo is otherwise sparse, say so plainly. A freshly initialized
+     Spec Kitty workspace with mostly `.kittify/` metadata is a greenfield
+     bootstrap case, not a signal-rich codebase.
+   - In that greenfield case, stop spending time inspecting Spec Kitty init
+     relics and start the interview. The user's answers are the primary source
+     of governance intent.
+   - If charter status or repo inspection reports "not inside a git repository"
+     but the directory is clearly a new project bootstrap, treat that as a
+     greenfield setup condition rather than a reason to delay the interview.
+2. Ask a short targeted interview in chat:
+   - If the user already gave strong context, ask 1-3 clarifying questions.
+   - If the invocation is empty, start the interview and wait after one focused question.
+   - Ask natural-language questions. Do **not** ask the user to answer in YAML,
+     bullet-schema, numbered templates, or "Purpose / Work / Must enforce"
+     formatting.
+   - The LLM is responsible for structuring and normalizing the user's answers
+     into the interview schema later. The user should only have to answer the
+     substance of the question.
+   - If examples are needed, keep them conceptual and brief; do not imply that
+     the user must mirror the example format.
+   - Match interview depth to project complexity and the user's stated
+     preference for speed vs rigor.
+   - If the user wants "lightweight", "fast", "minimal", or clearly low-overhead
+     governance, keep the interview to 2-3 questions maximum unless the user
+     asks for more.
+   - If the repo and user context indicate a large, long-lived, high-risk, or
+     highly regulated codebase, increase interview depth accordingly and cover
+     governance areas that would materially affect long-term operation.
+   - For long interviews, check in periodically. If the user seems tired,
+     impatient, or overloaded, ask whether they want to continue in depth,
+     switch to a lighter pass, or stop and generate a first draft now.
+   - Prefer progressive disclosure: start with the minimum set of questions
+     needed to produce a truthful charter, then deepen only when the project
+     complexity or the user's answers justify it.
+3. Synthesize the interview into `.kittify/charter/interview/answers.yaml` using the
+   schema expected by `spec-kitty charter generate`.
+4. Run:
 
 ```bash
-spec-kitty charter interview --defaults --profile minimal --json
 spec-kitty charter generate --from-interview --json
+spec-kitty charter status --json
+```
+5. Treat the generated charter bundle as a real repository change. If
+   `.kittify/charter/charter.md` or other generated charter artifacts changed,
+   stage and commit them before concluding the command unless the user
+   explicitly asked not to commit.
+
+### Commit expectation
+
+- Do **not** stop at "there is an uncommitted charter change."
+- After successful generation, the default behavior is to create the commit.
+- Use a concise commit message that makes the governance action explicit, for
+  example:
+
+```bash
+git add .kittify/charter/
+git commit -m "chore: generate project charter"
 ```
 
-### Path B: Interactive interview (full)
+- If generation produced no diff, say so and do not create an empty commit.
+- If unrelated dirty changes exist, avoid sweeping them into the charter commit;
+  stage only the charter-related files.
 
-Use when the user wants project-specific policy capture:
+### Path B: CLI interview fallback
+
+Use this only when the user explicitly wants the CLI questionnaire itself:
 
 ```bash
 spec-kitty charter interview --profile comprehensive
 spec-kitty charter generate --from-interview
 ```
 
+### Path C: Deterministic defaults bootstrap
+
+Use this only when the user explicitly asks for defaults, speed, CI bootstrap, or
+“just make me a starter charter”:
+
+```bash
+spec-kitty charter interview --defaults --profile minimal --json
+spec-kitty charter generate --from-interview --json
+spec-kitty charter status --json
+```
+
+When you use defaults, say clearly that no real interview happened.
+
 ## Editing Rules
 
-- To revise policy inputs, rerun `charter interview` (or edit `answers.yaml`) and regenerate.
+- The preferred editable source for this command is `.kittify/charter/interview/answers.yaml`.
+- To revise policy inputs, edit `answers.yaml` (or rerun `charter interview`) and regenerate.
 - Use `--force` with generate if the charter already exists and must be replaced.
 - Keep charter concise; full detail belongs in reference docs listed in `references.yaml`.
 
@@ -59,16 +211,55 @@ After generation, verify status:
 spec-kitty charter status --json
 ```
 
+Do not chain `status` with four `context` calls and dump all of it back into the
+LLM. That burns first-load state and floods the context window with bootstrap
+payloads intended for later action boundaries.
+
 ## Charter Context Bootstrap
 
-After charter generation, first-run lifecycle actions should load context explicitly:
+Do not preload all action contexts here.
+
+The next real workflow action will load its own context automatically.
+
+If you need to inspect one action manually for debugging, query a single action
+without consuming first-load state:
 
 ```bash
-spec-kitty charter context --action specify --json
-spec-kitty charter context --action plan --json
-spec-kitty charter context --action implement --json
-spec-kitty charter context --action review --json
+spec-kitty charter context --action specify --json --no-mark-loaded
 ```
 
-Use JSON `text` as governance context. If `mode=bootstrap`, follow referenced docs as needed.
+Use JSON `text` as governance context only for the immediate next action. Do not
+eagerly inject `specify`, `plan`, `implement`, and `review` all at once.
+
+## Interview Output Shape
+
+When you synthesize `.kittify/charter/interview/answers.yaml`, match the CLI schema:
+
+```yaml
+schema_version: 1.0.0
+mission: software-dev
+profile: comprehensive
+answers:
+  project_intent: "..."
+  languages_frameworks: "..."
+  testing_requirements: "..."
+  quality_gates: "..."
+  review_policy: "..."
+  performance_targets: "..."
+  deployment_constraints: "..."
+  documentation_policy: "..."
+  risk_boundaries: "..."
+  amendment_process: "..."
+  exception_policy: "..."
+selected_paradigms:
+  - domain-driven-design
+selected_directives:
+  - DIRECTIVE_001
+available_tools:
+  - git
+```
+
+Select paradigms, directives, and tools deliberately from repo evidence plus user
+answers. Do not silently accept the full catalog unless the user explicitly asks
+for defaults.
 """
