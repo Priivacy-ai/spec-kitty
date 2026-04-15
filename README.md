@@ -51,7 +51,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 |------------|--------------------------|
 | **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, `wps.yaml`, and `tasks.md` in `kitty-specs/<mission>/` |
 | **Work package execution** | Uses canonical lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
-| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; every mission executes through lane-based worktrees, with exactly one worktree per computed execution lane |
+| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; every mission executes through swim-lane worktrees, with exactly one worktree per computed swim lane |
 | **Live project visibility** | Local dashboard for kanban and mission progress (`spec-kitty dashboard`) |
 | **Review resilience** | Persisted versioned review artifacts, focused fix prompts, dirty-state classification, and arbiter checklists |
 | **Execution resilience** | Interrupted merge recovery (`merge --resume`), crash recovery (`implement --recover`), stale-claim diagnostics (`doctor`) |
@@ -187,7 +187,7 @@ sequenceDiagram
 
 **Key Benefits:**
 - 🔀 **Parallel execution** - Multiple WPs simultaneously
-- 🌳 **Worktree isolation** - Each execution lane gets one worktree, and sequential WPs in the same lane reuse it
+- 🌳 **Worktree isolation** - Each swim lane gets one worktree, and sequential WPs in the same swim lane reuse it
 - 👀 **Full visibility** - Dashboard shows who's doing what
 - 🔒 **Security boundary** - Orchestration policy and transitions are validated at the host API boundary
 
@@ -1033,16 +1033,17 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 > **📖 Quick Start:** See the [Getting Started guide](#-getting-started-complete-workflow) for practical examples of worktree usage in context.
 
-Spec Kitty uses an **opinionated execution-workspace model** for parallel feature development:
+Spec Kitty uses an **opinionated swim-lane worktree model** for parallel feature development.
+Think of each computed lane as a swim lane on the board: that swim lane owns one long-lived branch and one long-lived worktree, and sequential WPs stay in that swim lane instead of creating a fresh worktree per WP.
 
 ### Parallel Development Without Branch Switching
 
 ```mermaid
 graph TD
     Main[main branch<br/>🔒 Clean production code]
-    WT1[.worktrees/001-auth-lane-a<br/>🔐 Shared foundation lane]
-    WT2[.worktrees/001-auth-lane-b<br/>💾 Parallel API lane]
-    WT3[.worktrees/002-dashboard-lane-a<br/>📊 Dashboard lane]
+    WT1[.worktrees/001-auth-lane-a<br/>🔐 Shared foundation swim lane]
+    WT2[.worktrees/001-auth-lane-b<br/>💾 Parallel API swim lane]
+    WT3[.worktrees/002-dashboard-lane-a<br/>📊 Dashboard swim lane]
 
     Main --> WT1
     Main --> WT2
@@ -1059,9 +1060,9 @@ graph TD
 
 **Why this works:**
 - Planning stays in the main checkout, so artifacts remain visible and auditable
-- Lane-based features can share a worktree across sequential WPs in the same execution lane
-- Independent lanes still run in parallel in separate directories with separate branches
-- If task finalization computes one lane, the feature uses one worktree
+- Sequential WPs in the same swim lane reuse the same worktree instead of spinning up a new one
+- Independent swim lanes still run in parallel in separate directories with separate branches
+- If task finalization computes one swim lane, the feature uses one worktree
 - Main branch stays clean without manual `git checkout` juggling
 
 ### The Pattern
@@ -1069,9 +1070,9 @@ graph TD
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
-│   ├── 001-auth-system-lane-a/  # Feature 1 lane A (shared by sequential WPs)
-│   ├── 001-auth-system-lane-b/  # Feature 1 lane B (parallel work)
-│   └── 002-dashboard-lane-a/    # Single-lane feature
+│   ├── 001-auth-system-lane-a/  # Feature 1 swim lane A (shared by sequential WPs)
+│   ├── 001-auth-system-lane-b/  # Feature 1 swim lane B (parallel work)
+│   └── 002-dashboard-lane-a/    # Single-swim-lane feature
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
@@ -1082,8 +1083,8 @@ my-project/                    # Main repo (main branch)
 1. **Planning commands** run in the primary repo root
 2. **Implementation branches** live under `.worktrees/`
 3. **Trust the path printed by Spec Kitty** instead of guessing the worktree name
-4. **Lane-based features** reuse `.worktrees/<feature>-lane-<id>` when multiple WPs share a lane
-5. **One computed lane means one worktree** for the whole feature
+4. **Swim-lane features** reuse `.worktrees/<feature>-lane-<id>` when multiple WPs share a swim lane
+5. **One computed swim lane means one worktree** for the whole feature
 6. **Automatic cleanup** removes execution worktrees after merge
 
 ### The Complete Workflow
