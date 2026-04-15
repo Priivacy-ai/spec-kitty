@@ -147,6 +147,7 @@ include = [
     "pyproject.toml",
 ]
 exclude = [
+    ".kittify/**",
     ".kittify/active-mission",
     "src/specify_cli/**/tests/**",
 ]
