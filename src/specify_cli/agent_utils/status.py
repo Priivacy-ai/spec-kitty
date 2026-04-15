@@ -156,11 +156,11 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
             1 for wp in work_packages
             if wp_state_for(wp["lane"]).progress_bucket() == "not_started"
         )
-        blocked_count = sum(
+        sum(
             1 for wp in work_packages
             if wp_state_for(wp["lane"]).is_blocked
         )
-        canceled_count = sum(
+        sum(
             1 for wp in work_packages
             if wp_state_for(wp["lane"]).is_terminal and wp["lane"] == Lane.CANCELED
         )
@@ -272,7 +272,7 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
     """Display the rich-formatted status board."""
     # Create title panel
     title_text = Text()
-    title_text.append(f"📊 Work Package Status: ", style="bold cyan")
+    title_text.append("📊 Work Package Status: ", style="bold cyan")
     title_text.append(mission_slug, style="bold white")
 
     console.print()
@@ -280,7 +280,7 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
 
     # Progress bar
     progress_text = Text()
-    progress_text.append(f"Progress: ", style="bold")
+    progress_text.append("Progress: ", style="bold")
     progress_text.append(f"{done_count}/{total}", style="bold green")
     progress_text.append(f" ({progress_pct}%)", style="dim")
 
@@ -402,24 +402,24 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
 
         for group in parallel_info["parallel_groups"]:
             if group["type"] == "parallel":
-                console.print(f"\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
+                console.print("\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
                 for wp in group["wps"]:
                     console.print(f"     • {wp['id']} - {wp['title']}")
-                console.print(f"  [dim]  → All dependencies satisfied, no inter-dependencies[/dim]")
+                console.print("  [dim]  → All dependencies satisfied, no inter-dependencies[/dim]")
 
                 # Show implementation commands
-                console.print(f"\n  [bold]Start commands:[/bold]")
+                console.print("\n  [bold]Start commands:[/bold]")
                 for wp in group["wps"]:
                     console.print(f"     spec-kitty implement {wp['id']} &")
 
             elif group["type"] == "single":
-                console.print(f"\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
+                console.print("\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
                 for wp in group["wps"]:
                     console.print(f"     • {wp['id']} - {wp['title']}")
                     console.print(f"     spec-kitty implement {wp['id']}")
 
             elif group["type"] == "sequential":
-                console.print(f"\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
+                console.print("\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
                 for wp in group["wps"]:
                     deps_in_ready = [d for d in wp.get("dependencies", [])
                                     if d in {w["id"] for w in parallel_info["ready_wps"]}]

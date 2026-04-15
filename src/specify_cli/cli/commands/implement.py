@@ -61,7 +61,6 @@ def _json_safe_output(func):
     def wrapper(*args, **kwargs):
         json_output = bool(kwargs.get("json_output", False))
         previous_quiet = console.quiet
-        previous_file = console.file
         capture_buffer: StringIO | None = None
         if json_output:
             capture_buffer = StringIO()
@@ -434,7 +433,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     """
     from specify_cli.core.agent_config import get_auto_commit_default
     from specify_cli.core.dependency_graph import parse_wp_dependencies
-    from specify_cli.sync.events import emit_wp_status_changed
 
     if recover:
         _run_recover_mode(wp_id, mission, feature, json_output)

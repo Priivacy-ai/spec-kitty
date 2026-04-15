@@ -47,7 +47,6 @@ from specify_cli.next.decision import (
     DecisionKind,
     _build_prompt_safe,
     _compute_wp_progress,
-    _find_first_wp_by_lane,
     _state_to_action,
 )
 

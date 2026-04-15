@@ -13,7 +13,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from specify_cli.lanes.branch_naming import lane_branch_name, mission_branch_name
+from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import LanesManifest
 
 

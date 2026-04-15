@@ -9,7 +9,6 @@ from __future__ import annotations
 import fnmatch
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from specify_cli.policy.config import CommitGuardConfig
 
@@ -56,7 +55,6 @@ def validate_staged_files(
         return CommitGuardResult(allowed=True)
 
     violations: list[str] = []
-    warnings: list[str] = []
 
     # Check kitty-specs/ protection.
     if policy.block_kitty_specs:

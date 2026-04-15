@@ -149,7 +149,7 @@ def _build_wp_prompt(
 
     # WP isolation rules
     lines.append("=" * 78)
-    lines.append(f"  CRITICAL: WORK PACKAGE ISOLATION RULES")
+    lines.append("  CRITICAL: WORK PACKAGE ISOLATION RULES")
     lines.append("=" * 78)
     lines.append(f"  YOU ARE {'IMPLEMENTING' if action == 'implement' else 'REVIEWING'}: {wp_id}")
     lines.append("")
@@ -164,7 +164,7 @@ def _build_wp_prompt(
     lines.append("")
 
     # Working directory
-    lines.append(f"WORKING DIRECTORY:")
+    lines.append("WORKING DIRECTORY:")
     lines.append(f"  cd {workspace_path}")
     if not workspace.lane_id:
         lines.append("  # Planning-artifact work for this WP happens in the repository root")

@@ -9,7 +9,6 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.acceptance import AcceptanceError
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir

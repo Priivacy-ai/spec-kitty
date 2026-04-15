@@ -4,8 +4,7 @@ This module generates and checks expected files based on the mission context.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-import yaml
+from typing import Dict, List, Optional
 import subprocess
 
 

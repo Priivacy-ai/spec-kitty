@@ -449,11 +449,11 @@ def doctor(
         console.print(f"\n[bold]Mission Status: {result.mission_slug}[/bold]")
         if result.is_healthy:
             console.print(
-                f"  [green]Healthy[/green]"
+                "  [green]Healthy[/green]"
             )
         else:
             console.print(
-                f"  [yellow]Issues found[/yellow]"
+                "  [yellow]Issues found[/yellow]"
             )
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")
@@ -637,8 +637,7 @@ def validate(
         spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
-    from specify_cli.status.reducer import reduce
-    from specify_cli.status.store import read_events, read_events_raw
+    from specify_cli.status.store import read_events_raw
     from specify_cli.status.validate import (
         ValidationResult,
         validate_done_evidence,

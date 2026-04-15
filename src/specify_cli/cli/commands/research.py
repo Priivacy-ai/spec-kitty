@@ -9,7 +9,6 @@ from typing import Optional
 import typer
 from rich.panel import Panel
 
-from specify_cli.acceptance import AcceptanceError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner

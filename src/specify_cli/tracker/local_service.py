@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.tracker.config import (
-    LOCAL_PROVIDERS,
     TrackerProjectConfig,
     clear_tracker_config,
     load_tracker_config,

@@ -9,8 +9,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
+from typing import List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -41,16 +40,12 @@ from task_helpers import (  # noqa: E402
     WorkPackage,
     append_activity_log,
     build_document,
-    detect_conflicting_wp_status,
     ensure_lane,
     extract_scalar,
     find_repo_root,
-    get_lane_from_frontmatter,
-    git_status_lines,
     is_legacy_format,
     normalize_note,
     now_utc,
-    path_has_changes,
     run_git,
     set_scalar,
     split_frontmatter,
@@ -58,7 +53,6 @@ from task_helpers import (  # noqa: E402
 )
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
-    AcceptanceResult,
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
@@ -171,7 +165,7 @@ def _collect_summary_with_encoding(
             feature,
             strict_metadata=strict_metadata,
         )
-    except ArtifactEncodingError as exc:
+    except ArtifactEncodingError:
         if not normalize_encoding:
             raise
         cleaned = normalize_feature_encoding(repo_root, feature)
