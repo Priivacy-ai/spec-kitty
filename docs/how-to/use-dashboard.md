@@ -5,7 +5,7 @@ description: Start, view, and manage the real-time kanban dashboard for Spec Kit
 
 # How to Use the Spec Kitty Dashboard
 
-The dashboard provides live, project-wide visibility into work packages, lanes, and agent activity. It launches during `spec-kitty init` and can be opened anytime.
+The dashboard provides live, project-wide visibility into work packages, lanes, and agent activity. Start it on demand whenever you want to inspect progress.
 
 ## Starting the Dashboard
 
@@ -15,7 +15,11 @@ spec-kitty dashboard
 /spec-kitty.dashboard
 ```
 
-If the dashboard isn't already running, Spec Kitty starts it in the background and opens a browser tab.
+If the dashboard isn't already running, Spec Kitty starts it in the background. Add `--open` if you want it to launch in your browser immediately:
+
+```bash
+spec-kitty dashboard --open
+```
 
 ## Dashboard URL
 
@@ -55,7 +59,7 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Dashboard Auto-Start
 
-`spec-kitty init` starts the dashboard automatically for each project. You can re-run `spec-kitty init .` if the dashboard metadata is missing or stale.
+`spec-kitty init` does not auto-start the dashboard in the current `3.1.x` flow. If dashboard metadata is missing or stale, run `spec-kitty dashboard` again to recreate it.
 
 ---
 

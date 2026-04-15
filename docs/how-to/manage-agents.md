@@ -325,7 +325,7 @@ Use `status` to:
 - Audit your agent configuration for inconsistencies
 - Detect orphaned directories (present but not configured)
 - Identify missing directories (configured but not present)
-- See all 12 agents at a glance
+- See all 13 slash-command agents at a glance
 
 ### Taking Action Based on Status
 
@@ -568,7 +568,7 @@ For more information on agent management and related topics:
 
 ### Supported Agents
 
-- [Supported AI Agents](../reference/supported-agents.md) - Complete list of 12 supported agents with capabilities, installation requirements, and usage notes
+- [Supported AI Agents](../reference/supported-agents.md) - Complete list of the 13 slash-command agents with capabilities, installation requirements, and usage notes
 
 ### Configuration
 

@@ -1,6 +1,8 @@
 # Supported AI Agents Reference
 
-Spec Kitty supports **13 AI coding agents** with slash commands. This document lists all supported agents and their configuration details.
+Spec Kitty currently exposes **13 slash-command agent surfaces**. This page documents the agents that get project command directories such as `.claude/commands/` or `.codex/prompts/`.
+
+Related assistant integrations such as `vibe` use shared skill roots rather than project slash-command directories, so they are intentionally out of scope for this specific table.
 
 ---
 
@@ -216,7 +218,7 @@ spec-kitty init my-project --ai kilocode
 
 **Usage**:
 ```bash
-spec-kitty init my-project --ai augment
+spec-kitty init my-project --ai auggie
 ```
 
 ---
@@ -388,11 +390,14 @@ export CODEX_HOME="$(pwd)/.codex"
 - [Install & Upgrade](../how-to/install-spec-kitty.md) — Installation guide
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## Practical Usage
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ## Background
+
 - [AI Agent Architecture](../explanation/ai-agent-architecture.md)

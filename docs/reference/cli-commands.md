@@ -16,6 +16,7 @@ Terminology note:
 **Description**: Spec Kitty CLI entry point.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--version`, `-v` | Show version and exit |
@@ -64,11 +65,11 @@ Terminology note:
 - `PROJECT_NAME`: Name for your new project directory (use `.` for current directory)
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
 | `--non-interactive` / `--yes` | Disable prompts (CI/CD) |
-| `--no-git` | Skip git repository initialization |
 | `--help` | Show this message and exit |
 
 **Examples**:
@@ -80,7 +81,7 @@ spec-kitty init . --ai codex
 spec-kitty init my-project --ai codex --non-interactive
 ```
 
-**See Also**: `docs/non-interactive-init.md`
+**See Also**: `docs/how-to/non-interactive-init.md`
 
 ---
 
@@ -91,6 +92,7 @@ spec-kitty init my-project --ai codex --non-interactive
 **Description**: Upgrade a Spec Kitty project to the current version.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--dry-run` | Preview changes without applying |
@@ -120,6 +122,7 @@ spec-kitty upgrade --target 0.6.5
 - `WP_ID`: Work package ID (e.g., `WP01`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug (canonical flag; e.g., `001-my-feature`) |
@@ -147,6 +150,7 @@ spec-kitty implement WP01 --json
 **Description**: Validate mission readiness before merging to main.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug to accept |
@@ -168,6 +172,7 @@ spec-kitty implement WP01 --json
 **Description**: Merge lane branches into the mission branch, merge the mission branch into the target branch, and clean up execution worktrees. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `SQUASH`. Case-insensitive. |
@@ -202,6 +207,7 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 **Description**: Open or stop the Spec Kitty dashboard.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--port INTEGER` | Preferred port for the dashboard (falls back to first available port) |
@@ -218,6 +224,7 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 **Description**: Execute Phase 0 research workflow to scaffold artifacts.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug to target |
@@ -233,6 +240,7 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 **Description**: Machine-contract API for external orchestrators. Every command emits exactly one JSON envelope and exits non-zero on failure.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -259,6 +267,7 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 **Description**: Synchronization commands. This is a command group with subcommands for workspace sync, event queue sync, and sync health diagnostics.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -278,6 +287,7 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 **Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`. Sync may fail on conflicts; you must resolve conflicts before continuing.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--repair`, `-r` | Attempt workspace recovery (may lose uncommitted work) |
@@ -301,6 +311,7 @@ spec-kitty sync workspace --repair
 - `URL`: Sync server URL to set (must be `https://...`) [optional]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -318,6 +329,7 @@ spec-kitty sync server https://spec-kitty-dev.fly.dev
 **Description**: Trigger immediate sync of all queued events. Drains the offline queue completely, uploading events to the server in batches of 1000 until the queue is empty or all remaining events have exceeded their retry limit.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--report PATH` | Export per-event failure details to a JSON file |
@@ -338,6 +350,7 @@ spec-kitty sync now --no-strict
 **Description**: Show sync queue status, connection state, and auth info. Displays offline queue size, connection/emitter status, last sync timestamp, auth status, and server URL configuration.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--check`, `-c` | Test connection to server (may be slow if server is unreachable) |
@@ -356,6 +369,7 @@ spec-kitty sync status --check
 **Description**: Validate queued events locally against the event schema. Reads all pending events from the offline queue and validates each one against the Pydantic Event model and per-event-type payload rules. Valid events are reported as passing; malformed events show specific field errors grouped by error category.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output results as JSON instead of Rich table |
@@ -374,6 +388,7 @@ spec-kitty sync diagnose --json
 **Description**: Diagnose sync health: queue, auth, and server connectivity. Runs a comprehensive check of offline queue state, authentication validity, and server reachability, printing actionable remediation steps for any issues found.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -394,6 +409,7 @@ spec-kitty sync doctor
 **Description**: Operation history (git reflog).
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -409,6 +425,7 @@ spec-kitty sync doctor
 **Description**: Show git reflog entries. Displays recent git operations that have modified the repository state.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--limit`, `-n INTEGER` | Number of operations to show (default: 20) |
@@ -429,6 +446,7 @@ spec-kitty ops log --verbose
 **Description**: Undo is not supported for git. Git does not have reversible operation history. Consider using these alternatives manually: `git reset --soft HEAD~1` (undo last commit, keep changes), `git reset --hard HEAD~1` (undo last commit, discard changes), `git revert <commit>` (create reverting commit), or `git reflog` (find previous states).
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -442,6 +460,7 @@ spec-kitty ops log --verbose
 **Description**: View available Spec Kitty missions. Mission types are selected per mission during `/spec-kitty.specify`.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -453,6 +472,7 @@ spec-kitty ops log --verbose
 **Description**: List all available missions with their source (project/built-in).
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -464,6 +484,7 @@ spec-kitty ops log --verbose
 **Description**: Show currently active mission.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -478,6 +499,7 @@ spec-kitty ops log --verbose
 - `MISSION_NAME`: Mission name to display details for [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -492,6 +514,7 @@ spec-kitty ops log --verbose
 - `MISSION_NAME`: Mission name (no longer supported) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--force` | (ignored) |
@@ -506,6 +529,7 @@ spec-kitty ops log --verbose
 **Description**: Validate and optionally fix file encoding in mission artifacts.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug to validate |
@@ -523,6 +547,7 @@ spec-kitty ops log --verbose
 **Description**: Validate and optionally fix task metadata inconsistencies.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug to validate |
@@ -541,6 +566,7 @@ spec-kitty ops log --verbose
 **Description**: Verify that the current environment matches Spec Kitty expectations.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug to verify |
@@ -559,6 +585,7 @@ spec-kitty ops log --verbose
 **Description**: List legacy worktrees blocking 0.11.0 upgrade.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -572,6 +599,7 @@ spec-kitty ops log --verbose
 **Description**: Repair broken templates.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -587,6 +615,7 @@ spec-kitty ops log --verbose
 **Description**: Repair broken templates caused by v0.10.0-0.10.8 bundling bug.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--project-path PATH`, `-p` | Path to project to repair |
@@ -603,6 +632,7 @@ spec-kitty ops log --verbose
 - `WORKTREE_PATH`: Specific worktree path to check (defaults to current directory if in a worktree) [optional]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--all` | Check all worktrees in .worktrees/ directory |
@@ -623,6 +653,7 @@ spec-kitty repair worktree --all
 **Description**: Commands for AI agents to execute spec-kitty workflows programmatically.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -841,7 +872,7 @@ spec-kitty agent config status
 
 **Description**:
 
-Displays a comprehensive table showing all 12 supported agents, whether they're configured, whether directories exist, and sync status.
+Displays a comprehensive table showing the current supported slash-command agents, whether they're configured, whether directories exist, and sync status.
 
 **Arguments**: None
 
@@ -970,6 +1001,7 @@ Sets a project-level configuration value in `.kittify/config.yaml`. Currently su
 - `VALUE`: Configuration value (e.g., `true`, `false`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1004,6 +1036,7 @@ spec-kitty agent config set auto_commit true
 **Description**: Prepare a release candidate: validates `CHANGELOG.md`, bumps version in `pyproject.toml`, creates an annotated git tag, and optionally opens a GitHub release draft. Added in 3.1.0 (mission 068).
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--channel TEXT` | Release channel: `alpha`, `beta`, or `stable` (default: `stable`) |
@@ -1036,6 +1069,7 @@ spec-kitty agent release prep --channel stable
 **Description**: Scan the test suite for stale assertions: version strings, hardcoded timestamps, or environment-specific values that would cause false failures after a release. Uses `ast`-based analysis (no test execution required). Added in 3.1.0 (mission 068).
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--base TEXT` | Base git ref to diff against (default: `HEAD~1`) |
@@ -1062,6 +1096,7 @@ spec-kitty agent tests stale-check --json
 - `FEATURE`: Feature name or slug (e.g., `user-authentication`) [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission-type TEXT` | Mission type (e.g., `software-dev`, `research`) |
@@ -1084,6 +1119,7 @@ spec-kitty specify my-feature --json
 **Description**: Scaffold plan.md for a mission.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug (e.g., `001-user-authentication`) |
@@ -1106,6 +1142,7 @@ spec-kitty plan --json
 **Description**: Finalize tasks metadata after task generation.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Emit JSON result |
@@ -1126,6 +1163,7 @@ spec-kitty tasks --json
 **Description**: Display project configuration and asset resolution information.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--show-origin` | Show where each resolved asset comes from (tier label + path) |
@@ -1150,6 +1188,7 @@ spec-kitty config -m documentation
 As of 3.1.0, omitting `--result` is **query mode**: the command reads and prints the current mission state without advancing it. `--agent` and `--mission` are still required.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--agent TEXT` | Agent name (required) |
@@ -1189,6 +1228,7 @@ spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --dec
 **Description**: Migrate project .kittify/ to centralized model. First ensures the global runtime (`~/.kittify/`) is up to date, then classifies per-project files as identical (removed), customized (moved to overrides/), or project-specific (kept). Running this command multiple times is safe (idempotent). After the first successful run, subsequent invocations are a near-instant no-op.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--dry-run` | Show what would change without modifying the filesystem |
@@ -1212,6 +1252,7 @@ spec-kitty migrate --verbose
 **Description**: Authentication commands.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1228,6 +1269,7 @@ spec-kitty migrate --verbose
 **Description**: Log in to the sync service.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--username`, `-u TEXT` | Your username or email |
@@ -1242,6 +1284,7 @@ spec-kitty migrate --verbose
 **Description**: Log out from the sync service.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1253,6 +1296,7 @@ spec-kitty migrate --verbose
 **Description**: Show current authentication status.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1266,6 +1310,7 @@ spec-kitty migrate --verbose
 **Description**: Charter management commands. As of 3.1.0 (mission 063), `spec-kitty charter` is the canonical command. `spec-kitty constitution` has been removed; all existing `constitution` references should be updated to `charter`.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1284,6 +1329,7 @@ spec-kitty migrate --verbose
 **Description**: Capture charter interview answers for later generation.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission key for charter defaults (default: `software-dev`) |
@@ -1302,6 +1348,7 @@ spec-kitty migrate --verbose
 **Description**: Generate charter bundle from interview answers + doctrine references.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission key for template-set defaults |
@@ -1319,6 +1366,7 @@ spec-kitty migrate --verbose
 **Description**: Render charter context for a specific workflow action.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--action TEXT` | Workflow action (`specify`, `plan`, `implement`, `review`) [required] |
@@ -1333,6 +1381,7 @@ spec-kitty migrate --verbose
 **Description**: Sync charter.md to structured YAML config files.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--force`, `-f` | Force sync even if not stale |
@@ -1346,6 +1395,7 @@ spec-kitty migrate --verbose
 **Description**: Display charter sync status.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON |
@@ -1360,6 +1410,7 @@ spec-kitty migrate --verbose
 **Description**: Query workspace context information.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1376,6 +1427,7 @@ spec-kitty migrate --verbose
 **Description**: Show context information for current or specified workspace.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--workspace`, `-w TEXT` | Workspace name (auto-detected if inside worktree) |
@@ -1396,6 +1448,7 @@ spec-kitty context info --json
 **Description**: List all workspace contexts.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Output in JSON format |
@@ -1416,6 +1469,7 @@ spec-kitty context list --json
 **Description**: Clean up orphaned workspace contexts. Removes context files for workspaces that no longer exist.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--dry-run` | Show what would be cleaned up without deleting |
@@ -1442,6 +1496,7 @@ spec-kitty doctor --mission 034-my-feature
 ```
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Restrict scan to a specific mission slug |
@@ -1458,6 +1513,7 @@ spec-kitty doctor --mission 034-my-feature
 **Description**: Show state roots, surface classification, and safety warnings. Displays the three state roots with resolved paths, all registered state surfaces grouped by root with authority and Git classification, and warnings for any runtime surfaces not covered by .gitignore.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Machine-readable JSON output |
@@ -1478,6 +1534,7 @@ spec-kitty doctor state-roots --json
 **Description**: Glossary management commands.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1494,6 +1551,7 @@ spec-kitty doctor state-roots --json
 **Description**: List all terms in glossary.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--scope TEXT` | Filter by scope (`mission_local`, `team_domain`, `audience_domain`, `spec_kitty_core`) |
@@ -1508,6 +1566,7 @@ spec-kitty doctor state-roots --json
 **Description**: Display conflict history from event log.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Filter conflicts by mission ID |
@@ -1526,6 +1585,7 @@ spec-kitty doctor state-roots --json
 - `CONFLICT_ID`: Conflict ID to resolve [required]
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission ID for event log (auto-detected if omitted) |
@@ -1540,6 +1600,7 @@ spec-kitty doctor state-roots --json
 **Description**: Task tracker commands.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1559,6 +1620,7 @@ spec-kitty doctor state-roots --json
 **Description**: List supported tracker providers, grouped into SaaS-backed (`linear`, `jira`, `github`, `gitlab`) and local/native (`beads`, `fp`) modes.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Render provider list as JSON |
@@ -1571,6 +1633,7 @@ spec-kitty doctor state-roots --json
 **Description**: Bind the current project to a tracker. SaaS-backed providers require `--project-slug` and authenticate through `spec-kitty auth login`; local/native providers require `--workspace` and may accept `--credential`.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--provider TEXT` | Provider name (`linear`, `jira`, `github`, `gitlab`, `beads`, `fp`) [required] |
@@ -1588,6 +1651,7 @@ spec-kitty doctor state-roots --json
 **Description**: Show tracker binding and sync status. SaaS-backed providers read status from the Spec Kitty SaaS control plane; local/native providers show local config and cache details.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Render status as JSON |
@@ -1600,6 +1664,7 @@ spec-kitty doctor state-roots --json
 **Description**: Remove tracker binding for this project. For SaaS-backed providers this clears only local project config; unlinking the provider account still happens in the Spec Kitty dashboard.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1611,6 +1676,7 @@ spec-kitty doctor state-roots --json
 **Description**: Work-package mapping commands.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1626,6 +1692,7 @@ spec-kitty doctor state-roots --json
 **Description**: Add or update a WP-to-external issue mapping. For SaaS-backed providers this command hard-fails and directs you to the Spec Kitty dashboard, where mappings are managed server-side.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--wp-id TEXT` | Work package ID (e.g., `WP01`) [required] |
@@ -1641,6 +1708,7 @@ spec-kitty doctor state-roots --json
 **Description**: List tracker mappings. For SaaS-backed providers this reads the SaaS-authoritative mapping view; for local/native providers it reads the local mapping store.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--json` | Render mappings as JSON |
@@ -1653,6 +1721,7 @@ spec-kitty doctor state-roots --json
 **Description**: Tracker synchronization commands.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--help` | Show this message and exit |
@@ -1670,6 +1739,7 @@ spec-kitty doctor state-roots --json
 **Description**: Pull tracker updates into the local cache.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--limit INTEGER` | Maximum items to pull (default: 100, range: 1-10000) |
@@ -1683,6 +1753,7 @@ spec-kitty doctor state-roots --json
 **Description**: Push explicit tracker mutations to the upstream provider. For SaaS-backed providers this is an explicit-mutation path and requires `--items-json`; use `tracker sync run` for the normal full-sync path.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--limit INTEGER` | Maximum items to push (local/native providers only; default: 100, range: 1-10000) |
@@ -1697,6 +1768,7 @@ spec-kitty doctor state-roots --json
 **Description**: Run pull+push synchronization in one operation. For SaaS-backed providers this is the normal full-sync path executed entirely through Spec Kitty SaaS.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--limit INTEGER` | Maximum items per direction (default: 100, range: 1-10000) |
@@ -1710,6 +1782,7 @@ spec-kitty doctor state-roots --json
 **Description**: Publish a local tracker snapshot to Spec Kitty SaaS. This command is retired for SaaS-backed providers and fails with guidance to use `tracker sync push` or `tracker sync run` instead.
 
 **Options**:
+
 | Flag | Description |
 | --- | --- |
 | `--server-url TEXT` | Spec Kitty SaaS base URL |
@@ -1740,10 +1813,12 @@ The Spec Kitty status model uses 7 lanes plus one alias:
 ---
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)

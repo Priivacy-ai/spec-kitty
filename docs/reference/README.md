@@ -18,7 +18,7 @@ Reference docs are:
 - [Environment Variables](environment-variables.md) - All environment variables
 - [File Structure](file-structure.md) - Directory layout and file purposes
 - [Missions](missions.md) - Mission types and configuration
-- [Supported Agents](supported-agents.md) - All 12 supported AI agents
+- [Supported Agents](supported-agents.md) - The 13 slash-command agents supported by the CLI
 
 ## See Also
 

@@ -9,8 +9,7 @@
 ```bash
 spec-kitty init <project-name> \
   --ai <agents> \
-  [--non-interactive] \
-  [--no-git]
+  [--non-interactive]
 ```
 
 ## Required Arguments for Non-Interactive Mode
@@ -39,6 +38,7 @@ spec-kitty init .
 ```
 
 **Valid agent keys**:
+
 | Key | Agent Name |
 |-----|------------|
 | `codex` | Codex CLI (OpenAI) |
@@ -62,11 +62,11 @@ spec-kitty init .
 | Flag | Purpose | Default |
 |------|---------|---------|
 | `--non-interactive` / `--yes` | Disable prompts (required for CI) | Off |
-| `--no-git` | Skip git repository initialization | Off (initializes git) |
 
 ## Complete Non-Interactive Examples
 
 ### Example 1: New project with Codex
+
 ```bash
 spec-kitty init my-project \
   --ai codex \
@@ -74,6 +74,7 @@ spec-kitty init my-project \
 ```
 
 ### Example 2: Current directory with multiple agents
+
 ```bash
 spec-kitty init . \
   --ai claude,codex,cursor \
@@ -81,23 +82,25 @@ spec-kitty init . \
 ```
 
 ### Example 3: Minimal (relies on defaults)
+
 ```bash
 # In non-interactive environment (CI/CD):
 spec-kitty init my-project --ai codex --non-interactive
 ```
 
 ### Example 4: CI/CD friendly
+
 ```bash
 spec-kitty init . \
   --ai claude \
-  --no-git \
   --non-interactive
 ```
 
-### Example 5: All 12 agents
+### Example 5: All 13 init-surface agents
+
 ```bash
 spec-kitty init my-project \
-  --ai codex,claude,gemini,cursor,qwen,opencode,windsurf,kilocode,auggie,roo,copilot,q \
+  --ai codex,claude,gemini,cursor,qwen,opencode,windsurf,kilocode,auggie,roo,copilot,q,kiro \
   --non-interactive
 ```
 
@@ -134,7 +137,6 @@ Behavior:
   run: |
 spec-kitty init . \
   --ai codex \
-  --no-git \
   --non-interactive
 ```
 
@@ -150,64 +152,76 @@ spec-kitty init /app/project \
 
 When you specify agents with `--ai`, spec-kitty creates:
 
-### For `--ai codex`:
+### For `--ai codex`
+
 - `.codex/prompts/spec-kitty.*.md` (13 command files)
 - `.kittify/AGENTS.md` (auto-loaded by Codex)
 - No extra context files needed (native AGENTS.md support!)
 
-### For `--ai claude`:
+### For `--ai claude`
+
 - `.claude/commands/spec-kitty.*.md` (13 command files)
 - `.kittify/AGENTS.md`
 - `CLAUDE.md` → symlink to `.kittify/AGENTS.md`
 
-### For `--ai cursor`:
+### For `--ai cursor`
+
 - `.cursor/commands/spec-kitty.*.md` (13 command files)
 - `.kittify/AGENTS.md`
 - `.cursorrules` → symlink to `.kittify/AGENTS.md` (legacy)
 - `.cursor/rules/AGENTS.md` → symlink to `.kittify/AGENTS.md` (modern)
 
-### For `--ai windsurf`:
+### For `--ai windsurf`
+
 - `.windsurf/workflows/spec-kitty.*.md` (13 workflow files)
 - `.kittify/AGENTS.md`
 - `.windsurfrules` → symlink to `.kittify/AGENTS.md` (legacy)
 - `.windsurf/rules/AGENTS.md` → symlink to `.kittify/AGENTS.md` (modern)
 
-### For `--ai roo`:
+### For `--ai roo`
+
 - `.roo/commands/spec-kitty.*.md` (13 command files)
 - `.kittify/AGENTS.md`
 - `.roorules` → symlink to `.kittify/AGENTS.md` (legacy)
 - `.roo/rules/AGENTS.md` → symlink to `.kittify/AGENTS.md` (modern)
 
-### For `--ai gemini`:
+### For `--ai gemini`
+
 - `.gemini/commands/spec-kitty.*.toml` (13 command files in TOML format)
 - `.kittify/AGENTS.md`
 - `GEMINI.md` → symlink to `.kittify/AGENTS.md`
 
-### For `--ai copilot`:
+### For `--ai copilot`
+
 - `.github/prompts/spec-kitty.*.prompt.md` (13 prompt files)
 - `.kittify/AGENTS.md`
 - `.github/copilot-instructions.md` → symlink to `.kittify/AGENTS.md`
 
-### For `--ai kilocode`:
+### For `--ai kilocode`
+
 - `.kilocode/workflows/spec-kitty.*.md` (13 workflow files)
 - `.kittify/AGENTS.md`
 - `.kilocoderules` → symlink to `.kittify/AGENTS.md`
 
-### For `--ai opencode`:
+### For `--ai opencode`
+
 - `.opencode/command/spec-kitty.*.md` (13 command files)
 - `.kittify/AGENTS.md`
 - Note: Requires manual config entry in opencode.json
 
-### For `--ai auggie`:
+### For `--ai auggie`
+
 - `.augment/commands/spec-kitty.*.md` (13 command files)
 - `.kittify/AGENTS.md`
 - `.augmentrules` → symlink to `.kittify/AGENTS.md` (assumed)
 
-### For `--ai qwen`:
+### For `--ai qwen`
+
 - `.qwen/commands/spec-kitty.*.toml` (13 command files in TOML format)
 - `.kittify/AGENTS.md`
 
-### For `--ai q`:
+### For `--ai q`
+
 - `.amazonq/prompts/spec-kitty.*.md` (13 prompt files)
 - `.kittify/AGENTS.md`
 - Note: May have discovery issues (known bug)
@@ -223,6 +237,7 @@ When you specify agents with `--ai`, spec-kitty creates:
 ## Platform-Specific Behavior
 
 ### Unix/Mac (Has Symlinks)
+
 All agent-specific context files are **symlinks** to `.kittify/AGENTS.md`:
 ```bash
 ls -l CLAUDE.md
@@ -232,6 +247,7 @@ ls -l CLAUDE.md
 **Benefit**: Single source of truth, updates to AGENTS.md instantly affect all agents
 
 ### Windows (No Symlinks by Default)
+
 All agent-specific context files are **copies** of `.kittify/AGENTS.md`:
 ```powershell
 ls CLAUDE.md
@@ -259,6 +275,7 @@ ls .gemini/commands/        # Gemini (TOML)
 ## Troubleshooting
 
 ### "Invalid AI assistant"
+
 ```bash
 # ERROR
 spec-kitty init proj --ai CODEX
@@ -272,19 +289,21 @@ Valid keys are lowercase: `codex`, `claude`, `gemini`, `cursor`, `qwen`, `openco
 ## Complete Reference
 
 ### Minimal Non-Interactive Init
+
 ```bash
 spec-kitty init my-project --ai codex --non-interactive
 ```
 
 ### Maximum Options
+
 ```bash
 spec-kitty init my-project \
   --ai codex,claude,cursor \
-  --no-git \
   --non-interactive
 ```
 
 ### Current Directory
+
 ```bash
 spec-kitty init . --ai codex --non-interactive
 ```
@@ -335,14 +354,17 @@ Usage:
 ```
 
 ## Command Reference
+
 - [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
 - [`spec-kitty dashboard`](../reference/cli-commands.md#spec-kitty-dashboard)
 - [`spec-kitty agent`](../reference/agent-subcommands.md)
 
 ## See Also
+
 - [Install Spec Kitty](install-spec-kitty.md)
 - [Upgrade to 0.11.0](install-and-upgrade.md)
 
 ## Background
+
 - [AI Agent Architecture](../explanation/ai-agent-architecture.md)
 - [Execution Lanes](../explanation/execution-lanes.md)

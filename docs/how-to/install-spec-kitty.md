@@ -61,32 +61,26 @@ pipx run spec-kitty-cli init <PROJECT_NAME>
 uvx spec-kitty-cli init <PROJECT_NAME>
 ```
 
-### Add to Existing Project
+### Add to an Existing Project
 
-To add Spec Kitty to an existing project, use the `--here` flag:
+To add Spec Kitty to an existing repository, run `init` from that repository root:
 
 ```bash
-# Navigate to your existing project directory
 cd /path/to/existing-project
-
-# Initialize Spec Kitty in the current directory
-spec-kitty init .
-# or use the --here flag
-spec-kitty init --here
+spec-kitty init . --ai claude
 ```
 
-When adding to an existing project:
-- Spec Kitty will **merge** its templates with your existing files
-- You'll be prompted to confirm if the directory is not empty
-- Use `--force` to skip confirmation: `spec-kitty init --here --force`
-- Agent configurations, mission system, and dashboard will be added
-- Your existing source code and dependencies are preserved
+What this does today:
+- Creates the `.kittify/` scaffold in the current directory
+- Adds the selected agent command directories
+- Updates ignore files such as `.gitignore` / `.claudeignore`
+- Leaves your Git history untouched; `init` does not initialize Git or create commits
 
-**Best Practices for Existing Projects:**
-1. **Backup first**: Commit your current work to git before adding Spec Kitty
-2. **Review .gitignore**: Spec Kitty automatically protects agent directories in `.gitignore`
-3. **Team alignment**: Add Spec Kitty to a feature branch before merging to main if you're in a team
-4. **Follow the workflow**: After init, run `/spec-kitty.specify` to begin your first feature
+**Best practices for existing projects:**
+1. Commit or stash your current work before adding Spec Kitty.
+2. Review `.gitignore` after init so agent directories remain untracked.
+3. Use `spec-kitty verify-setup --diagnostics` if you want a post-install health check.
+4. Start the workflow with `/spec-kitty.specify`; mission selection happens there, not during `init`.
 
 ### Choose AI Agent
 
@@ -95,7 +89,8 @@ You can proactively specify your AI agent during initialization:
 ```bash
 spec-kitty init <project_name> --ai claude
 spec-kitty init <project_name> --ai gemini
-spec-kitty init <project_name> --ai copilot
+spec-kitty init <project_name> --ai codex
+spec-kitty init <project_name> --ai claude,codex
 ```
 
 ### Managing Agents After Initialization
@@ -109,20 +104,12 @@ To manage agents post-init:
 
 See [Managing AI Agents](manage-agents.md) for complete documentation on agent management workflows.
 
-### Cross-Platform Python CLI (v0.10.0+)
+### Non-Interactive Setup
 
-As of v0.10.0, all automation uses cross-platform Python CLI commands (`spec-kitty agent`).
-
-The legacy `--script` option is no longer needed - all commands work identically across Windows, macOS, and Linux.
-
-> **Migration Note:** Projects created before v0.10.0 had bash/PowerShell scripts. Run `spec-kitty upgrade` to migrate to Python CLI commands. See [Upgrade to 0.11.0](install-and-upgrade.md) for details.
-
-### Ignore Agent Tools Check
-
-If you prefer to get the templates without checking for the right tools:
+For CI or scripts, use the non-interactive mode documented by `spec-kitty init --help`:
 
 ```bash
-spec-kitty init <project_name> --ai claude --ignore-agent-tools
+spec-kitty init <project_name> --ai claude --non-interactive
 ```
 
 ## Verification
@@ -133,7 +120,7 @@ After initialization, you should see the following commands available in your AI
 - `/spec-kitty.research` - Scaffold mission-specific research artifacts (Phase 0)
 - `/spec-kitty.tasks` - Break down into actionable tasks
 
-When you run `/spec-kitty.specify` or `/spec-kitty.plan`, expect the assistant to pause with `WAITING_FOR_DISCOVERY_INPUT` or `WAITING_FOR_PLANNING_INPUT` until you answer its question tables.
+Run `spec-kitty dashboard --open` if you want the live dashboard immediately after setup.
 
 ## Troubleshooting
 
@@ -155,14 +142,18 @@ rm gcm-linux_amd64.2.6.1.deb
 ```
 
 ## Command Reference
+
 - [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
 - [`spec-kitty upgrade`](../reference/cli-commands.md#spec-kitty-upgrade)
+- [`spec-kitty verify-setup`](../reference/cli-commands.md#spec-kitty-verify-setup)
 
 ## See Also
+
 - [Non-Interactive Init](non-interactive-init.md)
 - [Upgrade to 0.11.0](install-and-upgrade.md)
 - [Use the Dashboard](use-dashboard.md)
 
 ## Background
+
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
 - [Mission System](../explanation/mission-system.md)

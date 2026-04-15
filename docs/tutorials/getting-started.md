@@ -7,7 +7,6 @@ In this tutorial, you'll install Spec Kitty and create your first feature specif
 **Time**: ~30 minutes
 **Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
 
-
 ## Step 1: Install Spec Kitty
 
 Choose one install method:
@@ -29,7 +28,7 @@ spec-kitty --version
 Expected output (abridged):
 
 ```
-spec-kitty-cli version 2.1.1
+spec-kitty-cli version 3.1.4
 ```
 
 ## Step 2: Initialize a Project
@@ -45,10 +44,10 @@ Expected output (abridged):
 
 ```
 OK Initialized Spec Kitty project
-OK Generated agent commands in .claude/
+OK Created .kittify/ scaffold
 ```
 
-Tip: Use `spec-kitty init --here --ai claude` to initialize the current folder.
+Tip: Use `spec-kitty init . --ai claude` to initialize the current folder.
 
 ## Step 3: Create Your First Specification
 
@@ -64,8 +63,9 @@ You'll be asked a discovery interview. Answer each question until the command co
 
 Expected results:
 
-- `kitty-specs/###-task-list/spec.md` (feature spec)
-- A git commit in `main` with the spec changes
+- `kitty-specs/###-task-list/spec.md` (mission spec)
+- A new mission directory under `kitty-specs/`
+- No Git commit is created automatically; `init` and planning commands leave commit control to you
 
 ## Step 4: Verify Your Work
 
@@ -90,7 +90,7 @@ ls .worktrees
 ## Troubleshooting
 
 - **`spec-kitty: command not found`**: Reopen your shell or reinstall via `pipx` or `uv`. Then rerun `spec-kitty --version`.
-- **No `/spec-kitty.specify` command available**: Re-run `spec-kitty init --ai <your-agent>` or use `spec-kitty agent context update-context` to refresh agent context.
+- **No `/spec-kitty.specify` command available**: Re-run `spec-kitty init . --ai <your-agent>` from the project root, then verify the setup with `spec-kitty verify-setup --diagnostics`.
 - **`WAITING_FOR_DISCOVERY_INPUT`**: The command is paused for your answers; provide the requested details and continue.
 
 ## What's Next?
@@ -107,7 +107,7 @@ Continue with [Your First Feature](your-first-feature.md) for the complete workf
 
 - [CLI Commands](../reference/cli-commands.md) - Full command reference
 - [Slash Commands](../reference/slash-commands.md) - AI agent slash commands
-- [Supported Agents](../reference/supported-agents.md) - All 12 supported AI agents
+- [Supported Agents](../reference/supported-agents.md) - The 13 slash-command agents supported by the CLI
 
 ### Learn More
 
