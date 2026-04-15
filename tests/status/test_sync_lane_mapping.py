@@ -82,6 +82,7 @@ class TestCanonicalFanOut:
             actor="test-actor",
             mission_slug="039-test-feature",
             policy_metadata=None,
+            ensure_daemon=True,
         )
 
     def test_planned_to_claimed_now_emits(self) -> None:
