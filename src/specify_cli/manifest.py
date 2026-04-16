@@ -62,53 +62,42 @@ class FileManifest:
 
         return manifest
 
+    @staticmethod
+    def _parse_frontmatter_scripts(content: str, script_key: str) -> set[str]:
+        """Extract .kittify/scripts/ paths from a command file's YAML frontmatter."""
+        scripts: set[str] = set()
+        in_frontmatter = False
+        for line in content.split("\n"):
+            if line.strip() == "---":
+                if in_frontmatter:
+                    break  # end of frontmatter
+                in_frontmatter = True
+                continue
+            if not in_frontmatter or script_key not in line:
+                continue
+            parts = line.split(":", 1)
+            if len(parts) != 2:
+                continue
+            script_path = parts[1].strip().strip('"').strip("'").split()[0] if parts[1].strip() else ""
+            if script_path.startswith(".kittify/scripts/"):
+                scripts.add(script_path.replace(".kittify/", "", 1))
+        return scripts
+
     def _get_referenced_scripts(self) -> list[str]:
         """Extract script references from command files, filtered by platform."""
         import platform
-        scripts = set()
 
         if not self.mission_dir:
             return []
-
         commands_dir = self.mission_dir / "command-templates"
         if not commands_dir.exists():
             return []
 
-        # Determine which script type to look for based on platform
-        is_windows = platform.system() == 'Windows'
-        script_key = 'ps:' if is_windows else 'sh:'
-
-        # Parse command files for script references
+        script_key = "ps:" if platform.system() == "Windows" else "sh:"
+        scripts: set[str] = set()
         for cmd_file in commands_dir.glob("*.md"):
-            content = cmd_file.read_text(encoding='utf-8-sig')
-            lines = content.split('\n')
-
-            # Look for script references in YAML frontmatter
-            in_frontmatter = False
-            for line in lines:
-                if line.strip() == '---':
-                    in_frontmatter = not in_frontmatter
-                    if not in_frontmatter and in_frontmatter == False:
-                        break  # End of frontmatter
-                elif in_frontmatter:
-                    # Only check for scripts relevant to this platform
-                    if script_key in line:
-                        # Extract script path
-                        parts = line.split(':', 1)
-                        if len(parts) == 2:
-                            script_line = parts[1].strip().strip('"').strip("'")
-                            # Extract just the script path, not the arguments
-                            # Script path is the first part before any spaces or arguments
-                            script_parts = script_line.split()
-                            if script_parts:
-                                script_path = script_parts[0]
-                                # Only include actual .kittify/scripts/ files
-                                # Skip CLI commands (spec-kitty, git, python, etc.)
-                                if script_path.startswith('.kittify/scripts/'):
-                                    script_path = script_path.replace('.kittify/', '', 1)
-                                    scripts.add(script_path)
-
-        return sorted(list(scripts))
+            scripts |= self._parse_frontmatter_scripts(cmd_file.read_text(encoding="utf-8-sig"), script_key)
+        return sorted(scripts)
 
     def check_files(self) -> dict[str, dict[str, str]]:
         """

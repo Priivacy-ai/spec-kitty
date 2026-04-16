@@ -111,67 +111,68 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         """Human-readable asset kind derived from the class name."""
         return type(self).__name__.removesuffix("Repository").lower()
 
+    def _load_shipped_items(self, yaml_parser: YAML) -> dict[str, T]:
+        """Parse all shipped YAML files and return a keyed dict."""
+        shipped: dict[str, T] = {}
+        if not self._shipped_dir.exists():
+            return shipped
+        for yaml_file in sorted(self._shipped_dir.rglob(self._glob)):
+            try:
+                data = yaml_parser.load(yaml_file)
+                if data is None:
+                    continue
+                self._pre_validate(data, yaml_file)
+                obj = self._schema.model_validate(data)
+                if not self._include_item(obj):
+                    continue
+                shipped[self._key(obj)] = obj
+            except (YAMLError, ValidationError, OSError) as exc:
+                warnings.warn(
+                    f"Skipping invalid shipped {self._kind} {yaml_file.name}: {exc}",
+                    UserWarning,
+                    stacklevel=3,
+                )
+        return shipped
+
+    def _apply_project_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
+        """Merge or add project-dir items into self._items."""
+        if not (self._project_dir and self._project_dir.exists()):
+            return
+        for yaml_file in self._project_scan(self._project_dir):
+            try:
+                data = yaml_parser.load(yaml_file)
+                if data is None:
+                    continue
+                self._pre_validate(data, yaml_file)
+                item_id = data.get("id")
+                if not item_id:
+                    warnings.warn(
+                        f"Skipping project {self._kind} {yaml_file.name}: no id",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+                    continue
+                if item_id in shipped:
+                    merged = self._merge(shipped[item_id], data)
+                    if self._include_item(merged):
+                        self._items[item_id] = merged
+                else:
+                    obj = self._schema.model_validate(data)
+                    if self._include_item(obj):
+                        self._items[self._key(obj)] = obj
+            except (YAMLError, ValidationError, OSError) as exc:
+                warnings.warn(
+                    f"Skipping invalid project {self._kind} {yaml_file.name}: {exc}",
+                    UserWarning,
+                    stacklevel=3,
+                )
+
     def _load(self) -> None:
         """Walk shipped + project dirs, parse, merge, warn on failure."""
         yaml_parser = YAML(typ="safe")
-        schema = self._schema
-        glob = self._glob
-        shipped: dict[str, T] = {}
-
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob(glob)):
-                try:
-                    data = yaml_parser.load(yaml_file)
-                    if data is None:
-                        continue
-                    self._pre_validate(data, yaml_file)
-                    obj = schema.model_validate(data)
-                    if not self._include_item(obj):
-                        continue
-                    shipped[self._key(obj)] = obj
-                except (YAMLError, ValidationError, OSError) as exc:
-                    warnings.warn(
-                        f"Skipping invalid shipped {self._kind} "
-                        f"{yaml_file.name}: {exc}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
+        shipped = self._load_shipped_items(yaml_parser)
         self._items = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in self._project_scan(self._project_dir):
-                try:
-                    data = yaml_parser.load(yaml_file)
-                    if data is None:
-                        continue
-                    self._pre_validate(data, yaml_file)
-                    item_id = data.get("id")
-                    if not item_id:
-                        warnings.warn(
-                            f"Skipping project {self._kind} "
-                            f"{yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-                    if item_id in shipped:
-                        merged = self._merge(shipped[item_id], data)
-                        if not self._include_item(merged):
-                            continue
-                        self._items[item_id] = merged
-                    else:
-                        obj = schema.model_validate(data)
-                        if not self._include_item(obj):
-                            continue
-                        self._items[self._key(obj)] = obj
-                except (YAMLError, ValidationError, OSError) as exc:
-                    warnings.warn(
-                        f"Skipping invalid project {self._kind} "
-                        f"{yaml_file.name}: {exc}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+        self._apply_project_overrides(yaml_parser, shipped)
 
     def _merge(self, shipped: T, project_data: dict[str, Any]) -> T:
         """Merge project override into a shipped instance at field level."""

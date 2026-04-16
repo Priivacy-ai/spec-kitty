@@ -253,7 +253,7 @@ def _legacy_alias_collapses_to_current_lane(
     normalized = raw_lane.strip().lower()
     return normalized != resolved_lane and resolved_lane == from_lane
 
-def emit_status_transition(
+def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately
     feature_dir: TransitionRequest | Path | None = None,
     _legacy_mission_slug: str | None = None,
     wp_id: str | None = None,
