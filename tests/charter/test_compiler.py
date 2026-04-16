@@ -1,12 +1,12 @@
-"""Scope: mock-boundary tests for charter compiler bundle generation — no real git."""
+"""Scope: mock-boundary tests for charter compiler bundle generation -- no real git."""
 
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from charter.catalog import load_doctrine_catalog
-from charter.compiler import compile_charter, write_compiled_charter
+from charter.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.compiler import _resolve_template_set, compile_charter, write_compiled_charter
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -35,6 +35,28 @@ def test_compile_charter_contains_governance_activation_block() -> None:
     assert "## Governance Activation" in compiled.markdown
     assert "selected_directives" in compiled.markdown
     assert "available_tools: [git, spec-kitty]" in compiled.markdown
+
+
+def test_resolve_template_set_uses_smallest_available_fallback() -> None:
+    catalog = DoctrineCatalog(
+        template_sets={"zeta-default", "alpha-default"},
+        paradigms=[],
+        directives=[],
+        tactics=[],
+        styleguides=[],
+        toolguides=[],
+        procedures=[],
+        agent_profiles=[],
+    )
+
+    assert (
+        _resolve_template_set(
+            mission="software-dev",
+            requested_template_set=None,
+            catalog=catalog,
+        )
+        == "alpha-default"
+    )
 
 
 def test_compile_charter_preserves_explicit_empty_selections() -> None:
