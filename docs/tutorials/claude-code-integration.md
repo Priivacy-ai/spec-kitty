@@ -316,7 +316,7 @@ and WebSocket for live reload. Dark mode toggle.
 
 ### Starting the Dashboard
 
-`spec-kitty init` no longer auto-starts the dashboard in the current `4.1.x` flow. Start it when you want it:
+`spec-kitty init` no longer auto-starts the dashboard in the current `3.1.x` flow. Start it when you want it:
 
 ```bash
 spec-kitty dashboard --open
