@@ -13,7 +13,7 @@ and lane-level dependencies and parallel groups are computed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from itertools import combinations
 
 from specify_cli.core.dependency_graph import topological_sort
@@ -294,7 +294,7 @@ def compute_lanes(
             mission_branch=f"kitty/mission-{mission_slug}",
             target_branch=target_branch,
             lanes=[planning_lane],
-            computed_at=datetime.now(timezone.utc).isoformat(),
+            computed_at=datetime.now(UTC).isoformat(),
             computed_from="dependency_graph+ownership",
             planning_artifact_wps=list(planning_lane.wp_ids),
         )
@@ -482,7 +482,7 @@ def compute_lanes(
         mission_branch=mission_branch,
         target_branch=target_branch,
         lanes=all_lanes,
-        computed_at=datetime.now(timezone.utc).isoformat(),
+        computed_at=datetime.now(UTC).isoformat(),
         computed_from="dependency_graph+ownership",
         planning_artifact_wps=derived_planning_artifact_wps,
         collapse_report=collapse_report,
@@ -556,7 +556,7 @@ def _empty_manifest(
         mission_branch=f"kitty/mission-{mission_slug}",
         target_branch=target_branch,
         lanes=[],
-        computed_at=datetime.now(timezone.utc).isoformat(),
+        computed_at=datetime.now(UTC).isoformat(),
         computed_from="dependency_graph+ownership",
         planning_artifact_wps=planning_artifact_wps or [],
     )

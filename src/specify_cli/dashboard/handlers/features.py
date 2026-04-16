@@ -98,7 +98,7 @@ class FeatureHandler(DashboardHandler):
             worktrees_root_exists = worktrees_root_path.exists()
             worktrees_root_display = format_path_for_display(str(worktrees_root_resolved)) if worktrees_root_exists else None
 
-            active_worktree_display: Optional[str] = None
+            active_worktree_display: str | None = None
             if worktrees_root_exists:
                 try:
                     current_path.relative_to(worktrees_root_resolved)
@@ -252,7 +252,7 @@ class FeatureHandler(DashboardHandler):
                     content = artifact_file.read_text(encoding="utf-8", errors="replace")
                     self.wfile.write(error_msg.encode("utf-8") + content.encode("utf-8"))
                 except Exception as exc:
-                    self.wfile.write(f"Error reading file: {exc}".encode("utf-8"))
+                    self.wfile.write(f"Error reading file: {exc}".encode())
                 return
 
         self.send_response(404)
@@ -337,7 +337,7 @@ class FeatureHandler(DashboardHandler):
                     content = artifact_file.read_text(encoding="utf-8", errors="replace")
                     self.wfile.write(error_msg.encode("utf-8") + content.encode("utf-8"))
                 except Exception as exc:
-                    self.wfile.write(f"Error reading file: {exc}".encode("utf-8"))
+                    self.wfile.write(f"Error reading file: {exc}".encode())
                 return
 
         self.send_response(404)
@@ -395,7 +395,7 @@ class FeatureHandler(DashboardHandler):
                     content = artifact_file.read_text(encoding="utf-8", errors="replace")
                     self.wfile.write(error_msg.encode("utf-8") + content.encode("utf-8"))
                 except Exception as exc:
-                    self.wfile.write(f"Error reading {filename}: {exc}".encode("utf-8"))
+                    self.wfile.write(f"Error reading {filename}: {exc}".encode())
                 return
 
         self.send_response(404)

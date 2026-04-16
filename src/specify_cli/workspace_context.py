@@ -29,8 +29,8 @@ from specify_cli.ownership.workspace_strategy import create_planning_workspace
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
-_FEATURE_CONTEXT_INDEX_CACHE: dict[tuple[str, str], dict[str, "WorkspaceContext"]] = {}
-_FEATURE_WP_METADATA_CACHE: dict[tuple[str, str], dict[str, "NormalizedWorkPackage"]] = {}
+_FEATURE_CONTEXT_INDEX_CACHE: dict[tuple[str, str], dict[str, WorkspaceContext]] = {}
+_FEATURE_WP_METADATA_CACHE: dict[tuple[str, str], dict[str, NormalizedWorkPackage]] = {}
 _FEATURE_WP_METADATA_ERROR_CACHE: dict[tuple[str, str], dict[str, ValueError]] = {}
 _FEATURE_WP_METADATA_SNAPSHOT_CACHE: dict[tuple[str, str], tuple[tuple[str, int], ...]] = {}
 
@@ -98,12 +98,12 @@ class WorkspaceContext:
     lane_wp_ids: list[str]  # All WPs assigned to this lane
     current_wp: str | None = None  # Which WP is currently active in the lane
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> WorkspaceContext:
+    def from_dict(cls, data: dict[str, Any]) -> WorkspaceContext:
         """Create from dictionary (JSON deserialization)."""
         import dataclasses
 

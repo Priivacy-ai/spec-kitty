@@ -35,7 +35,7 @@ def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     return None
 
 
-def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Dict[str, Any]:
+def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
@@ -52,7 +52,7 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
 
-    diagnostics: Dict[str, Any] = {
+    diagnostics: dict[str, Any] = {
         "project_path": str(project_dir),
         "current_working_directory": str(Path.cwd()),
         "git_branch": None,

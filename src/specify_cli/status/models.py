@@ -323,8 +323,8 @@ class AgentAssignment:
 
     tool: str
     model: str
-    profile_id: Optional[str] = None
-    role: Optional[str] = None
+    profile_id: str | None = None
+    role: str | None = None
 
 
 @dataclass

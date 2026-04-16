@@ -28,7 +28,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 _console = Console(stderr=True)
 
 
-def _get_project_identity() -> "ProjectIdentity":
+def _get_project_identity() -> ProjectIdentity:
     """Lazily load and resolve project identity.
 
     Uses lazy import to prevent circular dependency issues.
@@ -68,7 +68,7 @@ def _get_project_identity() -> "ProjectIdentity":
     return ensure_identity(repo_root)
 
 
-def _create_git_resolver() -> "GitMetadataResolver":
+def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
     from .project_identity import ensure_identity
@@ -358,10 +358,10 @@ class EventEmitter:
     queue: OfflineQueue = field(default_factory=OfflineQueue)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _pending_tasks: set = field(default_factory=set, repr=False)
-    _identity: "ProjectIdentity | None" = field(default=None, repr=False)
-    _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
+    _identity: ProjectIdentity | None = field(default=None, repr=False)
+    _git_resolver: GitMetadataResolver | None = field(default=None, repr=False)
 
-    def _get_identity(self) -> "ProjectIdentity":
+    def _get_identity(self) -> ProjectIdentity:
         """Get cached project identity, lazily loading on first access.
 
         Identity is resolved once per emitter lifetime to avoid repeated I/O.
@@ -370,7 +370,7 @@ class EventEmitter:
             self._identity = _get_project_identity()
         return self._identity
 
-    def _get_git_metadata(self) -> "GitMetadata":
+    def _get_git_metadata(self) -> GitMetadata:
         """Get per-event git metadata via cached resolver.
 
         Never raises: returns GitMetadata with None fields on any error.
@@ -821,7 +821,7 @@ class EventEmitter:
                 "node_id": self.clock.node_id,
                 "lamport_clock": clock_value,
                 "causation_id": causation_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
                 "project_slug": identity.project_slug,

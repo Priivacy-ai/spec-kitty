@@ -29,9 +29,9 @@ class RemoveClarifyCommandMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Remove clarify command artifacts from agent dirs and .kittify templates."""
-        changes: List[str] = []
-        warnings: List[str] = []
-        errors: List[str] = []
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
 
         targets = list(self._iter_targets(project_path))
         if not targets:

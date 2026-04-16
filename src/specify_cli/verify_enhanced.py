@@ -18,7 +18,7 @@ from .skills.verifier import verify_installed_skills
 logger = logging.getLogger(__name__)
 
 
-def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
+def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     """Resolve mission key from a feature's meta.json.
 
     Returns the mission string or ``None`` when no meta.json exists.
@@ -38,7 +38,7 @@ def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
     return None
 
 
-def _parse_skill_name_from_frontmatter(content: str) -> Optional[str]:
+def _parse_skill_name_from_frontmatter(content: str) -> str | None:
     """Extract the ``name`` field from YAML frontmatter in a SKILL.md file.
 
     Returns ``None`` when no frontmatter or no ``name`` key is found.
@@ -64,12 +64,12 @@ def run_enhanced_verify(
     repo_root: Path,
     project_root: Path,
     cwd: Path,
-    feature: Optional[str],
+    feature: str | None,
     json_output: bool,
     check_files: bool,
     console: Console,
-    feature_dir: Optional[Path] = None,
-) -> Dict:
+    feature_dir: Path | None = None,
+) -> dict:
     """
     Run the enhanced verification with manifest checking and worktree status.
 
@@ -85,7 +85,7 @@ def run_enhanced_verify(
     }
 
     # Resolve mission from feature-level meta.json when available
-    mission_type: Optional[str] = None
+    mission_type: str | None = None
     if feature_dir is not None:
         mission_type = _resolve_mission_from_feature(feature_dir)
     elif feature:
@@ -309,7 +309,7 @@ def run_enhanced_verify(
             console.print(f"   [dim]... and {len(all_features) - 10} more features[/dim]")
 
     # 6. Managed Skills
-    skill_verify_data: Dict = {"status": "skipped"}
+    skill_verify_data: dict = {"status": "skipped"}
     skill_warnings: list[str] = []
     skill_has_issues = False
 

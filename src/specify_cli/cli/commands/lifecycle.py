@@ -25,8 +25,8 @@ def _slugify_feature_input(value: str) -> str:
 
 def specify(
     feature: str = typer.Argument(..., help="Feature name or slug (e.g., user-authentication)"),
-    mission_type: Optional[str] = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
-    mission: Optional[str] = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
+    mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
+    mission: str | None = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
@@ -46,8 +46,8 @@ def specify(
 
 
 def plan(
-    mission: Optional[str] = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
-    feature: Optional[str] = typer.Option(None, "--feature", hidden=True, help="(deprecated) Use --mission"),
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="(deprecated) Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""

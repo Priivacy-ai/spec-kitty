@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.core.config import (
@@ -53,7 +53,7 @@ def _ensure_backup_root(project_path: Path, backup_root: Path | None) -> Path:
     if backup_root is not None:
         return backup_root
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     root = project_path / ".kittify" / ".migration-backup" / "agent-skills" / timestamp
     root.mkdir(parents=True, exist_ok=True)
     return root
@@ -115,7 +115,7 @@ def _project_skill_files(
 ) -> list[ManagedFileEntry]:
     """Project all files for one skill into the project and return manifest entries."""
     entries: list[ManagedFileEntry] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     backup_root: Path | None = None
 
     for source_file in skill.all_files:
@@ -153,7 +153,7 @@ def _make_entries_for_existing(
 ) -> list[ManagedFileEntry]:
     """Create manifest entries pointing to already-projected files."""
     entries: list[ManagedFileEntry] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for source_file in skill.all_files:
         rel_within_skill = source_file.relative_to(skill.skill_dir)
@@ -240,7 +240,7 @@ def install_all_skills(
 ) -> ManagedSkillManifest:
     """Install skills for all agents. Returns populated manifest."""
     skills = registry.discover_skills()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     manifest = ManagedSkillManifest(
         version=1,

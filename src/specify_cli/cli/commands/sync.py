@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -41,7 +41,7 @@ _STATUS_REFRESH_TOKEN_LABEL = "Refresh token"
 _STATUS_LAST_SYNC_LABEL = "Last Sync"
 
 
-def humanize_timedelta(td: "timedelta") -> str:
+def humanize_timedelta(td: timedelta) -> str:
     """Convert a timedelta into a concise human-readable string.
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
@@ -590,7 +590,7 @@ def sync_server(
 
 @app.command()
 def now(
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Export per-event failure details to a JSON file",
@@ -936,7 +936,7 @@ def doctor() -> None:
         access_exp_dt = session.access_token_expires_at
         refresh_exp_dt = session.refresh_token_expires_at
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         access_ok = access_exp_dt is not None and access_exp_dt > now
         refresh_ok = (

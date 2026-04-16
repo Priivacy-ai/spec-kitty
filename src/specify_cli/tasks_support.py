@@ -18,7 +18,7 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -28,8 +28,8 @@ from specify_cli.legacy_detector import is_legacy_format
 # Canonical lane tuple — imported from the status package (single source of truth).
 from specify_cli.status import CANONICAL_LANES
 
-LANES: Tuple[str, ...] = CANONICAL_LANES
-LANE_ALIASES: Dict[str, str] = {"doing": "in_progress"}
+LANES: tuple[str, ...] = CANONICAL_LANES
+LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -37,7 +37,7 @@ class TaskCliError(RuntimeError):
     """Raised when task operations cannot be completed safely."""
 
 
-def find_repo_root(start: Optional[Path] = None) -> Path:
+def find_repo_root(start: Path | None = None) -> Path:
     """Find the MAIN repository root, even when inside a worktree.
 
     This function correctly handles git worktrees by detecting when .git is a
@@ -74,7 +74,7 @@ def find_repo_root(start: Optional[Path] = None) -> Path:
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
 
-def run_git(args: List[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
     """Run a git command inside the repository."""
     try:
         return subprocess.run(
@@ -105,21 +105,21 @@ def ensure_lane(value: str) -> str:
 
 
 def now_utc() -> str:
-    return datetime.now(timezone.utc).strftime(TIMESTAMP_FORMAT)
+    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
 
 
-def git_status_lines(repo_root: Path) -> List[str]:
+def git_status_lines(repo_root: Path) -> list[str]:
     result = run_git(["status", "--porcelain"], cwd=repo_root, check=True)
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
-def normalize_note(note: Optional[str], target_lane: str) -> str:
+def normalize_note(note: str | None, target_lane: str) -> str:
     default = f"Moved to {target_lane}"
     cleaned = (note or default).strip()
     return cleaned or default
 
 
-def detect_conflicting_wp_status(status_lines: List[str], feature: str, old_path: Path, new_path: Path) -> List[str]:
+def detect_conflicting_wp_status(status_lines: list[str], feature: str, old_path: Path, new_path: Path) -> list[str]:
     """Return staged work-package entries unrelated to the requested move."""
     prefix = f"kitty-specs/{feature}/tasks/"
     allowed = {
@@ -137,7 +137,7 @@ def detect_conflicting_wp_status(status_lines: List[str], feature: str, old_path
     return conflicts
 
 
-def match_frontmatter_line(frontmatter: str, key: str) -> Optional[re.Match]:
+def match_frontmatter_line(frontmatter: str, key: str) -> re.Match | None:
     pattern = re.compile(
         rf"^({re.escape(key)}:\s*)(\".*?\"|'.*?'|[^#\n]*)(.*)$",
         flags=re.MULTILINE,
@@ -145,7 +145,7 @@ def match_frontmatter_line(frontmatter: str, key: str) -> Optional[re.Match]:
     return pattern.search(frontmatter)
 
 
-def extract_scalar(frontmatter: str, key: str) -> Optional[str]:
+def extract_scalar(frontmatter: str, key: str) -> str | None:
     match = match_frontmatter_line(frontmatter, key)
     if not match:
         return None
@@ -178,7 +178,7 @@ def set_scalar(frontmatter: str, key: str, value: str) -> str:
     return frontmatter + insertion
 
 
-def split_frontmatter(text: str) -> Tuple[str, str, str]:
+def split_frontmatter(text: str) -> tuple[str, str, str]:
     """Return (frontmatter, body, padding) while preserving spacing after frontmatter."""
     normalized = text.replace("\r\n", "\n")
     if not normalized.startswith("---\n"):
@@ -228,7 +228,7 @@ def append_activity_log(body: str, entry: str) -> str:
     return body[: match.start(1)] + section + body[match.end(1) :]
 
 
-def activity_entries(body: str) -> List[Dict[str, str]]:
+def activity_entries(body: str) -> list[dict[str, str]]:
     # Match both en-dash (–) and hyphen (-) as separators
     # Agent names can contain hyphens (e.g., "cursor-agent", "claude-reviewer")
     # Use \S+ to match non-whitespace including hyphens within the agent name
@@ -241,7 +241,7 @@ def activity_entries(body: str) -> List[Dict[str, str]]:
         r"(?P<note>.*)$",
         flags=re.MULTILINE,
     )
-    entries: List[Dict[str, str]] = []
+    entries: list[dict[str, str]] = []
     for match in pattern.finditer(body):
         entries.append(
             {
@@ -266,27 +266,27 @@ class WorkPackage:
     padding: str
 
     @property
-    def work_package_id(self) -> Optional[str]:
+    def work_package_id(self) -> str | None:
         return extract_scalar(self.frontmatter, "work_package_id")
 
     @property
-    def title(self) -> Optional[str]:
+    def title(self) -> str | None:
         return extract_scalar(self.frontmatter, "title")
 
     @property
-    def assignee(self) -> Optional[str]:
+    def assignee(self) -> str | None:
         return extract_scalar(self.frontmatter, "assignee")
 
     @property
-    def agent(self) -> Optional[str]:
+    def agent(self) -> str | None:
         return extract_scalar(self.frontmatter, "agent")
 
     @property
-    def shell_pid(self) -> Optional[str]:
+    def shell_pid(self) -> str | None:
         return extract_scalar(self.frontmatter, "shell_pid")
 
     @property
-    def lane(self) -> Optional[str]:
+    def lane(self) -> str | None:
         from specify_cli.status.lane_reader import get_wp_lane
 
         # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
@@ -364,7 +364,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     )
 
 
-def load_meta(meta_path: Path) -> Dict:
+def load_meta(meta_path: Path) -> dict:
     if not meta_path.exists():
         raise TaskCliError(f"Meta file not found at {meta_path}")
     return json.loads(meta_path.read_text(encoding="utf-8-sig"))

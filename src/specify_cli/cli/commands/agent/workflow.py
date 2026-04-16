@@ -37,6 +37,7 @@ from specify_cli.tasks_support import (
     split_frontmatter,
 )
 from specify_cli.workspace_context import resolve_workspace_for_wp
+from datetime import UTC
 
 _REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 
@@ -381,7 +382,7 @@ def _normalize_wp_id(wp_arg: str) -> str:
         return f"WP{wp_upper.lstrip('WP')}"
 
 
-def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
+def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
     """Find the first WP file with lane: "planned".
 
     Args:
@@ -450,10 +451,10 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
 
 @app.command(name="implement")
 def implement(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
     allow_sparse_checkout: Annotated[
         bool,
         typer.Option(
@@ -499,7 +500,7 @@ def implement(
         )
 
         _main_repo_for_preflight = get_main_repo_root(repo_root)
-        _mission_id_for_preflight: Optional[str] = None
+        _mission_id_for_preflight: str | None = None
         try:
             from specify_cli.mission_metadata import resolve_mission_identity
 
@@ -707,7 +708,7 @@ def implement(
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry (no lane= segment; event log is sole lane authority)
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             if current_lane != Lane.IN_PROGRESS:
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
             else:
@@ -1179,7 +1180,7 @@ def _resolve_review_context(
     return ctx
 
 
-def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
+def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     """Find the first WP file with lane: "for_review".
 
     Args:
@@ -1260,10 +1261,10 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
 
 @app.command(name="review")
 def review(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -1424,7 +1425,7 @@ def review(
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
                 # Build history entry (no lane= segment; event log is sole lane authority)
-                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
 
                 # Add history entry to body

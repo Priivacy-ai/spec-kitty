@@ -178,7 +178,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
     return None
 
 
-def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
+def _instantiate_backend(backend: VCSBackend) -> VCSProtocol:
     """
     Instantiate the appropriate VCS implementation.
 
@@ -205,7 +205,7 @@ def _instantiate_backend(backend: VCSBackend) -> "VCSProtocol":
 def get_vcs(
     path: Path,
     backend: VCSBackend | None = None,
-) -> "VCSProtocol":
+) -> VCSProtocol:
     """
     Factory function to get appropriate VCS implementation.
 

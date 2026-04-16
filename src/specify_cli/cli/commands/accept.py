@@ -92,7 +92,7 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
-def _emit_acceptance_events(mission_slug: str, wp_ids: List[str]) -> None:
+def _emit_acceptance_events(mission_slug: str, wp_ids: list[str]) -> None:
     """Emit done transitions for accepted WPs.
 
     Acceptance transitions WPs from approved → done (not for_review → done).
@@ -116,20 +116,20 @@ def _emit_acceptance_events(mission_slug: str, wp_ids: List[str]) -> None:
 
 
 def accept(
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None,
         "--mission",
         help="Mission slug to accept",
     ),
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None,
         "--feature",
         hidden=True,
         help="(deprecated) Use --mission",
     ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
-    actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
-    test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
+    actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
+    test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
     lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
     no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),

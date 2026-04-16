@@ -21,16 +21,16 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def validate_tasks(
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None, "--mission", help="Mission slug to validate"
     ),
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None, "--feature", hidden=True, help="(deprecated) Use --mission"
     ),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
-    agent: Optional[str] = typer.Option(None, "--agent", help="Agent name for activity log"),
-    shell_pid: Optional[str] = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
+    agent: str | None = typer.Option(None, "--agent", help="Agent name for activity log"),
+    shell_pid: str | None = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
 ) -> None:
     """LEGACY: Validate and repair directory/frontmatter lane mismatches.
 

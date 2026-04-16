@@ -17,13 +17,13 @@ class FileManifest:
     manifest.
     """
 
-    def __init__(self, kittify_dir: Path, *, mission_type: Optional[str] = None):
+    def __init__(self, kittify_dir: Path, *, mission_type: str | None = None):
         self.kittify_dir = kittify_dir
         self.mission_dir = (
             kittify_dir / "missions" / mission_type if mission_type else None
         )
 
-    def get_expected_files(self) -> Dict[str, List[str]]:
+    def get_expected_files(self) -> dict[str, list[str]]:
         """
         Get a categorized list of expected files for the active mission.
 
@@ -62,7 +62,7 @@ class FileManifest:
 
         return manifest
 
-    def _get_referenced_scripts(self) -> List[str]:
+    def _get_referenced_scripts(self) -> list[str]:
         """Extract script references from command files, filtered by platform."""
         import platform
         scripts = set()
@@ -110,7 +110,7 @@ class FileManifest:
 
         return sorted(list(scripts))
 
-    def check_files(self) -> Dict[str, Dict[str, str]]:
+    def check_files(self) -> dict[str, dict[str, str]]:
         """
         Check which expected files exist and which are missing.
 
@@ -146,7 +146,7 @@ class WorktreeStatus:
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
 
-    def get_all_features(self) -> List[str]:
+    def get_all_features(self) -> list[str]:
         """Get all feature branches and directories."""
         features = set()
 
@@ -181,7 +181,7 @@ class WorktreeStatus:
 
         return sorted(list(features))
 
-    def get_feature_status(self, feature: str) -> Dict[str, any]:
+    def get_feature_status(self, feature: str) -> dict[str, any]:
         """Get comprehensive status for a feature."""
         status = {
             "name": feature,
@@ -260,7 +260,7 @@ class WorktreeStatus:
 
         return status
 
-    def get_worktree_summary(self) -> Dict[str, int]:
+    def get_worktree_summary(self) -> dict[str, int]:
         """Get summary counts of worktree states."""
         features = self.get_all_features()
         summary = {

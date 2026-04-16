@@ -25,7 +25,7 @@ from specify_cli.tasks_support import extract_scalar, split_frontmatter
 console = Console()
 
 
-def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
+def show_kanban_status(mission_slug: str | None = None) -> dict:
     """Display kanban status board for work packages in a feature.
 
     This function can be called directly by agents to get a beautiful

@@ -20,7 +20,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +39,7 @@ class BaselineFailure:
         return {"test": self.test, "error": self.error, "file": self.file}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BaselineFailure":
+    def from_dict(cls, data: dict[str, Any]) -> BaselineFailure:
         return cls(
             test=data["test"],
             error=data["error"],
@@ -77,7 +77,7 @@ class BaselineTestResult:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BaselineTestResult":
+    def from_dict(cls, data: dict[str, Any]) -> BaselineTestResult:
         failures = tuple(BaselineFailure.from_dict(f) for f in data.get("failures", []))
         return cls(
             wp_id=data["wp_id"],
@@ -93,7 +93,7 @@ class BaselineTestResult:
         )
 
     @classmethod
-    def load(cls, path: Path) -> "BaselineTestResult | None":
+    def load(cls, path: Path) -> BaselineTestResult | None:
         """Load from JSON file.  Returns None if file doesn't exist.
 
         Raises ValueError on malformed JSON.
@@ -189,7 +189,7 @@ def capture_baseline(
     feature_dir: Path,
     wp_slug: str,
     test_command: str | None = None,
-) -> "BaselineTestResult | None":
+) -> BaselineTestResult | None:
     """Capture baseline test results at implement time.
 
     Creates a temporary git worktree on the base branch, runs the test
@@ -331,7 +331,7 @@ def capture_baseline(
     # Build result
     result = BaselineTestResult(
         wp_id=wp_id,
-        captured_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         base_branch=base_branch,
         base_commit=base_commit,
         test_runner="pytest" if "pytest" in test_command else "custom",
@@ -345,7 +345,7 @@ def capture_baseline(
     return result
 
 
-def load_baseline(path: Path) -> "BaselineTestResult | None":
+def load_baseline(path: Path) -> BaselineTestResult | None:
     """Convenience wrapper — delegates to BaselineTestResult.load()."""
     return BaselineTestResult.load(path)
 
@@ -393,7 +393,7 @@ def diff_baseline(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _find_repo_root(start: Path) -> "Path | None":
+def _find_repo_root(start: Path) -> Path | None:
     """Walk up from start until we find a .git directory or file."""
     current = start.resolve()
     for _ in range(20):  # limit depth
@@ -410,7 +410,7 @@ def _make_sentinel(wp_id: str, base_branch: str, base_commit: str) -> BaselineTe
     """Return a sentinel BaselineTestResult indicating capture failure."""
     return BaselineTestResult(
         wp_id=wp_id,
-        captured_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         base_branch=base_branch,
         base_commit=base_commit,
         test_runner="pytest",

@@ -241,7 +241,7 @@ def mission_resolve_command(
     wp: Annotated[str, typer.Option("--wp", help="Work package code (e.g., WP01)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., 057-mission-name)")] = None,
     feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (default: 'unknown')")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (default: 'unknown')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output full JSON context (default: token only)")] = False,
 ) -> None:
     """Resolve and persist a MissionContext token.
