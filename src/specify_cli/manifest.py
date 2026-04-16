@@ -4,7 +4,7 @@ This module generates and checks expected files based on the mission context.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import subprocess
 
 
@@ -180,21 +180,8 @@ class WorktreeStatus:
 
         return sorted(list(features))
 
-    def get_feature_status(self, feature: str) -> dict[str, any]:
-        """Get comprehensive status for a feature."""
-        status = {
-            "name": feature,
-            "branch_exists": False,
-            "branch_merged": False,
-            "worktree_exists": False,
-            "worktree_path": None,
-            "artifacts_in_main": [],
-            "artifacts_in_worktree": [],
-            "last_activity": None,
-            "state": "unknown"  # not_started, in_development, ready_to_merge, merged, abandoned
-        }
-
-        # Check if branch exists
+    def _check_branch_exists(self, feature: str) -> bool:
+        """Return True if the local branch ref exists."""
         try:
             result = subprocess.run(
                 ["git", "show-ref", f"refs/heads/{feature}"],
@@ -202,61 +189,77 @@ class WorktreeStatus:
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
-            status["branch_exists"] = result.returncode == 0
+            return result.returncode == 0
         except subprocess.CalledProcessError:
-            pass
+            return False
 
-        # Check if merged
+    def _check_branch_merged(self, feature: str) -> bool:
+        """Return True if the branch has been merged into the primary branch."""
+        try:
+            from specify_cli.core.git_ops import resolve_primary_branch
+            primary = resolve_primary_branch(self.repo_root)
+            result = subprocess.run(
+                ["git", "branch", "--merged", primary],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=True,
+            )
+            return feature in result.stdout
+        except subprocess.CalledProcessError:
+            return False
+
+    @staticmethod
+    def _determine_feature_state(status: dict) -> str:
+        """Derive the lifecycle state label from collected status flags."""
+        if not status["branch_exists"] and not status["artifacts_in_main"]:
+            return "not_started"
+        if status["branch_merged"] and status["artifacts_in_main"]:
+            return "merged"
+        if status["worktree_exists"] or status["artifacts_in_worktree"]:
+            return "in_development"
+        if status["branch_exists"] and not status["worktree_exists"]:
+            return "ready_to_merge"
+        if not status["branch_exists"] and status["artifacts_in_main"]:
+            return "merged"  # branch deleted after merge
+        return "unknown"
+
+    def get_feature_status(self, feature: str) -> dict[str, Any]:
+        """Get comprehensive status for a feature."""
+        status: dict[str, Any] = {
+            "name": feature,
+            "branch_exists": self._check_branch_exists(feature),
+            "branch_merged": False,
+            "worktree_exists": False,
+            "worktree_path": None,
+            "artifacts_in_main": [],
+            "artifacts_in_worktree": [],
+            "last_activity": None,
+            "state": "unknown",
+        }
+
         if status["branch_exists"]:
-            try:
-                from specify_cli.core.git_ops import resolve_primary_branch
-                primary = resolve_primary_branch(self.repo_root)
-                result = subprocess.run(
-                    ["git", "branch", "--merged", primary],
-                    cwd=self.repo_root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=True
-                )
-                status["branch_merged"] = feature in result.stdout
-            except subprocess.CalledProcessError:
-                pass
+            status["branch_merged"] = self._check_branch_merged(feature)
 
-        # Check worktree
         worktree_path = self.repo_root / ".worktrees" / feature
         if worktree_path.exists():
             status["worktree_exists"] = True
             status["worktree_path"] = str(worktree_path)
 
-        # Check artifacts in main
         main_artifacts_path = self.repo_root / "kitty-specs" / feature
         if main_artifacts_path.exists():
-            for artifact in main_artifacts_path.glob("*.md"):
-                status["artifacts_in_main"].append(artifact.name)
+            status["artifacts_in_main"] = [a.name for a in main_artifacts_path.glob("*.md")]
 
-        # Check artifacts in worktree
         if status["worktree_exists"]:
-            worktree_artifacts_path = worktree_path / "kitty-specs" / feature
-            if worktree_artifacts_path.exists():
-                for artifact in worktree_artifacts_path.glob("*.md"):
-                    status["artifacts_in_worktree"].append(artifact.name)
+            wt_artifacts = worktree_path / "kitty-specs" / feature
+            if wt_artifacts.exists():
+                status["artifacts_in_worktree"] = [a.name for a in wt_artifacts.glob("*.md")]
 
-        # Determine state
-        if not status["branch_exists"] and not status["artifacts_in_main"]:
-            status["state"] = "not_started"
-        elif status["branch_merged"] and status["artifacts_in_main"]:
-            status["state"] = "merged"
-        elif status["worktree_exists"] or status["artifacts_in_worktree"]:
-            status["state"] = "in_development"
-        elif status["branch_exists"] and not status["worktree_exists"]:
-            status["state"] = "ready_to_merge"
-        elif not status["branch_exists"] and status["artifacts_in_main"]:
-            status["state"] = "merged"  # Branch was deleted after merge
-
+        status["state"] = self._determine_feature_state(status)
         return status
 
     def get_worktree_summary(self) -> dict[str, int]:

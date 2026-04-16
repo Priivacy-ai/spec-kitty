@@ -382,6 +382,25 @@ def _normalize_wp_id(wp_arg: str) -> str:
         return f"WP{wp_upper.lstrip('WP')}"
 
 
+def _resolve_tasks_dir(cwd: Path, mission_slug: str, repo_root: Path) -> Path:
+    """Resolve the tasks directory for mission_slug from the current working directory."""
+    from specify_cli.core.paths import is_worktree_context
+
+    if not is_worktree_context(cwd):
+        return repo_root / "kitty-specs" / mission_slug / "tasks"
+
+    if (cwd / "kitty-specs" / mission_slug).exists():
+        return cwd / "kitty-specs" / mission_slug / "tasks"
+
+    current = cwd
+    while current != current.parent:
+        if (current / "kitty-specs" / mission_slug).exists():
+            return current / "kitty-specs" / mission_slug / "tasks"
+        current = current.parent
+
+    return repo_root / "kitty-specs" / mission_slug / "tasks"
+
+
 def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
     """Find the first WP file with lane: "planned".
 
@@ -392,29 +411,8 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
     Returns:
         WP ID of first planned task, or None if not found
     """
-    from specify_cli.core.paths import is_worktree_context
-
     cwd = Path.cwd().resolve()
-
-    # Check if we're in a worktree - if so, use worktree's kitty-specs
-    if is_worktree_context(cwd):
-        # We're in a worktree, look for kitty-specs relative to cwd
-        if (cwd / "kitty-specs" / mission_slug).exists():
-            tasks_dir = cwd / "kitty-specs" / mission_slug / "tasks"
-        else:
-            # Walk up to find kitty-specs
-            current = cwd
-            while current != current.parent:
-                if (current / "kitty-specs" / mission_slug).exists():
-                    tasks_dir = current / "kitty-specs" / mission_slug / "tasks"
-                    break
-                current = current.parent
-            else:
-                # Fallback to repo_root
-                tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
-    else:
-        # We're in main repo
-        tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
+    tasks_dir = _resolve_tasks_dir(cwd, mission_slug, repo_root)
 
     if not tasks_dir.exists():
         return None

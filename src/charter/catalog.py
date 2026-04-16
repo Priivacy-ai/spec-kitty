@@ -205,6 +205,29 @@ def _load_yaml_id_catalog(
     return ids
 
 
+def _extract_artifact_id(
+    path: Path,
+    id_field: str,
+    active_languages: list[str] | tuple[str, ...] | None,
+    yaml: object,
+) -> str | None:
+    """Return the artifact ID from a single YAML file, or None to skip."""
+    try:
+        data = yaml.load(path.read_text(encoding="utf-8")) or {}  # type: ignore[attr-defined]
+    except (OSError, YAMLError, TypeError):
+        return None
+    if isinstance(data, dict) and not applies_to_languages_match(
+        data.get("applies_to_languages"), active_languages
+    ):
+        return None
+    if isinstance(data, dict):
+        raw_id = str(data.get(id_field, "")).strip()
+        if raw_id:
+            return raw_id
+    fallback = path.stem.split(".")[0].strip()
+    return fallback or None
+
+
 def _collect_ids_from_roots(
     scan_roots: list[Path],
     pattern: str,
@@ -225,27 +248,9 @@ def _collect_ids_from_roots(
     ids: set[str] = set()
     for scan_root in scan_roots:
         for path in sorted(scan_root.glob(pattern)):
-            try:
-                data = yaml.load(path.read_text(encoding="utf-8")) or {}
-            except (OSError, YAMLError, TypeError):
-                continue
-
-            if isinstance(data, dict) and not applies_to_languages_match(
-                data.get("applies_to_languages"),
-                active_languages,
-            ):
-                continue
-
-            if isinstance(data, dict):
-                raw_id = str(data.get(id_field, "")).strip()
-                if raw_id:
-                    ids.add(raw_id)
-                    continue
-
-            fallback = path.stem.split(".")[0].strip()
-            if fallback:
-                ids.add(fallback)
-
+            artifact_id = _extract_artifact_id(path, id_field, active_languages, yaml)
+            if artifact_id:
+                ids.add(artifact_id)
     return ids
 
 
