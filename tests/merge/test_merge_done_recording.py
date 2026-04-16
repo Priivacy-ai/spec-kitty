@@ -52,11 +52,11 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_called_once()
-    req = emit_mock.call_args.args[0]
-    assert req.to_lane == "done"
-    assert req.actor == "merge"
-    assert req.reason == "Merged WP01 into main"
-    assert req.evidence["review"]["reviewer"] == "reviewer-1"
+    kwargs = emit_mock.call_args.kwargs
+    assert kwargs["to_lane"] == "done"
+    assert kwargs["actor"] == "merge"
+    assert kwargs["reason"] == "Merged WP01 into main"
+    assert kwargs["evidence"]["review"]["reviewer"] == "reviewer-1"
 
 
 def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_evidence(tmp_path: Path, monkeypatch) -> None:
@@ -77,11 +77,11 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_called_once()
-    req = emit_mock.call_args.args[0]
-    assert req.to_lane == "done"
-    assert req.actor == "merge"
-    assert req.evidence["review"]["verdict"] == "approved"
-    assert req.evidence["review"]["reference"] == "lane-approved:WP01"
+    kwargs = emit_mock.call_args.kwargs
+    assert kwargs["to_lane"] == "done"
+    assert kwargs["actor"] == "merge"
+    assert kwargs["evidence"]["review"]["verdict"] == "approved"
+    assert kwargs["evidence"]["review"]["reference"] == "lane-approved:WP01"
 
 
 def test_mark_wp_merged_done_for_review_without_metadata_skips(tmp_path: Path, monkeypatch) -> None:
@@ -124,10 +124,10 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     assert emit_mock.call_count == 2
-    first_req = emit_mock.call_args_list[0].args[0]
-    second_req = emit_mock.call_args_list[1].args[0]
-    assert first_req.to_lane == "approved"
-    assert second_req.to_lane == "done"
+    first_kwargs = emit_mock.call_args_list[0].kwargs
+    second_kwargs = emit_mock.call_args_list[1].kwargs
+    assert first_kwargs["to_lane"] == "approved"
+    assert second_kwargs["to_lane"] == "done"
 
 
 @pytest.mark.parametrize("lane_name", ["planned", "claimed", "in_progress"])
@@ -152,8 +152,8 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     assert emit_mock.call_count == 2
-    assert emit_mock.call_args_list[0].args[0].to_lane == "approved"
-    assert emit_mock.call_args_list[1].args[0].to_lane == "done"
+    assert emit_mock.call_args_list[0].kwargs["to_lane"] == "approved"
+    assert emit_mock.call_args_list[1].kwargs["to_lane"] == "done"
 
 
 def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
@@ -177,8 +177,8 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_called_once()
-    req = emit_mock.call_args.args[0]
-    assert req.evidence["review"]["reviewer"] == "gemini-cli"
+    kwargs = emit_mock.call_args.kwargs
+    assert kwargs["evidence"]["review"]["reviewer"] == "gemini-cli"
 
 
 def test_mark_wp_merged_done_uses_typed_frontmatter(

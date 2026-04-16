@@ -82,7 +82,7 @@ def test_default_interview_loads_packaged_defaults_and_falls_back_to_tool_regist
 ) -> None:
     monkeypatch.setattr(
         "specify_cli.charter.interview.load_doctrine_catalog",
-        lambda: SimpleNamespace(),
+        lambda: SimpleNamespace(paradigms=frozenset(), directives=frozenset()),
     )
     monkeypatch.setattr(
         "specify_cli.charter.interview._load_packaged_defaults",
