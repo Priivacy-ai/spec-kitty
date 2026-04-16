@@ -146,11 +146,8 @@ class WorktreeStatus:
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
 
-    def get_all_features(self) -> list[str]:
-        """Get all feature branches and directories."""
-        features = set()
-
-        # Get features from branches
+    def _get_features_from_branches(self) -> set[str]:
+        """Return feature names discovered from local git branches."""
         try:
             result = subprocess.run(
                 ["git", "branch", "-a"],
@@ -159,24 +156,26 @@ class WorktreeStatus:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=True
+                check=True,
             )
-            for line in result.stdout.split('\n'):
-                line = line.strip().replace('* ', '')
-                # Match feature branch pattern (###-name)
-                if line and not line.startswith('remotes/'):
-                    parts = line.split('/')
-                    branch = parts[-1]
-                    if branch and branch[0].isdigit() and '-' in branch:
-                        features.add(branch)
         except subprocess.CalledProcessError:
-            pass
+            return set()
+        features = set()
+        for line in result.stdout.split("\n"):
+            branch = line.strip().replace("* ", "").split("/")[-1]
+            if branch and not line.strip().startswith("remotes/") and branch[0].isdigit() and "-" in branch:
+                features.add(branch)
+        return features
+
+    def get_all_features(self) -> list[str]:
+        """Get all feature branches and directories."""
+        features = self._get_features_from_branches()
 
         # Get features from kitty-specs
         kitty_specs = self.repo_root / "kitty-specs"
         if kitty_specs.exists():
             for feature_dir in kitty_specs.iterdir():
-                if feature_dir.is_dir() and feature_dir.name[0].isdigit() and '-' in feature_dir.name:
+                if feature_dir.is_dir() and feature_dir.name[0].isdigit() and "-" in feature_dir.name:
                     features.add(feature_dir.name)
 
         return sorted(list(features))

@@ -156,13 +156,48 @@ def _prepare_context_state(
     state = _load_state(state_path)
     actions_val = state.get("actions", {})
     first_load = action not in actions_val if isinstance(actions_val, dict) else True
-    effective_depth = depth if depth is not None else _MIN_EFFECTIVE_DEPTH if first_load else 1
+    if depth is not None:
+        effective_depth = depth
+    elif first_load:
+        effective_depth = _MIN_EFFECTIVE_DEPTH
+    else:
+        effective_depth = 1
     return _ContextStateBundle(
         state_path=state_path,
         state=state,
         first_load=first_load,
         effective_depth=effective_depth,
     )
+
+
+def _classify_artifact_urns(
+    artifact_urns: set[str],
+    merged: object,
+    project_directives: set[str],
+) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Partition resolved artifact URNs into doctrine-type buckets."""
+    from doctrine.drg.models import NodeKind
+
+    directive_ids: list[str] = []
+    tactic_ids: list[str] = []
+    styleguide_ids: list[str] = []
+    toolguide_ids: list[str] = []
+    for urn in sorted(artifact_urns):
+        node = merged.get_node(urn)  # type: ignore[attr-defined]
+        if node is None:
+            continue
+        artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
+        if node.kind == NodeKind.DIRECTIVE:
+            if project_directives and artifact_id not in project_directives:
+                continue
+            directive_ids.append(artifact_id)
+        elif node.kind == NodeKind.TACTIC:
+            tactic_ids.append(artifact_id)
+        elif node.kind == NodeKind.STYLEGUIDE:
+            styleguide_ids.append(artifact_id)
+        elif node.kind == NodeKind.TOOLGUIDE:
+            toolguide_ids.append(artifact_id)
+    return directive_ids, tactic_ids, styleguide_ids, toolguide_ids
 
 
 def _load_action_doctrine_bundle(
@@ -175,7 +210,6 @@ def _load_action_doctrine_bundle(
     from charter.catalog import resolve_doctrine_root
     from charter.sync import load_governance_config
     from doctrine.drg.loader import load_graph, merge_layers
-    from doctrine.drg.models import NodeKind
     from doctrine.drg.query import resolve_context
     from doctrine.drg.validator import assert_valid
 
@@ -192,26 +226,9 @@ def _load_action_doctrine_bundle(
     action_urn = f"action:{mission}/{action}"
     resolved = resolve_context(merged, action_urn, depth=effective_depth)
 
-    directive_ids: list[str] = []
-    tactic_ids: list[str] = []
-    styleguide_ids: list[str] = []
-    toolguide_ids: list[str] = []
-    for urn in sorted(resolved.artifact_urns):
-        node = merged.get_node(urn)
-        if node is None:
-            continue
-        artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if node.kind == NodeKind.DIRECTIVE:
-            if project_directives and artifact_id not in project_directives:
-                continue
-            directive_ids.append(artifact_id)
-        elif node.kind == NodeKind.TACTIC:
-            tactic_ids.append(artifact_id)
-        elif node.kind == NodeKind.STYLEGUIDE:
-            styleguide_ids.append(artifact_id)
-        elif node.kind == NodeKind.TOOLGUIDE:
-            toolguide_ids.append(artifact_id)
-
+    directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
+        resolved.artifact_urns, merged, project_directives
+    )
     return _ActionDoctrineBundle(
         mission=mission,
         directive_ids=directive_ids,
@@ -220,6 +237,23 @@ def _load_action_doctrine_bundle(
         toolguide_ids=toolguide_ids,
         service=_build_doctrine_service(repo_root),
     )
+
+
+def _append_guidelines_lines(lines: list[str], mission: str, action: str) -> None:
+    """Append action guidelines to lines, silently skipping on any error."""
+    from doctrine.missions import MissionTemplateRepository
+
+    try:
+        repo = MissionTemplateRepository.default()
+        result = repo.get_action_guidelines(mission, action)
+        if result is not None:
+            content = result.content.strip()
+            if content:
+                lines.append("  Guidelines:")
+                for guideline_line in content.splitlines():
+                    lines.append(f"    {guideline_line}")
+    except Exception:  # noqa: BLE001, S110
+        pass
 
 
 def _render_bootstrap_text(
@@ -232,7 +266,6 @@ def _render_bootstrap_text(
     effective_depth: int,
 ) -> str:
     """Render the full bootstrap charter context text."""
-    from doctrine.missions import MissionTemplateRepository
 
     service = doctrine_bundle.service
     lines: list[str] = [
@@ -257,17 +290,7 @@ def _render_bootstrap_text(
         _extend_named_artifact_lines(lines, "Styleguides", doctrine_bundle.styleguide_ids, service.styleguides, "title", None)
         _extend_named_artifact_lines(lines, "Toolguides", doctrine_bundle.toolguide_ids, service.toolguides, "title", None)
 
-    try:
-        repo = MissionTemplateRepository.default()
-        guidelines_result = repo.get_action_guidelines(doctrine_bundle.mission, action)
-        if guidelines_result is not None:
-            guidelines_content = guidelines_result.content.strip()
-            if guidelines_content:
-                lines.append("  Guidelines:")
-                for guideline_line in guidelines_content.splitlines():
-                    lines.append(f"    {guideline_line}")
-    except Exception:  # noqa: BLE001, S110
-        pass
+    _append_guidelines_lines(lines, doctrine_bundle.mission, action)
 
     lines.append("")
     lines.append("Reference Docs:")
