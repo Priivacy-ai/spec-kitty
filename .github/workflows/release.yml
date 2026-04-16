@@ -169,8 +169,9 @@ jobs:
         # without rescanning the package themselves.
         run: |
           cyclonedx-py environment \
-            --output-format JSON \
-            --outfile sbom.cdx.json
+            --of JSON \
+            -o sbom.cdx.json \
+            --pyproject pyproject.toml
           echo "SBOM component count: $(python -c "import json; d=json.load(open('sbom.cdx.json')); print(len(d.get('components', [])))")"
 
       - name: Check distributions
