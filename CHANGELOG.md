@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Bump `requests` floor to `>=2.33.0` (CVE-2026-25645).
+- Bump `pytest` floor to `>=9.0.3` (CVE-2025-71176).
+- Pin `pygments>=2.20.0` explicitly to resolve CVE-2026-4539 in the
+  transitive dependency pulled in via `rich`.
+
+### Changed
+
+- Release pipeline now generates and attaches a CycloneDX SBOM
+  (`sbom.cdx.json`) to every GitHub Release. The SBOM is an
+  environment-snapshot of the fully resolved dependency tree at build
+  time, making it straightforward for enterprise users to ingest the
+  inventory into tools like Dependency-Track for continuous CVE
+  monitoring without rescanning the package themselves.
+
 ## [3.1.5] - 2026-04-16
 
 ### Changed
