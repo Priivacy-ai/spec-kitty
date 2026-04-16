@@ -35,6 +35,8 @@ from specify_cli.core.atomic import atomic_write
 
 logger = logging.getLogger(__name__)
 
+_SPEC_KITTY_DIRNAME = ".spec-kitty"
+
 
 def _sync_root() -> Path:
     """Return the sync state directory for the current platform.
@@ -46,7 +48,7 @@ def _sync_root() -> Path:
     if sys.platform == "win32":
         from specify_cli.paths import get_runtime_root  # noqa: PLC0415
         return get_runtime_root().sync_dir
-    return Path.home() / ".spec-kitty" / "sync"
+    return Path.home() / _SPEC_KITTY_DIRNAME / "sync"
 
 
 def _daemon_root() -> Path:
@@ -60,12 +62,12 @@ def _daemon_root() -> Path:
     if sys.platform == "win32":
         from specify_cli.paths import get_runtime_root  # noqa: PLC0415
         return get_runtime_root().daemon_dir
-    return Path.home() / ".spec-kitty"
+    return Path.home() / _SPEC_KITTY_DIRNAME
 
 
 # Module-level path constants derived from platform-aware helpers so that
 # existing code referencing these names continues to work unchanged.
-SPEC_KITTY_DIR = Path.home() / ".spec-kitty"
+SPEC_KITTY_DIR = Path.home() / _SPEC_KITTY_DIRNAME
 DAEMON_STATE_FILE = _daemon_root() / "sync-daemon"
 DAEMON_LOG_FILE = _daemon_root() / "sync-daemon.log"
 DAEMON_LOCK_FILE = _daemon_root() / "sync-daemon.lock"

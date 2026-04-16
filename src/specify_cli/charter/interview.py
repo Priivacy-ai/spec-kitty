@@ -100,7 +100,8 @@ def default_interview(
     doctrine_catalog: DoctrineCatalog | None = None,
 ) -> CharterInterview:
     """Return deterministic default interview answers."""
-    catalog = doctrine_catalog or load_doctrine_catalog()
+    if doctrine_catalog is None:
+        load_doctrine_catalog()
     defaults = _load_packaged_defaults()
     answers: dict[str, str] = dict(defaults.get("answers", {}))
 

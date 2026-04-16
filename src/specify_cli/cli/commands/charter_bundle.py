@@ -127,7 +127,7 @@ def _is_git_tracked(canonical_root: Path, rel: str) -> bool:
             text=True,
             check=False,
         )
-    except (FileNotFoundError, OSError):
+    except OSError:
         return False
     return result.returncode == 0
 
