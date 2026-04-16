@@ -11,7 +11,7 @@ Verifies that:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -213,11 +213,10 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     tasks_dir.mkdir(parents=True)
     _write_wp(tasks_dir / "WP01-test.md", reviewed_by="reviewer-1")
 
-    from specify_cli.status.models import TransitionRequest
-    emit_calls: list[TransitionRequest] = []
+    emit_calls: list[dict[str, object]] = []
 
-    def fake_emit(request: TransitionRequest) -> None:
-        emit_calls.append(request)
+    def fake_emit(**kwargs: object) -> None:
+        emit_calls.append(kwargs)
 
     monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", fake_emit)
     monkeypatch.setattr(
@@ -228,8 +227,8 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
 
     assert len(emit_calls) == 1
-    assert emit_calls[0].to_lane == "done"
-    assert emit_calls[0].actor == "merge"
+    assert emit_calls[0]["to_lane"] == "done"
+    assert emit_calls[0]["actor"] == "merge"
 
 
 def test_mark_wp_merged_done_skips_when_already_done(
