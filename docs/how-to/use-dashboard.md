@@ -59,7 +59,7 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Dashboard Auto-Start
 
-`spec-kitty init` does not auto-start the dashboard in the current `4.1.x` flow. If dashboard metadata is missing or stale, run `spec-kitty dashboard` again to recreate it.
+`spec-kitty init` does not auto-start the dashboard in the current `3.1.x` flow. If dashboard metadata is missing or stale, run `spec-kitty dashboard` again to recreate it.
 
 ---
 

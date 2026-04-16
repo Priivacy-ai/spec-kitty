@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.1.5] - 2026-04-15
+## [3.1.5] - 2026-04-16
 
 ### Changed
 
-- Promote `main` to the stable `4.x` release line. Release docs, install guidance,
-  and README messaging now point new users at `4.1.x` on GitHub Releases and PyPI,
+- Keep `main` on the stable `3.x` release line. Release docs, install guidance,
+  and README messaging now point new users at `3.1.x` on GitHub Releases and PyPI,
   while keeping `1.x-maintenance` explicitly maintenance-only.
 
 ### Fixed
@@ -31,8 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
-- Align README and user-facing release docs around swim-lane terminology and the new
-  `4.1.x` stable release line.
+- Align README and user-facing release docs around swim-lane terminology and the
+  `3.1.x` stable release line.
 
 ## [3.1.4] - 2026-04-15
 

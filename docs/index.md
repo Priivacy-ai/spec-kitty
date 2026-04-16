@@ -11,9 +11,9 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Latest Release: 4.1.5
+## Latest Release: 3.1.5
 
-Spec Kitty 4.1.5 (released 2026-04-15) starts the `4.1.x` stable line with upgrade hardening, neutral charter defaults, and release-surface cleanup:
+Spec Kitty 3.1.5 (released 2026-04-16) continues the `3.1.x` stable line with upgrade hardening, neutral charter defaults, and release-surface cleanup:
 
 - **Runtime loop is now the primary mental model** — `spec-kitty next` remains the canonical driver, and query mode is safe and read-only
 - **Hosted auth and SaaS sync are first-class** — browser-based `spec-kitty auth login`, explicit hosted rollout gating, and clearer tracker readiness checks
@@ -31,7 +31,7 @@ See the full [CHANGELOG](../CHANGELOG.md) for complete release notes.
 
 | Track | Use when | Entry point |
 |---|---|---|
-| `4.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
+| `3.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
 | `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | [Open 1.x docs](1x/index.md) |
 
 ## Verification Notes
