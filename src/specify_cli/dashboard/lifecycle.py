@@ -170,8 +170,6 @@ def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None
             if response.status != 200:
                 return None
             payload = response.read()
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError):
-        return None
     except Exception:
         return None
 
@@ -567,7 +565,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
             if exc.code in (404, 405, 501):
                 return False, None
             return False, f"Dashboard shutdown failed with HTTP {exc.code}."
-        except (OSError, urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+        except OSError as exc:
             return False, f"Dashboard shutdown request failed: {exc}"
         except Exception as exc:
             return False, f"Unexpected error during shutdown: {exc}"
@@ -589,7 +587,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
             if exc.code == 501:
                 return False, "Dashboard does not support remote shutdown (upgrade required)."
             return False, f"Dashboard shutdown failed with HTTP {exc.code}."
-        except (OSError, urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+        except OSError as exc:
             return False, f"Dashboard shutdown request failed: {exc}"
         except Exception as exc:
             return False, f"Unexpected error during shutdown: {exc}"

@@ -225,8 +225,6 @@ def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, An
             if response.status != 200:
                 return None
             payload = response.read()
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError):
-        return None
     except Exception:
         return None
 
