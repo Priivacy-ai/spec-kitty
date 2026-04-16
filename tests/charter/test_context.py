@@ -10,7 +10,13 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import CharterContextResult, _build_doctrine_service, build_charter_context
+from charter.context import (
+    CharterContextResult,
+    _build_doctrine_service,
+    _render_action_scoped,
+    _render_bootstrap,
+    build_charter_context,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -91,6 +97,22 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     (charter_dir / "references.yaml").write_text(_REFERENCES_YAML, encoding="utf-8")
 
 
+def _write_graph_fixture(tmp_path: Path) -> None:
+    from io import StringIO
+
+    from doctrine.drg.models import DRGGraph
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ="safe")
+    graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+    mock_graph = DRGGraph.model_validate(graph_data)
+
+    def patched_load_graph(path: Path) -> DRGGraph:
+        return mock_graph
+
+    return patched_load_graph
+
+
 # ---------------------------------------------------------------------------
 # T021: build_charter_context functional tests
 # ---------------------------------------------------------------------------
@@ -157,17 +179,7 @@ class TestBuildContextV2:
         # First load with depth=None (state decides: first_load -> depth 2)
         _setup_fixture_repo(tmp_path)
 
-        from io import StringIO
-
-        from doctrine.drg.models import DRGGraph
-        from ruamel.yaml import YAML
-
-        yaml = YAML(typ="safe")
-        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
-        mock_graph = DRGGraph.model_validate(graph_data)
-
-        def patched_load_graph(path: Path) -> DRGGraph:
-            return mock_graph
+        patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
             patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
@@ -278,11 +290,55 @@ class TestBuildContextV2:
         result = self._call(tmp_path)
         assert result.references_count >= 0
 
+    def test_build_context_uses_fallback_summary_when_policy_section_missing(
+        self, tmp_path: Path
+    ) -> None:
+        _setup_fixture_repo(tmp_path)
+        charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
+        charter_path.write_text("# Project Charter\n", encoding="utf-8")
+
+        patched_load_graph = _write_graph_fixture(tmp_path)
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2)
+
+        assert "No explicit policy summary section found in charter.md." in result.text
+
     def test_depth_field_matches_input(self, tmp_path: Path) -> None:
         """The depth field in the result matches the input depth."""
         for d in [1, 2, 3]:
             result = self._call(tmp_path, depth=d)
             assert result.depth == d
+
+
+def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
+    text = _render_bootstrap(Path("/tmp/charter.md"), [], [])
+
+    assert "Policy Summary:" in text
+    assert "No explicit policy summary section found in charter.md." in text
+    assert "Reference Docs:" in text
+    assert "No references manifest found." in text
+
+
+def test_render_action_scoped_uses_fallback_labels_without_summary_or_references(tmp_path: Path) -> None:
+    with patch("charter.context._append_action_doctrine_lines") as append_action_doctrine_lines:
+        append_action_doctrine_lines.return_value = None
+        text = _render_action_scoped(
+            tmp_path,
+            "implement",
+            tmp_path / "charter.md",
+            [],
+            [],
+        )
+
+    assert "Policy Summary:" in text
+    assert "No explicit policy summary section found in charter.md." in text
+    assert "Reference Docs:" in text
+    assert "No references manifest found." in text
 
 
 # ---------------------------------------------------------------------------
