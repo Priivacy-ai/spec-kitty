@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
+if TYPE_CHECKING:
+    from specify_cli.skills.registry import SkillRegistry
+
 logger = logging.getLogger(__name__)
 
 
-def _discover_registry():
+def _discover_registry() -> SkillRegistry | None:
     """Resolve the canonical skill registry from package or local checkout."""
     from specify_cli.skills.registry import SkillRegistry
     from specify_cli.template import get_local_repo_root

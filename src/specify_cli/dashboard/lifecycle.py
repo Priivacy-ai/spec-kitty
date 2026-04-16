@@ -166,7 +166,7 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
 def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None:
     """Fetch and decode a JSON dashboard payload, returning None on failure."""
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310 — URL is always localhost daemon health endpoint
             if response.status != 200:
                 return None
             payload = response.read()
@@ -559,7 +559,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
         query = urllib.parse.urlencode(params)
         request_url = f"{shutdown_url}?{query}" if query else shutdown_url
         try:
-            urllib.request.urlopen(request_url, timeout=1)
+            urllib.request.urlopen(request_url, timeout=1)  # nosec B310 — URL is localhost dashboard shutdown endpoint
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:
@@ -581,7 +581,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
             method='POST',
         )
         try:
-            urllib.request.urlopen(request, timeout=1)
+            urllib.request.urlopen(request, timeout=1)  # nosec B310 — URL is localhost dashboard control endpoint
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:

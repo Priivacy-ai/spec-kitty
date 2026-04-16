@@ -157,7 +157,7 @@ class TokenManager:
             # imports from specify_cli.auth (session/errors/config), and is
             # introduced by WP04. WP01 tests mock TokenRefreshFlow, so the
             # missing module is only a runtime concern once refresh fires.
-            from .flows.refresh import TokenRefreshFlow  # type: ignore[import-not-found]
+            from .flows.refresh import TokenRefreshFlow
 
             flow = TokenRefreshFlow()
             try:

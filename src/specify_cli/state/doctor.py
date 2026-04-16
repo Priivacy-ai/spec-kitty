@@ -12,6 +12,7 @@ import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from specify_cli.state_contract import (
     STATE_SURFACES,
@@ -62,7 +63,7 @@ class StateRootsReport:
         """True when no warnings were generated."""
         return len(self.warnings) == 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary representation."""
         return {
             "healthy": self.healthy,

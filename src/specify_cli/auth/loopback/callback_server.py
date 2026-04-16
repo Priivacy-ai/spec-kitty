@@ -163,7 +163,7 @@ class CallbackServer:
         while loop.time() < deadline:
             params = getattr(self._server, "callback_params", None)
             if params is not None:
-                return params
+                return dict(params)
             await asyncio.sleep(_POLL_INTERVAL)
 
         raise CallbackTimeoutError(
@@ -179,7 +179,7 @@ class CallbackServer:
         # Fallback: ask the kernel for any free ephemeral port.
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((_HOST, 0))
-            return s.getsockname()[1]
+            return int(s.getsockname()[1])
 
     @staticmethod
     def _is_port_free(port: int) -> bool:

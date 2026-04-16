@@ -221,7 +221,7 @@ def _find_free_port(start_port: int = DAEMON_PORT_START, max_attempts: int = DAE
 
 def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, Any] | None:
     try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as response:
+        with urllib.request.urlopen(health_url, timeout=timeout) as response:  # nosec B310 — health_url is always http://127.0.0.1:<port>/api/health
             if response.status != 200:
                 return None
             payload = response.read()
@@ -298,7 +298,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(content_length)
         if not body:
             return {}
-        return json.loads(body.decode("utf-8"))
+        return dict(json.loads(body.decode("utf-8")))
 
     def _extract_token_from_query(self) -> str | None:
         """Extract token from query string (for GET requests)."""
@@ -479,7 +479,7 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     if healthy and token:
         healthy = data.get("token") == token
 
-    sync_data = data.get("sync") if isinstance(data.get("sync"), dict) else {}
+    sync_data: dict[str, object] = data.get("sync") if isinstance(data.get("sync"), dict) else {}
     websocket_status = str(data.get("websocket_status") or "Offline")
     return SyncDaemonStatus(
         healthy=healthy,
@@ -665,7 +665,7 @@ def _stop_daemon_by_http(url: str, token: str | None) -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=1.0):
+        with urllib.request.urlopen(request, timeout=1.0):  # nosec B310 — request URL is localhost daemon control endpoint
             pass
     except Exception:
         pass

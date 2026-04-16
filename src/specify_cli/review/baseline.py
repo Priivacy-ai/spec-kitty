@@ -144,7 +144,7 @@ def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[Bas
 
     Handles nested <testsuite> elements via ``root.iter("testcase")``.
     """
-    tree = ET.parse(str(junit_xml_path))
+    tree = ET.parse(str(junit_xml_path))  # nosec B314 — XML comes from local test-runner output, not network input
     root = tree.getroot()
 
     failures: list[BaselineFailure] = []
@@ -289,7 +289,7 @@ def capture_baseline(
             try:
                 run_result = subprocess.run(
                     cmd_str,
-                    shell=True,
+                    shell=True,  # nosec B602 — test_command is user-authored config string, shell required for pipes/redirects
                     cwd=str(tmp_worktree),
                     capture_output=True,
                     text=True,

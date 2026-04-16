@@ -29,6 +29,8 @@ from pathlib import Path
 # runtime.test_resolver_unit ran in the same session.
 from doctrine.resolver import ResolutionResult, ResolutionTier
 
+__all__ = ["ResolutionResult", "ResolutionTier"]
+
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
 logger = logging.getLogger(__name__)

@@ -7,7 +7,7 @@ from datetime import datetime, UTC
 from io import StringIO
 from pathlib import Path
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 
@@ -451,7 +451,7 @@ def _resolve_transitive_reference_graph(
     doctrine_root: Path,
     directives: list[str],
     repo_root: Path | None,
-):
+) -> Any:
     """Resolve directive transitive closure from shipped/project DRG layers."""
     from charter._drg_helpers import load_validated_graph
     from doctrine.drg.loader import load_graph, merge_layers

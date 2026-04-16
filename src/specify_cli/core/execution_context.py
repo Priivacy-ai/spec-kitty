@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Literal, Mapping, cast, get_args
+from typing import Any, Literal, Mapping, cast, get_args
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
@@ -60,7 +60,7 @@ class ActionContext:
     commands: dict[str, str] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 

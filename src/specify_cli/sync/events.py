@@ -101,7 +101,7 @@ def _request_dashboard_sync(repo_root: Path | None) -> None:
         if status.token:
             trigger_url = f"{trigger_url}?token={urllib.parse.quote(status.token)}"
 
-        with urllib.request.urlopen(trigger_url, timeout=0.2) as response:
+        with urllib.request.urlopen(trigger_url, timeout=0.2) as response:  # nosec B310 — trigger_url is always the localhost dashboard endpoint
             if response.status not in {200, 202}:
                 logger.debug("Dashboard sync trigger returned HTTP %s", response.status)
     except Exception as exc:
@@ -126,7 +126,7 @@ def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=0.5) as response:
+        with urllib.request.urlopen(request, timeout=0.5) as response:  # nosec B310 — request URL is localhost sync daemon endpoint
             if response.status not in {200, 202}:
                 logger.debug("Sync daemon publish returned HTTP %s", response.status)
     except Exception as exc:

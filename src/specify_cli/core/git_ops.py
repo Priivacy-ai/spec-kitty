@@ -66,7 +66,7 @@ def run_command(
             text=True,
             encoding="utf-8",
             errors="replace",
-            shell=shell,
+            shell=shell,  # nosec B602 — caller controls shell flag; git commands use list form by default
             cwd=str(cwd) if cwd else None,
         )
         stdout = (result.stdout or "").strip() if capture else ""
