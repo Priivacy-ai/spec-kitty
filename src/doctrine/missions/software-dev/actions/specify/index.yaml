@@ -1,9 +1,11 @@
 action: specify
 directives:
   - 010-specification-fidelity-requirement
+  - 035-examples-are-source-of-truth
   - 003-decision-documentation-requirement
 tactics:
   - requirements-validation-workflow
 styleguides: []
 toolguides: []
-procedures: []
+procedures:
+  - example-mapping-workshop

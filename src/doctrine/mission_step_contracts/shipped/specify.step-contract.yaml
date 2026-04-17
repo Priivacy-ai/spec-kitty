@@ -20,6 +20,14 @@ steps:
       kind: directive
       candidates:
         - 010-specification-fidelity-requirement
+        - 035-examples-are-source-of-truth
+
+  - id: map_examples
+    description: Capture concrete rules, examples, and open questions for the behavior slice
+    delegates_to:
+      kind: procedure
+      candidates:
+        - example-mapping-workshop
 
   - id: validate_requirements
     description: Validate requirements against spec fidelity rules

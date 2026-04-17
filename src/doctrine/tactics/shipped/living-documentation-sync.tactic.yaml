@@ -1,0 +1,50 @@
+schema_version: "1.0"
+id: living-documentation-sync
+name: Living Documentation Sync
+purpose: >
+  Keep canonical examples, acceptance checks, and narrative specifications in
+  sync so behavior changes never leave stale documentation behind.
+steps:
+  - title: Identify the canonical example set
+    description: >
+      Decide which examples define the behavior being changed and which
+      artifacts currently contain them.
+    examples:
+      - "Locate the spec examples, acceptance tests, and review notes that currently describe invoice approval behavior."
+  - title: Compare examples against executable checks
+    description: >
+      Ensure each canonical example is represented by an acceptance check or an
+      explicitly recorded manual verification path.
+    examples:
+      - "Match each checkout example to a black-box acceptance test or a documented manual fallback."
+  - title: Update human-readable artifacts in the same change
+    description: >
+      Revise spec text, task notes, and any living documentation that explains
+      the behavior so they match the updated examples.
+    examples:
+      - "Change the refund examples in spec.md and the operator notes in the same branch as the API behavior change."
+  - title: Remove or mark stale examples
+    description: >
+      Delete superseded examples or annotate them as historical when they no
+      longer describe supported behavior.
+    examples:
+      - "Remove the 'guest checkout without email' example once the policy requires email for every order."
+  - title: Preserve traceability
+    description: >
+      Link updated examples to requirements, work packages, and acceptance
+      evidence so a reviewer can follow the chain quickly.
+    examples:
+      - "Reference FR-012 and the WP ID in the updated acceptance test names and review notes."
+failure_modes:
+  - "Treating examples as marketing copy instead of behavioral contracts."
+  - "Updating tests without updating the narrative example set."
+  - "Leaving superseded examples in docs where they still describe unsupported behavior."
+references:
+  - name: Specification Fidelity Requirement
+    type: directive
+    id: DIRECTIVE_010
+    when: Use this directive to reject documentation and behavior drift during review
+  - name: Acceptance Test First
+    type: tactic
+    id: acceptance-test-first
+    when: Use this tactic when a canonical example should be represented by an executable acceptance check

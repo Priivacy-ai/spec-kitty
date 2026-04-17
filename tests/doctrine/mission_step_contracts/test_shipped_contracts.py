@@ -118,3 +118,53 @@ class TestImplementContractStructure:
         transition = next((s for s in contract.steps if s.id == "status_transition"), None)
         assert transition is not None
         assert transition.command is not None
+
+
+class TestSpecifyContractStructure:
+    """The specify contract captures examples before requirement validation."""
+
+    @pytest.fixture
+    def contract(self) -> MissionStepContract:
+        repo = MissionStepContractRepository()
+        c = repo.get_by_action("software-dev", "specify")
+        assert c is not None
+        return c
+
+    def test_capture_intent_includes_examples_directive(self, contract: MissionStepContract) -> None:
+        capture_intent = next((s for s in contract.steps if s.id == "capture_intent"), None)
+        assert capture_intent is not None
+        assert capture_intent.delegates_to is not None
+        assert capture_intent.delegates_to.kind == ArtifactKind.DIRECTIVE
+        assert "035-examples-are-source-of-truth" in capture_intent.delegates_to.candidates
+
+    def test_has_map_examples_step_with_procedure_delegation(self, contract: MissionStepContract) -> None:
+        map_examples = next((s for s in contract.steps if s.id == "map_examples"), None)
+        assert map_examples is not None
+        assert map_examples.delegates_to is not None
+        assert map_examples.delegates_to.kind == ArtifactKind.PROCEDURE
+        assert map_examples.delegates_to.candidates == ["example-mapping-workshop"]
+
+
+class TestReviewContractStructure:
+    """The review contract checks example, acceptance, and doc sync."""
+
+    @pytest.fixture
+    def contract(self) -> MissionStepContract:
+        repo = MissionStepContractRepository()
+        c = repo.get_by_action("software-dev", "review")
+        assert c is not None
+        return c
+
+    def test_verify_spec_fidelity_includes_examples_directive(self, contract: MissionStepContract) -> None:
+        verify_spec_fidelity = next((s for s in contract.steps if s.id == "verify_spec_fidelity"), None)
+        assert verify_spec_fidelity is not None
+        assert verify_spec_fidelity.delegates_to is not None
+        assert verify_spec_fidelity.delegates_to.kind == ArtifactKind.DIRECTIVE
+        assert "035-examples-are-source-of-truth" in verify_spec_fidelity.delegates_to.candidates
+
+    def test_has_example_sync_step(self, contract: MissionStepContract) -> None:
+        verify_example_sync = next((s for s in contract.steps if s.id == "verify_example_sync"), None)
+        assert verify_example_sync is not None
+        assert verify_example_sync.delegates_to is not None
+        assert verify_example_sync.delegates_to.kind == ArtifactKind.TACTIC
+        assert verify_example_sync.delegates_to.candidates == ["living-documentation-sync"]

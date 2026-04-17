@@ -277,3 +277,24 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
     assert service.styleguides.get("python-style") is not None
     assert service.toolguides.get("python-tool") is not None
     assert service.agent_profiles.get("python-implementer") is not None
+
+
+def test_service_exposes_specification_by_example_artifacts() -> None:
+    service = DoctrineService()
+
+    paradigm = service.paradigms.get("specification-by-example")
+    assert paradigm is not None
+    assert "living-documentation-sync" in paradigm.tactic_refs
+    assert "DIRECTIVE_035" in paradigm.directive_refs
+
+    directive = service.directives.get("DIRECTIVE_035")
+    assert directive is not None
+    assert "living-documentation-sync" in directive.tactic_refs
+
+    tactic = service.tactics.get("living-documentation-sync")
+    assert tactic is not None
+    assert any(ref.id == "DIRECTIVE_010" for ref in tactic.references)
+
+    procedure = service.procedures.get("example-mapping-workshop")
+    assert procedure is not None
+    assert any("living-documentation-sync" in step.tactic_refs for step in procedure.steps)
