@@ -1,7 +1,7 @@
 {
-  "event_count": 36,
-  "last_event_id": "01KPDDJDJZV2NPZC55EEZZVJT2",
-  "materialized_at": "2026-04-17T09:50:19.743749+00:00",
+  "event_count": 38,
+  "last_event_id": "01KPDDKJ0FT0JHMAEBHENPE9E8",
+  "materialized_at": "2026-04-17T09:50:57.039209+00:00",
   "mission_number": "",
   "mission_slug": "charter-ownership-consolidation-and-neutrality-hardening-01KPD880",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-04-17T09:50:19.743749+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet-4-6:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KPDBHRQJE9A2GBSS1C3HFB31",
-      "last_transition_at": "2026-04-17T09:15:01.234869+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KPDDKJ0FT0JHMAEBHENPE9E8",
+      "last_transition_at": "2026-04-17T09:50:57.039209+00:00"
     },
     "WP06": {
       "actor": "user",
