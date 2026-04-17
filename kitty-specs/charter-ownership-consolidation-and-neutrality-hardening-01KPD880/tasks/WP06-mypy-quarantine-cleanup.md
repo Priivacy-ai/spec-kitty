@@ -136,3 +136,4 @@ Commit message should name the removed module path explicitly so a reviewer can 
 ## Activity Log
 
 - 2026-04-17T09:28:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Assigned agent via action command
+- 2026-04-17T09:36:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Ready: stale quarantine removed; strict mypy clean on charter.context (5 context.py errors fixed with minimal-scope type annotations)
