@@ -1,0 +1,16 @@
+id: PROJECT_001
+title: Project Decision Documentation Directive
+body: |
+  All significant architectural decisions in this project must be documented
+  as Architecture Decision Records (ADRs) following DIRECTIVE_003 conventions.
+  ADRs are stored in architecture/adrs/ and referenced from code comments for
+  major components.
+rationale: >
+  Preserves institutional knowledge across team and agent boundaries.
+  Prevents repeated debates about settled decisions.
+tags:
+  - decision-making
+  - documentation
+  - architecture
+requires:
+  - directive:DIRECTIVE_003

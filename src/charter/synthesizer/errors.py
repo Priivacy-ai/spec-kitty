@@ -1,0 +1,273 @@
+"""Structured error taxonomy for the Charter Synthesizer pipeline.
+
+All errors inherit from SynthesisError and carry structured fields rather than
+bare string messages. The CLI renders these via a shared rich panel helper so
+operators see context-rich diagnostics, not tracebacks.
+
+See data-model.md §E-8 for the authoritative error taxonomy.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+
+# ---------------------------------------------------------------------------
+# Base
+# ---------------------------------------------------------------------------
+
+
+class SynthesisError(Exception):
+    """Base class for all charter synthesizer errors.
+
+    Subclasses are frozen dataclasses so every error carries structured,
+    type-safe fields. The CLI layer catches SynthesisError and delegates
+    rendering to render_error_panel().
+    """
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def render_error_panel(error: SynthesisError, console: Console | None = None) -> None:
+    """Render a SynthesisError as a rich error panel to stderr."""
+    if console is None:
+        console = Console(stderr=True)
+    title = type(error).__name__
+    body = str(error)
+    console.print(Panel(Text(body, style="red"), title=f"[bold red]{title}[/]", border_style="red"))
+
+
+# ---------------------------------------------------------------------------
+# Path guard
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PathGuardViolation(SynthesisError):
+    """Raised before any filesystem mutation when a write targets a forbidden path.
+
+    The path guard fires before the filesystem is touched (FR-016, US-7).
+    """
+
+    attempted_path: str
+    caller: str
+
+    def __str__(self) -> str:
+        return (
+            f"PathGuard blocked write to '{self.attempted_path}' "
+            f"(caller: {self.caller}). "
+            f"Synthesizer writes must target .kittify/doctrine/ (content) "
+            f"or .kittify/charter/ (bookkeeping) only."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Schema / validation errors
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SynthesisSchemaError(SynthesisError):
+    """AdapterOutput.body fails shipped-layer Pydantic schema validation (FR-019).
+
+    Raised before any provenance or DRG writes occur.
+    """
+
+    artifact_kind: str
+    artifact_slug: str
+    validation_errors: tuple[str, ...]
+
+    def __str__(self) -> str:
+        errs = "; ".join(self.validation_errors)
+        return (
+            f"Adapter output for {self.artifact_kind}:{self.artifact_slug} "
+            f"failed schema validation: {errs}"
+        )
+
+
+@dataclass(frozen=True)
+class ProjectDRGValidationError(SynthesisError):
+    """validate_graph() returned ≥1 errors on the merged (shipped + project) graph (FR-008).
+
+    Raised before promote; no files land in the live tree.
+    """
+
+    errors: tuple[str, ...]
+    merged_graph_summary: str
+
+    def __str__(self) -> str:
+        errs = "; ".join(self.errors)
+        return (
+            f"Project DRG validation failed ({len(self.errors)} error(s)): {errs}. "
+            f"Graph summary: {self.merged_graph_summary}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Duplicate / collision errors
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DuplicateTargetError(SynthesisError):
+    """Two targets in one run share the same (kind, slug) (EC-7)."""
+
+    kind: str
+    slug: str
+    occurrences: int
+
+    def __str__(self) -> str:
+        return (
+            f"Duplicate synthesis target: {self.kind}:{self.slug} "
+            f"appears {self.occurrences} time(s) in a single run. "
+            f"Each (kind, slug) pair must be unique within a run."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Topic selector errors
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TopicSelectorUnresolvedError(SynthesisError):
+    """--topic selector cannot be resolved by any of the three tiers (US-6, FR-013).
+
+    Attributes
+    ----------
+    raw:
+        The original user-supplied selector string.
+    candidates:
+        Top-5 nearest candidates by Levenshtein distance, formatted as
+        "{form}:{value} (distance={n})" strings.
+    attempted_forms:
+        Which resolution forms were tried before failing, e.g.
+        ``("kind_slug", "drg_urn")`` or ``("interview_section",)``.
+        Included for debuggability (contracts/topic-selector.md §2.1).
+    """
+
+    raw: str
+    candidates: tuple[str, ...]
+    attempted_forms: tuple[str, ...] = ()
+
+    def __str__(self) -> str:
+        forms = ", ".join(self.attempted_forms) if self.attempted_forms else "all"
+        if self.candidates:
+            cands = ", ".join(self.candidates)
+            return (
+                f"Topic selector '{self.raw}' could not be resolved "
+                f"(tried: {forms}). "
+                f"Did you mean one of: {cands}?"
+            )
+        return (
+            f"Topic selector '{self.raw}' could not be resolved "
+            f"(tried: {forms}). "
+            f"No candidates found in the project-local artifact set, "
+            f"merged DRG, or interview section labels."
+        )
+
+
+@dataclass(frozen=True)
+class TopicSelectorAmbiguousError(SynthesisError):
+    """Topic selector matches multiple candidates with equal priority (FR-013)."""
+
+    raw: str
+    candidates: tuple[str, ...]
+
+    def __str__(self) -> str:
+        cands = ", ".join(self.candidates)
+        return (
+            f"Topic selector '{self.raw}' is ambiguous — matched: {cands}. "
+            f"Use a more specific selector (e.g. include the artifact kind prefix)."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Fixture adapter error
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FixtureAdapterMissingError(SynthesisError):
+    """Fixture adapter cannot find a recorded fixture for the normalized request hash.
+
+    The expected_path field tells the operator exactly where to place a new fixture.
+    """
+
+    expected_path: str
+    kind: str
+    slug: str
+    inputs_hash: str
+
+    def __str__(self) -> str:
+        return (
+            f"No fixture found for {self.kind}:{self.slug} "
+            f"(inputs_hash={self.inputs_hash[:12]}...); "
+            f"expected at {self.expected_path}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Production adapter errors
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ProductionAdapterUnavailableError(SynthesisError):
+    """Production adapter cannot be instantiated (R-0-5, missing credentials etc.)."""
+
+    adapter_id: str
+    reason: str
+    remediation: str
+
+    def __str__(self) -> str:
+        return (
+            f"Production adapter '{self.adapter_id}' is unavailable: {self.reason}. "
+            f"Remediation: {self.remediation}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Staging / promote errors
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StagingPromoteError(SynthesisError):
+    """os.replace or manifest write failed during the promote step (KD-2).
+
+    Orchestration preserves staging dir as .failed/ for operator diagnosis.
+    """
+
+    run_id: str
+    staging_dir: str
+    cause: str
+
+    def __str__(self) -> str:
+        return (
+            f"Synthesis promote failed for run {self.run_id} "
+            f"(staging: {self.staging_dir}): {self.cause}. "
+            f"Staging directory preserved as {self.staging_dir}.failed/ for diagnosis."
+        )
+
+
+@dataclass(frozen=True)
+class ManifestIntegrityError(SynthesisError):
+    """A reader found that manifest-listed content_hash does not match disk content (E-6)."""
+
+    manifest_path: str
+    offending_artifact: str
+
+    def __str__(self) -> str:
+        return (
+            f"Manifest integrity check failed: artifact '{self.offending_artifact}' "
+            f"listed in {self.manifest_path} does not match its on-disk content hash. "
+            f"Re-run 'charter synthesize' to repair."
+        )
