@@ -54,9 +54,9 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 | T021 | Run `mypy --strict src/charter/context.py` and record diagnostics | WP06 | [D] |
 | T022 | Fix any strict errors surfaced, or rename quarantine entry to `charter.context` with removal TODO | WP06 | | [D] |
 | T023 | Remove the stale `specify_cli.charter.context` line from `pyproject.toml` `[[tool.mypy.overrides]]` and confirm config parses | WP06 | | [D] |
-| T024 | Author `docs/migration/charter-ownership-consolidation.md` naming canonical path + removal release 3.3.0 | WP07 | |
-| T025 | Add CHANGELOG entry for the landing release with shim-removal target call-out | WP07 | |
-| T026 | Cross-validate `__removal_release__` in `src/specify_cli/charter/__init__.py` matches the CHANGELOG text | WP07 | |
+| T024 | Author `docs/migration/charter-ownership-consolidation.md` naming canonical path + removal release 3.3.0 | WP07 | | [D] |
+| T025 | Add CHANGELOG entry for the landing release with shim-removal target call-out | WP07 | | [D] |
+| T026 | Cross-validate `__removal_release__` in `src/specify_cli/charter/__init__.py` matches the CHANGELOG text | WP07 | | [D] |
 
 Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
@@ -219,9 +219,9 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 **Included subtasks**:
 
-- [ ] T024 Author `docs/migration/charter-ownership-consolidation.md` naming canonical path + removal release 3.3.0 (WP07)
-- [ ] T025 Add CHANGELOG entry for the landing release with shim-removal target call-out (WP07)
-- [ ] T026 Cross-validate `__removal_release__` in `src/specify_cli/charter/__init__.py` matches the CHANGELOG text (WP07)
+- [x] T024 Author `docs/migration/charter-ownership-consolidation.md` naming canonical path + removal release 3.3.0 (WP07)
+- [x] T025 Add CHANGELOG entry for the landing release with shim-removal target call-out (WP07)
+- [x] T026 Cross-validate `__removal_release__` in `src/specify_cli/charter/__init__.py` matches the CHANGELOG text (WP07)
 
 **Dependencies**: WP04 (the removal-release constant must be in place before the docs cite it).
 
