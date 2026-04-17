@@ -1,0 +1,96 @@
+# Occurrence map — Charter Ownership Consolidation and Neutrality Hardening
+# Mission: 01KPD8804H8XZR8NJVJKV12HCW (mid8: 01KPD880)
+# Authored: 2026-04-17
+# DIRECTIVE_035: this artifact is required before any cross-file import-path
+# rewrites may be committed. Category actions ratified by user in planning Q2.
+
+target:
+  term: "specify_cli.charter"
+  replacement: "charter"
+  operation: rename
+
+# Category actions per user ratification (planning Q2).
+#
+# IMPORTANT SCOPE NOTE on code_symbols (per user wording fix):
+#   `code_symbols: rename` applies ONLY to fully-qualified module-path
+#   references like `specify_cli.charter.foo.Bar` appearing in strings, dotted
+#   patch targets (mock.patch("specify_cli.charter…")), type references, or
+#   docs. Local symbol names (e.g., `Bar`, `build_charter_context`,
+#   `ensure_charter_bundle_fresh`) are NOT renamed just because the owning
+#   module moved — the symbols keep their names, only their package
+#   location changes.
+
+categories:
+  code_symbols:         { action: rename }                 # FQ module paths only, per note above
+  import_paths:         { action: rename }                 # primary target — `from specify_cli.charter…` → `from charter…`
+  filesystem_paths:     { action: manual_review }          # src/specify_cli/charter/*.py files are touched (add DeprecationWarning) or deleted (none planned); each change is reviewed individually
+  serialized_keys:      { action: do_not_change }          # charter YAML/JSON schema keys are contracts (C-003); nothing in the rename touches field names
+  cli_commands:         { action: do_not_change }          # per C-004, no CLI surface changes
+  user_facing_strings:  { action: rename_if_user_visible } # docs, help text, CHANGELOG, migration guide references to `specify_cli.charter` update to name canonical path; internal-only log labels do not
+  tests_fixtures:       { action: rename }                 # test imports follow production: `from specify_cli.charter…` → `from charter…`
+  logs_telemetry:       { action: do_not_change }          # log labels / event names / metric labels remain stable so dashboards and alerting don't break
+
+exceptions:
+  # Surviving shim modules are the deliberate exception to the category-level
+  # rename actions. They intentionally preserve the legacy import path so
+  # external callers get a DeprecationWarning rather than a hard break.
+  - path: "src/specify_cli/charter/__init__.py"
+    action: do_not_change
+    reason: "Deprecated re-export shim; preserves legacy import surface per user-ratified hybrid-with-sunset strategy (spec FR-004). Only edit allowed in this mission is adding DeprecationWarning + __deprecated__/__canonical_import__/__removal_release__/__deprecation_message__ attributes."
+
+  - path: "src/specify_cli/charter/compiler.py"
+    action: do_not_change
+    reason: "Deprecated sys.modules-aliasing shim; see __init__.py reason."
+
+  - path: "src/specify_cli/charter/interview.py"
+    action: do_not_change
+    reason: "Deprecated sys.modules-aliasing shim; see __init__.py reason."
+
+  - path: "src/specify_cli/charter/resolver.py"
+    action: do_not_change
+    reason: "Deprecated sys.modules-aliasing shim; see __init__.py reason."
+
+  # Migration guide and CHANGELOG intentionally mention `specify_cli.charter`
+  # as the deprecated import being sunset — that is not a stale reference, it
+  # is the teaching example. These exceptions clarify that the references
+  # stand even though user_facing_strings is globally rename_if_user_visible.
+  - path: "docs/migration/charter-ownership-consolidation.md"
+    action: do_not_change
+    reason: "The migration guide deliberately quotes the deprecated path to teach the rename; do not auto-rewrite."
+
+  - path: "CHANGELOG.md"
+    action: rename_if_user_visible
+    reason: "Default behavior is correct here; CHANGELOG mentions the deprecated path explicitly as part of the deprecation notice. Future entries that reference `specify_cli.charter` should be rewritten only if they are instructing new adoption, not if they are documenting the removal."
+
+  # The occurrence map lives in the mission artifact set and references the
+  # term being renamed — obvious self-exception.
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/**"
+    action: do_not_change
+    reason: "Mission planning artifacts quote `specify_cli.charter` literally as the subject of the rename."
+
+  # The neutrality lint and its tests talk about the rename symbolically; no
+  # rewrite should touch them.
+  - path: "src/charter/neutrality/**"
+    action: do_not_change
+    reason: "Neutrality config files are the subject of FR-008/FR-009; their content is managed under a different lifecycle than the bulk rename."
+
+  - path: "tests/charter/test_charter_ownership_invariant.py"
+    action: do_not_change
+    reason: "Contains CANONICAL_OWNERS registry naming `src/charter/context.py` and `src/charter/sync.py`. Registry updates are explicit edits, not subject to the automatic rename rule."
+
+  # C-005 deprecation-window tests: these files intentionally import the
+  # legacy `specify_cli.charter.*` surface and assert that the shim still
+  # re-exports the canonical symbols. Rewriting them would destroy the
+  # coverage that proves the deprecation window works. The global
+  # tests_fixtures: rename action does not apply to these three paths.
+  - path: "tests/specify_cli/charter/test_defaults_unit.py"
+    action: do_not_change
+    reason: "C-005 coverage: imports and monkeypatches `specify_cli.charter.compiler`, `specify_cli.charter.interview`, `specify_cli.charter.resolver` by design to verify shim behavior. Renaming would eliminate the test."
+
+  - path: "tests/charter/test_sync_paths.py"
+    action: do_not_change
+    reason: "C-005 coverage: `test_sync_shim_re_exports_canonical_sync` deliberately asserts `from specify_cli.charter import sync` still resolves to the canonical module. The legacy import is the subject under test."
+
+  - path: "tests/charter/test_chokepoint_coverage.py"
+    action: do_not_change
+    reason: "C-005 coverage: exercises the legacy import chokepoint to verify shim re-exports remain intact. Rename would remove the chokepoint verification."

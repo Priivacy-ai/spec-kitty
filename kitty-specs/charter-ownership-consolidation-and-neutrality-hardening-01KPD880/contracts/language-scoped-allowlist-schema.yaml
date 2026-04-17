@@ -1,0 +1,69 @@
+# C-5 — Language-Scoped Allowlist YAML v1 Schema
+#
+# Covers: FR-009, FR-013
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "contracts:language-scoped-allowlist.v1"
+title: "Language-Scoped Allowlist v1"
+description: >
+  Declares repo-relative paths (or glob patterns) that are intentionally
+  language-scoped and therefore exempt from the generic neutrality lint.
+  Every entry must justify itself so future readers can audit the scope.
+
+type: object
+required: [schema_version, paths]
+additionalProperties: false
+
+properties:
+  schema_version:
+    type: string
+    const: "1"
+
+  paths:
+    type: array
+    description: "Allowlist entries. Empty array is legal (means no language-scoped artifacts exist yet)."
+    items:
+      type: object
+      required: [path, scope, owner, reason]
+      additionalProperties: false
+
+      properties:
+        path:
+          type: string
+          minLength: 1
+          description: >
+            Repo-relative path with forward slashes. Glob patterns supported via pathlib.Path.glob
+            (e.g., "src/charter/profiles/python/**/*.md"). MUST resolve to at least one existing file
+            at lint time; stale entries fail the lint with STALE ALLOWLIST ENTRIES.
+
+        scope:
+          type: string
+          pattern: "^[a-z][a-z0-9_-]*$"
+          description: "Language family identifier. Convention: lowercase. Examples: python, node, ruby, go, rust."
+
+        owner:
+          type: string
+          minLength: 2
+          description: "Team or role responsible for keeping this file's scope accurate."
+
+        reason:
+          type: string
+          minLength: 8
+          description: "Why this file is intentionally language-scoped."
+
+        added_in:
+          type: string
+          description: "Release when the path was allowlisted. Informational."
+
+# Initial payload (ships empty in this mission):
+#
+# schema_version: "1"
+# paths: []
+#
+# Example entry, for documentation:
+#
+# - path: "src/charter/profiles/python/README.md"
+#   scope: python
+#   owner: "charter team"
+#   reason: "Canonical Python profile guidance; mentions pytest intentionally."
+#   added_in: "3.2.0"
