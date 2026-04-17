@@ -125,3 +125,4 @@ Add a docstring at the top of the test file explaining:
 - 2026-04-17T09:22:58Z – claude:sonnet-4-6:implementer:implementer – shell_pid=5163 – Assigned agent via action command
 - 2026-04-17T09:35:41Z – claude:sonnet-4-6:implementer:implementer – shell_pid=5163 – Ready for review: invariant passes on baseline, mypy --strict clean
 - 2026-04-17T09:39:16Z – claude:opus-4-6:reviewer:reviewer – shell_pid=9746 – Started review via action command
+- 2026-04-17T09:41:16Z – claude:opus-4-6:reviewer:reviewer – shell_pid=9746 – Review passed: invariant test + conftest fixture enforce SC-001 (ast.walk, class-method exclusion, narrow two-entry registry); pytest passes, mypy --strict clean, scope is test-only
