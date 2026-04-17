@@ -50,12 +50,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 | T018 | `write_pipeline.py` — ordered `os.replace` promote: content → `.kittify/doctrine/`, bookkeeping → `.kittify/charter/` | WP03 | — |
 | T019 | Extend `src/charter/bundle.py` (FR-015) — recognise synthesized artifacts + cross-tree provenance | WP03 | — |
 | T020 | Tests — `test_provenance.py`, `test_staging_atomicity.py`, `test_manifest.py`, `test_bundle_validate_extension.py` | WP03 | — |
-| T021 | `project_drg.py` — thin composer: emit + persist at `.kittify/doctrine/graph.yaml` | WP04 | [P] |
-| T022 | `validation_gate.py` — `validate_graph(merge_layers(shipped, project))` gate before promote (FR-008) | WP04 | [P] |
-| T023 | Additive-only enforcement (FR-020) — reject overlay emissions that shadow shipped URNs | WP04 | — |
-| T024 | Extend `src/charter/compiler.py::_default_doctrine_service` — candidate-list extension (FR-009) | WP04 | [P] |
-| T025 | Extend `src/charter/context.py::_build_doctrine_service` — same candidate-list extension | WP04 | [P] |
-| T026 | Tests — `test_project_drg.py`, `test_validation_gate.py`, `test_charter_compile_project_root.py` (3 cases), `test_context_reflects_synthesis.py` | WP04 | — |
+| T021 | `project_drg.py` — thin composer: emit + persist at `.kittify/doctrine/graph.yaml` | WP04 | [D] |
+| T022 | `validation_gate.py` — `validate_graph(merge_layers(shipped, project))` gate before promote (FR-008) | WP04 | [D] |
+| T023 | Additive-only enforcement (FR-020) — reject overlay emissions that shadow shipped URNs | WP04 | — | [D] |
+| T024 | Extend `src/charter/compiler.py::_default_doctrine_service` — candidate-list extension (FR-009) | WP04 | [D] |
+| T025 | Extend `src/charter/context.py::_build_doctrine_service` — same candidate-list extension | WP04 | [D] |
+| T026 | Tests — `test_project_drg.py`, `test_validation_gate.py`, `test_charter_compile_project_root.py` (3 cases), `test_context_reflects_synthesis.py` | WP04 | — | [D] |
 | T027 | `topic_resolver.py` — 3-tier resolution (local kind+slug → DRG URN → interview section) + `ResolvedTopic` | WP05 | [P] |
 | T028 | Structured-error surface — `TopicSelectorUnresolvedError` + Levenshtein top-5 candidate enumeration | WP05 | — |
 | T029 | `resynthesize_pipeline.py` — bounded recomputation; manifest rewrite preserves untouched `content_hash` | WP05 | — |
@@ -156,12 +156,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 **Independent test**: `pytest tests/charter/synthesizer/test_project_drg.py test_validation_gate.py test_charter_compile_project_root.py test_context_reflects_synthesis.py` passes; three candidate-list cases (legacy / present / empty) hold.
 
 **Subtasks**:
-- [ ] T021 `project_drg.py` — composer + persist (WP04)
-- [ ] T022 `validation_gate.py` — pre-promote validation gate (WP04)
-- [ ] T023 Additive-only enforcement (FR-020) (WP04)
-- [ ] T024 Extend `src/charter/compiler.py::_default_doctrine_service` (WP04)
-- [ ] T025 Extend `src/charter/context.py::_build_doctrine_service` (WP04)
-- [ ] T026 Tests — project_drg, validation_gate, charter_compile_project_root (3 cases), context_reflects_synthesis (WP04)
+- [x] T021 `project_drg.py` — composer + persist (WP04)
+- [x] T022 `validation_gate.py` — pre-promote validation gate (WP04)
+- [x] T023 Additive-only enforcement (FR-020) (WP04)
+- [x] T024 Extend `src/charter/compiler.py::_default_doctrine_service` (WP04)
+- [x] T025 Extend `src/charter/context.py::_build_doctrine_service` (WP04)
+- [x] T026 Tests — project_drg, validation_gate, charter_compile_project_root (3 cases), context_reflects_synthesis (WP04)
 
 **Parallel opportunities**: T021, T022, T024, T025 in parallel. T023 sequences after T021.
 
