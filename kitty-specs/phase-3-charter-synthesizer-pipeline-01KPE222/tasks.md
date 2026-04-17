@@ -30,14 +30,14 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Scaffold `src/charter/synthesizer/` package + `__init__.py` + `errors.py` taxonomy | WP01 | — |
-| T002 | `request.py` — `SynthesisRequest`, `SynthesisTarget`, normalization for hashing | WP01 | [P] |
-| T003 | `adapter.py` — `SynthesisAdapter` Protocol + `AdapterOutput` dataclass | WP01 | [P] |
-| T004 | `path_guard.py` — `PathGuard` + `PathGuardViolation` + lint-style test | WP01 | [P] |
-| T005 | `fixture_adapter.py` — fixture loader with hash-keyed layout + `FixtureAdapterMissingError` | WP01 | — |
-| T006 | `orchestrator.py` — skeleton dispatcher with `synthesize()` / `resynthesize()` entry points | WP01 | — |
-| T007 | Author ADR-2026-04-17-1 (adapter seam) + ADR-2026-04-17-2 (atomicity) | WP01 | [P] |
-| T008 | Tests — `test_adapter_contract.py`, `test_path_guard.py`, `test_fixture_adapter.py` + conftest | WP01 | — |
+| T001 | Scaffold `src/charter/synthesizer/` package + `__init__.py` + `errors.py` taxonomy | WP01 | — | [D] |
+| T002 | `request.py` — `SynthesisRequest`, `SynthesisTarget`, normalization for hashing | WP01 | [D] |
+| T003 | `adapter.py` — `SynthesisAdapter` Protocol + `AdapterOutput` dataclass | WP01 | [D] |
+| T004 | `path_guard.py` — `PathGuard` + `PathGuardViolation` + lint-style test | WP01 | [D] |
+| T005 | `fixture_adapter.py` — fixture loader with hash-keyed layout + `FixtureAdapterMissingError` | WP01 | — | [D] |
+| T006 | `orchestrator.py` — skeleton dispatcher with `synthesize()` / `resynthesize()` entry points | WP01 | — | [D] |
+| T007 | Author ADR-2026-04-17-1 (adapter seam) + ADR-2026-04-17-2 (atomicity) | WP01 | [D] |
+| T008 | Tests — `test_adapter_contract.py`, `test_path_guard.py`, `test_fixture_adapter.py` + conftest | WP01 | — | [D] |
 | T009 | `interview_mapping.py` — interview-section → `SynthesisTarget` table | WP02 | [P] |
 | T010 | `targets.py` — target selection, ordering, duplicate-slug detection | WP02 | [P] |
 | T011 | `synthesize_pipeline.py` — end-to-end in-memory synthesis flow; wire adapter + schema gate (FR-019) | WP02 | — |
@@ -76,14 +76,14 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 **Independent test**: `pytest tests/charter/synthesizer/test_adapter_contract.py tests/charter/synthesizer/test_path_guard.py tests/charter/synthesizer/test_fixture_adapter.py` and `mypy --strict src/charter/synthesizer/`.
 
 **Subtasks**:
-- [ ] T001 Scaffold package + errors taxonomy (WP01)
-- [ ] T002 `request.py` — `SynthesisRequest` + `SynthesisTarget` + normalization (WP01)
-- [ ] T003 `adapter.py` — Protocol + `AdapterOutput` (WP01)
-- [ ] T004 `path_guard.py` + lint-style negative test (WP01)
-- [ ] T005 `fixture_adapter.py` — hash-keyed fixture loader (WP01)
-- [ ] T006 `orchestrator.py` skeleton (WP01)
-- [ ] T007 Two ADRs under `architecture/adrs/` (WP01)
-- [ ] T008 Tests — `test_adapter_contract.py`, `test_path_guard.py`, `test_fixture_adapter.py` + conftest (WP01)
+- [x] T001 Scaffold package + errors taxonomy (WP01)
+- [x] T002 `request.py` — `SynthesisRequest` + `SynthesisTarget` + normalization (WP01)
+- [x] T003 `adapter.py` — Protocol + `AdapterOutput` (WP01)
+- [x] T004 `path_guard.py` + lint-style negative test (WP01)
+- [x] T005 `fixture_adapter.py` — hash-keyed fixture loader (WP01)
+- [x] T006 `orchestrator.py` skeleton (WP01)
+- [x] T007 Two ADRs under `architecture/adrs/` (WP01)
+- [x] T008 Tests — `test_adapter_contract.py`, `test_path_guard.py`, `test_fixture_adapter.py` + conftest (WP01)
 
 **Parallel opportunities**: T002, T003, T004, T007 can proceed in parallel after T001. T005 and T006 sequence after T003.
 
