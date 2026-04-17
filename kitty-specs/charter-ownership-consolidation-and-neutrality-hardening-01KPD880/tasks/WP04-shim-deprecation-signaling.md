@@ -20,8 +20,8 @@ subtasks:
 - T017
 phase: Phase 1 — Foundational
 assignee: ''
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "7655"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "11828"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -225,3 +225,4 @@ If any of these three tests fail, the fix is in the shim implementation, not in 
 
 - 2026-04-17T09:28:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7655 – Assigned agent via action command
 - 2026-04-17T09:47:30Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7655 – Ready: single warning + metadata, C-005 tests still pass
+- 2026-04-17T09:48:28Z – claude:opus-4-6:reviewer:reviewer – shell_pid=11828 – Started review via action command
