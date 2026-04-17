@@ -22,7 +22,8 @@ subtasks:
 - T024
 - T025
 - T026
-shell_pid: '65770'
+shell_pid: "65770"
+agent: "claude:sonnet-4.6:implementer:implementer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -178,3 +179,7 @@ If you add `_doctrine_paths.py`, it lives under `src/charter/` (not the synthesi
 ```bash
 spec-kitty agent action implement WP04 --agent <your-agent>
 ```
+
+## Activity Log
+
+- 2026-04-17T17:44:40Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65770 – Assigned agent via action command
