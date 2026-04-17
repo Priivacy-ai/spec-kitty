@@ -23,7 +23,8 @@ subtasks:
 - T030
 - T031
 - T032
-shell_pid: '74463'
+shell_pid: "74463"
+agent: "claude:sonnet-4.6:implementer:implementer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -216,3 +217,7 @@ Use `pytest-timeout` (already in the test stack) with reasonable slack so CI fla
 ```bash
 spec-kitty agent action implement WP05 --agent <your-agent>
 ```
+
+## Activity Log
+
+- 2026-04-17T18:15:16Z – claude:sonnet-4.6:implementer:implementer – shell_pid=74463 – Assigned agent via action command
