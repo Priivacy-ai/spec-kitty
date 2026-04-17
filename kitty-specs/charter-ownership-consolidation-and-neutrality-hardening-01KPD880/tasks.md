@@ -31,9 +31,9 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Author `tests/charter/test_charter_ownership_invariant.py` per contract C-6 | WP01 | [P] |
-| T002 | Verify invariant passes on clean baseline | WP01 | |
-| T003 | Document the CANONICAL_OWNERS registry update protocol in the test's docstring | WP01 | |
+| T001 | Author `tests/charter/test_charter_ownership_invariant.py` per contract C-6 | WP01 | [P] | [D] |
+| T002 | Verify invariant passes on clean baseline | WP01 | | [D] |
+| T003 | Document the CANONICAL_OWNERS registry update protocol in the test's docstring | WP01 | | [D] |
 | T004 | Create `src/charter/neutrality/` package with public `__init__.py` | WP02 | [P] |
 | T005 | Author `banned_terms.yaml` with 4 seed entries PY-001..PY-004 per C-4 | WP02 | |
 | T006 | Author `language_scoped_allowlist.yaml` with audited seed entries per C-5 | WP02 | |
@@ -74,9 +74,9 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 **Included subtasks**:
 
-- [ ] T001 Author `tests/charter/test_charter_ownership_invariant.py` per contract C-6 (WP01)
-- [ ] T002 Verify invariant passes on clean baseline (WP01)
-- [ ] T003 Document the CANONICAL_OWNERS registry update protocol in the test's docstring (WP01)
+- [x] T001 Author `tests/charter/test_charter_ownership_invariant.py` per contract C-6 (WP01)
+- [x] T002 Verify invariant passes on clean baseline (WP01)
+- [x] T003 Document the CANONICAL_OWNERS registry update protocol in the test's docstring (WP01)
 
 **Dependencies**: None.
 
