@@ -48,6 +48,13 @@ def install(repo_root: Path) -> HookInstallRecord:
     written atomically (temp-file + ``os.replace``) with mode ``0o700`` and
     LF line endings.
 
+    Symlinks in ``sys.executable`` are intentionally **not** resolved. Pipx,
+    ``venv``, and ``virtualenv`` rely on Python being launched via the venv's
+    ``bin/python`` symlink so site initialization sets ``sys.prefix`` to the
+    venv and adds the venv's ``site-packages`` to ``sys.path``. Resolving the
+    symlink to the underlying interpreter would strip that context and make
+    ``specify_cli`` unimportable from the hook (issue #669).
+
     Args:
         repo_root: Path to the root of the git repository (must contain ``.git``).
 
@@ -55,13 +62,13 @@ def install(repo_root: Path) -> HookInstallRecord:
         A :class:`HookInstallRecord` describing the installed hook.
 
     Raises:
-        RuntimeError: If ``sys.executable`` cannot be resolved to an existing file.
+        RuntimeError: If ``sys.executable`` does not refer to an existing file.
     """
-    interpreter = Path(sys.executable).resolve(strict=False)
+    interpreter = Path(os.path.abspath(sys.executable))
     if not interpreter.is_file():
         raise RuntimeError(
             f"Cannot install pre-commit hook: sys.executable={sys.executable!r} "
-            f"resolves to {interpreter}, which does not exist."
+            f"(absolute: {interpreter}) does not exist."
         )
 
     installed_at = datetime.now(UTC).isoformat(timespec="seconds")
