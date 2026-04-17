@@ -20,7 +20,7 @@ steps:
       kind: directive
       candidates:
         - 010-specification-fidelity-requirement
-        - 035-examples-are-source-of-truth
+        - 037-examples-are-source-of-truth
 
   - id: verify_example_sync
     description: Verify canonical examples, acceptance checks, and docs stayed in sync

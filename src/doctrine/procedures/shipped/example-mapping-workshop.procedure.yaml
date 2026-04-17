@@ -19,16 +19,12 @@ steps:
       State the user goal, the system boundary under discussion, and what would
       count as success or rejection for this slice of behavior.
     actor: agent
-    tactic_refs:
-      - stakeholder-alignment
   - title: Collect concrete examples and counterexamples
     description: >
       Gather representative happy-path, edge-case, and failure examples using
       domain language. Prefer real business situations over invented technical
       cases.
     actor: human
-    tactic_refs:
-      - atdd-adversarial-acceptance
   - title: Separate rules, examples, and questions
     description: >
       Sort the conversation into stable rules, illustrative examples, and open
@@ -41,8 +37,6 @@ steps:
       boundaries, and exceptions. Mark which examples should become executable
       acceptance checks first.
     actor: agent
-    tactic_refs:
-      - acceptance-test-first
   - title: Confirm the source-of-truth set
     description: >
       Review the selected examples and rules with the stakeholder or
@@ -59,8 +53,6 @@ steps:
       the chosen verification approach so later implementation and review work
       can follow the chain.
     actor: agent
-    tactic_refs:
-      - living-documentation-sync
 anti_patterns:
   - name: Example theater
     description: >
@@ -81,7 +73,7 @@ anti_patterns:
       source validation.
 references:
   - type: directive
-    id: DIRECTIVE_035
+    id: DIRECTIVE_037
     reason: >
       The workshop produces the canonical examples governed by the Examples Are
       Source of Truth directive.

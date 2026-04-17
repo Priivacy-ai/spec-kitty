@@ -1,14 +1,10 @@
 schema_version: "1.0"
-id: DIRECTIVE_035
+id: DIRECTIVE_037
 title: Examples Are Source of Truth
 intent: >
   Approved behavior examples are canonical specification assets. When behavior
   changes, the examples, linked acceptance checks, and human-readable
   documentation must change together before acceptance.
-tactic_refs:
-  - acceptance-test-first
-  - atdd-adversarial-acceptance
-  - living-documentation-sync
 enforcement: required
 scope: >
   Applies to specification, implementation, and review work that defines or

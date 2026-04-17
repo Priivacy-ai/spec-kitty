@@ -1,7 +1,7 @@
 action: review
 directives:
   - 010-specification-fidelity-requirement
-  - 035-examples-are-source-of-truth
+  - 037-examples-are-source-of-truth
   - 030-test-and-typecheck-quality-gate
 tactics:
   - living-documentation-sync

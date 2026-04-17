@@ -7,11 +7,7 @@ summary: >
   acceptance checks, and living documentation. Teams refine examples
   collaboratively, turn stable examples into executable acceptance tests, and
   keep narrative specs in sync whenever behavior changes.
-tactic_refs:
-  - acceptance-test-first
-  - atdd-adversarial-acceptance
-  - living-documentation-sync
 directive_refs:
   - DIRECTIVE_010
   - DIRECTIVE_034
-  - DIRECTIVE_035
+  - DIRECTIVE_037
