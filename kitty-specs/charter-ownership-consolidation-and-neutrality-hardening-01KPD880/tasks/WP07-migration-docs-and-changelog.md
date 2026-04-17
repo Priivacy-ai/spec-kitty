@@ -203,3 +203,4 @@ Record the grep output in the PR body as evidence the cross-validation passed.
 ## Activity Log
 
 - 2026-04-17T09:51:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13484 – Started implementation via action command
+- 2026-04-17T09:58:46Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13484 – Ready for review: migration guide + CHANGELOG deprecation entry, 3.3.0 cross-validated across 3 files
