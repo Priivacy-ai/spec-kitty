@@ -1,0 +1,49 @@
+{
+  "event_count": 34,
+  "last_event_id": "01KP2P7CWSNA1246SYZ4DMVN9J",
+  "materialized_at": "2026-04-13T05:49:57.017861+00:00",
+  "mission_number": "",
+  "mission_slug": "retire-mission-identity-drift-window-01KP2JNZ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KP2P79G52DGCQDXJ9200NYP7",
+      "last_transition_at": "2026-04-13T05:49:53.541335+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KP2P7APN2F3GNKK2C2T4ARR7",
+      "last_transition_at": "2026-04-13T05:49:54.773236+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KP2P7BSTAHJP3PWZ12Q3QQ69",
+      "last_transition_at": "2026-04-13T05:49:55.898143+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KP2P7CWSNA1246SYZ4DMVN9J",
+      "last_transition_at": "2026-04-13T05:49:57.017861+00:00"
+    }
+  }
+}
