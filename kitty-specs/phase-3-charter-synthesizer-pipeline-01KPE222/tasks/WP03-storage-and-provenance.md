@@ -21,7 +21,8 @@ subtasks:
 - T018
 - T019
 - T020
-shell_pid: '65645'
+shell_pid: "65645"
+agent: "claude:sonnet-4.6:implementer:implementer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -183,3 +184,7 @@ Additive only. No `schema_version` bump. Legacy bundles (no synthesis state) pas
 ```bash
 spec-kitty agent action implement WP03 --agent <your-agent>
 ```
+
+## Activity Log
+
+- 2026-04-17T17:44:16Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65645 – Assigned agent via action command
