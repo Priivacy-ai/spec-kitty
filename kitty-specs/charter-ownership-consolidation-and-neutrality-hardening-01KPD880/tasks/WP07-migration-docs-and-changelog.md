@@ -15,8 +15,8 @@ subtasks:
 - T026
 phase: Phase 3 — Hygiene
 assignee: ''
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "13484"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "14953"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -204,3 +204,4 @@ Record the grep output in the PR body as evidence the cross-validation passed.
 
 - 2026-04-17T09:51:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13484 – Started implementation via action command
 - 2026-04-17T09:58:46Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13484 – Ready for review: migration guide + CHANGELOG deprecation entry, 3.3.0 cross-validated across 3 files
+- 2026-04-17T09:59:19Z – claude:opus-4-6:reviewer:reviewer – shell_pid=14953 – Started review via action command
