@@ -17,8 +17,8 @@ subtasks:
 - T020
 phase: Phase 2 — Regression gates
 assignee: ''
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "13407"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "14220"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -201,3 +201,4 @@ Reviewers will verify the docstring covers these four points.
 
 - 2026-04-17T09:50:57Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13407 – Started implementation via action command
 - 2026-04-17T09:54:03Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13407 – Ready for review: premortem guard test (6 passing, mypy --strict clean)
+- 2026-04-17T09:54:35Z – claude:opus-4-6:reviewer:reviewer – shell_pid=14220 – Started review via action command
