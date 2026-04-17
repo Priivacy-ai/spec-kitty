@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+import warnings
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +17,13 @@ from specify_cli.charter.interview import (
 from specify_cli.charter.resolver import DEFAULT_TOOL_REGISTRY
 
 pytestmark = pytest.mark.fast
+
+
+def _import_legacy_interview_module():
+    """Import the legacy interview module after any test-driven module resets."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return importlib.import_module("specify_cli.charter.interview")
 
 
 class _StubResource:
@@ -80,6 +89,7 @@ def test_load_packaged_defaults_returns_empty_when_yaml_is_not_mapping(
 def test_default_interview_loads_packaged_defaults_and_falls_back_to_tool_registry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    interview_mod = _import_legacy_interview_module()
     monkeypatch.setattr(
         "specify_cli.charter.interview.load_doctrine_catalog",
         lambda: SimpleNamespace(paradigms=frozenset(), directives=frozenset()),
@@ -101,7 +111,7 @@ def test_default_interview_loads_packaged_defaults_and_falls_back_to_tool_regist
         },
     )
 
-    interview = default_interview(mission="software-dev", profile="minimal")
+    interview = interview_mod.default_interview(mission="software-dev", profile="minimal")
 
     assert interview.answers["project_intent"] == "Keep upgrades deterministic."
     assert interview.selected_paradigms == []

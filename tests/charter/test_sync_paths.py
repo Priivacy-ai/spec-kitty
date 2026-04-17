@@ -10,11 +10,9 @@ smoke import assertion below.
 
 from importlib import import_module
 from pathlib import Path
+import warnings
 
 import pytest
-
-charter_sync = import_module("charter.sync")
-from specify_cli.charter import sync  # C-005: shim must re-export sync callable
 
 pytestmark = pytest.mark.fast
 
@@ -31,15 +29,23 @@ SAMPLE_CHARTER = """# Testing Standards
 """
 
 
+def _import_legacy_charter_module():
+    """Import the legacy shim after any test-driven module resets."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return import_module("specify_cli.charter")
+
+
 def test_sync_shim_re_exports_canonical_sync() -> None:
     """specify_cli.charter.sync must be the same callable as charter.sync (C-005)."""
     from charter.sync import sync as canonical_sync
 
-    assert sync is canonical_sync
+    assert _import_legacy_charter_module().sync is canonical_sync
 
 
 def test_sync_path_helpers_use_standard_bundle_paths(tmp_path: Path) -> None:
     """Canonical sync module resolves charter bundle paths consistently."""
+    charter_sync = import_module("charter.sync")
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     charter_path = charter_dir / "charter.md"
