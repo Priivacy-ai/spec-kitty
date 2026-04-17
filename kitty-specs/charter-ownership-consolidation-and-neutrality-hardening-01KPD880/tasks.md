@@ -48,9 +48,9 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 | T015 | Leave submodule shims silent; strip any existing per-submodule `warnings.warn` calls | WP04 | | [D] |
 | T016 | Author `tests/specify_cli/charter/test_shim_deprecation.py` per contract C-2 | WP04 | | [D] |
 | T017 | Re-run C-005 compatibility tests (`test_defaults_unit.py`, `test_sync_paths.py`, `test_chokepoint_coverage.py`) and confirm they still pass | WP04 | | [D] |
-| T018 | Author `tests/specify_cli/charter/test_no_new_legacy_modules.py` (premortem guard) | WP05 | |
-| T019 | Add content-shape assertions — no new `class` / non-re-export `def` under `src/specify_cli/charter/` | WP05 | |
-| T020 | Document the guard's purpose in an in-file docstring | WP05 | |
+| T018 | Author `tests/specify_cli/charter/test_no_new_legacy_modules.py` (premortem guard) | WP05 | | [D] |
+| T019 | Add content-shape assertions — no new `class` / non-re-export `def` under `src/specify_cli/charter/` | WP05 | | [D] |
+| T020 | Document the guard's purpose in an in-file docstring | WP05 | | [D] |
 | T021 | Run `mypy --strict src/charter/context.py` and record diagnostics | WP06 | [D] |
 | T022 | Fix any strict errors surfaced, or rename quarantine entry to `charter.context` with removal TODO | WP06 | | [D] |
 | T023 | Remove the stale `specify_cli.charter.context` line from `pyproject.toml` `[[tool.mypy.overrides]]` and confirm config parses | WP06 | | [D] |
@@ -173,9 +173,9 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 **Included subtasks**:
 
-- [ ] T018 Author `tests/specify_cli/charter/test_no_new_legacy_modules.py` (premortem guard) (WP05)
-- [ ] T019 Add content-shape assertions — no new `class` / non-re-export `def` under `src/specify_cli/charter/` (WP05)
-- [ ] T020 Document the guard's purpose in an in-file docstring (WP05)
+- [x] T018 Author `tests/specify_cli/charter/test_no_new_legacy_modules.py` (premortem guard) (WP05)
+- [x] T019 Add content-shape assertions — no new `class` / non-re-export `def` under `src/specify_cli/charter/` (WP05)
+- [x] T020 Document the guard's purpose in an in-file docstring (WP05)
 
 **Dependencies**: WP04 (the four shim files must carry their canonical `__deprecated__` attribute so the guard can distinguish "legitimate shim" from "regrowth").
 
