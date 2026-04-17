@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- `specify_cli.charter` and its submodules (`compiler`, `interview`, `resolver`).
+  Import from the top-level `charter` package instead. These shims will be
+  removed in release **3.3.0**. See
+  [docs/migration/charter-ownership-consolidation.md](docs/migration/charter-ownership-consolidation.md)
+  for the full migration guide.
+
 ## [3.1.6] - 2026-04-17
 
 ### Security

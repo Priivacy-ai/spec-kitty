@@ -1,9 +1,23 @@
-"""Backward-compatibility shim for specify_cli.charter.
+"""Backward-compatibility shim for specify_cli.charter — DEPRECATED.
 
-The canonical charter implementation is in src/charter/.
-This package re-exports the full public surface so that
-``from specify_cli.charter import X`` continues to work (C-005).
+The canonical charter implementation lives in the ``charter`` package.
+All symbols are re-exported here so that existing ``from specify_cli.charter
+import X`` call sites continue to work (C-005), but this path is deprecated
+and will be removed in release 3.3.0.  Migrate imports to ``charter`` directly.
 """
+
+import warnings as _warnings
+
+__deprecated__: bool = True
+__canonical_import__: str = "charter"
+__removal_release__: str = "3.3.0"
+__deprecation_message__: str = (
+    "specify_cli.charter is deprecated and will be removed in 3.3.0. "
+    "Use 'charter' instead: replace 'from specify_cli.charter import X' "
+    "with 'from charter import X'."
+)
+
+_warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
 
 from charter import (  # noqa: F401
     CANONICAL_MANIFEST,

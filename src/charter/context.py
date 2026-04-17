@@ -179,7 +179,7 @@ def _prepare_context_state(
 
 
 def _classify_artifact_urns(
-    artifact_urns: set[str],
+    artifact_urns: frozenset[str] | set[str],
     merged: object,
     project_directives: set[str],
 ) -> tuple[list[str], list[str], list[str], list[str]]:
@@ -291,12 +291,12 @@ def _render_bootstrap_text(
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
-    _extend_named_artifact_lines(lines, "Directives", doctrine_bundle.directive_ids, service.directives, "title", "intent")
-    _extend_named_artifact_lines(lines, "Tactics", doctrine_bundle.tactic_ids, service.tactics, "name", "purpose")
+    _extend_named_artifact_lines(lines, "Directives", doctrine_bundle.directive_ids, service.directives, "title", "intent")  # type: ignore[attr-defined]
+    _extend_named_artifact_lines(lines, "Tactics", doctrine_bundle.tactic_ids, service.tactics, "name", "purpose")  # type: ignore[attr-defined]
 
     if effective_depth >= _EXTENDED_CONTEXT_DEPTH:
-        _extend_named_artifact_lines(lines, "Styleguides", doctrine_bundle.styleguide_ids, service.styleguides, "title", None)
-        _extend_named_artifact_lines(lines, "Toolguides", doctrine_bundle.toolguide_ids, service.toolguides, "title", None)
+        _extend_named_artifact_lines(lines, "Styleguides", doctrine_bundle.styleguide_ids, service.styleguides, "title", None)  # type: ignore[attr-defined]
+        _extend_named_artifact_lines(lines, "Toolguides", doctrine_bundle.toolguide_ids, service.toolguides, "title", None)  # type: ignore[attr-defined]
 
     _append_guidelines_lines(lines, doctrine_bundle.mission, action)
 
@@ -328,7 +328,7 @@ def _extend_named_artifact_lines(
 
     formatted: list[str] = []
     for artifact_id in artifact_ids:
-        artifact = repository.get(artifact_id)
+        artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
         if artifact is None:
             formatted.append(f"    - {artifact_id}")
             continue

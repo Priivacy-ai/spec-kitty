@@ -1,0 +1,51 @@
+# Language-scoped path allowlist. Schema: contracts/language-scoped-allowlist-schema.yaml
+#
+# Every entry here declares a repo-relative file as intentionally language-scoped,
+# exempting it from the generic neutrality lint. Before adding an entry:
+#   1. Confirm the file genuinely requires language-specific vocabulary (e.g., Python
+#      tool names are the *subject*, not an accidental bias).
+#   2. Provide a clear `reason` so future reviewers can audit the decision.
+#   3. Verify the path resolves to an existing file (stale entries fail the lint).
+#   4. Run `pytest tests/charter/test_neutrality_lint.py` to confirm lint passes.
+schema_version: "1"
+paths:
+  - path: "src/doctrine/agent_profiles/shipped/python-implementer.agent.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Shipped Python implementer agent profile; pytest/pip references are intentional."
+    added_in: "3.2.0"
+  - path: "src/doctrine/styleguides/shipped/python-conventions.styleguide.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Canonical Python conventions styleguide; Python vocabulary is the subject."
+    added_in: "3.2.0"
+  - path: "src/doctrine/toolguides/shipped/python-review-checks.toolguide.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Python review-check toolguide; tool names (pytest, mypy) are the subject."
+    added_in: "3.2.0"
+  - path: "src/doctrine/toolguides/shipped/PYTHON_REVIEW_CHECKS.md"
+    scope: python
+    owner: "charter team"
+    reason: "Human-readable companion to python-review-checks.toolguide.yaml."
+    added_in: "3.2.0"
+  - path: "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/agent-python-pedro.import.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Reference import candidate for the Python agent profile; quickstart material."
+    added_in: "3.2.0"
+  - path: "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/toolguide-python-review-checks.import.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Reference import candidate for the Python review-checks toolguide."
+    added_in: "3.2.0"
+  - path: "src/doctrine/skills/spec-kitty-setup-doctor/SKILL.md"
+    scope: python
+    owner: "charter team"
+    reason: "Spec Kitty itself is a Python package; setup-doctor skill necessarily references Python tooling."
+    added_in: "3.2.0"
+  - path: ".kittify/charter/charter.md"
+    scope: python
+    owner: "charter team"
+    reason: "Spec Kitty project charter; spec-kitty is a Python tool so pytest/pip references are intentional project choices."
+    added_in: "3.2.0"
