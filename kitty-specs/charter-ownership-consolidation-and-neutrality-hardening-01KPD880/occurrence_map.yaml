@@ -62,20 +62,37 @@ exceptions:
     action: rename_if_user_visible
     reason: "Default behavior is correct here; CHANGELOG mentions the deprecated path explicitly as part of the deprecation notice. Future entries that reference `specify_cli.charter` should be rewritten only if they are instructing new adoption, not if they are documenting the removal."
 
-  # WP prompt files carry runtime-owned lifecycle frontmatter (lane, assignee,
-  # shell_pid, history) that the spec-kitty workflow writes on every claim.
-  # Those writes are not rename operations and must not be blocked by the
-  # diff-compliance gate. The bodies of these files still describe the rename
-  # as the subject-under-edit; reviewers inspect body diffs per-WP.
-  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/tasks/WP*.md"
-    action: manual_review
-    reason: "Runtime writes lane/assignee/history frontmatter here on every claim; reviewers validate body edits per-WP. Not a rename target."
-
-  # The occurrence map lives in the mission artifact set and references the
-  # term being renamed — obvious self-exception.
-  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/**"
+  # Planning artifact BODIES quote `specify_cli.charter` literally as the
+  # subject of the rename; auto-rewrites must not touch them. Listed
+  # explicitly rather than via a broad glob, because other files under the
+  # mission dir (status.*, tasks.md index, dossiers, occurrence_map itself,
+  # tasks/WP*.md lifecycle frontmatter) are runtime-owned metadata that
+  # mutates on every claim and must not trip the diff gate.
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/spec.md"
     action: do_not_change
-    reason: "Mission planning artifacts quote `specify_cli.charter` literally as the subject of the rename."
+    reason: "Spec body quotes `specify_cli.charter` as the subject of the rename."
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/plan.md"
+    action: do_not_change
+    reason: "Plan body quotes `specify_cli.charter` as the subject of the rename."
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/research.md"
+    action: do_not_change
+    reason: "Research notes reference `specify_cli.charter` as the subject of the rename."
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/data-model.md"
+    action: do_not_change
+    reason: "Data model body references `specify_cli.charter` as the subject of the rename."
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/quickstart.md"
+    action: do_not_change
+    reason: "Quickstart references `specify_cli.charter` as the subject of the rename."
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/contracts/**"
+    action: do_not_change
+    reason: "Contracts quote `specify_cli.charter` as the subject of the rename."
+
+  # All other files under the mission dir (WP prompts, status logs, dossiers,
+  # the occurrence map itself, tasks.md index) are runtime-owned metadata
+  # with per-WP reviewer scrutiny on their body edits.
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/**"
+    action: manual_review
+    reason: "Runtime-owned mission metadata (status.events.jsonl, status.json, tasks.md, tasks/WP*.md lifecycle frontmatter, dossiers, occurrence_map.yaml) is not a rename target; per-WP reviewers validate body edits."
 
   # The neutrality lint and its tests talk about the rename symbolically; no
   # rewrite should touch them.
