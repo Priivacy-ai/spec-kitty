@@ -22,8 +22,8 @@ subtasks:
 - T024
 - T025
 - T026
-shell_pid: "65770"
-agent: "claude:sonnet-4.6:implementer:implementer"
+shell_pid: "70160"
+agent: "claude:opus-4.6:reviewer:reviewer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -184,3 +184,4 @@ spec-kitty agent action implement WP04 --agent <your-agent>
 
 - 2026-04-17T17:44:40Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65770 – Assigned agent via action command
 - 2026-04-17T18:00:05Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65770 – WP04 ready: project DRG writer, validation gate, compiler+context integration
+- 2026-04-17T18:02:03Z – claude:opus-4.6:reviewer:reviewer – shell_pid=70160 – Started review via action command
