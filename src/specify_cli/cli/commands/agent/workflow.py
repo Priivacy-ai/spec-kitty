@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import subprocess
@@ -17,28 +16,28 @@ from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.charter.context import build_charter_context
+from charter.context import build_charter_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import TransitionRequest
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.status.store import read_events
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
     extract_scalar,
-    find_repo_root,
     locate_work_package,
     set_scalar,
     split_frontmatter,
 )
 from specify_cli.workspace_context import resolve_workspace_for_wp
+from datetime import UTC
 
 _REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 
@@ -383,7 +382,26 @@ def _normalize_wp_id(wp_arg: str) -> str:
         return f"WP{wp_upper.lstrip('WP')}"
 
 
-def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
+def _resolve_tasks_dir(cwd: Path, mission_slug: str, repo_root: Path) -> Path:
+    """Resolve the tasks directory for mission_slug from the current working directory."""
+    from specify_cli.core.paths import is_worktree_context
+
+    if not is_worktree_context(cwd):
+        return repo_root / "kitty-specs" / mission_slug / "tasks"
+
+    if (cwd / "kitty-specs" / mission_slug).exists():
+        return cwd / "kitty-specs" / mission_slug / "tasks"
+
+    current = cwd
+    while current != current.parent:
+        if (current / "kitty-specs" / mission_slug).exists():
+            return current / "kitty-specs" / mission_slug / "tasks"
+        current = current.parent
+
+    return repo_root / "kitty-specs" / mission_slug / "tasks"
+
+
+def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
     """Find the first WP file with lane: "planned".
 
     Args:
@@ -393,29 +411,8 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
     Returns:
         WP ID of first planned task, or None if not found
     """
-    from specify_cli.core.paths import is_worktree_context
-
     cwd = Path.cwd().resolve()
-
-    # Check if we're in a worktree - if so, use worktree's kitty-specs
-    if is_worktree_context(cwd):
-        # We're in a worktree, look for kitty-specs relative to cwd
-        if (cwd / "kitty-specs" / mission_slug).exists():
-            tasks_dir = cwd / "kitty-specs" / mission_slug / "tasks"
-        else:
-            # Walk up to find kitty-specs
-            current = cwd
-            while current != current.parent:
-                if (current / "kitty-specs" / mission_slug).exists():
-                    tasks_dir = current / "kitty-specs" / mission_slug / "tasks"
-                    break
-                current = current.parent
-            else:
-                # Fallback to repo_root
-                tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
-    else:
-        # We're in main repo
-        tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
+    tasks_dir = _resolve_tasks_dir(cwd, mission_slug, repo_root)
 
     if not tasks_dir.exists():
         return None
@@ -452,10 +449,10 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
 
 @app.command(name="implement")
 def implement(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
     allow_sparse_checkout: Annotated[
         bool,
         typer.Option(
@@ -501,7 +498,7 @@ def implement(
         )
 
         _main_repo_for_preflight = get_main_repo_root(repo_root)
-        _mission_id_for_preflight: Optional[str] = None
+        _mission_id_for_preflight: str | None = None
         try:
             from specify_cli.mission_metadata import resolve_mission_identity
 
@@ -655,40 +652,41 @@ def implement(
             # Must follow allowed transitions: planned→claimed→in_progress
             try:
                 from specify_cli.status.emit import emit_status_transition
+                from specify_cli.status.models import TransitionRequest
 
                 _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
                 _actor = agent or "unknown"
 
                 if current_lane == Lane.PLANNED or current_lane == Lane.CANCELED:
                     # Two-step: planned→claimed, claimed→in_progress
-                    emit_status_transition(
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane=Lane.CLAIMED,
                         actor=_actor,
                         execution_mode=status_execution_mode,
-                    )
-                    emit_status_transition(
+                    ))
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                         execution_mode=status_execution_mode,
-                    )
+                    ))
                 elif current_lane == Lane.CLAIMED:
-                    emit_status_transition(
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                         execution_mode=status_execution_mode,
-                    )
+                    ))
                 elif current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
                     # Re-implementing after review — force back to in_progress
-                    emit_status_transition(
+                    emit_status_transition(TransitionRequest(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
@@ -697,7 +695,7 @@ def implement(
                         force=True,
                         reason="Re-implementing after review feedback",
                         execution_mode=status_execution_mode,
-                    )
+                    ))
                 # If already in_progress, no event needed
             except Exception as _evt_err:
                 logger.warning("Could not emit status event: %s", _evt_err)
@@ -708,7 +706,7 @@ def implement(
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry (no lane= segment; event log is sole lane authority)
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
             if current_lane != Lane.IN_PROGRESS:
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
             else:
@@ -887,22 +885,22 @@ def implement(
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
-        lines.append(f"✓ Implementation complete and tested:")
-        lines.append(f"  1. **Commit your implementation files:**")
-        lines.append(f"     git status  # Check what you changed")
-        lines.append(f"     git add <your-implementation-files>  # NOT WP status files")
+        lines.append("✓ Implementation complete and tested:")
+        lines.append("  1. **Commit your implementation files:**")
+        lines.append("     git status  # Check what you changed")
+        lines.append("     git add <your-implementation-files>  # NOT WP status files")
         lines.append(f'     git commit -m "feat({normalized_wp_id}): <brief description>"')
-        lines.append(f"     git log -1 --oneline  # Verify commit succeeded")
-        lines.append(f"  2. Mark all subtasks as done:")
+        lines.append("     git log -1 --oneline  # Verify commit succeeded")
+        lines.append("  2. Mark all subtasks as done:")
         lines.append(f"     spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
-        lines.append(f"  3. Move WP to review:")
+        lines.append("  3. Move WP to review:")
         lines.append(f'     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
         lines.append("")
-        lines.append(f"✗ Blocked or cannot complete:")
+        lines.append("✗ Blocked or cannot complete:")
         lines.append(f'  spec-kitty agent tasks add-history {normalized_wp_id} --mission {mission_slug} --note "Blocked: <reason>"')
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"📍 WORKING DIRECTORY:")
+        lines.append("📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
         if workspace.lane_id:
             lines.append("   # All implementation work happens in this workspace")
@@ -915,7 +913,7 @@ def implement(
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
-        lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append("   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
 
@@ -971,19 +969,19 @@ def implement(
         lines.append("🎯 IMPLEMENTATION COMPLETE? RUN THESE COMMANDS:")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"✅ Implementation complete and tested:")
-        lines.append(f"   1. **Commit your implementation files:**")
-        lines.append(f"      git status  # Check what you changed")
-        lines.append(f"      git add <your-implementation-files>  # NOT WP status files")
+        lines.append("✅ Implementation complete and tested:")
+        lines.append("   1. **Commit your implementation files:**")
+        lines.append("      git status  # Check what you changed")
+        lines.append("      git add <your-implementation-files>  # NOT WP status files")
         lines.append(f'      git commit -m "feat({normalized_wp_id}): <brief description>"')
-        lines.append(f"      git log -1 --oneline  # Verify commit succeeded")
-        lines.append(f"      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
-        lines.append(f"   2. Mark all subtasks as done:")
+        lines.append("      git log -1 --oneline  # Verify commit succeeded")
+        lines.append("      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
+        lines.append("   2. Mark all subtasks as done:")
         lines.append(f"      spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
-        lines.append(f"   3. Move WP to review (will check for uncommitted changes):")
+        lines.append("   3. Move WP to review (will check for uncommitted changes):")
         lines.append(f'      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review: <summary>"')
         lines.append("")
-        lines.append(f"⚠️  Blocked or cannot complete:")
+        lines.append("⚠️  Blocked or cannot complete:")
         lines.append(f'   spec-kitty agent tasks add-history {normalized_wp_id} --mission {mission_slug} --note "Blocked: <reason>"')
         lines.append("")
         lines.append("⚠️  NOTE: The move-task command will FAIL if you have uncommitted changes!")
@@ -1010,7 +1008,7 @@ def implement(
                 print("⚠️  Has review feedback - but no review_feedback reference is set")
         if mission_type == "research" and deliverables_path:
             print(f"🔬 Research deliverables: {deliverables_path}")
-            print(f"   (NOT in kitty-specs/ - those are planning artifacts)")
+            print("   (NOT in kitty-specs/ - those are planning artifacts)")
         print()
         print("▶▶▶ NEXT STEP: Read the full prompt file now:")
         print(f"    cat {prompt_file}")
@@ -1019,7 +1017,7 @@ def implement(
         print(f'  1. git status && git add <your-files> && git commit -m "feat({normalized_wp_id}): <description>"')
         print(f"  2. spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
         print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
-        print(f"     (Pre-flight check will verify no uncommitted changes)")
+        print("     (Pre-flight check will verify no uncommitted changes)")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -1180,7 +1178,7 @@ def _resolve_review_context(
     return ctx
 
 
-def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
+def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     """Find the first WP file with lane: "for_review".
 
     Args:
@@ -1261,10 +1259,10 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
 
 @app.command(name="review")
 def review(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -1404,7 +1402,7 @@ def review(
 
             with feature_status_lock(main_repo_root, mission_slug):
                 # Emit the actual for_review -> in_progress transition
-                emit_status_transition(
+                emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=normalized_wp_id,
@@ -1416,7 +1414,7 @@ def review(
                     workspace_context=f"action-review:{main_repo_root}",
                     execution_mode=status_execution_mode,
                     repo_root=main_repo_root,
-                )
+                ))
 
                 # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
                 wp_content = wp.path.read_text(encoding="utf-8-sig")
@@ -1425,7 +1423,7 @@ def review(
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
                 # Build history entry (no lane= segment; event log is sole lane authority)
-                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
 
                 # Add history entry to body
@@ -1678,8 +1676,8 @@ def review(
         lines.append("✓ Review passed, no issues:")
         lines.append(f'  spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         lines.append("")
-        lines.append(f"⚠️  Changes requested:")
-        lines.append(f"  1. Write feedback to (in-repo, committed with the project):")
+        lines.append("⚠️  Changes requested:")
+        lines.append("  1. Write feedback to (in-repo, committed with the project):")
         lines.append(f"     {review_feedback_path}")
         lines.append(
             f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}"
@@ -1687,7 +1685,7 @@ def review(
         lines.append("  3. move-task stores feedback reference in the event log and WP frontmatter")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"📍 WORKING DIRECTORY:")
+        lines.append("📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
         if workspace.lane_id:
             lines.append("   # Review the implementation in this workspace")
@@ -1701,7 +1699,7 @@ def review(
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
-        lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append("   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
         lines.append("Review the implementation against the requirements below.")
@@ -1728,14 +1726,14 @@ def review(
         lines.append("✅ APPROVE (no issues found):")
         lines.append(f'   spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"')
         lines.append("")
-        lines.append(f"❌ REQUEST CHANGES (issues found):")
-        lines.append(f"   1. Write feedback to the in-repo path (committed with the project):")
+        lines.append("❌ REQUEST CHANGES (issues found):")
+        lines.append("   1. Write feedback to the in-repo path (committed with the project):")
         lines.append(f"      cat > {review_feedback_path} <<'EOF'")
-        lines.append(f"**Issue 1**: <description and how to fix>")
-        lines.append(f"**Issue 2**: <description and how to fix>")
-        lines.append(f"EOF")
+        lines.append("**Issue 1**: <description and how to fix>")
+        lines.append("**Issue 2**: <description and how to fix>")
+        lines.append("EOF")
         lines.append("")
-        lines.append(f"   2. Move to planned with feedback:")
+        lines.append("   2. Move to planned with feedback:")
         lines.append(
             f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}"
         )

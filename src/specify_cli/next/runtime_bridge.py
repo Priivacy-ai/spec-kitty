@@ -20,7 +20,7 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +47,6 @@ from specify_cli.next.decision import (
     DecisionKind,
     _build_prompt_safe,
     _compute_wp_progress,
-    _find_first_wp_by_lane,
     _state_to_action,
 )
 
@@ -496,7 +495,7 @@ def decide_next_via_runtime(
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
     feature_dir = repo_root / "kitty-specs" / mission_slug
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
         return Decision(
@@ -694,7 +693,7 @@ def query_current_state(
         repo_root: Repository root path.
     """
     feature_dir = repo_root / "kitty-specs" / mission_slug
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
         return Decision(

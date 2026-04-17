@@ -10,22 +10,18 @@ Provides:
 """
 
 import re
-import warnings
 from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
-from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
-
+from doctrine.base import BaseDoctrineRepository
 from .models import Styleguide
 from .validation import reject_styleguide_inline_refs
 
 
-class StyleguideRepository:
+class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
     """Repository for loading and managing styleguide YAML files."""
 
     def __init__(
@@ -34,11 +30,11 @@ class StyleguideRepository:
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
-        self._styleguides: dict[str, Styleguide] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+            active_languages=active_languages,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -51,82 +47,20 @@ class StyleguideRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        """Load styleguides from shipped and project directories."""
-        yaml = YAML(typ="safe")
-        shipped: dict[str, Styleguide] = {}
+    @property
+    def _schema(self) -> type[Styleguide]:
+        return Styleguide
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob("*.styleguide.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_styleguide_inline_refs(data, file_path=str(yaml_file))
-                    styleguide = Styleguide.model_validate(data)
-                    if not applies_to_languages_match(styleguide.applies_to_languages, self._active_languages):
-                        continue
-                    shipped[styleguide.id] = styleguide
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped styleguide {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    @property
+    def _glob(self) -> str:
+        return "*.styleguide.yaml"
 
-        self._styleguides = shipped.copy()
+    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
+        reject_styleguide_inline_refs(data, file_path=str(yaml_file))
 
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.rglob("*.styleguide.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_styleguide_inline_refs(data, file_path=str(yaml_file))
-                    styleguide_id = data.get("id")
-                    if not styleguide_id:
-                        warnings.warn(
-                            f"Skipping project styleguide {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if styleguide_id in shipped:
-                        merged = self._merge_styleguides(
-                            shipped[styleguide_id], data
-                        )
-                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                            continue
-                        self._styleguides[styleguide_id] = merged
-                    else:
-                        styleguide = Styleguide.model_validate(data)
-                        if not applies_to_languages_match(styleguide.applies_to_languages, self._active_languages):
-                            continue
-                        self._styleguides[styleguide.id] = styleguide
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project styleguide {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    @staticmethod
-    def _merge_styleguides(
-        shipped: Styleguide, project_data: dict[str, Any]
-    ) -> Styleguide:
-        """Merge project data into shipped styleguide at field level."""
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return Styleguide.model_validate(merged)
-
-    def list_all(self) -> list[Styleguide]:
-        """Return all loaded styleguides sorted by ID."""
-        return sorted(self._styleguides.values(), key=lambda s: s.id)
-
-    def get(self, styleguide_id: str) -> Styleguide | None:
-        """Get styleguide by ID (kebab-case)."""
-        return self._styleguides.get(styleguide_id)
+    def _project_scan(self, project_dir: Path) -> list[Path]:
+        """Recursive scan — styleguides may live in subdirectories."""
+        return sorted(project_dir.rglob(self._glob))
 
     def save(self, styleguide: Styleguide) -> Path:
         """Save styleguide to project directory.
@@ -155,5 +89,5 @@ class StyleguideRepository:
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
 
-        self._styleguides[styleguide.id] = styleguide
+        self._items[styleguide.id] = styleguide
         return yaml_file

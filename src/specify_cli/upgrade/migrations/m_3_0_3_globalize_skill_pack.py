@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
+if TYPE_CHECKING:
+    from specify_cli.skills.registry import SkillRegistry
 
-def _discover_registry():
+
+def _discover_registry() -> SkillRegistry | None:
     """Resolve the canonical bundled skill registry."""
     from specify_cli.skills.registry import SkillRegistry
     from specify_cli.template import get_local_repo_root
@@ -124,7 +128,7 @@ class GlobalizeSkillPackMigration(BaseMigration):
 
         manifest = install_all_skills(project_path, agents, registry)
         existing = load_manifest(project_path)
-        preserved: list = []
+        preserved: list[Any] = []
         if existing is not None:
             canonical_names = {skill.name for skill in skills}
             preserved = [

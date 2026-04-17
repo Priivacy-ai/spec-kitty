@@ -19,7 +19,7 @@ from specify_cli.glossary.pipeline import (
     create_standard_pipeline,
 )
 from specify_cli.glossary.strictness import Strictness
-from specify_cli.missions.primitives import PrimitiveExecutionContext
+from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
 

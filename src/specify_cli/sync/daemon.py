@@ -130,19 +130,19 @@ class SyncDaemonStatus:
     """Observed state of the machine-global sync daemon."""
 
     healthy: bool
-    url: Optional[str] = None
-    port: Optional[int] = None
-    token: Optional[str] = None
-    pid: Optional[int] = None
+    url: str | None = None
+    port: int | None = None
+    token: str | None = None
+    pid: int | None = None
     sync_running: bool = False
-    last_sync: Optional[str] = None
+    last_sync: str | None = None
     consecutive_failures: int = 0
     websocket_status: str = "Offline"
-    protocol_version: Optional[int] = None
-    package_version: Optional[str] = None
+    protocol_version: int | None = None
+    package_version: str | None = None
 
 
-def _parse_daemon_file(path: Path) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int]]:
+def _parse_daemon_file(path: Path) -> tuple[str | None, int | None, str | None, int | None]:
     try:
         lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except Exception:
@@ -170,7 +170,7 @@ def _parse_daemon_file(path: Path) -> Tuple[Optional[str], Optional[int], Option
     return url, port, token, pid
 
 
-def _write_daemon_file(path: Path, url: str, port: int, token: Optional[str], pid: Optional[int]) -> None:
+def _write_daemon_file(path: Path, url: str, port: int, token: str | None, pid: int | None) -> None:
     lines = [url, str(port)]
     if token:
         lines.append(token)
@@ -223,12 +223,10 @@ def _find_free_port(start_port: int = DAEMON_PORT_START, max_attempts: int = DAE
 
 def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, Any] | None:
     try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as response:
+        with urllib.request.urlopen(health_url, timeout=timeout) as response:  # nosec B310 — health_url is always http://127.0.0.1:<port>/api/health
             if response.status != 200:
                 return None
             payload = response.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError, socket.error):
-        return None
     except Exception:
         return None
 
@@ -240,7 +238,7 @@ def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, An
     return data if isinstance(data, dict) else None
 
 
-def _check_sync_daemon_health(port: int, expected_token: Optional[str], timeout: float = 0.5) -> bool:
+def _check_sync_daemon_health(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
     data = _fetch_health_payload(f"http://127.0.0.1:{port}/api/health", timeout=timeout)
     if not data:
         return False
@@ -252,7 +250,7 @@ def _check_sync_daemon_health(port: int, expected_token: Optional[str], timeout:
     return True
 
 
-def _daemon_version_matches(port: int, expected_token: Optional[str], timeout: float = 0.5) -> bool:
+def _daemon_version_matches(port: int, expected_token: str | None, timeout: float = 0.5) -> bool:
     """Return True if the running daemon reports the current protocol + package version."""
     data = _fetch_health_payload(f"http://127.0.0.1:{port}/api/health", timeout=timeout)
     if not data:
@@ -281,7 +279,7 @@ _SENTINEL_BAD_TOKEN = object()
 class SyncDaemonHandler(BaseHTTPRequestHandler):
     """Localhost-only HTTP control plane for the machine-global sync daemon."""
 
-    daemon_token: Optional[str] = None
+    daemon_token: str | None = None
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
         del format, args
@@ -300,9 +298,9 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(content_length)
         if not body:
             return {}
-        return json.loads(body.decode("utf-8"))
+        return dict(json.loads(body.decode("utf-8")))
 
-    def _extract_token_from_query(self) -> Optional[str]:
+    def _extract_token_from_query(self) -> str | None:
         """Extract token from query string (for GET requests)."""
         parsed_path = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed_path.query)
@@ -430,7 +428,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         threading.Thread(target=shutdown_server, args=(self.server,), daemon=True).start()
 
 
-def run_sync_daemon(port: int, daemon_token: Optional[str]) -> None:
+def run_sync_daemon(port: int, daemon_token: str | None) -> None:
     """Run the machine-global sync daemon forever."""
     from specify_cli.sync.runtime import get_runtime
 
@@ -444,7 +442,7 @@ def run_sync_daemon(port: int, daemon_token: Optional[str]) -> None:
     server.serve_forever()
 
 
-def _background_script(port: int, daemon_token: Optional[str]) -> str:
+def _background_script(port: int, daemon_token: str | None) -> str:
     """Generate the Python script executed by the daemon subprocess.
 
     Uses ``-m`` style import so the installed package is found via normal
@@ -481,7 +479,7 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     if healthy and token:
         healthy = data.get("token") == token
 
-    sync_data = data.get("sync") if isinstance(data.get("sync"), dict) else {}
+    sync_data: dict[str, object] = data.get("sync") if isinstance(data.get("sync"), dict) else {}
     websocket_status = str(data.get("websocket_status") or "Offline")
     return SyncDaemonStatus(
         healthy=healthy,
@@ -498,7 +496,7 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     )
 
 
-def _kill_and_cleanup(pid: Optional[int]) -> None:
+def _kill_and_cleanup(pid: int | None) -> None:
     """Best-effort kill a daemon process and remove the state file."""
     if pid is not None:
         try:
@@ -511,7 +509,7 @@ def _kill_and_cleanup(pid: Optional[int]) -> None:
 def ensure_sync_daemon_running(
     *,
     intent: DaemonIntent,
-    config: "SyncConfig | None" = None,
+    config: SyncConfig | None = None,
 ) -> DaemonStartOutcome:
     """Ensure the machine-global sync daemon is running.
 
@@ -602,7 +600,7 @@ def ensure_sync_daemon_running(
         lock_fd.close()
 
 
-def _ensure_sync_daemon_running_locked(preferred_port: Optional[int] = None) -> Tuple[str, int, bool]:
+def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tuple[str, int, bool]:
     """Inner implementation — caller must hold the daemon lock file."""
     if DAEMON_STATE_FILE.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
@@ -658,7 +656,7 @@ def _ensure_sync_daemon_running_locked(preferred_port: Optional[int] = None) -> 
     raise RuntimeError(f"Sync daemon failed to start on port {port}")
 
 
-def _stop_daemon_by_http(url: str, token: Optional[str]) -> None:
+def _stop_daemon_by_http(url: str, token: str | None) -> None:
     """Best-effort HTTP shutdown request to a running daemon."""
     request = urllib.request.Request(
         f"{url}/api/shutdown",
@@ -667,13 +665,13 @@ def _stop_daemon_by_http(url: str, token: Optional[str]) -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=1.0):
+        with urllib.request.urlopen(request, timeout=1.0):  # nosec B310 — request URL is localhost daemon control endpoint
             pass
     except Exception:
         pass
 
 
-def stop_sync_daemon(timeout: float = 5.0) -> Tuple[bool, str]:
+def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
     """Stop the machine-global sync daemon."""
     if not DAEMON_STATE_FILE.exists():
         return False, "No sync daemon metadata found."

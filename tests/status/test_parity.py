@@ -27,6 +27,7 @@ from specify_cli.status.models import (
     ReviewApproval,
     StatusEvent,
     StatusSnapshot,
+    TransitionRequest,
 )
 from specify_cli.status.reducer import materialize_to_json, reduce
 from specify_cli.status.transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
@@ -254,13 +255,13 @@ class TestSaasFanOutNoOp:
         sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
 
         try:
-            event = emit_status_transition(
+            event = emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-parity-test",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="parity-agent",
-            )
+            ))
             assert event.to_lane == Lane.CLAIMED
         finally:
             if saved is not None:

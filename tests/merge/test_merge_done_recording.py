@@ -124,10 +124,10 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     assert emit_mock.call_count == 2
-    first_call = emit_mock.call_args_list[0].kwargs
-    second_call = emit_mock.call_args_list[1].kwargs
-    assert first_call["to_lane"] == "approved"
-    assert second_call["to_lane"] == "done"
+    first_kwargs = emit_mock.call_args_list[0].kwargs
+    second_kwargs = emit_mock.call_args_list[1].kwargs
+    assert first_kwargs["to_lane"] == "approved"
+    assert second_kwargs["to_lane"] == "done"
 
 
 @pytest.mark.parametrize("lane_name", ["planned", "claimed", "in_progress"])

@@ -11,7 +11,7 @@ Verifies that:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -213,7 +213,7 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     tasks_dir.mkdir(parents=True)
     _write_wp(tasks_dir / "WP01-test.md", reviewed_by="reviewer-1")
 
-    emit_calls: list[dict] = []
+    emit_calls: list[dict[str, object]] = []
 
     def fake_emit(**kwargs: object) -> None:
         emit_calls.append(kwargs)

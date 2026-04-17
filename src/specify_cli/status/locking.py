@@ -19,7 +19,7 @@ from filelock import FileLock, Timeout
 _thread_state = threading.local()
 
 
-class FeatureStatusLockTimeout(RuntimeError):
+class FeatureStatusLockTimeoutError(RuntimeError):
     """Raised when the feature status lock cannot be acquired."""
 
 
@@ -95,7 +95,7 @@ def feature_status_lock(
     try:
         lock.acquire()
     except Timeout as exc:
-        raise FeatureStatusLockTimeout(
+        raise FeatureStatusLockTimeoutError(
             f"Timed out acquiring feature status lock for {mission_slug}: {lock_path}"
         ) from exc
 

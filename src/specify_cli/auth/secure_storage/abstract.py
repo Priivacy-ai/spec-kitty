@@ -47,7 +47,7 @@ class SecureStorage(ABC):
         """Return the backend identifier (matches ``StoredSession.storage_backend``)."""
 
     @classmethod
-    def from_environment(cls) -> "SecureStorage":
+    def from_environment(cls) -> SecureStorage:
         """Return the platform-appropriate secure storage backend.
 
         Dispatch is by ``sys.platform``.  This is a HARD split:

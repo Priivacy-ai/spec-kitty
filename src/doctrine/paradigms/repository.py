@@ -2,20 +2,18 @@
 Paradigm repository with two-source loading (shipped + project).
 """
 
-import warnings
 from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
+from doctrine.base import BaseDoctrineRepository
 from .models import Paradigm
 from .validation import reject_paradigm_inline_refs
 
 
-class ParadigmRepository:
+class ParadigmRepository(BaseDoctrineRepository[Paradigm]):
     """Repository for loading and managing paradigm YAML files."""
 
     def __init__(
@@ -23,10 +21,10 @@ class ParadigmRepository:
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
     ) -> None:
-        self._paradigms: dict[str, Paradigm] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -39,74 +37,16 @@ class ParadigmRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        """Load paradigms from shipped and project directories."""
-        yaml = YAML(typ="safe")
-        shipped: dict[str, Paradigm] = {}
+    @property
+    def _schema(self) -> type[Paradigm]:
+        return Paradigm
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob("*.paradigm.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_paradigm_inline_refs(data, file_path=str(yaml_file))
-                    paradigm = Paradigm.model_validate(data)
-                    shipped[paradigm.id] = paradigm
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped paradigm {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    @property
+    def _glob(self) -> str:
+        return "*.paradigm.yaml"
 
-        self._paradigms = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.glob("*.paradigm.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_paradigm_inline_refs(data, file_path=str(yaml_file))
-                    paradigm_id = data.get("id")
-                    if not paradigm_id:
-                        warnings.warn(
-                            f"Skipping project paradigm {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if paradigm_id in shipped:
-                        merged = self._merge_paradigms(shipped[paradigm_id], data)
-                        self._paradigms[paradigm_id] = merged
-                    else:
-                        paradigm = Paradigm.model_validate(data)
-                        self._paradigms[paradigm.id] = paradigm
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project paradigm {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    @staticmethod
-    def _merge_paradigms(
-        shipped: Paradigm, project_data: dict[str, Any]
-    ) -> Paradigm:
-        """Merge project data into shipped paradigm at field level."""
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return Paradigm.model_validate(merged)
-
-    def list_all(self) -> list[Paradigm]:
-        """Return all loaded paradigms sorted by ID."""
-        return sorted(self._paradigms.values(), key=lambda p: p.id)
-
-    def get(self, paradigm_id: str) -> Paradigm | None:
-        """Get paradigm by ID."""
-        return self._paradigms.get(paradigm_id)
+    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
+        reject_paradigm_inline_refs(data, file_path=str(yaml_file))
 
     def save(self, paradigm: Paradigm) -> Path:
         """Save paradigm to project directory."""
@@ -124,6 +64,5 @@ class ParadigmRepository:
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
 
-        self._paradigms[paradigm.id] = paradigm
+        self._items[paradigm.id] = paradigm
         return yaml_file
-

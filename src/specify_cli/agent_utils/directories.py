@@ -13,7 +13,7 @@ from typing import List, Tuple
 
 # Canonical list of all supported agent directories and their subdirectories
 # This is the single source of truth for agent directory configuration
-AGENT_DIRS: List[Tuple[str, str]] = [
+AGENT_DIRS: list[tuple[str, str]] = [
     (".claude", "commands"),
     (".github", "prompts"),
     (".gemini", "commands"),
@@ -48,7 +48,7 @@ AGENT_DIR_TO_KEY = {
 }
 
 
-def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
+def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
     """Get agent directories to process based on project config.
 
     Reads config.yaml to determine which agents are enabled.

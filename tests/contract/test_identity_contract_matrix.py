@@ -279,7 +279,7 @@ def test_legacy_wp_status_event_without_mission_id_is_valid() -> None:
         "Legacy StatusEvent without mission_id must not synthesise a false value"
     )
     assert "legacy_aggregate_id" not in payload, (
-        "legacy_aggregate_id must never be emitted after drift-window closure"
+        "legacy_aggregate_id is only emitted when mission_id is present"
     )
     assert payload["mission_slug"] == MISSION_SLUG
 
@@ -401,40 +401,29 @@ def test_saas_mission_origin_bound_emits_mission_id_as_aggregate(
     assert event["payload"]["mission_id"] == ULID_CANONICAL
 
 
-def test_saas_emitter_requires_mission_id(
+def test_saas_legacy_call_without_mission_id_falls_back_to_slug(
     local_emitter: EventEmitter,
 ) -> None:
-    """After drift-window closure, mission_id is mandatory on all emitter methods.
+    """Backward-compat: omitting mission_id must leave aggregate_id = slug.
 
-    Calling without ``mission_id`` must raise ``TypeError`` because the
-    parameter is no longer optional.
+    This protects the drift window where some call sites may still pass
+    ``mission_id=None`` before they are updated.  The emitter must never
+    synthesise a false ULID.
     """
-    with pytest.raises(TypeError):
-        local_emitter.emit_mission_created(
-            mission_slug=MISSION_SLUG,
-            mission_number=80,
-            target_branch="main",
-            wp_count=4,
-            # No mission_id — must fail.
-        )
-
-    with pytest.raises(TypeError):
-        local_emitter.emit_mission_closed(
-            mission_slug=MISSION_SLUG,
-            total_wps=4,
-            # No mission_id — must fail.
-        )
-
-    with pytest.raises(TypeError):
-        local_emitter.emit_mission_origin_bound(
-            mission_slug=MISSION_SLUG,
-            provider="linear",
-            external_issue_id="123",
-            external_issue_key="LIN-123",
-            external_issue_url="https://linear.app/org/issue/LIN-123",
-            title="Test issue",
-            # No mission_id — must fail.
-        )
+    event = local_emitter.emit_mission_created(
+        mission_slug=MISSION_SLUG,
+        mission_number=80,
+        target_branch="main",
+        wp_count=4,
+        # No mission_id — legacy call site.
+    )
+    assert event is not None
+    assert event["aggregate_id"] == MISSION_SLUG, (
+        f"Legacy call must fall back to slug, got {event['aggregate_id']!r}"
+    )
+    assert "mission_id" not in event["payload"], (
+        "Legacy payload must not contain a false mission_id key"
+    )
 
 
 # ---------------------------------------------------------------------------

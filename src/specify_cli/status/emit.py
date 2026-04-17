@@ -38,10 +38,12 @@ from .wp_metadata import read_wp_frontmatter
 
 from .models import (
     DoneEvidence,
+    GuardContext,
     Lane,
     RepoEvidence,
     ReviewApproval,
     StatusEvent,
+    TransitionRequest,
     VerificationResult,
 )
 from .transitions import resolve_lane_alias, validate_transition
@@ -251,9 +253,8 @@ def _legacy_alias_collapses_to_current_lane(
     normalized = raw_lane.strip().lower()
     return normalized != resolved_lane and resolved_lane == from_lane
 
-
-def emit_status_transition(
-    feature_dir: Path | None = None,
+def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately
+    feature_dir: TransitionRequest | Path | None = None,
     _legacy_mission_slug: str | None = None,
     wp_id: str | None = None,
     to_lane: str | None = None,
@@ -284,7 +285,8 @@ def emit_status_transition(
     persisted. SaaS failures never block canonical persistence.
 
     Args:
-        feature_dir: Path to the kitty-specs feature directory.
+        feature_dir: Path to the kitty-specs feature directory, or a
+            ``TransitionRequest`` for the request-object call path.
         mission_slug: Feature identifier (e.g. "034-feature-name").
         wp_id: Work package identifier (e.g. "WP01").
         to_lane: Target lane (canonical or alias).
@@ -310,8 +312,52 @@ def emit_status_transition(
         TransitionError: If the transition is invalid.
         specify_cli.status.store.StoreError: If the event log is corrupted.
     """
-    feature_dir = feature_dir or mission_dir
-    mission_slug = mission_slug or _legacy_mission_slug
+    if isinstance(feature_dir, TransitionRequest):
+        request = feature_dir
+        mixed_legacy_args = any(
+            value is not None
+            for value in (
+                _legacy_mission_slug,
+                wp_id,
+                to_lane,
+                actor,
+                mission_dir,
+                mission_slug,
+                reason,
+                evidence,
+                review_ref,
+                workspace_context,
+                subtasks_complete,
+                implementation_evidence_present,
+                repo_root,
+                policy_metadata,
+                review_result,
+            )
+        ) or force or execution_mode != "worktree" or not ensure_sync_daemon or not sync_dossier
+        if mixed_legacy_args:
+            raise TypeError(
+                "emit_status_transition accepts either a TransitionRequest or legacy transition arguments, not both"
+            )
+        feature_dir = request.feature_dir or request.mission_dir
+        mission_slug = request.mission_slug or request._legacy_mission_slug
+        wp_id = request.wp_id
+        to_lane = request.to_lane
+        actor = request.actor
+        force = request.force
+        reason = request.reason
+        evidence = request.evidence
+        review_ref = request.review_ref
+        workspace_context = request.workspace_context
+        subtasks_complete = request.subtasks_complete
+        implementation_evidence_present = request.implementation_evidence_present
+        execution_mode = request.execution_mode
+        repo_root = request.repo_root
+        policy_metadata = request.policy_metadata
+        review_result = request.review_result
+    else:
+        feature_dir = feature_dir or mission_dir
+        mission_slug = mission_slug or _legacy_mission_slug
+
     if feature_dir is None or mission_slug is None or wp_id is None or to_lane is None or actor is None:
         raise TypeError("emit_status_transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
 
@@ -370,15 +416,17 @@ def emit_status_transition(
     ok, error_msg = validate_transition(
         from_lane,
         resolved_lane,
-        force=force,
-        actor=actor,
-        workspace_context=workspace_context,
-        subtasks_complete=subtasks_complete,
-        implementation_evidence_present=implementation_evidence_present,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=done_evidence,
-        review_result=review_result,
+        GuardContext(
+            force=force,
+            actor=actor,
+            workspace_context=workspace_context,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
+            reason=reason,
+            review_ref=review_ref,
+            evidence=done_evidence,
+            review_result=review_result,
+        ),
     )
     if not ok:
         raise TransitionError(error_msg)

@@ -15,6 +15,7 @@ import re
 import shutil
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 from specify_cli.agent_utils.directories import AGENT_DIRS
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
@@ -214,7 +215,7 @@ def _normalize_wp_frontmatter(feature_dir: Path, dry_run: bool) -> tuple[int, li
     return normalized, warnings
 
 
-def _render_frontmatter(manager: FrontmatterManager, frontmatter: dict, body: str) -> str:
+def _render_frontmatter(manager: FrontmatterManager, frontmatter: dict[str, Any], body: str) -> str:
     buffer = io.StringIO()
     buffer.write("---\n")
     manager.yaml.dump(manager._normalize_frontmatter(frontmatter), buffer)

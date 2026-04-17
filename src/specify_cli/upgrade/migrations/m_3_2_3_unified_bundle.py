@@ -78,7 +78,7 @@ def _default_bundle_validation() -> dict[str, Any]:
 
 
 @MigrationRegistry.register
-class UnifiedBundleMigration(BaseMigration):  # type: ignore[misc]  # BaseMigration re-exported through modules without stubs; safe subclass
+class UnifiedBundleMigration(BaseMigration):
     """Seal the project at 3.2.3: ensure derivatives via the chokepoint, validate bundle.
 
     The migration is intentionally narrow. It performs NO worktree scanning,

@@ -1,0 +1,56 @@
+{
+  "event_count": 55,
+  "last_event_id": "01KP979SZJ9SVV8HPSEMW04AF5",
+  "materialized_at": "2026-04-15T18:43:48.338097+00:00",
+  "mission_number": "",
+  "mission_slug": "complexity-code-smell-remediation-01KP15HB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KP3GXQ6F3N4M9EWHG14SR0MJ",
+      "last_transition_at": "2026-04-13T13:36:31.439352+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KP3KGDV3S6VEK9XMCHJ0268B",
+      "last_transition_at": "2026-04-13T14:21:41.603439+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KP5HDKMMZ5B08A2209CWBZ83",
+      "last_transition_at": "2026-04-14T08:23:40.948911+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KP7RGR3NTDEZ2EXBQ2T7GF2A",
+      "last_transition_at": "2026-04-15T05:06:12.725139+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KP979SZJ9SVV8HPSEMW04AF5",
+      "last_transition_at": "2026-04-15T18:43:48.338097+00:00"
+    }
+  }
+}

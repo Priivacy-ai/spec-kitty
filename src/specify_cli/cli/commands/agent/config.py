@@ -93,7 +93,7 @@ def list_agents():
 
 @app.command(name="add")
 def add_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
 ):
     """Add agents to the project.
 
@@ -198,7 +198,7 @@ def add_agents(
 
 @app.command(name="remove")
 def remove_agents(
-    agents: List[str] = typer.Argument(..., help="Agent keys to remove"),
+    agents: list[str] = typer.Argument(..., help="Agent keys to remove"),
     keep_config: bool = typer.Option(
         False,
         "--keep-config",
@@ -347,7 +347,7 @@ def agent_status():
             f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
             f"(present but not configured)"
         )
-        console.print(f"Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
+        console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
 @app.command(name="sync")

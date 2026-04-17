@@ -16,7 +16,6 @@ from pathlib import Path
 from ..registry import MigrationRegistry
 from ..skill_update import SKILL_ROOTS, find_skill_files
 from .base import BaseMigration, MigrationResult
-from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 _SKILL_NAME = "spec-kitty-mission-system"
 

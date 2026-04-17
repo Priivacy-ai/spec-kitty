@@ -37,7 +37,7 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          pip install build==1.* twine==6.* tomli==2.* packaging pytest
+          pip install build==1.* twine==6.* tomli==2.* packaging pytest cyclonedx-bom
           pip install -e .[test]
 
       - name: Verify test isolation
@@ -162,6 +162,18 @@ jobs:
           echo "✅ Wheel contains all $SOURCE_DOCTRINE_COUNT doctrine files and $SOURCE_SKILL_COUNT bundled skills"
           echo "::endgroup::"
 
+      - name: Generate CycloneDX SBOM
+        # Snapshot the resolved environment at build time so every release ships
+        # a machine-readable dependency inventory. Enterprise evaluators can ingest
+        # this into Dependency-Track or similar tooling for continuous CVE monitoring
+        # without rescanning the package themselves.
+        run: |
+          cyclonedx-py environment \
+            --of JSON \
+            -o sbom.cdx.json \
+            --pyproject pyproject.toml
+          echo "SBOM component count: $(python -c "import json; d=json.load(open('sbom.cdx.json')); print(len(d.get('components', [])))")"
+
       - name: Check distributions
         run: twine check dist/*
 
@@ -186,6 +198,7 @@ jobs:
             dist/*.whl
             dist/*.tar.gz
             SHA256SUMS.txt
+            sbom.cdx.json
           draft: false
           prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
 

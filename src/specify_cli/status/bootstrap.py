@@ -19,6 +19,7 @@ from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -136,7 +137,7 @@ def bootstrap_canonical_state(
 
     # Emit planned events for uninitialized WPs
     for wp_id in wps_to_seed:
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
@@ -144,7 +145,7 @@ def bootstrap_canonical_state(
             actor="finalize-tasks",
             force=True,
             reason="canonical bootstrap",
-        )
+        ))
         result.newly_seeded += 1
         result.wp_details[wp_id] = _INITIALIZED
 

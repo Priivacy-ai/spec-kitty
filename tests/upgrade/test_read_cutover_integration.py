@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, reduce
 from specify_cli.status.store import read_events
 from specify_cli.status.validate import (
@@ -96,11 +97,11 @@ class TestReadCutoverStatusJsonIsAuthority:
         repo_root = feature_dir.parent.parent
 
         # Emit transition
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Read status.json (the authority)
         snapshot_disk = _read_snapshot_dict(feature_dir)
@@ -124,11 +125,11 @@ class TestReadCutoverMaterializeRegeneratesViews:
         repo_root = feature_dir.parent.parent
 
         # Emit transitions for WP01
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Tamper: manually change WP01 to "done" in status.json
         _tamper_snapshot_lane(feature_dir, "WP01", "done")
@@ -161,11 +162,11 @@ class TestPhase2ValidateFailsOnDrift:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Even with tampered frontmatter, validate_derived_views returns []
         _tamper_frontmatter_lane(feature_dir, "WP01", "in_progress")
@@ -186,11 +187,11 @@ class TestPhase2ValidateFailsOnDrift:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         _tamper_frontmatter_lane(feature_dir, "WP01", "in_progress")
         snapshot_data = _read_snapshot_dict(feature_dir)
@@ -210,11 +211,11 @@ class TestPhase2ValidateFailsOnDrift:
         slug = "099-test"
         repo_root = feature_dir.parent.parent
 
-        emit_status_transition(
+        emit_status_transition(TransitionRequest(
             feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
-        )
+        ))
 
         # Tamper status.json to create drift
         _tamper_snapshot_lane(feature_dir, "WP01", "done")

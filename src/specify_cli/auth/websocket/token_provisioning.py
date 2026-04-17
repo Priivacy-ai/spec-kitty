@@ -24,6 +24,7 @@ unit-testable without a real WebSocket loop.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import httpx
 
@@ -70,7 +71,7 @@ class WebSocketTokenProvisioner:
     ) -> None:
         self._refresh_buffer = refresh_buffer_seconds
 
-    async def provision(self, team_id: str) -> dict:
+    async def provision(self, team_id: str) -> dict[str, Any]:
         """Provision a WebSocket token for ``team_id``.
 
         Returns:
@@ -124,7 +125,7 @@ class WebSocketTokenProvisioner:
 
     # ---- response handling ----------------------------------------------
 
-    def _handle_response(self, response: httpx.Response, team_id: str) -> dict:
+    def _handle_response(self, response: httpx.Response, team_id: str) -> dict[str, Any]:
         """Translate an HTTP response into a parsed dict or a typed error."""
         status = response.status_code
         if status == 200:
@@ -192,7 +193,7 @@ class WebSocketTokenProvisioner:
         )
 
 
-async def provision_ws_token(team_id: str) -> dict:
+async def provision_ws_token(team_id: str) -> dict[str, Any]:
     """Convenience wrapper around :class:`WebSocketTokenProvisioner`.
 
     ``sync/client.py`` (WP08) calls this immediately before opening the WS

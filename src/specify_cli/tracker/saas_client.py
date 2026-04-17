@@ -18,7 +18,7 @@ import secrets
 import time
 import uuid
 from datetime import datetime, timedelta, UTC
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -65,7 +65,7 @@ def _poll_jitter_multiplier() -> float:
     return 0.8 + (secrets.randbelow(4001) / 10000.0)
 
 
-def _run_in_fresh_loop(coro):
+def _run_in_fresh_loop(coro: Any) -> Any:
     """Run ``coro`` on a fresh asyncio loop and return its result.
 
     Assumes the caller is not running inside an event loop itself. The
@@ -90,7 +90,7 @@ def _fetch_access_token_sync() -> str | None:
     if not tm.is_authenticated:
         return None
     try:
-        return _run_in_fresh_loop(tm.get_access_token())
+        return cast("str | None", _run_in_fresh_loop(tm.get_access_token()))
     except AuthenticationError:
         return None
 

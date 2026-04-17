@@ -344,10 +344,10 @@ def create_mission_core(
     with contextlib.suppress(Exception):
         emit_mission_created(
             mission_slug=mission_slug_formatted,
-            mission_id=meta["mission_id"],
             mission_number=None,  # no number pre-merge (FR-044)
             target_branch=planning_branch,
             wp_count=0,
+            mission_id=meta.get("mission_id"),
         )
 
     # Dossier sync (fire-and-forget)

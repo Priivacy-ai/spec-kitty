@@ -29,7 +29,7 @@ from specify_cli.cli.commands.agent.tasks import (
     app,
 )
 from specify_cli.status.locking import (
-    FeatureStatusLockTimeout,
+    FeatureStatusLockTimeoutError,
     feature_status_lock,
     feature_status_lock_path,
 )
@@ -194,7 +194,7 @@ class TestFeatureStatusLock:
             assert reacquired_lock == outer_lock
 
     def test_lock_timeout_raises_feature_status_lock_timeout(self, tmp_path: Path) -> None:
-        """Timeouts from filelock should surface as FeatureStatusLockTimeout."""
+        """Timeouts from filelock should surface as FeatureStatusLockTimeoutError."""
         repo = tmp_path / "test-repo"
         repo.mkdir()
 
@@ -202,7 +202,7 @@ class TestFeatureStatusLock:
             "specify_cli.status.locking.FileLock.acquire",
             side_effect=Timeout("test.lock"),
         ):
-            with pytest.raises(FeatureStatusLockTimeout, match="Timed out acquiring feature status lock"):
+            with pytest.raises(FeatureStatusLockTimeoutError, match="Timed out acquiring feature status lock"):
                 with feature_status_lock(repo, "017-test-feature", timeout=0):
                     pass
 
@@ -580,9 +580,9 @@ Test content.
         recorded_targets: list[str] = []
         real_emit = tasks_cli.emit_status_transition
 
-        def tracking_emit(*args: object, **kwargs: object):
-            recorded_targets.append(str(kwargs["to_lane"]))
-            return real_emit(*args, **kwargs)
+        def tracking_emit(request):
+            recorded_targets.append(str(request.to_lane))
+            return real_emit(request)
 
         with (
             patch("specify_cli.cli.commands.agent.tasks.emit_status_transition", side_effect=tracking_emit),

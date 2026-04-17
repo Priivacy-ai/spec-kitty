@@ -266,7 +266,7 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
 
     result = subprocess.run(
         ni.verification_command,
-        shell=True,
+        shell=True,  # nosec B602 — command comes from user-authored spec file, intentional shell execution
         cwd=str(repo_root),
         capture_output=True,
         text=True,

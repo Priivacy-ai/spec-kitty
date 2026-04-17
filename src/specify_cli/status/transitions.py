@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .models import Lane
+from .models import GuardContext, Lane
 
 CANONICAL_LANES: tuple[str, ...] = (
     "planned",
@@ -239,43 +239,42 @@ def _guard_review_result_required(
 def _run_guard(
     from_lane: str,
     to_lane: str,
-    *,
-    actor: str | None,
-    workspace_context: str | None,
-    subtasks_complete: bool | None,
-    implementation_evidence_present: bool | None,
-    reason: str | None,
-    review_ref: str | None,
-    evidence: Any,
-    force: bool,
-    review_result: Any = None,
-    current_actor: str | None = None,
+    ctx: GuardContext | None = None,
+    /,
+    **legacy_kwargs: Any,
 ) -> tuple[bool, str | None]:
     """Run the guard condition for a specific transition, if any."""
+    if ctx is not None and legacy_kwargs:
+        raise TypeError("_run_guard accepts either a GuardContext or legacy keyword arguments, not both")
+    if ctx is None:
+        ctx = GuardContext(**legacy_kwargs)
+    elif not isinstance(ctx, GuardContext):
+        raise TypeError("_run_guard expects a GuardContext or legacy keyword arguments")
+
     guard_name = _GUARDED_TRANSITIONS.get((from_lane, to_lane))
     if guard_name is None:
         return True, None
 
     if guard_name == "actor_required":
-        return _guard_actor_required(actor)
+        return _guard_actor_required(ctx.actor)
     elif guard_name == "actor_required_conflict_detection":
-        return _guard_actor_required_conflict_detection(actor, current_actor)
+        return _guard_actor_required_conflict_detection(ctx.actor, ctx.current_actor)
     elif guard_name == "workspace_context":
-        return _guard_workspace_context(workspace_context)
+        return _guard_workspace_context(ctx.workspace_context)
     elif guard_name == "subtasks_complete_or_force":
         return _guard_subtasks_complete_or_force(
-            subtasks_complete,
-            implementation_evidence_present,
-            force,
+            ctx.subtasks_complete,
+            ctx.implementation_evidence_present,
+            ctx.force,
         )
     elif guard_name == "reviewer_approval":
-        return _guard_reviewer_approval(evidence)
+        return _guard_reviewer_approval(ctx.evidence)
     elif guard_name == "review_ref_required":
-        return _guard_review_ref_required(review_ref)
+        return _guard_review_ref_required(ctx.review_ref)
     elif guard_name == "reason_required":
-        return _guard_reason_required(reason)
+        return _guard_reason_required(ctx.reason)
     elif guard_name == "review_result_required":
-        return _guard_review_result_required(review_result)
+        return _guard_review_result_required(ctx.review_result)
 
     return True, None
 
@@ -283,23 +282,14 @@ def _run_guard(
 def validate_transition(
     from_lane: str,
     to_lane: str,
-    *,
-    force: bool = False,
-    actor: str | None = None,
-    workspace_context: str | None = None,
-    subtasks_complete: bool | None = None,
-    implementation_evidence_present: bool | None = None,
-    reason: str | None = None,
-    review_ref: str | None = None,
-    evidence: Any = None,
-    review_result: Any = None,
-    current_actor: str | None = None,
+    ctx: GuardContext | None = None,
 ) -> tuple[bool, str | None]:
     """Validate a lane transition. Returns (ok, error_message).
 
     Resolves aliases, checks the transition matrix, runs guard conditions,
     and validates force-override requirements.
     """
+    ctx = ctx or GuardContext()
     resolved_from = resolve_lane_alias(from_lane)
     resolved_to = resolve_lane_alias(to_lane)
 
@@ -316,14 +306,14 @@ def validate_transition(
     pair = (resolved_from, resolved_to)
 
     if pair not in ALLOWED_TRANSITIONS:
-        if force:
+        if ctx.force:
             # Force can override any transition, but requires actor + reason
-            if not actor or not actor.strip():
+            if not ctx.actor or not ctx.actor.strip():
                 return (
                     False,
                     _FORCE_REQUIRES_ACTOR_AND_REASON,
                 )
-            if not reason or not reason.strip():
+            if not ctx.reason or not ctx.reason.strip():
                 return (
                     False,
                     _FORCE_REQUIRES_ACTOR_AND_REASON,
@@ -336,24 +326,11 @@ def validate_transition(
 
     # For allowed transitions, run guard conditions
     # Force bypasses guards (but force still requires actor + reason for audit)
-    if force:
-        if not actor or not actor.strip():
+    if ctx.force:
+        if not ctx.actor or not ctx.actor.strip():
             return False, _FORCE_REQUIRES_ACTOR_AND_REASON
-        if not reason or not reason.strip():
+        if not ctx.reason or not ctx.reason.strip():
             return False, _FORCE_REQUIRES_ACTOR_AND_REASON
         return True, None
 
-    return _run_guard(
-        resolved_from,
-        resolved_to,
-        actor=actor,
-        workspace_context=workspace_context,
-        subtasks_complete=subtasks_complete,
-        implementation_evidence_present=implementation_evidence_present,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=evidence,
-        force=force,
-        review_result=review_result,
-        current_actor=current_actor,
-    )
+    return _run_guard(resolved_from, resolved_to, ctx)

@@ -120,7 +120,6 @@ class TestFinalizeTasksEmitsBatch:
         # Emit FeatureCreated
         fc = emitter.emit_mission_created(
             mission_slug="028-cli-event-emission-sync",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=28,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=7,
@@ -156,7 +155,6 @@ class TestGitMetadataInBatchEvents:
         """FeatureCreated event includes git metadata fields."""
         event = emitter.emit_mission_created(
             mission_slug="033-observability",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=33,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=4,
@@ -356,7 +354,6 @@ class TestIdentityInjection:
         """FeatureCreated event includes project_uuid."""
         event = emitter.emit_mission_created(
             mission_slug="032-identity-aware",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=32,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=5,

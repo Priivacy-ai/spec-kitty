@@ -37,22 +37,21 @@ class TestEmitMissionCreatedMissionId:
         assert "mission_id" in event["payload"]
         assert event["payload"]["mission_id"] == "01KNRQK0R1ZDS8Z57M1TRXF0XR"
 
-    def test_emitter_always_includes_mission_id(
+    def test_emitter_omits_mission_id_when_none(
         self,
         emitter: EventEmitter,
         temp_queue,
     ) -> None:
-        """EventEmitter.emit_mission_created always includes mission_id (now mandatory)."""
+        """EventEmitter.emit_mission_created does NOT include mission_id key when not provided."""
         event = emitter.emit_mission_created(
             mission_slug="079-post-hardening",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=79,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=4,
+            # mission_id omitted — legacy call
         )
         assert event is not None
-        assert "mission_id" in event["payload"]
-        assert event["payload"]["mission_id"] == "01KNRQK0R1ZDS8Z57M1TRXF001"
+        assert "mission_id" not in event["payload"]
 
     def test_events_facade_passes_mission_id_to_emitter(self) -> None:
         """emit_mission_created() in events.py forwards mission_id= to the singleton emitter."""
@@ -79,13 +78,27 @@ class TestEmitMissionCreatedMissionId:
             len(call_kwargs.args) > 5 and call_kwargs.args[5] == "01TESTULID12345678901234AB"
         ), f"mission_id not forwarded: {call_kwargs}"
 
-    def test_events_facade_raises_when_mission_id_missing(self) -> None:
-        """emit_mission_created() without mission_id raises TypeError (now mandatory)."""
-        with pytest.raises(TypeError):
+    def test_events_facade_legacy_call_no_mission_id(self) -> None:
+        """emit_mission_created() without mission_id does not pass mission_id= to emitter (or passes None)."""
+        mock_emitter = MagicMock()
+        mock_emitter.emit_mission_created.return_value = {"payload": {}}
+
+        with (
+            patch("specify_cli.sync.events.get_emitter", return_value=mock_emitter),
+            patch("specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project", return_value=None),
+            patch("specify_cli.sync.events._publish_event_via_sync_daemon"),
+            patch("specify_cli.sync.events._request_dashboard_sync"),
+        ):
             emit_mission_created(
                 mission_slug="028-sync",
                 mission_number=28,  # int, not str (FR-044, WP02)
                 target_branch="main",
                 wp_count=5,
-                # No mission_id — should raise TypeError
+                # No mission_id
             )
+
+        call_kwargs = mock_emitter.emit_mission_created.call_args
+        assert call_kwargs is not None
+        # mission_id should be None or absent from the call
+        passed_mission_id = call_kwargs.kwargs.get("mission_id")
+        assert passed_mission_id is None

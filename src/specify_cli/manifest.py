@@ -4,8 +4,7 @@ This module generates and checks expected files based on the mission context.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-import yaml
+from typing import Any, Dict, List, Optional
 import subprocess
 
 
@@ -18,13 +17,13 @@ class FileManifest:
     manifest.
     """
 
-    def __init__(self, kittify_dir: Path, *, mission_type: Optional[str] = None):
+    def __init__(self, kittify_dir: Path, *, mission_type: str | None = None):
         self.kittify_dir = kittify_dir
         self.mission_dir = (
             kittify_dir / "missions" / mission_type if mission_type else None
         )
 
-    def get_expected_files(self) -> Dict[str, List[str]]:
+    def get_expected_files(self) -> dict[str, list[str]]:
         """
         Get a categorized list of expected files for the active mission.
 
@@ -63,55 +62,44 @@ class FileManifest:
 
         return manifest
 
-    def _get_referenced_scripts(self) -> List[str]:
+    @staticmethod
+    def _parse_frontmatter_scripts(content: str, script_key: str) -> set[str]:
+        """Extract .kittify/scripts/ paths from a command file's YAML frontmatter."""
+        scripts: set[str] = set()
+        in_frontmatter = False
+        for line in content.split("\n"):
+            if line.strip() == "---":
+                if in_frontmatter:
+                    break  # end of frontmatter
+                in_frontmatter = True
+                continue
+            if not in_frontmatter or script_key not in line:
+                continue
+            parts = line.split(":", 1)
+            if len(parts) != 2:
+                continue
+            script_path = parts[1].strip().strip('"').strip("'").split()[0] if parts[1].strip() else ""
+            if script_path.startswith(".kittify/scripts/"):
+                scripts.add(script_path.replace(".kittify/", "", 1))
+        return scripts
+
+    def _get_referenced_scripts(self) -> list[str]:
         """Extract script references from command files, filtered by platform."""
         import platform
-        scripts = set()
 
         if not self.mission_dir:
             return []
-
         commands_dir = self.mission_dir / "command-templates"
         if not commands_dir.exists():
             return []
 
-        # Determine which script type to look for based on platform
-        is_windows = platform.system() == 'Windows'
-        script_key = 'ps:' if is_windows else 'sh:'
-
-        # Parse command files for script references
+        script_key = "ps:" if platform.system() == "Windows" else "sh:"
+        scripts: set[str] = set()
         for cmd_file in commands_dir.glob("*.md"):
-            content = cmd_file.read_text(encoding='utf-8-sig')
-            lines = content.split('\n')
+            scripts |= self._parse_frontmatter_scripts(cmd_file.read_text(encoding="utf-8-sig"), script_key)
+        return sorted(scripts)
 
-            # Look for script references in YAML frontmatter
-            in_frontmatter = False
-            for line in lines:
-                if line.strip() == '---':
-                    in_frontmatter = not in_frontmatter
-                    if not in_frontmatter and in_frontmatter == False:
-                        break  # End of frontmatter
-                elif in_frontmatter:
-                    # Only check for scripts relevant to this platform
-                    if script_key in line:
-                        # Extract script path
-                        parts = line.split(':', 1)
-                        if len(parts) == 2:
-                            script_line = parts[1].strip().strip('"').strip("'")
-                            # Extract just the script path, not the arguments
-                            # Script path is the first part before any spaces or arguments
-                            script_parts = script_line.split()
-                            if script_parts:
-                                script_path = script_parts[0]
-                                # Only include actual .kittify/scripts/ files
-                                # Skip CLI commands (spec-kitty, git, python, etc.)
-                                if script_path.startswith('.kittify/scripts/'):
-                                    script_path = script_path.replace('.kittify/', '', 1)
-                                    scripts.add(script_path)
-
-        return sorted(list(scripts))
-
-    def check_files(self) -> Dict[str, Dict[str, str]]:
+    def check_files(self) -> dict[str, dict[str, str]]:
         """
         Check which expected files exist and which are missing.
 
@@ -147,11 +135,8 @@ class WorktreeStatus:
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
 
-    def get_all_features(self) -> List[str]:
-        """Get all feature branches and directories."""
-        features = set()
-
-        # Get features from branches
+    def _get_features_from_branches(self) -> set[str]:
+        """Return feature names discovered from local git branches."""
         try:
             result = subprocess.run(
                 ["git", "branch", "-a"],
@@ -160,43 +145,32 @@ class WorktreeStatus:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=True
+                check=True,
             )
-            for line in result.stdout.split('\n'):
-                line = line.strip().replace('* ', '')
-                # Match feature branch pattern (###-name)
-                if line and not line.startswith('remotes/'):
-                    parts = line.split('/')
-                    branch = parts[-1]
-                    if branch and branch[0].isdigit() and '-' in branch:
-                        features.add(branch)
         except subprocess.CalledProcessError:
-            pass
+            return set()
+        features = set()
+        for line in result.stdout.split("\n"):
+            branch = line.strip().replace("* ", "").split("/")[-1]
+            if branch and not line.strip().startswith("remotes/") and branch[0].isdigit() and "-" in branch:
+                features.add(branch)
+        return features
+
+    def get_all_features(self) -> list[str]:
+        """Get all feature branches and directories."""
+        features = self._get_features_from_branches()
 
         # Get features from kitty-specs
         kitty_specs = self.repo_root / "kitty-specs"
         if kitty_specs.exists():
             for feature_dir in kitty_specs.iterdir():
-                if feature_dir.is_dir() and feature_dir.name[0].isdigit() and '-' in feature_dir.name:
+                if feature_dir.is_dir() and feature_dir.name[0].isdigit() and "-" in feature_dir.name:
                     features.add(feature_dir.name)
 
         return sorted(list(features))
 
-    def get_feature_status(self, feature: str) -> Dict[str, any]:
-        """Get comprehensive status for a feature."""
-        status = {
-            "name": feature,
-            "branch_exists": False,
-            "branch_merged": False,
-            "worktree_exists": False,
-            "worktree_path": None,
-            "artifacts_in_main": [],
-            "artifacts_in_worktree": [],
-            "last_activity": None,
-            "state": "unknown"  # not_started, in_development, ready_to_merge, merged, abandoned
-        }
-
-        # Check if branch exists
+    def _check_branch_exists(self, feature: str) -> bool:
+        """Return True if the local branch ref exists."""
         try:
             result = subprocess.run(
                 ["git", "show-ref", f"refs/heads/{feature}"],
@@ -204,64 +178,80 @@ class WorktreeStatus:
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
-            status["branch_exists"] = result.returncode == 0
+            return result.returncode == 0
         except subprocess.CalledProcessError:
-            pass
+            return False
 
-        # Check if merged
+    def _check_branch_merged(self, feature: str) -> bool:
+        """Return True if the branch has been merged into the primary branch."""
+        try:
+            from specify_cli.core.git_ops import resolve_primary_branch
+            primary = resolve_primary_branch(self.repo_root)
+            result = subprocess.run(
+                ["git", "branch", "--merged", primary],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=True,
+            )
+            return feature in result.stdout
+        except subprocess.CalledProcessError:
+            return False
+
+    @staticmethod
+    def _determine_feature_state(status: dict) -> str:
+        """Derive the lifecycle state label from collected status flags."""
+        if not status["branch_exists"] and not status["artifacts_in_main"]:
+            return "not_started"
+        if status["branch_merged"] and status["artifacts_in_main"]:
+            return "merged"
+        if status["worktree_exists"] or status["artifacts_in_worktree"]:
+            return "in_development"
+        if status["branch_exists"] and not status["worktree_exists"]:
+            return "ready_to_merge"
+        if not status["branch_exists"] and status["artifacts_in_main"]:
+            return "merged"  # branch deleted after merge
+        return "unknown"
+
+    def get_feature_status(self, feature: str) -> dict[str, Any]:
+        """Get comprehensive status for a feature."""
+        status: dict[str, Any] = {
+            "name": feature,
+            "branch_exists": self._check_branch_exists(feature),
+            "branch_merged": False,
+            "worktree_exists": False,
+            "worktree_path": None,
+            "artifacts_in_main": [],
+            "artifacts_in_worktree": [],
+            "last_activity": None,
+            "state": "unknown",
+        }
+
         if status["branch_exists"]:
-            try:
-                from specify_cli.core.git_ops import resolve_primary_branch
-                primary = resolve_primary_branch(self.repo_root)
-                result = subprocess.run(
-                    ["git", "branch", "--merged", primary],
-                    cwd=self.repo_root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=True
-                )
-                status["branch_merged"] = feature in result.stdout
-            except subprocess.CalledProcessError:
-                pass
+            status["branch_merged"] = self._check_branch_merged(feature)
 
-        # Check worktree
         worktree_path = self.repo_root / ".worktrees" / feature
         if worktree_path.exists():
             status["worktree_exists"] = True
             status["worktree_path"] = str(worktree_path)
 
-        # Check artifacts in main
         main_artifacts_path = self.repo_root / "kitty-specs" / feature
         if main_artifacts_path.exists():
-            for artifact in main_artifacts_path.glob("*.md"):
-                status["artifacts_in_main"].append(artifact.name)
+            status["artifacts_in_main"] = [a.name for a in main_artifacts_path.glob("*.md")]
 
-        # Check artifacts in worktree
         if status["worktree_exists"]:
-            worktree_artifacts_path = worktree_path / "kitty-specs" / feature
-            if worktree_artifacts_path.exists():
-                for artifact in worktree_artifacts_path.glob("*.md"):
-                    status["artifacts_in_worktree"].append(artifact.name)
+            wt_artifacts = worktree_path / "kitty-specs" / feature
+            if wt_artifacts.exists():
+                status["artifacts_in_worktree"] = [a.name for a in wt_artifacts.glob("*.md")]
 
-        # Determine state
-        if not status["branch_exists"] and not status["artifacts_in_main"]:
-            status["state"] = "not_started"
-        elif status["branch_merged"] and status["artifacts_in_main"]:
-            status["state"] = "merged"
-        elif status["worktree_exists"] or status["artifacts_in_worktree"]:
-            status["state"] = "in_development"
-        elif status["branch_exists"] and not status["worktree_exists"]:
-            status["state"] = "ready_to_merge"
-        elif not status["branch_exists"] and status["artifacts_in_main"]:
-            status["state"] = "merged"  # Branch was deleted after merge
-
+        status["state"] = self._determine_feature_state(status)
         return status
 
-    def get_worktree_summary(self) -> Dict[str, int]:
+    def get_worktree_summary(self) -> dict[str, int]:
         """Get summary counts of worktree states."""
         features = self.get_all_features()
         summary = {

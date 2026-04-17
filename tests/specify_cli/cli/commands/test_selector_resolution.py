@@ -323,10 +323,10 @@ def test_mission_current_canonical_succeeds(tmp_path: Path) -> None:
     (tmp_path / "kitty-specs" / mission_slug).mkdir(parents=True)
 
     with (
-        patch("specify_cli.cli.commands.mission.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission.check_version_compatibility"),
-        patch("specify_cli.cli.commands.mission.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
-        patch("specify_cli.cli.commands.mission._mission_details_lines", return_value=["ok"]),
+        patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
+        patch("specify_cli.cli.commands.mission_type.check_version_compatibility"),
+        patch("specify_cli.cli.commands.mission_type.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
+        patch("specify_cli.cli.commands.mission_type._mission_details_lines", return_value=["ok"]),
     ):
         result = runner.invoke(mission_app, ["current", "--mission", mission_slug])
 
@@ -340,10 +340,10 @@ def test_mission_current_alias_succeeds_with_warning(tmp_path: Path, warning_str
     (tmp_path / "kitty-specs" / mission_slug).mkdir(parents=True)
 
     with (
-        patch("specify_cli.cli.commands.mission.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission.check_version_compatibility"),
-        patch("specify_cli.cli.commands.mission.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
-        patch("specify_cli.cli.commands.mission._mission_details_lines", return_value=["ok"]),
+        patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
+        patch("specify_cli.cli.commands.mission_type.check_version_compatibility"),
+        patch("specify_cli.cli.commands.mission_type.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
+        patch("specify_cli.cli.commands.mission_type._mission_details_lines", return_value=["ok"]),
     ):
         result = runner.invoke(mission_app, ["current", "--feature", mission_slug])
 
@@ -358,11 +358,11 @@ def test_mission_current_alias_overrides_detected_mission(tmp_path: Path, warnin
     (tmp_path / "kitty-specs" / explicit).mkdir(parents=True)
 
     with (
-        patch("specify_cli.cli.commands.mission.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission.check_version_compatibility"),
-        patch("specify_cli.cli.commands.mission._detect_current_feature", return_value=detected),
-        patch("specify_cli.cli.commands.mission.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
-        patch("specify_cli.cli.commands.mission._mission_details_lines", return_value=["ok"]),
+        patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
+        patch("specify_cli.cli.commands.mission_type.check_version_compatibility"),
+        patch("specify_cli.cli.commands.mission_type._detect_current_feature", return_value=detected),
+        patch("specify_cli.cli.commands.mission_type.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
+        patch("specify_cli.cli.commands.mission_type._mission_details_lines", return_value=["ok"]),
     ):
         result = runner.invoke(mission_app, ["current", "--feature", explicit])
 
@@ -374,8 +374,8 @@ def test_mission_current_alias_overrides_detected_mission(tmp_path: Path, warnin
 
 def test_mission_current_dual_flag_conflict_fails(tmp_path: Path) -> None:
     with (
-        patch("specify_cli.cli.commands.mission.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission.check_version_compatibility"),
+        patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
+        patch("specify_cli.cli.commands.mission_type.check_version_compatibility"),
     ):
         result = runner.invoke(mission_app, ["current", "--mission", "077-a", "--feature", "077-b"])
 

@@ -7,7 +7,7 @@ from datetime import datetime, UTC
 from io import StringIO
 from pathlib import Path
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 
@@ -19,6 +19,14 @@ from charter.interview import (
 )
 from charter.language_scope import extract_declared_languages
 from charter.resolver import DEFAULT_TOOL_REGISTRY
+
+
+@dataclass(frozen=True)
+class _SelectionBundle:
+    """Bundled paradigm + directive selections passed to service-based reference builders."""
+
+    paradigms: list[str]
+    directives: list[str]
 
 if TYPE_CHECKING:
     from doctrine.service import DoctrineService
@@ -69,26 +77,10 @@ def compile_charter(
 ) -> CompiledCharter:
     """Compile charter markdown, references manifest, and library docs.
 
-    Artifact loading and transitive reference resolution always run through the
-    typed repository API and the Doctrine Reference Graph (DRG). Per C-001 of
-    the ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission
-    there is no YAML-scanning fallback: if *doctrine_service* is not supplied
-    by the caller, one is constructed here so the DRG-backed path is always
-    taken.
-
-    Args:
-        mission: Mission slug (e.g. ``"software-dev"``).
-        interview: Charter interview answers driving selection.
-        template_set: Optional explicit template-set override.
-        doctrine_catalog: Optional pre-loaded catalog (shipped doctrine index).
-        doctrine_service: Optional pre-built :class:`DoctrineService`. When
-            ``None``, a service rooted at the shipped doctrine package and (if
-            *repo_root* is provided) the project overlay is constructed
-            automatically.
-        repo_root: Repository root directory. Used both to build the default
-            :class:`DoctrineService` project layer and to load the project
-            DRG overlay at ``<repo_root>/.kittify/doctrine/graph.yaml``. When
-            ``None`` the compiler uses the shipped layer only.
+    Artifact loading and transitive reference resolution always prefer the
+    typed repository API and DRG-backed path. When *doctrine_service* is not
+    supplied, a default service rooted at shipped doctrine (and an optional
+    project overlay under *repo_root*) is constructed automatically.
     """
     active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
@@ -253,14 +245,7 @@ def _sanitize_catalog_selection(
 
 
 def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
-    """Build a :class:`DoctrineService` rooted at the shipped doctrine package.
-
-    When *repo_root* is provided, the project overlay is honored (artifacts
-    authored under ``<repo_root>/src/doctrine`` or ``<repo_root>/doctrine``
-    will shadow shipped entries). This mirrors
-    :func:`charter.context._build_doctrine_service` so the compiler and the
-    context builder agree on project-overlay discovery.
-    """
+    """Build a DoctrineService rooted at shipped doctrine plus optional project overlay."""
     from doctrine.service import DoctrineService
 
     doctrine_root = resolve_doctrine_root()
@@ -286,7 +271,6 @@ def _build_references(
 
     references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))
-
     references.extend(
         _build_references_from_service(
             mission=mission,
@@ -299,6 +283,55 @@ def _build_references(
             diagnostics=diagnostics if diagnostics is not None else [],
         )
     )
+    return references
+
+
+def _build_references_from_yaml(
+    *,
+    mission: str,
+    template_set: str,
+    interview: CharterInterview,
+    paradigms: list[str],
+    directives: list[str],
+    doctrine_root: Path,
+) -> list[CharterReference]:
+    """Load references by scanning YAML files directly (fallback path)."""
+    references: list[CharterReference] = []
+
+    paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
+    directive_sources = _index_yaml_assets(doctrine_root / "directives", "*.directive.yaml")
+
+    for paradigm in paradigms:
+        references.append(
+            _doctrine_yaml_reference(
+                kind="paradigm",
+                raw_id=paradigm,
+                source=paradigm_sources.get(paradigm.casefold()),
+            )
+        )
+
+    for directive in directives:
+        references.append(
+            _doctrine_yaml_reference(
+                kind="directive",
+                raw_id=directive,
+                source=directive_sources.get(directive.casefold()),
+            )
+        )
+
+    references.append(_template_reference(doctrine_root=doctrine_root, mission=mission, template_set=template_set))
+
+    language_hints = interview.answers.get("languages_frameworks", "").lower()
+    if "python" in language_hints:
+        styleguide_path = doctrine_root / "styleguides" / "python-implementation.styleguide.yaml"
+        if styleguide_path.exists():
+            references.append(
+                _doctrine_yaml_reference(
+                    kind="styleguide",
+                    raw_id="python-implementation",
+                    source=_load_yaml_asset(styleguide_path),
+                )
+            )
 
     return references
 
@@ -314,20 +347,7 @@ def _build_references_from_service(
     repo_root: Path | None,
     diagnostics: list[str],
 ) -> list[CharterReference]:
-    """Load references via typed repository queries and transitive resolution.
-
-    The merged DRG (shipped + optional project overlay at
-    ``<repo_root>/.kittify/doctrine/graph.yaml``) is loaded via
-    :func:`charter._drg_helpers.load_validated_graph`, ensuring project
-    overlays participate in transitive resolution. When *repo_root* is
-    ``None`` only the shipped graph is consulted.
-    """
-    from charter._drg_helpers import load_validated_graph
-    from doctrine.drg.loader import load_graph, merge_layers
-    from doctrine.drg.models import Relation
-    from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
-    from doctrine.drg.validator import assert_valid
-
+    """Load references via typed repository queries and DRG-backed transitive resolution."""
     references: list[CharterReference] = []
 
     # Paradigms: still loaded via YAML scanning (no typed paradigm references in graph)
@@ -341,45 +361,11 @@ def _build_references_from_service(
             )
         )
 
-    # Resolve directives + transitive artifacts via the DRG.
-    #
-    # The DRG is the sole authority for transitive reference chains as of
-    # WP03 of the excise-doctrine-curation-and-inline-references-01KP54J6
-    # mission. When *repo_root* is supplied we pick up the project overlay
-    # at ``<repo_root>/.kittify/doctrine/graph.yaml`` via
-    # :func:`load_validated_graph`. A missing shipped ``graph.yaml``
-    # (e.g. test-private roots) degrades gracefully to no transitive
-    # artifacts; callers that need a specific topology must materialize a
-    # ``graph.yaml`` in the shipped root.
-    if directives:
-        if repo_root is not None:
-            try:
-                merged = load_validated_graph(repo_root)
-                start_urns = {f"directive:{d}" for d in directives}
-                graph = resolve_transitive_refs(
-                    merged,
-                    start_urns=start_urns,
-                    relations={Relation.REQUIRES, Relation.SUGGESTS},
-                )
-            except FileNotFoundError:
-                # Shipped graph absent -- legacy minimal behavior.
-                graph = ResolveTransitiveRefsResult(directives=sorted(directives))
-        else:
-            graph_path = doctrine_root / "graph.yaml"
-            if graph_path.exists():
-                drg = load_graph(graph_path)
-                merged = merge_layers(drg, None)
-                assert_valid(merged)
-                start_urns = {f"directive:{d}" for d in directives}
-                graph = resolve_transitive_refs(
-                    merged,
-                    start_urns=start_urns,
-                    relations={Relation.REQUIRES, Relation.SUGGESTS},
-                )
-            else:
-                graph = ResolveTransitiveRefsResult(directives=sorted(directives))
-    else:
-        graph = ResolveTransitiveRefsResult()
+    graph = _resolve_transitive_reference_graph(
+        doctrine_root=doctrine_root,
+        directives=directives,
+        repo_root=repo_root,
+    )
 
     for directive_id in graph.directives:
         directive = doctrine_service.directives.get(directive_id)
@@ -458,6 +444,41 @@ def _build_references_from_service(
     references.append(_template_reference(doctrine_root=doctrine_root, mission=mission, template_set=template_set))
 
     return references
+
+
+def _resolve_transitive_reference_graph(
+    *,
+    doctrine_root: Path,
+    directives: list[str],
+    repo_root: Path | None,
+) -> Any:
+    """Resolve directive transitive closure from shipped/project DRG layers."""
+    from charter._drg_helpers import load_validated_graph
+    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.models import Relation
+    from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+    from doctrine.drg.validator import assert_valid
+
+    if not directives:
+        return ResolveTransitiveRefsResult()
+
+    try:
+        if repo_root is not None:
+            merged = load_validated_graph(repo_root)
+        else:
+            graph_path = doctrine_root / "graph.yaml"
+            if not graph_path.exists():
+                return ResolveTransitiveRefsResult(directives=sorted(directives))
+            merged = merge_layers(load_graph(graph_path), None)
+            assert_valid(merged)
+    except FileNotFoundError:
+        return ResolveTransitiveRefsResult(directives=sorted(directives))
+
+    return resolve_transitive_refs(
+        merged,
+        start_urns={f"directive:{directive_id}" for directive_id in directives},
+        relations={Relation.REQUIRES, Relation.SUGGESTS},
+    )
 
 
 def _build_shipped_concept_ids(references: list[CharterReference]) -> frozenset[str]:

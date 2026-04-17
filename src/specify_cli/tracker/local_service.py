@@ -11,10 +11,9 @@ No SaaS imports live here — only local connector infrastructure.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from specify_cli.tracker.config import (
-    LOCAL_PROVIDERS,
     TrackerProjectConfig,
     clear_tracker_config,
     load_tracker_config,
@@ -126,7 +125,7 @@ class LocalTrackerService:
             store.set_checkpoint(engine.checkpoint, checkpoint_key=f"{config.provider}:{config.workspace}")
             return self._sync_result(result, connector.name)
 
-        return self._run_async(_run())
+        return cast(dict[str, Any], self._run_async(_run()))
 
     def sync_push(self, *, limit: int = 100) -> dict[str, Any]:
         config, credentials, store = self._load_runtime()
@@ -136,7 +135,7 @@ class LocalTrackerService:
             result = await engine.push(limit=limit)
             return self._sync_result(result, connector.name)
 
-        return self._run_async(_run())
+        return cast(dict[str, Any], self._run_async(_run()))
 
     def sync_run(self, *, limit: int = 100) -> dict[str, Any]:
         config, credentials, store = self._load_runtime()
@@ -151,7 +150,7 @@ class LocalTrackerService:
             store.set_checkpoint(engine.checkpoint, checkpoint_key=f"{config.provider}:{config.workspace}")
             return self._sync_result(result, connector.name)
 
-        return self._run_async(_run())
+        return cast(dict[str, Any], self._run_async(_run()))
 
     # ------------------------------------------------------------------
     # mapping operations

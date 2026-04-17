@@ -58,10 +58,10 @@ class DocumentationState(TypedDict):
     """Documentation state schema for meta.json."""
 
     iteration_mode: Literal["initial", "gap_filling", "feature_specific"]
-    divio_types_selected: List[str]
-    generators_configured: List[GeneratorConfig]
+    divio_types_selected: list[str]
+    generators_configured: list[GeneratorConfig]
     target_audience: str
-    last_audit_date: Optional[str]  # ISO datetime or null
+    last_audit_date: str | None  # ISO datetime or null
     coverage_percentage: float  # 0.0 to 1.0
 
 
@@ -102,7 +102,7 @@ def set_iteration_mode(meta_file: Path, iteration_mode: Literal["initial", "gap_
     write_meta(meta_file.parent, meta, validate=False)
 
 
-def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
+def set_divio_types_selected(meta_file: Path, divio_types: list[str]) -> None:
     """Set selected Divio types in feature meta.json.
 
     Args:
@@ -135,7 +135,7 @@ def set_divio_types_selected(meta_file: Path, divio_types: List[str]) -> None:
     write_meta(meta_file.parent, meta, validate=False)
 
 
-def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]) -> None:
+def set_generators_configured(meta_file: Path, generators: list[GeneratorConfig]) -> None:
     """Set configured generators in feature meta.json.
 
     Args:
@@ -178,7 +178,7 @@ def set_generators_configured(meta_file: Path, generators: List[GeneratorConfig]
     write_meta(meta_file.parent, meta, validate=False)
 
 
-def set_audit_metadata(meta_file: Path, last_audit_date: Optional[datetime], coverage_percentage: float) -> None:
+def set_audit_metadata(meta_file: Path, last_audit_date: datetime | None, coverage_percentage: float) -> None:
     """Set audit metadata in feature meta.json.
 
     Args:
@@ -216,7 +216,7 @@ def set_audit_metadata(meta_file: Path, last_audit_date: Optional[datetime], cov
 # ============================================================================
 
 
-def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
+def read_documentation_state(meta_file: Path) -> DocumentationState | None:
     """Read documentation state from feature meta.json.
 
     Args:
@@ -230,7 +230,7 @@ def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
         FileNotFoundError: If meta.json doesn't exist
         json.JSONDecodeError: If meta.json is invalid JSON
     """
-    with open(meta_file, "r") as f:
+    with open(meta_file) as f:
         meta = json.load(f)
 
     # Check if this is a documentation mission
@@ -281,8 +281,8 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
 def initialize_documentation_state(
     meta_file: Path,
     iteration_mode: str,
-    divio_types: List[str],
-    generators: List[GeneratorConfig],
+    divio_types: list[str],
+    generators: list[GeneratorConfig],
     target_audience: str,
 ) -> DocumentationState:
     """Initialize documentation state for a new documentation mission.

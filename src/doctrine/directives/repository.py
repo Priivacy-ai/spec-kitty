@@ -10,20 +10,18 @@ Provides:
 """
 
 import re
-import warnings
 from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
+from doctrine.base import BaseDoctrineRepository
 from .models import Directive
 from .validation import reject_directive_inline_refs
 
 
-class DirectiveRepository:
+class DirectiveRepository(BaseDoctrineRepository[Directive]):
     """Repository for loading and managing directive YAML files."""
 
     def __init__(
@@ -31,10 +29,10 @@ class DirectiveRepository:
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
     ) -> None:
-        self._directives: dict[str, Directive] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -47,57 +45,16 @@ class DirectiveRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        """Load directives from shipped and project directories."""
-        yaml = YAML(typ="safe")
-        shipped: dict[str, Directive] = {}
+    @property
+    def _schema(self) -> type[Directive]:
+        return Directive
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob("*.directive.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_directive_inline_refs(data, file_path=str(yaml_file))
-                    directive = Directive.model_validate(data)
-                    shipped[directive.id] = directive
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped directive {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    @property
+    def _glob(self) -> str:
+        return "*.directive.yaml"
 
-        self._directives = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.glob("*.directive.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_directive_inline_refs(data, file_path=str(yaml_file))
-                    directive_id = data.get("id")
-                    if not directive_id:
-                        warnings.warn(
-                            f"Skipping project directive {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if directive_id in shipped:
-                        merged = self._merge_directives(shipped[directive_id], data)
-                        self._directives[directive_id] = merged
-                    else:
-                        directive = Directive.model_validate(data)
-                        self._directives[directive.id] = directive
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project directive {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
+        reject_directive_inline_refs(data, file_path=str(yaml_file))
 
     @staticmethod
     def _normalize_id(directive_id: str) -> str:
@@ -111,25 +68,13 @@ class DirectiveRepository:
             return f"DIRECTIVE_{directive_id.zfill(3)}"
         return directive_id
 
-    def _merge_directives(
-        self, shipped: Directive, project_data: dict[str, Any]
-    ) -> Directive:
-        """Merge project data into shipped directive at field level."""
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return Directive.model_validate(merged)
-
-    def list_all(self) -> list[Directive]:
-        """Return all loaded directives sorted by ID."""
-        return sorted(self._directives.values(), key=lambda d: d.id)
-
     def get(self, directive_id: str) -> Directive | None:
         """Get directive by ID.
 
         Accepts both numeric shorthand ("004") and full ID ("DIRECTIVE_004").
         """
         normalized = self._normalize_id(directive_id)
-        return self._directives.get(normalized)
+        return self._items.get(normalized)
 
     def save(self, directive: Directive) -> Path:
         """Save directive to project directory.
@@ -161,5 +106,5 @@ class DirectiveRepository:
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
 
-        self._directives[directive.id] = directive
+        self._items[directive.id] = directive
         return yaml_file

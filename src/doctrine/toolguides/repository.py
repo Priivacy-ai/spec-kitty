@@ -3,22 +3,18 @@ Toolguide repository with two-source loading (shipped + project).
 """
 
 import re
-import warnings
 from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
-from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
-
+from doctrine.base import BaseDoctrineRepository
 from .models import Toolguide
 from .validation import reject_toolguide_inline_refs
 
 
-class ToolguideRepository:
+class ToolguideRepository(BaseDoctrineRepository[Toolguide]):
     """Repository for loading and managing toolguide YAML files."""
 
     def __init__(
@@ -27,11 +23,11 @@ class ToolguideRepository:
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
-        self._toolguides: dict[str, Toolguide] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+            active_languages=active_languages,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -43,74 +39,16 @@ class ToolguideRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        yaml = YAML(typ="safe")
-        shipped: dict[str, Toolguide] = {}
+    @property
+    def _schema(self) -> type[Toolguide]:
+        return Toolguide
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob("*.toolguide.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_toolguide_inline_refs(data, file_path=str(yaml_file))
-                    toolguide = Toolguide.model_validate(data)
-                    if not applies_to_languages_match(toolguide.applies_to_languages, self._active_languages):
-                        continue
-                    shipped[toolguide.id] = toolguide
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped toolguide {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+    @property
+    def _glob(self) -> str:
+        return "*.toolguide.yaml"
 
-        self._toolguides = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.glob("*.toolguide.yaml")):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_toolguide_inline_refs(data, file_path=str(yaml_file))
-                    tg_id = data.get("id")
-                    if not tg_id:
-                        warnings.warn(
-                            f"Skipping project toolguide {yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if tg_id in shipped:
-                        merged = self._merge(shipped[tg_id], data)
-                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                            continue
-                        self._toolguides[tg_id] = merged
-                    else:
-                        toolguide = Toolguide.model_validate(data)
-                        if not applies_to_languages_match(toolguide.applies_to_languages, self._active_languages):
-                            continue
-                        self._toolguides[toolguide.id] = toolguide
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project toolguide {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    @staticmethod
-    def _merge(shipped: Toolguide, project_data: dict[str, Any]) -> Toolguide:
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return Toolguide.model_validate(merged)
-
-    def list_all(self) -> list[Toolguide]:
-        return sorted(self._toolguides.values(), key=lambda t: t.id)
-
-    def get(self, toolguide_id: str) -> Toolguide | None:
-        return self._toolguides.get(toolguide_id)
+    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
+        reject_toolguide_inline_refs(data, file_path=str(yaml_file))
 
     def save(self, toolguide: Toolguide) -> Path:
         if self._project_dir is None:
@@ -125,5 +63,5 @@ class ToolguideRepository:
         data = toolguide.model_dump(mode="json", exclude_none=True)
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
-        self._toolguides[toolguide.id] = toolguide
+        self._items[toolguide.id] = toolguide
         return yaml_file

@@ -246,3 +246,106 @@ class TestYAMLWriter:
         governance_content = (charter_dir / "governance.yaml").read_text()
         assert "# Auto-generated from charter.md" in governance_content
         assert "# Run 'spec-kitty charter sync' to regenerate" in governance_content
+
+
+# ---------------------------------------------------------------------------
+# T013: Characterisation tests for _extract_governance field dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestExtractGovernanceDispatch:
+    """T013: Lock observable behaviour of the 6-handler dispatch table.
+
+    Each test exercises exactly one field_name bucket through the full
+    extract pipeline. These tests must pass on unmodified code and must
+    continue to pass after the T014 noqa removal and any T015 refactors.
+    """
+
+    @pytest.fixture
+    def extractor(self) -> Extractor:
+        return Extractor()
+
+    def test_dispatch_testing_handler(self, extractor: Extractor) -> None:
+        """testing field_name → _apply_testing_keywords fires."""
+        content = "## Testing Standards\n90% coverage. TDD required. pytest framework."
+        result = extractor.extract(content)
+        assert result.governance.testing.min_coverage == 90
+        assert result.governance.testing.tdd_required is True
+        assert result.governance.testing.framework == "pytest"
+
+    def test_dispatch_quality_handler(self, extractor: Extractor) -> None:
+        """quality field_name → _apply_quality_keywords fires."""
+        content = "## Code Quality\nruff for linting. 3 approvals required. pre-commit hooks required."
+        result = extractor.extract(content)
+        assert result.governance.quality.linting == "ruff"
+        assert result.governance.quality.pr_approvals == 3
+        assert result.governance.quality.pre_commit_hooks is True
+
+    def test_dispatch_commits_handler(self, extractor: Extractor) -> None:
+        """commits field_name → _apply_commits_keywords fires."""
+        content = "## Commit Guidelines\nWe follow conventional commits for all changes."
+        result = extractor.extract(content)
+        assert result.governance.commits.convention == "conventional"
+
+    def test_dispatch_performance_handler(self, extractor: Extractor) -> None:
+        """performance field_name → _apply_performance_section fires."""
+        content = "## Performance Benchmarks\nCLI operations must complete < 30 seconds."
+        result = extractor.extract(content)
+        assert result.governance.performance.cli_timeout_seconds == 30.0
+
+    def test_dispatch_branch_strategy_handler(self, extractor: Extractor) -> None:
+        """branch_strategy field_name → _apply_branch_strategy_section fires."""
+        # Note: the handler reads the "branch" key (lowercase); headers must match.
+        content = (
+            "## Branch Strategy\n\n"
+            "| branch | policy |\n"
+            "|--------|--------|\n"
+            "| main | protected |\n"
+            "| develop | dev |\n"
+        )
+        result = extractor.extract(content)
+        assert result.governance.branch_strategy.main_branch == "main"
+        assert result.governance.branch_strategy.dev_branch == "develop"
+
+    def test_dispatch_doctrine_handler(self, extractor: Extractor) -> None:
+        """doctrine field_name → _merge_doctrine_selection fires."""
+        content = (
+            "## Paradigm Selection\n\n"
+            "```yaml\n"
+            "selected_paradigms: [test-first]\n"
+            "available_tools: [git, pytest]\n"
+            "```\n"
+        )
+        result = extractor.extract(content)
+        assert "test-first" in result.governance.doctrine.selected_paradigms
+        assert "git" in result.governance.doctrine.available_tools
+
+    def test_dispatch_unknown_section_is_ignored(self, extractor: Extractor) -> None:
+        """Unclassified section heading → no handler fires, schema defaults preserved."""
+        content = "## Unclassified Prose\nSome free-form text with no structured data.\n"
+        result = extractor.extract(content)
+        # Defaults: min_coverage=0, pr_approvals=1, convention=None (see schemas.py)
+        assert result.governance.testing.min_coverage == 0
+        assert result.governance.quality.pr_approvals == 1
+        assert result.governance.commits.convention is None
+
+    def test_dispatch_multiple_handlers_all_fire(self, extractor: Extractor) -> None:
+        """Multiple sections → all relevant handlers fire independently."""
+        content = (
+            "## Testing\n90% coverage. TDD required.\n\n"
+            "## Code Quality\nruff linting. 2 approvals required.\n\n"
+            "## Commit Guidelines\nConventional commits.\n"
+        )
+        result = extractor.extract(content)
+        assert result.governance.testing.min_coverage == 90
+        assert result.governance.quality.linting == "ruff"
+        assert result.governance.commits.convention == "conventional"
+
+    def test_dispatch_non_governance_section_skipped(self, extractor: Extractor) -> None:
+        """Directive sections are schema_name='directives', not 'governance' — skip."""
+        content = "## Project Directives\n1. All code must pass tests.\n2. No direct commits to main.\n"
+        result = extractor.extract(content)
+        # Directive sections must NOT populate governance testing config (stays at default 0)
+        assert result.governance.testing.min_coverage == 0
+        # But they DO populate directives config
+        assert len(result.directives.directives) == 2

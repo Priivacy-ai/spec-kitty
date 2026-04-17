@@ -128,7 +128,7 @@ class APIHandler(DashboardHandler):
                 self._send_json(503, {"error": "sync_daemon_unavailable"})
                 return
             request = _build_sync_trigger_request(status.url, status.token)
-            with urllib.request.urlopen(request, timeout=0.5) as response:
+            with urllib.request.urlopen(request, timeout=0.5) as response:  # nosec B310 — URL is localhost daemon endpoint, scheme is always http://127.0.0.1
                 if response.status not in {200, 202}:
                     self._send_json(500, {"error": "sync_trigger_failed", "status": response.status})
                     return

@@ -13,7 +13,7 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
-from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION, get_project_schema_version
+from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
 from .detector import VersionDetector
 from .metadata import ProjectMetadata

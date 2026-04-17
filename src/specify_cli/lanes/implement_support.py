@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.ownership.models import ExecutionMode
@@ -118,7 +118,7 @@ def create_lane_workspace(
     else:
         # Fresh creation — update frontmatter and create context.
         base_commit_sha = _rev_parse(repo_root, base_branch)
-        created_at = datetime.now(timezone.utc).isoformat()
+        created_at = datetime.now(UTC).isoformat()
 
         from specify_cli.frontmatter import update_fields
 

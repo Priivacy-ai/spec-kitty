@@ -21,7 +21,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -63,7 +63,7 @@ class ReviewLock:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ReviewLock":
+    def from_dict(cls, data: dict[str, Any]) -> ReviewLock:
         return cls(**data)
 
     # ------------------------------------------------------------------
@@ -105,7 +105,7 @@ class ReviewLock:
         lock_path.write_text(json.dumps(self.to_dict(), indent=2))
 
     @classmethod
-    def load(cls, worktree: Path) -> "ReviewLock | None":
+    def load(cls, worktree: Path) -> ReviewLock | None:
         """Load lock from disk.
 
         Returns None if the lock file does not exist or is malformed.
@@ -124,7 +124,7 @@ class ReviewLock:
     # ------------------------------------------------------------------
 
     @classmethod
-    def acquire(cls, worktree: Path, wp_id: str, agent: str) -> "ReviewLock":
+    def acquire(cls, worktree: Path, wp_id: str, agent: str) -> ReviewLock:
         """Acquire a review lock.
 
         Raises ReviewLockError if a lock exists and its process is still alive.
@@ -148,7 +148,7 @@ class ReviewLock:
             worktree_path=str(worktree),
             wp_id=wp_id,
             agent=agent,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
             pid=os.getpid(),
         )
         lock.save(worktree)

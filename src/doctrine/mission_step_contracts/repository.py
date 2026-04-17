@@ -8,19 +8,16 @@ Provides:
 - Save for project step contracts
 """
 
-import warnings
 from pathlib import Path
-from typing import Any
 
 from importlib.resources import files
-from pydantic import ValidationError
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
+from doctrine.base import BaseDoctrineRepository
 from .models import MissionStepContract
 
 
-class MissionStepContractRepository:
+class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract]):
     """Repository for loading and managing mission step contract YAML files."""
 
     GLOB = "*.step-contract.yaml"
@@ -30,10 +27,10 @@ class MissionStepContractRepository:
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
     ) -> None:
-        self._contracts: dict[str, MissionStepContract] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._project_dir = project_dir
-        self._load()
+        super().__init__(
+            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            project_dir=project_dir,
+        )
 
     @staticmethod
     def _default_shipped_dir() -> Path:
@@ -46,77 +43,13 @@ class MissionStepContractRepository:
         except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
-    def _load(self) -> None:
-        """Load contracts from shipped and project directories."""
-        yaml = YAML(typ="safe")
-        shipped: dict[str, MissionStepContract] = {}
+    @property
+    def _schema(self) -> type[MissionStepContract]:
+        return MissionStepContract
 
-        if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.rglob(self.GLOB)):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    contract = MissionStepContract.model_validate(data)
-                    shipped[contract.id] = contract
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid shipped step contract "
-                        f"{yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-        self._contracts = shipped.copy()
-
-        if self._project_dir and self._project_dir.exists():
-            for yaml_file in sorted(self._project_dir.glob(self.GLOB)):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    contract_id = data.get("id")
-                    if not contract_id:
-                        warnings.warn(
-                            f"Skipping project step contract "
-                            f"{yaml_file.name}: no id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    if contract_id in shipped:
-                        merged = self._merge_contracts(
-                            shipped[contract_id], data
-                        )
-                        self._contracts[contract_id] = merged
-                    else:
-                        contract = MissionStepContract.model_validate(data)
-                        self._contracts[contract.id] = contract
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid project step contract "
-                        f"{yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-
-    @staticmethod
-    def _merge_contracts(
-        shipped: MissionStepContract, project_data: dict[str, Any]
-    ) -> MissionStepContract:
-        """Merge project data into shipped contract at field level."""
-        shipped_dict = shipped.model_dump()
-        merged = {**shipped_dict, **project_data}
-        return MissionStepContract.model_validate(merged)
-
-    def list_all(self) -> list[MissionStepContract]:
-        """Return all loaded contracts sorted by ID."""
-        return sorted(self._contracts.values(), key=lambda c: c.id)
-
-    def get(self, contract_id: str) -> MissionStepContract | None:
-        """Get contract by ID."""
-        return self._contracts.get(contract_id)
+    @property
+    def _glob(self) -> str:
+        return self.GLOB
 
     def get_by_action(
         self, mission: str, action: str
@@ -126,7 +59,7 @@ class MissionStepContractRepository:
         Scans all loaded contracts for matching mission + action pair.
         Returns None if no match found.
         """
-        for contract in self._contracts.values():
+        for contract in self._items.values():
             if contract.mission == mission and contract.action == action:
                 return contract
         return None
@@ -157,5 +90,5 @@ class MissionStepContractRepository:
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
 
-        self._contracts[contract.id] = contract
+        self._items[contract.id] = contract
         return yaml_file

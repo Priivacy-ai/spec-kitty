@@ -5,7 +5,7 @@ _detect_current_feature now always returns None; callers must pass --feature exp
 """
 
 import pytest
-from specify_cli.cli.commands.mission import _detect_current_feature
+from specify_cli.cli.commands.mission_type import _detect_current_feature
 
 pytestmark = pytest.mark.fast
 

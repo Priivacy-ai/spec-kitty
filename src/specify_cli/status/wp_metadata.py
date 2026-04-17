@@ -21,6 +21,57 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from specify_cli.status.models import AgentAssignment, Lane
 
 
+def _resolve_agent_fallback(
+    model: str | None,
+    agent_profile: str | None,
+    role: str | None,
+) -> AgentAssignment:
+    """Resolve fallback agent metadata for missing or unsupported agent shapes."""
+    return AgentAssignment(
+        tool="unknown",
+        model=model or "unknown-model",
+        profile_id=agent_profile or None,
+        role=role or None,
+    )
+
+
+def _resolve_agent_from_assignment(agent: AgentAssignment) -> AgentAssignment:
+    """Return an existing AgentAssignment unchanged."""
+    return agent
+
+
+def _resolve_agent_from_string(
+    tool: str,
+    model: str | None,
+    agent_profile: str | None,
+    role: str | None,
+) -> AgentAssignment:
+    """Resolve agent metadata when the agent field is a non-empty string."""
+    fallback = _resolve_agent_fallback(model, agent_profile, role)
+    return AgentAssignment(
+        tool=tool,
+        model=fallback.model,
+        profile_id=fallback.profile_id,
+        role=fallback.role,
+    )
+
+
+def _resolve_agent_from_dict(
+    agent: dict[str, Any],
+    model: str | None,
+    agent_profile: str | None,
+    role: str | None,
+) -> AgentAssignment:
+    """Resolve agent metadata when the agent field is a dict."""
+    fallback = _resolve_agent_fallback(model, agent_profile, role)
+    return AgentAssignment(
+        tool=agent.get("tool") or fallback.tool,
+        model=agent.get("model") or fallback.model,
+        profile_id=agent.get("profile_id") or fallback.profile_id,
+        role=agent.get("role") or fallback.role,
+    )
+
+
 class WPMetadata(BaseModel):
     """Typed schema for WP frontmatter.
 
@@ -189,11 +240,11 @@ class WPMetadata(BaseModel):
         canonical = cls._LANE_ALIASES.get(str(v), str(v))
         try:
             return Lane(canonical)
-        except ValueError:
+        except ValueError as err:
             valid = ", ".join(lane.value for lane in Lane)
             raise ValueError(
                 f"Invalid lane value: {v!r}. Must be one of: {valid}"
-            )
+            ) from err
 
     # ── Computed properties ──────────────────────────────────────
 
@@ -228,45 +279,29 @@ class WPMetadata(BaseModel):
         Returns:
             AgentAssignment with all resolved values (no None fields except optional ones)
         """
-        # Step 1: If already AgentAssignment, return it
         if isinstance(self.agent, AgentAssignment):
-            return self.agent
-
-        # Step 2-4: Extract from string/dict/None
-        tool: str | None = None
-        model: str | None = None
-        profile_id: str | None = None
-        role_val: str | None = None
+            return _resolve_agent_from_assignment(self.agent)
 
         if isinstance(self.agent, str) and self.agent:
-            tool = self.agent
-            model = self.model or "unknown-model"
-        elif isinstance(self.agent, dict):
-            tool = self.agent.get("tool") or None
-            model = self.agent.get("model") or None
-            profile_id = self.agent.get("profile_id") or None
-            role_val = self.agent.get("role") or None
-        else:
-            # None, empty string, or unrecognized type
-            tool = "unknown"
-            model = self.model or "unknown-model"
+            return _resolve_agent_from_string(
+                self.agent,
+                self.model,
+                self.agent_profile,
+                self.role,
+            )
 
-        # Step 5-7: Fallback and normalize
-        if not profile_id:
-            profile_id = self.agent_profile or None
-        if not role_val:
-            role_val = self.role or None
+        if isinstance(self.agent, dict):
+            return _resolve_agent_from_dict(
+                self.agent,
+                self.model,
+                self.agent_profile,
+                self.role,
+            )
 
-        if not tool:
-            tool = "unknown"
-        if not model:
-            model = self.model or "unknown-model"
-
-        return AgentAssignment(
-            tool=tool,
-            model=model,
-            profile_id=profile_id,
-            role=role_val,
+        return _resolve_agent_fallback(
+            self.model,
+            self.agent_profile,
+            self.role,
         )
 
     # ── Immutable update API ───────────────────────────────────

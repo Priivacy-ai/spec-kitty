@@ -21,9 +21,8 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -628,6 +627,7 @@ def start_implementation(
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
+    from specify_cli.status.models import TransitionRequest
 
     snapshot = materialize(mission_dir)
     wp_snapshot = snapshot.work_packages.get(wp, {})
@@ -641,24 +641,24 @@ def start_implementation(
     try:
         if state.lane == Lane.PLANNED:
             # Composite: planned -> claimed -> in_progress
-            emit_status_transition(
-                mission_dir,
-                mission,
-                wp,
-                Lane.CLAIMED,
-                actor,
+            emit_status_transition(TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=Lane.CLAIMED,
+                actor=actor,
                 policy_metadata=policy_dict,
-            )
-            emit_status_transition(
-                mission_dir,
-                mission,
-                wp,
-                Lane.IN_PROGRESS,
-                actor,
+            ))
+            emit_status_transition(TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=Lane.IN_PROGRESS,
+                actor=actor,
                 workspace_context=workspace_path,
                 execution_mode="worktree",
                 policy_metadata=policy_dict,
-            )
+            ))
             from_lane_reported = Lane.PLANNED
             no_op = False
 
@@ -675,16 +675,16 @@ def start_implementation(
                     },
                 )
                 return
-            emit_status_transition(
-                mission_dir,
-                mission,
-                wp,
-                Lane.IN_PROGRESS,
-                actor,
+            emit_status_transition(TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=Lane.IN_PROGRESS,
+                actor=actor,
                 workspace_context=workspace_path,
                 execution_mode="worktree",
                 policy_metadata=policy_dict,
-            )
+            ))
             from_lane_reported = Lane.CLAIMED
             no_op = False
 
@@ -775,6 +775,7 @@ def start_review(
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
+    from specify_cli.status.models import TransitionRequest
 
     snapshot = materialize(mission_dir)
     wp_snapshot = snapshot.work_packages.get(wp, {})
@@ -783,16 +784,16 @@ def start_review(
     prompt_path = str(wp_path)
 
     try:
-        emit_status_transition(
-            mission_dir,
-            mission,
-            wp,
-            Lane.IN_REVIEW,
-            actor,
+        emit_status_transition(TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission,
+            wp_id=wp,
+            to_lane=Lane.IN_REVIEW,
+            actor=actor,
             review_ref=review_ref,
             execution_mode="worktree",
             policy_metadata=policy_dict,
-        )
+        ))
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
@@ -890,18 +891,19 @@ def transition(
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
+    from specify_cli.status.models import TransitionRequest
 
     snapshot = materialize(mission_dir)
     wp_snapshot = snapshot.work_packages.get(wp, {})
     from_lane = wp_snapshot.get("lane", Lane.PLANNED)
 
     try:
-        emit_status_transition(
-            mission_dir,
-            mission,
-            wp,
-            to_lane,
-            actor,
+        emit_status_transition(TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission,
+            wp_id=wp,
+            to_lane=to_lane,
+            actor=actor,
             reason=note,
             force=force,
             evidence=evidence,
@@ -910,7 +912,7 @@ def transition(
             implementation_evidence_present=implementation_evidence_present,
             execution_mode="worktree",
             policy_metadata=policy_dict,
-        )
+        ))
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
@@ -964,7 +966,7 @@ def append_history(
     raw = wp_path.read_text(encoding="utf-8")
     fm, body, padding = split_frontmatter(raw)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     entry_text = f"- [{timestamp}] {actor}: {note}"
     new_body = append_activity_log(body, entry_text)
 
@@ -1034,7 +1036,7 @@ def accept_mission(
     # Write acceptance record via centralized metadata writer
     from specify_cli.mission_metadata import record_acceptance
 
-    accepted_at = datetime.now(timezone.utc).isoformat()
+    accepted_at = datetime.now(UTC).isoformat()
     record_acceptance(
         mission_dir,
         accepted_by=actor,

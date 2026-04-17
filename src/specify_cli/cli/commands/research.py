@@ -9,7 +9,6 @@ from typing import Optional
 import typer
 from rich.panel import Panel
 
-from specify_cli.acceptance import AcceptanceError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
@@ -21,12 +20,12 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    mission: Optional[str] = typer.Option(
+    mission: str | None = typer.Option(
         None,
         "--mission",
         help="Mission slug to target",
     ),
-    feature: Optional[str] = typer.Option(
+    feature: str | None = typer.Option(
         None,
         "--feature",
         hidden=True,

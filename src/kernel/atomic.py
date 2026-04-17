@@ -38,10 +38,10 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
         with os.fdopen(fd, "wb") as f:
             f.write(raw)
         # fd is now closed by the context manager
-        os.replace(tmp_path, str(path))
+        Path(tmp_path).replace(path)
     except BaseException:
         with contextlib.suppress(OSError):
             os.close(fd)
         with contextlib.suppress(OSError):
-            os.unlink(tmp_path)
+            Path(tmp_path).unlink()
         raise

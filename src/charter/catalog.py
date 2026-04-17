@@ -192,6 +192,8 @@ def _load_yaml_id_catalog(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
+        include_proposed: Whether `_proposed/` artifacts should be included in
+                  addition to `shipped/` artifacts. Defaults to shipped-only.
     """
     ids, _ = _load_yaml_id_catalog_with_presence(
         directory,
@@ -201,6 +203,79 @@ def _load_yaml_id_catalog(
         active_languages=active_languages,
     )
     return ids
+
+
+def _extract_artifact_id(
+    path: Path,
+    id_field: str,
+    active_languages: list[str] | tuple[str, ...] | None,
+    yaml: object,
+) -> str | None:
+    """Return the artifact ID from a single YAML file, or None to skip."""
+    try:
+        data = yaml.load(path.read_text(encoding="utf-8")) or {}  # type: ignore[attr-defined]
+    except (OSError, YAMLError, TypeError):
+        return None
+    if isinstance(data, dict) and not applies_to_languages_match(
+        data.get("applies_to_languages"), active_languages
+    ):
+        return None
+    if isinstance(data, dict):
+        raw_id = str(data.get(id_field, "")).strip()
+        if raw_id:
+            return raw_id
+    fallback = path.stem.split(".")[0].strip()
+    return fallback or None
+
+
+def _collect_ids_from_roots(
+    scan_roots: list[Path],
+    pattern: str,
+    id_field: str,
+    active_languages: list[str] | tuple[str, ...] | None = None,
+) -> set[str]:
+    """Collect artifact IDs from one or more scan roots.
+
+    Args:
+        scan_roots: Directories to scan (shipped/ and/or _proposed/).
+        pattern: Glob pattern for artifact files (supports ``**``).
+        id_field: YAML key containing the artifact ID.
+
+    Returns:
+        Set of discovered IDs (falls back to stem when YAML id_field is absent).
+    """
+    yaml = YAML(typ="safe")
+    ids: set[str] = set()
+    for scan_root in scan_roots:
+        for path in sorted(scan_root.glob(pattern)):
+            artifact_id = _extract_artifact_id(path, id_field, active_languages, yaml)
+            if artifact_id:
+                ids.add(artifact_id)
+    return ids
+
+
+def _resolve_scan_roots(
+    directory: Path,
+    *,
+    include_proposed: bool,
+) -> tuple[list[Path], bool]:
+    """Determine which subdirectories to scan and whether the domain is present.
+
+    Returns:
+        Tuple of (scan_roots, present).  ``present`` is ``True`` whenever the
+        shipped/ or _proposed/ subdirectory exists, or the directory itself is
+        a valid flat layout.
+    """
+    shipped_dir = directory / "shipped"
+    proposed_dir = directory / "_proposed"
+    if shipped_dir.is_dir() or proposed_dir.is_dir():
+        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
+        if include_proposed and proposed_dir.is_dir():
+            scan_roots.append(proposed_dir)
+        return scan_roots, True
+
+    # Preserve generic helper behavior for tests or flat directories.
+    return [directory], True
 
 
 def _load_yaml_id_catalog_with_presence(
@@ -226,48 +301,19 @@ def _load_yaml_id_catalog_with_presence(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
+        include_proposed: Whether `_proposed/` artifacts should be included in
+                  addition to ``shipped/`` artifacts. Defaults to shipped-only.
     """
     if not directory.is_dir():
         return set(), False
 
-    shipped_dir = directory / "shipped"
-    proposed_dir = directory / "_proposed"
-    if shipped_dir.is_dir() or proposed_dir.is_dir():
-        # Structured layout: domain is present regardless of content.
-        present = True
-        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
-        if include_proposed and proposed_dir.is_dir():
-            scan_roots.append(proposed_dir)
-    else:
-        # Preserve generic helper behavior for tests or flat directories.
-        present = True
-        scan_roots = [directory]
-
-    yaml = YAML(typ="safe")
-    ids: set[str] = set()
-    for scan_root in scan_roots:
-        for path in sorted(scan_root.glob(pattern)):
-            try:
-                data = yaml.load(path.read_text(encoding="utf-8")) or {}
-            except (OSError, YAMLError, TypeError):
-                continue
-
-            if isinstance(data, dict) and not applies_to_languages_match(
-                data.get("applies_to_languages"),
-                active_languages,
-            ):
-                continue
-
-            if isinstance(data, dict):
-                raw_id = str(data.get(id_field, "")).strip()
-                if raw_id:
-                    ids.add(raw_id)
-                    continue
-
-            fallback = path.stem.split(".")[0].strip()
-            if fallback:
-                ids.add(fallback)
-
+    scan_roots, present = _resolve_scan_roots(directory, include_proposed=include_proposed)
+    ids = _collect_ids_from_roots(
+        scan_roots,
+        pattern,
+        id_field,
+        active_languages,
+    )
     return ids, present
 
 

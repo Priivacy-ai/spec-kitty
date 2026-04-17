@@ -10,8 +10,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from specify_cli.charter.context import build_charter_context
-from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
+from charter.context import build_charter_context
+from charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -149,7 +149,7 @@ def _build_wp_prompt(
 
     # WP isolation rules
     lines.append("=" * 78)
-    lines.append(f"  CRITICAL: WORK PACKAGE ISOLATION RULES")
+    lines.append("  CRITICAL: WORK PACKAGE ISOLATION RULES")
     lines.append("=" * 78)
     lines.append(f"  YOU ARE {'IMPLEMENTING' if action == 'implement' else 'REVIEWING'}: {wp_id}")
     lines.append("")
@@ -164,7 +164,7 @@ def _build_wp_prompt(
     lines.append("")
 
     # Working directory
-    lines.append(f"WORKING DIRECTORY:")
+    lines.append("WORKING DIRECTORY:")
     lines.append(f"  cd {workspace_path}")
     if not workspace.lane_id:
         lines.append("  # Planning-artifact work for this WP happens in the repository root")

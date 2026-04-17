@@ -8,7 +8,7 @@ Outbound SaaS payload contract (FR-024, ADR 2026-04-09-1, WP06):
 
     ``aggregate_id``   — mission_id (ULID) — primary join key for SaaS
     ``payload.mission_id``     — same ULID, for payload-level consumers
-    ``payload.mission_slug``   — human slug (display only)
+    ``payload.mission_slug``   — human slug (display / backward compat)
     ``payload.mission_number`` — int | None (None for pre-merge missions)
 
   WP-level event emitters (WPStatusChanged, WPCreated, WPAssigned,
@@ -28,7 +28,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 _console = Console(stderr=True)
 
 
-def _get_project_identity() -> "ProjectIdentity":
+def _get_project_identity() -> ProjectIdentity:
     """Lazily load and resolve project identity.
 
     Uses lazy import to prevent circular dependency issues.
@@ -68,7 +68,7 @@ def _get_project_identity() -> "ProjectIdentity":
     return ensure_identity(repo_root)
 
 
-def _create_git_resolver() -> "GitMetadataResolver":
+def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
     from .project_identity import ensure_identity
@@ -358,10 +358,10 @@ class EventEmitter:
     queue: OfflineQueue = field(default_factory=OfflineQueue)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _pending_tasks: set = field(default_factory=set, repr=False)
-    _identity: "ProjectIdentity | None" = field(default=None, repr=False)
-    _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
+    _identity: ProjectIdentity | None = field(default=None, repr=False)
+    _git_resolver: GitMetadataResolver | None = field(default=None, repr=False)
 
-    def _get_identity(self) -> "ProjectIdentity":
+    def _get_identity(self) -> ProjectIdentity:
         """Get cached project identity, lazily loading on first access.
 
         Identity is resolved once per emitter lifetime to avoid repeated I/O.
@@ -370,7 +370,7 @@ class EventEmitter:
             self._identity = _get_project_identity()
         return self._identity
 
-    def _get_git_metadata(self) -> "GitMetadata":
+    def _get_git_metadata(self) -> GitMetadata:
         """Get per-event git metadata via cached resolver.
 
         Never raises: returns GitMetadata with None fields on any error.
@@ -584,35 +584,44 @@ class EventEmitter:
     def emit_mission_created(
         self,
         mission_slug: str,
-        mission_id: str,
         mission_number: int | None,
         target_branch: str,
         wp_count: int,
         created_at: str | None = None,
         causation_id: str | None = None,
+        mission_id: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit MissionCreated event (FR-011, FR-024).
 
-        ``mission_id`` (ULID from meta.json) is the canonical aggregate identity
-        and the primary join key for SaaS-side event routing (ADR 2026-04-09-1).
+        ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
+        ``aggregate_id`` is set to ``mission_id`` when provided, enabling the SaaS
+        side to join events without relying on mutable slug strings (ADR 2026-04-09-1).
 
         Payload always includes:
-          - ``mission_id``     — ULID primary key (equals aggregate_id)
+          - ``mission_id``     — ULID primary key (equals aggregate_id when present)
           - ``mission_slug``   — human display string (never used as join key)
           - ``mission_number`` — int | None (None for pre-merge, int for post-merge)
         """
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
-            "mission_id": mission_id,
             "mission_number": mission_number,
             "target_branch": target_branch,
             "wp_count": wp_count,
         }
         if created_at is not None:
             payload["created_at"] = created_at
+        # mission_id is the aggregate identity (FR-024).  Always include in
+        # payload when present so SaaS consumers see both the join key and
+        # display slug.  aggregate_id switches from mission_slug → mission_id
+        # when mission_id is available; legacy call sites that omit mission_id
+        # fall back to mission_slug for backward compat during the drift window.
+        effective_aggregate_id = mission_slug
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
+            effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionCreated",
-            aggregate_id=mission_id,
+            aggregate_id=effective_aggregate_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -621,33 +630,37 @@ class EventEmitter:
     def emit_mission_closed(
         self,
         mission_slug: str,
-        mission_id: str,
         total_wps: int,
         completed_at: str | None = None,
         total_duration: str | None = None,
         causation_id: str | None = None,
+        mission_id: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit MissionClosed event (FR-012, FR-024).
 
-        ``mission_id`` (ULID from meta.json) is the canonical aggregate identity
-        and the primary join key for SaaS-side event routing (ADR 2026-04-09-1).
+        ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
+        ``aggregate_id`` is set to ``mission_id`` when provided (ADR 2026-04-09-1).
 
         Payload always includes:
-          - ``mission_id``   — ULID primary key (equals aggregate_id)
-          - ``mission_slug`` — human display string (never used as join key)
+          - ``mission_id``   — ULID primary key (when present)
+          - ``mission_slug`` — human display string (backward compat)
         """
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
-            "mission_id": mission_id,
             "total_wps": total_wps,
         }
         if completed_at is not None:
             payload["completed_at"] = completed_at
         if total_duration is not None:
             payload["total_duration"] = total_duration
+        # mission_id is the aggregate identity (FR-024).
+        effective_aggregate_id = mission_slug
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
+            effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionClosed",
-            aggregate_id=mission_id,
+            aggregate_id=effective_aggregate_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -731,35 +744,39 @@ class EventEmitter:
     def emit_mission_origin_bound(
         self,
         mission_slug: str,
-        mission_id: str,
         provider: str,
         external_issue_id: str,
         external_issue_key: str,
         external_issue_url: str,
         title: str,
         causation_id: str | None = None,
+        mission_id: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit MissionOriginBound event (observational telemetry, FR-024).
 
-        ``mission_id`` (ULID from meta.json) is the canonical aggregate identity
-        and the primary join key for SaaS-side event routing (ADR 2026-04-09-1).
+        ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
+        ``aggregate_id`` is set to ``mission_id`` when provided (ADR 2026-04-09-1).
 
         Payload always includes:
-          - ``mission_id``   — ULID primary key (equals aggregate_id)
-          - ``mission_slug`` — human display string (never used as join key)
+          - ``mission_id``   — ULID primary key (when present)
+          - ``mission_slug`` — human display string (backward compat)
         """
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
-            "mission_id": mission_id,
             "provider": provider,
             "external_issue_id": external_issue_id,
             "external_issue_key": external_issue_key,
             "external_issue_url": external_issue_url,
             "title": title,
         }
+        # mission_id is the aggregate identity (FR-024).
+        effective_aggregate_id = mission_slug
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
+            effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionOriginBound",
-            aggregate_id=mission_id,
+            aggregate_id=effective_aggregate_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -804,7 +821,7 @@ class EventEmitter:
                 "node_id": self.clock.node_id,
                 "lamport_clock": clock_value,
                 "causation_id": causation_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
                 "project_slug": identity.project_slug,

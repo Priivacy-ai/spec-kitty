@@ -1,7 +1,11 @@
-"""Mission framework package."""
+"""Backward-compatibility shim for specify_cli.missions.
 
-from .primitives import PrimitiveExecutionContext
-from .glossary_hook import execute_with_glossary
+The canonical implementation is in doctrine.missions.
+This package re-exports the public surface so that existing
+callers continue to work without modification (C-006).
+"""
+
+from doctrine.missions import PrimitiveExecutionContext, execute_with_glossary
 
 __all__ = [
     "PrimitiveExecutionContext",

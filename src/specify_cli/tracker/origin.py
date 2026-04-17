@@ -219,9 +219,6 @@ def bind_mission_origin(
     mission_slug = meta.get("mission_slug")
     if not mission_slug:
         raise OriginBindingError(f"meta.json in {feature_dir} missing mission_slug")
-    mission_id = meta.get("mission_id")
-    if not mission_id:
-        raise OriginBindingError(f"meta.json in {feature_dir} missing mission_id")
 
     # 2. Resolve project_slug from tracker config
     #    Walk up from feature_dir to find .kittify/config.yaml
@@ -267,7 +264,6 @@ def bind_mission_origin(
         emitter = get_emitter()
         emitter.emit_mission_origin_bound(
             mission_slug=mission_slug,
-            mission_id=mission_id,
             provider=provider,
             external_issue_id=candidate.external_issue_id,
             external_issue_key=candidate.external_issue_key,

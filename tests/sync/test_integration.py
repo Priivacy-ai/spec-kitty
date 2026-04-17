@@ -177,7 +177,6 @@ class TestMultiEventBatch:
         # Emit MissionCreated
         fc = emitter.emit_mission_created(
             mission_slug="028-cli-event-emission-sync",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=28,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=3,

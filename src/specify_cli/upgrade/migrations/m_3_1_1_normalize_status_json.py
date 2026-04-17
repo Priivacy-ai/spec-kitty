@@ -49,7 +49,7 @@ def _needs_normalisation(feature_dir: Path) -> bool:
         actual = json.loads(status_path.read_text(encoding="utf-8"))
         snapshot = reduce(read_events(feature_dir))
         expected_materialized_at = snapshot.materialized_at
-        return actual.get("materialized_at") != expected_materialized_at
+        return bool(actual.get("materialized_at") != expected_materialized_at)
     except Exception:
         return False
 

@@ -63,16 +63,14 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/resolution.py",
         # Producers (they WRITE, not read manifest derivatives)
         "src/charter/extractor.py",
-        "src/specify_cli/charter/extractor.py",
         # Compiler pipeline (C-012 — references.yaml, out of v1.0.0 scope)
         "src/charter/compiler.py",
-        "src/specify_cli/charter/compiler.py",
         # metadata.yaml hash-reader used by the chokepoint itself
         "src/charter/hasher.py",
-        "src/specify_cli/charter/hasher.py",
         # Schema definitions — string literals only
         "src/charter/schemas.py",
-        "src/specify_cli/charter/schemas.py",
+        # Note: specify_cli/charter/ internals deleted by WP05; only __init__.py
+        # shim remains and it imports from charter.* rather than reading derivatives.
         # Future bootstrap migration
         "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py",
     }

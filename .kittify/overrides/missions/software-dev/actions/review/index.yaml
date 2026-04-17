@@ -1,0 +1,11 @@
+action: review
+directives:
+  - 010-specification-fidelity-requirement
+  - 030-test-and-typecheck-quality-gate
+tactics:
+  - review-intent-and-risk-first
+  - quality-gate-verification
+  - stopping-conditions
+styleguides: []
+toolguides: []
+procedures: []

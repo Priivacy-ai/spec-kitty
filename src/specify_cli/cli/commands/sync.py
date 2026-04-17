@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -41,12 +41,11 @@ _STATUS_REFRESH_TOKEN_LABEL = "Refresh token"
 _STATUS_LAST_SYNC_LABEL = "Last Sync"
 
 
-def humanize_timedelta(td: "timedelta") -> str:
+def humanize_timedelta(td: timedelta) -> str:
     """Convert a timedelta into a concise human-readable string.
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
     """
-    from datetime import timedelta  # noqa: F811 - local re-import for type narrowing
 
     total_seconds = int(td.total_seconds())
     if total_seconds < 0:
@@ -348,7 +347,7 @@ def sync_workspace(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Backend:[/cyan] git")
+    console.print("[cyan]Backend:[/cyan] git")
     console.print()
 
     # Handle repair mode
@@ -413,7 +412,7 @@ def sync_workspace(
             _display_changes_integrated(result.changes_integrated)
 
     elif result.status == SyncStatus.FAILED:
-        console.print(f"\n[red]✗ Sync failed[/red]")
+        console.print("\n[red]✗ Sync failed[/red]")
         if result.message:
             console.print(f"[dim]{result.message}[/dim]")
 
@@ -591,7 +590,7 @@ def sync_server(
 
 @app.command()
 def now(
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None,
         "--report",
         help="Export per-event failure details to a JSON file",
@@ -879,7 +878,7 @@ def doctor() -> None:
     Examples:
         spec-kitty sync doctor
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
 
     from specify_cli.auth import get_token_manager
     from specify_cli.sync.config import SyncConfig
@@ -937,7 +936,7 @@ def doctor() -> None:
         access_exp_dt = session.access_token_expires_at
         refresh_exp_dt = session.refresh_token_expires_at
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         access_ok = access_exp_dt is not None and access_exp_dt > now
         refresh_ok = (

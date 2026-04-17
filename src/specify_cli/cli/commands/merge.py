@@ -149,7 +149,7 @@ def _mark_wp_merged_done(
 
     metadata, _body = read_wp_frontmatter(wp_path)
     from specify_cli.status.lane_reader import get_wp_lane
-    from specify_cli.status.models import DoneEvidence, ReviewApproval
+    from specify_cli.status.models import DoneEvidence, ReviewApproval, TransitionRequest
     from specify_cli.status.emit import emit_status_transition, TransitionError
     from specify_cli.status.history_parser import extract_done_evidence
     from specify_cli.status.transitions import resolve_lane_alias

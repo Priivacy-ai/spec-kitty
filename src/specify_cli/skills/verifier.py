@@ -7,6 +7,7 @@ import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -226,7 +227,7 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
     return compute_content_hash(source_path)
 
 
-def _sync_skill_to_global_root(skill, global_root: Path) -> None:
+def _sync_skill_to_global_root(skill: Any, global_root: Path) -> None:
     """Refresh one global canonical skill directory before relinking a project file."""
     dest_dir = global_root / skill.name
     dest_dir.parent.mkdir(parents=True, exist_ok=True)

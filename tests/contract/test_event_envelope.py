@@ -64,7 +64,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -76,7 +75,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -89,7 +87,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -101,7 +98,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -113,7 +109,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -126,7 +121,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -143,7 +137,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -155,7 +148,6 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=64,
             target_branch="main",
             wp_count=3,
@@ -172,7 +164,6 @@ class TestMissionClosedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_closed(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             total_wps=5,
         )
         assert event is not None
@@ -182,7 +173,6 @@ class TestMissionClosedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_closed(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             total_wps=5,
         )
         assert event is not None
@@ -192,7 +182,6 @@ class TestMissionClosedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_closed(
             mission_slug="064-test-mission",
-            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             total_wps=5,
         )
         assert event is not None

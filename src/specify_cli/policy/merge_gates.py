@@ -13,7 +13,7 @@ failures exist.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -104,7 +104,7 @@ def evaluate_merge_gates(
     """
     evaluation = MergeGateEvaluation(
         mission_slug=mission_slug,
-        evaluated_at=datetime.now(timezone.utc).isoformat(),
+        evaluated_at=datetime.now(UTC).isoformat(),
     )
     identity = resolve_mission_identity(feature_dir)
     evaluation.mission_slug = identity.mission_slug

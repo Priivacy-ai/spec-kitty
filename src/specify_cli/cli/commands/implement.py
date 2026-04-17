@@ -28,7 +28,7 @@ from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.workspace_context import resolve_workspace_for_wp
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
@@ -61,7 +61,6 @@ def _json_safe_output(func):
     def wrapper(*args, **kwargs):
         json_output = bool(kwargs.get("json_output", False))
         previous_quiet = console.quiet
-        previous_file = console.file
         capture_buffer: StringIO | None = None
         if json_output:
             capture_buffer = StringIO()
@@ -434,7 +433,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     """
     from specify_cli.core.agent_config import get_auto_commit_default
     from specify_cli.core.dependency_graph import parse_wp_dependencies
-    from specify_cli.sync.events import emit_wp_status_changed
 
     if recover:
         _run_recover_mode(wp_id, mission, feature, json_output)
@@ -583,7 +581,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             update_fields(wp_file, {"shell_pid": shell_pid})
 
             try:
-                emit_status_transition(
+                emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=wp_id,
@@ -591,8 +589,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     actor="implement-command",
                     execution_mode=status_execution_mode,
                     repo_root=repo_root,
-                )
-                emit_status_transition(
+                ))
+                emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=wp_id,
@@ -600,7 +598,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     actor="implement-command",
                     execution_mode=status_execution_mode,
                     repo_root=repo_root,
-                )
+                ))
             except Exception as exc:
                 console.print(f"[red]Error:[/red] Could not emit canonical status transition: {exc}")
                 raise typer.Exit(1) from exc

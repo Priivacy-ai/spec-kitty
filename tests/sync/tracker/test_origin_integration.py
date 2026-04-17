@@ -116,7 +116,6 @@ def feature_dir_with_meta(repo_with_tracker: Path) -> Path:
         "mission_number": "061",
         "slug": "test-feature",
         "mission_slug": "061-test-feature",
-        "mission_id": "01KNRQK0R1ZDS8Z57M1TRXF001",
         "friendly_name": "Test Feature",
         "mission_type": "software-dev",
         "target_branch": "main",

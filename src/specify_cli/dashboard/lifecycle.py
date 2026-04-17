@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import secrets
 import socket
 import time
@@ -43,17 +42,17 @@ class DashboardStatus:
     """Observed state of the per-project dashboard daemon."""
 
     healthy: bool
-    url: Optional[str] = None
-    port: Optional[int] = None
-    token: Optional[str] = None
-    pid: Optional[int] = None
+    url: str | None = None
+    port: int | None = None
+    token: str | None = None
+    pid: int | None = None
     sync_running: bool = False
-    last_sync: Optional[str] = None
+    last_sync: str | None = None
     consecutive_failures: int = 0
     websocket_status: str = "Offline"
 
 
-def _parse_dashboard_file(dashboard_file: Path) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int]]:
+def _parse_dashboard_file(dashboard_file: Path) -> tuple[str | None, int | None, str | None, int | None]:
     """Read dashboard metadata from disk.
 
     Format:
@@ -98,8 +97,8 @@ def _write_dashboard_file(
     dashboard_file: Path,
     url: str,
     port: int,
-    token: Optional[str],
-    pid: Optional[int] = None,
+    token: str | None,
+    pid: int | None = None,
 ) -> None:
     """Persist dashboard metadata to disk.
 
@@ -167,12 +166,10 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
 def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None:
     """Fetch and decode a JSON dashboard payload, returning None on failure."""
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310 — URL is always localhost daemon health endpoint
             if response.status != 200:
                 return None
             payload = response.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError, socket.error):
-        return None
     except Exception:
         return None
 
@@ -201,7 +198,7 @@ def _fetch_dashboard_features_payload(port: int, timeout: float = 0.5) -> dict |
 def _check_dashboard_bootstrap(
     port: int,
     project_dir: Path,
-    expected_token: Optional[str],
+    expected_token: str | None,
     timeout: float = 0.5,
 ) -> bool:
     """Verify that the dashboard can satisfy the browser bootstrap contract."""
@@ -274,7 +271,7 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
 def _check_dashboard_health(
     port: int,
     project_dir: Path,
-    expected_token: Optional[str],
+    expected_token: str | None,
     timeout: float = 0.5,
 ) -> bool:
     """Verify that the dashboard on the port belongs to the provided project."""
@@ -369,9 +366,9 @@ def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardSt
 
 def ensure_dashboard_running(
     project_dir: Path,
-    preferred_port: Optional[int] = None,
+    preferred_port: int | None = None,
     background_process: bool = True,
-) -> Tuple[str, int, bool]:
+) -> tuple[str, int, bool]:
     """
     Ensure a dashboard server is running for the provided project directory.
 
@@ -527,7 +524,7 @@ def ensure_dashboard_running(
     raise RuntimeError(f"Dashboard failed to start on port {port} for project {project_dir_resolved}")
 
 
-def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
+def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
     """
     Attempt to stop the dashboard server for the provided project directory.
 
@@ -553,14 +550,14 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
 
     shutdown_url = f"http://127.0.0.1:{port}/api/shutdown"
 
-    def _attempt_get() -> Tuple[bool, Optional[str]]:
+    def _attempt_get() -> tuple[bool, str | None]:
         params = {}
         if token:
             params['token'] = token
         query = urllib.parse.urlencode(params)
         request_url = f"{shutdown_url}?{query}" if query else shutdown_url
         try:
-            urllib.request.urlopen(request_url, timeout=1)
+            urllib.request.urlopen(request_url, timeout=1)  # nosec B310 — URL is localhost dashboard shutdown endpoint
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:
@@ -568,12 +565,12 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
             if exc.code in (404, 405, 501):
                 return False, None
             return False, f"Dashboard shutdown failed with HTTP {exc.code}."
-        except (urllib.error.URLError, TimeoutError, ConnectionError, socket.error) as exc:
+        except OSError as exc:
             return False, f"Dashboard shutdown request failed: {exc}"
         except Exception as exc:
             return False, f"Unexpected error during shutdown: {exc}"
 
-    def _attempt_post() -> Tuple[bool, Optional[str]]:
+    def _attempt_post() -> tuple[bool, str | None]:
         payload = json.dumps({'token': token}).encode('utf-8')
         request = urllib.request.Request(
             shutdown_url,
@@ -582,7 +579,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
             method='POST',
         )
         try:
-            urllib.request.urlopen(request, timeout=1)
+            urllib.request.urlopen(request, timeout=1)  # nosec B310 — URL is localhost dashboard control endpoint
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:
@@ -590,7 +587,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
             if exc.code == 501:
                 return False, "Dashboard does not support remote shutdown (upgrade required)."
             return False, f"Dashboard shutdown failed with HTTP {exc.code}."
-        except (urllib.error.URLError, TimeoutError, ConnectionError, socket.error) as exc:
+        except OSError as exc:
             return False, f"Dashboard shutdown request failed: {exc}"
         except Exception as exc:
             return False, f"Unexpected error during shutdown: {exc}"
@@ -600,59 +597,61 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
     if not ok and error_message is None:
         ok, error_message = _attempt_post()
 
-    # If HTTP shutdown failed but we have a PID, try killing the process
     if not ok and pid is not None:
-        try:
-            proc = psutil.Process(pid)
-
-            # Try graceful termination first (SIGTERM on POSIX, equivalent on Windows)
-            proc.terminate()
-
-            # Wait up to 3 seconds for graceful shutdown
-            try:
-                proc.wait(timeout=3.0)
-                # Process exited gracefully
-                dashboard_file.unlink(missing_ok=True)
-                return True, f"Dashboard stopped via process termination (PID {pid})."
-            except psutil.TimeoutExpired:
-                # Timeout expired, process still running, force kill
-                proc.kill()
-                time.sleep(0.2)
-                dashboard_file.unlink(missing_ok=True)
-                return True, f"Dashboard force killed after graceful termination timeout (PID {pid})."
-
-        except psutil.NoSuchProcess:
-            # Process already dead (common race condition)
-            dashboard_file.unlink(missing_ok=True)
-            return True, f"Dashboard was already dead (PID {pid})."
-        except psutil.AccessDenied:
-            # Can't access process (permissions issue)
-            return False, f"Permission denied to kill dashboard process (PID {pid})."
-        except Exception as e:
-            # Unexpected error
-            logger.error(f"Unexpected error stopping dashboard process {pid}: {e}")
-            return False, f"Failed to kill dashboard process (PID {pid}): {e}"
+        return _terminate_by_pid(pid, dashboard_file)
 
     if not ok:
         return False, error_message or "Dashboard shutdown failed."
 
-    # Wait for graceful shutdown to complete
+    return _wait_for_shutdown(port, project_dir_resolved, token, pid, dashboard_file, timeout)
+
+
+def _terminate_by_pid(pid: int, dashboard_file: Path) -> tuple[bool, str]:
+    """Attempt graceful SIGTERM then SIGKILL for a known PID."""
+    try:
+        proc = psutil.Process(pid)
+        proc.terminate()
+        try:
+            proc.wait(timeout=3.0)
+            dashboard_file.unlink(missing_ok=True)
+            return True, f"Dashboard stopped via process termination (PID {pid})."
+        except psutil.TimeoutExpired:
+            proc.kill()
+            time.sleep(0.2)
+            dashboard_file.unlink(missing_ok=True)
+            return True, f"Dashboard force killed after graceful termination timeout (PID {pid})."
+    except psutil.NoSuchProcess:
+        dashboard_file.unlink(missing_ok=True)
+        return True, f"Dashboard was already dead (PID {pid})."
+    except psutil.AccessDenied:
+        return False, f"Permission denied to kill dashboard process (PID {pid})."
+    except Exception as e:
+        logger.error(f"Unexpected error stopping dashboard process {pid}: {e}")
+        return False, f"Failed to kill dashboard process (PID {pid}): {e}"
+
+
+def _wait_for_shutdown(
+    port: int,
+    project_dir: Path,
+    token: str | None,
+    pid: int | None,
+    dashboard_file: Path,
+    timeout: float,
+) -> tuple[bool, str]:
+    """Poll until the dashboard stops responding, then clean up or force-kill."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if not _check_dashboard_health(port, project_dir_resolved, token):
+        if not _check_dashboard_health(port, project_dir, token):
             dashboard_file.unlink(missing_ok=True)
             return True, f"Dashboard stopped and metadata cleared (port {port})."
         time.sleep(0.1)
 
-    # Timeout - try killing by PID as last resort
     if pid is not None:
         try:
-            proc = psutil.Process(pid)
-            proc.kill()
+            psutil.Process(pid).kill()
             dashboard_file.unlink(missing_ok=True)
             return True, f"Dashboard forced stopped (force kill, PID {pid}) after {timeout}s timeout."
         except psutil.NoSuchProcess:
-            # Process died between health check and kill attempt
             dashboard_file.unlink(missing_ok=True)
             return True, f"Dashboard process ended (PID {pid})."
         except Exception as e:
