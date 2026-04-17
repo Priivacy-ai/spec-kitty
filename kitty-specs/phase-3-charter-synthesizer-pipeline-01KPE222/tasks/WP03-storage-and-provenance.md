@@ -188,3 +188,4 @@ spec-kitty agent action implement WP03 --agent <your-agent>
 ## Activity Log
 
 - 2026-04-17T17:44:16Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65645 – Assigned agent via action command
+- 2026-04-17T18:01:26Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65645 – WP03 ready: staging+promote atomicity, manifest, provenance sidecars, bundle validate extension. 48 tests pass, ruff clean.
