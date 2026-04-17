@@ -15,7 +15,8 @@ subtasks:
 - T026
 phase: Phase 3 — Hygiene
 assignee: ''
-agent: ''
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "13484"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -198,3 +199,7 @@ Record the grep output in the PR body as evidence the cross-validation passed.
 - [ ] No edits to `src/specify_cli/charter/__init__.py` in this WP (WP04 owns that surface).
 - [ ] No emoji in the migration guide.
 - [ ] Markdown is well-formed (render it locally or in a PR preview to confirm).
+
+## Activity Log
+
+- 2026-04-17T09:51:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13484 – Started implementation via action command
