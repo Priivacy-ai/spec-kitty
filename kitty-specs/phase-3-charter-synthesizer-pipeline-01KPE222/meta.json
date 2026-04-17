@@ -1,10 +1,12 @@
 {
   "created_at": "2026-04-17T15:48:24.574194+00:00",
-  "friendly_name": "phase 3 charter synthesizer pipeline",
+  "friendly_name": "Phase 3 Charter Synthesizer Pipeline",
   "mission_id": "01KPE222CD1MMCYEGB3ZCY51VR",
   "mission_number": null,
   "mission_slug": "phase-3-charter-synthesizer-pipeline-01KPE222",
   "mission_type": "software-dev",
   "slug": "phase-3-charter-synthesizer-pipeline-01KPE222",
-  "target_branch": "main"
+  "source_description": "Phase 3 of the Charter engineering EPIC (issue #461 / phase issue #465): a two-layer Charter Synthesizer pipeline. Deterministic orchestration (input normalization, target selection, artifact writing, provenance, project DRG layer, no-dangling-ref enforcement) wraps a narrow provider-agnostic LLM seam with fixture-backed tests. Tranche 1 covers WP3.1/3.2/3.6/3.7/3.8 and synthesizes project-local directives, tactics, and styleguides only. Topic-driven resynthesis uses structured selectors (DRG URN > kind+slug > interview section). Code-reading ingestion, URL fetching, free-text topic rewriting, and paradigms/procedures/toolguides synthesis are explicit non-goals for this tranche.",
+  "target_branch": "main",
+  "vcs": "git"
 }
