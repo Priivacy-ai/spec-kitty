@@ -21,8 +21,8 @@ subtasks:
 - T012
 - T013
 - T014
-shell_pid: "63719"
-agent: "claude:sonnet-4.6:implementer:implementer"
+shell_pid: "65334"
+agent: "claude:opus-4.6:reviewer:reviewer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -198,3 +198,4 @@ spec-kitty agent action implement WP02 --agent <your-agent>
 
 - 2026-04-17T17:21:45Z – claude:sonnet-4.6:implementer:implementer – shell_pid=63719 – Assigned agent via action command
 - 2026-04-17T17:40:20Z – claude:sonnet-4.6:implementer:implementer – shell_pid=63719 – WP02 complete: interview_mapping.py, targets.py, synthesize_pipeline.py + 3 test files + 7 fixture YAML files. 125 tests passing, ruff clean. Committed to lane-b branch.
+- 2026-04-17T17:40:49Z – claude:opus-4.6:reviewer:reviewer – shell_pid=65334 – Started review via action command
