@@ -1,16 +1,16 @@
 {
-  "event_count": 42,
-  "last_event_id": "01KPECHYEPEVE3AG0BDWMCZGXQ",
-  "materialized_at": "2026-04-17T18:51:50.102137+00:00",
+  "event_count": 43,
+  "last_event_id": "01KPECJ9RAQDQB1VVPEVRXHZFJ",
+  "materialized_at": "2026-04-17T18:52:01.674084+00:00",
   "mission_number": "87",
   "mission_slug": "phase-3-charter-synthesizer-pipeline-01KPE222",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 4,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 1,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -26,10 +26,10 @@
     },
     "WP02": {
       "actor": "user",
-      "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KPE8MTF87AD1CTY9A5RDDNES",
-      "last_transition_at": "2026-04-17T17:43:30.024489+00:00"
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KPECJ9RAQDQB1VVPEVRXHZFJ",
+      "last_transition_at": "2026-04-17T18:52:01.674084+00:00"
     },
     "WP03": {
       "actor": "user",
