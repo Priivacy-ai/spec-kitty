@@ -1,7 +1,7 @@
 {
-  "event_count": 17,
-  "last_event_id": "01KPDCREKB29D46EC1PJBYNKC6",
-  "materialized_at": "2026-04-17T09:36:08.811897+00:00",
+  "event_count": 18,
+  "last_event_id": "01KPDCY52TER7QGN1FN3GERD28",
+  "materialized_at": "2026-04-17T09:39:15.674083+00:00",
   "mission_number": "",
   "mission_slug": "charter-ownership-consolidation-and-neutrality-hardening-01KPD880",
   "mission_type": "software-dev",
@@ -11,18 +11,18 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
-    "in_progress": 2,
+    "for_review": 1,
+    "in_progress": 3,
     "in_review": 0,
     "planned": 3
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KPDCQKB5CSRPN8V8CCZPF5BK",
-      "last_transition_at": "2026-04-17T09:35:40.901683+00:00"
+      "actor": "claude:opus-4-6:reviewer:reviewer",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KPDCY52TER7QGN1FN3GERD28",
+      "last_transition_at": "2026-04-17T09:39:15.674083+00:00"
     },
     "WP02": {
       "actor": "implement-command",
