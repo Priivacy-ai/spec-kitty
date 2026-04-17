@@ -188,3 +188,4 @@ Add parametrized unit tests if the scanner helpers are not covered by the three 
 ## Activity Log
 
 - 2026-04-17T09:44:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11041 – Started implementation via action command
+- 2026-04-17T09:47:10Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11041 – Ready for review: neutrality regression test gate wired via charter.neutrality.run_neutrality_lint. 7 tests (baseline, fault-injection, allowlist literal/glob, stale entries, regex column accuracy, runtime budget). Baseline passes (0 hits, 0 stale), coverage 93% on lint.py, mypy --strict clean, runtime ~0.8s. (--force used: only uncommitted file is gitignored dossier snapshot.)
