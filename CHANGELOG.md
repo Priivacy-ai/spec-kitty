@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.6] - 2026-04-17
+
 ### Security
 
 - Bump `requests` floor to `>=2.33.0` (CVE-2026-25645).
