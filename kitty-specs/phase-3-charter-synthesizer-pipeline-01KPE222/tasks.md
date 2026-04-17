@@ -44,12 +44,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 | T012 | Schema conformance — validate `AdapterOutput.body` against shipped Pydantic models | WP02 | — | [D] |
 | T013 | Provenance-object assembly (in-memory; no FS yet) | WP02 | — | [D] |
 | T014 | Tests — `test_interview_mapping.py`, `test_orchestrator_synthesize.py` (in-memory), `test_schema_conformance.py` | WP02 | — | [D] |
-| T015 | `provenance.py` — `ProvenanceEntry` pydantic model + read/write via ruamel.yaml | WP03 | [P] |
-| T016 | `staging.py` — staging dir lifecycle; `.failed` preservation; demux trees | WP03 | [P] |
-| T017 | `manifest.py` — `SynthesisManifest` + `ManifestArtifactEntry`; manifest-last commit + read verify | WP03 | [P] |
-| T018 | `write_pipeline.py` — ordered `os.replace` promote: content → `.kittify/doctrine/`, bookkeeping → `.kittify/charter/` | WP03 | — |
-| T019 | Extend `src/charter/bundle.py` (FR-015) — recognise synthesized artifacts + cross-tree provenance | WP03 | — |
-| T020 | Tests — `test_provenance.py`, `test_staging_atomicity.py`, `test_manifest.py`, `test_bundle_validate_extension.py` | WP03 | — |
+| T015 | `provenance.py` — `ProvenanceEntry` pydantic model + read/write via ruamel.yaml | WP03 | [D] |
+| T016 | `staging.py` — staging dir lifecycle; `.failed` preservation; demux trees | WP03 | [D] |
+| T017 | `manifest.py` — `SynthesisManifest` + `ManifestArtifactEntry`; manifest-last commit + read verify | WP03 | [D] |
+| T018 | `write_pipeline.py` — ordered `os.replace` promote: content → `.kittify/doctrine/`, bookkeeping → `.kittify/charter/` | WP03 | — | [D] |
+| T019 | Extend `src/charter/bundle.py` (FR-015) — recognise synthesized artifacts + cross-tree provenance | WP03 | — | [D] |
+| T020 | Tests — `test_provenance.py`, `test_staging_atomicity.py`, `test_manifest.py`, `test_bundle_validate_extension.py` | WP03 | — | [D] |
 | T021 | `project_drg.py` — thin composer: emit + persist at `.kittify/doctrine/graph.yaml` | WP04 | [D] |
 | T022 | `validation_gate.py` — `validate_graph(merge_layers(shipped, project))` gate before promote (FR-008) | WP04 | [D] |
 | T023 | Additive-only enforcement (FR-020) — reject overlay emissions that shadow shipped URNs | WP04 | — | [D] |
@@ -130,12 +130,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 **Independent test**: `pytest tests/charter/synthesizer/test_staging_atomicity.py test_manifest.py test_provenance.py test_bundle_validate_extension.py` passes; staging dir is preserved under `.failed/` on injected failure; manifest-last semantics verified.
 
 **Subtasks**:
-- [ ] T015 `provenance.py` — `ProvenanceEntry` pydantic model + IO (WP03)
-- [ ] T016 `staging.py` — staging lifecycle + `.failed` preservation (WP03)
-- [ ] T017 `manifest.py` — `SynthesisManifest` + `ManifestArtifactEntry` (WP03)
-- [ ] T018 `write_pipeline.py` — ordered promote + demux (WP03)
-- [ ] T019 Extend `src/charter/bundle.py` for FR-015 (WP03)
-- [ ] T020 Tests — provenance, staging atomicity, manifest, bundle validate (WP03)
+- [x] T015 `provenance.py` — `ProvenanceEntry` pydantic model + IO (WP03)
+- [x] T016 `staging.py` — staging lifecycle + `.failed` preservation (WP03)
+- [x] T017 `manifest.py` — `SynthesisManifest` + `ManifestArtifactEntry` (WP03)
+- [x] T018 `write_pipeline.py` — ordered promote + demux (WP03)
+- [x] T019 Extend `src/charter/bundle.py` for FR-015 (WP03)
+- [x] T020 Tests — provenance, staging atomicity, manifest, bundle validate (WP03)
 
 **Parallel opportunities**: T015, T016, T017 proceed in parallel. T018 integrates them. T019 is independent.
 
