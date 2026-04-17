@@ -40,10 +40,10 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 | T007 | Implement `lint.py` — scanner, `BannedTermHit`, `NeutralityLintResult` per C-3 | WP02 | | [D] |
 | T008 | Verify scanner returns clean on baseline (zero hits, zero stale entries) | WP02 | | [D] |
 | T009 | Confirm `mypy --strict src/charter/neutrality/` passes | WP02 | | [D] |
-| T010 | Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` | WP03 | |
-| T011 | Add fault-injection test that catches a synthetic regression (SC-005) | WP03 | |
-| T012 | Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) | WP03 | |
-| T013 | Confirm ≥ 90% coverage on `src/charter/neutrality/lint.py` | WP03 | |
+| T010 | Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` | WP03 | | [D] |
+| T011 | Add fault-injection test that catches a synthetic regression (SC-005) | WP03 | | [D] |
+| T012 | Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) | WP03 | | [D] |
+| T013 | Confirm ≥ 90% coverage on `src/charter/neutrality/lint.py` | WP03 | | [D] |
 | T014 | Edit `src/specify_cli/charter/__init__.py` — add deprecation constants + single `warnings.warn` | WP04 | [P] |
 | T015 | Leave submodule shims silent; strip any existing per-submodule `warnings.warn` calls | WP04 | |
 | T016 | Author `tests/specify_cli/charter/test_shim_deprecation.py` per contract C-2 | WP04 | |
@@ -125,10 +125,10 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 **Included subtasks**:
 
-- [ ] T010 Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` (WP03)
-- [ ] T011 Add fault-injection test that catches a synthetic regression (SC-005) (WP03)
-- [ ] T012 Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) (WP03)
-- [ ] T013 Confirm ≥ 90% coverage on `src/charter/neutrality/lint.py` (WP03)
+- [x] T010 Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` (WP03)
+- [x] T011 Add fault-injection test that catches a synthetic regression (SC-005) (WP03)
+- [x] T012 Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) (WP03)
+- [x] T013 Confirm ≥ 90% coverage on `src/charter/neutrality/lint.py` (WP03)
 
 **Dependencies**: WP02.
 
