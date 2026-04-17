@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-17T15:48:24.574194+00:00",
+  "friendly_name": "phase 3 charter synthesizer pipeline",
+  "mission_id": "01KPE222CD1MMCYEGB3ZCY51VR",
+  "mission_number": null,
+  "mission_slug": "phase-3-charter-synthesizer-pipeline-01KPE222",
+  "mission_type": "software-dev",
+  "slug": "phase-3-charter-synthesizer-pipeline-01KPE222",
+  "target_branch": "main"
+}
