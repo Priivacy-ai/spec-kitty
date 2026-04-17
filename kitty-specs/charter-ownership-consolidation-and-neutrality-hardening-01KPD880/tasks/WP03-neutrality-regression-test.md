@@ -18,7 +18,8 @@ subtasks:
 - T013
 phase: Phase 2 — Regression gates
 assignee: ''
-agent: ''
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "11041"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -183,3 +184,7 @@ Add parametrized unit tests if the scanner helpers are not covered by the three 
 - [ ] Fault-injection uses `tmp_path`, never pollutes the real repo.
 - [ ] Coverage ≥ 90% on `lint.py`.
 - [ ] Tests run under 5 s combined on the reviewer's machine.
+
+## Activity Log
+
+- 2026-04-17T09:44:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11041 – Started implementation via action command
