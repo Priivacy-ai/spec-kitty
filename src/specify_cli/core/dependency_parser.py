@@ -33,13 +33,13 @@ the first non-WP ``##`` heading rather than slurping to EOF.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
 
 # ---------------------------------------------------------------------------
 # Section splitter
 # ---------------------------------------------------------------------------
 
-_WP_SECTION_HEADER = re.compile(r"(?m)^(?:##|###)\s+(?P<title>[^\n]+)$")
 _WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
 _WORK_PACKAGE_PREFIX = "Work Package "
 
@@ -47,6 +47,18 @@ _WORK_PACKAGE_PREFIX = "Work Package "
 # to find the stop boundary for the final WP section.  Sub-headings (### or
 # deeper) are intentionally NOT matched — they must not trigger a stop.
 _ANY_H2_HEADER = re.compile(r"^## ", re.MULTILINE)
+
+
+def _iter_wp_heading_candidates(tasks_content: str) -> Iterator[tuple[str, int, int]]:
+    """Yield markdown heading titles plus byte offsets for ##/### lines only."""
+    offset = 0
+    for raw_line in tasks_content.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        if line.startswith("## "):
+            yield line[3:].strip(), offset, offset + len(raw_line)
+        elif line.startswith("### "):
+            yield line[4:].strip(), offset, offset + len(raw_line)
+        offset += len(raw_line)
 
 
 def _match_wp_section_id(title: str) -> str | None:
@@ -84,17 +96,17 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
         WP section header (or end of file).
     """
     sections: dict[str, str] = {}
-    matches: list[tuple[str, re.Match[str]]] = []
-    for match in _WP_SECTION_HEADER.finditer(tasks_content):
-        wp_id = _match_wp_section_id(match.group("title"))
+    matches: list[tuple[str, int, int]] = []
+    for title, start, end in _iter_wp_heading_candidates(tasks_content):
+        wp_id = _match_wp_section_id(title)
         if wp_id is not None:
-            matches.append((wp_id, match))
+            matches.append((wp_id, start, end))
 
-    for idx, (wp_id, match) in enumerate(matches):
-        start = match.end()
+    for idx, (wp_id, _header_start, body_start) in enumerate(matches):
+        start = body_start
         if idx + 1 < len(matches):
             # There is a next WP header — use it as the end (existing behaviour).
-            end = matches[idx + 1][1].start()
+            end = matches[idx + 1][1]
         else:
             # Final WP: stop at the first non-WP, non-Dependencies ## heading
             # after this WP header, or at EOF if no such heading exists.  This
@@ -107,7 +119,7 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
             # are valid dependency-declaration headers.  Sub-headings (###)
             # are also unaffected because _ANY_H2_HEADER only matches "^## ".
             end = len(tasks_content)
-            for h2_match in _ANY_H2_HEADER.finditer(tasks_content, match.end()):
+            for h2_match in _ANY_H2_HEADER.finditer(tasks_content, body_start):
                 # Skip WP ID headings — those would start the next WP section
                 # (shouldn't happen in the final-WP branch, but be safe).
                 line_end = tasks_content.find("\n", h2_match.start())
