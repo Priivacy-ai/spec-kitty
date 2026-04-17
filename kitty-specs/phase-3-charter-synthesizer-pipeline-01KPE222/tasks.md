@@ -56,12 +56,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 | T024 | Extend `src/charter/compiler.py::_default_doctrine_service` — candidate-list extension (FR-009) | WP04 | [D] |
 | T025 | Extend `src/charter/context.py::_build_doctrine_service` — same candidate-list extension | WP04 | [D] |
 | T026 | Tests — `test_project_drg.py`, `test_validation_gate.py`, `test_charter_compile_project_root.py` (3 cases), `test_context_reflects_synthesis.py` | WP04 | — | [D] |
-| T027 | `topic_resolver.py` — 3-tier resolution (local kind+slug → DRG URN → interview section) + `ResolvedTopic` | WP05 | [P] |
-| T028 | Structured-error surface — `TopicSelectorUnresolvedError` + Levenshtein top-5 candidate enumeration | WP05 | — |
-| T029 | `resynthesize_pipeline.py` — bounded recomputation; manifest rewrite preserves untouched `content_hash` | WP05 | — |
-| T030 | CLI subcommands — `spec-kitty charter synthesize` + `resynthesize --topic` via Typer | WP05 | [P] |
-| T031 | Performance envelope tests (NFR-002/003/004) | WP05 | [P] |
-| T032 | Tests — `test_topic_resolver.py`, `test_orchestrator_resynthesize.py`, CLI integration tests | WP05 | — |
+| T027 | `topic_resolver.py` — 3-tier resolution (local kind+slug → DRG URN → interview section) + `ResolvedTopic` | WP05 | [D] |
+| T028 | Structured-error surface — `TopicSelectorUnresolvedError` + Levenshtein top-5 candidate enumeration | WP05 | — | [D] |
+| T029 | `resynthesize_pipeline.py` — bounded recomputation; manifest rewrite preserves untouched `content_hash` | WP05 | — | [D] |
+| T030 | CLI subcommands — `spec-kitty charter synthesize` + `resynthesize --topic` via Typer | WP05 | [D] |
+| T031 | Performance envelope tests (NFR-002/003/004) | WP05 | [D] |
+| T032 | Tests — `test_topic_resolver.py`, `test_orchestrator_resynthesize.py`, CLI integration tests | WP05 | — | [D] |
 
 ---
 
@@ -182,12 +182,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 **Independent test**: `pytest tests/charter/synthesizer/test_topic_resolver.py test_orchestrator_resynthesize.py test_performance_envelopes.py tests/agent/cli/commands/test_charter_*_cli.py`. SC-008 threshold: unresolved selector error returns in < 2s.
 
 **Subtasks**:
-- [ ] T027 `topic_resolver.py` — 3-tier resolution (WP05)
-- [ ] T028 Structured-error surface + candidate enumeration (WP05)
-- [ ] T029 `resynthesize_pipeline.py` — bounded recomputation (WP05)
-- [ ] T030 CLI subcommands via Typer (WP05)
-- [ ] T031 Performance envelope tests (NFR-002/003/004) (WP05)
-- [ ] T032 Tests — topic_resolver, orchestrator_resynthesize, CLI integration (WP05)
+- [x] T027 `topic_resolver.py` — 3-tier resolution (WP05)
+- [x] T028 Structured-error surface + candidate enumeration (WP05)
+- [x] T029 `resynthesize_pipeline.py` — bounded recomputation (WP05)
+- [x] T030 CLI subcommands via Typer (WP05)
+- [x] T031 Performance envelope tests (NFR-002/003/004) (WP05)
+- [x] T032 Tests — topic_resolver, orchestrator_resynthesize, CLI integration (WP05)
 
 **Parallel opportunities**: T027, T030, T031 in parallel. T028 builds on T027. T029 builds on T027 + WP03/WP04.
 
