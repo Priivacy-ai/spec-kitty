@@ -62,6 +62,15 @@ exceptions:
     action: rename_if_user_visible
     reason: "Default behavior is correct here; CHANGELOG mentions the deprecated path explicitly as part of the deprecation notice. Future entries that reference `specify_cli.charter` should be rewritten only if they are instructing new adoption, not if they are documenting the removal."
 
+  # WP prompt files carry runtime-owned lifecycle frontmatter (lane, assignee,
+  # shell_pid, history) that the spec-kitty workflow writes on every claim.
+  # Those writes are not rename operations and must not be blocked by the
+  # diff-compliance gate. The bodies of these files still describe the rename
+  # as the subject-under-edit; reviewers inspect body diffs per-WP.
+  - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/tasks/WP*.md"
+    action: manual_review
+    reason: "Runtime writes lane/assignee/history frontmatter here on every claim; reviewers validate body edits per-WP. Not a rename target."
+
   # The occurrence map lives in the mission artifact set and references the
   # term being renamed — obvious self-exception.
   - path: "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/**"
