@@ -8,6 +8,27 @@ import pytest
 _THIS_DIR = Path(__file__).parent
 
 
+def _find_repo_root() -> Path:
+    """Walk up from this file until a directory containing ``pyproject.toml`` is found."""
+    candidate = Path(__file__).resolve().parent
+    while candidate != candidate.parent:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+        candidate = candidate.parent
+    raise RuntimeError("Could not find repo root (no pyproject.toml found in any parent directory)")
+
+
+@pytest.fixture(scope="session")
+def repo_root() -> Path:
+    """Return the repository root as a :class:`~pathlib.Path`.
+
+    Works correctly whether tests run from the main checkout or from a
+    worktree, because resolution walks up from this conftest file rather
+    than relying on ``Path.cwd()``.
+    """
+    return _find_repo_root()
+
+
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Mark all tests in this directory as fast."""
     for item in items:

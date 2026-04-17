@@ -1,0 +1,67 @@
+# Migration — Charter ownership consolidation
+
+**Status**: Deprecation active (landed in release 3.2.0). **Removal target**: 3.3.0.
+
+## What changed
+
+The authoritative implementation of charter services lives under the top-level
+`charter` package. The legacy `specify_cli.charter` package and its
+submodules (`compiler`, `interview`, `resolver`) remain as thin re-export shims
+for backward compatibility, with a `DeprecationWarning` on first import.
+
+## Who is affected
+
+Any downstream Python code that imports directly from `specify_cli.charter`:
+
+- `from specify_cli.charter import build_charter_context, ensure_charter_bundle_fresh`
+- `from specify_cli.charter.compiler import <X>`
+- `from specify_cli.charter.interview import <X>`
+- `from specify_cli.charter.resolver import <X>`
+
+First-party code inside spec-kitty no longer uses these paths (three test files
+are retained as deliberate compatibility exceptions per mission-internal
+occurrence-map rules).
+
+## What to do
+
+Replace the import path:
+
+| Old | New |
+|-----|-----|
+| `from specify_cli.charter import X` | `from charter import X` |
+| `from specify_cli.charter.compiler import X` | `from charter.compiler import X` |
+| `from specify_cli.charter.interview import X` | `from charter.interview import X` |
+| `from specify_cli.charter.resolver import X` | `from charter.resolver import X` |
+
+No call-site or signature changes are required — the re-exports are identity
+re-exports, and the submodule shims alias `sys.modules` to the canonical module,
+so the imported symbol is the same object.
+
+## Timeline
+
+- **3.2.0** (this release): shims remain functional; importing them emits a
+  single `DeprecationWarning` per process pointing at the caller.
+- **3.3.0**: shim package removed. Imports from `specify_cli.charter` will
+  raise `ModuleNotFoundError`.
+
+## How to silence the warning temporarily
+
+If you need to quiet the warning while you migrate, the standard `warnings`
+module controls apply:
+
+```python
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message=r"specify_cli\.charter is deprecated.*",
+    category=DeprecationWarning,
+)
+```
+
+Prefer migrating over filtering — the filter will stop working in 3.3.0 because
+the target module will be gone.
+
+## Questions
+
+File an issue against the `spec-kitty` repository with the `charter-migration`
+label.

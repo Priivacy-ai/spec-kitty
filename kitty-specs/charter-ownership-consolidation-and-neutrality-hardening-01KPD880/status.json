@@ -1,0 +1,70 @@
+{
+  "event_count": 46,
+  "last_event_id": "01KPDE57E7DHS7XYF66TQM2G8Y",
+  "materialized_at": "2026-04-17T10:00:36.039399+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-ownership-consolidation-and-neutrality-hardening-01KPD880",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPDD1TKN0ZV68AW1S72FVWQP",
+      "last_transition_at": "2026-04-17T09:41:16.021253+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KPDD6KFX71KTVGR6S21MN6E7",
+      "last_transition_at": "2026-04-17T09:43:52.573884+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KPDDGVCG88ZD3BFHTKMYQWPD",
+      "last_transition_at": "2026-04-17T09:49:28.336648+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KPDDJDJZV2NPZC55EEZZVJT2",
+      "last_transition_at": "2026-04-17T09:50:19.743749+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KPDDXXDM429J5Z2W3RYWR6X1",
+      "last_transition_at": "2026-04-17T09:56:36.404555+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPDD27XNG3C79AGWPT2D939V",
+      "last_transition_at": "2026-04-17T09:41:29.653055+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KPDE57E7DHS7XYF66TQM2G8Y",
+      "last_transition_at": "2026-04-17T10:00:36.039399+00:00"
+    }
+  }
+}

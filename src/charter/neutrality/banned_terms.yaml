@@ -1,0 +1,29 @@
+# Neutrality banned-terms list. Schema: contracts/banned-terms-schema.yaml
+#
+# To add a term:
+#   1. Append an entry with a fresh id matching ^[A-Z]{2,4}-\d{3}$.
+#   2. Set `kind` to "literal" or "regex".
+#   3. Provide a rationale of at least 8 characters.
+#   4. Run `pytest tests/charter/test_neutrality_lint.py` to verify.
+schema_version: "1"
+terms:
+  - id: PY-001
+    kind: literal
+    pattern: "pytest"
+    rationale: "Primary offender in pre-3.1.5 prompts; unambiguously Python test framework."
+    added_in: "3.2.0"
+  - id: PY-002
+    kind: literal
+    pattern: "junit"
+    rationale: "Python ecosystem reporter (pytest-junit). Unambiguously Python test ecosystem."
+    added_in: "3.2.0"
+  - id: PY-003
+    kind: regex
+    pattern: "\\bpip install\\b"
+    rationale: "Concrete Python install command."
+    added_in: "3.2.0"
+  - id: PY-004
+    kind: regex
+    pattern: "\\bpython -m\\b"
+    rationale: "Python module execution command."
+    added_in: "3.2.0"

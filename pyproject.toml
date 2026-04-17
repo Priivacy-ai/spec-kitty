@@ -216,6 +216,14 @@ module = ["specify_cli.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+# When checking charter.neutrality in isolation, mypy walks into other charter
+# submodules (interview, resolver, context, …) that have pre-existing strict
+# issues being addressed in a separate mission. Skip them so that
+# ``mypy --strict src/charter/neutrality/`` reports only neutrality's own issues.
+module = ["charter.*"]
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.
 module = [
     "specify_cli.agent_utils.status",
@@ -235,7 +243,6 @@ module = [
     "specify_cli.cli.commands.tracker",
     "specify_cli.cli.commands.upgrade",
     "specify_cli.cli.ui",
-    "specify_cli.charter.context",
     "specify_cli.core.context_validation",
     "specify_cli.core.mission_detection",
     "specify_cli.dashboard.diagnostics",
