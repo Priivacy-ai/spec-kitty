@@ -20,6 +20,7 @@ pytestmark = pytest.mark.slow
 # in isolation. Use the fallback fixtures below.
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+LEGACY_DOCTRINE_DIR = "doctrine/" + "agent" + "-" + "profiles" + "/"
 
 
 def _build_wheel_fallback(tmpdir: str) -> Path:
@@ -60,6 +61,8 @@ def test_wheel_contains_doctrine_package_data(wheel_path: Path) -> None:
     ]
     missing = [path for path in required_prefixes if path not in names]
     assert not missing, f"Missing doctrine wheel assets: {missing}"
+    legacy_paths = sorted(name for name in names if name.startswith(LEGACY_DOCTRINE_DIR))
+    assert legacy_paths == [], f"Legacy {LEGACY_DOCTRINE_DIR} wheel assets should be absent: {legacy_paths}"
 
 
 def test_wheel_install_imports_doctrine_and_lists_profiles(
