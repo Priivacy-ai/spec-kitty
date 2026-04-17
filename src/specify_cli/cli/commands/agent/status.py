@@ -30,6 +30,7 @@ app = typer.Typer(
 )
 
 console = Console()
+PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 
 
 def _find_mission_slug(
@@ -123,7 +124,7 @@ def _resolve_feature_dir(
     repo_root = locate_project_root(cwd)
 
     if repo_root is None:
-        console.print("[red]Error:[/red] Could not locate project root")
+        console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
         raise typer.Exit(1)
 
     mission_slug = _find_mission_slug(
@@ -171,7 +172,7 @@ def emit(
         cwd = Path.cwd().resolve()
         repo_root = locate_project_root(cwd)
         if repo_root is None:
-            _output_error(json_output, "Could not locate project root")
+            _output_error(json_output, PROJECT_ROOT_NOT_FOUND)
             raise typer.Exit(1)
 
         main_repo_root = get_main_repo_root(repo_root)
@@ -273,7 +274,7 @@ def materialize(
         cwd = Path.cwd().resolve()
         repo_root = locate_project_root(cwd)
         if repo_root is None:
-            _output_error(json_output, "Could not locate project root")
+            _output_error(json_output, PROJECT_ROOT_NOT_FOUND)
             raise typer.Exit(1)
 
         main_repo_root = get_main_repo_root(repo_root)
@@ -447,13 +448,9 @@ def doctor(
         # Project-specific section
         console.print(f"\n[bold]Mission Status: {result.mission_slug}[/bold]")
         if result.is_healthy:
-            console.print(
-                f"  [green]Healthy[/green]"
-            )
+            console.print("  [green]Healthy[/green]")
         else:
-            console.print(
-                f"  [yellow]Issues found[/yellow]"
-            )
+            console.print("  [yellow]Issues found[/yellow]")
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")
             table.add_column("Category")
@@ -650,9 +647,9 @@ def validate(
     repo_root = locate_project_root(cwd)
     if repo_root is None:
         if json_output:
-            print(json.dumps({"error": "Could not locate project root"}))
+            print(json.dumps({"error": PROJECT_ROOT_NOT_FOUND}))
         else:
-            console.print("[red]Error:[/red] Could not locate project root")
+            console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
         raise typer.Exit(1)
 
     mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)

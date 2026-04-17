@@ -65,6 +65,8 @@ from specify_cli.tasks_support import (
 )
 
 logger = logging.getLogger(__name__)
+TASKS_MD_FILENAME = "tasks.md"
+UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
@@ -84,7 +86,7 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     candidates = [
         feature_dir / "status.events.jsonl",
         feature_dir / "status.json",
-        feature_dir / "tasks.md",
+        feature_dir / TASKS_MD_FILENAME,
     ]
     return [p for p in candidates if p.exists()]
 
@@ -390,7 +392,7 @@ def _persist_review_feedback(
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
 
     body = feedback_source.read_text(encoding="utf-8")
-    reviewed_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    reviewed_at = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
 
     parsed_affected: list[AffectedFile] = []
     if affected_files:
@@ -439,7 +441,7 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
-    tasks_md = feature_dir / "tasks.md"
+    tasks_md = feature_dir / TASKS_MD_FILENAME
 
     if not tasks_md.exists():
         return []  # No tasks.md, can't check
@@ -1463,7 +1465,7 @@ def move_task(
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
-            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
             agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
             shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
             note_text = note_text or f"Moved to {target_lane}"
@@ -1693,7 +1695,7 @@ def mark_status(
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
-        tasks_md = feature_dir / "tasks.md"
+        tasks_md = feature_dir / TASKS_MD_FILENAME
 
         with feature_status_lock(main_repo_root, mission_slug):
             if not tasks_md.exists():
@@ -1943,7 +1945,7 @@ def add_history(
         wp = locate_work_package(repo_root, mission_slug, task_id)
 
         # Build history entry
-        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
         agent_name = agent or extract_scalar(wp.frontmatter, "agent") or "unknown"
         shell_pid_val = shell_pid or extract_scalar(wp.frontmatter, "shell_pid") or ""
 
@@ -2019,7 +2021,7 @@ def finalize_tasks(
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
-        tasks_md = feature_dir / "tasks.md"
+        tasks_md = feature_dir / TASKS_MD_FILENAME
         tasks_dir = feature_dir / "tasks"
 
         if not tasks_md.exists():
@@ -2375,7 +2377,7 @@ def map_requirements(
             raise typer.Exit(1)
 
         tasks_md_refs: dict[str, list[str]] = {}
-        tasks_md_file = feature_dir / "tasks.md"
+        tasks_md_file = feature_dir / TASKS_MD_FILENAME
         if tasks_md_file.exists():
             from specify_cli.cli.commands.agent.mission import (
                 _parse_requirement_refs_from_tasks_md,
