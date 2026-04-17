@@ -34,12 +34,12 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 | T001 | Author `tests/charter/test_charter_ownership_invariant.py` per contract C-6 | WP01 | [P] | [D] |
 | T002 | Verify invariant passes on clean baseline | WP01 | | [D] |
 | T003 | Document the CANONICAL_OWNERS registry update protocol in the test's docstring | WP01 | | [D] |
-| T004 | Create `src/charter/neutrality/` package with public `__init__.py` | WP02 | [P] |
-| T005 | Author `banned_terms.yaml` with 4 seed entries PY-001..PY-004 per C-4 | WP02 | |
-| T006 | Author `language_scoped_allowlist.yaml` with audited seed entries per C-5 | WP02 | |
-| T007 | Implement `lint.py` — scanner, `BannedTermHit`, `NeutralityLintResult` per C-3 | WP02 | |
-| T008 | Verify scanner returns clean on baseline (zero hits, zero stale entries) | WP02 | |
-| T009 | Confirm `mypy --strict src/charter/neutrality/` passes | WP02 | |
+| T004 | Create `src/charter/neutrality/` package with public `__init__.py` | WP02 | [D] |
+| T005 | Author `banned_terms.yaml` with 4 seed entries PY-001..PY-004 per C-4 | WP02 | | [D] |
+| T006 | Author `language_scoped_allowlist.yaml` with audited seed entries per C-5 | WP02 | | [D] |
+| T007 | Implement `lint.py` — scanner, `BannedTermHit`, `NeutralityLintResult` per C-3 | WP02 | | [D] |
+| T008 | Verify scanner returns clean on baseline (zero hits, zero stale entries) | WP02 | | [D] |
+| T009 | Confirm `mypy --strict src/charter/neutrality/` passes | WP02 | | [D] |
 | T010 | Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` | WP03 | |
 | T011 | Add fault-injection test that catches a synthetic regression (SC-005) | WP03 | |
 | T012 | Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) | WP03 | |
@@ -98,12 +98,12 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 **Included subtasks**:
 
-- [ ] T004 Create `src/charter/neutrality/` package with public `__init__.py` (WP02)
-- [ ] T005 Author `banned_terms.yaml` with 4 seed entries PY-001..PY-004 per C-4 (WP02)
-- [ ] T006 Author `language_scoped_allowlist.yaml` with audited seed entries per C-5 (WP02)
-- [ ] T007 Implement `lint.py` — scanner, `BannedTermHit`, `NeutralityLintResult` per C-3 (WP02)
-- [ ] T008 Verify scanner returns clean on baseline (zero hits, zero stale entries) (WP02)
-- [ ] T009 Confirm `mypy --strict src/charter/neutrality/` passes (WP02)
+- [x] T004 Create `src/charter/neutrality/` package with public `__init__.py` (WP02)
+- [x] T005 Author `banned_terms.yaml` with 4 seed entries PY-001..PY-004 per C-4 (WP02)
+- [x] T006 Author `language_scoped_allowlist.yaml` with audited seed entries per C-5 (WP02)
+- [x] T007 Implement `lint.py` — scanner, `BannedTermHit`, `NeutralityLintResult` per C-3 (WP02)
+- [x] T008 Verify scanner returns clean on baseline (zero hits, zero stale entries) (WP02)
+- [x] T009 Confirm `mypy --strict src/charter/neutrality/` passes (WP02)
 
 **Dependencies**: None.
 
