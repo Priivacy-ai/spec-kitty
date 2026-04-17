@@ -21,8 +21,8 @@ subtasks:
 - T018
 - T019
 - T020
-shell_pid: "65645"
-agent: "claude:sonnet-4.6:implementer:implementer"
+shell_pid: "70043"
+agent: "claude:opus-4.6:reviewer:reviewer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -189,3 +189,4 @@ spec-kitty agent action implement WP03 --agent <your-agent>
 
 - 2026-04-17T17:44:16Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65645 – Assigned agent via action command
 - 2026-04-17T18:01:26Z – claude:sonnet-4.6:implementer:implementer – shell_pid=65645 – WP03 ready: staging+promote atomicity, manifest, provenance sidecars, bundle validate extension. 48 tests pass, ruff clean.
+- 2026-04-17T18:01:47Z – claude:opus-4.6:reviewer:reviewer – shell_pid=70043 – Started review via action command
