@@ -212,7 +212,7 @@ def _resolve_template_set(
         return mission_default
 
     if catalog.template_sets:
-        return sorted(catalog.template_sets)[0]
+        return min(catalog.template_sets)
 
     return mission_default
 
