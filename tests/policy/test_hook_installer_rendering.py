@@ -37,10 +37,13 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     )
     exec_line = exec_lines[0]
 
-    # Interpreter must appear in double quotes (handles paths with spaces)
-    resolved = str(Path(sys.executable).resolve(strict=False))
-    assert f'"{resolved}"' in exec_line, (
-        f'Expected quoted interpreter "{resolved}" in exec line: {exec_line!r}'
+    # Interpreter must appear in double quotes (handles paths with spaces).
+    # Symlinks are intentionally preserved (issue #669) so venv/pipx interpreters
+    # keep their sys.prefix — so we expect the abspath of sys.executable, not its
+    # resolved target.
+    expected = os.path.abspath(sys.executable)
+    assert f'"{expected}"' in exec_line, (
+        f'Expected quoted interpreter "{expected}" in exec line: {exec_line!r}'
     )
     assert "-m specify_cli.policy.commit_guard_hook" in exec_line, (
         f"Expected module invocation in exec line: {exec_line!r}"
@@ -59,6 +62,6 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     assert isinstance(record, HookInstallRecord)
     assert record.shebang == "#!/bin/sh"
     assert record.module == "specify_cli.policy.commit_guard_hook"
-    assert record.interpreter == Path(sys.executable).resolve(strict=False)
+    assert record.interpreter == Path(os.path.abspath(sys.executable))
     assert record.mode == HOOK_MODE
     assert record.hook_path == hook
