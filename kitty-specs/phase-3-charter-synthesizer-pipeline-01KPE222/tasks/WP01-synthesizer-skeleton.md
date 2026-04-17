@@ -226,3 +226,4 @@ spec-kitty agent action implement WP01 --agent <your-agent>
 - 2026-04-17T17:17:08Z – claude:sonnet-4.6:implementer:implementer – shell_pid=61147 – WP01 ready: adapter seam, path guard, fixture adapter, orchestrator skeleton, ADRs, and contract tests (33 tests passing, ruff clean)
 - 2026-04-17T17:17:48Z – claude:opus-4.6:reviewer:reviewer – shell_pid=63248 – Started review via action command
 - 2026-04-17T17:21:06Z – claude:opus-4.6:reviewer:reviewer – shell_pid=63248 – Review passed (opus-4.6): adapter seam frozen, path guard wired+lint-enforced, 33/33 tests pass, hash-invariance verified, both ADRs lock KD-2/KD-3/KD-4, zero out-of-scope edits.
+- 2026-04-17T18:51:50Z – claude:opus-4.6:reviewer:reviewer – shell_pid=63248 – Done override: Mission merged to main
