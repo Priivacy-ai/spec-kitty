@@ -38,12 +38,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 | T006 | `orchestrator.py` — skeleton dispatcher with `synthesize()` / `resynthesize()` entry points | WP01 | — | [D] |
 | T007 | Author ADR-2026-04-17-1 (adapter seam) + ADR-2026-04-17-2 (atomicity) | WP01 | [D] |
 | T008 | Tests — `test_adapter_contract.py`, `test_path_guard.py`, `test_fixture_adapter.py` + conftest | WP01 | — | [D] |
-| T009 | `interview_mapping.py` — interview-section → `SynthesisTarget` table | WP02 | [P] |
-| T010 | `targets.py` — target selection, ordering, duplicate-slug detection | WP02 | [P] |
-| T011 | `synthesize_pipeline.py` — end-to-end in-memory synthesis flow; wire adapter + schema gate (FR-019) | WP02 | — |
-| T012 | Schema conformance — validate `AdapterOutput.body` against shipped Pydantic models | WP02 | — |
-| T013 | Provenance-object assembly (in-memory; no FS yet) | WP02 | — |
-| T014 | Tests — `test_interview_mapping.py`, `test_orchestrator_synthesize.py` (in-memory), `test_schema_conformance.py` | WP02 | — |
+| T009 | `interview_mapping.py` — interview-section → `SynthesisTarget` table | WP02 | [D] |
+| T010 | `targets.py` — target selection, ordering, duplicate-slug detection | WP02 | [D] |
+| T011 | `synthesize_pipeline.py` — end-to-end in-memory synthesis flow; wire adapter + schema gate (FR-019) | WP02 | — | [D] |
+| T012 | Schema conformance — validate `AdapterOutput.body` against shipped Pydantic models | WP02 | — | [D] |
+| T013 | Provenance-object assembly (in-memory; no FS yet) | WP02 | — | [D] |
+| T014 | Tests — `test_interview_mapping.py`, `test_orchestrator_synthesize.py` (in-memory), `test_schema_conformance.py` | WP02 | — | [D] |
 | T015 | `provenance.py` — `ProvenanceEntry` pydantic model + read/write via ruamel.yaml | WP03 | [P] |
 | T016 | `staging.py` — staging dir lifecycle; `.failed` preservation; demux trees | WP03 | [P] |
 | T017 | `manifest.py` — `SynthesisManifest` + `ManifestArtifactEntry`; manifest-last commit + read verify | WP03 | [P] |
@@ -104,12 +104,12 @@ Five work packages, matching the plan-level WP3.1 → WP3.8 contract:
 **Independent test**: in-memory synthesis through the fixture adapter produces a valid list of `(body, ProvenanceEntry)` tuples; `test_orchestrator_synthesize.py` runs without touching disk (besides fixture reads).
 
 **Subtasks**:
-- [ ] T009 `interview_mapping.py` — section → target table (WP02)
-- [ ] T010 `targets.py` — selection + ordering + duplicate-slug detection (WP02)
-- [ ] T011 `synthesize_pipeline.py` — end-to-end flow (WP02)
-- [ ] T012 Schema conformance against shipped Pydantic models (WP02)
-- [ ] T013 In-memory provenance-object assembly (WP02)
-- [ ] T014 Tests — interview mapping, orchestrator synthesize (in-memory), schema conformance (WP02)
+- [x] T009 `interview_mapping.py` — section → target table (WP02)
+- [x] T010 `targets.py` — selection + ordering + duplicate-slug detection (WP02)
+- [x] T011 `synthesize_pipeline.py` — end-to-end flow (WP02)
+- [x] T012 Schema conformance against shipped Pydantic models (WP02)
+- [x] T013 In-memory provenance-object assembly (WP02)
+- [x] T014 Tests — interview mapping, orchestrator synthesize (in-memory), schema conformance (WP02)
 
 **Parallel opportunities**: T009, T010 can proceed in parallel. T011–T013 sequence after both.
 
