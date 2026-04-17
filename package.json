@@ -4,6 +4,9 @@
   "scripts": {
     "contributors:sync": "python3 scripts/sync_all_contributors.py"
   },
+  "overrides": {
+    "tmp": "0.2.4"
+  },
   "devDependencies": {
     "all-contributors-cli": "6.27.0-rc.1"
   }
