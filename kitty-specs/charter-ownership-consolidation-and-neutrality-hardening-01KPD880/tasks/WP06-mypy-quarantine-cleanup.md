@@ -8,13 +8,17 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-ownership-consolidation-and-neutrality-hardening-01KPD880
+base_commit: 443e4dc7b2f58b49bf9a4b7bfa6862272336c41d
+created_at: '2026-04-17T09:28:43.813706+00:00'
 subtasks:
 - T021
 - T022
 - T023
 phase: Phase 3 — Hygiene
 assignee: ''
-agent: ''
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "7815"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -128,3 +132,7 @@ Commit message should name the removed module path explicitly so a reviewer can 
 - [ ] `pyproject.toml` still parses (reviewer can run `python -c "import tomllib; tomllib.loads(open('pyproject.toml').read())"` locally).
 - [ ] The PR body includes the `mypy --strict src/charter/context.py` output or records that it was clean.
 - [ ] If the fallback path was chosen (rename to `charter.context`), a follow-up GitHub issue is linked.
+
+## Activity Log
+
+- 2026-04-17T09:28:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Assigned agent via action command
