@@ -17,8 +17,8 @@ subtasks:
 - T023
 phase: Phase 3 — Hygiene
 assignee: ''
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "7815"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "9880"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -137,3 +137,4 @@ Commit message should name the removed module path explicitly so a reviewer can 
 
 - 2026-04-17T09:28:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Assigned agent via action command
 - 2026-04-17T09:36:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Ready: stale quarantine removed; strict mypy clean on charter.context (5 context.py errors fixed with minimal-scope type annotations)
+- 2026-04-17T09:39:53Z – claude:opus-4-6:reviewer:reviewer – shell_pid=9880 – Started review via action command
