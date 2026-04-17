@@ -6,6 +6,8 @@ import zipfile
 
 import pytest
 
+LEGACY_SDIST_SEGMENT = "/src/doctrine/" + "agent" + "-" + "profiles"
+
 
 def test_command_templates_not_bundled():
     """WP10: command-templates directories must not exist in src/specify_cli or src/doctrine.
@@ -65,6 +67,11 @@ def test_sdist_bundles_templates(build_artifacts: dict[str, Path]):
         ]
         assert len(cmd_templates) == 0, (
             f"Non-canonical command-templates found in sdist: {cmd_templates[:5]}"
+        )
+        legacy_agent_profile_paths = [m for m in members if LEGACY_SDIST_SEGMENT in m]
+        assert legacy_agent_profile_paths == [], (
+            f"Legacy {LEGACY_SDIST_SEGMENT} entries found in sdist: "
+            f"{legacy_agent_profile_paths[:5]}"
         )
 
         # Git hooks are intentionally not bundled in 2.x
