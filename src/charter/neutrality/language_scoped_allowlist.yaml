@@ -44,8 +44,3 @@ paths:
     owner: "charter team"
     reason: "Spec Kitty itself is a Python package; setup-doctor skill necessarily references Python tooling."
     added_in: "3.2.0"
-  - path: ".kittify/charter/charter.md"
-    scope: python
-    owner: "charter team"
-    reason: "Spec Kitty project charter; spec-kitty is a Python tool so pytest/pip references are intentional project choices."
-    added_in: "3.2.0"

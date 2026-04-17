@@ -79,7 +79,7 @@ class _CompiledTerm:
 
 def _load_banned_terms(path: Path) -> list[_CompiledTerm]:
     """Load and compile banned terms from YAML. Raises ValueError on bad regex."""
-    raw = _YAML.load(path)
+    raw = _YAML.load(path) or {}
     terms: list[_CompiledTerm] = []
     for entry in raw.get("terms", []):
         term_id: str = entry["id"]
@@ -99,7 +99,7 @@ def _load_banned_terms(path: Path) -> list[_CompiledTerm]:
 
 def _load_allowlist(path: Path) -> list[str]:
     """Return raw path strings from the allowlist YAML."""
-    raw = _YAML.load(path)
+    raw = _YAML.load(path) or {}
     return [entry["path"] for entry in raw.get("paths", [])]
 
 
@@ -253,11 +253,6 @@ def _default_scan_roots(repo_root: Path) -> list[Path]:
             my = mission_dir / "mission.yaml"
             if my.exists():
                 roots.append(my)
-
-    # .kittify/charter/ if present
-    kittify_charter = repo_root / ".kittify" / "charter"
-    if kittify_charter.exists():
-        roots.append(kittify_charter)
 
     return roots
 
