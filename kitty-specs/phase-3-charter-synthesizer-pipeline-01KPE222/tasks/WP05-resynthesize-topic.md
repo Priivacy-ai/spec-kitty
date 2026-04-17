@@ -23,8 +23,8 @@ subtasks:
 - T030
 - T031
 - T032
-shell_pid: "74463"
-agent: "claude:sonnet-4.6:implementer:implementer"
+shell_pid: "97797"
+agent: "claude:opus-4.6:reviewer:reviewer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -222,3 +222,4 @@ spec-kitty agent action implement WP05 --agent <your-agent>
 
 - 2026-04-17T18:15:16Z – claude:sonnet-4.6:implementer:implementer – shell_pid=74463 – Assigned agent via action command
 - 2026-04-17T18:35:44Z – claude:sonnet-4.6:implementer:implementer – shell_pid=74463 – WP05 ready: charter synthesize/resynthesize CLI, topic resolver (3-tier local-first), partial resynth pipeline (FR-017 content_hash preservation), 61 new tests all passing, ruff clean
+- 2026-04-17T18:45:50Z – claude:opus-4.6:reviewer:reviewer – shell_pid=97797 – Started review via action command
