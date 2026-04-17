@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-ownership-consolidation-and-neutrality-hardening-01KPD880
+base_commit: 443e4dc7b2f58b49bf9a4b7bfa6862272336c41d
+created_at: '2026-04-17T09:28:08.414861+00:00'
 subtasks:
 - T014
 - T015
@@ -17,7 +20,8 @@ subtasks:
 - T017
 phase: Phase 1 — Foundational
 assignee: ''
-agent: ''
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "7655"
 history:
 - timestamp: '2026-04-17T09:03:02Z'
   agent: system
@@ -216,3 +220,7 @@ If any of these three tests fail, the fix is in the shim implementation, not in 
 - [ ] `compiler.py`, `interview.py`, `resolver.py` contain zero `warnings.warn` calls.
 - [ ] The test asserts both `>= 1` warning emitted AND `== 1` warning mentioning `specify_cli.charter`.
 - [ ] The three C-005 tests still pass.
+
+## Activity Log
+
+- 2026-04-17T09:28:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7655 – Assigned agent via action command
