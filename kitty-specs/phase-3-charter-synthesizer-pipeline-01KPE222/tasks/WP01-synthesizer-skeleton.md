@@ -23,8 +23,8 @@ subtasks:
 - T006
 - T007
 - T008
-shell_pid: "61147"
-agent: "claude:sonnet-4.6:implementer:implementer"
+shell_pid: "63248"
+agent: "claude:opus-4.6:reviewer:reviewer"
 history:
 - at: '2026-04-17T16:43:25Z'
   actor: tasks
@@ -224,3 +224,4 @@ spec-kitty agent action implement WP01 --agent <your-agent>
 
 - 2026-04-17T17:00:22Z – claude:sonnet-4.6:implementer:implementer – shell_pid=61147 – Assigned agent via action command
 - 2026-04-17T17:17:08Z – claude:sonnet-4.6:implementer:implementer – shell_pid=61147 – WP01 ready: adapter seam, path guard, fixture adapter, orchestrator skeleton, ADRs, and contract tests (33 tests passing, ruff clean)
+- 2026-04-17T17:17:48Z – claude:opus-4.6:reviewer:reviewer – shell_pid=63248 – Started review via action command
