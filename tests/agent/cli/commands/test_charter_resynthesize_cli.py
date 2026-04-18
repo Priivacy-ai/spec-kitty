@@ -14,6 +14,7 @@ Error paths:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -25,6 +26,11 @@ from specify_cli.cli.commands.charter import app
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+
+def _plain_output(output: str) -> str:
+    """Remove ANSI styling so help assertions are stable across terminals."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", output)
 
 
 # ---------------------------------------------------------------------------
@@ -94,8 +100,9 @@ class TestResynthesizeHelp:
         """--help works and shows --topic option."""
         result = runner.invoke(app, ["resynthesize", "--help"], terminal_width=120, color=False)
         assert result.exit_code == 0
-        assert "--topic" in result.output
-        assert "--adapter" in result.output
+        plain = _plain_output(result.output)
+        assert "--topic" in plain
+        assert "--adapter" in plain
 
     def test_synthesize_help(self) -> None:
         """synthesize --help works."""
