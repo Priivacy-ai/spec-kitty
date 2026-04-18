@@ -64,7 +64,7 @@ nodes:
   label: Black-Box Integration Testing
 - urn: directive:DIRECTIVE_037
   kind: directive
-  label: Examples Are Source of Truth
+  label: Living Documentation Sync
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -210,9 +210,9 @@ nodes:
 - urn: tactic:language-driven-design
   kind: tactic
   label: Language-Driven Design
-- urn: tactic:living-documentation-sync
+- urn: tactic:usage-examples-sync
   kind: tactic
-  label: Living Documentation Sync
+  label: Usage Examples Sync
 - urn: tactic:no-parallel-duplicate-test-runs
   kind: tactic
   label: No Parallel Duplicate Test Runs
@@ -424,7 +424,7 @@ edges:
   target: tactic:acceptance-test-first
   relation: scope
 - source: action:software-dev/review
-  target: tactic:living-documentation-sync
+  target: tactic:usage-examples-sync
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification
@@ -695,7 +695,7 @@ edges:
   target: tactic:atdd-adversarial-acceptance
   relation: requires
 - source: paradigm:specification-by-example
-  target: tactic:living-documentation-sync
+  target: tactic:usage-examples-sync
   relation: requires
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor
@@ -1067,7 +1067,7 @@ edges:
   target: tactic:atdd-adversarial-acceptance
   relation: requires
 - source: procedure:example-mapping-workshop
-  target: tactic:living-documentation-sync
+  target: tactic:usage-examples-sync
   relation: requires
 - source: procedure:example-mapping-workshop
   target: tactic:stakeholder-alignment
@@ -1088,5 +1088,5 @@ edges:
   target: tactic:atdd-adversarial-acceptance
   relation: requires
 - source: directive:DIRECTIVE_037
-  target: tactic:living-documentation-sync
+  target: tactic:usage-examples-sync
   relation: requires

@@ -135,7 +135,7 @@ class TestSpecifyContractStructure:
         assert capture_intent is not None
         assert capture_intent.delegates_to is not None
         assert capture_intent.delegates_to.kind == ArtifactKind.DIRECTIVE
-        assert "037-examples-are-source-of-truth" in capture_intent.delegates_to.candidates
+        assert "037-living-documentation-sync" in capture_intent.delegates_to.candidates
 
     def test_has_map_examples_step_with_procedure_delegation(self, contract: MissionStepContract) -> None:
         map_examples = next((s for s in contract.steps if s.id == "map_examples"), None)
@@ -160,11 +160,11 @@ class TestReviewContractStructure:
         assert verify_spec_fidelity is not None
         assert verify_spec_fidelity.delegates_to is not None
         assert verify_spec_fidelity.delegates_to.kind == ArtifactKind.DIRECTIVE
-        assert "037-examples-are-source-of-truth" in verify_spec_fidelity.delegates_to.candidates
+        assert "037-living-documentation-sync" in verify_spec_fidelity.delegates_to.candidates
 
     def test_has_example_sync_step(self, contract: MissionStepContract) -> None:
         verify_example_sync = next((s for s in contract.steps if s.id == "verify_example_sync"), None)
         assert verify_example_sync is not None
         assert verify_example_sync.delegates_to is not None
         assert verify_example_sync.delegates_to.kind == ArtifactKind.TACTIC
-        assert verify_example_sync.delegates_to.candidates == ["living-documentation-sync"]
+        assert verify_example_sync.delegates_to.candidates == ["usage-examples-sync"]

@@ -23,7 +23,9 @@ steps:
     description: >
       Gather representative happy-path, edge-case, and failure examples using
       domain language. Prefer real business situations over invented technical
-      cases.
+      cases. Phrase each example in a Given / When / Then shape so the
+      precondition, trigger, and observable outcome are explicit and reusable
+      when the example is later promoted into an acceptance check.
     actor: human
   - title: Separate rules, examples, and questions
     description: >
@@ -75,15 +77,34 @@ references:
   - type: directive
     id: DIRECTIVE_037
     reason: >
-      The workshop produces the canonical examples governed by the Examples Are
-      Source of Truth directive.
+      The workshop produces the canonical examples governed by the Living
+      Documentation Sync directive.
   - type: tactic
     id: acceptance-test-first
     reason: >
       Stable canonical examples should hand off cleanly into executable
       acceptance checks.
   - type: tactic
-    id: living-documentation-sync
+    id: usage-examples-sync
     reason: >
       Approved examples need an explicit sync step so docs, specs, and
       verification artifacts do not drift.
+  - type: procedure
+    id: event-storming-discovery
+    reason: >
+      Use when domain flows, events, and user journeys are not yet understood
+      well enough to frame concrete examples. Event storming surfaces the
+      business narrative that example mapping then tightens into rules and
+      canonical examples.
+  - type: tactic
+    id: atdd-adversarial-acceptance
+    reason: >
+      Run after a candidate example set is drafted to probe failure modes and
+      promote selected adversarial scenarios into additional canonical
+      examples and rejection rules.
+  - type: tactic
+    id: reverse-speccing
+    reason: >
+      Use when approaching a legacy area: reconstructing behaviour from
+      existing tests yields the starting example set that the workshop then
+      validates and curates with stakeholders.

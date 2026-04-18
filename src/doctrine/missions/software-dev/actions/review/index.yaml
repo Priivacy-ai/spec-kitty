@@ -1,10 +1,10 @@
 action: review
 directives:
   - 010-specification-fidelity-requirement
-  - 037-examples-are-source-of-truth
+  - 037-living-documentation-sync
   - 030-test-and-typecheck-quality-gate
 tactics:
-  - living-documentation-sync
+  - usage-examples-sync
   - review-intent-and-risk-first
   - quality-gate-verification
   - stopping-conditions

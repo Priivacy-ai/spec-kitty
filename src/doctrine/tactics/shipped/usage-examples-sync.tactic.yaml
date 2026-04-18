@@ -1,9 +1,10 @@
 schema_version: "1.0"
-id: living-documentation-sync
-name: Living Documentation Sync
+id: usage-examples-sync
+name: Usage Examples Sync
 purpose: >
-  Keep canonical examples, acceptance checks, and narrative specifications in
-  sync so behavior changes never leave stale documentation behind.
+  Keep canonical usage examples, acceptance checks, and the narrative
+  artifacts that quote or reference them in step with behavior changes
+  so no downstream reader is left with stale examples.
 steps:
   - title: Identify the canonical example set
     description: >
@@ -17,12 +18,12 @@ steps:
       explicitly recorded manual verification path.
     examples:
       - "Match each checkout example to a black-box acceptance test or a documented manual fallback."
-  - title: Update human-readable artifacts in the same change
+  - title: Update referencing artifacts in the same change
     description: >
-      Revise spec text, task notes, and any living documentation that explains
-      the behavior so they match the updated examples.
+      Revise spec text, task notes, user docs, and code-level docstrings that
+      quote or rely on the examples so they match the updated canonical set.
     examples:
-      - "Change the refund examples in spec.md and the operator notes in the same branch as the API behavior change."
+      - "Change the refund examples in spec.md, the operator notes, and the API-client README in the same branch as the API behavior change."
   - title: Remove or mark stale examples
     description: >
       Delete superseded examples or annotate them as historical when they no

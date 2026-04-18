@@ -294,7 +294,7 @@ def test_service_exposes_specification_by_example_artifacts() -> None:
     directive = service.directives.get("DIRECTIVE_037")
     assert directive is not None
 
-    tactic = service.tactics.get("living-documentation-sync")
+    tactic = service.tactics.get("usage-examples-sync")
     assert tactic is not None
     assert any(ref.id == "DIRECTIVE_010" for ref in tactic.references)
 
@@ -303,10 +303,10 @@ def test_service_exposes_specification_by_example_artifacts() -> None:
 
     paradigm_edges = {(edge.target, edge.relation) for edge in graph.edges_from("paradigm:specification-by-example")}
     assert ("directive:DIRECTIVE_037", Relation.REQUIRES) in paradigm_edges
-    assert ("tactic:living-documentation-sync", Relation.REQUIRES) in paradigm_edges
+    assert ("tactic:usage-examples-sync", Relation.REQUIRES) in paradigm_edges
 
     directive_edges = {(edge.target, edge.relation) for edge in graph.edges_from("directive:DIRECTIVE_037")}
-    assert ("tactic:living-documentation-sync", Relation.REQUIRES) in directive_edges
+    assert ("tactic:usage-examples-sync", Relation.REQUIRES) in directive_edges
 
     procedure_edges = {(edge.target, edge.relation) for edge in graph.edges_from("procedure:example-mapping-workshop")}
-    assert ("tactic:living-documentation-sync", Relation.REQUIRES) in procedure_edges
+    assert ("tactic:usage-examples-sync", Relation.REQUIRES) in procedure_edges

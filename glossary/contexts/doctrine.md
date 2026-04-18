@@ -169,3 +169,55 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Related terms** | [Charter Selection](#charter-selection), [Charter Compiler](./governance.md#charter-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic)                                                         |
 
 ---
+
+### Specification by Example (Paradigm)
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | A paradigm that builds shared understanding of behavior through concrete, business-readable examples which become the canonical source of truth for requirements, acceptance checks, and living documentation.                        |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | canonical                                                                                                                                                                                                                               |
+| **Applicable to** | `1.x`, `2.x` |
+| **Location**      | `src/doctrine/paradigms/shipped/specification-by-example.paradigm.yaml`                                                                                                                                                                |
+| **Related terms** | [Paradigm](#paradigm), [Living Documentation Sync (Directive)](#living-documentation-sync-directive), [Usage Examples Sync (Tactic)](#usage-examples-sync-tactic), [Example Mapping Workshop (Procedure)](#example-mapping-workshop-procedure) |
+
+---
+
+### Living Documentation Sync (Directive)
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Directive DIRECTIVE_037. Requires behavior-describing artifacts to evolve together: when observable behavior changes, the canonical examples, acceptance checks, narrative specs, user docs, glossary entries, code-level docs, and architecture records are updated in the same change. |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | canonical                                                                                                                                                                                                                               |
+| **Applicable to** | `1.x`, `2.x` |
+| **Location**      | `src/doctrine/directives/shipped/037-living-documentation-sync.directive.yaml`                                                                                                                                                         |
+| **Related terms** | [Directive](#directive), [Specification by Example (Paradigm)](#specification-by-example-paradigm), [Usage Examples Sync (Tactic)](#usage-examples-sync-tactic)                                                                        |
+
+---
+
+### Usage Examples Sync (Tactic)
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Tactic `usage-examples-sync`. The step-by-step pattern for keeping canonical usage examples, acceptance checks, and the artifacts that quote them aligned during a behavior change.                                                   |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | canonical                                                                                                                                                                                                                               |
+| **Applicable to** | `1.x`, `2.x` |
+| **Location**      | `src/doctrine/tactics/shipped/usage-examples-sync.tactic.yaml`                                                                                                                                                                         |
+| **Related terms** | [Tactic](#tactic), [Living Documentation Sync (Directive)](#living-documentation-sync-directive), [Example Mapping Workshop (Procedure)](#example-mapping-workshop-procedure)                                                          |
+
+---
+
+### Example Mapping Workshop (Procedure)
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Procedure `example-mapping-workshop`. Turns a behavior request into concrete rules, canonical examples, and open questions that stakeholders and implementers share as the current source of truth for the behavior.                   |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | canonical                                                                                                                                                                                                                               |
+| **Applicable to** | `1.x`, `2.x` |
+| **Location**      | `src/doctrine/procedures/shipped/example-mapping-workshop.procedure.yaml`                                                                                                                                                              |
+| **Related terms** | [Procedure](#procedure), [Specification by Example (Paradigm)](#specification-by-example-paradigm), [Living Documentation Sync (Directive)](#living-documentation-sync-directive), [Usage Examples Sync (Tactic)](#usage-examples-sync-tactic) |
+
+---

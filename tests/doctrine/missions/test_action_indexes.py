@@ -11,5 +11,5 @@ def test_review_action_index_includes_living_documentation_sync() -> None:
     index = repo.get_action_index("software-dev", "review")
 
     assert index is not None
-    assert "037-examples-are-source-of-truth" in index.parsed["directives"]
-    assert index.parsed["tactics"][0] == "living-documentation-sync"
+    assert "037-living-documentation-sync" in index.parsed["directives"]
+    assert index.parsed["tactics"][0] == "usage-examples-sync"

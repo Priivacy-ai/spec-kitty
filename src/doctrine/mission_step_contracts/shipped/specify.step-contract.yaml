@@ -20,7 +20,7 @@ steps:
       kind: directive
       candidates:
         - 010-specification-fidelity-requirement
-        - 037-examples-are-source-of-truth
+        - 037-living-documentation-sync
 
   - id: map_examples
     description: Capture concrete rules, examples, and open questions for the behavior slice
