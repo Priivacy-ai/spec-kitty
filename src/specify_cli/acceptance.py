@@ -245,12 +245,12 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
 
 
 def detect_mission_slug(
-    repo_root: Path,  # noqa: ARG001 -- kept for signature compat
+    repo_root: Path,
     *,
     explicit_feature: str | None = None,
-    env: Mapping[str, str] | None = None,  # noqa: ARG001 -- kept for signature compat
-    cwd: Path | None = None,  # noqa: ARG001 -- kept for signature compat
-    announce_fallback: bool = True,  # noqa: ARG001 -- kept for signature compat
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+    announce_fallback: bool = True,
 ) -> str:
     """Require an explicit mission slug; no auto-detection.
 
@@ -267,6 +267,7 @@ def detect_mission_slug(
     Raises:
         AcceptanceError: If no explicit feature slug is provided.
     """
+    _ = (repo_root, env, cwd, announce_fallback)
     try:
         return _require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     except ValueError as e:

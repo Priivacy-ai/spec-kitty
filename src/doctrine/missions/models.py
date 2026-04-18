@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+IDENTIFIER_PATTERN = r"^[a-z][a-z0-9-]*$"
+
 
 class MissionStateObject(BaseModel):
     """Expanded state with optional agent-profile binding."""
@@ -22,9 +24,7 @@ class MissionStateObject(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
     id: str
-    agent_profile: str | None = Field(
-        default=None, alias="agent-profile", pattern=r"^[a-z][a-z0-9-]*$"
-    )
+    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=IDENTIFIER_PATTERN)
 
 
 class MissionTransition(BaseModel):
@@ -35,9 +35,7 @@ class MissionTransition(BaseModel):
     from_state: str = Field(alias="from")
     to: str
     on: str | None = None
-    agent_profile: str | None = Field(
-        default=None, alias="agent-profile", pattern=r"^[a-z][a-z0-9-]*$"
-    )
+    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=IDENTIFIER_PATTERN)
 
 
 class MissionOrchestration(BaseModel):
@@ -62,9 +60,7 @@ class MissionStep(BaseModel):
     description: str | None = None
     prompt_template: str | None = None
     depends_on: list[str] = Field(default_factory=list)
-    agent_profile: str | None = Field(
-        default=None, alias="agent-profile", pattern=r"^[a-z][a-z0-9-]*$"
-    )
+    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=IDENTIFIER_PATTERN)
 
 
 class Mission(BaseModel):
@@ -77,7 +73,7 @@ class Mission(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     schema_version: str = Field(pattern=r"^1\.0$")
-    key: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    key: str = Field(pattern=IDENTIFIER_PATTERN)
     name: str
     description: str | None = None
     orchestration: MissionOrchestration

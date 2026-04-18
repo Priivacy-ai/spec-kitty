@@ -356,7 +356,7 @@ class Extractor:
 
 def extract_with_ai(
     prose_sections: list[CharterSection],
-    schema_hint: dict[str, Any],  # noqa: ARG001
+    schema_hint: dict[str, Any],
 ) -> dict[str, Any]:
     """Send prose sections to configured AI agent for structured extraction.
 
@@ -370,6 +370,7 @@ def extract_with_ai(
         Extracted data as dict matching schema hint (empty dict if AI unavailable)
     """
     # Check if AI agent is available (stub for now)
+    _ = schema_hint
     logger.info("AI extraction not yet implemented - skipping %d prose sections", len(prose_sections))
 
     # Return empty dict (graceful fallback)
