@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -488,6 +489,321 @@ def status(
 
         console.print(table)
 
+    except TaskCliError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+# ---------------------------------------------------------------------------
+# Synthesizer subcommands (Phase 3 — T030)
+# ---------------------------------------------------------------------------
+
+
+def _build_synthesis_request(
+    repo_root: Path,
+    adapter_name: str,
+) -> tuple[Any, Any]:
+    """Build a SynthesisRequest + adapter from the project's current interview state.
+
+    Returns ``(SynthesisRequest, adapter)`` ready for synthesize() / resynthesize().
+    Raises ``TaskCliError`` if the interview answers file does not exist.
+    """
+    import uuid
+
+    from charter.interview import read_interview_answers
+    from charter.synthesizer.fixture_adapter import FixtureAdapter
+    from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+
+    answers_path = _interview_path(repo_root)
+    interview_data = read_interview_answers(answers_path)
+    if interview_data is None:
+        raise TaskCliError(
+            "No interview answers found. "
+            "Run 'spec-kitty charter interview' first."
+        )
+
+    # Build a minimal interview snapshot from the interview data
+    interview_snapshot: dict[str, Any] = {
+        "mission_type": interview_data.mission,
+        "selected_directives": interview_data.selected_directives,
+        "selected_paradigms": interview_data.selected_paradigms,
+    }
+    interview_snapshot.update(dict(interview_data.answers))
+
+    # Build a minimal doctrine snapshot (directives only for now)
+    doctrine_snapshot: dict[str, Any] = {
+        "directives": {},
+        "tactics": {},
+        "styleguides": {},
+    }
+
+    # Build a minimal DRG snapshot with shipped directives as nodes
+    drg_nodes = []
+    for directive_id in interview_data.selected_directives:
+        drg_nodes.append({
+            "urn": f"directive:{directive_id}",
+            "kind": "directive",
+            "id": directive_id,
+        })
+    drg_snapshot: dict[str, Any] = {
+        "nodes": drg_nodes,
+        "edges": [],
+        "schema_version": "1",
+    }
+
+    # Placeholder target (synthesize() derives actual targets from interview)
+    target = SynthesisTarget(
+        kind="directive",
+        slug="synthesize-placeholder",
+        title="Synthesize Placeholder",
+        artifact_id="PROJECT_000",
+        source_section="mission_type",
+    )
+
+    run_id = str(uuid.uuid4()).replace("-", "").upper()[:26]
+
+    request = SynthesisRequest(
+        target=target,
+        interview_snapshot=interview_snapshot,
+        doctrine_snapshot=doctrine_snapshot,
+        drg_snapshot=drg_snapshot,
+        run_id=run_id,
+    )
+
+    if adapter_name == "fixture":
+        adapter_obj = FixtureAdapter()
+    else:
+        # Production adapter: not yet implemented; raise a helpful error
+        from charter.synthesizer.errors import ProductionAdapterUnavailableError
+        raise ProductionAdapterUnavailableError(
+            adapter_id=adapter_name,
+            reason="Production LLM adapter is not yet configured",
+            remediation=(
+                "Use '--adapter fixture' for testing with pre-recorded fixtures, "
+                "or configure an LLM adapter in .kittify/config.yaml."
+            ),
+        )
+
+    return request, adapter_obj
+
+
+@app.command("synthesize")
+def charter_synthesize(
+    adapter: str = typer.Option(
+        "production",
+        "--adapter",
+        help="Adapter to use: 'fixture' (offline/testing) or 'production' (LLM).",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Stage and validate artifacts but do not promote to live tree.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Generate project-local doctrine from interview answers (full synthesis).
+
+    Reads the charter interview answers, resolves synthesis targets from the
+    DRG + doctrine, and writes all artifacts to .kittify/doctrine/.
+
+    Examples
+    --------
+    Full synthesis with fixture adapter (offline/testing)::
+
+        spec-kitty charter synthesize --adapter fixture
+
+    Dry-run (stage only, no write)::
+
+        spec-kitty charter synthesize --adapter fixture --dry-run
+    """
+    from charter.synthesizer.errors import SynthesisError, render_error_panel
+
+    err_console = Console(stderr=True)
+
+    try:
+        repo_root = find_repo_root()
+        request, syn_adapter = _build_synthesis_request(repo_root, adapter)
+
+        if dry_run:
+            # Dry-run: stage but do not promote
+            from charter.synthesizer.synthesize_pipeline import run_all
+
+            results = run_all(request, adapter=syn_adapter)
+
+            staged_files: list[str] = []
+            for _body, prov in results:
+                staged_files.append(f"{prov.artifact_kind}:{prov.artifact_slug}")
+
+            if json_output:
+                print(json.dumps({
+                    "result": "dry_run",
+                    "staged_artifacts": staged_files,
+                    "artifact_count": len(staged_files),
+                }, indent=2))
+                return
+
+            console.print("[yellow]Dry-run:[/yellow] synthesis staged (not promoted)")
+            for f in staged_files:
+                console.print(f"  [dim]staged:[/dim] {f}")
+            return
+
+        from charter.synthesizer import synthesize
+
+        result = synthesize(request, adapter=syn_adapter, repo_root=repo_root)
+
+        if json_output:
+            print(json.dumps({
+                "result": "success",
+                "target_kind": result.target_kind,
+                "target_slug": result.target_slug,
+                "inputs_hash": result.inputs_hash,
+                "adapter_id": result.effective_adapter_id,
+                "adapter_version": result.effective_adapter_version,
+            }, indent=2))
+            return
+
+        console.print("[green]Charter synthesis complete[/green]")
+        console.print(f"Primary artifact: {result.target_kind}:{result.target_slug}")
+        console.print(f"Adapter: {result.effective_adapter_id} v{result.effective_adapter_version}")
+
+    except SynthesisError as e:
+        render_error_panel(e, err_console)
+        raise typer.Exit(code=1) from e
+    except TaskCliError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+@app.command("resynthesize")
+def charter_resynthesize(
+    topic: str = typer.Option(
+        ...,
+        "--topic",
+        help=(
+            "Structured topic selector: "
+            "<kind>:<slug> (project-local), "
+            "<drg-urn> (shipped+project graph), "
+            "or <interview-section-label>."
+        ),
+    ),
+    adapter: str = typer.Option(
+        "production",
+        "--adapter",
+        help="Adapter to use: 'fixture' (offline/testing) or 'production' (LLM).",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Regenerate a bounded set of project-local doctrine artifacts (partial resynthesis).
+
+    Uses a structured selector to identify the target set:
+
+    - ``directive:PROJECT_001`` — regenerate a specific project directive.
+    - ``tactic:how-we-apply-directive-003`` — regenerate one tactic.
+    - ``directive:DIRECTIVE_003`` — regenerate every artifact whose provenance
+      references the shipped DIRECTIVE_003 URN.
+    - ``testing-philosophy`` — regenerate all artifacts from that interview section.
+
+    Unrelated artifacts are never touched (FR-017).
+
+    Examples
+    --------
+    Resynthesize a single tactic::
+
+        spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003 --adapter fixture
+
+    Resynthesize all artifacts referencing a shipped directive::
+
+        spec-kitty charter resynthesize --topic directive:DIRECTIVE_003 --adapter fixture
+    """
+    from charter.synthesizer.errors import (
+        SynthesisError,
+        TopicSelectorUnresolvedError,
+        render_error_panel,
+    )
+    from rich.panel import Panel
+    from rich.text import Text
+
+    err_console = Console(stderr=True)
+
+    try:
+        repo_root = find_repo_root()
+        request, syn_adapter = _build_synthesis_request(repo_root, adapter)
+
+        from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+
+        result = resynthesize_run(
+            request=request,
+            adapter=syn_adapter,
+            topic=topic,
+            repo_root=repo_root,
+        )
+
+        if result.is_noop:
+            if json_output:
+                print(json.dumps({
+                    "result": "noop",
+                    "topic": topic,
+                    "diagnostic": result.diagnostic,
+                    "matched_form": result.resolved_topic.matched_form,
+                    "targets_count": 0,
+                }, indent=2))
+                return
+            console.print(f"[yellow]No-op:[/yellow] {result.diagnostic}")
+            return
+
+        regenerated = [
+            f"{t.kind}:{t.slug}"
+            for t in result.resolved_topic.targets
+        ]
+
+        if json_output:
+            print(json.dumps({
+                "result": "success",
+                "topic": topic,
+                "matched_form": result.resolved_topic.matched_form,
+                "matched_value": result.resolved_topic.matched_value,
+                "regenerated": regenerated,
+                "run_id": result.manifest.run_id,
+                "manifest_artifacts": len(result.manifest.artifacts),
+            }, indent=2))
+            return
+
+        console.print(f"[green]Resynthesis complete[/green] (topic: {topic!r})")
+        console.print(f"Matched form: {result.resolved_topic.matched_form}")
+        console.print(f"Run ID: {result.manifest.run_id}")
+        console.print("Regenerated artifacts:")
+        for art in regenerated:
+            console.print(f"  [green]✓[/green] {art}")
+
+    except TopicSelectorUnresolvedError as e:
+        # Exit code 2 — invalid usage (contracts/topic-selector.md §2.2)
+        panel_body = str(e)
+        if hasattr(e, "candidates") and e.candidates:
+            cands = "\n".join(f"  * {c}" for c in e.candidates)
+            panel_body += f"\n\nNearest candidates:\n{cands}"
+        panel_body += (
+            "\n\nRun 'spec-kitty charter resynthesize --list-topics' to see all valid selectors."
+        )
+        err_console.print(
+            Panel(
+                Text(panel_body),
+                title=f'[bold red]Cannot resolve --topic "{e.raw}"[/]',
+                border_style="red",
+            )
+        )
+        raise typer.Exit(code=2) from e
+    except SynthesisError as e:
+        render_error_panel(e, err_console)
+        raise typer.Exit(code=1) from e
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e

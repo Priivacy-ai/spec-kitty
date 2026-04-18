@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 
+from charter._doctrine_paths import resolve_project_root
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.interview import (
     CharterInterview,
@@ -245,14 +246,23 @@ def _sanitize_catalog_selection(
 
 
 def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
-    """Build a DoctrineService rooted at shipped doctrine plus optional project overlay."""
+    """Build a DoctrineService rooted at shipped doctrine plus optional project overlay.
+
+    The project-root candidate list (in priority order):
+    1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T024).
+    2. ``src/doctrine/``       — code-local shipped-layer path.
+    3. ``doctrine/``           — flat fallback.
+
+    Discovery is conditional on directory presence: legacy projects (pre-
+    synthesis) that have none of these directories see ``project_root=None``
+    and byte-identical behaviour to the pre-Phase-3 default (R-2 mitigation).
+    """
     from doctrine.service import DoctrineService
 
     doctrine_root = resolve_doctrine_root()
     project_root: Path | None = None
     if repo_root is not None:
-        candidates = [repo_root / "src" / "doctrine", repo_root / "doctrine"]
-        project_root = next((path for path in candidates if path.is_dir()), None)
+        project_root = resolve_project_root(repo_root)
     return DoctrineService(shipped_root=doctrine_root, project_root=project_root)
 
 

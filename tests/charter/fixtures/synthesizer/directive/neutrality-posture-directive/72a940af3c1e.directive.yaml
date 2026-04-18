@@ -1,0 +1,11 @@
+id: PROJECT_002
+schema_version: '1.0'
+title: Neutrality Posture Directive
+intent: >
+  Establish the neutrality posture that governs how agents and contributors
+  handle contested decisions, balancing advocacy with epistemic humility.
+enforcement: required
+scope: "Agent behaviour and contributor decision-making."
+procedures:
+  - "Present multiple perspectives on contested issues before recommending."
+  - "Label assumptions and distinguish them from established facts."

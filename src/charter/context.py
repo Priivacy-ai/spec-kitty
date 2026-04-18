@@ -11,6 +11,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter._doctrine_paths import resolve_project_root
 from charter.language_scope import infer_repo_languages
 from charter.resolver import GovernanceResolutionError, resolve_governance
 from kernel.atomic import atomic_write
@@ -346,13 +347,24 @@ def _extend_named_artifact_lines(
 
 
 def _build_doctrine_service(repo_root: Path) -> object:
-    """Build a DoctrineService for the given repo root."""
+    """Build a DoctrineService for the given repo root.
+
+    The project-root candidate list (in priority order):
+    1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T025).
+    2. ``src/doctrine/``       — code-local shipped-layer path.
+    3. ``doctrine/``           — flat fallback.
+
+    Discovery is conditional on directory presence so legacy (pre-synthesis)
+    projects see byte-identical behaviour (R-2 mitigation).
+
+    Cross-reference: ``compiler._default_doctrine_service`` uses the same
+    ``resolve_project_root`` helper from ``charter._doctrine_paths``.
+    """
     from doctrine.service import DoctrineService
     from charter.catalog import resolve_doctrine_root
 
     doctrine_root = resolve_doctrine_root()
-    project_root_candidates = [repo_root / "src" / "doctrine", repo_root / "doctrine"]
-    project_root = next((path for path in project_root_candidates if path.is_dir()), None)
+    project_root = resolve_project_root(repo_root)
     return DoctrineService(
         shipped_root=doctrine_root,
         project_root=project_root,

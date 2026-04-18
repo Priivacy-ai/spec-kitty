@@ -1,0 +1,17 @@
+id: testing-style-guide
+schema_version: '1.0'
+title: Testing Style Guide
+scope: testing
+principles:
+  - "All new code must have tests."
+  - "Tests must be deterministic — no random seeds, no wall-clock dependencies."
+  - "Use fixture-based testing for any external I/O (network, filesystem)."
+  - "Name tests after the behaviour they verify, not the implementation detail."
+anti_patterns:
+  - name: Testing implementation details
+    description: Tests that assert on private state rather than observable behaviour.
+    bad_example: "assert obj._internal_cache == {...}"
+    good_example: "assert obj.get_result() == expected_value"
+tooling:
+  framework: pytest
+  coverage: pytest-cov
