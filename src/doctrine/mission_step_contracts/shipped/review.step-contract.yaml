@@ -20,6 +20,14 @@ steps:
       kind: directive
       candidates:
         - 010-specification-fidelity-requirement
+        - 037-living-documentation-sync
+
+  - id: verify_example_sync
+    description: Verify canonical examples, acceptance checks, and docs stayed in sync
+    delegates_to:
+      kind: tactic
+      candidates:
+        - usage-examples-sync
 
   - id: assess_intent_and_risk
     description: Evaluate changes for intent alignment and risk

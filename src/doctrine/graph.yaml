@@ -62,6 +62,9 @@ nodes:
 - urn: directive:DIRECTIVE_036
   kind: directive
   label: Black-Box Integration Testing
+- urn: directive:DIRECTIVE_037
+  kind: directive
+  label: Living Documentation Sync
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -79,6 +82,9 @@ nodes:
 - urn: paradigm:domain-driven-design
   kind: paradigm
   label: Domain-Driven Design
+- urn: paradigm:specification-by-example
+  kind: paradigm
+  label: Specification by Example
 - urn: procedure:documentation-gap-prioritization
   kind: procedure
   label: Documentation Gap Prioritization
@@ -88,6 +94,9 @@ nodes:
 - urn: procedure:event-storming-discovery
   kind: procedure
   label: Event Storming Discovery
+- urn: procedure:example-mapping-workshop
+  kind: procedure
+  label: Example Mapping Workshop
 - urn: procedure:migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   label: Migrate Project Guidance to Spec Kitty Charter
@@ -201,6 +210,9 @@ nodes:
 - urn: tactic:language-driven-design
   kind: tactic
   label: Language-Driven Design
+- urn: tactic:usage-examples-sync
+  kind: tactic
+  label: Usage Examples Sync
 - urn: tactic:no-parallel-duplicate-test-runs
   kind: tactic
   label: No Parallel Duplicate Test Runs
@@ -406,7 +418,13 @@ edges:
   target: directive:DIRECTIVE_034
   relation: scope
 - source: action:software-dev/review
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:software-dev/review
   target: tactic:acceptance-test-first
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:usage-examples-sync
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification
@@ -660,6 +678,24 @@ edges:
   relation: requires
 - source: paradigm:domain-driven-design
   target: tactic:refactoring-strangler-fig
+  relation: requires
+- source: paradigm:specification-by-example
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: paradigm:specification-by-example
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: paradigm:specification-by-example
+  target: directive:DIRECTIVE_037
+  relation: requires
+- source: paradigm:specification-by-example
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: paradigm:specification-by-example
+  target: tactic:atdd-adversarial-acceptance
+  relation: requires
+- source: paradigm:specification-by-example
+  target: tactic:usage-examples-sync
   relation: requires
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor
@@ -1024,6 +1060,18 @@ edges:
 - source: procedure:situational-assessment
   target: tactic:stakeholder-alignment
   relation: requires
+- source: procedure:example-mapping-workshop
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: procedure:example-mapping-workshop
+  target: tactic:atdd-adversarial-acceptance
+  relation: requires
+- source: procedure:example-mapping-workshop
+  target: tactic:usage-examples-sync
+  relation: requires
+- source: procedure:example-mapping-workshop
+  target: tactic:stakeholder-alignment
+  relation: requires
 - source: directive:DIRECTIVE_035
   target: tactic:occurrence-classification-workflow
   relation: requires
@@ -1032,4 +1080,13 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_036
   target: tactic:test-boundaries-by-responsibility
+  relation: requires
+- source: directive:DIRECTIVE_037
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: directive:DIRECTIVE_037
+  target: tactic:atdd-adversarial-acceptance
+  relation: requires
+- source: directive:DIRECTIVE_037
+  target: tactic:usage-examples-sync
   relation: requires

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from ruamel.yaml import YAML
 
+from doctrine.drg.loader import load_graph, merge_layers
+from doctrine.drg.models import Relation
 from doctrine.service import DoctrineService
-import pytest
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+SHIPPED_GRAPH = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
 
 
 def _write_yaml(path: Path, data: dict) -> None:
@@ -277,3 +281,32 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
     assert service.styleguides.get("python-style") is not None
     assert service.toolguides.get("python-tool") is not None
     assert service.agent_profiles.get("python-implementer") is not None
+
+
+def test_service_exposes_specification_by_example_artifacts() -> None:
+    service = DoctrineService()
+    graph = merge_layers(load_graph(SHIPPED_GRAPH), None)
+
+    paradigm = service.paradigms.get("specification-by-example")
+    assert paradigm is not None
+    assert "DIRECTIVE_037" in paradigm.directive_refs
+
+    directive = service.directives.get("DIRECTIVE_037")
+    assert directive is not None
+
+    tactic = service.tactics.get("usage-examples-sync")
+    assert tactic is not None
+    assert any(ref.id == "DIRECTIVE_010" for ref in tactic.references)
+
+    procedure = service.procedures.get("example-mapping-workshop")
+    assert procedure is not None
+
+    paradigm_edges = {(edge.target, edge.relation) for edge in graph.edges_from("paradigm:specification-by-example")}
+    assert ("directive:DIRECTIVE_037", Relation.REQUIRES) in paradigm_edges
+    assert ("tactic:usage-examples-sync", Relation.REQUIRES) in paradigm_edges
+
+    directive_edges = {(edge.target, edge.relation) for edge in graph.edges_from("directive:DIRECTIVE_037")}
+    assert ("tactic:usage-examples-sync", Relation.REQUIRES) in directive_edges
+
+    procedure_edges = {(edge.target, edge.relation) for edge in graph.edges_from("procedure:example-mapping-workshop")}
+    assert ("tactic:usage-examples-sync", Relation.REQUIRES) in procedure_edges
