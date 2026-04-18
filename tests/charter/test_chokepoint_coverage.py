@@ -26,13 +26,11 @@ wrapper that does). The carve-out list is explicit and narrow:
     the chokepoint.
   * ``src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py`` —
     bootstrap migration (future).
-  * ``src/charter/extractor.py`` / ``src/specify_cli/charter/extractor.py``
+  * ``src/charter/extractor.py``
     — producers of governance/directives/metadata.yaml; they WRITE, not
     READ, those files.
-  * ``src/charter/hasher.py`` / ``src/specify_cli/charter/hasher.py`` —
-    metadata.yaml consumer used by the chokepoint itself.
-  * ``src/charter/schemas.py`` / ``src/specify_cli/charter/schemas.py``
-    — only string constants for YAML filenames.
+  * ``src/charter/hasher.py`` — metadata.yaml consumer used by the chokepoint itself.
+  * ``src/charter/schemas.py`` — only string constants for YAML filenames.
 
 See ``kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/chokepoint.contract.md``
 for the architectural contract.
@@ -69,8 +67,6 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/hasher.py",
         # Schema definitions — string literals only
         "src/charter/schemas.py",
-        # Note: specify_cli/charter/ internals deleted by WP05; only __init__.py
-        # shim remains and it imports from charter.* rather than reading derivatives.
         # Future bootstrap migration
         "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py",
     }

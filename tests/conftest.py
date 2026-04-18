@@ -52,6 +52,21 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "real_worktree_detection: opt out of autouse worktree detection neutralization",
     )
+    config.addinivalue_line(
+        "markers",
+        "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
+    )
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    skip_windows = pytest.mark.skip(reason="windows_ci: requires sys.platform == 'win32'")
+    for item in items:
+        if item.get_closest_marker("windows_ci") and sys.platform != "win32":
+            item.add_marker(skip_windows)
 
 
 @pytest.fixture(autouse=True)

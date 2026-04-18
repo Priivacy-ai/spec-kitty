@@ -1,0 +1,42 @@
+{
+  "event_count": 25,
+  "last_event_id": "01KPFQ9SV9K8Y0FGJPDYPB264Y",
+  "materialized_at": "2026-04-18T07:18:52.009535+00:00",
+  "mission_number": "",
+  "mission_slug": "functional-ownership-map-01KPDY72",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "cursor",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KPFQ9SRGB3BCD5V1FFE8HJVK",
+      "last_transition_at": "2026-04-18T07:18:51.920389+00:00"
+    },
+    "WP02": {
+      "actor": "cursor",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KPFQ9SV9K8Y0FGJPDYPB264Y",
+      "last_transition_at": "2026-04-18T07:18:52.009535+00:00"
+    },
+    "WP03": {
+      "actor": "cursor",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KPFQ9EXPE810J43PHFFM7303",
+      "last_transition_at": "2026-04-18T07:18:40.822136+00:00"
+    }
+  }
+}

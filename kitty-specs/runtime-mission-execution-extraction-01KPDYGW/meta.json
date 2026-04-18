@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-17T14:46:35.423453+00:00",
+  "friendly_name": "runtime mission execution extraction",
+  "mission_id": "01KPDYGWKZ3ZMBPRX9RYMWPR1A",
+  "mission_number": null,
+  "mission_slug": "runtime-mission-execution-extraction-01KPDYGW",
+  "mission_type": "software-dev",
+  "slug": "runtime-mission-execution-extraction-01KPDYGW",
+  "target_branch": "main"
+}

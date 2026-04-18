@@ -168,6 +168,8 @@ markers = [
     "platform_linux: Linux-specific tests",
     "requires_symlinks: Tests that need symlink support",
     "no_readiness_stub: Opt out of any autouse readiness-stub fixture so the test exercises its own readiness wiring (mission 082 tracker CLI tests)",
+    "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
+    "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
 ]
 
 [tool.ruff]

@@ -33,7 +33,7 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
 
 1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks`
 
-   **CRITICAL**: The command returns JSON with `MISSION_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
+   **CRITICAL**: The command returns JSON with `MISSION_DIR` as an ABSOLUTE path (e.g., `/path/to/repo/kitty-specs/015-research-topic`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 

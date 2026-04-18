@@ -77,12 +77,12 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
 1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `mission_dir` plus `available_docs`. All paths must be absolute.
 
-   **CRITICAL**: The command returns JSON with `mission_dir` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-mission-name`).
+   **CRITICAL**: The command returns JSON with `mission_dir` as an ABSOLUTE path (e.g., `/path/to/repo/kitty-specs/001-mission-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
 
    ```
-   mission_dir = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
+   mission_dir = "/path/to/repo/kitty-specs/001-a-simple-hello"
    tasks.md location: mission_dir + "/tasks.md"
    prompt location: mission_dir + "/tasks/WP01-slug.md"
    ```

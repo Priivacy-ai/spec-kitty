@@ -1,16 +1,7 @@
-"""Coverage for charter sync path helpers.
-
-As of WP05 (complexity-code-smell-remediation), ``specify_cli.charter.sync``
-no longer exists as a separate module — it was a duplicate that has been
-deleted. The canonical implementation is ``charter.sync``, re-exported via
-the ``specify_cli.charter`` backward-compatibility shim. This test suite
-covers the canonical module only; C-005 backward-compat is tested by the
-smoke import assertion below.
-"""
+"""Coverage for charter sync path helpers."""
 
 from importlib import import_module
 from pathlib import Path
-import warnings
 
 import pytest
 
@@ -27,20 +18,6 @@ SAMPLE_CHARTER = """# Testing Standards
 ## Coverage Requirements
 - Minimum 80% code coverage
 """
-
-
-def _import_legacy_charter_module():
-    """Import the legacy shim after any test-driven module resets."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        return import_module("specify_cli.charter")
-
-
-def test_sync_shim_re_exports_canonical_sync() -> None:
-    """specify_cli.charter.sync must be the same callable as charter.sync (C-005)."""
-    from charter.sync import sync as canonical_sync
-
-    assert _import_legacy_charter_module().sync is canonical_sync
 
 
 def test_sync_path_helpers_use_standard_bundle_paths(tmp_path: Path) -> None:

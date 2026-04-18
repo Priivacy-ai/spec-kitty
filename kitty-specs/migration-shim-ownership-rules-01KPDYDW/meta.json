@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-17T14:44:57.361636+00:00",
+  "friendly_name": "migration shim ownership rules",
+  "mission_id": "01KPDYDWVF8W838HNJK7FC3S7T",
+  "mission_number": null,
+  "mission_slug": "migration-shim-ownership-rules-01KPDYDW",
+  "mission_type": "software-dev",
+  "slug": "migration-shim-ownership-rules-01KPDYDW",
+  "target_branch": "main"
+}
