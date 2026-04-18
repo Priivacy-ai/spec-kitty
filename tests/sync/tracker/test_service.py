@@ -435,6 +435,48 @@ class TestStatusAll:
             assert result == {"configured": True}
 
 
+class TestProviderScopedReads:
+    """Provider-scoped read helpers use SaaS backend resolution without a bound repo."""
+
+    def test_map_list_with_provider_uses_saas_backend(self, tmp_path: Path) -> None:
+        from specify_cli.tracker.saas_service import SaaSTrackerService
+
+        service = TrackerService(tmp_path)
+        with patch.object(SaaSTrackerService, "map_list", return_value=[{"wp_id": "WP01"}]) as mock_map_list:
+            result = service.map_list(provider="linear")
+
+        mock_map_list.assert_called_once_with(provider="linear")
+        assert result == [{"wp_id": "WP01"}]
+
+    def test_issue_search_with_provider_uses_saas_backend(self, tmp_path: Path) -> None:
+        from specify_cli.tracker.saas_service import SaaSTrackerService
+
+        service = TrackerService(tmp_path)
+        with patch.object(
+            SaaSTrackerService,
+            "issue_search",
+            return_value=[{"identifier": "PRI-17"}],
+        ) as mock_issue_search:
+            result = service.issue_search(provider="linear", query="PRI-17")
+
+        mock_issue_search.assert_called_once_with(provider="linear", query="PRI-17", limit=20)
+        assert result == [{"identifier": "PRI-17"}]
+
+    def test_list_tickets_with_provider_uses_saas_backend(self, tmp_path: Path) -> None:
+        from specify_cli.tracker.saas_service import SaaSTrackerService
+
+        service = TrackerService(tmp_path)
+        with patch.object(
+            SaaSTrackerService,
+            "list_tickets",
+            return_value=[{"identifier": "PRI-1"}],
+        ) as mock_list_tickets:
+            result = service.list_tickets(provider="linear", limit=15)
+
+        mock_list_tickets.assert_called_once_with(provider="linear", limit=15)
+        assert result == [{"identifier": "PRI-1"}]
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

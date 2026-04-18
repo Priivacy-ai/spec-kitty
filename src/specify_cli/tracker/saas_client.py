@@ -14,6 +14,7 @@ Authentication (WP08 rewiring):
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import secrets
 import time
 import uuid
@@ -77,10 +78,8 @@ def _run_in_fresh_loop(coro: Any) -> Any:
         asyncio.set_event_loop(new_loop)
         return new_loop.run_until_complete(coro)
     finally:
-        try:
+        with suppress(Exception):
             asyncio.set_event_loop(None)
-        except Exception:
-            pass
         new_loop.close()
 
 
@@ -197,6 +196,7 @@ class SaaSTrackerClient:
     _RUN_PATH = "/api/v1/tracker/run/"
     _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
     _SEARCH_ISSUES_PATH = "/api/v1/tracker/issue-search/"
+    _LIST_TICKETS_PATH = "/api/v1/tracker/list-tickets/"
     _BIND_ORIGIN_PATH = "/api/v1/tracker/mission-origin/bind/"
     _RESOURCES_PATH = "/api/v1/tracker/resources/"
     _BIND_RESOLVE_PATH = "/api/v1/tracker/bind-resolve/"
@@ -484,10 +484,15 @@ class SaaSTrackerClient:
         binding_ref: str | None = None,
     ) -> dict[str, Any]:
         """GET /api/v1/tracker/mappings -- field mappings."""
+        params = (
+            self._routing_params(provider, project_slug, binding_ref)
+            if binding_ref or project_slug
+            else {"provider": provider}
+        )
         response = self._request_with_retry(
             "GET",
             self._MAPPINGS_PATH,
-            params=self._routing_params(provider, project_slug, binding_ref),
+            params=params,
         )
         result: dict[str, Any] = response.json()
         return result
@@ -495,11 +500,12 @@ class SaaSTrackerClient:
     def search_issues(
         self,
         provider: str,
-        project_slug: str,
+        project_slug: str | None = None,
         *,
+        binding_ref: str | None = None,
         query_text: str | None = None,
         query_key: str | None = None,
-        limit: int = 10,
+        limit: int = 20,
     ) -> dict[str, Any]:
         """POST search endpoint — find candidate issues for origin binding.
 
@@ -508,17 +514,36 @@ class SaaSTrackerClient:
 
         query_key takes precedence over query_text when both provided.
         """
-        payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
-            "limit": limit,
-        }
+        payload: dict[str, Any] = {"provider": provider, "limit": limit}
+        if binding_ref:
+            payload["binding_ref"] = binding_ref
+        elif project_slug:
+            payload["project_slug"] = project_slug
         if query_key is not None:
             payload["query_key"] = query_key
         if query_text is not None:
             payload["query_text"] = query_text
 
         response = self._request_with_retry("POST", self._SEARCH_ISSUES_PATH, json=payload)
+        result: dict[str, Any] = response.json()
+        return result
+
+    def list_tickets(
+        self,
+        provider: str,
+        project_slug: str | None = None,
+        *,
+        binding_ref: str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """POST browse endpoint — list visible tickets in the mapped resource."""
+        payload: dict[str, Any] = {"provider": provider, "limit": limit}
+        if binding_ref:
+            payload["binding_ref"] = binding_ref
+        elif project_slug:
+            payload["project_slug"] = project_slug
+
+        response = self._request_with_retry("POST", self._LIST_TICKETS_PATH, json=payload)
         result: dict[str, Any] = response.json()
         return result
 

@@ -81,6 +81,23 @@ class TrackerService:
             )
         raise TrackerServiceError(f"Unknown provider: {config.provider}")
 
+    def _resolve_saas_backend_for_provider(self, provider: str) -> Any:
+        from specify_cli.tracker.saas_service import SaaSTrackerService
+
+        if provider in LOCAL_PROVIDERS:
+            raise TrackerServiceError(
+                f"Provider-scoped hosted reads are not available for local provider '{provider}'."
+            )
+        if provider in REMOVED_PROVIDERS:
+            raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
+        if provider not in SAAS_PROVIDERS:
+            raise TrackerServiceError(f"Unknown provider: {provider}")
+
+        config = load_tracker_config(self._repo_root)
+        if config.provider != provider:
+            config = TrackerProjectConfig(provider=provider)
+        return SaaSTrackerService(self._repo_root, config)
+
     @staticmethod
     def supported_providers() -> tuple[str, ...]:
         """Return all currently supported provider names, sorted."""
@@ -188,5 +205,20 @@ class TrackerService:
     def map_add(self, **kwargs: Any) -> None:
         return self._resolve_backend().map_add(**kwargs)
 
-    def map_list(self) -> list[dict[str, Any]]:
+    def map_list(self, *, provider: str | None = None) -> list[dict[str, Any]]:
+        if provider is not None:
+            return self._resolve_saas_backend_for_provider(provider).map_list(provider=provider)
         return self._resolve_backend().map_list()
+
+    def issue_search(self, *, provider: str, query: str, limit: int = 20) -> list[dict[str, Any]]:
+        return self._resolve_saas_backend_for_provider(provider).issue_search(
+            provider=provider,
+            query=query,
+            limit=limit,
+        )
+
+    def list_tickets(self, *, provider: str, limit: int = 20) -> list[dict[str, Any]]:
+        return self._resolve_saas_backend_for_provider(provider).list_tickets(
+            provider=provider,
+            limit=limit,
+        )

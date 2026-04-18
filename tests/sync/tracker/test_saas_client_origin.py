@@ -54,15 +54,6 @@ def _make_response(
 
 
 @pytest.fixture()
-def mock_credential_store() -> MagicMock:
-    store = MagicMock()
-    store.get_access_token.return_value = "test-access-token"
-    store.get_team_slug.return_value = "team-acme"
-    store.get_refresh_token.return_value = "test-refresh-token"
-    return store
-
-
-@pytest.fixture()
 def mock_sync_config() -> MagicMock:
     config = MagicMock()
     config.get_server_url.return_value = "https://saas.example.com"
@@ -70,12 +61,10 @@ def mock_sync_config() -> MagicMock:
 
 
 @pytest.fixture()
-def client(mock_credential_store: MagicMock, mock_sync_config: MagicMock) -> SaaSTrackerClient:
-    return SaaSTrackerClient(
-        credential_store=mock_credential_store,
-        sync_config=mock_sync_config,
-        timeout=5.0,
-    )
+def client(mock_sync_config: MagicMock, monkeypatch) -> SaaSTrackerClient:
+    monkeypatch.setattr("specify_cli.tracker.saas_client._fetch_access_token_sync", lambda: "test-access-token")
+    monkeypatch.setattr("specify_cli.tracker.saas_client._current_team_slug_sync", lambda: "team-acme")
+    return SaaSTrackerClient(sync_config=mock_sync_config, timeout=5.0)
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +137,38 @@ class TestSearchIssues:
         assert payload["query_text"] == "login bug"
         assert payload["provider"] == "jira"
         assert payload["project_slug"] == "proj-1"
-        assert payload["limit"] == 10
+        assert payload["limit"] == 20
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_binding_ref_search_payload(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"candidates": []})
+
+        client.search_issues("jira", binding_ref="bind-123", query_text="login")
+
+        _, kwargs = mock_http.request.call_args
+        payload = kwargs["json"]
+        assert payload["binding_ref"] == "bind-123"
+        assert "project_slug" not in payload
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_provider_only_search_payload(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"candidates": []})
+
+        client.search_issues("jira", query_text="login")
+
+        _, kwargs = mock_http.request.call_args
+        payload = kwargs["json"]
+        assert payload == {"provider": "jira", "limit": 20, "query_text": "login"}
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_401_raises_after_refresh(
@@ -171,9 +191,10 @@ class TestSearchIssues:
             ),
         ]
 
-        with patch("specify_cli.tracker.saas_client._force_refresh_sync"):
-            with pytest.raises(SaaSTrackerClientError, match="Session expired"):
-                client.search_issues("jira", "proj-1", query_text="test")
+        with patch("specify_cli.tracker.saas_client._force_refresh_sync"), pytest.raises(
+            SaaSTrackerClientError, match="Session expired"
+        ):
+            client.search_issues("jira", "proj-1", query_text="test")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_404_raises(
@@ -366,9 +387,10 @@ class TestBindMissionOrigin:
             _make_response(401, {"message": "Unauthorized"}),
         ]
 
-        with patch("specify_cli.tracker.saas_client._force_refresh_sync"):
-            with pytest.raises(SaaSTrackerClientError, match="Session expired"):
-                client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
+        with patch("specify_cli.tracker.saas_client._force_refresh_sync"), pytest.raises(
+            SaaSTrackerClientError, match="Session expired"
+        ):
+            client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_idempotency_key_auto_generated(

@@ -68,6 +68,9 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
+        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(
+            tracker_module.issue_search_command
+        )
     app.command()(upgrade_module.upgrade)
     app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)

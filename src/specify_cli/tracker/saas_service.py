@@ -7,6 +7,7 @@ operations that are not supported for SaaS-backed providers.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -27,9 +28,46 @@ from specify_cli.tracker.service import StaleBindingError, TrackerServiceError
 
 logger = logging.getLogger(__name__)
 
+_ISSUE_IDENTIFIER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*-\d+$")
+
 _STALE_BINDING_CODES: frozenset[str] = frozenset(
     {"binding_not_found", "mapping_disabled", "project_mismatch"}
 )
+
+
+def _normalize_ticket_item(item: dict[str, Any]) -> dict[str, Any]:
+    state = item.get("state")
+    if not isinstance(state, dict):
+        state_name = item.get("status")
+        state = {"name": state_name} if state_name is not None else {"name": None}
+
+    team = item.get("team")
+    if team is not None and not isinstance(team, dict):
+        team = None
+
+    assignee = item.get("assignee")
+    if assignee is not None and not isinstance(assignee, dict):
+        assignee = {"id": assignee, "name": None}
+
+    return {
+        "identifier": item.get("identifier") or item.get("external_issue_key") or item.get("external_issue_id"),
+        "title": item.get("title") or "",
+        "url": item.get("url") or "",
+        "state": {"name": state.get("name") if isinstance(state, dict) else None},
+        "team": team,
+        "assignee": assignee,
+        "created_at": item.get("created_at"),
+        "updated_at": item.get("updated_at"),
+        "body": item.get("body"),
+    }
+
+
+def _normalize_ticket_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [_normalize_ticket_item(item) for item in items]
+
+
+def _looks_like_issue_identifier(query: str) -> bool:
+    return bool(_ISSUE_IDENTIFIER_RE.match(query.strip()))
 
 
 class SaaSTrackerService:
@@ -84,6 +122,16 @@ class SaaSTrackerService:
         raise TrackerServiceError(
             "No tracker binding configured. Run `spec-kitty tracker bind` first."
         )
+
+    def _routing_for_provider(self, provider: str) -> dict[str, str]:
+        """Return bound routing only when this service is already bound to *provider*."""
+        if self._config.provider != provider:
+            return {}
+        if self._config.binding_ref:
+            return {"binding_ref": self._config.binding_ref}
+        if self._config.project_slug:
+            return {"project_slug": self._config.project_slug}
+        return {}
 
     # ------------------------------------------------------------------
     # Opportunistic upgrade
@@ -453,15 +501,45 @@ class SaaSTrackerService:
         self._maybe_upgrade_binding_ref(result)
         return result
 
-    def map_list(self) -> list[dict[str, Any]]:
+    def map_list(self, *, provider: str | None = None) -> list[dict[str, Any]]:
         """List field mappings from the SaaS control plane."""
-        routing = self._resolve_routing_params()
-        result = self._call_with_stale_detection(
-            self._client.mappings, self.provider, **routing,
-        )
-        self._maybe_upgrade_binding_ref(result)
+        resolved_provider = provider or self.provider
+        if provider is None:
+            routing = self._resolve_routing_params()
+            result = self._call_with_stale_detection(
+                self._client.mappings, resolved_provider, **routing,
+            )
+            self._maybe_upgrade_binding_ref(result)
+        else:
+            result = self._client.mappings(resolved_provider)
         mappings: list[dict[str, Any]] = result.get("mappings", [])
         return mappings
+
+    def issue_search(self, *, provider: str, query: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Search issues and return the normalized CLI ticket shape."""
+        routing = self._routing_for_provider(provider)
+        query_text = query
+        query_key = query if _looks_like_issue_identifier(query) else None
+        result = self._client.search_issues(
+            provider,
+            query_text=query_text,
+            query_key=query_key,
+            limit=limit,
+            **routing,
+        )
+        candidates = result.get("candidates", [])
+        if not isinstance(candidates, list):
+            return []
+        return _normalize_ticket_items([item for item in candidates if isinstance(item, dict)])
+
+    def list_tickets(self, *, provider: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Browse visible tickets and return the normalized CLI ticket shape."""
+        routing = self._routing_for_provider(provider)
+        result = self._client.list_tickets(provider, limit=limit, **routing)
+        tickets = result.get("tickets", [])
+        if not isinstance(tickets, list):
+            return []
+        return _normalize_ticket_items([item for item in tickets if isinstance(item, dict)])
 
     # ------------------------------------------------------------------
     # Hard-fails: operations not supported for SaaS-backed providers

@@ -8,6 +8,7 @@ providers -- authentication flows through ``spec-kitty auth login``.
 
 from __future__ import annotations
 
+from contextlib import suppress
 import json
 from pathlib import Path
 from typing import Any
@@ -63,6 +64,27 @@ def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
 
 
+def _print_ticket_rows(rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        typer.echo("No tickets found")
+        return
+
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Identifier", style="bold")
+    table.add_column("Title")
+    table.add_column("State")
+
+    for row in rows:
+        state = row.get("state") if isinstance(row.get("state"), dict) else {}
+        table.add_row(
+            str(row.get("identifier") or ""),
+            str(row.get("title") or ""),
+            str(state.get("name") or ""),
+        )
+
+    Console().print(table)
+
+
 def _resolve_active_feature_slug(repo_root: Path) -> str | None:
     """Return the active feature slug from .kittify/meta.json, or None.
 
@@ -92,11 +114,17 @@ def _check_readiness(
     Calls evaluate_readiness with the supplied flags and the current repo root.
     On non-READY results, prints message + next_action to stderr and exits 1.
     """
-    try:
-        repo_root = require_repo_root()
-    except Exception as exc:  # noqa: BLE001
-        typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(1) from exc
+    if require_mission_binding:
+        try:
+            repo_root = require_repo_root()
+        except Exception as exc:  # noqa: BLE001
+            typer.secho(str(exc), fg=typer.colors.RED, err=True)
+            raise typer.Exit(1) from exc
+    else:
+        try:
+            repo_root = require_repo_root()
+        except Exception:
+            repo_root = Path.cwd()
 
     feature_slug = _resolve_active_feature_slug(repo_root)
     result = evaluate_readiness(
@@ -144,12 +172,10 @@ def _is_local_binding() -> bool:
     or when config loading fails for any reason — in all those cases callers
     fall through to the full SaaS readiness chain, which is the safer default.
     """
-    try:
+    with suppress(Exception):
         config = load_tracker_config(require_repo_root())
         if config.provider and normalize_provider(config.provider) in LOCAL_PROVIDERS:
             return True
-    except Exception:  # noqa: BLE001
-        pass
     return False
 
 
@@ -184,8 +210,14 @@ def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
     _check_readiness(require_mission_binding=True, probe_reachability=probe_reachability)
 
 
-def _service() -> TrackerService:
-    repo_root = require_repo_root()
+def _service(*, allow_unbound: bool = False) -> TrackerService:
+    if allow_unbound:
+        try:
+            repo_root = require_repo_root()
+        except Exception:
+            repo_root = Path.cwd()
+    else:
+        repo_root = require_repo_root()
     return TrackerService(repo_root)
 
 
@@ -218,6 +250,28 @@ def tracker_callback() -> None:
     if not is_saas_sync_enabled():
         typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
+
+
+def issue_search_command(
+    provider: str = typer.Option(..., "--provider", help="Tracker provider slug"),
+    query: str = typer.Option(..., "--query", help="Issue identifier or search text"),
+    as_json: bool = typer.Option(False, "--json", help="Render tickets as a JSON array"),
+) -> None:
+    """Search external tracker issues via the hosted read path."""
+    if not is_saas_sync_enabled():
+        typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+
+    _check_readiness(require_mission_binding=False, probe_reachability=False)
+
+    def _run() -> None:
+        rows = _service(allow_unbound=True).issue_search(provider=provider, query=query)
+        if as_json:
+            _print_json(rows)
+            return
+        _print_ticket_rows(rows)
+
+    _run_or_exit(_run)
 
 
 # ---------------------------------------------------------------------------
@@ -772,6 +826,11 @@ def map_add_command(
 
 @map_app.command("list")
 def map_list_command(
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        help="Read SaaS mappings by provider without requiring a bound project",
+    ),
     as_json: bool = typer.Option(False, "--json", help="Render mappings as JSON"),
 ) -> None:
     """List tracker mappings.
@@ -781,10 +840,13 @@ def map_list_command(
     For SaaS-backed providers: shows SaaS-authoritative mappings from the
     control plane.
     """
-    _check_binding_readiness(probe_reachability=False)
+    if provider is None:
+        _check_binding_readiness(probe_reachability=False)
+    else:
+        _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
-        mappings = _service().map_list()
+        mappings = _service(allow_unbound=provider is not None).map_list(provider=provider)
         if as_json:
             _print_json({"mappings": mappings})
             return
@@ -797,6 +859,25 @@ def map_list_command(
         for row in mappings:
             key = row.get("external_key") or row.get("external_id")
             typer.echo(f"- {row.get('wp_id')}: {row.get('system')}:{key}")
+
+    _run_or_exit(_run)
+
+
+@app.command("list-tickets")
+def list_tickets_command(
+    provider: str = typer.Option(..., "--provider", help="Tracker provider slug"),
+    limit: int = typer.Option(20, "--limit", min=1, max=100),
+    as_json: bool = typer.Option(False, "--json", help="Render tickets as a JSON array"),
+) -> None:
+    """Browse visible tickets for the resolved provider resource."""
+    _check_readiness(require_mission_binding=False, probe_reachability=False)
+
+    def _run() -> None:
+        rows = _service(allow_unbound=True).list_tickets(provider=provider, limit=limit)
+        if as_json:
+            _print_json(rows)
+            return
+        _print_ticket_rows(rows)
 
     _run_or_exit(_run)
 

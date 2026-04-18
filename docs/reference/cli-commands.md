@@ -51,7 +51,25 @@ Terminology note:
 - `orchestrator-api` - Machine-contract API for external orchestrators (JSON envelope interface)
 - `repair` - Repair broken templates
 - `sync` - Synchronization commands
+- `issue-search` - Search tracker issues via the hosted read path
 - `tracker` - Task tracker commands
+
+---
+
+## spec-kitty issue-search
+
+**Synopsis**: `spec-kitty issue-search [OPTIONS]`
+
+**Description**: Search tracker issues via the hosted read path.
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--provider TEXT` | Tracker provider slug [required] |
+| `--query TEXT` | Issue identifier or search text [required] |
+| `--json` | Render tickets as a JSON array |
+| `--help` | Show this message and exit |
 
 ---
 
@@ -1610,6 +1628,7 @@ spec-kitty doctor state-roots --json
 - `bind` - Bind the current project to a tracker
 - `status` - Show tracker binding and sync status
 - `unbind` - Remove tracker binding for this project
+- `list-tickets` - Browse visible tickets for the resolved provider resource
 - `map` - Work-package mapping commands
 - `sync` - Tracker synchronization commands
 
@@ -1630,14 +1649,15 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker bind [OPTIONS]`
 
-**Description**: Bind the current project to a tracker. SaaS-backed providers require `--project-slug` and authenticate through `spec-kitty auth login`; local/native providers require `--workspace` and may accept `--credential`.
+**Description**: Bind the current project to an issue tracker. For SaaS-backed providers (`linear`, `jira`, `github`, `gitlab`), discovery resolves bindable resources automatically, `--bind-ref` is available for CI/automation, and `--select` can be used for non-interactive selection. Local/native providers (`beads`, `fp`) still require `--workspace` and `--credential`.
 
 **Options**:
 
 | Flag | Description |
 | --- | --- |
 | `--provider TEXT` | Provider name (`linear`, `jira`, `github`, `gitlab`, `beads`, `fp`) [required] |
-| `--project-slug TEXT` | SaaS project identifier used for control-plane routing (SaaS-backed providers only) |
+| `--bind-ref TEXT` | Binding reference for CI/automation (validates against host) |
+| `--select INTEGER` | Auto-select candidate by number (non-interactive) |
 | `--workspace TEXT` | Provider workspace/team/project identifier (local/native providers only) |
 | `--doctrine-mode TEXT` | Doctrine mode: `external_authoritative`, `spec_kitty_authoritative`, or `split_ownership` (default: `external_authoritative`) |
 | `--field-owner TEXT` | Split ownership mapping: `field=owner` (local/native providers only) |
@@ -1667,6 +1687,21 @@ spec-kitty doctor state-roots --json
 
 | Flag | Description |
 | --- | --- |
+| `--help` | Show this message and exit |
+
+### spec-kitty tracker list-tickets
+
+**Synopsis**: `spec-kitty tracker list-tickets [OPTIONS]`
+
+**Description**: Browse visible tickets for the resolved provider resource.
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--provider TEXT` | Tracker provider slug [required] |
+| `--limit INTEGER` | Maximum tickets to return (default: 20, range: 1-100) |
+| `--json` | Render tickets as a JSON array |
 | `--help` | Show this message and exit |
 
 ### spec-kitty tracker map
@@ -1711,6 +1746,7 @@ spec-kitty doctor state-roots --json
 
 | Flag | Description |
 | --- | --- |
+| `--provider TEXT` | Read SaaS mappings by provider without requiring a bound project |
 | `--json` | Render mappings as JSON |
 | `--help` | Show this message and exit |
 

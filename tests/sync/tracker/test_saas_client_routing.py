@@ -46,15 +46,6 @@ def _make_response(
 
 
 @pytest.fixture()
-def mock_credential_store() -> MagicMock:
-    store = MagicMock()
-    store.get_access_token.return_value = "test-access-token"
-    store.get_team_slug.return_value = "team-acme"
-    store.get_refresh_token.return_value = "test-refresh-token"
-    return store
-
-
-@pytest.fixture()
 def mock_sync_config() -> MagicMock:
     config = MagicMock()
     config.get_server_url.return_value = "https://saas.example.com"
@@ -63,13 +54,11 @@ def mock_sync_config() -> MagicMock:
 
 @pytest.fixture()
 def client(
-    mock_credential_store: MagicMock, mock_sync_config: MagicMock
+    mock_sync_config: MagicMock, monkeypatch
 ) -> SaaSTrackerClient:
-    return SaaSTrackerClient(
-        credential_store=mock_credential_store,
-        sync_config=mock_sync_config,
-        timeout=5.0,
-    )
+    monkeypatch.setattr("specify_cli.tracker.saas_client._fetch_access_token_sync", lambda: "test-access-token")
+    monkeypatch.setattr("specify_cli.tracker.saas_client._current_team_slug_sync", lambda: "team-acme")
+    return SaaSTrackerClient(sync_config=mock_sync_config, timeout=5.0)
 
 
 # ---------------------------------------------------------------------------
@@ -193,9 +182,50 @@ class TestMappingsRouting:
         assert "project_slug" not in kwargs["params"]
 
     def test_mappings_missing_both_raises(self, client: SaaSTrackerClient) -> None:
-        with pytest.raises(SaaSTrackerClientError) as exc_info:
-            client.mappings("jira")
-        assert exc_info.value.error_code == "missing_routing_key"
+        with patch("specify_cli.tracker.saas_client.httpx.Client") as mock_cls:
+            mock_http = MagicMock()
+            mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+            mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+            mock_http.request.return_value = _make_response(200, {"fields": []})
+
+            result = client.mappings("jira")
+
+        assert result == {"fields": []}
+
+
+class TestListTicketsRouting:
+    """Verify list_tickets() threads optional routing params into the POST body."""
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_list_tickets_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"tickets": []})
+
+        client.list_tickets("linear", binding_ref="bind-123", limit=20)
+
+        _, kwargs = mock_http.request.call_args
+        assert kwargs["json"]["binding_ref"] == "bind-123"
+        assert kwargs["json"]["provider"] == "linear"
+        assert kwargs["json"]["limit"] == 20
+        assert "project_slug" not in kwargs["json"]
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_list_tickets_provider_only(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"tickets": []})
+
+        client.list_tickets("linear", limit=20)
+
+        _, kwargs = mock_http.request.call_args
+        assert kwargs["json"] == {"provider": "linear", "limit": 20}
 
 
 # ---------------------------------------------------------------------------

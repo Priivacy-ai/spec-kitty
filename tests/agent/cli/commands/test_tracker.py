@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -78,6 +77,7 @@ def test_tracker_registered_when_flag_enabled(monkeypatch) -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "tracker" in result.output
+    assert "issue-search" in result.output
 
 
 def test_tracker_direct_invocation_fails_when_flag_disabled(monkeypatch) -> None:
@@ -808,6 +808,83 @@ def test_map_list_dispatches(mock_service_fn, monkeypatch) -> None:
     assert "WP01" in result.output
 
 
+@patch("specify_cli.cli.commands.tracker._service")
+def test_map_list_with_provider_dispatches_without_bound_repo(mock_service_fn, monkeypatch) -> None:
+    """map list --provider uses the provider-scoped service path."""
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.map_list.return_value = [{"wp_id": "WP01", "external_id": "123"}]
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(app, ["map", "list", "--provider", "linear", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["mappings"][0]["wp_id"] == "WP01"
+    mock_service_fn.assert_called_once_with(allow_unbound=True)
+    mock_svc.map_list.assert_called_once_with(provider="linear")
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_issue_search_root_dispatches(mock_service_fn, monkeypatch) -> None:
+    """issue-search dispatches through the tracker service and returns JSON array."""
+    app = _build_root_app(enabled=True, monkeypatch=monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.issue_search.return_value = [
+        {
+            "identifier": "PRI-17",
+            "title": "Wire hosted tracker reads",
+            "url": "https://linear.app/priivacy/issue/PRI-17",
+            "state": {"name": "todo"},
+            "team": {"key": "PRI"},
+            "assignee": None,
+            "created_at": None,
+            "updated_at": None,
+            "body": "body",
+        }
+    ]
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(
+        app,
+        ["issue-search", "--provider", "linear", "--query", "PRI-17", "--json"],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload[0]["identifier"] == "PRI-17"
+    mock_service_fn.assert_called_once_with(allow_unbound=True)
+    mock_svc.issue_search.assert_called_once_with(provider="linear", query="PRI-17")
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_list_tickets_dispatches(mock_service_fn, monkeypatch) -> None:
+    """tracker list-tickets dispatches through the provider-scoped service path."""
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.list_tickets.return_value = [
+        {
+            "identifier": "PRI-1",
+            "title": "First ticket",
+            "url": "https://linear.app/priivacy/issue/PRI-1",
+            "state": {"name": "todo"},
+            "team": {"key": "PRI"},
+            "assignee": None,
+            "created_at": None,
+            "updated_at": None,
+            "body": None,
+        }
+    ]
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(
+        app,
+        ["list-tickets", "--provider", "linear", "--limit", "20", "--json"],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload[0]["identifier"] == "PRI-1"
+    mock_service_fn.assert_called_once_with(allow_unbound=True)
+    mock_svc.list_tickets.assert_called_once_with(provider="linear", limit=20)
+
+
 # ---------------------------------------------------------------------------
 # T024: Rollout × readiness matrix tests
 # ---------------------------------------------------------------------------
@@ -965,7 +1042,6 @@ def test_status_readiness_ready_passes_through(monkeypatch, tmp_path) -> None:
 def test_sync_pull_manual_mode_exits_zero(monkeypatch, tmp_path) -> None:
     """sync pull exits 0 and prints manual-mode message when policy=manual."""
     from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-    from specify_cli.cli.commands.tracker import _MANUAL_MODE_MESSAGE
 
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module
@@ -1055,7 +1131,6 @@ def test_sync_run_manual_mode_proceeds(monkeypatch, tmp_path) -> None:
 def test_sync_push_manual_mode_exits_zero(monkeypatch, tmp_path) -> None:
     """sync push exits 0 with manual-mode message when policy=manual."""
     from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-    from specify_cli.cli.commands.tracker import _MANUAL_MODE_MESSAGE
 
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module

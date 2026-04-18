@@ -56,6 +56,36 @@ def mock_client() -> MagicMock:
             {"wp_id": "WP02", "external_id": "LIN-2"},
         ],
     }
+    client.search_issues.return_value = {
+        "candidates": [
+            {
+                "identifier": "PRI-17",
+                "title": "Wire hosted tracker reads",
+                "url": "https://linear.app/priivacy/issue/PRI-17",
+                "state": {"name": "todo"},
+                "team": {"key": "PRI"},
+                "assignee": None,
+                "created_at": "2026-04-18T10:00:00+00:00",
+                "updated_at": "2026-04-18T11:00:00+00:00",
+                "body": "body",
+            }
+        ]
+    }
+    client.list_tickets.return_value = {
+        "tickets": [
+            {
+                "identifier": "PRI-1",
+                "title": "First ticket",
+                "url": "https://linear.app/priivacy/issue/PRI-1",
+                "state": {"name": "todo"},
+                "team": {"key": "PRI"},
+                "assignee": None,
+                "created_at": None,
+                "updated_at": None,
+                "body": None,
+            }
+        ]
+    }
     return client
 
 
@@ -765,6 +795,64 @@ class TestMapList:
         mock_client.mappings.return_value = {}
         result = service.map_list()
         assert result == []
+
+    def test_map_list_with_provider_uses_installation_scope(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
+        service.map_list(provider="linear")
+        mock_client.mappings.assert_called_once_with("linear")
+
+
+class TestIssueSearch:
+    def test_issue_search_uses_bound_routing_when_available(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
+        result = service.issue_search(provider="linear", query="PRI-17")
+
+        mock_client.search_issues.assert_called_once_with(
+            "linear",
+            project_slug="my-proj",
+            query_text="PRI-17",
+            query_key="PRI-17",
+            limit=20,
+        )
+        assert result[0]["identifier"] == "PRI-17"
+        assert result[0]["team"]["key"] == "PRI"
+
+    def test_issue_search_without_matching_bound_provider_uses_provider_only(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        service = SaaSTrackerService(repo_root, TrackerProjectConfig(provider="jira"), client=mock_client)
+        service.issue_search(provider="linear", query="bug")
+
+        mock_client.search_issues.assert_called_once_with(
+            "linear",
+            query_text="bug",
+            query_key=None,
+            limit=20,
+        )
+
+
+class TestListTickets:
+    def test_list_tickets_uses_bound_routing_when_available(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
+        result = service.list_tickets(provider="linear", limit=15)
+
+        mock_client.list_tickets.assert_called_once_with(
+            "linear",
+            project_slug="my-proj",
+            limit=15,
+        )
+        assert result[0]["identifier"] == "PRI-1"
+
+    def test_list_tickets_without_matching_bound_provider_uses_provider_only(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        service = SaaSTrackerService(repo_root, TrackerProjectConfig(provider="jira"), client=mock_client)
+        service.list_tickets(provider="linear", limit=20)
+
+        mock_client.list_tickets.assert_called_once_with("linear", limit=20)
 
 
 # ---------------------------------------------------------------------------
