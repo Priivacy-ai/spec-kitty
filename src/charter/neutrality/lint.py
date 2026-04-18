@@ -17,7 +17,6 @@ import fnmatch
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from ruamel.yaml import YAML
 
@@ -74,7 +73,12 @@ class _CompiledTerm:
     term_id: str
     kind: str  # "literal" | "regex"
     pattern: str
-    compiled: Optional[re.Pattern[str]]  # None for literal
+    compiled: re.Pattern[str] | None  # None for literal
+
+
+def _is_glob_pattern(path_spec: str) -> bool:
+    """Return True when the allowlist entry uses glob syntax."""
+    return any(char in path_spec for char in "*?[")
 
 
 def _load_banned_terms(path: Path) -> list[_CompiledTerm]:
@@ -85,7 +89,7 @@ def _load_banned_terms(path: Path) -> list[_CompiledTerm]:
         term_id: str = entry["id"]
         kind: str = entry["kind"]
         pattern: str = entry["pattern"]
-        compiled: Optional[re.Pattern[str]] = None
+        compiled: re.Pattern[str] | None = None
         if kind == "regex":
             try:
                 compiled = re.compile(pattern, re.MULTILINE)
@@ -107,7 +111,7 @@ def _is_allowlisted(repo_relative: str, allowlist: list[str]) -> bool:
     """Return True if repo_relative matches any allowlist entry (literal or glob)."""
     for entry in allowlist:
         # Glob entries contain wildcards; literals are exact matches.
-        if "*" in entry or "?" in entry or "[" in entry:
+        if _is_glob_pattern(entry):
             if fnmatch.fnmatchcase(repo_relative, entry):
                 return True
         else:
@@ -120,7 +124,7 @@ def _check_stale(repo_root: Path, allowlist_paths: list[str]) -> list[str]:
     """Return allowlist path strings that resolve to zero files."""
     stale: list[str] = []
     for entry in allowlist_paths:
-        if "*" in entry or "?" in entry or "[" in entry:
+        if _is_glob_pattern(entry):
             matches = list(repo_root.glob(entry))
             if not matches:
                 stale.append(entry)
@@ -130,6 +134,14 @@ def _check_stale(repo_root: Path, allowlist_paths: list[str]) -> list[str]:
     return stale
 
 
+def _relative_parts(path: Path, root: Path) -> tuple[str, ...]:
+    """Return path parts relative to root when possible."""
+    try:
+        return path.relative_to(root).parts
+    except ValueError:
+        return path.parts
+
+
 def _should_skip(path: Path, root: Path) -> bool:
     """Return True if path should be excluded from scanning.
 
@@ -137,44 +149,110 @@ def _should_skip(path: Path, root: Path) -> bool:
     in the root path itself (e.g. ``.worktrees``) do not disqualify valid
     scan targets.
     """
-    try:
-        rel_parts = path.relative_to(root).parts
-    except ValueError:
-        # path is not inside root — use all parts
-        rel_parts = path.parts
-    for part in rel_parts:
+    for part in _relative_parts(path, root):
         if part in _SKIP_SEGMENTS:
             return True
-    if path.suffix in _SKIP_SUFFIXES:
-        return True
-    return False
+    return path.suffix in _SKIP_SUFFIXES
+
+
+def _iter_root_files(root: Path) -> list[Path]:
+    """Collect scannable files under one root."""
+    if not root.exists():
+        return []
+    if root.is_file():
+        if root.suffix in _SCANNABLE_SUFFIXES and not _should_skip(root, root.parent):
+            return [root]
+        return []
+
+    found: list[Path] = []
+    for suffix in _SCANNABLE_SUFFIXES:
+        for path in root.rglob(f"*{suffix}"):
+            if path.is_file() and not _should_skip(path, root):
+                found.append(path)
+    return found
+
+
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
+    """Deduplicate paths while preserving insertion order."""
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for path in paths:
+        if path not in seen:
+            seen.add(path)
+            unique.append(path)
+    return unique
 
 
 def _iter_scannable_files(roots: list[Path]) -> list[Path]:
     """Return all scannable files from the given scan roots (deduped, stable order)."""
     found: list[Path] = []
     for root in roots:
-        if not root.exists():
-            continue
-        if root.is_file():
-            # Single-file roots (e.g. mission.yaml)
-            if root.suffix in _SCANNABLE_SUFFIXES and not _should_skip(root, root.parent):
-                found.append(root)
-        else:
-            # Directory roots — descend recursively by suffix
-            for suffix in _SCANNABLE_SUFFIXES:
-                for path in root.rglob(f"*{suffix}"):
-                    if path.is_file() and not _should_skip(path, root):
-                        found.append(path)
+        found.extend(_iter_root_files(root))
+    return _dedupe_paths(found)
 
-    # Deduplicate while preserving insertion order
-    seen: set[Path] = set()
-    unique: list[Path] = []
-    for p in found:
-        if p not in seen:
-            seen.add(p)
-            unique.append(p)
-    return unique
+
+def _make_hit(
+    repo_relative: Path,
+    lineno: int,
+    column: int,
+    term: _CompiledTerm,
+    match: str,
+) -> BannedTermHit:
+    """Build a banned-term hit with shared metadata."""
+    return BannedTermHit(
+        file=repo_relative,
+        line=lineno,
+        column=column,
+        term_id=term.term_id,
+        match=match,
+    )
+
+
+def _scan_literal_matches(
+    repo_relative: Path,
+    lineno: int,
+    line_text: str,
+    term: _CompiledTerm,
+) -> list[BannedTermHit]:
+    """Return all literal matches for one term on one line."""
+    hits: list[BannedTermHit] = []
+    idx = 0
+    while True:
+        pos = line_text.find(term.pattern, idx)
+        if pos == -1:
+            return hits
+        hits.append(_make_hit(repo_relative, lineno, pos + 1, term, term.pattern))
+        idx = pos + len(term.pattern)
+
+
+def _scan_regex_matches(
+    repo_relative: Path,
+    lineno: int,
+    line_text: str,
+    term: _CompiledTerm,
+) -> list[BannedTermHit]:
+    """Return all regex matches for one term on one line."""
+    assert term.compiled is not None
+    return [
+        _make_hit(repo_relative, lineno, match.start() + 1, term, match.group(0))
+        for match in term.compiled.finditer(line_text)
+    ]
+
+
+def _scan_line(
+    repo_relative: Path,
+    lineno: int,
+    line_text: str,
+    terms: list[_CompiledTerm],
+) -> list[BannedTermHit]:
+    """Return all banned-term hits for one line."""
+    hits: list[BannedTermHit] = []
+    for term in terms:
+        if term.kind == "literal":
+            hits.extend(_scan_literal_matches(repo_relative, lineno, line_text, term))
+        else:
+            hits.extend(_scan_regex_matches(repo_relative, lineno, line_text, term))
+    return hits
 
 
 def _scan_file(
@@ -190,71 +268,85 @@ def _scan_file(
 
     repo_relative = path.relative_to(repo_root)
     hits: list[BannedTermHit] = []
-    lines = content.splitlines()
-
-    for lineno, line_text in enumerate(lines, start=1):
-        for term in terms:
-            if term.kind == "literal":
-                idx = 0
-                while True:
-                    pos = line_text.find(term.pattern, idx)
-                    if pos == -1:
-                        break
-                    hits.append(
-                        BannedTermHit(
-                            file=repo_relative,
-                            line=lineno,
-                            column=pos + 1,
-                            term_id=term.term_id,
-                            match=term.pattern,
-                        )
-                    )
-                    idx = pos + len(term.pattern)
-            else:
-                # regex
-                assert term.compiled is not None
-                for m in term.compiled.finditer(line_text):
-                    hits.append(
-                        BannedTermHit(
-                            file=repo_relative,
-                            line=lineno,
-                            column=m.start() + 1,
-                            term_id=term.term_id,
-                            match=m.group(0),
-                        )
-                    )
+    for lineno, line_text in enumerate(content.splitlines(), start=1):
+        hits.extend(_scan_line(repo_relative, lineno, line_text, terms))
     return hits
+
+
+def _iter_charter_scan_roots(charter_root: Path) -> list[Path]:
+    """Return eligible charter scan roots, excluding neutrality internals."""
+    if not charter_root.exists():
+        return []
+
+    roots: list[Path] = []
+    for child in charter_root.iterdir():
+        if child.name == "neutrality":
+            continue
+        if child.is_dir() or (child.is_file() and child.suffix in _SCANNABLE_SUFFIXES):
+            roots.append(child)
+    return roots
+
+
+def _iter_mission_scan_roots(missions_root: Path) -> list[Path]:
+    """Return mission command-template and mission.yaml scan roots."""
+    if not missions_root.exists():
+        return []
+
+    roots: list[Path] = []
+    for mission_dir in missions_root.iterdir():
+        if not mission_dir.is_dir():
+            continue
+        command_templates = mission_dir / "command-templates"
+        mission_manifest = mission_dir / "mission.yaml"
+        if command_templates.exists():
+            roots.append(command_templates)
+        if mission_manifest.exists():
+            roots.append(mission_manifest)
+    return roots
 
 
 def _default_scan_roots(repo_root: Path) -> list[Path]:
     """Return default scan roots per contract C-3."""
-    roots: list[Path] = [
-        repo_root / "src" / "doctrine",
-    ]
-
-    # src/charter/ excluding src/charter/neutrality/ itself
-    charter_root = repo_root / "src" / "charter"
-    if charter_root.exists():
-        for child in charter_root.iterdir():
-            if child.name != "neutrality" and child.is_dir():
-                roots.append(child)
-            elif child.is_file() and child.suffix in _SCANNABLE_SUFFIXES:
-                roots.append(child)
-
-    # src/specify_cli/missions/*/command-templates/ and mission.yaml
-    missions_root = repo_root / "src" / "specify_cli" / "missions"
-    if missions_root.exists():
-        for mission_dir in missions_root.iterdir():
-            if not mission_dir.is_dir():
-                continue
-            ct = mission_dir / "command-templates"
-            if ct.exists():
-                roots.append(ct)
-            my = mission_dir / "mission.yaml"
-            if my.exists():
-                roots.append(my)
-
+    roots: list[Path] = [repo_root / "src" / "doctrine"]
+    roots.extend(_iter_charter_scan_roots(repo_root / "src" / "charter"))
+    roots.extend(_iter_mission_scan_roots(repo_root / "src" / "specify_cli" / "missions"))
     return roots
+
+
+def _find_repo_root(start: Path) -> Path:
+    """Find the repository root by walking upward for pyproject.toml."""
+    for parent in [start, *start.parents]:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return Path.cwd()
+
+
+def _resolve_scan_settings(
+    repo_root: Path | None,
+    scan_roots: list[Path] | None,
+    banned_terms_path: Path | None,
+    allowlist_path: Path | None,
+) -> tuple[Path, list[Path], Path, Path]:
+    """Resolve repo-root, scan-roots, and config paths."""
+    effective_repo_root = repo_root or _find_repo_root(Path(__file__).resolve().parent)
+    this_dir = Path(__file__).resolve().parent
+    effective_banned_terms_path = banned_terms_path or (this_dir / "banned_terms.yaml")
+    effective_allowlist_path = allowlist_path or (this_dir / "language_scoped_allowlist.yaml")
+    effective_roots = scan_roots or _default_scan_roots(effective_repo_root)
+    return (
+        effective_repo_root,
+        effective_roots,
+        effective_banned_terms_path,
+        effective_allowlist_path,
+    )
+
+
+def _repo_relative_string(file_path: Path, repo_root: Path) -> str:
+    """Return a stable repo-relative string, even for override roots outside the repo."""
+    try:
+        return file_path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return file_path.as_posix()
 
 
 # ---------------------------------------------------------------------------
@@ -264,10 +356,10 @@ def _default_scan_roots(repo_root: Path) -> list[Path]:
 
 def run_neutrality_lint(
     *,
-    repo_root: Optional[Path] = None,
-    scan_roots: Optional[list[Path]] = None,
-    banned_terms_path: Optional[Path] = None,
-    allowlist_path: Optional[Path] = None,
+    repo_root: Path | None = None,
+    scan_roots: list[Path] | None = None,
+    banned_terms_path: Path | None = None,
+    allowlist_path: Path | None = None,
 ) -> NeutralityLintResult:
     """Run the neutrality lint scanner.
 
@@ -282,21 +374,12 @@ def run_neutrality_lint(
     Returns:
         A :class:`NeutralityLintResult` describing hits, stale entries, and counts.
     """
-    if repo_root is None:
-        # Walk up from this file to find pyproject.toml
-        here = Path(__file__).resolve().parent
-        for parent in [here, *here.parents]:
-            if (parent / "pyproject.toml").exists():
-                repo_root = parent
-                break
-        if repo_root is None:
-            repo_root = Path.cwd()
-
-    this_dir = Path(__file__).resolve().parent
-    if banned_terms_path is None:
-        banned_terms_path = this_dir / "banned_terms.yaml"
-    if allowlist_path is None:
-        allowlist_path = this_dir / "language_scoped_allowlist.yaml"
+    repo_root, effective_roots, banned_terms_path, allowlist_path = _resolve_scan_settings(
+        repo_root,
+        scan_roots,
+        banned_terms_path,
+        allowlist_path,
+    )
 
     # Load configuration (compile regexes once)
     terms = _load_banned_terms(banned_terms_path)
@@ -304,12 +387,6 @@ def run_neutrality_lint(
 
     # Check for stale allowlist entries
     stale = _check_stale(repo_root, allowlist_paths)
-
-    # Determine scan roots
-    if scan_roots is None:
-        effective_roots = _default_scan_roots(repo_root)
-    else:
-        effective_roots = scan_roots
 
     # Collect files
     all_files = _iter_scannable_files(effective_roots)
@@ -319,12 +396,7 @@ def run_neutrality_lint(
     scanned = 0
     for file_path in all_files:
         scanned += 1
-        try:
-            repo_relative_str = file_path.relative_to(repo_root).as_posix()
-        except ValueError:
-            # scan_roots override may be outside repo_root (e.g. tmp_path in tests)
-            repo_relative_str = file_path.as_posix()
-
+        repo_relative_str = _repo_relative_string(file_path, repo_root)
         if _is_allowlisted(repo_relative_str, allowlist_paths):
             continue
         hits = _scan_file(file_path, repo_root, terms)
