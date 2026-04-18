@@ -18,13 +18,15 @@ from collections.abc import Mapping
 
 import pytest
 
+from doctrine.drg.loader import load_graph
+
 from charter.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.errors import TopicSelectorUnresolvedError
+from charter.synthesizer.errors import ProjectDRGValidationError, TopicSelectorUnresolvedError
 from charter.synthesizer.manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
@@ -240,6 +242,37 @@ class TestUs3KindSlug:
                     f"FR-017 violation: artifact '{key}' hash changed unexpectedly. "
                     f"prior={prior_hash[:12]}... new={new_hashes.get(key, 'MISSING')[:12]}..."
                 )
+
+    def test_resynthesize_kind_slug_preserves_full_project_graph(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+    ) -> None:
+        """Bounded resynthesis must not drop untouched project-layer graph nodes."""
+        repo = repo_with_prior_synthesis
+        graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+        before_graph = load_graph(graph_path)
+        before_nodes = {node.urn for node in before_graph.nodes}
+        before_edges = {
+            (edge.source, edge.target, edge.relation.value) for edge in before_graph.edges
+        }
+
+        resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=repo,
+        )
+
+        after_graph = load_graph(graph_path)
+        after_nodes = {node.urn for node in after_graph.nodes}
+        after_edges = {
+            (edge.source, edge.target, edge.relation.value) for edge in after_graph.edges
+        }
+
+        assert after_nodes == before_nodes
+        assert after_edges == before_edges
 
 
 # ---------------------------------------------------------------------------
@@ -457,6 +490,48 @@ class TestNoPriorManifest:
                 topic="tactic:how-we-apply-directive-003",
                 repo_root=tmp_path,
             )
+
+
+class TestResynthesizeValidationWiring:
+    def test_validation_failure_keeps_live_state_unchanged(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """FR-008: resynthesis must validate before mutating the live tree."""
+        repo = repo_with_prior_synthesis
+        manifest_path = repo / MANIFEST_PATH
+        graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+        manifest_before = manifest_path.read_text(encoding="utf-8")
+        graph_before = graph_path.read_text(encoding="utf-8")
+
+        def fail_validate(_staging_dir: Path, _shipped_drg: object) -> None:
+            raise ProjectDRGValidationError(
+                errors=("forced resynthesis validation failure",),
+                merged_graph_summary="forced by test",
+            )
+
+        monkeypatch.setattr("charter.synthesizer.validation_gate.validate", fail_validate)
+
+        with pytest.raises(ProjectDRGValidationError, match="forced resynthesis validation failure"):
+            resynthesize_run(
+                request=base_request,
+                adapter=adapter,
+                topic="tactic:how-we-apply-directive-003",
+                repo_root=repo,
+            )
+
+        assert manifest_path.read_text(encoding="utf-8") == manifest_before
+        assert graph_path.read_text(encoding="utf-8") == graph_before
+
+        staging_root = repo / ".kittify" / "charter" / ".staging"
+        failed_dirs = sorted(
+            d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed")
+        )
+        assert failed_dirs, "Expected a .failed staging directory when validation rejects resynthesis"
+        assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists()
 
 
 # ---------------------------------------------------------------------------

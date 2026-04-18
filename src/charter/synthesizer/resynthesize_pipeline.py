@@ -36,6 +36,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from doctrine.drg.loader import load_graph
+from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
+
 from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
@@ -349,7 +352,11 @@ def run(
         If ``topic`` cannot be resolved via any of the three tiers.
     """
     from . import write_pipeline as _write_pipeline  # noqa: PLC0415
+    from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
+    from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
     from .staging import StagingDir as _StagingDir  # noqa: PLC0415
+    from .validation_gate import validate as _validate_project_graph  # noqa: PLC0415
+    from specify_cli import __version__ as _SPEC_KITTY_VERSION  # noqa: PLC0415
 
     _repo_root = repo_root if repo_root is not None else Path.cwd()
 
@@ -427,12 +434,30 @@ def run(
     # ------------------------------------------------------------------
     # Step 6: Stage + promote bounded artifacts
     # ------------------------------------------------------------------
+    shipped_drg = _shipped_drg_from_request(request)
+
+    def _validation_callback(staged_dir: _StagingDir) -> None:
+        updated_overlay = _emit_project_layer(
+            targets=resolved.targets,
+            spec_kitty_version=_SPEC_KITTY_VERSION,
+            shipped_drg=shipped_drg,
+        )
+        existing_graph_path = _repo_root / ".kittify" / "doctrine" / "graph.yaml"
+        project_graph = updated_overlay
+        if existing_graph_path.exists():
+            project_graph = _merge_project_overlay(
+                existing_overlay=load_graph(existing_graph_path),
+                updated_overlay=updated_overlay,
+            )
+        _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
+        _validate_project_graph(staged_dir.root, shipped_drg)
+
     with _StagingDir.create(_repo_root, run_id) as staging_dir:
         _write_pipeline.promote(
             bounded_request,
             staging_dir,
             all_new_results,
-            lambda _sd: None,  # No DRG re-validation for bounded resynthesis
+            _validation_callback,
             repo_root=_repo_root,
         )
 
@@ -546,6 +571,38 @@ def _load_merged_drg(
         "edges": shipped_edges + project_edges,
         "schema_version": project_graph.get("schema_version", "1"),
     }
+
+
+def _shipped_drg_from_request(request: SynthesisRequest) -> DRGGraph:
+    """Build the shipped-layer DRGGraph from the request snapshot."""
+    snapshot = dict(request.drg_snapshot)
+    snapshot.setdefault("nodes", [])
+    snapshot.setdefault("edges", [])
+    snapshot["schema_version"] = "1.0"
+    snapshot.setdefault("generated_at", "1970-01-01T00:00:00+00:00")
+    snapshot.setdefault("generated_by", "request.drg_snapshot")
+    return DRGGraph.model_validate(snapshot)
+
+
+def _merge_project_overlay(
+    existing_overlay: DRGGraph,
+    updated_overlay: DRGGraph,
+) -> DRGGraph:
+    """Replace only the resynthesized nodes/edges inside an existing overlay."""
+    updated_urns = {node.urn for node in updated_overlay.nodes}
+    preserved_nodes: list[DRGNode] = [
+        node for node in existing_overlay.nodes if node.urn not in updated_urns
+    ]
+    preserved_edges: list[DRGEdge] = [
+        edge for edge in existing_overlay.edges if edge.source not in updated_urns
+    ]
+    return DRGGraph(
+        schema_version=updated_overlay.schema_version,
+        generated_at=updated_overlay.generated_at,
+        generated_by=updated_overlay.generated_by,
+        nodes=preserved_nodes + list(updated_overlay.nodes),
+        edges=preserved_edges + list(updated_overlay.edges),
+    )
 
 
 __all__ = [

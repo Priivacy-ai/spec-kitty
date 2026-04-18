@@ -20,6 +20,15 @@ from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
 from charter.synthesizer.fixture_adapter import FixtureAdapter
 
 
+# The synthesizer suite is the coverage authority for charter's critical-path
+# pipeline. Keep every test in this directory on the fast charter lane so the
+# diff-coverage gate sees the real synthesis coverage instead of only the
+# legacy non-synth charter tests.
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        item.add_marker(pytest.mark.fast)
+
+
 # ---------------------------------------------------------------------------
 # Snapshots
 # ---------------------------------------------------------------------------

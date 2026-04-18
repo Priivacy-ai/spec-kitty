@@ -539,6 +539,21 @@ class TestSynthesizeWritesToDisk:
             "expected at least one directive/tactic/styleguide YAML"
         )
 
+    def test_synthesize_writes_project_graph(
+        self,
+        full_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """FR-007: synthesize() lands the additive project DRG overlay."""
+        synthesize(full_request, adapter=adapter, repo_root=tmp_path)
+
+        graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+        assert graph_path.exists(), (
+            f"Expected project DRG overlay at {graph_path}; "
+            "synthesize() did not wire project_drg.persist into promote()"
+        )
+
     def test_synthesize_writes_provenance_sidecars(
         self,
         full_request: SynthesisRequest,
@@ -571,4 +586,38 @@ class TestSynthesizeWritesToDisk:
         ] if staging_root.exists() else []
         assert active_staging == [], (
             f"Staging dir not wiped after promote: {active_staging}"
+        )
+
+    def test_synthesize_validation_failure_stays_in_failed_staging(
+        self,
+        full_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """FR-008: validation runs before promote and preserves diagnostics on failure."""
+        from charter.synthesizer.errors import ProjectDRGValidationError
+        from charter.synthesizer.manifest import MANIFEST_PATH
+
+        def fail_validate(_staging_dir: Path, _shipped_drg: object) -> None:
+            raise ProjectDRGValidationError(
+                errors=("synthetic validation failure",),
+                merged_graph_summary="forced by test",
+            )
+
+        monkeypatch.setattr("charter.synthesizer.validation_gate.validate", fail_validate)
+
+        with pytest.raises(ProjectDRGValidationError, match="synthetic validation failure"):
+            synthesize(full_request, adapter=adapter, repo_root=tmp_path)
+
+        assert not (tmp_path / MANIFEST_PATH).exists()
+        assert not (tmp_path / ".kittify" / "doctrine" / "graph.yaml").exists()
+
+        staging_root = tmp_path / ".kittify" / "charter" / ".staging"
+        failed_dirs = sorted(
+            d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed")
+        )
+        assert failed_dirs, "Expected validation failure to preserve a .failed staging directory"
+        assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists(), (
+            "Expected staged project graph to be preserved for debugging when validation fails"
         )

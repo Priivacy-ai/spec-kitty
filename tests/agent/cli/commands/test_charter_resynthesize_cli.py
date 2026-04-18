@@ -92,14 +92,14 @@ def _make_mock_result(
 class TestResynthesizeHelp:
     def test_resynthesize_help(self) -> None:
         """--help works and shows --topic option."""
-        result = runner.invoke(app, ["resynthesize", "--help"])
+        result = runner.invoke(app, ["resynthesize", "--help"], terminal_width=120, color=False)
         assert result.exit_code == 0
         assert "--topic" in result.output
         assert "--adapter" in result.output
 
     def test_synthesize_help(self) -> None:
         """synthesize --help works."""
-        result = runner.invoke(app, ["synthesize", "--help"])
+        result = runner.invoke(app, ["synthesize", "--help"], terminal_width=120, color=False)
         assert result.exit_code == 0
 
 

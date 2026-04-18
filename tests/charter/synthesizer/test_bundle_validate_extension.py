@@ -20,8 +20,12 @@ from pathlib import Path
 
 
 from charter.bundle import (
+    BundleValidationResult,
     CANONICAL_MANIFEST,
     SCHEMA_VERSION,
+    _check_artifacts_have_provenance,
+    _find_artifact,
+    _kind_and_slug_from_artifact,
     validate_synthesis_state,
 )
 from charter.synthesizer.synthesize_pipeline import canonical_yaml
@@ -100,6 +104,18 @@ def test_no_synthesis_state_passes_as_legacy(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     # No .kittify/doctrine/ or .kittify/charter/provenance/ directories.
+
+    result = validate_synthesis_state(repo)
+
+    assert result.passed
+    assert result.errors == []
+    assert not result.synthesis_state_present
+
+
+def test_empty_doctrine_tree_without_provenance_is_treated_as_legacy(tmp_path: Path) -> None:
+    """An empty doctrine tree alone must not flip synthesis_state_present."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify" / "doctrine").mkdir(parents=True)
 
     result = validate_synthesis_state(repo)
 
@@ -248,6 +264,22 @@ def test_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
     assert any("manifest" in e.lower() or "integrity" in e.lower() for e in result.errors)
 
 
+def test_invalid_manifest_yaml_is_reported(tmp_path: Path) -> None:
+    """A malformed synthesis manifest surfaces a structured load error."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".kittify" / "doctrine").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True, exist_ok=True)
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("artifacts: [\n", encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
+
+
 # ---------------------------------------------------------------------------
 # Stale .failed/ staging dirs produce warnings
 # ---------------------------------------------------------------------------
@@ -283,3 +315,67 @@ def test_multiple_failed_dirs_multiple_warnings(tmp_path: Path) -> None:
     result = validate_synthesis_state(repo)
     assert result.passed
     assert len(result.warnings) == 3
+
+
+def test_malformed_provenance_filename_is_error(tmp_path: Path) -> None:
+    """Provenance filenames must be <kind>-<slug>.yaml."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify" / "doctrine" / "tactics").mkdir(parents=True, exist_ok=True)
+    bad_prov = repo / ".kittify" / "charter" / "provenance" / "badformat.yaml"
+    bad_prov.parent.mkdir(parents=True, exist_ok=True)
+    bad_prov.write_text("schema_version: '1'\n", encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any("unexpected name format" in error.lower() for error in result.errors)
+
+
+def test_unknown_provenance_kind_is_error(tmp_path: Path) -> None:
+    """Unknown provenance kinds should fail validation with a clear error."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify" / "doctrine" / "tactics").mkdir(parents=True, exist_ok=True)
+    bad_prov = repo / ".kittify" / "charter" / "provenance" / "unknown-slug.yaml"
+    bad_prov.parent.mkdir(parents=True, exist_ok=True)
+    bad_prov.write_text("schema_version: '1'\n", encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any("unknown kind 'unknown'" in error.lower() for error in result.errors)
+
+
+def test_kind_and_slug_from_artifact_handles_directive_prefix_and_unknown_suffix(tmp_path: Path) -> None:
+    """Directive filenames strip the numeric prefix; unknown suffixes return None."""
+    directive_path = tmp_path / "001-project-decision.directive.yaml"
+    unknown_path = tmp_path / "notes.yaml"
+
+    assert _kind_and_slug_from_artifact(directive_path) == (
+        "directive",
+        "project-decision",
+    )
+    assert _kind_and_slug_from_artifact(unknown_path) == (None, None)
+
+
+def test_check_artifacts_have_provenance_ignores_unrecognized_files(tmp_path: Path) -> None:
+    """Artifacts outside the known filename rules should be skipped quietly."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = BundleValidationResult()
+
+    _check_artifacts_have_provenance(
+        repo_root=repo,
+        artifact_files=[repo / ".kittify" / "doctrine" / "misc" / "notes.yaml"],
+        provenance_root=repo / ".kittify" / "charter" / "provenance",
+        result=result,
+    )
+
+    assert result.errors == []
+
+
+def test_find_artifact_returns_none_for_unknown_kind(tmp_path: Path) -> None:
+    """Unknown artifact kinds should short-circuit without scanning the tree."""
+    doctrine_root = tmp_path / ".kittify" / "doctrine"
+    doctrine_root.mkdir(parents=True)
+
+    assert _find_artifact(doctrine_root, "unknown", "slug") is None

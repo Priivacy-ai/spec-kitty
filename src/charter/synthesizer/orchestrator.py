@@ -61,6 +61,20 @@ class SynthesisResult:
     """adapter_version_override if set; else adapter.version."""
 
 
+def _shipped_drg_from_snapshot(snapshot: object) -> object:
+    """Normalize a request DRG snapshot into a validate-able DRGGraph payload."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+
+    normalized = dict(snapshot)
+    normalized.setdefault("nodes", [])
+    normalized.setdefault("edges", [])
+    normalized["schema_version"] = "1.0"
+    normalized.setdefault("generated_at", "1970-01-01T00:00:00+00:00")
+    normalized.setdefault("generated_by", "request.drg_snapshot")
+    return normalized
+
+
 # ---------------------------------------------------------------------------
 # Public entry points
 # ---------------------------------------------------------------------------
@@ -105,8 +119,17 @@ def synthesize(
     from pathlib import Path as _Path  # noqa: PLC0415
 
     try:
+        from doctrine.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
+        from specify_cli import __version__ as _SPEC_KITTY_VERSION  # noqa: PLC0415
+        from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
+        from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
+        from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
         from .synthesize_pipeline import run_all as _run_all  # noqa: PLC0415
         from .staging import StagingDir as _StagingDir  # noqa: PLC0415
+        from .targets import build_targets as _build_targets  # noqa: PLC0415
+        from .targets import detect_duplicates as _detect_duplicates  # noqa: PLC0415
+        from .targets import order_targets as _order_targets  # noqa: PLC0415
+        from .validation_gate import validate as _validate_project_graph  # noqa: PLC0415
         from . import write_pipeline as _write_pipeline  # noqa: PLC0415
     except ImportError as exc:
         raise NotImplementedError(
@@ -117,6 +140,27 @@ def synthesize(
     # --- In-memory pipeline (WP02) ---
     results = _run_all(request, adapter=adapter)
 
+    shipped_drg = _DRGGraph.model_validate(_shipped_drg_from_snapshot(request.drg_snapshot))
+    sections = _resolve_sections(request.interview_snapshot)
+    targets = _build_targets(
+        interview_snapshot=dict(request.interview_snapshot),
+        mappings=sections,
+        drg_snapshot=dict(request.drg_snapshot),
+    )
+    targets = _order_targets(targets)
+    _detect_duplicates(targets)
+    if not targets:
+        targets = [request.target]
+
+    def _validation_callback(staged_dir: _StagingDir) -> None:
+        project_graph = _emit_project_layer(
+            targets=targets,
+            spec_kitty_version=_SPEC_KITTY_VERSION,
+            shipped_drg=shipped_drg,
+        )
+        _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
+        _validate_project_graph(staged_dir.root, shipped_drg)
+
     # --- Stage and promote to disk (WP03, T018) ---
     _repo_root = repo_root if repo_root is not None else _Path.cwd()
     with _StagingDir.create(_repo_root, request.run_id) as staging_dir:
@@ -124,7 +168,7 @@ def synthesize(
             request,
             staging_dir,
             results,
-            lambda _sd: None,  # WP04 will replace with DRG + schema gate
+            _validation_callback,
         )
 
     # --- Reconstruct SynthesisResult for the primary target ---

@@ -63,7 +63,7 @@ available_tools: []
 class TestSynthesizeHappyPath:
     def test_synthesize_fixture_help(self) -> None:
         """--help works and shows adapter option."""
-        result = runner.invoke(app, ["synthesize", "--help"])
+        result = runner.invoke(app, ["synthesize", "--help"], terminal_width=120, color=False)
         assert result.exit_code == 0
         assert "--adapter" in result.output
         assert "--dry-run" in result.output
