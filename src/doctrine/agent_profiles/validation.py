@@ -10,6 +10,8 @@ from ruamel.yaml import YAML
 
 from doctrine.shared.errors import reject_inline_refs
 
+AGENT_PROFILE_SCHEMA_FILENAME = "agent-profile.schema.yaml"
+
 
 def reject_agent_profile_inline_refs(
     data: dict[str, Any], *, file_path: str
@@ -30,12 +32,12 @@ def _load_agent_profile_schema() -> dict[str, Any]:
         # Try package resources first
         resource = files("doctrine.schemas")
         if hasattr(resource, "joinpath"):
-            schema_path = Path(str(resource.joinpath("agent-profile.schema.yaml")))
+            schema_path = Path(str(resource.joinpath(AGENT_PROFILE_SCHEMA_FILENAME)))
         else:
-            schema_path = Path(str(resource)) / "agent-profile.schema.yaml"
+            schema_path = Path(str(resource)) / AGENT_PROFILE_SCHEMA_FILENAME
     except (ModuleNotFoundError, TypeError):
         # Fallback to relative path
-        schema_path = Path(__file__).parent.parent / "schemas" / "agent-profile.schema.yaml"
+        schema_path = Path(__file__).parent.parent / "schemas" / AGENT_PROFILE_SCHEMA_FILENAME
 
     yaml = YAML(typ="safe")
     with schema_path.open() as f:

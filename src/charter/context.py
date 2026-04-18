@@ -25,6 +25,8 @@ POLICY_SUMMARY_HEADER = "Policy Summary:"
 NO_POLICY_SUMMARY_MESSAGE = "  - No explicit policy summary section found in charter.md."
 REFERENCE_DOCS_HEADER = "Reference Docs:"
 NONE_LABEL = "(none)"
+KITTIFY_DIRNAME = ".kittify"
+MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
 
 _MIN_EFFECTIVE_DEPTH = 2   # minimum depth for bootstrap context (full summary + references)
 _EXTENDED_CONTEXT_DEPTH = 3  # depth that includes extended styleguide/toolguide lines
@@ -81,8 +83,8 @@ def build_charter_context(
     canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
 
     normalized = action.strip().lower()
-    charter_path = canonical_root / ".kittify" / "charter" / "charter.md"
-    references_path = canonical_root / ".kittify" / "charter" / "references.yaml"
+    charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+    references_path = canonical_root / KITTIFY_DIRNAME / "charter" / "references.yaml"
 
     if normalized not in BOOTSTRAP_ACTIONS:
         effective_depth = depth if depth is not None else 1
@@ -160,7 +162,7 @@ def _prepare_context_state(
     depth: int | None,
 ) -> _ContextStateBundle:
     """Resolve first-load state and effective context depth."""
-    state_path = repo_root / ".kittify" / "charter" / "context-state.json"
+    state_path = repo_root / KITTIFY_DIRNAME / "charter" / "context-state.json"
     state = _load_state(state_path)
     actions_val = state.get("actions", {})
     first_load = action not in actions_val if isinstance(actions_val, dict) else True
@@ -223,7 +225,7 @@ def _load_action_doctrine_bundle(
 
     doctrine_root = resolve_doctrine_root()
     shipped_graph = load_graph(doctrine_root / "graph.yaml")
-    project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    project_graph_path = repo_root / KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
     project_graph = load_graph(project_graph_path) if project_graph_path.exists() else None
     merged = merge_layers(shipped_graph, project_graph)
     assert_valid(merged)
@@ -310,7 +312,7 @@ def _render_bootstrap_text(
             local_path = reference.get("local_path", "")
             lines.append(f"  - {ref_id}: {title} ({local_path})")
     else:
-        lines.append("  - No references manifest found.")
+        lines.append(MISSING_REFERENCES_MESSAGE)
     return "\n".join(lines)
 
 
@@ -537,7 +539,7 @@ def _render_action_scoped(
             local_path = reference.get("local_path", "")
             lines.append(f"  - {ref_id}: {title} ({local_path})")
     else:
-        lines.append("  - No references manifest found.")
+        lines.append(MISSING_REFERENCES_MESSAGE)
 
     return "\n".join(lines)
 
@@ -595,7 +597,7 @@ def _render_bootstrap(charter_path: Path, summary: list[str], references: list[d
             local_path = reference.get("local_path", "")
             lines.append(f"  - {ref_id}: {title} ({local_path})")
     else:
-        lines.append("  - No references manifest found.")
+        lines.append(MISSING_REFERENCES_MESSAGE)
 
     return "\n".join(lines)
 

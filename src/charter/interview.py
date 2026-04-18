@@ -163,7 +163,7 @@ class CharterInterview:
     available_tools: list[str]
     agent_profile: str | None = None
     agent_role: str | None = None
-    local_supporting_files: list[LocalSupportDeclaration] = None  # type: ignore[assignment]
+    local_supporting_files: list[LocalSupportDeclaration] | None = None
 
     def __post_init__(self) -> None:
         # Normalize None to empty list for local_supporting_files (frozen dataclass workaround)

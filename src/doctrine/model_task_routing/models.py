@@ -12,6 +12,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+TASK_TYPE_PATTERN = r"^[a-z][a-z0-9-]*$"
+
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -71,7 +73,7 @@ class TaskType(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    id: str = Field(pattern=TASK_TYPE_PATTERN)
     title: str
     description: str | None = None
     quality_sensitivity: Sensitivity | None = None
@@ -83,7 +85,7 @@ class TaskFit(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    task_type: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    task_type: str = Field(pattern=TASK_TYPE_PATTERN)
     score: float = Field(ge=0, le=1)
     confidence: Confidence | None = None
     rationale: str | None = None
@@ -133,7 +135,7 @@ class TierConstraint(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    task_type: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    task_type: str = Field(pattern=TASK_TYPE_PATTERN)
     max_tier: CostTier
 
 
