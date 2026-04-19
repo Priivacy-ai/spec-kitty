@@ -365,6 +365,7 @@ class SaaSTrackerService:
                 self._persist_binding(
                     provider, resolution.binding_ref,
                     resolution.display_label, None,
+                    project_slug=resolution.project_slug,
                 )
                 return BindResult(
                     binding_ref=resolution.binding_ref,
@@ -372,6 +373,7 @@ class SaaSTrackerService:
                     provider=provider,
                     provider_context={},
                     bound_at="",
+                    project_slug=resolution.project_slug,
                 )
             # Need to confirm
             assert resolution.candidate_token is not None  # noqa: S101

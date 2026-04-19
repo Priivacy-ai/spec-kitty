@@ -141,6 +141,7 @@ class ResolutionResult:
     candidate_token: str | None = None
     binding_ref: str | None = None
     display_label: str | None = None
+    project_slug: str | None = None
     candidates: list[BindCandidate] = field(default_factory=list)
 
     @classmethod
@@ -153,6 +154,7 @@ class ResolutionResult:
             candidate_token=data.get("candidate_token"),
             binding_ref=data.get("binding_ref"),
             display_label=data.get("display_label"),
+            project_slug=data.get("project_slug") or None,
             candidates=candidates,
         )
 
