@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bounded resynthesis now preserves evidence inputs end-to-end, so regenerated provenance entries keep the correct `evidence_bundle_hash` and `corpus_snapshot_id`.
 - Generated-artifact synthesis errors now point to the exact expected file path and exact expected artifact id, which makes harness handoff mistakes easier to diagnose.
 
+### Removed
+
+- `spec-kitty auth whoami` — removed. Scripts using this command for canary preflight identity checks should switch to `spec-kitty auth status`.
+
 ## [3.2.0] - 2026-04-19
 
 ### Removed
