@@ -23,6 +23,8 @@ DEFAULT_EXACT_DENYLIST = {
     "dependabot[bot]",
     "copilot-swe-agent",
     "copilot-swe-agent[bot]",
+    # Regnology contributor: attributed to the Regnology org account, not the individual
+    "regnology-stijn",
 }
 
 
