@@ -59,9 +59,7 @@ class NeutralityLintResult:
 
 _YAML = YAML(typ="safe")
 
-_SCANNABLE_SUFFIXES: frozenset[str] = frozenset(
-    {".md", ".yaml", ".yml", ".txt", ".j2"}
-)
+_SCANNABLE_SUFFIXES: frozenset[str] = frozenset({".md", ".yaml", ".yml", ".txt", ".j2"})
 # Segment names that disqualify a file (checked against each path component, not the full path)
 _SKIP_SEGMENTS: frozenset[str] = frozenset({"__pycache__", ".worktrees"})
 # Suffix-level skips (applied to the filename)
@@ -94,9 +92,7 @@ def _load_banned_terms(path: Path) -> list[_CompiledTerm]:
             try:
                 compiled = re.compile(pattern, re.MULTILINE)
             except re.error as exc:
-                raise ValueError(
-                    f"Banned term {term_id!r} has invalid regex pattern {pattern!r}: {exc}"
-                ) from exc
+                raise ValueError(f"Banned term {term_id!r} has invalid regex pattern {pattern!r}: {exc}") from exc
         terms.append(_CompiledTerm(term_id=term_id, kind=kind, pattern=pattern, compiled=compiled))
     return terms
 
@@ -233,10 +229,7 @@ def _scan_regex_matches(
 ) -> list[BannedTermHit]:
     """Return all regex matches for one term on one line."""
     assert term.compiled is not None
-    return [
-        _make_hit(repo_relative, lineno, match.start() + 1, term, match.group(0))
-        for match in term.compiled.finditer(line_text)
-    ]
+    return [_make_hit(repo_relative, lineno, match.start() + 1, term, match.group(0)) for match in term.compiled.finditer(line_text)]
 
 
 def _scan_line(

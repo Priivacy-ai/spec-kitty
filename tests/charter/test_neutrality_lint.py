@@ -28,10 +28,7 @@ def _format_failure(result: NeutralityLintResult) -> str:
     """
     lines: list[str] = ["Neutrality lint failed.", "", "HITS:"]
     for hit in result.hits:
-        lines.append(
-            f"  {hit.file}:{hit.line}:{hit.column} — "
-            f"term_id={hit.term_id} matched={hit.match!r}"
-        )
+        lines.append(f"  {hit.file}:{hit.line}:{hit.column} — term_id={hit.term_id} matched={hit.match!r}")
     if result.stale_allowlist_entries:
         lines.append("")
         lines.append("STALE ALLOWLIST ENTRIES:")
@@ -94,9 +91,7 @@ def test_fault_injection_catches_regression(tmp_path: Path) -> None:
         allowlist_path=empty_allowlist,
     )
     assert not result.passed
-    assert any(hit.term_id == "PY-001" for hit in result.hits), (
-        f"Expected PY-001 ('pytest') hit; got hits={result.hits}"
-    )
+    assert any(hit.term_id == "PY-001" for hit in result.hits), f"Expected PY-001 ('pytest') hit; got hits={result.hits}"
 
 
 def test_default_scan_roots_include_mission_templates(tmp_path: Path) -> None:
@@ -122,9 +117,33 @@ def test_default_scan_roots_include_mission_templates(tmp_path: Path) -> None:
         allowlist_path=empty_allowlist,
     )
     assert not result.passed
-    assert any(hit.term_id == "PY-001" for hit in result.hits), (
-        f"Expected PY-001 ('pytest') hit from mission templates; got hits={result.hits}"
-    )
+    assert any(hit.term_id == "PY-001" for hit in result.hits), f"Expected PY-001 ('pytest') hit from mission templates; got hits={result.hits}"
+
+
+def test_default_scan_roots_include_both_mission_template_dirs(tmp_path: Path) -> None:
+    """Both ``command-templates/`` and ``templates/`` are scanned when they coexist.
+
+    A mission directory may ship both directories at the same time.  A refactor
+    that makes the two branches mutually exclusive would produce a false-negative
+    in either direction — this test locks in that both are live.
+    """
+    mission_dir = tmp_path / "src" / "specify_cli" / "missions" / "research"
+    command_templates = mission_dir / "command-templates"
+    templates = mission_dir / "templates"
+    command_templates.mkdir(parents=True)
+    templates.mkdir(parents=True)
+
+    (command_templates / "cmd.md").write_text("Run pytest to validate.\n", encoding="utf-8")
+    (templates / "tpl.md").write_text("Generic guidance: invoke pytest here.\n", encoding="utf-8")
+
+    empty_allowlist = tmp_path / "allow.yaml"
+    empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")
+
+    result = run_neutrality_lint(repo_root=tmp_path, allowlist_path=empty_allowlist)
+    assert not result.passed
+    hit_files = {str(h.file) for h in result.hits}
+    assert any("command-templates" in f for f in hit_files), f"Expected a PY-001 hit from command-templates/; got hit_files={hit_files}"
+    assert any("command-templates" not in f and "templates" in f for f in hit_files), f"Expected a PY-001 hit from templates/; got hit_files={hit_files}"
 
 
 def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
@@ -170,11 +189,7 @@ def test_stale_allowlist_entry_is_reported(tmp_path: Path) -> None:
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\n"
-        "paths:\n"
-        "  - path: src/doctrine/does-not-exist.md\n"
-        "    rationale: Intentionally stale for test.\n"
-        "    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/doctrine/does-not-exist.md\n    rationale: Intentionally stale for test.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
@@ -196,11 +211,7 @@ def test_glob_allowlist_matches_files(tmp_path: Path) -> None:
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\n"
-        "paths:\n"
-        "  - path: src/doctrine/python-scoped/*.md\n"
-        "    rationale: Glob-scoped to a python directory.\n"
-        "    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/doctrine/python-scoped/*.md\n    rationale: Glob-scoped to a python directory.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
@@ -209,10 +220,7 @@ def test_glob_allowlist_matches_files(tmp_path: Path) -> None:
         scan_roots=[tmp_path / "src" / "doctrine"],
         allowlist_path=allowlist,
     )
-    assert result.passed, (
-        f"Expected glob allowlist to suppress all hits; got hits={result.hits} "
-        f"stale={result.stale_allowlist_entries}"
-    )
+    assert result.passed, f"Expected glob allowlist to suppress all hits; got hits={result.hits} stale={result.stale_allowlist_entries}"
 
 
 def test_regex_term_reports_accurate_column(tmp_path: Path) -> None:
