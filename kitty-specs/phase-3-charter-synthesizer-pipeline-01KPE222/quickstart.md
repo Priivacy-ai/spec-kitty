@@ -2,7 +2,7 @@
 
 **Audience**: operators configuring a project's charter and generating project-local doctrine for the first time (US-1), plus reviewers running targeted resynthesis (US-2 / US-3 / US-4).
 **Mission**: `phase-3-charter-synthesizer-pipeline-01KPE222`
-**Status**: forward-looking — describes the operator experience once WP3.1 → WP3.8 have merged. Commands below do not yet exist on `main`.
+**Status**: partially landed — the CLI commands exist on `main`, and the canonical operator path is the harness-owned generated-artifact adapter.
 
 ---
 
@@ -10,7 +10,8 @@
 
 - spec-kitty version ≥ the release that ships this tranche.
 - A project whose charter interview has been completed (i.e. `.kittify/charter/charter.md` is present and fresh).
-- A configured synthesis adapter (governed by ADR-6, #521). For local dry runs without a production adapter, `--adapter fixture` opts into the test-only adapter (R-0-5).
+- Agent-authored artifact YAML written under `.kittify/charter/generated/`.
+- For deterministic regression testing, `--adapter fixture` remains available as the test-only adapter.
 
 ---
 
@@ -20,12 +21,12 @@
 # From your project root (NOT a worktree).
 # Assumes /spec-kitty.charter has already run.
 
-# Inspect what synthesis will produce before committing:
+# Inspect and validate what synthesis will promote before committing:
 spec-kitty charter synthesize --dry-run
 
-# Run the real synthesis. Artifacts, provenance, project DRG, and manifest
-# land under .kittify/doctrine/ (content) and .kittify/charter/ (bookkeeping)
-# in a single atomic promote.
+# Run the real synthesis. The command reads generated inputs from
+# .kittify/charter/generated/, then promotes validated artifacts, provenance,
+# project DRG, and manifest state into the live trees.
 spec-kitty charter synthesize
 
 # Verify the committed bundle:
@@ -66,7 +67,7 @@ spec-kitty charter context --action specify --json | jq '.context' | head -40
 
 1. Orchestrator read interview answers + shipped doctrine + shipped DRG.
 2. Interview-mapping selected `SynthesisTarget`s (see `data-model.md §E-2`).
-3. Each target was passed through the adapter seam (fixture or production).
+3. Each target was passed through the adapter seam (generated-artifact or fixture).
 4. Every returned body was schema-validated against its shipped-kind schema (FR-019).
 5. All artifacts + provenance sidecars + project DRG overlay were staged under `.kittify/charter/.staging/<runid>/` with internal `doctrine/` and `charter/` subtrees mirroring the final layout.
 6. The merged (shipped + project) DRG was validated — zero dangling refs (FR-008), zero duplicate edges, no cycles.
@@ -154,9 +155,11 @@ No files are written. No model call was made.
 ## 6 · Dry-run for fixture / CI environments
 
 ```bash
-# Uses the test-only fixture adapter. Requires corresponding fixture files
-# under tests/charter/fixtures/synthesizer/<kind>/<slug>/<hash>.<kind>.yaml.
-# Missing fixtures fail loudly with the expected path.
+# Generated-adapter mode is the operator default and reads harness-authored YAML
+# from .kittify/charter/generated/.
+spec-kitty charter synthesize
+
+# The fixture adapter remains available for deterministic regression tests.
 spec-kitty charter synthesize --adapter fixture
 ```
 
@@ -165,7 +168,7 @@ Useful for:
 - CI jobs that verify layout + provenance + manifest integrity without live model access.
 - Regression tests on the fixture set itself.
 
-Do NOT use `--adapter fixture` for production synthesis. The fixture adapter's output is test data, and the provenance stamp (`adapter_id=fixture`) makes that obvious to any later auditor.
+Do NOT use `--adapter fixture` for operator synthesis. The fixture adapter's output is test data, and the provenance stamp (`adapter_id=fixture`) makes that obvious to any later auditor.
 
 ---
 
@@ -209,7 +212,7 @@ Check that `.kittify/charter/synthesis-manifest.yaml` exists. If missing, the li
 
 ### "FixtureAdapterMissingError — expected_path=..."
 
-You're in `--adapter fixture` mode and the fixture for this request is missing. The error names the exact path at which the fixture should live. Record it (run the production adapter once, capture its output, copy to the named path) and rerun.
+You're in `--adapter fixture` mode and the fixture for this request is missing. The error names the exact path at which the fixture should live. Record a fixture there if this is a regression test, or switch back to the default generated adapter for normal operator flows.
 
 ### "I want to regenerate everything"
 

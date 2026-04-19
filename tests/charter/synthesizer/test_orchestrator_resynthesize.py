@@ -14,7 +14,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 from typing import Any
-from collections.abc import Mapping
 
 import pytest
 
@@ -26,17 +25,13 @@ from charter.synthesizer import (
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.errors import ProjectDRGValidationError, TopicSelectorUnresolvedError
+from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
     load_yaml as load_manifest,
 )
-from charter.synthesizer.resynthesize_pipeline import (
-    ResynthesisResult,
-    run as resynthesize_run,
-)
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +165,30 @@ class TestPriorSynthesisBaseline:
 
 
 class TestUs3KindSlug:
+    def test_resynthesize_single_directive_by_project_id(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+    ) -> None:
+        """directive:PROJECT_001 resolves back to the synthesized project directive."""
+        repo = repo_with_prior_synthesis
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="directive:PROJECT_001",
+            repo_root=repo,
+        )
+
+        assert not result.is_noop
+        assert result.resolved_topic.matched_form == "kind_slug"
+        assert len(result.resolved_topic.targets) == 1
+        target = result.resolved_topic.targets[0]
+        assert target.kind == "directive"
+        assert target.artifact_id == "PROJECT_001"
+        assert target.slug == "mission-type-scope-directive"
+
     def test_resynthesize_single_tactic_by_kind_slug(
         self,
         base_request: SynthesisRequest,
@@ -178,8 +197,6 @@ class TestUs3KindSlug:
     ) -> None:
         """US-3: tactic:how-we-apply-directive-003 → only that artifact regenerated."""
         repo = repo_with_prior_synthesis
-        prior_manifest = load_manifest(repo / MANIFEST_PATH)
-        prior_hashes = _artifact_hashes_from_manifest(repo, prior_manifest)
 
         result = resynthesize_run(
             request=base_request,
@@ -289,7 +306,6 @@ class TestUs2DrgUrn:
     ) -> None:
         """US-2: directive:DIRECTIVE_003 → multiple artifacts referencing that URN."""
         repo = repo_with_prior_synthesis
-        prior_manifest = load_manifest(repo / MANIFEST_PATH)
 
         result = resynthesize_run(
             request=base_request,

@@ -166,6 +166,17 @@ def _nearest_candidates(
     return scored[:limit]
 
 
+def _normalize_interview_section_label(label: str) -> str:
+    """Normalize user-facing interview-section selectors.
+
+    The stored section labels are underscore-delimited (`testing_philosophy`),
+    but operators naturally type hyphenated forms (`testing-philosophy`).
+    Normalize both to the canonical underscore form for matching and error
+    suggestions without changing the persisted provenance keys.
+    """
+    return label.strip().replace("-", "_").replace(" ", "_")
+
+
 # ---------------------------------------------------------------------------
 # Resolution helpers
 # ---------------------------------------------------------------------------
@@ -254,13 +265,18 @@ def _resolve_interview_section(
     raw (exact, case-sensitive match).  Returns None if raw is not in the
     known interview section set.
     """
-    if raw not in interview_sections:
+    normalized_sections = {
+        _normalize_interview_section_label(section): section for section in interview_sections
+    }
+    normalized_raw = _normalize_interview_section_label(raw)
+    canonical_section = normalized_sections.get(normalized_raw)
+    if canonical_section is None:
         return None
 
     matched: list[SynthesisTarget] = [
         artifact
         for artifact in project_artifacts
-        if artifact.source_section == raw
+        if artifact.source_section == canonical_section
     ]
     return matched
 
@@ -354,10 +370,14 @@ def resolve(
         attempted_forms.append("interview_section")
         section_results = _resolve_interview_section(raw, project_artifacts, interview_sections)
         if section_results is not None:
+            normalized_sections = {
+                _normalize_interview_section_label(section): section for section in interview_sections
+            }
+            matched_value = normalized_sections[_normalize_interview_section_label(raw)]
             return ResolvedTopic(
                 targets=section_results,
                 matched_form="interview_section",
-                matched_value=raw,
+                matched_value=matched_value,
             )
 
     # No hit — collect candidates and raise structured error

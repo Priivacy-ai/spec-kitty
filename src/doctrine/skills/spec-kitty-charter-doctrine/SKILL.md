@@ -128,48 +128,51 @@ The interview fields map to target artifact kinds:
 For each synthesis target, derive: `kind`, `slug` (kebab-case, project-specific),
 `title`, and `body` (the full artifact content as YAML matching the shipped schema).
 
-### Step 4 — Write the doctrine YAML to `.kittify/doctrine/`
+### Step 4 — Write the doctrine YAML to `.kittify/charter/generated/`
 
-Project-local doctrine lives at `.kittify/doctrine/<kind>/<slug>.yaml`.
+The harness writes artifact inputs here; `spec-kitty charter synthesize`
+validates, stages, and promotes them into the live doctrine tree.
 
 ```
-.kittify/doctrine/
-  directive/
-    <project-slug>.yaml    ← your generated directive
-  tactic/
-    <project-slug>.yaml    ← your generated tactic (if any)
-  styleguide/
-    <project-slug>.yaml    ← your generated styleguide (if any)
+.kittify/charter/generated/
+  directives/
+    <NNN>-<slug>.directive.yaml
+  tactics/
+    <slug>.tactic.yaml
+  styleguides/
+    <slug>.styleguide.yaml
 ```
 
 Use the shipped artifact YAML structure as your template. Make the content
 **specific to the project** based on the interview answers. Do not write
 generic filler.
 
-### Step 5 — Validate each artifact against the schema
+### Step 5 — Run the full validation stack without promoting
 
 ```bash
-spec-kitty doctrine validate --kind directive .kittify/doctrine/directive/<slug>.yaml
-spec-kitty doctrine validate --kind tactic .kittify/doctrine/tactic/<slug>.yaml
-spec-kitty doctrine validate --kind styleguide .kittify/doctrine/styleguide/<slug>.yaml
+spec-kitty charter synthesize --dry-run
 ```
 
-Fix any schema errors before proceeding.
+This is a real stage-and-validate pass. It writes the agent-authored artifacts
+into the staging tree, runs schema validation, project DRG validation, and the
+neutrality gate, then wipes the staging directory on success.
 
-### Step 6 — Run the DRG validation
+### Step 6 — Promote the validated artifact set
 
 ```bash
-spec-kitty charter synthesize --validate-only
+spec-kitty charter synthesize
 ```
 
-This runs the project DRG validation and neutrality gate without generating
-anything new. It confirms your written artifacts are coherent.
+By default this reads from `.kittify/charter/generated/` via the generated
+adapter and promotes the validated outputs into:
+- `.kittify/doctrine/` for artifact content and project `graph.yaml`
+- `.kittify/charter/provenance/` plus `synthesis-manifest.yaml` for bookkeeping
 
-### Step 7 — Commit the doctrine artifacts
+### Step 7 — Commit the promoted charter synthesis state
 
 ```bash
-git add .kittify/doctrine/
-git commit -m "feat(charter): synthesize project-local doctrine from interview"
+git add .kittify/doctrine/ .kittify/charter/provenance/ .kittify/charter/synthesis-manifest.yaml
+git commit -m "feat(charter): promote project-local doctrine from generated inputs"
 ```
 
 ---

@@ -198,6 +198,54 @@ def _run_neutrality_gate(
             )
 
 
+def stage_and_validate(
+    request: SynthesisRequest,
+    staging_dir: StagingDir,
+    results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
+    validation_callback: Callable[[StagingDir], None],
+) -> list[str]:
+    """Write staged files and run the full pre-promote validation stack.
+
+    This is the truthful implementation for CLI ``--dry-run``: all artifact
+    bodies and provenance sidecars are materialized in the staging tree, the
+    project DRG overlay is emitted via ``validation_callback``, and the
+    neutrality gate scans the exact staged bytes that a real promote would use.
+
+    No live-tree ``os.replace`` calls occur here.
+
+    Returns
+    -------
+    list[str]
+        Stable ``kind:slug`` selectors for the staged artifact set.
+    """
+    staged_artifacts: list[str] = []
+
+    for body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = prov.artifact_urn.split(":", 1)[1]
+
+        filename = _artifact_filename(kind, slug, artifact_id)
+        yaml_bytes = canonical_yaml(body)
+
+        staged_content_path = staging_dir.path_for_content(kind, filename)
+        staging_dir.guard.write_bytes(
+            staged_content_path,
+            yaml_bytes,
+            caller="write_pipeline.stage_and_validate[content]",
+        )
+
+        staged_prov_path = staging_dir.path_for_provenance(kind, slug)
+        dump_provenance(prov, staged_prov_path, staging_dir.guard)
+        staged_artifacts.append(f"{kind}:{slug}")
+
+    validation_callback(staging_dir)
+    _run_neutrality_gate(staging_dir, results, request.evidence)
+    return staged_artifacts
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------

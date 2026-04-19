@@ -9,7 +9,7 @@
 | Created | 2026-04-17 |
 | Status | Draft (specify) |
 
-**Roadmap anchors**: Charter EPIC #461 · Phase 3 tracker #465 · WPs #485 #483 #487 #488 #489 · ADR-6 #521 · ADR-7 #523 · ADR-8 #522
+**Roadmap anchors**: Charter EPIC #461 · Phase 3 tracker #465 · WPs #485 #483 #487 #488 #489 · ADR-7 #523 · ADR-8 #522
 
 ---
 
@@ -17,7 +17,7 @@
 
 Phases 0–2 of the charter engineering EPIC are complete and merged. `DoctrineService` already supports an additive shipped + project layer, and `charter compile` / `charter context` already instantiate it with a non-`None` `project_root`. The real gap is that `project_root` is resolved only from code-local candidates (`repo_root/src/doctrine` or `repo_root/doctrine`), which are the *shipped-layer* locations — there is no supported project-local doctrine path under `.kittify/` for runtime doctrine resolution, and no code path writes a project-local artifact. The result is that the charter interview collects project-specific signal — mission type, language scope, directive/tactic/styleguide selections, neutrality posture — and then discards the opportunity to materialize *project-tuned* doctrine from it. (The project-layer DRG overlay is a partial exception: `_drg_helpers` already reads `.kittify/doctrine/graph.yaml` when present, but no code path writes it.)
 
-Phase 3 closes that gap by introducing a Charter Synthesizer: a pipeline that turns (interview answers + shipped doctrine + shipped DRG) into project-local directives, tactics, and styleguides, stored in a layout that the existing doctrine repositories and DRG helpers already recognise — artifact **content** under `.kittify/doctrine/`, synthesis **bookkeeping** (provenance, commit manifest, staging) under `.kittify/charter/`. Synthesis must be deterministic in its orchestration, validation, and bookkeeping — but the actual prose generation is model-driven. This forces a specific architectural split: a narrow provider-agnostic seam for the generation step, with fixture-backed testing, surrounded by deterministic machinery that can be byte-reproducibly tested and guarded.
+Phase 3 closes that gap by introducing a Charter Synthesizer: a pipeline that turns (interview answers + shipped doctrine + shipped DRG) into project-local directives, tactics, and styleguides, stored in a layout that the existing doctrine repositories and DRG helpers already recognise — artifact **content** under `.kittify/doctrine/`, synthesis **bookkeeping** (provenance, commit manifest, staging) under `.kittify/charter/`. Synthesis must be deterministic in its orchestration, validation, and bookkeeping, while the actual doctrine text remains harness-owned. This forces a specific architectural split: a narrow provider-agnostic seam for the generation step, with a file-backed generated-artifact adapter for real operator flows and a fixture-backed adapter for tests, surrounded by deterministic machinery that can be byte-reproducibly tested and guarded.
 
 The mission must preserve the hard invariants established by earlier phases: shipped doctrine in `src/doctrine/` is read-only at runtime; synthesized content lives only under `.kittify/doctrine/`; synthesis bookkeeping lives only under `.kittify/charter/`; the merged DRG (shipped + project) contains no dangling references; every synthesized artifact carries provenance. It must also resist scope creep — autonomous code-reading, URL-fetching, cross-repo charter visibility, and free-text topic rewriting belong to later tranches or separate missions, not Phase 3.
 
@@ -26,7 +26,7 @@ The mission must preserve the hard invariants established by earlier phases: shi
 ### In Scope (Tranche 1)
 
 - Synthesizer orchestration layer: input normalization, synthesis target selection, artifact writing, provenance recording, project DRG emission, cross-layer validation.
-- Narrow provider-agnostic synthesis adapter interface, with a fixture adapter usable by the full test suite and a pinned default production adapter.
+- Narrow provider-agnostic synthesis adapter interface, with a generated-artifact adapter for harness-authored YAML and a fixture adapter usable by the full test suite.
 - Interview-driven synthesis path: a fresh `spec-kitty charter synthesize` run that takes current interview answers and produces a full project-local artifact set.
 - Project-local artifact storage for three artifact kinds only: **directives**, **tactics**, **styleguides**. Content lives under `.kittify/doctrine/{directives,tactics,styleguides}/` using the filename conventions the existing repositories already glob (`*.directive.yaml`, `*.tactic.yaml`, `*.styleguide.yaml`).
 - Provenance writer: per-artifact record of inputs, adapter identity, adapter version, inputs hash, source references (interview section and/or DRG URNs), and generation timestamp. Provenance sidecars and the synthesis manifest (commit marker) live under `.kittify/charter/` — synthesis bookkeeping is kept separate from doctrine content so doctrine consumers are unaffected.
@@ -115,7 +115,7 @@ The mission must preserve the hard invariants established by earlier phases: shi
 |----|-------------|--------|
 | FR-001 | The synthesizer SHALL accept as inputs the current charter interview answers, the shipped doctrine catalog, and the merged shipped+project DRG graph. | Accepted |
 | FR-002 | The synthesizer SHALL produce, for Tranche 1, only artifacts of kind `directive`, `tactic`, and `styleguide`. | Accepted |
-| FR-003 | The synthesizer SHALL expose a narrow provider-agnostic adapter interface for the generation step, such that production and fixture adapters are substitutable without changes to orchestration code. | Accepted |
+| FR-003 | The synthesizer SHALL expose a narrow provider-agnostic adapter interface for the generation step, such that the generated-artifact adapter and the fixture adapter are substitutable without changes to orchestration code. | Accepted |
 | FR-004 | The fixture adapter SHALL be used for 100% of automated tests; no automated test SHALL require a live model call. | Accepted |
 | FR-005 | Synthesized artifact content (directives, tactics, styleguides, project DRG graph) SHALL be written only under `.kittify/doctrine/`, using filenames that match the existing repository globs: `*.directive.yaml`, `*.tactic.yaml`, `*.styleguide.yaml`, plus `graph.yaml`. Synthesis bookkeeping (per-artifact provenance sidecars, commit-marker manifest, and ephemeral staging) SHALL be written only under `.kittify/charter/`. | Accepted |
 | FR-006 | Every synthesized artifact SHALL have a provenance record containing: artifact URN, inputs hash, adapter id, adapter version, source references (interview section label and/or DRG URN(s)), and `generated_at` timestamp. | Accepted |
@@ -158,7 +158,7 @@ The mission must preserve the hard invariants established by earlier phases: shi
 | C-003 | No live network calls are permitted in the automated test suite; the LLM adapter must be swappable for a fixture adapter. | Accepted |
 | C-004 | `--topic` accepts only structured selectors; free-text topics are rejected with a structured error. | Accepted |
 | C-005 | Synthesis in this tranche covers only `directive`, `tactic`, and `styleguide` artifacts; `paradigm`, `procedure`, `toolguide`, and `agent_profile` remain shipped-layer-only. | Accepted |
-| C-006 | ADR-6 (synthesizer model selection) governs the default production adapter but is not a prerequisite for merging WP3.1; the mission may ship with a pinned default adapter. | Accepted |
+| C-006 | Harness-owned inference remains outside spec-kitty. The CLI may validate and promote harness-authored artifacts, but it SHALL NOT embed a vendor-specific model client. | Accepted |
 | C-007 | ADR-7 (existing project migration design) is out of scope for this mission. | Accepted |
 | C-008 | ADR-8 (monorepo / cross-repo charter visibility) is out of scope for this mission. | Accepted |
 | C-009 | The project DRG layer is additive only (per existing `merge_layers()` semantics); no deletions or silent replacements of shipped nodes/edges are permitted. | Accepted |
@@ -184,7 +184,7 @@ The mission must preserve the hard invariants established by earlier phases: shi
 
 - **SynthesisRequest** — input envelope: trigger (fresh | resynthesize), adapter id, topic selector (if any), interview-answers snapshot, shipped-doctrine snapshot, DRG snapshot.
 - **SynthesisTarget** — a single unit of synthesis: artifact kind (directive | tactic | styleguide), target slug, source references (interview section labels and/or DRG URNs).
-- **SynthesisAdapter** — provider-agnostic interface: `generate(target, context) -> AdapterOutput`. Fixture implementation for tests; pinned default implementation for production; governed by ADR-6.
+- **SynthesisAdapter** — provider-agnostic interface: `generate(target, context) -> AdapterOutput`. Generated-artifact implementation for operator flows; fixture implementation for tests.
 - **AdapterOutput** — artifact body + adapter metadata (adapter id, adapter version, inputs hash contribution).
 - **SynthesisResult** — artifact body, provenance entry, validation status. Returned per-target before any filesystem write.
 - **ProvenanceEntry** — record tied to a written artifact: artifact URN, inputs hash, adapter id, adapter version, source references, `generated_at`, content hash of the written body.
@@ -204,7 +204,7 @@ The mission must preserve the hard invariants established by earlier phases: shi
 
 ## 8. Dependencies
 
-- ADR-6 (synthesizer model selection, #521) — informs the default production adapter. This mission proceeds with a fixture adapter + a pinned default while ADR-6 is finalized in parallel. ADR-6 is a *soft* dependency for the production default only.
+- Harness-owned synthesis contract — generation remains the responsibility of the invoking LLM harness; spec-kitty consumes generated artifacts and provides validation, staging, and promotion.
 - ADR-7 (existing 3.x project migration, #523) — out of scope here; flagged so its eventual design can re-use the Phase 3 bundle format without rework.
 - ADR-8 (monorepo / cross-repo charter visibility, #522) — out of scope here; flagged so its design can assume the Phase 3 bundle format as a building block.
 - Existing DRG validator (`src/doctrine/drg/validator.py`) — hard dependency; used as the gatekeeper for FR-008 / NFR-009.
@@ -246,9 +246,9 @@ Risk detail belongs primarily to `/spec-kitty.plan`, but the specify phase recor
 - **R-1: Seam leak** — if the adapter interface leaks generation concerns into orchestration (e.g., prompt shaping, retry policy), determinism erodes. Mitigation: WP3.1 defines the interface with no prompt-engineering surface; prompts live inside adapters.
 - **R-2: DoctrineService wiring ripple** — switching charter compile/context to pass `project_root` may surface behavioral differences for projects that have never had a project layer. Mitigation: activation is gated on the presence of a synthesized artifact set; legacy projects see no change until their first `charter synthesize` run.
 - **R-3: Bundle manifest drift** — extending bundle contents without a version bump risks silent breakage of `bundle validate`. Mitigation: any extension is additive and backwards-compatible; if not, the plan phase must call a v1.1.0 bump explicitly.
-- **R-4: Provenance brittleness under model churn** — swapping production adapters could invalidate every provenance entry. Mitigation: adapter id + adapter version are first-class provenance fields; invalidation is observable, not hidden.
+- **R-4: Provenance brittleness under adapter churn** — changing generated-artifact or fixture adapter semantics could invalidate provenance expectations. Mitigation: adapter id + adapter version are first-class provenance fields; invalidation is observable, not hidden.
 - **R-5: Topic selector ambiguity escalation** — users may push back on structured-only selectors. Mitigation: structured error output enumerates candidates so the affordance is teachable; free-text is an explicit later-tranche decision, not a silent no.
-- **R-6: ADR-6 dependency creep** — if WP3.1 is blocked on ADR-6 resolution, the whole tranche stalls. Mitigation: C-006 fixes a pinned default adapter so the architecture can merge while ADR-6 is being finalized.
+- **R-6: harness-contract drift** — if spec-kitty and the invoking harness disagree about where generated artifacts live or how they are identified, operator runs fail late. Mitigation: C-006 freezes the no-internal-LLM rule and the generated-artifact adapter path.
 
 Sequencing constraint (spec-level): WP3.1 must land before WP3.2/3.6/3.7/3.8 begin. WP3.6 and WP3.7 can proceed in parallel once WP3.2 establishes the artifact body contract. WP3.8 depends on WP3.6 and WP3.7 being durable enough to drive bounded recomputation. Likely file clusters (charter package, doctrine DRG package, CLI commands, bundle manifest) are a plan-phase concern.
 

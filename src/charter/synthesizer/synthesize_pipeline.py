@@ -237,6 +237,16 @@ def _compute_evidence_hashes(request: SynthesisRequest) -> tuple[str | None, str
     return evidence_hash, corpus_id
 
 
+def _artifact_urn_for_target(target: SynthesisTarget) -> str:
+    """Return the canonical artifact URN for provenance.
+
+    Directives are keyed by project artifact id (for example ``PROJECT_001``),
+    while tactics and styleguides use their slug as both ``artifact_id`` and
+    URN suffix.
+    """
+    return target.urn
+
+
 # ---------------------------------------------------------------------------
 # Adapter dispatch helpers
 # ---------------------------------------------------------------------------
@@ -387,7 +397,7 @@ def run(
             generated_at_str = generated_at_str + "+00:00"
 
         provenance = ProvenanceEntry(
-            artifact_urn=f"{target.kind}:{target.slug}",
+            artifact_urn=_artifact_urn_for_target(target),
             artifact_kind=target.kind,  # type: ignore[arg-type]
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
@@ -517,7 +527,7 @@ def run_all(
             generated_at_str = generated_at_str + "+00:00"
 
         provenance = ProvenanceEntry(
-            artifact_urn=f"{target.kind}:{target.slug}",
+            artifact_urn=_artifact_urn_for_target(target),
             artifact_kind=target.kind,  # type: ignore[arg-type]
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,

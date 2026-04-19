@@ -516,6 +516,7 @@ def _build_synthesis_request(
 
     from charter.interview import read_interview_answers
     from charter.synthesizer.fixture_adapter import FixtureAdapter
+    from charter.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
     from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
 
     answers_path = _interview_path(repo_root)
@@ -575,12 +576,14 @@ def _build_synthesis_request(
         evidence=evidence,
     )
 
-    if adapter_name == "fixture":
+    if adapter_name == "generated":
+        adapter_obj = GeneratedArtifactAdapter(repo_root=repo_root)
+    elif adapter_name == "fixture":
         adapter_obj = FixtureAdapter()
     else:
         raise TaskCliError(
             f"Unknown adapter '{adapter_name}'. "
-            "Only '--adapter fixture' is supported. "
+            "Supported adapters are '--adapter generated' and '--adapter fixture'. "
             "Doctrine generation is performed by the LLM harness (Claude Code, Codex, "
             "Cursor, etc.) via the spec-kitty-charter-doctrine skill. "
             "spec-kitty never calls an LLM itself."
@@ -589,12 +592,125 @@ def _build_synthesis_request(
     return request, adapter_obj
 
 
+def _collect_evidence_result(
+    repo_root: Path,
+    *,
+    skip_code_evidence: bool,
+    skip_corpus: bool,
+) -> Any:
+    from charter.evidence.orchestrator import EvidenceOrchestrator, load_url_list_from_config
+
+    url_list = load_url_list_from_config(repo_root)
+    orchestrator = EvidenceOrchestrator(
+        repo_root=repo_root,
+        url_list=url_list,
+        skip_code=skip_code_evidence,
+        skip_corpus=skip_corpus,
+    )
+    return orchestrator.collect()
+
+
+def _build_synthesis_validation_callback(request: Any) -> Any:
+    from doctrine.drg.models import DRGGraph
+    from importlib.metadata import version as pkg_version
+
+    from charter.synthesizer.interview_mapping import resolve_sections
+    from charter.synthesizer.orchestrator import _shipped_drg_from_snapshot
+    from charter.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
+    from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets
+    from charter.synthesizer.validation_gate import validate as validate_project_graph
+
+    spec_kitty_version = pkg_version("spec-kitty-cli")
+    shipped_drg = DRGGraph.model_validate(_shipped_drg_from_snapshot(request.drg_snapshot))
+    sections = resolve_sections(dict(request.interview_snapshot))
+    targets = build_targets(
+        interview_snapshot=dict(request.interview_snapshot),
+        mappings=sections,
+        drg_snapshot=dict(request.drg_snapshot),
+    )
+    targets = order_targets(targets)
+    detect_duplicates(targets)
+    if not targets:
+        targets = [request.target]
+
+    def _validation_callback(staged_dir: Any) -> None:
+        project_graph = emit_project_layer(
+            targets=targets,
+            spec_kitty_version=spec_kitty_version,
+            shipped_drg=shipped_drg,
+        )
+        persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
+        validate_project_graph(staged_dir.root, shipped_drg)
+
+    return _validation_callback
+
+
+def _run_synthesis_dry_run(
+    request: Any,
+    syn_adapter: Any,
+    repo_root: Path,
+) -> list[str]:
+    from charter.synthesizer.staging import StagingDir
+    from charter.synthesizer.synthesize_pipeline import run_all
+    from charter.synthesizer.write_pipeline import stage_and_validate
+
+    results = run_all(request, adapter=syn_adapter)
+    validation_callback = _build_synthesis_validation_callback(request)
+
+    with StagingDir.create(repo_root, request.run_id) as staging_dir:
+        staged_artifacts = stage_and_validate(
+            request,
+            staging_dir,
+            results,
+            validation_callback,
+        )
+        staging_dir.wipe()
+
+    return staged_artifacts
+
+
+def _list_resynthesis_topics(
+    request: Any,
+    repo_root: Path,
+) -> dict[str, list[str]]:
+    from charter.synthesizer.resynthesize_pipeline import (
+        _load_merged_drg,
+        _load_project_artifacts_from_provenance,
+    )
+
+    project_artifacts = _load_project_artifacts_from_provenance(repo_root)
+    merged_drg = _load_merged_drg(repo_root, request)
+    interview_sections = sorted(str(section) for section in request.interview_snapshot)
+
+    artifact_topics = []
+    for artifact in project_artifacts:
+        selector = artifact.urn if artifact.kind == "directive" else f"{artifact.kind}:{artifact.slug}"
+        artifact_topics.append(selector)
+
+    drg_topics: list[str] = []
+    for node in merged_drg.get("nodes", []):
+        if isinstance(node, dict):
+            urn = node.get("urn")
+            if isinstance(urn, str) and urn:
+                drg_topics.append(urn)
+
+    return {
+        "project_artifacts": sorted(dict.fromkeys(artifact_topics)),
+        "drg_urns": sorted(dict.fromkeys(drg_topics)),
+        "interview_sections": interview_sections,
+        "interview_section_aliases": sorted(section.replace("_", "-") for section in interview_sections),
+    }
+
+
 @app.command("synthesize")
 def charter_synthesize(
     adapter: str = typer.Option(
-        "fixture",
+        "generated",
         "--adapter",
-        help="Adapter to use. Only 'fixture' is supported (offline/testing).",
+        help=(
+            "Adapter to use. 'generated' (default) validates agent-authored YAML under "
+            ".kittify/charter/generated/. 'fixture' is offline/testing only."
+        ),
     ),
     dry_run: bool = typer.Option(
         False,
@@ -629,15 +745,18 @@ def charter_synthesize(
 
     Examples
     --------
+    Validate + promote generated artifacts written by the harness::
+
+        spec-kitty charter synthesize
+
     Validate + promote with fixture adapter (offline/testing)::
 
         spec-kitty charter synthesize --adapter fixture
 
-    Dry-run (stage only, no write)::
+    Dry-run (stage + validate, no promote)::
 
-        spec-kitty charter synthesize --adapter fixture --dry-run
+        spec-kitty charter synthesize --dry-run
     """
-    from charter.evidence.orchestrator import EvidenceOrchestrator, load_url_list_from_config
     from charter.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
 
     err_console = Console(stderr=True)
@@ -646,14 +765,11 @@ def charter_synthesize(
         repo_root = find_repo_root()
 
         # Collect evidence before building the synthesis request
-        url_list = load_url_list_from_config(repo_root)
-        orchestrator = EvidenceOrchestrator(
-            repo_root=repo_root,
-            url_list=url_list,
-            skip_code=skip_code_evidence,
+        evidence_result = _collect_evidence_result(
+            repo_root,
+            skip_code_evidence=skip_code_evidence,
             skip_corpus=skip_corpus,
         )
-        evidence_result = orchestrator.collect()
         for warning in evidence_result.warnings:
             console.print(f"[yellow]\u26a0 {warning}[/yellow]")
 
@@ -681,24 +797,18 @@ def charter_synthesize(
         request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
         if dry_run:
-            # Dry-run: stage but do not promote
-            from charter.synthesizer.synthesize_pipeline import run_all
-
-            results = run_all(request, adapter=syn_adapter)
-
-            staged_files: list[str] = []
-            for _body, prov in results:
-                staged_files.append(f"{prov.artifact_kind}:{prov.artifact_slug}")
+            staged_files = _run_synthesis_dry_run(request, syn_adapter, repo_root)
 
             if json_output:
                 print(json.dumps({
                     "result": "dry_run",
                     "staged_artifacts": staged_files,
                     "artifact_count": len(staged_files),
+                    "validated": True,
                 }, indent=2))
                 return
 
-            console.print("[yellow]Dry-run:[/yellow] synthesis staged (not promoted)")
+            console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
             for f in staged_files:
                 console.print(f"  [dim]staged:[/dim] {f}")
             return
@@ -743,9 +853,9 @@ def charter_synthesize(
 
 
 @app.command("resynthesize")
-def charter_resynthesize(
-    topic: str = typer.Option(
-        ...,
+def charter_resynthesize(  # noqa: C901
+    topic: str | None = typer.Option(
+        None,
         "--topic",
         help=(
             "Structured topic selector: "
@@ -754,10 +864,28 @@ def charter_resynthesize(
             "or <interview-section-label>."
         ),
     ),
+    list_topics: bool = typer.Option(
+        False,
+        "--list-topics",
+        help="List valid structured topic selectors and exit.",
+    ),
     adapter: str = typer.Option(
-        "fixture",
+        "generated",
         "--adapter",
-        help="Adapter to use. Only 'fixture' is supported (offline/testing).",
+        help=(
+            "Adapter to use. 'generated' (default) validates agent-authored YAML under "
+            ".kittify/charter/generated/. 'fixture' is offline/testing only."
+        ),
+    ),
+    skip_code_evidence: bool = typer.Option(
+        False,
+        "--skip-code-evidence",
+        help="Skip code-reading evidence collection.",
+    ),
+    skip_corpus: bool = typer.Option(
+        False,
+        "--skip-corpus",
+        help="Skip best-practice corpus loading.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
@@ -777,11 +905,11 @@ def charter_resynthesize(
     --------
     Resynthesize a single tactic::
 
-        spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003 --adapter fixture
+        spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003
 
     Resynthesize all artifacts referencing a shipped directive::
 
-        spec-kitty charter resynthesize --topic directive:DIRECTIVE_003 --adapter fixture
+        spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
     """
     from charter.synthesizer.errors import (
         SynthesisError,
@@ -795,7 +923,46 @@ def charter_resynthesize(
 
     try:
         repo_root = find_repo_root()
-        request, syn_adapter = _build_synthesis_request(repo_root, adapter)
+        evidence_result = _collect_evidence_result(
+            repo_root,
+            skip_code_evidence=skip_code_evidence,
+            skip_corpus=skip_corpus,
+        )
+        for warning in evidence_result.warnings:
+            console.print(f"[yellow]\u26a0 {warning}[/yellow]")
+
+        request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
+
+        if list_topics:
+            topics = _list_resynthesis_topics(request, repo_root)
+            if json_output:
+                print(json.dumps({
+                    "result": "success",
+                    "topics": topics,
+                }, indent=2))
+                return
+
+            if not any(topics.values()):
+                console.print("[yellow]No topic selectors available yet.[/yellow]")
+                return
+
+            if topics["project_artifacts"]:
+                console.print("[bold]Project artifact selectors[/bold]")
+                for selector in topics["project_artifacts"]:
+                    console.print(f"  {selector}")
+            if topics["drg_urns"]:
+                console.print("[bold]DRG URNs[/bold]")
+                for selector in topics["drg_urns"]:
+                    console.print(f"  {selector}")
+            if topics["interview_sections"]:
+                console.print("[bold]Interview sections[/bold]")
+                for selector in topics["interview_sections"]:
+                    alias = selector.replace("_", "-")
+                    console.print(f"  {selector}  [dim](alias: {alias})[/dim]")
+            return
+
+        if topic is None:
+            raise TaskCliError("Pass --topic <selector> or use --list-topics.")
 
         from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 

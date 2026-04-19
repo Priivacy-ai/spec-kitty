@@ -219,6 +219,36 @@ class FixtureAdapterMissingError(SynthesisError):
         )
 
 
+@dataclass(frozen=True)
+class GeneratedArtifactMissingError(SynthesisError):
+    """The harness-owned generated-artifact adapter cannot find an expected file."""
+
+    expected_path: str
+    kind: str
+    slug: str
+
+    def __str__(self) -> str:
+        return (
+            f"No generated artifact found for {self.kind}:{self.slug}; "
+            f"expected YAML at {self.expected_path}. "
+            "Write the agent-authored artifact there, then rerun synthesis."
+        )
+
+
+@dataclass(frozen=True)
+class GeneratedArtifactLoadError(SynthesisError):
+    """The harness-owned generated-artifact adapter could not parse or trust a file."""
+
+    artifact_path: str
+    reason: str
+
+    def __str__(self) -> str:
+        return (
+            f"Generated artifact at {self.artifact_path} could not be loaded: "
+            f"{self.reason}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Staging / promote errors
 # ---------------------------------------------------------------------------
