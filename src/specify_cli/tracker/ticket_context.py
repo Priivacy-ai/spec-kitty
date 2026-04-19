@@ -44,17 +44,35 @@ def write_ticket_context(repo_root: Path, ticket: dict[str, Any]) -> Path:
     assignee_info = ticket.get("assignee") or {}
     assignee = assignee_info.get("name") or assignee_info.get("id") or "(unassigned)"
 
+    # Labels: normalised as a list or comma-string depending on provider
+    raw_labels = ticket.get("labels") or []
+    if isinstance(raw_labels, str):
+        raw_labels = [l.strip() for l in raw_labels.split(",") if l.strip()]
+    labels_str = ", ".join(str(l) for l in raw_labels) if raw_labels else ""
+
     lines = [
         f"# {identifier}: {title}",
         "",
         f"**Status:** {status}",
         f"**Assignee:** {assignee}",
         f"**URL:** {url}",
-        "",
     ]
+    if labels_str:
+        lines.append(f"**Labels:** {labels_str}")
+    lines.append("")
 
     if body.strip():
         lines += ["---", "", body.strip(), ""]
+
+    # Comments: list of dicts with at least a 'body' key (future API extension)
+    comments = ticket.get("comments") or []
+    if comments:
+        lines += ["## Comments", ""]
+        for i, c in enumerate(comments, 1):
+            c_body = (c.get("body") or "").strip()
+            c_author = (c.get("author") or c.get("user") or {}).get("name", "")
+            c_header = f"**Comment {i}**" + (f" — {c_author}" if c_author else "")
+            lines += [c_header, "", c_body, ""]
 
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
