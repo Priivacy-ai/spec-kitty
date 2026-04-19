@@ -13,7 +13,7 @@ fallback backend and asserts that:
 Implementation notes:
 
 - Uses a tmp_path-scoped ``FileFallbackStorage`` so no production
-  ``~/.config/spec-kitty`` directory is touched.
+  ``~/.spec-kitty/auth`` directory is touched.
 - Subclasses the production storage to drop the scrypt cost parameters
   to the floor (``N=2**10``) so 20+ encrypt operations complete in
   under a second. This is ONLY a test-speed hack — the file format,
@@ -203,18 +203,18 @@ def test_file_permissions_are_0600_after_concurrent_writes(tmp_path: Path) -> No
             )
         )
 
-    cred_file = tmp_path / "credentials.json"
+    cred_file = tmp_path / "session.json"
     assert cred_file.exists()
     # POSIX permission check. On Windows os.getuid() is absent but
     # the test suite only runs on POSIX CI so this is safe.
     mode = cred_file.stat().st_mode & 0o777
-    assert mode == 0o600, f"credentials.json has mode {oct(mode)}, expected 0o600"
+    assert mode == 0o600, f"session.json has mode {oct(mode)}, expected 0o600"
 
     # Salt file is also locked down.
-    salt_file = tmp_path / "credentials.salt"
+    salt_file = tmp_path / "session.salt"
     salt_mode = salt_file.stat().st_mode & 0o777
     assert salt_mode == 0o600, (
-        f"credentials.salt has mode {oct(salt_mode)}, expected 0o600"
+        f"session.salt has mode {oct(salt_mode)}, expected 0o600"
     )
 
 

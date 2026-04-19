@@ -11,7 +11,7 @@ Covers the four acceptance paths from WP06:
 Every test drives the real Typer ``app`` from
 ``specify_cli.cli.commands.auth`` via :class:`typer.testing.CliRunner`
 (T063 audit requirement) and mocks ``SecureStorage.from_environment`` so
-no real keychain is touched. HTTP is mocked at the ``httpx.AsyncClient``
+no real auth store is touched. HTTP is mocked at the ``httpx.AsyncClient``
 seam because the logout command uses :mod:`httpx` directly rather than
 the (not-yet-landed) ``OAuthHttpClient`` transport from WP08.
 """

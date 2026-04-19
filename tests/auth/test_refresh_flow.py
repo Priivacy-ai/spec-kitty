@@ -61,7 +61,7 @@ def _make_session(
         access_token_expires_at=now - timedelta(seconds=1),  # expired
         refresh_token_expires_at=refresh_token_expires_at,
         scope="offline_access",
-        storage_backend="keychain",
+        storage_backend="file",
         last_used_at=now,
         auth_method="authorization_code",
     )

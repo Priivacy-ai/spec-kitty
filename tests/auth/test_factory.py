@@ -1,98 +1,89 @@
-"""Tests for the ``get_token_manager()`` factory (feature 080, WP01 T001).
-
-Validates:
-
-- Same instance returned across repeated calls (process-wide).
-- ``reset_token_manager()`` causes a fresh instance next call.
-- Thread-safe lazy initialization (no duplicate instances under concurrent access).
-"""
+"""Tests for the ``get_token_manager()`` factory (feature 080, WP01 T001)."""
 
 from __future__ import annotations
 
 import concurrent.futures
+from unittest.mock import Mock, patch
 
-import keyring
-import keyring.backend
+import pytest
 
-from specify_cli.auth import (
-    SecureStorage,
-    TokenManager,
-    get_token_manager,
-    reset_token_manager,
-)
-from specify_cli.auth.secure_storage.keychain import KeychainStorage
+from specify_cli.auth import TokenManager, get_token_manager, reset_token_manager
 
 
-class InMemoryKeyring(keyring.backend.KeyringBackend):
-    priority = 10
+@pytest.fixture(autouse=True)
+def _reset_tm():
+    reset_token_manager()
+    yield
+    reset_token_manager()
 
-    def __init__(self) -> None:
-        self._store: dict[tuple[str, str], str] = {}
 
-    def set_password(self, service, username, password):
-        self._store[(service, username)] = password
-
-    def get_password(self, service, username):
-        return self._store.get((service, username))
-
-    def delete_password(self, service, username):
-        self._store.pop((service, username), None)
+def _mock_storage() -> Mock:
+    storage = Mock()
+    storage.read.return_value = None
+    storage.write = Mock(return_value=None)
+    storage.delete = Mock(return_value=None)
+    storage.backend_name = "file"
+    return storage
 
 
 def test_factory_returns_token_manager_instance():
-    prev = keyring.get_keyring()
-    keyring.set_keyring(InMemoryKeyring())
-    try:
+    storage = _mock_storage()
+    with patch(
+        "specify_cli.auth.SecureStorage.from_environment",
+        return_value=storage,
+    ) as mock_from_environment:
         tm = get_token_manager()
-        assert isinstance(tm, TokenManager)
-    finally:
-        keyring.set_keyring(prev)
+    assert isinstance(tm, TokenManager)
+    mock_from_environment.assert_called_once()
+    assert tm._storage is storage
 
 
 def test_factory_returns_same_instance_on_repeat_calls():
-    prev = keyring.get_keyring()
-    keyring.set_keyring(InMemoryKeyring())
-    try:
+    storage = _mock_storage()
+    with patch(
+        "specify_cli.auth.SecureStorage.from_environment",
+        return_value=storage,
+    ) as mock_from_environment:
         tm1 = get_token_manager()
         tm2 = get_token_manager()
-        assert tm1 is tm2
-    finally:
-        keyring.set_keyring(prev)
+    assert tm1 is tm2
+    mock_from_environment.assert_called_once()
 
 
 def test_reset_token_manager_creates_fresh_instance():
-    prev = keyring.get_keyring()
-    keyring.set_keyring(InMemoryKeyring())
-    try:
+    with patch(
+        "specify_cli.auth.SecureStorage.from_environment",
+        return_value=_mock_storage(),
+    ):
         tm1 = get_token_manager()
-        reset_token_manager()
+    reset_token_manager()
+    with patch(
+        "specify_cli.auth.SecureStorage.from_environment",
+        return_value=_mock_storage(),
+    ):
         tm2 = get_token_manager()
-        assert tm1 is not tm2
-    finally:
-        keyring.set_keyring(prev)
+    assert tm1 is not tm2
 
 
 def test_factory_uses_secure_storage_from_environment():
-    """When a real keychain is configured, the factory wires a KeychainStorage."""
-    prev = keyring.get_keyring()
-    keyring.set_keyring(InMemoryKeyring())
-    try:
+    storage = _mock_storage()
+    with patch(
+        "specify_cli.auth.SecureStorage.from_environment",
+        return_value=storage,
+    ) as mock_from_environment:
         tm = get_token_manager()
-        # TokenManager's storage is private but the factory chose via from_environment.
-        # We verify the selection indirectly via SecureStorage.from_environment().
-        direct = SecureStorage.from_environment()
-        assert isinstance(direct, KeychainStorage)
-        assert tm is not None
-    finally:
-        keyring.set_keyring(prev)
+    assert tm is not None
+    mock_from_environment.assert_called_once()
+    assert tm._storage is storage
 
 
 def test_factory_is_thread_safe():
     """Concurrent first-call must still return a single shared instance."""
-    prev = keyring.get_keyring()
-    keyring.set_keyring(InMemoryKeyring())
-    try:
-        reset_token_manager()
+    storage = _mock_storage()
+    with patch(
+        "specify_cli.auth.SecureStorage.from_environment",
+        return_value=storage,
+    ) as mock_from_environment:
 
         def call() -> TokenManager:
             return get_token_manager()
@@ -100,8 +91,6 @@ def test_factory_is_thread_safe():
         with concurrent.futures.ThreadPoolExecutor(max_workers=16) as ex:
             results = list(ex.map(lambda _: call(), range(64)))
 
-        # All callers must see the same singleton instance.
-        first = results[0]
-        assert all(r is first for r in results)
-    finally:
-        keyring.set_keyring(prev)
+    first = results[0]
+    assert all(r is first for r in results)
+    mock_from_environment.assert_called_once()

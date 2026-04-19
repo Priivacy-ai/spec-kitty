@@ -5,8 +5,8 @@ an in-memory :class:`SecureStorage` that every integration test can inject
 via ``patch("specify_cli.auth.secure_storage.SecureStorage.from_environment")``.
 
 Per WP11 (feature 080), integration tests exercise the real Typer app via
-:class:`typer.testing.CliRunner`. They must never hit a real network, a real
-keychain, or the real ``~/.config`` directory — all three are mocked.
+:class:`typer.testing.CliRunner`. They must never hit a real network or the
+real ``~/.spec-kitty/auth`` directory — both are mocked.
 
 Security note: the fake URL deliberately uses ``https://saas.test`` so a
 test that accidentally escapes its mocks fails with a DNS/connection error

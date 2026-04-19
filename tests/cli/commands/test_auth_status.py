@@ -4,7 +4,7 @@ Covers:
 
 - ``format_duration`` across all five branches (expired, <1 minute,
   minutes, hours, days) including singular/plural handling.
-- ``format_storage_backend`` across the four known backends plus the
+- ``format_storage_backend`` for the supported backend plus the
   unknown-fallthrough branch.
 - ``format_auth_method`` across both known methods plus the unknown
   fallthrough branch.
@@ -18,7 +18,7 @@ Covers:
     * refresh-expired path (the early-return branch in ``status_impl``)
 
 Every CliRunner test mocks ``SecureStorage.from_environment`` so we never
-touch the real keychain — matches the pattern established by
+touch the real auth store — matches the pattern established by
 ``tests/auth/test_device_code_flow.py`` and ``tests/cli/commands/test_auth_login.py``.
 """
 
@@ -70,7 +70,7 @@ def _make_session(
     name: str = "Alice Developer",
     access_remaining_seconds: int = 3600,
     refresh_remaining_days: int | None = 89,
-    storage_backend: str = "keychain",
+    storage_backend: str = "file",
     auth_method: str = "authorization_code",
     teams: list[Team] | None = None,
     default_team_id: str = "tm_acme",
@@ -186,25 +186,10 @@ class TestFormatDuration:
 
 
 class TestFormatStorageBackend:
-    """All four known backends plus unknown fallthrough."""
-
-    def test_keychain_label(self):
-        assert format_storage_backend("keychain") == "macOS Keychain"
-
-    def test_credential_manager_label(self):
-        assert (
-            format_storage_backend("credential_manager")
-            == "Windows Credential Manager"
-        )
-
-    def test_secret_service_label(self):
-        assert (
-            format_storage_backend("secret_service")
-            == "Linux Secret Service"
-        )
+    """The supported backend plus unknown fallthrough."""
 
     def test_file_label(self):
-        assert format_storage_backend("file") == "Encrypted file fallback"
+        assert format_storage_backend("file") == "Encrypted session file"
 
     def test_unknown_fallthrough(self):
         assert "Unknown" in format_storage_backend("unknown-backend")
@@ -312,10 +297,10 @@ class TestAuthStatusCommand:
         session = _make_session(
             access_remaining_seconds=3600,
             refresh_remaining_days=89,
-            storage_backend="keychain",
+            storage_backend="file",
             auth_method="authorization_code",
         )
-        mock_storage = _mock_storage_returning(session, backend="keychain")
+        mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
             return_value=mock_storage,
@@ -338,7 +323,7 @@ class TestAuthStatusCommand:
         assert "1 hour" in result.stdout
         assert "89 days" in result.stdout
         # Storage backend (human label, not raw literal)
-        assert "macOS Keychain" in result.stdout
+        assert "Encrypted session file" in result.stdout
         # Session id
         assert "sess_01HR6CABCDEF" in result.stdout
         # Auth method human label
@@ -366,7 +351,7 @@ class TestAuthStatusCommand:
         assert result.exit_code == 0, result.stdout
         assert "10 minutes" in result.stdout
         assert "89 days" in result.stdout
-        assert "Encrypted file fallback" in result.stdout
+        assert "Encrypted session file" in result.stdout
 
     def test_refresh_token_expired_early_return(self):
         """A session with an expired refresh token takes the early-return branch."""
@@ -374,7 +359,7 @@ class TestAuthStatusCommand:
             access_remaining_seconds=-100,
             refresh_remaining_days=-1,  # refresh already expired
         )
-        mock_storage = _mock_storage_returning(session, backend="keychain")
+        mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
             return_value=mock_storage,
@@ -390,9 +375,9 @@ class TestAuthStatusCommand:
         """Device-code sessions render the Headless label."""
         session = _make_session(
             auth_method="device_code",
-            storage_backend="secret_service",
+            storage_backend="file",
         )
-        mock_storage = _mock_storage_returning(session, backend="secret_service")
+        mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
             return_value=mock_storage,
@@ -403,7 +388,7 @@ class TestAuthStatusCommand:
         assert result.exit_code == 0, result.stdout
         assert "Headless" in result.stdout
         assert "Device" in result.stdout
-        assert "Linux Secret Service" in result.stdout
+        assert "Encrypted session file" in result.stdout
 
     def test_authenticated_path_empty_teams(self):
         """A session with no teams should print ``(none)`` instead of crashing."""
@@ -422,7 +407,7 @@ class TestAuthStatusCommand:
     def test_authenticated_path_legacy_refresh_none_branch(self):
         """Replayed pre-amendment session hits the defensive None branch."""
         session = _make_session(refresh_remaining_days=None)
-        mock_storage = _mock_storage_returning(session, backend="keychain")
+        mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
             return_value=mock_storage,

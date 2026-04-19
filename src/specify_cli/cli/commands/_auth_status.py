@@ -15,7 +15,7 @@ Output layout (spec 080 §2.4, FR-015):
   pre-dates the C-012 SaaS refresh-TTL amendment (landed 2026-04-09).
   New sessions always carry a concrete ``refresh_token_expires_at``;
   the None branch only trips for replayed/legacy sessions.
-- Storage backend (human label — "macOS Keychain" etc.)
+- Storage backend (human label for the encrypted local session file)
 - Session ID, last_used_at, auth method
 
 Exit code is 0 in both authenticated and not-authenticated cases per
@@ -35,13 +35,10 @@ from specify_cli.auth.session import StoredSession
 console = Console()
 
 # Mapping from the StorageBackend literal (see session.py) to a
-# user-friendly label. Keep this in sync with the four concrete backends
-# defined in ``specify_cli.auth.secure_storage``.
+# user-friendly label. Keep this in sync with the supported encrypted-file
+# storage implementation in ``specify_cli.auth.secure_storage``.
 _STORAGE_LABELS: dict[str, str] = {
-    "keychain": "macOS Keychain",
-    "credential_manager": "Windows Credential Manager",
-    "secret_service": "Linux Secret Service",
-    "file": "Encrypted file fallback",
+    "file": "Encrypted session file",
 }
 
 # Mapping from the AuthMethod literal (see session.py) to a user-facing

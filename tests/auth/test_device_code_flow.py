@@ -222,9 +222,9 @@ class TestConstructor:
         flow = DeviceCodeFlow(saas_base_url="https://saas.test/")
         assert flow._saas_base_url == "https://saas.test"
 
-    def test_storage_backend_defaults_to_keychain(self):
+    def test_storage_backend_defaults_to_file(self):
         flow = DeviceCodeFlow(saas_base_url=_SAAS)
-        assert flow._storage_backend == "keychain"
+        assert flow._storage_backend == "file"
 
     def test_storage_backend_override(self):
         flow = DeviceCodeFlow(saas_base_url=_SAAS, storage_backend="file")
@@ -755,7 +755,7 @@ class TestAuthLoginHeadlessCliRunner:
             "/api/v1/me": _mock_httpx_response(200, _me_response()),
         }
 
-        # Also mock the storage backend so we don't write to the real keychain.
+        # Also mock the storage backend so we don't write to the real auth store.
         with _install_routed_client(post_routes, get_routes), patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment"
         ) as mock_se:

@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.auth.errors import SecureStorageError, StorageDecryptionError
-from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
+from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage, _get_uid
 from specify_cli.auth.session import StoredSession, Team
 
 
@@ -64,6 +64,17 @@ def storage(tmp_path: Path) -> FastFileFallback:
     return FastFileFallback(base_dir=tmp_path)
 
 
+def test_default_store_dir_uses_spec_kitty_auth_root(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    storage = FastFileFallback()
+    assert storage.store_path == tmp_path / ".spec-kitty" / "auth"
+
+
+def test_get_uid_returns_zero_when_platform_has_no_getuid(monkeypatch):
+    monkeypatch.delattr(os, "getuid", raising=False)
+    assert _get_uid() == 0
+
+
 def test_read_returns_none_when_no_file(storage: FastFileFallback):
     assert storage.read() is None
 
@@ -77,7 +88,7 @@ def test_roundtrip_write_read(storage: FastFileFallback):
 
 def test_write_creates_salt_file_with_0600(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
-    salt_file = tmp_path / "credentials.salt"
+    salt_file = tmp_path / "session.salt"
     assert salt_file.exists()
     # Check permissions (POSIX only). Windows skips this.
     if hasattr(os, "getuid"):
@@ -90,7 +101,7 @@ def test_write_creates_credentials_file_with_0600(
     storage: FastFileFallback, tmp_path: Path
 ):
     storage.write(_make_session())
-    cred_file = tmp_path / "credentials.json"
+    cred_file = tmp_path / "session.json"
     assert cred_file.exists()
     if hasattr(os, "getuid"):
         mode = stat.S_IMODE(cred_file.stat().st_mode)
@@ -113,8 +124,8 @@ def test_salt_is_random_across_instances(tmp_path: Path):
     s2 = FastFileFallback(base_dir=tmp_path / "b")
     s1.write(_make_session())
     s2.write(_make_session())
-    salt1 = (tmp_path / "a" / "credentials.salt").read_bytes()
-    salt2 = (tmp_path / "b" / "credentials.salt").read_bytes()
+    salt1 = (tmp_path / "a" / "session.salt").read_bytes()
+    salt2 = (tmp_path / "b" / "session.salt").read_bytes()
     assert salt1 != salt2
 
 
@@ -123,14 +134,14 @@ def test_encrypted_file_does_not_contain_plaintext(
 ):
     s = _make_session(access_token="SUPER_SECRET_TOKEN_VALUE")
     storage.write(s)
-    raw_bytes = (tmp_path / "credentials.json").read_bytes()
+    raw_bytes = (tmp_path / "session.json").read_bytes()
     # The access token must not appear in the on-disk bytes.
     assert b"SUPER_SECRET_TOKEN_VALUE" not in raw_bytes
 
 
 def test_file_format_is_version_2(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
-    blob = json.loads((tmp_path / "credentials.json").read_text())
+    blob = json.loads((tmp_path / "session.json").read_text())
     assert blob["version"] == 2
     assert "nonce" in blob
     assert "ciphertext" in blob
@@ -139,10 +150,10 @@ def test_file_format_is_version_2(storage: FastFileFallback, tmp_path: Path):
 def test_v1_plaintext_is_rejected(storage: FastFileFallback, tmp_path: Path):
     # Simulate a stale v1 file.
     (tmp_path).mkdir(parents=True, exist_ok=True)
-    (tmp_path / "credentials.json").write_text(
+    (tmp_path / "session.json").write_text(
         json.dumps({"version": 1, "user_id": "old"})
     )
-    os.chmod(tmp_path / "credentials.json", 0o600)
+    os.chmod(tmp_path / "session.json", 0o600)
     with pytest.raises(StorageDecryptionError) as excinfo:
         storage.read()
     assert "v1" in str(excinfo.value) or "version" in str(excinfo.value).lower()
@@ -152,7 +163,7 @@ def test_missing_salt_rejects_decryption(
     storage: FastFileFallback, tmp_path: Path
 ):
     storage.write(_make_session())
-    (tmp_path / "credentials.salt").unlink()
+    (tmp_path / "session.salt").unlink()
     with pytest.raises(StorageDecryptionError):
         storage.read()
 
@@ -161,7 +172,7 @@ def test_tampered_ciphertext_fails_authentication(
     storage: FastFileFallback, tmp_path: Path
 ):
     storage.write(_make_session())
-    cred_file = tmp_path / "credentials.json"
+    cred_file = tmp_path / "session.json"
     blob = json.loads(cred_file.read_text())
     # Flip a byte of the ciphertext hex to break the AES-GCM tag.
     ct = bytearray(bytes.fromhex(blob["ciphertext"]))
@@ -181,7 +192,7 @@ def test_wrong_salt_fails_decryption(
     the salt changes the derived key and AES-GCM authentication fails.
     """
     storage.write(_make_session())
-    salt_file = tmp_path / "credentials.salt"
+    salt_file = tmp_path / "session.salt"
     # Replace with a brand-new random 16-byte salt.
     import secrets
 
@@ -194,8 +205,8 @@ def test_malformed_json_raises_decryption_error(
     storage: FastFileFallback, tmp_path: Path
 ):
     (tmp_path).mkdir(parents=True, exist_ok=True)
-    (tmp_path / "credentials.json").write_text("{not-json")
-    os.chmod(tmp_path / "credentials.json", 0o600)
+    (tmp_path / "session.json").write_text("{not-json")
+    os.chmod(tmp_path / "session.json", 0o600)
     with pytest.raises(StorageDecryptionError):
         storage.read()
 
@@ -204,11 +215,11 @@ def test_delete_removes_cred_and_salt(
     storage: FastFileFallback, tmp_path: Path
 ):
     storage.write(_make_session())
-    assert (tmp_path / "credentials.json").exists()
-    assert (tmp_path / "credentials.salt").exists()
+    assert (tmp_path / "session.json").exists()
+    assert (tmp_path / "session.salt").exists()
     storage.delete()
-    assert not (tmp_path / "credentials.json").exists()
-    assert not (tmp_path / "credentials.salt").exists()
+    assert not (tmp_path / "session.json").exists()
+    assert not (tmp_path / "session.salt").exists()
 
 
 def test_delete_is_idempotent(storage: FastFileFallback):
@@ -241,7 +252,7 @@ def test_read_rejects_group_readable_credentials(
 ):
     """NFR-013: read() must reject credentials files that are not owner-only."""
     storage.write(_make_session())
-    cred_file = tmp_path / "credentials.json"
+    cred_file = tmp_path / "session.json"
     # Widen permissions to group-readable (0640).
     os.chmod(cred_file, 0o640)
     with pytest.raises(SecureStorageError, match="unsafe permissions"):
@@ -254,7 +265,7 @@ def test_read_rejects_world_readable_credentials(
 ):
     """NFR-013: read() must reject world-readable credentials files."""
     storage.write(_make_session())
-    cred_file = tmp_path / "credentials.json"
+    cred_file = tmp_path / "session.json"
     os.chmod(cred_file, 0o644)
     with pytest.raises(SecureStorageError, match="unsafe permissions"):
         storage.read()
@@ -268,7 +279,7 @@ def test_rewrite_reuses_existing_salt(
     storage: FastFileFallback, tmp_path: Path
 ):
     storage.write(_make_session())
-    salt_before = (tmp_path / "credentials.salt").read_bytes()
+    salt_before = (tmp_path / "session.salt").read_bytes()
     storage.write(_make_session(access_token="different"))
-    salt_after = (tmp_path / "credentials.salt").read_bytes()
+    salt_after = (tmp_path / "session.salt").read_bytes()
     assert salt_before == salt_after
