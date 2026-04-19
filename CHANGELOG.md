@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Directive provenance now records canonical URNs (`directive:PROJECT_<NNN>`) instead of slug-based placeholders, which restores correct directive filenames, provenance reload, and `directive:PROJECT_<NNN>` resynthesis.
 - Bounded resynthesis now preserves evidence inputs end-to-end, so regenerated provenance entries keep the correct `evidence_bundle_hash` and `corpus_snapshot_id`.
 - Generated-artifact synthesis errors now point to the exact expected file path and exact expected artifact id, which makes harness handoff mistakes easier to diagnose.
+- Charter neutrality lint now scans mission `templates/` directories in addition to `command-templates/`, so banned terms in generic mission prompt files are caught by the default repo scan (#653 tripwire).
 
 ### Removed
 
