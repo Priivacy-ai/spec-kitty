@@ -48,8 +48,9 @@ class SynthesisRequest:
     interview_snapshot: Mapping[str, Any]
     doctrine_snapshot: Mapping[str, Any]
     drg_snapshot: Mapping[str, Any]
-    adapter_hints: Mapping[str, str] | None
-    run_id: str  # ULID. Excluded from fixture-hash per R-0-6 rule 4.
+    adapter_hints: Mapping[str, str] | None = None
+    run_id: str = ""  # ULID. Excluded from fixture-hash per R-0-6 rule 4.
+    evidence: Any = None  # EvidenceBundle | None — added by WP01 (charter phase 3)
 
 
 @dataclass(frozen=True)
