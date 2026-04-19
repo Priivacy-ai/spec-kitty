@@ -84,6 +84,7 @@ class BindResult:
     provider: str
     provider_context: dict[str, str]
     bound_at: str
+    project_slug: str | None = None
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> BindResult:
@@ -93,6 +94,7 @@ class BindResult:
             provider=data["provider"],
             provider_context=data.get("provider_context", {}),
             bound_at=data["bound_at"],
+            project_slug=data.get("project_slug") or None,
         )
 
 

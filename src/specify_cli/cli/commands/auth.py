@@ -89,4 +89,12 @@ def status() -> None:
     status_impl()
 
 
+@app.command()
+def whoami() -> None:
+    """Print the authenticated user's email and exit 0, or exit 1 if not authenticated."""
+    from specify_cli.cli.commands._auth_whoami import whoami_impl
+
+    whoami_impl()
+
+
 __all__ = ["app"]

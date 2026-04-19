@@ -248,13 +248,15 @@ class SaaSTrackerService:
         binding_ref: str,
         display_label: str | None,
         provider_context: dict[str, str] | None,
+        project_slug: str | None = None,
     ) -> None:
         """Write binding config to disk and update in-memory state."""
         same_provider = self._config.provider == provider
+        resolved_slug = project_slug or (self._config.project_slug if same_provider else None)
         updated = TrackerProjectConfig(
             provider=provider,
             binding_ref=binding_ref,
-            project_slug=self._config.project_slug if same_provider else None,
+            project_slug=resolved_slug,
             display_label=(
                 display_label
                 if display_label is not None
@@ -297,6 +299,7 @@ class SaaSTrackerService:
             raise
         self._persist_binding(
             provider, result.binding_ref, result.display_label, result.provider_context,
+            project_slug=result.project_slug,
         )
         return result
 
