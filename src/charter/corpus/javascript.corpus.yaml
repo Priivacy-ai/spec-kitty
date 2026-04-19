@@ -1,0 +1,28 @@
+schema_version: "1"
+profile_key: "javascript"
+snapshot_id: "javascript-v1.0.0"
+entries:
+  - topic: "testing philosophy"
+    tags: ["testing", "jest", "javascript", "ci"]
+    guidance: |
+      JavaScript/TypeScript projects should use a fast, parallelisable test
+      runner with built-in assertion and mocking support. Jest and Vitest are
+      the dominant choices; prefer Vitest for new ESM projects due to native
+      module support.
+
+      Test at the component boundary: unit tests for pure functions and
+      business logic, component tests for UI behaviour, and a small number of
+      end-to-end tests via browser automation for critical user flows.
+
+  - topic: "code organisation"
+    tags: ["javascript", "typescript", "modules", "structure"]
+    guidance: |
+      Prefer named exports over default exports to support better editor
+      tooling and explicit import sites. Organise code by feature, not by
+      technical type (avoid flat components/, services/, utils/ trees
+      that grow without bound).
+
+      Use TypeScript strict mode. Avoid any; prefer unknown and narrow
+      explicitly. Barrel files (index.ts) are convenient but can create
+      circular dependencies — use them sparingly and only at feature
+      boundaries.

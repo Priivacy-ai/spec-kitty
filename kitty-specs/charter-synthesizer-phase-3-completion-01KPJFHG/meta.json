@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-04-19T09:00:59.616082+00:00",
+  "friendly_name": "Charter Synthesizer Phase 3 Completion: Richer Inputs and Production Adapter",
+  "mission_id": "01KPJFHGQ2QQRT3JP7T37M84HN",
+  "mission_number": 88,
+  "mission_slug": "charter-synthesizer-phase-3-completion-01KPJFHG",
+  "mission_type": "software-dev",
+  "slug": "charter-synthesizer-phase-3-completion-01KPJFHG",
+  "source_description": "Complete remaining Phase 3 charter synthesizer scope: code-reading input adapter (#482), URL-fetching input adapter (#484), best-practice corpus loader (#486), production adapter / ADR-6 model selection (#521), and neutrality synthesis-path tripwires (#653). Builds on the Phase 3 tranche 1 baseline already landed via PR #677.",
+  "target_branch": "main",
+  "tracks": [
+    "#465",
+    "#653",
+    "#482",
+    "#484",
+    "#486",
+    "#521"
+  ],
+  "vcs": "git"
+}

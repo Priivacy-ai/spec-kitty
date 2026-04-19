@@ -36,7 +36,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
-from .errors import StagingPromoteError
+from .errors import NeutralityGateViolation, StagingPromoteError
+from .evidence import EvidenceBundle
 from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
@@ -95,12 +96,115 @@ def _compute_content_hash(yaml_bytes: bytes) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Neutrality gate helpers
+# ---------------------------------------------------------------------------
+
+
+def _is_generic_scoped(
+    target_kind: str,  # noqa: ARG001 — reserved for future kind-level rules
+    target_slug: str,
+    evidence: EvidenceBundle | None,
+) -> bool:
+    """Return True if this artifact slot should be checked for language-specific bias.
+
+    An artifact is generic-scoped when there is no code-signals scope_tag
+    or when the artifact slug does not contain the scope_tag as a component.
+    Conservative default: if evidence is absent, all artifacts are generic-scoped.
+
+    Scope determination rules:
+    - No evidence / no code_signals → generic (lint it)
+    - scope_tag == "unknown" → generic (lint it)
+    - scope_tag IS a substring of slug → language-scoped (skip lint)
+    - scope_tag NOT in slug → generic (lint it)
+
+    Example: scope_tag="python", slug="python-style-guide" → language-scoped (False)
+    Example: scope_tag="python", slug="testing-philosophy" → generic (True)
+    """
+    if evidence is None or evidence.code_signals is None:
+        return True  # no scope info → assume generic, apply lint
+
+    scope_tag = evidence.code_signals.scope_tag
+    if scope_tag == "unknown":
+        return True
+
+    # A language-scoped artifact slug typically contains the scope_tag as a component.
+    # e.g. "python-style-guide" contains "python"; "testing-philosophy" does not.
+    return scope_tag not in target_slug
+
+
+def _run_neutrality_gate(
+    staging_dir: StagingDir,
+    results: list[tuple[Any, ProvenanceEntry]],
+    evidence: EvidenceBundle | None,
+) -> None:
+    """Scan generic-scoped staged artifacts for language bias.
+
+    Iterates over all (body, provenance) results. For each artifact that is
+    generic-scoped (per ``_is_generic_scoped``), runs ``run_neutrality_lint``
+    on the staged content file. If any banned term is found, raises
+    ``NeutralityGateViolation`` immediately without promoting.
+
+    The staging directory is NOT wiped on gate failure — the caller's context
+    manager routes it to ``.failed/`` for operator inspection (KD-2, FR-011).
+
+    Parameters
+    ----------
+    staging_dir:
+        The active staging directory (pre-promote state).
+    results:
+        All ``(body, ProvenanceEntry)`` pairs from ``run_all()``.
+    evidence:
+        EvidenceBundle from the synthesis request, used to determine scope_tag.
+    """
+    from charter.neutrality.lint import run_neutrality_lint
+
+    for _body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+
+        if not _is_generic_scoped(kind, slug, evidence):
+            # Language-scoped artifact — language-specific terms are expected here.
+            continue
+
+        # Determine the staged content path for this specific artifact.
+        # The artifact_id is embedded in the URN for directives.
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        filename = _artifact_filename(kind, slug, artifact_id)
+        staged_path = staging_dir.path_for_content(kind, filename)
+
+        if not staged_path.exists():
+            # Staged file missing — skip (shouldn't happen in normal flow).
+            continue
+
+        # Scan only this specific staged file, treating the staging root as repo_root
+        # so that _repo_relative_string produces stable paths.
+        lint_result = run_neutrality_lint(
+            repo_root=staging_dir.root,
+            scan_roots=[staged_path],
+        )
+
+        # Gate only on actual banned-term hits — not on stale allowlist entries.
+        # Stale entries are expected when scanning staged files against the default
+        # allowlist (which references repo-relative paths that don't exist in staging).
+        if lint_result.hits:
+            # Collect up to 5 hit matches for the error message.
+            terms = tuple(hit.match for hit in lint_result.hits[:5])
+            raise NeutralityGateViolation(
+                artifact_urn=prov.artifact_urn,
+                detected_terms=terms,
+                staging_dir=staging_dir.root,
+            )
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
 
 def promote(
-    request: SynthesisRequest,  # noqa: ARG001 — reserved for WP04/WP05 wiring
+    request: SynthesisRequest,
     staging_dir: StagingDir,
     results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
     validation_callback: Callable[[StagingDir], None],
@@ -182,6 +286,16 @@ def promote(
     except Exception as exc:
         staging_dir.commit_to_failed(f"Validation failed: {exc}")
         raise
+
+    # ------------------------------------------------------------------
+    # Step 2b: neutrality lint gate (FR-011, FR-012)
+    #
+    # Runs AFTER validation and BEFORE the first os.replace call.
+    # Scans generic-scoped staged artifacts for language-specific bias.
+    # On NeutralityGateViolation the staging dir is NOT wiped — the
+    # StagingDir context manager in the caller routes it to .failed/.
+    # ------------------------------------------------------------------
+    _run_neutrality_gate(staging_dir, results, request.evidence)
 
     # ------------------------------------------------------------------
     # Step 3: ordered os.replace into final live trees
@@ -292,4 +406,4 @@ def promote(
     return manifest
 
 
-__all__ = ["promote"]
+__all__ = ["promote", "_is_generic_scoped", "_run_neutrality_gate"]

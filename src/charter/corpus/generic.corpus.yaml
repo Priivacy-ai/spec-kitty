@@ -1,0 +1,37 @@
+schema_version: "1"
+profile_key: "generic"
+snapshot_id: "generic-v1.0.0"
+entries:
+  - topic: "testing philosophy"
+    tags: ["testing", "ci", "quality"]
+    guidance: |
+      Effective software testing balances confidence with velocity. A layered
+      strategy — fast unit tests for business logic, integration tests for
+      system boundaries, and a small number of end-to-end tests for critical
+      paths — provides maximum signal at minimum cost.
+
+      Tests should be deterministic, isolated, and independently runnable.
+      Avoid shared mutable state between tests. A test suite that cannot be
+      run reliably is not a safety net.
+
+  - topic: "code organisation"
+    tags: ["structure", "modules", "architecture"]
+    guidance: |
+      Organise code by domain concern, not by technical layer. A module
+      boundary should correspond to a concept in the problem domain.
+
+      Keep modules small and focused. A module that imports from many
+      unrelated areas of the codebase is a sign of insufficient decomposition.
+      Dependencies should flow inward (domain logic has no dependency on
+      infrastructure).
+
+  - topic: "documentation standards"
+    tags: ["docs", "api", "maintainability"]
+    guidance: |
+      Documentation serves three audiences: the newcomer who needs a tutorial,
+      the practitioner who needs a how-to guide, and the maintainer who needs
+      to understand why a decision was made.
+
+      Maintain a README that answers: what is this, why does it exist, how do
+      I set it up, how do I run it. Keep documentation close to the code it
+      describes. Outdated documentation is worse than no documentation.

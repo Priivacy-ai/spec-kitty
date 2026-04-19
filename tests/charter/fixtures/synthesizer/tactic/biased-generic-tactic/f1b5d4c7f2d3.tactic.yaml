@@ -1,0 +1,12 @@
+id: biased-generic-tactic
+schema_version: '1.0'
+name: Biased Generic Tactic
+purpose: >
+  A deliberately biased generic tactic used in integration tests to verify
+  that the neutrality gate rejects language-specific terms in generic artifacts.
+steps:
+  - title: Always run pytest
+    description: >
+      Always run pytest to verify your code. Configure pytest.ini for test
+      discovery. Use pytest-cov to measure coverage. Install junit-xml reporter
+      for CI integration.

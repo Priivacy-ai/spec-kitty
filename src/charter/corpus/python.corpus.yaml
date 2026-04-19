@@ -1,0 +1,42 @@
+schema_version: "1"
+profile_key: "python"
+snapshot_id: "python-v1.0.0"
+entries:
+  - topic: "testing philosophy"
+    tags: ["testing", "pytest", "python", "ci"]
+    guidance: |
+      Python projects benefit from a layered test strategy built around the
+      stack's native tools. pytest provides fixtures, parametrization, and
+      plugin support that enable expressive, composable test suites.
+
+      Prefer fixture injection over global state. Mark slow tests to enable
+      fast subset runs during development. Use coverage gates on changed lines
+      rather than global thresholds to keep the gate meaningful.
+
+      Integration tests should target real infrastructure (database, queue)
+      rather than mocks when the divergence cost of mocking is higher than
+      the benefit. Use in-memory or containerised instances for isolation.
+
+  - topic: "code organisation"
+    tags: ["python", "packages", "src-layout"]
+    guidance: |
+      Use the src-layout: place all importable code under src/<package>/
+      to prevent accidental imports of the development tree instead of the
+      installed package. This catches packaging bugs before they reach users.
+
+      Prefer explicit imports over star imports. Keep __init__.py files
+      thin — they should re-export the stable public API, not contain
+      business logic.
+
+  - topic: "type safety"
+    tags: ["python", "mypy", "typing"]
+    guidance: |
+      Python type annotations with mypy in strict mode provide early error
+      detection and improved IDE support without the overhead of a compiled
+      language. Enable strict mode in mypy.ini and treat type errors as
+      build failures in CI.
+
+      Prefer from __future__ import annotations to defer annotation
+      evaluation and avoid circular import issues. Use TypeVar, Protocol,
+      and TypedDict to model generic and structural types rather than
+      resorting to Any.

@@ -505,6 +505,7 @@ def status(
 def _build_synthesis_request(
     repo_root: Path,
     adapter_name: str,
+    evidence: Any = None,
 ) -> tuple[Any, Any]:
     """Build a SynthesisRequest + adapter from the project's current interview state.
 
@@ -571,23 +572,69 @@ def _build_synthesis_request(
         doctrine_snapshot=doctrine_snapshot,
         drg_snapshot=drg_snapshot,
         run_id=run_id,
+        evidence=evidence,
     )
 
     if adapter_name == "fixture":
         adapter_obj = FixtureAdapter()
+    elif adapter_name == "production":
+        from charter.synthesizer.production_adapter import ProductionAdapter
+        model = _resolve_model_from_config(repo_root)
+        timeout = _resolve_timeout_from_config(repo_root)
+        adapter_obj = ProductionAdapter(model=model, timeout_seconds=timeout)
     else:
-        # Production adapter: not yet implemented; raise a helpful error
         from charter.synthesizer.errors import ProductionAdapterUnavailableError
         raise ProductionAdapterUnavailableError(
             adapter_id=adapter_name,
-            reason="Production LLM adapter is not yet configured",
+            reason=f"Unknown adapter '{adapter_name}'",
             remediation=(
                 "Use '--adapter fixture' for testing with pre-recorded fixtures, "
-                "or configure an LLM adapter in .kittify/config.yaml."
+                "or '--adapter production' to call the Anthropic Claude API."
             ),
         )
 
     return request, adapter_obj
+
+
+def _load_kittify_config(repo_root: Path) -> dict[str, Any]:
+    """Load .kittify/config.yaml as a plain dict. Returns {} on any error."""
+    config_path = repo_root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        return {}
+    try:
+        import ruamel.yaml
+        yaml = ruamel.yaml.YAML()
+        with config_path.open() as fh:
+            result = yaml.load(fh)
+        return dict(result) if isinstance(result, dict) else {}
+    except Exception:
+        return {}
+
+
+def _resolve_model_from_config(repo_root: Path) -> str:
+    """Return the synthesis model from config, defaulting to claude-sonnet-4-6 (ADR-6)."""
+    config = _load_kittify_config(repo_root)
+    model = (
+        config.get("charter", {})
+        .get("synthesis", {})
+        .get("model", "")
+    )
+    return str(model) if model else "claude-sonnet-4-6"
+
+
+def _resolve_timeout_from_config(repo_root: Path) -> int:
+    """Return the synthesis timeout in seconds from config, defaulting to 120."""
+    config = _load_kittify_config(repo_root)
+    timeout = (
+        config.get("charter", {})
+        .get("synthesis", {})
+        .get("timeout_seconds", 0)
+    )
+    try:
+        val = int(timeout)
+        return val if val > 0 else 120
+    except (TypeError, ValueError):
+        return 120
 
 
 @app.command("synthesize")
@@ -603,6 +650,21 @@ def charter_synthesize(
         help="Stage and validate artifacts but do not promote to live tree.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+    skip_code_evidence: bool = typer.Option(
+        False,
+        "--skip-code-evidence",
+        help="Skip code-reading evidence collection.",
+    ),
+    skip_corpus: bool = typer.Option(
+        False,
+        "--skip-corpus",
+        help="Skip best-practice corpus loading.",
+    ),
+    dry_run_evidence: bool = typer.Option(
+        False,
+        "--dry-run-evidence",
+        help="Print evidence summary and exit without running synthesis.",
+    ),
 ) -> None:
     """Generate project-local doctrine from interview answers (full synthesis).
 
@@ -619,13 +681,48 @@ def charter_synthesize(
 
         spec-kitty charter synthesize --adapter fixture --dry-run
     """
-    from charter.synthesizer.errors import SynthesisError, render_error_panel
+    from charter.evidence.orchestrator import EvidenceOrchestrator, load_url_list_from_config
+    from charter.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
 
     err_console = Console(stderr=True)
 
     try:
         repo_root = find_repo_root()
-        request, syn_adapter = _build_synthesis_request(repo_root, adapter)
+
+        # Collect evidence before building the synthesis request
+        url_list = load_url_list_from_config(repo_root)
+        orchestrator = EvidenceOrchestrator(
+            repo_root=repo_root,
+            url_list=url_list,
+            skip_code=skip_code_evidence,
+            skip_corpus=skip_corpus,
+        )
+        evidence_result = orchestrator.collect()
+        for warning in evidence_result.warnings:
+            console.print(f"[yellow]\u26a0 {warning}[/yellow]")
+
+        if dry_run_evidence:
+            bundle = evidence_result.bundle
+            console.print("[bold]Evidence dry-run summary:[/bold]")
+            if bundle.code_signals:
+                cs = bundle.code_signals
+                console.print(f"  Code signals: stack={cs.stack_id}, lang={cs.primary_language}")
+                console.print(f"  Representative files: {len(cs.representative_files)} found")
+            else:
+                console.print("  Code signals: none (skipped or not detected)")
+            console.print(f"  URL list: {len(bundle.url_list)} URL(s) configured")
+            if bundle.corpus_snapshot:
+                console.print(
+                    f"  Corpus: {bundle.corpus_snapshot.snapshot_id} "
+                    f"({len(bundle.corpus_snapshot.entries)} entries)"
+                )
+            else:
+                console.print("  Corpus: none")
+            for w in evidence_result.warnings:
+                console.print(f"  [yellow]Warning: {w}[/yellow]")
+            raise typer.Exit(0)
+
+        request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
         if dry_run:
             # Dry-run: stage but do not promote
@@ -669,6 +766,15 @@ def charter_synthesize(
         console.print(f"Primary artifact: {result.target_kind}:{result.target_slug}")
         console.print(f"Adapter: {result.effective_adapter_id} v{result.effective_adapter_version}")
 
+    except typer.Exit:
+        raise
+    except NeutralityGateViolation as e:
+        render_error_panel(e, err_console)
+        err_console.print(
+            f"\n[yellow]Staging directory preserved at:[/yellow] {e.staging_dir}\n"
+            "Inspect the staged artifacts, adjust the synthesis prompt or scope, and retry."
+        )
+        raise typer.Exit(code=1) from e
     except SynthesisError as e:
         render_error_panel(e, err_console)
         raise typer.Exit(code=1) from e

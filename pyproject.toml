@@ -74,6 +74,7 @@ dependencies = [
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
     "cryptography>=42.0",  # AES-256-GCM + scrypt KDF for auth file fallback storage (feature 080)
     "keyring>=24.0; sys_platform != \"win32\"",  # OS keystore abstraction for auth secure storage backends (feature 080)
+    "anthropic>=0.55.0",  # Claude API for production adapter (ADR-6)
 ]
 
 [project.urls]
@@ -170,6 +171,7 @@ markers = [
     "no_readiness_stub: Opt out of any autouse readiness-stub fixture so the test exercises its own readiness wiring (mission 082 tracker CLI tests)",
     "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
     "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
+    "live_adapter: tests that call the real Anthropic API (deselect with -m 'not live_adapter')",
 ]
 
 [tool.ruff]
