@@ -31,7 +31,6 @@ Error taxonomy (WP01, frozen):
     TopicSelectorUnresolvedError    — --topic selector unresolvable
     TopicSelectorAmbiguousError     — --topic selector ambiguous
     FixtureAdapterMissingError      — fixture adapter missing fixture
-    ProductionAdapterUnavailableError — production adapter cannot instantiate
     StagingPromoteError             — staging promote failed
     ManifestIntegrityError          — manifest content_hash mismatch
 
@@ -45,7 +44,6 @@ from .errors import (
     FixtureAdapterMissingError,
     ManifestIntegrityError,
     PathGuardViolation,
-    ProductionAdapterUnavailableError,
     ProjectDRGValidationError,
     StagingPromoteError,
     SynthesisError,
@@ -80,7 +78,6 @@ __all__ = [
     "TopicSelectorUnresolvedError",
     "TopicSelectorAmbiguousError",
     "FixtureAdapterMissingError",
-    "ProductionAdapterUnavailableError",
     "StagingPromoteError",
     "ManifestIntegrityError",
     # Test adapter

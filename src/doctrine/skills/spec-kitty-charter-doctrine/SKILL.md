@@ -29,6 +29,153 @@ the charter references.
 
 ---
 
+## ⛔ ARCHITECTURAL INVARIANT: spec-kitty NEVER calls LLMs
+
+**spec-kitty is a CLI tool invoked BY an LLM harness (Claude Code, Codex, Cursor,
+Gemini, etc.). The LLM harness IS the inference engine. spec-kitty must NEVER
+call any LLM API itself.**
+
+This is not a preference. It is a hard architectural rule with no exceptions.
+
+### Why this rule exists
+
+| What you are reading this in | What that means |
+|------------------------------|-----------------|
+| Claude Code | Claude IS already running. It should generate doctrine. |
+| Codex CLI | Codex IS already running. It should generate doctrine. |
+| Cursor / Gemini / Kiro / ... | Same — the harness IS the inference engine. |
+
+If spec-kitty called the Anthropic SDK internally:
+- It would need a separate `ANTHROPIC_API_KEY` — a second API key alongside the one
+  the harness already uses.
+- It would bypass the harness entirely, making the agent's reasoning invisible.
+- It would make spec-kitty Anthropic-specific, breaking all other harnesses.
+- It would be a hidden inference call the user never authorized or configured.
+- It would duplicate what the harness can already do better, with full context.
+
+### What this means for charter synthesis
+
+**Charter synthesis is an LLM reasoning task. YOU (the agent running this skill)
+are the LLM that should do it.**
+
+The synthesis workflow is:
+
+```
+answers.yaml   (the interview answers — what the user told spec-kitty about the project)
+     +
+doctrine schemas  (the YAML shapes expected for directives, tactics, styleguides)
+     +
+THIS SKILL  (the instructions you are reading right now)
+     ↓
+YOU generate the doctrine YAML files
+     ↓
+spec-kitty CLI commands  (validate, stage, and promote the files you wrote)
+```
+
+spec-kitty's CLI provides validation, schema-checking, DRG validation, neutrality
+gating, staging, and atomic promotion. It does NOT provide generation — that is
+your job as the agent.
+
+### If you see code that calls `anthropic.Anthropic()` or imports the `anthropic` SDK
+inside spec-kitty source files, that is a bug. Remove it immediately.
+
+Canonical locations that must NEVER contain `import anthropic` or any Anthropic SDK call:
+- `src/charter/` — any file
+- `src/specify_cli/` — any file
+- `pyproject.toml` — must not list `anthropic` as a runtime dependency
+
+---
+
+## How to Synthesize Doctrine Artifacts (Agent-Driven)
+
+When a user says "synthesize charter doctrine", "generate project doctrine", or
+"run charter synthesize", you do the following — you do NOT call any CLI command
+that triggers an LLM. You ARE the LLM.
+
+### Step 1 — Read the interview answers
+
+```bash
+cat .kittify/charter/interview/answers.yaml
+```
+
+This file contains the user's responses: project intent, languages, testing
+requirements, quality gates, etc.
+
+### Step 2 — Read the doctrine schemas for the target artifact kinds
+
+The current synthesis scope is: `directive`, `tactic`, `styleguide`.
+
+Read shipped examples to understand the expected YAML shape:
+```bash
+spec-kitty doctrine list --kind directive
+spec-kitty doctrine show <a-directive-id>
+
+spec-kitty doctrine list --kind tactic
+spec-kitty doctrine show <a-tactic-id>
+
+spec-kitty doctrine list --kind styleguide
+spec-kitty doctrine show <a-styleguide-id>
+```
+
+### Step 3 — Read the interview mapping to know what to generate
+
+The interview fields map to target artifact kinds:
+- `project_intent`, `quality_gates`, `risk_boundaries` → directives
+- `testing_requirements` → directives + tactics (TDD flavour)
+- `languages_frameworks` → styleguides (language-specific)
+- `performance_targets`, `deployment_constraints` → directives
+
+For each synthesis target, derive: `kind`, `slug` (kebab-case, project-specific),
+`title`, and `body` (the full artifact content as YAML matching the shipped schema).
+
+### Step 4 — Write the doctrine YAML to `.kittify/doctrine/`
+
+Project-local doctrine lives at `.kittify/doctrine/<kind>/<slug>.yaml`.
+
+```
+.kittify/doctrine/
+  directive/
+    <project-slug>.yaml    ← your generated directive
+  tactic/
+    <project-slug>.yaml    ← your generated tactic (if any)
+  styleguide/
+    <project-slug>.yaml    ← your generated styleguide (if any)
+```
+
+Use the shipped artifact YAML structure as your template. Make the content
+**specific to the project** based on the interview answers. Do not write
+generic filler.
+
+### Step 5 — Validate each artifact against the schema
+
+```bash
+spec-kitty doctrine validate --kind directive .kittify/doctrine/directive/<slug>.yaml
+spec-kitty doctrine validate --kind tactic .kittify/doctrine/tactic/<slug>.yaml
+spec-kitty doctrine validate --kind styleguide .kittify/doctrine/styleguide/<slug>.yaml
+```
+
+Fix any schema errors before proceeding.
+
+### Step 6 — Run the DRG validation
+
+```bash
+spec-kitty charter synthesize --validate-only
+```
+
+This runs the project DRG validation and neutrality gate without generating
+anything new. It confirms your written artifacts are coherent.
+
+### Step 7 — Commit the doctrine artifacts
+
+```bash
+git add .kittify/doctrine/
+git commit -m "feat(charter): synthesize project-local doctrine from interview"
+```
+
+---
+
+---
+
 ## How the Charter System Works
 
 The charter is a **governance-as-code** framework. A human-written markdown

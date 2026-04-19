@@ -175,8 +175,8 @@ class TestSynthesizeErrorPaths:
 
         assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}: {result.output}"
 
-    def test_production_adapter_exits_1(self, tmp_path: Path) -> None:
-        """--adapter production (not implemented) → exit 1 with error panel."""
+    def test_unknown_adapter_exits_1(self, tmp_path: Path) -> None:
+        """--adapter production (removed) → exit 1; spec-kitty never calls LLMs itself."""
         _write_interview_answers(tmp_path)
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):

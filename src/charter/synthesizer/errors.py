@@ -5,6 +5,10 @@ bare string messages. The CLI renders these via a shared rich panel helper so
 operators see context-rich diagnostics, not tracebacks.
 
 See data-model.md §E-8 for the authoritative error taxonomy.
+
+ARCHITECTURAL NOTE: The production adapter (Anthropic SDK) has been removed.
+spec-kitty never calls an LLM itself. Synthesis is performed by the LLM harness
+(Claude Code, Codex, Cursor, etc.) via the spec-kitty-charter-doctrine skill.
 """
 
 from __future__ import annotations
@@ -212,26 +216,6 @@ class FixtureAdapterMissingError(SynthesisError):
             f"No fixture found for {self.kind}:{self.slug} "
             f"(inputs_hash={self.inputs_hash[:12]}...); "
             f"expected at {self.expected_path}"
-        )
-
-
-# ---------------------------------------------------------------------------
-# Production adapter errors
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class ProductionAdapterUnavailableError(SynthesisError):
-    """Production adapter cannot be instantiated (R-0-5, missing credentials etc.)."""
-
-    adapter_id: str
-    reason: str
-    remediation: str
-
-    def __str__(self) -> str:
-        return (
-            f"Production adapter '{self.adapter_id}' is unavailable: {self.reason}. "
-            f"Remediation: {self.remediation}"
         )
 
 

@@ -577,72 +577,24 @@ def _build_synthesis_request(
 
     if adapter_name == "fixture":
         adapter_obj = FixtureAdapter()
-    elif adapter_name == "production":
-        from charter.synthesizer.production_adapter import ProductionAdapter
-        model = _resolve_model_from_config(repo_root)
-        timeout = _resolve_timeout_from_config(repo_root)
-        adapter_obj = ProductionAdapter(model=model, timeout_seconds=timeout)
     else:
-        from charter.synthesizer.errors import ProductionAdapterUnavailableError
-        raise ProductionAdapterUnavailableError(
-            adapter_id=adapter_name,
-            reason=f"Unknown adapter '{adapter_name}'",
-            remediation=(
-                "Use '--adapter fixture' for testing with pre-recorded fixtures, "
-                "or '--adapter production' to call the Anthropic Claude API."
-            ),
+        raise TaskCliError(
+            f"Unknown adapter '{adapter_name}'. "
+            "Only '--adapter fixture' is supported. "
+            "Doctrine generation is performed by the LLM harness (Claude Code, Codex, "
+            "Cursor, etc.) via the spec-kitty-charter-doctrine skill. "
+            "spec-kitty never calls an LLM itself."
         )
 
     return request, adapter_obj
 
 
-def _load_kittify_config(repo_root: Path) -> dict[str, Any]:
-    """Load .kittify/config.yaml as a plain dict. Returns {} on any error."""
-    config_path = repo_root / ".kittify" / "config.yaml"
-    if not config_path.exists():
-        return {}
-    try:
-        import ruamel.yaml
-        yaml = ruamel.yaml.YAML()
-        with config_path.open() as fh:
-            result = yaml.load(fh)
-        return dict(result) if isinstance(result, dict) else {}
-    except Exception:
-        return {}
-
-
-def _resolve_model_from_config(repo_root: Path) -> str:
-    """Return the synthesis model from config, defaulting to claude-sonnet-4-6 (ADR-6)."""
-    config = _load_kittify_config(repo_root)
-    model = (
-        config.get("charter", {})
-        .get("synthesis", {})
-        .get("model", "")
-    )
-    return str(model) if model else "claude-sonnet-4-6"
-
-
-def _resolve_timeout_from_config(repo_root: Path) -> int:
-    """Return the synthesis timeout in seconds from config, defaulting to 120."""
-    config = _load_kittify_config(repo_root)
-    timeout = (
-        config.get("charter", {})
-        .get("synthesis", {})
-        .get("timeout_seconds", 0)
-    )
-    try:
-        val = int(timeout)
-        return val if val > 0 else 120
-    except (TypeError, ValueError):
-        return 120
-
-
 @app.command("synthesize")
 def charter_synthesize(
     adapter: str = typer.Option(
-        "production",
+        "fixture",
         "--adapter",
-        help="Adapter to use: 'fixture' (offline/testing) or 'production' (LLM).",
+        help="Adapter to use. Only 'fixture' is supported (offline/testing).",
     ),
     dry_run: bool = typer.Option(
         False,
@@ -666,14 +618,18 @@ def charter_synthesize(
         help="Print evidence summary and exit without running synthesis.",
     ),
 ) -> None:
-    """Generate project-local doctrine from interview answers (full synthesis).
+    """Validate and promote agent-generated project-local doctrine artifacts.
 
     Reads the charter interview answers, resolves synthesis targets from the
     DRG + doctrine, and writes all artifacts to .kittify/doctrine/.
 
+    Doctrine generation is performed by the LLM harness (Claude Code, Codex,
+    Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
+    validates and promotes the artifacts the agent has written.
+
     Examples
     --------
-    Full synthesis with fixture adapter (offline/testing)::
+    Validate + promote with fixture adapter (offline/testing)::
 
         spec-kitty charter synthesize --adapter fixture
 
@@ -799,9 +755,9 @@ def charter_resynthesize(
         ),
     ),
     adapter: str = typer.Option(
-        "production",
+        "fixture",
         "--adapter",
-        help="Adapter to use: 'fixture' (offline/testing) or 'production' (LLM).",
+        help="Adapter to use. Only 'fixture' is supported (offline/testing).",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
