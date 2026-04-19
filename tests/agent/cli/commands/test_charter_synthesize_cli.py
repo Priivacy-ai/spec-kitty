@@ -1,8 +1,9 @@
 """CLI tests for 'spec-kitty charter synthesize' (T032).
 
 Happy path:
-  - --adapter fixture runs synthesis and emits manifest info.
-  - --dry-run doesn't promote (prints staged artifacts only).
+  - default generated adapter runs synthesis and emits manifest info.
+  - --adapter fixture remains available for deterministic testing.
+  - --dry-run stages and validates without promoting.
   - --json returns valid JSON.
 
 Error paths:
@@ -75,12 +76,29 @@ class TestSynthesizeHappyPath:
         assert "--adapter" in plain
         assert "--dry-run" in plain
 
-    def test_synthesize_fixture_adapter(self, tmp_path: Path) -> None:
-        """--adapter fixture runs synthesis and reports success."""
+    def test_synthesize_generated_default_adapter(self, tmp_path: Path) -> None:
+        """Default adapter is the generated-artifact path, not fixture."""
         _write_interview_answers(tmp_path)
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            # Mock the synthesize call to avoid fixture-hash mismatches in CLI context
+            mock_result = MagicMock()
+            mock_result.target_kind = "directive"
+            mock_result.target_slug = "mission-type-scope-directive"
+            mock_result.inputs_hash = "abc123"
+            mock_result.effective_adapter_id = "generated"
+            mock_result.effective_adapter_version = "1.0.0"
+
+            with patch("charter.synthesizer.synthesize", return_value=mock_result):
+                result = runner.invoke(app, ["synthesize"])
+
+        assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}: {result.output}"
+        assert "synthesis complete" in result.output.lower() or "Charter synthesis" in result.output
+
+    def test_synthesize_fixture_adapter(self, tmp_path: Path) -> None:
+        """--adapter fixture remains supported for offline regression runs."""
+        _write_interview_answers(tmp_path)
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
             mock_result = MagicMock()
             mock_result.target_kind = "directive"
             mock_result.target_slug = "mission-type-scope-directive"
@@ -92,29 +110,20 @@ class TestSynthesizeHappyPath:
                 result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
 
         assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}: {result.output}"
-        assert "synthesis complete" in result.output.lower() or "Charter synthesis" in result.output
 
     def test_synthesize_fixture_dry_run(self, tmp_path: Path) -> None:
-        """--dry-run stages but does not promote; output contains 'Dry-run'."""
+        """--dry-run stages and validates but does not promote."""
         _write_interview_answers(tmp_path)
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            # Mock run_all to return a simple result
-            mock_prov = MagicMock()
-            mock_prov.artifact_kind = "directive"
-            mock_prov.artifact_slug = "test-directive"
-            mock_body = {"id": "PROJECT_001", "title": "Test"}
-
-            with patch(
-                "charter.synthesizer.synthesize_pipeline.run_all",
-                return_value=[(mock_body, mock_prov)],
-            ):
-                result = runner.invoke(
-                    app, ["synthesize", "--adapter", "fixture", "--dry-run"]
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.charter._run_synthesis_dry_run",
+            return_value=["directive:test-directive"],
+        ):
+            result = runner.invoke(app, ["synthesize", "--dry-run"])
 
         assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}: {result.output}"
         assert "Dry-run" in result.output or "dry" in result.output.lower()
+        assert "validated" in result.output.lower()
 
     def test_synthesize_json_output(self, tmp_path: Path) -> None:
         """--json returns valid JSON with a 'result' key."""
@@ -138,27 +147,23 @@ class TestSynthesizeHappyPath:
         assert data["result"] in {"success", "dry_run"}
 
     def test_synthesize_dry_run_json(self, tmp_path: Path) -> None:
-        """--dry-run --json returns JSON with staged_artifacts."""
+        """--dry-run --json returns staged artifacts and validated=true."""
         _write_interview_answers(tmp_path)
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            mock_prov = MagicMock()
-            mock_prov.artifact_kind = "directive"
-            mock_prov.artifact_slug = "test-directive"
-
-            with patch(
-                "charter.synthesizer.synthesize_pipeline.run_all",
-                return_value=[({}, mock_prov)],
-            ):
-                result = runner.invoke(
-                    app,
-                    ["synthesize", "--adapter", "fixture", "--dry-run", "--json"],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.charter._run_synthesis_dry_run",
+            return_value=["directive:test-directive"],
+        ):
+            result = runner.invoke(
+                app,
+                ["synthesize", "--dry-run", "--json"],
+            )
 
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["result"] == "dry_run"
         assert "staged_artifacts" in data
+        assert data["validated"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +176,7 @@ class TestSynthesizeErrorPaths:
         """No interview answers → exit 1 with error message."""
         # tmp_path has no interview answers
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
+            result = runner.invoke(app, ["synthesize"])
 
         assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}: {result.output}"
 

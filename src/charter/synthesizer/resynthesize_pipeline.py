@@ -425,6 +425,7 @@ def run(
         drg_snapshot=request.drg_snapshot,
         run_id=run_id,
         adapter_hints=request.adapter_hints,
+        evidence=request.evidence,
     )
 
     # ------------------------------------------------------------------
@@ -503,34 +504,25 @@ def _load_project_artifacts_from_provenance(
 
     Returns an empty list if the provenance directory does not exist.
     """
-    from ruamel.yaml import YAML  # noqa: PLC0415
+    from .provenance import load_yaml as load_provenance  # noqa: PLC0415
 
     prov_dir = repo_root / ".kittify" / "charter" / "provenance"
     if not prov_dir.exists():
         return []
 
-    yaml = YAML()
     targets: list[SynthesisTarget] = []
     for prov_file in sorted(prov_dir.glob("*.yaml")):
         try:
-            raw = yaml.load(prov_file.read_text(encoding="utf-8"))
-            if not isinstance(raw, dict):
-                continue
-            kind = raw.get("artifact_kind", "")
-            slug = raw.get("artifact_slug", "")
-            artifact_urn = raw.get("artifact_urn", f"{kind}:{slug}")
-            artifact_id = artifact_urn.split(":", 1)[1] if ":" in artifact_urn else slug
-            source_section = raw.get("source_section")
-            source_urns = raw.get("source_urns", []) or []
+            prov = load_provenance(prov_file)
             # Reconstruct a minimal SynthesisTarget from provenance data
             # (title is not stored in provenance; use slug as fallback)
             target = SynthesisTarget(
-                kind=kind,
-                slug=slug,
-                title=slug.replace("-", " ").title(),
-                artifact_id=artifact_id,
-                source_section=source_section,
-                source_urns=tuple(source_urns),
+                kind=prov.artifact_kind,
+                slug=prov.artifact_slug,
+                title=prov.artifact_slug.replace("-", " ").title(),
+                artifact_id=prov.artifact_urn.split(":", 1)[1],
+                source_section=prov.source_section,
+                source_urns=tuple(prov.source_urns),
             )
             targets.append(target)
         except Exception:  # noqa: BLE001, S112

@@ -168,10 +168,14 @@ class TestRunAllTupleCount:
         full_request: SynthesisRequest,
         adapter: FixtureAdapter,
     ) -> None:
-        """ProvenanceEntry.artifact_urn equals f'{kind}:{artifact_id or slug}'."""
+        """ProvenanceEntry.artifact_urn uses artifact_id for directives, slug otherwise."""
         results = run_all(full_request, adapter=adapter)
-        for _, prov in results:
-            expected_urn = f"{prov.artifact_kind}:{prov.artifact_slug}"
+        for body, prov in results:
+            expected_urn = (
+                f"{prov.artifact_kind}:{body['id']}"
+                if prov.artifact_kind == "directive"
+                else f"{prov.artifact_kind}:{prov.artifact_slug}"
+            )
             assert prov.artifact_urn == expected_urn, (
                 f"Expected urn '{expected_urn}', got '{prov.artifact_urn}'"
             )
@@ -241,7 +245,7 @@ class TestIdempotency:
         results_b = run_all(full_request, adapter=adapter)
 
         assert len(results_a) == len(results_b)
-        for (_, prov_a), (_, prov_b) in zip(results_a, results_b):
+        for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
             assert prov_a.inputs_hash == prov_b.inputs_hash, (
                 f"inputs_hash diverged for {prov_a.artifact_urn}: "
                 f"{prov_a.inputs_hash!r} != {prov_b.inputs_hash!r}"
@@ -256,7 +260,7 @@ class TestIdempotency:
         results_a = run_all(full_request, adapter=adapter)
         results_b = run_all(full_request, adapter=adapter)
 
-        for (_, prov_a), (_, prov_b) in zip(results_a, results_b):
+        for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
             assert prov_a.artifact_content_hash == prov_b.artifact_content_hash, (
                 f"artifact_content_hash diverged for {prov_a.artifact_urn}: "
                 f"{prov_a.artifact_content_hash!r} != {prov_b.artifact_content_hash!r}"
@@ -298,7 +302,7 @@ class TestIdempotency:
         results_b = run_all(req_b, adapter=adapter)
 
         assert len(results_a) == len(results_b)
-        for (_, prov_a), (_, prov_b) in zip(results_a, results_b):
+        for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
             assert prov_a.inputs_hash == prov_b.inputs_hash
             assert prov_a.artifact_content_hash == prov_b.artifact_content_hash
 

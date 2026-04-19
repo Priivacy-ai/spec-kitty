@@ -1,7 +1,8 @@
 """CLI tests for 'spec-kitty charter resynthesize' (T032).
 
 Happy path:
-  - Resolved selector writes bounded change; output reports regenerated artifacts.
+  - Default generated adapter writes bounded change; output reports regenerated artifacts.
+  - --list-topics shows the valid selector surface.
   - --json returns valid JSON with result="success" or "noop".
 
 Error paths:
@@ -102,6 +103,7 @@ class TestResynthesizeHelp:
         assert result.exit_code == 0
         plain = _plain_output(result.output)
         assert "--topic" in plain
+        assert "--list-topics" in plain
         assert "--adapter" in plain
 
     def test_synthesize_help(self) -> None:
@@ -121,21 +123,18 @@ class TestResynthesizeHappyPath:
         _write_interview_answers(tmp_path)
         mock_result = _make_mock_result()
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                return_value=mock_result,
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "tactic:how-we-apply-directive-003",
-                        "--adapter",
-                        "fixture",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            return_value=mock_result,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "tactic:how-we-apply-directive-003",
+                ],
+            )
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         assert "how-we-apply-directive-003" in result.output or "Resynthesis" in result.output
@@ -145,22 +144,19 @@ class TestResynthesizeHappyPath:
         _write_interview_answers(tmp_path)
         mock_result = _make_mock_result()
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                return_value=mock_result,
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "tactic:how-we-apply-directive-003",
-                        "--adapter",
-                        "fixture",
-                        "--json",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            return_value=mock_result,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "tactic:how-we-apply-directive-003",
+                    "--json",
+                ],
+            )
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         data = json.loads(result.output)
@@ -174,21 +170,18 @@ class TestResynthesizeHappyPath:
         _write_interview_answers(tmp_path)
         mock_result = _make_mock_result(is_noop=True, matched_form="drg_urn")
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                return_value=mock_result,
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "paradigm:evidence-first",
-                        "--adapter",
-                        "fixture",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            return_value=mock_result,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "paradigm:evidence-first",
+                ],
+            )
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         assert "noop" in result.output.lower() or "No-op" in result.output
@@ -198,27 +191,44 @@ class TestResynthesizeHappyPath:
         _write_interview_answers(tmp_path)
         mock_result = _make_mock_result(is_noop=True, matched_form="drg_urn")
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                return_value=mock_result,
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "paradigm:evidence-first",
-                        "--adapter",
-                        "fixture",
-                        "--json",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            return_value=mock_result,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "paradigm:evidence-first",
+                    "--json",
+                ],
+            )
 
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["result"] == "noop"
         assert data["targets_count"] == 0
+
+    def test_list_topics_json_output(self, tmp_path: Path) -> None:
+        """--list-topics returns the available selector sets."""
+        _write_interview_answers(tmp_path)
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.charter._list_resynthesis_topics",
+            return_value={
+                "project_artifacts": ["directive:PROJECT_001"],
+                "drg_urns": ["directive:DIRECTIVE_003"],
+                "interview_sections": ["testing_philosophy"],
+                "interview_section_aliases": ["testing-philosophy"],
+            },
+        ):
+            result = runner.invoke(app, ["resynthesize", "--list-topics", "--json"])
+
+        assert result.exit_code == 0, f"Expected exit 0: {result.output}"
+        data = json.loads(result.output)
+        assert data["result"] == "success"
+        assert data["topics"]["project_artifacts"] == ["directive:PROJECT_001"]
 
 
 # ---------------------------------------------------------------------------
@@ -233,25 +243,22 @@ class TestResynthesizeErrorPaths:
 
         from charter.synthesizer.errors import TopicSelectorUnresolvedError
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                side_effect=TopicSelectorUnresolvedError(
-                    raw="bogus:nonexistent",
-                    candidates=("tactic:how-we-apply-directive-003 (distance=5)",),
-                    attempted_forms=("kind_slug", "drg_urn"),
-                ),
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "bogus:nonexistent",
-                        "--adapter",
-                        "fixture",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            side_effect=TopicSelectorUnresolvedError(
+                raw="bogus:nonexistent",
+                candidates=("tactic:how-we-apply-directive-003 (distance=5)",),
+                attempted_forms=("kind_slug", "drg_urn"),
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "bogus:nonexistent",
+                ],
+            )
 
         # Exit code 2 is the contract (contracts/topic-selector.md §2.2)
         assert result.exit_code == 2, (
@@ -264,25 +271,24 @@ class TestResynthesizeErrorPaths:
 
         from charter.synthesizer.errors import TopicSelectorUnresolvedError
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                side_effect=TopicSelectorUnresolvedError(
-                    raw="bogus:nonexistent",
-                    candidates=(),
-                    attempted_forms=("kind_slug", "drg_urn"),
-                ),
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "bogus:nonexistent",
-                        "--adapter",
-                        "fixture",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            side_effect=TopicSelectorUnresolvedError(
+                raw="bogus:nonexistent",
+                candidates=(),
+                attempted_forms=("kind_slug", "drg_urn"),
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "bogus:nonexistent",
+                    "--adapter",
+                    "fixture",
+                ],
+            )
 
         assert result.exit_code == 2
         # Panel title should contain the unresolved topic string
@@ -297,25 +303,24 @@ class TestResynthesizeErrorPaths:
 
         doctrine_dir = tmp_path / ".kittify" / "doctrine"
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                side_effect=TopicSelectorUnresolvedError(
-                    raw="bogus:nonexistent",
-                    candidates=(),
-                    attempted_forms=("kind_slug", "drg_urn"),
-                ),
-            ):
-                runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "bogus:nonexistent",
-                        "--adapter",
-                        "fixture",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            side_effect=TopicSelectorUnresolvedError(
+                raw="bogus:nonexistent",
+                candidates=(),
+                attempted_forms=("kind_slug", "drg_urn"),
+            ),
+        ):
+            runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "bogus:nonexistent",
+                    "--adapter",
+                    "fixture",
+                ],
+            )
 
         # doctrine dir should not have been created by the error path
         assert not doctrine_dir.exists(), (
@@ -341,21 +346,20 @@ class TestResynthesizeErrorPaths:
         """No prior manifest → FileNotFoundError → exit 1."""
         _write_interview_answers(tmp_path)
 
-        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-            with patch(
-                "charter.synthesizer.resynthesize_pipeline.run",
-                side_effect=FileNotFoundError("No prior synthesis manifest"),
-            ):
-                result = runner.invoke(
-                    app,
-                    [
-                        "resynthesize",
-                        "--topic",
-                        "tactic:how-we-apply-directive-003",
-                        "--adapter",
-                        "fixture",
-                    ],
-                )
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
+            "charter.synthesizer.resynthesize_pipeline.run",
+            side_effect=FileNotFoundError("No prior synthesis manifest"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "resynthesize",
+                    "--topic",
+                    "tactic:how-we-apply-directive-003",
+                    "--adapter",
+                    "fixture",
+                ],
+            )
 
         assert result.exit_code == 1, f"Expected exit 1: {result.output}"
 

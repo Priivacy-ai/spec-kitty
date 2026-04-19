@@ -20,7 +20,7 @@ import pytest
 
 from charter.synthesizer.errors import TopicSelectorUnresolvedError
 from charter.synthesizer.request import SynthesisTarget
-from charter.synthesizer.topic_resolver import ResolvedTopic, resolve
+from charter.synthesizer.topic_resolver import resolve
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +264,17 @@ class TestTier3InterviewSection:
         assert "how-we-apply-directive-003" in slugs
         assert "python-testing-style" in slugs
         assert "mission-scope" not in slugs  # mission_type section, not testing_philosophy
+
+    def test_hyphenated_section_alias_resolves_to_canonical_section(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
+        """testing-philosophy is normalized to testing_philosophy for operator UX."""
+        result = resolve("testing-philosophy", all_artifacts, merged_drg, interview_sections)
+        assert result.matched_form == "interview_section"
+        assert result.matched_value == "testing_philosophy"
+        slugs = {t.slug for t in result.targets}
+        assert "how-we-apply-directive-003" in slugs
+        assert "python-testing-style" in slugs
 
     def test_section_hit_with_no_artifacts(
         self, all_artifacts, merged_drg, interview_sections
