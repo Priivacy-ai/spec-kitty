@@ -1,0 +1,20 @@
+id: how-we-apply-directive-010
+schema_version: '1.0'
+name: How We Apply DIRECTIVE_010
+purpose: >
+  Describes how this project implements and enforces DIRECTIVE_010 in practice,
+  drawing on Python best practices and the project corpus guidance.
+steps:
+  - title: Test at multiple levels
+    description: >
+      Write unit tests for business logic, integration tests for system
+      boundaries, and a small suite of end-to-end tests for critical paths.
+      Fast tests run on every commit; the full suite runs in CI.
+  - title: Apply Python testing idioms
+    description: >
+      Python projects use pytest with fixture injection and parametrize for
+      expressive test cases. Configure coverage thresholds in pyproject.toml.
+  - title: Review coverage before merging
+    description: >
+      Confirm that coverage meets or exceeds the project threshold before
+      opening a pull request.

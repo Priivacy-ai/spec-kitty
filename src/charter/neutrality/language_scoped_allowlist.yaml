@@ -44,3 +44,13 @@ paths:
     owner: "charter team"
     reason: "Spec Kitty itself is a Python package; setup-doctor skill necessarily references Python tooling."
     added_in: "3.2.0"
+  - path: "src/charter/corpus/python.corpus.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Python best-practice corpus; pytest/mypy/pip references are the subject matter, not accidental bias."
+    added_in: "3.3.0"
+  - path: "src/charter/corpus/javascript.corpus.yaml"
+    scope: javascript
+    owner: "charter team"
+    reason: "JavaScript best-practice corpus; Jest/Vitest/TypeScript references are the subject matter."
+    added_in: "3.3.0"

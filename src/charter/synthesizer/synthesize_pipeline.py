@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -45,7 +46,7 @@ from .adapter import AdapterOutput, SynthesisAdapter
 from .errors import SynthesisSchemaError
 from .interview_mapping import resolve_sections
 from .orchestrator import SynthesisResult
-from .request import SynthesisRequest, SynthesisTarget, compute_inputs_hash
+from .request import SynthesisRequest, SynthesisTarget, compute_inputs_hash, _evidence_to_jsonable
 from .targets import build_targets, detect_duplicates, order_targets
 
 
@@ -84,6 +85,11 @@ class ProvenanceEntry(BaseModel):
     """ISO 8601 UTC string from ``AdapterOutput.generated_at``."""
 
     adapter_notes: str | None = None
+    evidence_bundle_hash: str | None = None
+    """SHA-256 hex digest of the serialized EvidenceBundle, or None if absent."""
+
+    corpus_snapshot_id: str | None = None
+    """snapshot_id from EvidenceBundle.corpus_snapshot, or None if absent."""
 
     @model_validator(mode="after")
     def _check_source_provenance(self) -> ProvenanceEntry:
@@ -207,6 +213,31 @@ def _content_hash(yaml_bytes: bytes) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Evidence hash helper
+# ---------------------------------------------------------------------------
+
+
+def _compute_evidence_hashes(request: SynthesisRequest) -> tuple[str | None, str | None]:
+    """Return (evidence_bundle_hash, corpus_snapshot_id) for a SynthesisRequest.
+
+    Returns (None, None) when request.evidence is None or empty so that
+    ProvenanceEntry fields remain null for legacy requests.
+    """
+    if request.evidence is None or request.evidence.is_empty:
+        return None, None
+    evidence_bytes = json.dumps(
+        _evidence_to_jsonable(request.evidence), sort_keys=True, ensure_ascii=True
+    ).encode("utf-8")
+    evidence_hash = hashlib.sha256(evidence_bytes).hexdigest()
+    corpus_id = (
+        request.evidence.corpus_snapshot.snapshot_id
+        if request.evidence.corpus_snapshot is not None
+        else None
+    )
+    return evidence_hash, corpus_id
+
+
+# ---------------------------------------------------------------------------
 # Adapter dispatch helpers
 # ---------------------------------------------------------------------------
 
@@ -317,8 +348,12 @@ def run(
                 drg_snapshot=request.drg_snapshot,
                 run_id=request.run_id,
                 adapter_hints=request.adapter_hints,
+                evidence=request.evidence,
             )
         )
+
+    # Compute evidence hashes once — reused for all targets (same request evidence).
+    evidence_hash, corpus_id = _compute_evidence_hashes(request)
 
     # Stage 5: dispatch adapter
     outputs: list[AdapterOutput] = _dispatch_batch(adapter, per_target_requests)
@@ -363,6 +398,8 @@ def run(
             source_urns=list(target.source_urns),
             generated_at=generated_at_str,
             adapter_notes=output.notes,
+            evidence_bundle_hash=evidence_hash,
+            corpus_snapshot_id=corpus_id,
         )
 
         results.append((output.body, provenance))
@@ -445,9 +482,13 @@ def run_all(
             drg_snapshot=request.drg_snapshot,
             run_id=request.run_id,
             adapter_hints=request.adapter_hints,
+            evidence=request.evidence,
         )
         for t in all_targets
     ]
+
+    # Compute evidence hashes once — reused for all targets (same request evidence).
+    evidence_hash, corpus_id = _compute_evidence_hashes(request)
 
     outputs = _dispatch_batch(adapter, per_target_requests)
 
@@ -487,6 +528,8 @@ def run_all(
             source_urns=list(target.source_urns),
             generated_at=generated_at_str,
             adapter_notes=output.notes,
+            evidence_bundle_hash=evidence_hash,
+            corpus_snapshot_id=corpus_id,
         )
 
         results.append((output.body, provenance))

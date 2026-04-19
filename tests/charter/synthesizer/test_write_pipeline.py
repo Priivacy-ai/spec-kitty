@@ -1,0 +1,324 @@
+"""Unit tests for write_pipeline neutrality gate — WP06 (T035–T039).
+
+Tests:
+- _is_generic_scoped: no evidence, language-scoped slug, generic slug
+- _run_neutrality_gate: biased content raises NeutralityGateViolation
+- _run_neutrality_gate: language-scoped artifact skipped
+- _run_neutrality_gate: neutral content passes
+- Gate timing < 5s
+- Fixture helpers for staged content
+"""
+
+from __future__ import annotations
+
+import time
+from pathlib import Path
+
+import pytest
+
+from charter.synthesizer.errors import NeutralityGateViolation
+from charter.synthesizer.write_pipeline import _is_generic_scoped
+
+
+# ---------------------------------------------------------------------------
+# Test fixture helpers — inline staged directories (T038)
+# ---------------------------------------------------------------------------
+
+
+def _staged_generic_with_pytest_bias(tmp_path: Path) -> Path:
+    """A generic tactic body containing 'pytest' — should trigger gate."""
+    staged_dir = tmp_path / "staging" / "generic"
+    staged_dir.mkdir(parents=True)
+    (staged_dir / "testing-philosophy.tactic.yaml").write_text(
+        "title: Testing Philosophy\n"
+        "body: |\n"
+        "  Always run pytest to verify your code.\n"
+        "  Configure pytest.ini for test discovery.\n"
+    )
+    return staged_dir
+
+
+def _staged_language_scoped(tmp_path: Path) -> Path:
+    """A python-scoped tactic containing 'pytest' — should NOT trigger gate."""
+    staged_dir = tmp_path / "staging" / "python-scoped"
+    staged_dir.mkdir(parents=True)
+    (staged_dir / "python-style-guide.tactic.yaml").write_text(
+        "title: Python Style Guide\n"
+        "body: |\n"
+        "  Use pytest for Python test discovery.\n"
+    )
+    return staged_dir
+
+
+def _staged_neutral_generic(tmp_path: Path) -> Path:
+    """A generic tactic with no language-specific terms — should pass gate."""
+    staged_dir = tmp_path / "staging" / "neutral"
+    staged_dir.mkdir(parents=True)
+    (staged_dir / "testing-philosophy.tactic.yaml").write_text(
+        "title: Testing Philosophy\n"
+        "body: |\n"
+        "  Test at multiple levels: unit, integration, and end-to-end.\n"
+        "  Fast tests should run frequently; slow tests in CI.\n"
+    )
+    return staged_dir
+
+
+# ---------------------------------------------------------------------------
+# _is_generic_scoped tests (T036, T039)
+# ---------------------------------------------------------------------------
+
+
+def test_is_generic_scoped_no_evidence() -> None:
+    """Without evidence, all artifacts are generic-scoped."""
+    assert _is_generic_scoped("tactic", "testing-philosophy", None) is True
+
+
+def test_is_generic_scoped_no_code_signals() -> None:
+    """With evidence but no code_signals, all artifacts are generic-scoped."""
+    from charter.synthesizer.evidence import EvidenceBundle
+
+    bundle = EvidenceBundle()
+    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True
+
+
+def test_is_generic_scoped_unknown_scope_tag() -> None:
+    """scope_tag == 'unknown' → generic-scoped even with code_signals."""
+    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+
+    cs = CodeSignals(
+        stack_id="unknown",
+        primary_language="unknown",
+        frameworks=(),
+        test_frameworks=(),
+        scope_tag="unknown",
+        representative_files=(),
+        detected_at="2026-01-01T00:00:00+00:00",
+    )
+    bundle = EvidenceBundle(code_signals=cs)
+    assert _is_generic_scoped("tactic", "unknown-style-guide", bundle) is True
+
+
+def test_is_generic_scoped_python_scoped_slug_is_not_generic() -> None:
+    """With scope_tag='python', a slug containing 'python' is NOT generic-scoped."""
+    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+
+    cs = CodeSignals(
+        stack_id="python",
+        primary_language="python",
+        frameworks=(),
+        test_frameworks=(),
+        scope_tag="python",
+        representative_files=(),
+        detected_at="2026-01-01T00:00:00+00:00",
+    )
+    bundle = EvidenceBundle(code_signals=cs)
+    assert _is_generic_scoped("tactic", "python-style-guide", bundle) is False
+
+
+def test_is_generic_scoped_python_scope_but_generic_slug() -> None:
+    """With scope_tag='python', a slug without 'python' IS generic-scoped."""
+    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+
+    cs = CodeSignals(
+        stack_id="python",
+        primary_language="python",
+        frameworks=(),
+        test_frameworks=(),
+        scope_tag="python",
+        representative_files=(),
+        detected_at="2026-01-01T00:00:00+00:00",
+    )
+    bundle = EvidenceBundle(code_signals=cs)
+    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True
+
+
+def test_is_generic_scoped_different_kinds() -> None:
+    """_is_generic_scoped works for directives and styleguides (target_kind ignored for now)."""
+    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+
+    cs = CodeSignals(
+        stack_id="python",
+        primary_language="python",
+        frameworks=(),
+        test_frameworks=(),
+        scope_tag="python",
+        representative_files=(),
+        detected_at="2026-01-01T00:00:00+00:00",
+    )
+    bundle = EvidenceBundle(code_signals=cs)
+    # directive: slug doesn't contain scope_tag → generic
+    assert _is_generic_scoped("directive", "commit-message-format", bundle) is True
+    # styleguide: slug contains scope_tag → language-scoped
+    assert _is_generic_scoped("styleguide", "python-docstrings", bundle) is False
+
+
+# ---------------------------------------------------------------------------
+# _run_neutrality_gate via full staging setup (T039)
+# ---------------------------------------------------------------------------
+
+
+def _make_staging_dir_with_artifact(
+    tmp_path: Path,
+    kind: str,
+    slug: str,
+    content: str,
+    artifact_id: str | None = None,
+) -> "tuple[object, object]":
+    """Create a StagingDir and a matching ProvenanceEntry for testing the gate."""
+    import hashlib
+
+    from charter.synthesizer.staging import StagingDir
+    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, canonical_yaml
+
+    run_id = "01KPWP06TESTGATE00000001"
+    stage = StagingDir.create(tmp_path, run_id)
+
+    body: dict[str, str] = {"title": slug, "body": content}
+    yaml_bytes = canonical_yaml(body)
+    content_hash = hashlib.sha256(yaml_bytes).hexdigest()
+
+    # Determine artifact_id / urn
+    effective_artifact_id = artifact_id or slug
+    urn = f"{kind}:{effective_artifact_id}"
+
+    # Write content to staged location
+    if kind == "directive":
+        import re
+        m = re.search(r"\d+", effective_artifact_id)
+        nnn = m.group(0).zfill(3) if m else "000"
+        filename = f"{nnn}-{slug}.directive.yaml"
+    elif kind == "tactic":
+        filename = f"{slug}.tactic.yaml"
+    else:
+        filename = f"{slug}.styleguide.yaml"
+
+    staged_path = stage.path_for_content(kind, filename)
+    staged_path.write_text(content)
+
+    prov = ProvenanceEntry(
+        schema_version="1",
+        artifact_urn=urn,
+        artifact_kind=kind,  # type: ignore[arg-type]
+        artifact_slug=slug,
+        artifact_content_hash=content_hash,
+        inputs_hash="a" * 64,
+        adapter_id="fixture",
+        adapter_version="1.0.0",
+        source_section=None,
+        source_urns=["directive:DIRECTIVE_003"],
+        generated_at="2026-04-19T00:00:00+00:00",
+    )
+
+    return stage, prov
+
+
+def test_gate_fires_on_biased_generic_content(tmp_path: Path) -> None:
+    """Generic artifact with 'pytest' triggers NeutralityGateViolation."""
+    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+
+    biased_content = (
+        "Always run pytest to verify your code.\n"
+        "Configure pytest.ini for test discovery.\n"
+    )
+    stage, prov = _make_staging_dir_with_artifact(
+        tmp_path, "tactic", "testing-philosophy", biased_content
+    )
+
+    with pytest.raises(NeutralityGateViolation) as exc_info:
+        _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
+
+    err = exc_info.value
+    assert err.artifact_urn == "tactic:testing-philosophy"
+    assert len(err.detected_terms) > 0
+    assert any("pytest" in t for t in err.detected_terms)
+    # Staging dir preserved (points to staging root)
+    assert err.staging_dir == stage.root
+
+
+def test_gate_skips_language_scoped_artifact(tmp_path: Path) -> None:
+    """Language-scoped artifact with 'pytest' does NOT trigger NeutralityGateViolation."""
+    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+
+    cs = CodeSignals(
+        stack_id="python",
+        primary_language="python",
+        frameworks=(),
+        test_frameworks=(),
+        scope_tag="python",
+        representative_files=(),
+        detected_at="2026-04-19T00:00:00+00:00",
+    )
+    bundle = EvidenceBundle(code_signals=cs)
+
+    biased_content = "Use pytest for Python test discovery.\n"
+    # Slug contains "python" → language-scoped → gate must skip
+    stage, prov = _make_staging_dir_with_artifact(
+        tmp_path, "tactic", "python-style-guide", biased_content
+    )
+
+    # Should not raise
+    _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=bundle)
+
+
+def test_gate_passes_on_neutral_generic_content(tmp_path: Path) -> None:
+    """Clean generic artifact passes the neutrality gate without raising."""
+    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+
+    neutral_content = (
+        "Test at multiple levels: unit, integration, and end-to-end.\n"
+        "Fast tests should run frequently; slow tests in CI.\n"
+    )
+    stage, prov = _make_staging_dir_with_artifact(
+        tmp_path, "tactic", "testing-philosophy", neutral_content
+    )
+
+    # Should not raise
+    _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
+
+
+def test_gate_passes_on_empty_results(tmp_path: Path) -> None:
+    """Gate with no results raises nothing."""
+    from charter.synthesizer.staging import StagingDir
+    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+
+    stage = StagingDir.create(tmp_path, "01KPWP06EMPTY000000001")
+    _run_neutrality_gate(stage, [], evidence=None)
+
+
+def test_gate_timing(tmp_path: Path) -> None:
+    """Neutrality gate completes in under 5 seconds on neutral content."""
+    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+
+    neutral_content = (
+        "Test at multiple levels: unit, integration, and end-to-end.\n"
+        "Fast tests should run frequently; slow tests in CI.\n"
+    )
+    stage, prov = _make_staging_dir_with_artifact(
+        tmp_path, "tactic", "testing-philosophy", neutral_content
+    )
+
+    start = time.monotonic()
+    _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 5.0, f"Gate took {elapsed:.2f}s (must be < 5s)"
+
+
+def test_gate_preserves_staging_on_violation(tmp_path: Path) -> None:
+    """Staging dir root is preserved (not wiped) when the gate raises."""
+    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+
+    biased_content = "Always run pytest to verify your code.\n"
+    stage, prov = _make_staging_dir_with_artifact(
+        tmp_path, "tactic", "testing-philosophy", biased_content
+    )
+
+    staging_root = stage.root
+    assert staging_root.exists()
+
+    with pytest.raises(NeutralityGateViolation):
+        _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
+
+    # Staging root must still exist — gate must NOT wipe it
+    assert staging_root.exists(), "Gate must not wipe staging dir on violation"

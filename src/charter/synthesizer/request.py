@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from collections.abc import Mapping
 
+from charter.synthesizer.evidence import EvidenceBundle
+
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -134,6 +136,7 @@ class SynthesisRequest:
     drg_snapshot: Mapping[str, Any]
     run_id: str  # ULID — excluded from fixture hash
     adapter_hints: Mapping[str, str] | None = None
+    evidence: EvidenceBundle | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +169,54 @@ def _mapping_to_sorted(m: Mapping[str, Any]) -> dict[str, Any]:
             result[k] = repr(v)
         else:
             result[k] = v
+    return result
+
+
+def _evidence_to_jsonable(e: EvidenceBundle) -> dict[str, Any]:
+    """Serialize an EvidenceBundle to a JSON-serializable dict for hashing.
+
+    Rules:
+    - All sequences sorted for order-independence.
+    - Timestamps (detected_at, loaded_at, collected_at) excluded.
+    - corpus entries sorted by topic.
+
+    This function is called only when evidence is non-None and non-empty.
+    """
+    result: dict[str, Any] = {}
+
+    if e.code_signals is not None:
+        cs = e.code_signals
+        result["code_signals"] = {
+            "frameworks": sorted(cs.frameworks),
+            "primary_language": cs.primary_language,
+            "representative_files": sorted(cs.representative_files),
+            "scope_tag": cs.scope_tag,
+            "stack_id": cs.stack_id,
+            "test_frameworks": sorted(cs.test_frameworks),
+            # detected_at excluded from hash
+        }
+
+    if e.url_list:
+        result["url_list"] = sorted(e.url_list)
+
+    if e.corpus_snapshot is not None:
+        snap = e.corpus_snapshot
+        result["corpus_snapshot"] = {
+            "entries": [
+                {
+                    "guidance": entry.guidance,
+                    "tags": sorted(entry.tags),
+                    "topic": entry.topic,
+                }
+                for entry in sorted(snap.entries, key=lambda x: x.topic)
+            ],
+            "profile_key": snap.profile_key,
+            "snapshot_id": snap.snapshot_id,
+            # loaded_at excluded from hash
+        }
+
+    # collected_at excluded from hash
+
     return result
 
 
@@ -207,6 +258,11 @@ def normalize_request_for_hash(
             else None
         ),
     }
+    # Backward-compat guarantee: when evidence is None or empty, the key is
+    # absent from the normalized dict, producing byte-for-byte identical output
+    # to the pre-evidence code path (ADR-2026-04-17-1).
+    if request.evidence is not None and not request.evidence.is_empty:
+        normalized["evidence"] = _evidence_to_jsonable(request.evidence)
     return json.dumps(normalized, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
 
 

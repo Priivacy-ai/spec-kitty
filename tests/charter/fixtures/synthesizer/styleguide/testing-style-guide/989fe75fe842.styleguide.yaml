@@ -13,5 +13,5 @@ anti_patterns:
     bad_example: "assert obj._internal_cache == {...}"
     good_example: "assert obj.get_result() == expected_value"
 tooling:
-  framework: pytest
-  coverage: pytest-cov
+  framework: your-project-test-runner
+  coverage: your-project-coverage-tool

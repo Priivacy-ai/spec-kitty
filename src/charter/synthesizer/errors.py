@@ -10,6 +10,7 @@ See data-model.md §E-8 for the authoritative error taxonomy.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
@@ -270,4 +271,32 @@ class ManifestIntegrityError(SynthesisError):
             f"Manifest integrity check failed: artifact '{self.offending_artifact}' "
             f"listed in {self.manifest_path} does not match its on-disk content hash. "
             f"Re-run 'charter synthesize' to repair."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Neutrality gate error
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NeutralityGateViolation(SynthesisError):
+    """Raised when a generic-scoped synthesized artifact contains language/tool-specific bias.
+
+    Promotion is blocked. The staging directory is preserved for operator inspection.
+    Raised after staging, before the first ``os.replace`` in ``promote()``.
+
+    FR-011, FR-012 — data-model.md §E-8
+    """
+
+    artifact_urn: str  # URN of the offending artifact
+    detected_terms: tuple[str, ...]  # banned terms found in the artifact body
+    staging_dir: Path  # preserved staging directory path
+
+    def __str__(self) -> str:
+        terms = ", ".join(f"'{t}'" for t in self.detected_terms)
+        return (
+            f"Neutrality gate blocked promotion of {self.artifact_urn}.\n"
+            f"Language-specific terms detected in a generic-scoped artifact: {terms}.\n"
+            f"Inspect the staged artifact at: {self.staging_dir}"
         )
