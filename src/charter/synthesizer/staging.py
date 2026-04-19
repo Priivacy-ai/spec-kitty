@@ -241,9 +241,8 @@ class StagingDir:
             # Unhandled exception — preserve staging as .failed/
             cause = f"{exc_type.__name__}: {exc_val}"
             self.commit_to_failed(cause)
-            # Re-raise the original exception (return False suppresses nothing)
-            return False
-        # Success path — caller must call wipe() explicitly after promote.
+        # Re-raise the original exception on failure. On success, caller must
+        # still call wipe() explicitly after promote.
         return False
 
 

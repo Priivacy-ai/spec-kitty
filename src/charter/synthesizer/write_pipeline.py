@@ -54,6 +54,7 @@ from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
 # ---------------------------------------------------------------------------
 
 _DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
+_KITTIFY_DIR = ".kittify"
 
 
 def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> str:
@@ -100,7 +101,7 @@ def _compute_content_hash(yaml_bytes: bytes) -> str:
 
 
 def promote(
-    request: SynthesisRequest,  # noqa: ARG001 — reserved for WP04/WP05 wiring
+    request: SynthesisRequest,
     staging_dir: StagingDir,
     results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
     validation_callback: Callable[[StagingDir], None],
@@ -143,7 +144,7 @@ def promote(
         repo_root = staging_dir.root.parent.parent.parent.parent
 
     guard = staging_dir.guard
-    run_id = staging_dir.run_id
+    run_id = request.run_id
 
     # ------------------------------------------------------------------
     # Step 1: write every (body, provenance) pair into the staged subtrees
@@ -189,12 +190,12 @@ def promote(
     # Ensure destination directories exist.
     for kind_subdir in ("directives", "tactics", "styleguides"):
         guard.mkdir(
-            repo_root / ".kittify" / "doctrine" / kind_subdir,
+            repo_root / _KITTIFY_DIR / "doctrine" / kind_subdir,
             caller="write_pipeline.promote[mkdir-doctrine]",
         )
 
     guard.mkdir(
-        repo_root / ".kittify" / "charter" / "provenance",
+        repo_root / _KITTIFY_DIR / "charter" / "provenance",
         caller="write_pipeline.promote[mkdir-provenance]",
     )
 
@@ -215,12 +216,20 @@ def promote(
 
             # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
             staged_content = staging_dir.path_for_content(kind, filename)
-            live_content = repo_root / ".kittify" / "doctrine" / _doctrine_kind_subdir(kind) / filename
+            live_content = (
+                repo_root
+                / _KITTIFY_DIR
+                / "doctrine"
+                / _doctrine_kind_subdir(kind)
+                / filename
+            )
             guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
 
             # Provenance: staging → .kittify/charter/provenance/<kind>-<slug>.yaml
             staged_prov = staging_dir.path_for_provenance(kind, slug)
-            live_prov = repo_root / ".kittify" / "charter" / "provenance" / f"{kind}-{slug}.yaml"
+            live_prov = (
+                repo_root / _KITTIFY_DIR / "charter" / "provenance" / f"{kind}-{slug}.yaml"
+            )
             guard.replace(staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]")
 
             rel_content = str(live_content.relative_to(repo_root))
@@ -239,7 +248,7 @@ def promote(
         # Check for a staged DRG overlay graph and promote it
         staged_graph = staging_dir.root / "doctrine" / "graph.yaml"
         if staged_graph.exists():
-            live_graph = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+            live_graph = repo_root / _KITTIFY_DIR / "doctrine" / "graph.yaml"
             guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
 
     except Exception as exc:
