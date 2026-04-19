@@ -46,7 +46,7 @@
 ## Extraction-Specific Readiness
 
 - [x] Canonical package path decision policy stated (FR-001: defers to the #610 ownership map, working candidate `src/runtime/`, plan phase pins final path)
-- [x] Dependency-rules enforcement strategy stated (FR-008: prefer #395 tooling, pytest fallback; mission not blocked on #395)
+- [x] Dependency-rules enforcement strategy stated (FR-008: use `tests/architectural/test_layer_rules.py` pytestarch; closed issue #395 is historical predecessor; mission owns this as an AC)
 - [x] Regression-fixture approach defined (FR-011, FR-012: JSON snapshot capture before extraction, dict-equal assertion after)
 - [x] Presentation/CLI separation invariant stated (FR-013, C-009: runtime cannot import `rich.*` or `specify_cli.cli.*`)
 - [x] Scaffolding seams for Phase 4/6 named and contracted (FR-009, FR-010)

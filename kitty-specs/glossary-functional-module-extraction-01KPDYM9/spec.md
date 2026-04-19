@@ -130,7 +130,7 @@ Out of scope for this mission: the graph-backed addressing seam. The draft sugge
 | C-004  | No CLI UX changes beyond the structural adapter conversion.                                                                                                                       | Confirmed |
 | C-005  | The mission runs under `change_mode: bulk_edit`; plan phase produces `occurrence_map.yaml`.                                                                                      | Confirmed |
 | C-006  | Terminology canon applies: **Mission** (not "feature"), **Work Package** (not "task").                                                                                            | Confirmed |
-| C-007  | `src/glossary/` must not depend on `specify_cli.*` (no back-edge into the CLI shell). Enforced by the architectural test.                                                         | Confirmed |
+| C-007  | `src/glossary/` must not depend on `specify_cli.*` (no back-edge into the CLI shell). Enforced by `tests/architectural/test_layer_rules.py` (pytestarch), extended to add a `glossary` layer. | Confirmed |
 | C-008  | No version bump — `pyproject.toml` untouched; upstream maintainers cut the release.                                                                                              | Confirmed |
 | C-009  | The repo-root `glossary/` directory (term content) is untouched; the canonical Python package goes to `src/glossary/`.                                                            | Confirmed |
 

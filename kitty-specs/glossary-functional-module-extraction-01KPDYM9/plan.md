@@ -26,7 +26,7 @@ The Mission adds **one dedicated pre-move Work Package — the Entanglement Inve
 
 No new Glossary features, no graph-backed addressing seam, no CLI UX changes, no version bump, no touch to the repo-root `glossary/` term-content directory (C-001..C-004, C-008, C-009).
 
-**Shim removal target release**: **`3.3.0`** — the current pyproject version is `3.1.6` (an alpha/pre-release cycle: `3.1.2a3` is reported by `setup-plan`). Per #615 rulebook "one minor release after the shim lands", the shim lands in the next minor `3.2.0` and is removed in `3.3.0`. If either upstream #615 fixes a different ceiling or the release cadence slips, the target is extended via the #615 extension mechanism (A4). The exact version string is written into the shim's `__removal_release__` attribute and into the registry entry.
+**Shim removal target release**: **`3.3.0`** — the current pyproject version is `3.2.0`. Per #615 rulebook "one minor release after the shim lands", the glossary shim lands in `3.2.x` (a patch release in the 3.2 line) and is removed in `3.3.0`. If either upstream #615 fixes a different ceiling or the release cadence slips, the target is extended via the #615 extension mechanism (A4). The exact version string is written into the shim's `__removal_release__` attribute and into the registry entry.
 
 ## Technical Context
 

@@ -27,7 +27,7 @@ This mission moves the canonical implementation to a single top-level package (p
 
 Runtime is the heart of every CLI command; extraction must preserve existing semantics bit-for-bit. `spec-kitty next`, `spec-kitty implement`, `spec-kitty review`, `spec-kitty merge`, and their `--json` outputs, exit codes, and error messages must behave identically before and after.
 
-The mission also ships a **dependency-rules document** specifying what runtime may call and what may call into runtime, with automated enforcement (preferring #395 import-graph tooling if available, otherwise a pytest that reads the module dependency graph).
+The mission also ships a **dependency-rules document** specifying what runtime may call and what may call into runtime, with automated enforcement via `tests/architectural/test_layer_rules.py` (pytestarch), extended to add a `runtime` layer. The closed issue #395 originally tracked fragile layer matching; that concern is resolved by the pytestarch infrastructure already in the repo and is an AC of this mission.
 
 ---
 
@@ -65,7 +65,7 @@ The mission also ships a **dependency-rules document** specifying what runtime m
 5. **Dependency rules are enforced**
    - **Given** the dependency-rules document at the path specified in the ownership map for the runtime slice
    - **When** a PR introduces an import from runtime into a disallowed slice, or an import from a disallowed slice into runtime
-   - **Then** CI fails. Enforcement uses #395 tooling when present; otherwise a pytest scans the module graph and fails on violations.
+   - **Then** CI fails. Enforcement is implemented via `tests/architectural/test_layer_rules.py` (pytestarch), extended with a `runtime` layer. No dependency on any external issue.
 
 6. **Scaffolding seam present for Profile/Action invocation**
    - **Given** runtime defines the execution-layer invocation seam
@@ -105,7 +105,7 @@ The mission also ships a **dependency-rules document** specifying what runtime m
 | FR-005   | Thin deprecation shim(s) at the legacy `specify_cli` path(s), matching the #615 shim contract exactly (`__deprecated__`, `__canonical_import__`, `__removal_release__`, `__deprecation_message__`, `DeprecationWarning` on import). | Confirmed |
 | FR-006   | Each shim has a registry entry in `architecture/2.x/shim-registry.yaml`; the registry entry passes the #615 CI check.                                                                                      | Confirmed |
 | FR-007   | Dependency rules for the runtime slice are recorded in the #610 ownership map's runtime slice entry (per #610 FR-004). This mission does **not** author a separate dependency-rules document; it consumes the map's rules as the normative source and ensures they are complete enough to drive the enforcement in FR-008. Any gaps surfaced during plan are fixed by amending the ownership map, not by creating a parallel doc. | Confirmed |
-| FR-008   | Dependency-rules enforcement: prefer #395 import-graph infrastructure when present; otherwise a pytest under `tests/architecture/` scans the module dependency graph and asserts the rules. Mission is not blocked on #395 landing. | Confirmed |
+| FR-008   | Dependency-rules enforcement: extend `tests/architectural/test_layer_rules.py` to add a `runtime` layer and assert forbidden edges (no `specify_cli.cli.*`, `rich.*`, `typer.*` imports into runtime; no imports from runtime into disallowed slices). The pytestarch infrastructure already in the repo covers this need — the mission does not depend on any external issue for this. | Confirmed |
 | FR-009   | Scaffolding seam for profile/action invocation: runtime exposes a typed interface (protocol or abstract executor) that #461 Phase 4 `ProfileInvocationExecutor` implements without further runtime refactor. | Confirmed |
 | FR-010   | Scaffolding seam for step-contract execution: runtime exposes the execution-layer entry point that #461 Phase 6 `StepContractExecutor` wires into.                                                           | Confirmed |
 | FR-011   | Regression fixtures: JSON snapshots at `tests/regression/runtime/fixtures/` capture pre-extraction `--json` output for `spec-kitty next`, `spec-kitty agent action implement`, `spec-kitty agent action review`, and `spec-kitty merge` on a representative reference mission.  | Confirmed |
@@ -187,7 +187,7 @@ The mission also ships a **dependency-rules document** specifying what runtime m
 - A2. The four representative CLI commands (`next`, `implement`, `review`, `merge`) plus `--json` mode exercise enough runtime surface to prove behaviour preservation. Plan-phase audit confirms no runtime-dependent command is omitted.
 - A3. The `rich`/`typer` separation boundary is realistic — runtime currently has limited or no direct Rich usage; any existing offenders are enumerated in plan and rewritten through `PresentationSink`.
 - A4. The bulk-edit occurrence map is generated during plan and reviewed under the `spec-kitty-bulk-edit-classification` skill workflow.
-- A5. #395 import-graph infrastructure may or may not exist at mission-start time. If it does, the dependency-rules test delegates to it. If it does not, a local pytest performs equivalent checks; the mission does not block on #395.
+- A5. Dependency-rules enforcement is implemented via the existing `tests/architectural/test_layer_rules.py` pytestarch infrastructure. The closed issue #395 (fragile layer matching) is the historical predecessor; its concern is resolved by pytestarch and is an AC of this mission. No external issue is a prerequisite.
 
 ---
 
@@ -210,5 +210,5 @@ None at spec time. Plan phase determines:
 - The final canonical runtime package path (per #610 ownership map).
 - The full enumeration of shim locations (likely `specify_cli.next` plus additional paths under `specify_cli.cli.commands.agent.*`).
 - The precise shape of the `PresentationSink` protocol and the profile-invocation seam.
-- Whether #395 infrastructure is available at plan time (determines the dependency-rules-test implementation route).
+- The precise shape of the `PresentationSink` protocol and the profile-invocation seam.
 - Whether additional CLI commands beyond `next`/`implement`/`review`/`merge` need regression snapshots.

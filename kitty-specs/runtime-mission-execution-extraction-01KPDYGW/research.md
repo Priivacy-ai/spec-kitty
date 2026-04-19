@@ -183,11 +183,11 @@ Runtime subtrees currently have **zero** direct Rich imports. The `PresentationS
 
 ---
 
-## Q4 — #395 import-graph infrastructure availability
+## Q4 — Dependency-rules enforcement (formerly: #395 import-graph infrastructure)
 
 ### Decision
 
-**Present. Use it.** Extend `tests/architectural/test_layer_rules.py` — no new test file, no new dependency.
+**Use existing pytestarch infrastructure.** Extend `tests/architectural/test_layer_rules.py` — no new test file, no new dependency. The closed issue #395 (fragile layer matching) tracked the predecessor problem; its concern is resolved by the pytestarch setup already in the repo and is now an AC of this mission.
 
 ### Evidence
 
@@ -203,7 +203,8 @@ from pytestarch import LayerRule
 pytestmark = pytest.mark.architectural
 
 # ---------------------------------------------------------------------------
-# Layer coverage guards (issue #395)
+# ---------------------------------------------------------------------------
+# Layer coverage guards (pytestarch — see AC in FR-008)
 # ---------------------------------------------------------------------------
 ```
 
