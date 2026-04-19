@@ -38,8 +38,8 @@ charter_governance:
     - Doctrine loads charter bundle for principle synthesis via charter.ensure_charter_bundle_fresh
   extraction_sequencing_notes: >
     Already extracted by mission charter-ownership-consolidation-and-neutrality-hardening-01KPD880.
-    The src/specify_cli/charter/ compatibility shim is deleted by WP02 of mission
-    functional-ownership-map-01KPDY72 (removal_release 3.3.0). No further extraction queued.
+    The src/specify_cli/charter/ compatibility shim was deleted by WP02 of mission
+    functional-ownership-map-01KPDY72 (removed in 3.2.0). No further extraction queued.
 
 doctrine:
   canonical_package: doctrine
@@ -77,10 +77,11 @@ runtime_mission_execution:
     - Runtime reads lifecycle lane state via status.lane_reader.get_wp_lane() to decide which Work Package to claim next
     - Runtime reads glossary state via glossary for terminology validation during mission execution
   extraction_sequencing_notes: >
-    Target for mission #612. Extraction requires safeguards #393 (architectural tests),
-    #394 (deprecation scaffolding), and #395 (import-graph enforcement) to be in place first.
-    Import-graph enforcement is load-bearing because dependency_rules must be automatically
-    verified after the slice boundary moves.
+    Target for mission #612. Extraction requires the architectural-tests and
+    import-graph-enforcement acceptance criteria in #612 to be met before the slice
+    boundary moves. Deprecation scaffolding and shim registry are owned by #615 and
+    must land before extraction. Import-graph enforcement is load-bearing because
+    dependency_rules must be automatically verified after the slice boundary moves.
   dependency_rules:
     may_call:
       - charter_governance
@@ -101,9 +102,9 @@ glossary:
     - Doctrine registers a glossary runner via kernel.glossary_runner.register(); runtime reads via get_runner() (ADR 2026-03-25-1)
     - Runtime reads canonical terminology via glossary.store to validate Work Package and Mission naming
   extraction_sequencing_notes: >
-    Target for mission #613. Depends on #393 (architectural tests) and #394 (deprecation
-    scaffolding) landing first. #395 (import-graph tooling) is nice-to-have, not blocking,
-    for the glossary slice.
+    Target for mission #613. Depends on the architectural-tests acceptance criteria in
+    #613 and the deprecation scaffolding in #615 landing first. Import-graph tooling
+    (an AC in #612) is nice-to-have, not blocking, for the glossary slice.
 
 lifecycle_status:
   canonical_package: src/lifecycle/
@@ -119,8 +120,10 @@ lifecycle_status:
     - Sync writes lane events via status.emit.emit_status_transition() after SaaS-side state changes
   extraction_sequencing_notes: >
     Target for mission #614. Has the highest cross-slice caller count in the codebase
-    (next loop, orchestrator, dashboard, sync, tracker). Requires #393, #394, and #395
-    to be in place before extraction — import-graph tooling is material here due to high fan-in.
+    (next loop, orchestrator, dashboard, sync, tracker). Requires the architectural-tests
+    and import-graph-enforcement acceptance criteria in #614 and the deprecation scaffolding
+    in #615 to be in place before extraction — import-graph tooling is material here due to
+    the high fan-in.
 
 orchestrator_sync_tracker_saas:
   canonical_package: src/orchestrator/

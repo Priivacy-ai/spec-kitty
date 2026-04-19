@@ -9,21 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-04-19
+
 ### Removed
 
 - **`specify_cli.charter` compatibility shim** — The re-export shim at `src/specify_cli/charter/` has been
-  removed as announced in 3.1.0 (`__removal_release__ = "3.3.0"`). External code importing
-  `specify_cli.charter.*` must migrate to the canonical package: `from charter import <name>`.
-  See [architecture/2.x/05_ownership_map.md](architecture/2.x/05_ownership_map.md) for the full
+  removed. External code importing `specify_cli.charter.*` must migrate to the canonical package:
+  `from charter import <name>`. See
+  [architecture/2.x/05_ownership_map.md](architecture/2.x/05_ownership_map.md) for the full
   charter slice entry and the reference exemplar pattern. Closes #611.
-
-### Deprecated
-
-- `specify_cli.charter` and its submodules (`compiler`, `interview`, `resolver`).
-  Import from the top-level `charter` package instead. These shims will be
-  removed in release **3.3.0**. See
-  [docs/migration/charter-ownership-consolidation.md](docs/migration/charter-ownership-consolidation.md)
-  for the full migration guide.
 
 ## [3.1.6] - 2026-04-17
 

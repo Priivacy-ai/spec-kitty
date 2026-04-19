@@ -39,7 +39,7 @@
 - `adapter_responsibilities`: CLI argument parsing and Rich rendering for `spec-kitty glossary *` commands stays in `src/specify_cli/cli/commands/glossary.py`.
 - `shims`: one shim at `src/specify_cli/glossary/` with `canonical_import: glossary`, `removal_release: 3.4.0`.
 - `seams`: doctrine registers a glossary runner via `kernel.glossary_runner.register()`; mission execution reads via `get_runner()` (resolved by ADR `2026-03-25-1`).
-- `extraction_sequencing_notes`: depends on #393 and #394 landing first.
+- `extraction_sequencing_notes`: depends on the architectural-tests and deprecation-scaffolding ACs in #613 and #615 landing first.
 - PR moves all 14 modules to `src/glossary/`, adds the shim, ticks every field off in the PR description.
 
 ---
@@ -63,7 +63,7 @@
 - Reviewer checks `dependency_rules.may_call: [charter_governance, doctrine, lifecycle_status, glossary]` — PR adds an import-graph test covering these four.
 - Reviewer checks `may_be_called_by: [cli_shell]` — PR adds the reverse assertion.
 - Reviewer checks `adapter_responsibilities` — CLI commands under `src/specify_cli/cli/commands/` that delegate to runtime stay in place.
-- Reviewer checks `extraction_sequencing_notes` — PR confirms #393, #394, #395 are in place.
+- Reviewer checks `extraction_sequencing_notes` — PR confirms architectural-tests AC in #612, import-graph-enforcement AC in #612, and #615 (deprecation scaffolding) are all in place.
 - If every field is accounted for, approve. Otherwise, request changes naming the specific missing field.
 
 ---
@@ -158,7 +158,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 | Field                        | Value             |
 |------------------------------|-------------------|
 | `canonical_package`          | `src/runtime/`    |
-| `extraction_sequencing_notes`| Target for mission #612. Extraction requires safeguards #393 (architectural tests), #394 (deprecation scaffolding), and #395 (import-graph enforcement) to be in place first. Import-graph enforcement is load-bearing because `dependency_rules` must be verified automatically after the slice boundary moves. |
+| `extraction_sequencing_notes`| Target for mission #612. Extraction requires the architectural-tests and import-graph-enforcement ACs in #612 to be met, and deprecation scaffolding in #615 to land first. Import-graph enforcement is load-bearing because `dependency_rules` must be verified automatically after the slice boundary moves. |
 
 **`current_state`**:
 - `src/specify_cli/runtime/` — runtime bootstrap, resolver, home-path, doctor, migration support
@@ -192,7 +192,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 | Field                        | Value                                                                                                                               |
 |------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `canonical_package`          | `src/glossary/`                                                                                                                     |
-| `extraction_sequencing_notes`| Target for mission #613. Depends on #393 (architectural tests) and #394 (deprecation scaffolding) landing first. #395 is nice-to-have, not blocking. |
+| `extraction_sequencing_notes`| Target for mission #613. Depends on the architectural-tests AC in #613 and deprecation scaffolding in #615 landing first. Import-graph tooling (AC in #612) is nice-to-have, not blocking. |
 
 **`current_state`**:
 - `src/specify_cli/glossary/`
@@ -213,7 +213,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 | Field                        | Value                                                                                                                               |
 |------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `canonical_package`          | `src/lifecycle/`                                                                                                                    |
-| `extraction_sequencing_notes`| Target for mission #614. Has the most cross-slice callers in the codebase (next loop, orchestrator, dashboard, sync, tracker). Requires #393, #394, **and** #395 to be in place before extraction — the import-graph tool is material here due to the high fan-in. |
+| `extraction_sequencing_notes`| Target for mission #614. Has the most cross-slice callers in the codebase (next loop, orchestrator, dashboard, sync, tracker). Requires the architectural-tests and import-graph-enforcement ACs in #614 and deprecation scaffolding in #615 before extraction — the import-graph tooling is material here due to the high fan-in. |
 
 **`current_state`**:
 - `src/specify_cli/status/`
@@ -286,11 +286,11 @@ may_call = runtime["dependency_rules"]["may_call"]
 
 The following issues gate slice extractions and must land before the indicated missions proceed:
 
-| Safeguard | Issue | Slices that depend on it |
-|-----------|-------|--------------------------|
-| Architectural tests | [#393](https://github.com/Priivacy-ai/spec-kitty/issues/393) | Runtime (#612), Glossary (#613), Lifecycle (#614) |
-| Deprecation scaffolding | [#394](https://github.com/Priivacy-ai/spec-kitty/issues/394) | Runtime (#612), Glossary (#613), Lifecycle (#614) |
-| Import-graph tooling | [#395](https://github.com/Priivacy-ai/spec-kitty/issues/395) | Runtime (#612, load-bearing for `dependency_rules`), Lifecycle (#614, load-bearing due to high fan-in) |
+| Safeguard | Owned by | Slices that depend on it |
+|-----------|----------|--------------------------|
+| Architectural tests | AC in [#612](https://github.com/Priivacy-ai/spec-kitty/issues/612), [#613](https://github.com/Priivacy-ai/spec-kitty/issues/613), [#614](https://github.com/Priivacy-ai/spec-kitty/issues/614) respectively | Runtime (#612), Glossary (#613), Lifecycle (#614) |
+| Deprecation scaffolding / shim registry | [#615](https://github.com/Priivacy-ai/spec-kitty/issues/615) | Runtime (#612), Glossary (#613), Lifecycle (#614) |
+| Import-graph enforcement | AC in [#612](https://github.com/Priivacy-ai/spec-kitty/issues/612); also benefits [#614](https://github.com/Priivacy-ai/spec-kitty/issues/614) | Runtime (#612, load-bearing for `dependency_rules`), Lifecycle (#614, load-bearing due to high fan-in) |
 
 **Direction**: [#461 — Charter as Synthesis & Doctrine Reference Graph](https://github.com/Priivacy-ai/spec-kitty/issues/461) provides the architectural rationale for extracting charter-adjacent governance into standalone packages. The ownership map is a downstream artefact of that direction: it records the extraction targets once #461's analysis is settled.
 
