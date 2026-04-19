@@ -1,13 +1,9 @@
-"""T017 — Windows-native round-trip tests for WindowsFileStorage.
-
-These tests are marked @pytest.mark.windows_ci and run only on the
-native windows-latest CI job (WP07). They test the actual store → load →
-delete cycle using a real filesystem path under %LOCALAPPDATA%.
-"""
+"""Windows round-trip tests for the canonical file-backed auth store."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -49,15 +45,7 @@ def test_windows_file_store_round_trip(tmp_path):
 
 
 @pytest.mark.windows_ci
-def test_windows_file_store_default_path_under_localappdata():
-    """Default store_path is rooted under %LOCALAPPDATA%\\spec-kitty\\auth."""
-    from specify_cli.paths import get_runtime_root
-
-    root = get_runtime_root()
-    assert root.platform == "win32", (
-        "This test only makes sense on windows-latest where sys.platform == 'win32'"
-    )
-    path_str = str(root.auth_dir).upper()
-    assert "APPDATA" in path_str or "LOCALAPPDATA" in path_str, (
-        f"Expected Windows AppData path, got: {root.auth_dir}"
-    )
+def test_windows_file_store_default_path_under_userprofile():
+    """Default store_path is rooted under %USERPROFILE%\\.spec-kitty\\auth."""
+    store = WindowsFileStorage()
+    assert store.store_path == Path.home() / ".spec-kitty" / "auth"

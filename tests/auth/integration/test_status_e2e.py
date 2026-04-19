@@ -74,7 +74,7 @@ class TestStatusE2E:
         assert "Acme Corp" in result.stdout
         assert "Beta Labs" in result.stdout
         # Storage backend label (FR-015).
-        assert "Encrypted file fallback" in result.stdout
+        assert "Encrypted session file" in result.stdout
         # Session id surfaced (FR-015).
         assert "sess_status_fixture" in result.stdout
         # Auth method label surfaced.

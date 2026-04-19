@@ -72,8 +72,7 @@ dependencies = [
     "jsonschema>=4.0",  # JSON Schema validation for mission configs
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
-    "cryptography>=42.0",  # AES-256-GCM + scrypt KDF for auth file fallback storage (feature 080)
-    "keyring>=24.0; sys_platform != \"win32\"",  # OS keystore abstraction for auth secure storage backends (feature 080)
+    "cryptography>=42.0",  # AES-256-GCM + scrypt KDF for encrypted auth session storage (feature 080)
     "anthropic>=0.55.0",  # Claude API for production adapter (ADR-6)
 ]
 

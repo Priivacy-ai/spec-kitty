@@ -45,7 +45,7 @@ def _make_session(
         access_token_expires_at=access_exp if access_exp is not None else now + timedelta(minutes=15),
         refresh_token_expires_at=refresh_token_expires_at,
         scope="openid profile email offline_access",
-        storage_backend="keychain",
+        storage_backend="file",
         last_used_at=now,
         auth_method="authorization_code",
     )

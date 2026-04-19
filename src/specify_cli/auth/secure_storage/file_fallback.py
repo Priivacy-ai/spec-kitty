@@ -1,18 +1,14 @@
-"""Encrypted file fallback backend for systems without an OS keychain.
+"""Encrypted file backend for persisted auth sessions.
 
-Implements decision D-8 / constraint C-011:
+The canonical session store lives under ``~/.spec-kitty/auth/`` on every
+platform:
 
-- Key derivation uses scrypt (``cryptography.hazmat.primitives.kdf.scrypt``)
-  with a random 16-byte salt persisted at
-  ``~/.config/spec-kitty/credentials.salt`` (0600 perms).
-- The scrypt passphrase is ``f"{socket.gethostname()}:{os.getuid()}"`` — this
-  binds the derived key to the machine AND the invoking UID. This is
-  deliberately stronger than the previous run's raw SHA256(hostname).
-- Ciphertext is AES-256-GCM (12-byte nonce, fresh per write).
-- File format version is 2. Version 1 plaintext files are rejected with a
-  clear error telling the user to re-login.
-- Writes are atomic via ``write+rename`` and coordinated with
-  :class:`filelock.FileLock` so parallel CLI processes cannot corrupt the file.
+- ``session.json`` — AES-256-GCM ciphertext
+- ``session.salt`` — 16-byte random salt for the scrypt KDF
+- ``session.lock`` — file lock coordinating concurrent readers/writers
+
+Key derivation uses ``f"{hostname}:{uid}"`` via scrypt so copied ciphertext is
+not useful without the originating host context.
 """
 
 from __future__ import annotations
@@ -38,16 +34,10 @@ log = logging.getLogger(__name__)
 
 def default_store_dir() -> Path:
     """Default on-disk location for the encrypted file store."""
-    import sys  # noqa: PLC0415 — deferred to avoid module-level platform eval
-
-    if sys.platform == "win32":
-        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
-
-        return get_runtime_root().auth_dir
-    return Path.home() / ".config" / "spec-kitty"
-_CRED_NAME = "credentials.json"
-_SALT_NAME = "credentials.salt"
-_LOCK_NAME = "credentials.lock"
+    return Path.home() / ".spec-kitty" / "auth"
+_CRED_NAME = "session.json"
+_SALT_NAME = "session.salt"
+_LOCK_NAME = "session.lock"
 
 _FILE_FORMAT_VERSION = 2  # v1 was plaintext (rejected); v2 is AES-256-GCM
 
@@ -152,14 +142,14 @@ class FileFallbackStorage(SecureStorage):
         version = blob.get("version")
         if version != _FILE_FORMAT_VERSION:
             raise StorageDecryptionError(
-                f"Unsupported credentials file format version {version!r}; "
+                f"Unsupported session file format version {version!r}; "
                 f"expected {_FILE_FORMAT_VERSION}. v1 plaintext files are rejected; "
-                f"please re-run `spec-kitty auth login`."
+                f"please re-run `spec-kitty auth login --force`."
             )
         if not self._salt_file.exists():
             raise StorageDecryptionError(
-                f"Salt file {self._salt_file} is missing; cannot decrypt credentials. "
-                f"Re-run `spec-kitty auth login`."
+                f"Salt file {self._salt_file} is missing; cannot decrypt the session. "
+                f"Re-run `spec-kitty auth login --force`."
             )
         salt = self._salt_file.read_bytes()
         if len(salt) != 16:
@@ -172,14 +162,14 @@ class FileFallbackStorage(SecureStorage):
             ciphertext = bytes.fromhex(blob["ciphertext"])
         except (KeyError, ValueError) as exc:
             raise StorageDecryptionError(
-                f"Credentials file is malformed: {exc}"
+                f"Session file is malformed: {exc}"
             ) from exc
         aesgcm = AESGCM(key)
         try:
             return aesgcm.decrypt(nonce, ciphertext, None)
         except Exception as exc:  # noqa: BLE001 — cryptography raises InvalidTag / others
             raise StorageDecryptionError(
-                f"Failed to decrypt credentials file: {exc}"
+                f"Failed to decrypt session file: {exc}"
             ) from exc
 
     def _check_file_permissions(self, path: Path) -> None:
@@ -193,7 +183,7 @@ class FileFallbackStorage(SecureStorage):
         mode = stat.S_IMODE(path.stat().st_mode)
         if mode & 0o077:
             raise SecureStorageError(
-                f"Credentials file {path} has unsafe permissions "
+                f"Session file {path} has unsafe permissions "
                 f"(mode={oct(mode)}); expected 0600. "
                 f"Fix with: chmod 600 {path}"
             )
@@ -211,18 +201,18 @@ class FileFallbackStorage(SecureStorage):
             blob = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise StorageDecryptionError(
-                f"Credentials file {self._cred_file} is not valid JSON: {exc}"
+                f"Session file {self._cred_file} is not valid JSON: {exc}"
             ) from exc
         if not isinstance(blob, dict):
             raise StorageDecryptionError(
-                f"Credentials file {self._cred_file} is not a JSON object"
+                f"Session file {self._cred_file} is not a JSON object"
             )
         plaintext = self._decrypt(blob)
         try:
             return StoredSession.from_json(plaintext.decode("utf-8"))
         except (json.JSONDecodeError, KeyError, ValueError) as exc:
             raise StorageDecryptionError(
-                f"Decrypted credentials payload is not a valid session: {exc}"
+                f"Decrypted session payload is not a valid session: {exc}"
             ) from exc
 
     def write(self, session: StoredSession) -> None:
@@ -247,7 +237,7 @@ class FileFallbackStorage(SecureStorage):
                     self._cred_file.unlink()
                 except OSError as exc:
                     raise SecureStorageError(
-                        f"Failed to delete credentials file: {exc}"
+                        f"Failed to delete session file: {exc}"
                     ) from exc
             # Also rotate the salt so the next login creates a fresh one.
             if self._salt_file.exists():

@@ -74,7 +74,7 @@ class AuthorizationCodeFlow:
         saas_base_url: str | None = None,
         client_id: str = _DEFAULT_CLIENT_ID,
         *,
-        storage_backend: StorageBackend = "keychain",
+        storage_backend: StorageBackend = "file",
     ) -> None:
         """Build a new flow.
 

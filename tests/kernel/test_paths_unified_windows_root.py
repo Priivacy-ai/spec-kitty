@@ -1,19 +1,19 @@
-"""Cross-module single-root consistency test (T030).
+"""Windows runtime-root consistency tests.
 
-Asserts C-002 / FR-005: on Windows, auth / tracker / sync / daemon /
-kernel.paths all resolve under the same ``RuntimeRoot.base``.
-
-Marked ``windows_ci`` — runs on ``windows-latest`` only.  Collects cleanly on
-POSIX so that CI configuration errors surface immediately.
+Auth session storage is intentionally excluded from the shared runtime root:
+it lives under ``%USERPROFILE%\\.spec-kitty\\auth`` while tracker/sync/daemon
+state continues to use the runtime-root helpers.
 """
 from __future__ import annotations
+
+from pathlib import Path
 
 import pytest
 
 
 @pytest.mark.windows_ci
-def test_all_consumers_share_single_windows_root() -> None:
-    """Every runtime-state consumer resolves under the same RuntimeRoot.base."""
+def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
+    """Tracker/sync/daemon/kernel runtime state resolves under RuntimeRoot.base."""
     from specify_cli.paths import get_runtime_root
 
     root = get_runtime_root()
@@ -21,14 +21,6 @@ def test_all_consumers_share_single_windows_root() -> None:
         f"This test must run on Windows; platform={root.platform}"
     )
     base_str = str(root.base).lower()
-
-    # Auth — WP03 WindowsFileStorage
-    from specify_cli.auth.secure_storage import WindowsFileStorage
-
-    auth = WindowsFileStorage()
-    assert base_str in str(auth.store_path).lower(), (
-        f"Auth store_path {auth.store_path} is not under unified root {root.base}"
-    )
 
     # Tracker
     from specify_cli.tracker import credentials
@@ -62,6 +54,15 @@ def test_all_consumers_share_single_windows_root() -> None:
         f"kernel.paths.get_kittify_home() resolves to {kittify_home}, "
         f"outside the unified Windows root {root.base}"
     )
+
+
+@pytest.mark.windows_ci
+def test_auth_store_uses_user_home_root_on_windows() -> None:
+    """Auth storage now lives under %USERPROFILE%\\.spec-kitty\\auth."""
+    from specify_cli.auth.secure_storage import WindowsFileStorage
+
+    auth = WindowsFileStorage()
+    assert auth.store_path == Path.home() / ".spec-kitty" / "auth"
 
 
 @pytest.mark.windows_ci

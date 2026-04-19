@@ -1,11 +1,4 @@
-"""Windows-native secure storage backend.
-
-Uses the encrypted file-backed store (AES-256-GCM) rooted at
-``%LOCALAPPDATA%\\spec-kitty\\auth\\`` (resolved via
-``specify_cli.paths.get_runtime_root().auth_dir``).
-
-Does NOT depend on ``keyring`` or Windows Credential Manager.
-"""
+"""Windows alias for the canonical encrypted session-file backend."""
 
 from __future__ import annotations
 
@@ -15,15 +8,9 @@ from .file_fallback import EncryptedFileStorage
 
 
 class WindowsFileStorage(EncryptedFileStorage):
-    """Windows-native secure storage.
-
-    Uses the encrypted file-backed store at ``%LOCALAPPDATA%\\spec-kitty\\auth\\``.
-    Does NOT depend on keyring or Windows Credential Manager.
-    """
+    """Windows wrapper for the shared ``~/.spec-kitty/auth`` session store."""
 
     def __init__(self, store_path: Path | None = None) -> None:
         if store_path is None:
-            from specify_cli.paths import get_runtime_root  # noqa: PLC0415
-
-            store_path = get_runtime_root().auth_dir
+            store_path = Path.home() / ".spec-kitty" / "auth"
         super().__init__(store_path=store_path)

@@ -3,14 +3,19 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-04-09 |
 | Deciders | Spec Kitty Architecture Team |
 | Technical Story | Human CLI authentication between `spec-kitty` and `spec-kitty-saas` |
+| Superseded By | `2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md` |
 
 ---
 
 ## Context and Problem Statement
+
+> Superseded on 2026-04-19 by
+> `2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md`.
+> Keep this ADR for historical context only; do not implement from it.
 
 The current CLI-to-SaaS authentication implementation drifted into a password
 login flow:

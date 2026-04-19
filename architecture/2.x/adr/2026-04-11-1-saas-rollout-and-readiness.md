@@ -281,4 +281,4 @@ config.
 
 * `2026-02-27-1-cli-tracker-surface-gated-by-saas-sync-flag.md` — original decision to gate tracker via `SPEC_KITTY_ENABLE_SAAS_SYNC`
 * `2026-02-27-2-host-owned-tracker-persistence-boundary.md`
-* `2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md`
+* `2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md`

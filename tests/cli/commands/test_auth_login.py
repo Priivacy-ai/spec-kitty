@@ -5,7 +5,7 @@ These tests exercise the real Typer ``app`` exported by
 Internal flow orchestration is mocked at the
 ``specify_cli.cli.commands._auth_login`` seam so we test the command-to-
 implementation wiring without starting a loopback server or touching the
-real keychain.
+real auth store.
 
 Key behaviors under test (per WP04 acceptance criteria):
 
@@ -63,7 +63,7 @@ def _make_session(email: str = "alice@example.com") -> StoredSession:
         access_token_expires_at=now + timedelta(hours=1),
         refresh_token_expires_at=now + timedelta(days=30),
         scope="offline_access",
-        storage_backend="keychain",
+        storage_backend="file",
         last_used_at=now,
         auth_method="authorization_code",
     )

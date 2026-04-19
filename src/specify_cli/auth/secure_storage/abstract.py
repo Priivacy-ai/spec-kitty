@@ -1,25 +1,15 @@
-"""Abstract base class for secure storage backends.
+"""Abstract base class for secure auth session storage.
 
-Concrete subclasses live alongside this module:
-
-- :mod:`.keychain` — :class:`KeychainStorage` using the ``keyring`` library
-  (macOS Keychain, Windows Credential Manager, Linux Secret Service).
-- :mod:`.file_fallback` — :class:`FileFallbackStorage` using AES-256-GCM
-  with a scrypt-derived key and random salt (per decision D-8 / C-011).
-
-``SecureStorage.from_environment()`` picks the best backend for the current
-platform, preferring the keychain and falling back to the encrypted file.
+The only supported persisted backend is the encrypted local file store under
+``~/.spec-kitty/auth/``. Windows keeps a tiny alias class for platform-focused
+tests, but the underlying persistence model is the same on every OS.
 """
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 
 from ..session import StoredSession
-
-log = logging.getLogger(__name__)
-
 
 class SecureStorage(ABC):
     """Abstract storage backend for :class:`StoredSession`.
@@ -48,34 +38,13 @@ class SecureStorage(ABC):
 
     @classmethod
     def from_environment(cls) -> SecureStorage:
-        """Return the platform-appropriate secure storage backend.
-
-        Dispatch is by ``sys.platform``.  This is a HARD split:
-
-        - **Windows** (``sys.platform == "win32"``): returns a
-          :class:`~specify_cli.auth.secure_storage.windows_storage.WindowsFileStorage`
-          rooted at ``%LOCALAPPDATA%\\spec-kitty\\auth\\``.  The
-          ``keychain`` module is **never** imported.
-        - **Non-Windows**: retains the existing keychain-first-with-fallback
-          behaviour (macOS Keychain / Linux Secret Service → encrypted file).
-        """
+        """Return the canonical encrypted file-backed storage backend."""
         import sys  # noqa: PLC0415 — deferred so callers can monkeypatch sys.platform
 
         if sys.platform == "win32":
             from .windows_storage import WindowsFileStorage  # noqa: PLC0415
 
             return WindowsFileStorage()
-
-        # Non-Windows: prefer OS keychain, fall back to encrypted file.
-        # Any exception during import or availability probing falls through.
-        try:
-            from .keychain import KeychainStorage  # noqa: PLC0415
-
-            kc = KeychainStorage()
-            if kc.is_available():
-                return kc
-        except Exception as exc:  # noqa: BLE001 — intentionally downgrade every failure
-            log.debug("Keychain backend unavailable, falling back to file: %s", exc)
 
         from .file_fallback import FileFallbackStorage  # noqa: PLC0415
 

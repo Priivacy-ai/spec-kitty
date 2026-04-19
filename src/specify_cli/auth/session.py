@@ -25,7 +25,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, UTC
 from typing import Any, Literal
 
-StorageBackend = Literal["keychain", "credential_manager", "secret_service", "file"]
+StorageBackend = Literal["file"]
 AuthMethod = Literal["authorization_code", "device_code"]
 
 
@@ -52,8 +52,8 @@ class Team:
 class StoredSession:
     """The persisted representation of an authenticated spec-kitty session.
 
-    Serialized to JSON by ``to_json`` / ``from_json`` for keychain storage and
-    to a dict by ``to_dict`` / ``from_dict`` for file-fallback storage.
+    Serialized to JSON by ``to_json`` / ``from_json`` for encrypted file
+    storage and to a dict by ``to_dict`` / ``from_dict`` for the same store.
 
     Use ``is_access_token_expired`` to decide when to refresh the access token
     and ``is_refresh_token_expired`` to detect a known-expired refresh token
@@ -156,10 +156,10 @@ class StoredSession:
         )
 
     def to_json(self) -> str:
-        """Serialize to a JSON string (used by the keychain backend)."""
+        """Serialize to a JSON string for encrypted file persistence."""
         return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, raw: str) -> StoredSession:
-        """Deserialize from a JSON string (used by the keychain backend)."""
+        """Deserialize from a JSON string produced by the encrypted file store."""
         return cls.from_dict(json.loads(raw))
