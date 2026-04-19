@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "functional-ownership-map-01KPDY72",
+  "mission_id": "01KPDY72HV348TA2ERN9S1WM91",
+  "mission_branch": "kitty/mission-functional-ownership-map-01KPDY72",
+  "target_branch": "feature/module_ownership",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "architecture/2.x/04_implementation_mapping/README.md",
+        "architecture/2.x/05_ownership_manifest.yaml",
+        "architecture/2.x/05_ownership_map.md",
+        "src/specify_cli/charter/__init__.py",
+        "src/specify_cli/charter/compiler.py",
+        "src/specify_cli/charter/interview.py",
+        "src/specify_cli/charter/resolver.py",
+        "tests/architecture/test_ownership_manifest_schema.py",
+        "tests/charter/test_chokepoint_coverage.py",
+        "tests/charter/test_sync_paths.py",
+        "tests/specify_cli/charter/test_defaults_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-18T04:44:46.655481+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

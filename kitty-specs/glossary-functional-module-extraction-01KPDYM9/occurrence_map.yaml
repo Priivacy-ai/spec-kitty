@@ -1,0 +1,209 @@
+# Occurrence map — Glossary Functional Module Extraction
+# Mission: 01KPDYM9H8WGXC6HH6YKEQR9Q6 (mid8: 01KPDYM9)
+# Authored: 2026-04-17
+# DIRECTIVE_035: this artifact is required before any cross-file import-path
+# rewrites may be committed. Category actions ratified by plan phase per spec
+# decisions (C-005, FR-009) and charter-extraction exemplar.
+
+target:
+  term: "specify_cli.glossary"
+  replacement: "glossary"
+  operation: rename
+
+# Category actions.
+#
+# IMPORTANT SCOPE NOTE on code_symbols (mirrors charter exemplar wording fix):
+#   `code_symbols: rename` applies ONLY to fully-qualified module-path
+#   references like `specify_cli.glossary.foo.Bar` appearing in strings, dotted
+#   patch targets (mock.patch("specify_cli.glossary…")), type references, or
+#   docs. Local symbol names (e.g., `Strictness`, `GlossaryStore`, `resolve_term`)
+#   are NOT renamed just because the owning module moved — the symbols keep
+#   their names, only their package location changes.
+
+categories:
+  code_symbols:         { action: rename }                 # FQ module paths only, per note above
+  import_paths:         { action: rename }                 # primary target — `from specify_cli.glossary…` → `from glossary…`
+  filesystem_paths:     { action: manual_review }          # src/specify_cli/glossary/*.py files are rewritten as shims (all 15 remaining modules) or relocated (rendering.py, prompts.py → CLI adapter subpackage); the monolithic src/specify_cli/cli/commands/glossary.py file is split into src/specify_cli/cli/commands/glossary/. Every filesystem change is per-WP reviewed individually.
+  serialized_keys:      { action: do_not_change }          # Glossary store YAML/JSON schema keys and event names are persistence contracts (C-001, acceptance scenario 6); nothing in the rename touches field names.
+  cli_commands:         { action: do_not_change }          # per C-004, no CLI UX changes; subcommand names, flag names, and help text remain identical.
+  user_facing_strings:  { action: rename_if_user_visible } # docs, help text, CHANGELOG, migration guide references to `specify_cli.glossary` update to the canonical path; internal-only log labels / error message classifications do not.
+  tests_fixtures:       { action: rename }                 # test imports follow production: `from specify_cli.glossary…` → `from glossary…` across tests/agent/glossary/**, tests/doctrine/missions/test_primitives.py, tests/agent/cli/commands/test_glossary.py.
+  logs_telemetry:       { action: do_not_change }          # event names (term_candidate_observed, semantic_check_evaluated, generation_blocked, step_checkpointed, clarification_requested, clarification_resolved, sense_updated, scope_activated), log labels, and metric keys remain stable so dashboards and alerting don't break.
+
+# -------------------------------------------------------------------------
+# Exceptions to category-level rules.
+# -------------------------------------------------------------------------
+exceptions:
+  # ------ Deprecation shim surface (subject of the rename, not a target) ------
+  - path: "src/specify_cli/glossary/__init__.py"
+    action: rewrite_as_shim
+    reason: "Package __init__.py is rewritten to emit a single DeprecationWarning (stacklevel=2), set __deprecated__=True, __canonical_import__='glossary', __removal_release__='3.3.0', __deprecation_message__, and re-export the canonical public API from `glossary.*`. This is the primary shim file per #615 rulebook and FR-006. It is NOT a rename target."
+
+  - path: "src/specify_cli/glossary/models.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.models. Does not emit its own DeprecationWarning (avoids double-warning on `from specify_cli.glossary.models import X`). Optional informational __deprecated__/__canonical_import__ attrs set."
+
+  - path: "src/specify_cli/glossary/exceptions.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.exceptions."
+
+  - path: "src/specify_cli/glossary/scope.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.scope. Promoted public helpers `parse_sense_status` and `load_seed_file` are re-exported from the canonical module through the shim."
+
+  - path: "src/specify_cli/glossary/store.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.store."
+
+  - path: "src/specify_cli/glossary/resolution.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.resolution."
+
+  - path: "src/specify_cli/glossary/extraction.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.extraction."
+
+  - path: "src/specify_cli/glossary/conflict.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.conflict."
+
+  - path: "src/specify_cli/glossary/middleware.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.middleware (the semantic integrity middleware, FR-002)."
+
+  - path: "src/specify_cli/glossary/strictness.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.strictness. Docstring `>>>` examples at lines 135 and 187 that currently reference `specify_cli.glossary.models` are rewritten to the canonical `glossary.models` path during shim conversion."
+
+  - path: "src/specify_cli/glossary/checkpoint.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.checkpoint."
+
+  - path: "src/specify_cli/glossary/clarification.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.clarification."
+
+  - path: "src/specify_cli/glossary/events.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.events."
+
+  - path: "src/specify_cli/glossary/pipeline.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.pipeline."
+
+  - path: "src/specify_cli/glossary/attachment.py"
+    action: rewrite_as_shim
+    reason: "Submodule shim — silent sys.modules alias of glossary.attachment."
+
+  # ------ Modules that LIFT to the CLI adapter layer (not shimmed) ------
+  - path: "src/specify_cli/glossary/rendering.py"
+    action: relocate_to_cli_adapter
+    reason: "File imports `rich.console.Console`, `rich.panel.Panel`, `rich.table.Table` directly. Per FR-003, FR-004, and C-007, rendering/presentation code does NOT live under `src/glossary/`. The file relocates to `src/specify_cli/cli/commands/glossary/rendering.py` in the adapter layer. No shim is published for this module because it is not part of the canonical public API — it was always a CLI-layer concern mis-filed under the integrity package. External callers (if any) get an ImportError after the move, which is the desired outcome per FR-013: any discovered external caller is listed in the PR with a rationale or a follow-up tracker."
+
+  - path: "src/specify_cli/glossary/prompts.py"
+    action: relocate_to_cli_adapter
+    reason: "File imports `typer` directly. Per FR-004 and C-007, Typer prompts do NOT live under `src/glossary/`. The file relocates to `src/specify_cli/cli/commands/glossary/prompts.py` in the adapter layer. No shim is published — same rationale as rendering.py."
+
+  # ------ CLI adapter monolithic file → subpackage split ------
+  - path: "src/specify_cli/cli/commands/glossary.py"
+    action: split_into_subpackage
+    reason: "Existing 700-LOC monolithic CLI file is split into `src/specify_cli/cli/commands/glossary/{__init__.py, commands.py, rendering.py, prompts.py}`. The old file is REMOVED. Imports that consumed private `specify_cli.glossary.scope._parse_sense_status` and `specify_cli.glossary.scope.load_seed_file` are rewritten to the promoted public `glossary.scope.parse_sense_status` and `glossary.scope.load_seed_file` (R-007)."
+
+  # ------ Migration documentation (teaches the rename) ------
+  - path: "docs/migration/glossary-extraction.md"
+    action: do_not_change
+    reason: "The migration guide deliberately quotes the deprecated path `specify_cli.glossary` to teach the rename. Auto-rewrites must not touch it."
+
+  # ------ CHANGELOG ------
+  - path: "CHANGELOG.md"
+    action: rename_if_user_visible
+    reason: "Default behavior is correct here; the new CHANGELOG entry for this mission mentions the deprecated path explicitly as part of the deprecation notice. Future entries that reference `specify_cli.glossary` should be rewritten only if they instruct new adoption, not if they document the removal."
+
+  # ------ Mission-directory bodies (subject of the rename) ------
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/spec.md"
+    action: do_not_change
+    reason: "Spec body quotes `specify_cli.glossary` as the subject of the rename."
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/plan.md"
+    action: do_not_change
+    reason: "Plan body quotes `specify_cli.glossary` as the subject of the rename."
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/research.md"
+    action: do_not_change
+    reason: "Research notes reference `specify_cli.glossary` as the subject of the rename."
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/data-model.md"
+    action: do_not_change
+    reason: "Data model body references `specify_cli.glossary` as the subject of the rename."
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/quickstart.md"
+    action: do_not_change
+    reason: "Quickstart references `specify_cli.glossary` as the subject of the rename."
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/contracts/**"
+    action: do_not_change
+    reason: "Contracts quote `specify_cli.glossary` as the subject of the rename."
+  - path: "kitty-specs/glossary-functional-module-extraction-01KPDYM9/**"
+    action: manual_review
+    reason: "Runtime-owned mission metadata (status.events.jsonl, status.json, tasks.md, tasks/WP*.md lifecycle frontmatter, dossiers, occurrence_map.yaml) is not a rename target; per-WP reviewers validate body edits."
+
+  # ------ Historical mission artifacts (do not rewrite history) ------
+  - path: "kitty-specs/041-mission-glossary-semantic-integrity/**"
+    action: do_not_change
+    reason: "Historical record of the mission that created the glossary surface. Quotes `specify_cli.glossary` as the path at the time of authoring. Rewriting would falsify historical artefacts."
+
+  # ------ Historical ADR (do not rewrite history) ------
+  - path: "architecture/2.x/adr/2026-03-25-1-glossary-type-ownership.md"
+    action: do_not_change
+    reason: "ADR documents the type-ownership decision at the time of the original glossary implementation. Historical record."
+
+  # ------ Historical dev logs ------
+  - path: "docs/development/pr305-review-resolution-plan.md"
+    action: do_not_change
+    reason: "Historical review log. Rewriting would falsify history."
+
+  - path: "docs/development/code-review-2026-03-25.md"
+    action: do_not_change
+    reason: "Historical review log. Rewriting would falsify history."
+
+  # ------ Architectural pytest (enforces the boundary) ------
+  - path: "tests/glossary/test_architectural_imports.py"
+    action: do_not_change
+    reason: "New architectural pytest (FR-004) names `specify_cli.*`, `rich.*`, `typer.*` as forbidden import targets under `src/glossary/`. The forbidden-paths list is test content, not a rename target."
+
+  # ------ Shim deprecation pytest (exercises the shim on purpose) ------
+  - path: "tests/specify_cli/glossary/test_shim_deprecation.py"
+    action: do_not_change
+    reason: "New shim-deprecation pytest (FR-006) intentionally imports `specify_cli.glossary` and asserts DeprecationWarning behaviour and the four required module attributes. The legacy import is the subject under test. Renaming would eliminate the coverage."
+
+  # ------ Regression fixtures (stdout/stderr baselines) ------
+  - path: "tests/regression/glossary/fixtures/**"
+    action: do_not_change
+    reason: "Captured output from `spec-kitty glossary *` commands run against a reference project PRE-extraction. Content is byte-for-byte baselines; no path rewrite applies (commands produce the same output regardless of source package location)."
+
+  # ------ Shim registry entry ------
+  - path: "architecture/2.x/shim-registry.yaml"
+    action: manual_review
+    reason: "New entry added for `specify_cli.glossary` per #615 rulebook. The entry's `legacy_import` field MUST retain the literal string `specify_cli.glossary` — that is the registry's key on purpose. No rename applies."
+
+# -------------------------------------------------------------------------
+# Approximate occurrence counts (plan-phase scan, ripgrep over the repo).
+# Implementation-phase scan will produce the authoritative count.
+# -------------------------------------------------------------------------
+plan_phase_scan:
+  total_matches: 243
+  total_files: 41
+  breakdown_by_category:
+    src/specify_cli/glossary/**:     "internal circular imports — rewritten as shim body + canonical body moves"
+    src/specify_cli/cli/commands/glossary.py: "5 imports — rewritten by adapter subpackage split"
+    src/kernel/glossary_runner.py:   "runtime caller — renamed to canonical path"
+    tests/agent/glossary/**:         "~50 imports — renamed to canonical path"
+    tests/agent/cli/commands/test_glossary.py: "1 import — renamed"
+    tests/doctrine/missions/test_primitives.py: "1 import + 1 docstring — renamed"
+    kitty-specs/041-*/**:            "historical — do_not_change"
+    kitty-specs/058-*/**:            "historical mission tasks — manual_review (most likely do_not_change)"
+    docs/development/**:             "historical — do_not_change"
+    architecture/2.x/adr/**:         "historical — do_not_change"
+
+# -------------------------------------------------------------------------
+# Implementation gate
+# -------------------------------------------------------------------------
+# The first implementation WP (WP01 — Entanglement Inventory) re-runs the
+# scan and authors `docs/migration/glossary-extraction.md#entanglement-inventory`
+# with the authoritative count. Plan-phase numbers above are non-binding
+# estimates; WP01 output is the source of truth.

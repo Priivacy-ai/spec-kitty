@@ -1,6 +1,6 @@
 # Migration — Charter ownership consolidation
 
-**Status**: Deprecation active (landed in release 3.2.0). **Removal target**: 3.3.0.
+**Status**: Shim removed in release 3.2.0. Migration required.
 
 ## What changed
 
@@ -39,9 +39,9 @@ so the imported symbol is the same object.
 
 ## Timeline
 
-- **3.2.0** (this release): shims remain functional; importing them emits a
+- **3.1.x**: shims were functional; importing them emitted a
   single `DeprecationWarning` per process pointing at the caller.
-- **3.3.0**: shim package removed. Imports from `specify_cli.charter` will
+- **3.2.0**: shim package removed. Imports from `specify_cli.charter` will
   raise `ModuleNotFoundError`.
 
 ## How to silence the warning temporarily
@@ -58,7 +58,7 @@ warnings.filterwarnings(
 )
 ```
 
-Prefer migrating over filtering — the filter will stop working in 3.3.0 because
+Prefer migrating over filtering — the filter will stop working in 3.2.0 because
 the target module will be gone.
 
 ## Questions

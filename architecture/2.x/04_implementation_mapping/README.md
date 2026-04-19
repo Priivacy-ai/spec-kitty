@@ -19,6 +19,11 @@ This is **not** a code inventory — it maps domain responsibilities to modules,
 explains the doctrine stack layer model, and identifies where the current
 implementation aligns with or diverges from the target architecture.
 
+> **Slice-level ownership** — For the authoritative record of which package owns each
+> functional slice, where it lives today, what adapter responsibilities remain in
+> `src/specify_cli/`, and how each slice sequences for extraction, see
+> **[05_ownership_map.md](../05_ownership_map.md)**.
+
 ---
 
 ## Level 0 — System Landscape → Codebase Modules

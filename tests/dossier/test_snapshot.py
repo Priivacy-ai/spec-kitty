@@ -9,7 +9,7 @@ Test coverage:
 """
 
 import random
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
@@ -793,7 +793,7 @@ class TestSnapshotEquality:
 
     def test_snapshot_equality_ignores_timestamp(self) -> None:
         """Equality should ignore timestamp differences."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,

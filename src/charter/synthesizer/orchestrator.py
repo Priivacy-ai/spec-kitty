@@ -120,7 +120,8 @@ def synthesize(
 
     try:
         from doctrine.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
-        from specify_cli import __version__ as _SPEC_KITTY_VERSION  # noqa: PLC0415
+        from importlib.metadata import version as _pkg_version  # noqa: PLC0415
+        _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
         from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
         from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
         from .project_drg import persist as _persist_project_graph  # noqa: PLC0415

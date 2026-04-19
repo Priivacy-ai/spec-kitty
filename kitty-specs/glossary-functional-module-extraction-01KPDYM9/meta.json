@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-17T14:48:26.951886+00:00",
+  "friendly_name": "glossary functional module extraction",
+  "mission_id": "01KPDYM9H8WGXC6HH6YKEQR9Q6",
+  "mission_number": null,
+  "mission_slug": "glossary-functional-module-extraction-01KPDYM9",
+  "mission_type": "software-dev",
+  "slug": "glossary-functional-module-extraction-01KPDYM9",
+  "target_branch": "main"
+}

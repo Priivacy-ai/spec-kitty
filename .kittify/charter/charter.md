@@ -219,7 +219,7 @@ Mandatory gate:
 - A `prod-like` authenticated preflight must pass before Fly promotion and before considering SaaS integration work complete.
 
 Operational reference:
-- `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`
+- `spec-kitty-saas/docs/docker-development-modes.md` (sibling SaaS repo checkout)
 
 ---
 
