@@ -99,6 +99,34 @@ def test_fault_injection_catches_regression(tmp_path: Path) -> None:
     )
 
 
+def test_default_scan_roots_include_mission_templates(tmp_path: Path) -> None:
+    """Mission ``templates/`` directories must be scanned by default.
+
+    The current repo ships many generic mission prompt files under
+    ``src/specify_cli/missions/*/templates/`` rather than only under
+    ``command-templates/``. A banned term appearing there must therefore be
+    caught by the default repo scan.
+    """
+    mission_templates = tmp_path / "src" / "specify_cli" / "missions" / "research" / "templates"
+    mission_templates.mkdir(parents=True)
+    (mission_templates / "plan-template.md").write_text(
+        "Generic mission guidance that accidentally tells the user to run pytest.\n",
+        encoding="utf-8",
+    )
+
+    empty_allowlist = tmp_path / "allow.yaml"
+    empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")
+
+    result = run_neutrality_lint(
+        repo_root=tmp_path,
+        allowlist_path=empty_allowlist,
+    )
+    assert not result.passed
+    assert any(hit.term_id == "PY-001" for hit in result.hits), (
+        f"Expected PY-001 ('pytest') hit from mission templates; got hits={result.hits}"
+    )
+
+
 def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
     """An allowlisted file must NOT produce a hit even when it contains a banned term.
 

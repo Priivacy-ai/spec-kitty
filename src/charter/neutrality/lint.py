@@ -288,7 +288,7 @@ def _iter_charter_scan_roots(charter_root: Path) -> list[Path]:
 
 
 def _iter_mission_scan_roots(missions_root: Path) -> list[Path]:
-    """Return mission command-template and mission.yaml scan roots."""
+    """Return mission prompt/template and mission.yaml scan roots."""
     if not missions_root.exists():
         return []
 
@@ -297,9 +297,12 @@ def _iter_mission_scan_roots(missions_root: Path) -> list[Path]:
         if not mission_dir.is_dir():
             continue
         command_templates = mission_dir / "command-templates"
+        templates = mission_dir / "templates"
         mission_manifest = mission_dir / "mission.yaml"
         if command_templates.exists():
             roots.append(command_templates)
+        if templates.exists():
+            roots.append(templates)
         if mission_manifest.exists():
             roots.append(mission_manifest)
     return roots
