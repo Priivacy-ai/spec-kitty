@@ -82,6 +82,8 @@ def test_generated_adapter_missing_file_raises(tmp_path: Path) -> None:
         adapter.generate(request)
 
     assert "001-mission-type-scope-directive.directive.yaml" in exc_info.value.expected_path
+    assert exc_info.value.expected_id == "PROJECT_001"
+    assert "PROJECT_001" in str(exc_info.value)
 
 
 def test_generated_adapter_rejects_identity_mismatch(tmp_path: Path) -> None:
@@ -94,7 +96,11 @@ def test_generated_adapter_rejects_identity_mismatch(tmp_path: Path) -> None:
     with pytest.raises(GeneratedArtifactLoadError) as exc_info:
         adapter.generate(request)
 
+    assert exc_info.value.expected_id == "PROJECT_001"
+    assert exc_info.value.actual_id == "PROJECT_999"
     assert "artifact id mismatch" in str(exc_info.value)
+    assert "PROJECT_001" in str(exc_info.value)
+    assert "PROJECT_999" in str(exc_info.value)
 
 
 def test_evidence_hash_survives_synthesize_and_resynthesize_roundtrip(tmp_path: Path) -> None:

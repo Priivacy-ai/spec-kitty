@@ -226,11 +226,12 @@ class GeneratedArtifactMissingError(SynthesisError):
     expected_path: str
     kind: str
     slug: str
+    expected_id: str
 
     def __str__(self) -> str:
         return (
             f"No generated artifact found for {self.kind}:{self.slug}; "
-            f"expected YAML at {self.expected_path}. "
+            f"expected YAML at {self.expected_path} with id '{self.expected_id}'. "
             "Write the agent-authored artifact there, then rerun synthesis."
         )
 
@@ -241,12 +242,16 @@ class GeneratedArtifactLoadError(SynthesisError):
 
     artifact_path: str
     reason: str
+    expected_id: str | None = None
+    actual_id: str | None = None
 
     def __str__(self) -> str:
-        return (
-            f"Generated artifact at {self.artifact_path} could not be loaded: "
-            f"{self.reason}"
-        )
+        details = f"Generated artifact at {self.artifact_path} could not be loaded: {self.reason}"
+        if self.expected_id is not None:
+            details += f". Expected id '{self.expected_id}'"
+            if self.actual_id is not None:
+                details += f", got '{self.actual_id}'"
+        return details
 
 
 # ---------------------------------------------------------------------------

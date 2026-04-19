@@ -71,6 +71,323 @@ def _interview_path(repo_root: Path) -> Path:
     return repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
 
 
+def _display_path(path: Path, repo_root: Path) -> str:
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
+
+
+def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
+    try:
+        sync_result = ensure_charter_bundle_fresh(repo_root)
+        canonical_root = (
+            sync_result.canonical_root
+            if sync_result and sync_result.canonical_root
+            else repo_root
+        )
+        charter_path = _resolve_charter_path(canonical_root)
+        output_dir = charter_path.parent
+        metadata_path = output_dir / "metadata.yaml"
+
+        stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
+
+        files_info: list[dict[str, str | bool | float]] = []
+        for filename in [
+            "governance.yaml",
+            "directives.yaml",
+            "metadata.yaml",
+            "references.yaml",
+        ]:
+            file_path = output_dir / filename
+            if file_path.exists():
+                size = file_path.stat().st_size
+                size_kb = size / 1024
+                files_info.append(
+                    {"name": filename, "exists": True, "size_kb": size_kb}
+                )
+            else:
+                files_info.append(
+                    {"name": filename, "exists": False, "size_kb": 0.0}
+                )
+
+        library_count = (
+            len(list((output_dir / "library").glob("*.md")))
+            if (output_dir / "library").exists()
+            else 0
+        )
+
+        last_sync = None
+        if metadata_path.exists():
+            from ruamel.yaml import YAML
+
+            yaml = YAML(typ="safe")
+            metadata = yaml.load(metadata_path.read_text(encoding="utf-8")) or {}
+            if isinstance(metadata, dict):
+                last_sync = metadata.get("timestamp_utc") or metadata.get(
+                    "extracted_at"
+                )
+
+        return {
+            "available": True,
+            "charter_path": _display_path(charter_path, canonical_root),
+            "status": "stale" if stale else "synced",
+            "current_hash": current_hash,
+            "stored_hash": stored_hash,
+            "last_sync": last_sync,
+            "library_docs": library_count,
+            "files": files_info,
+        }
+    except TaskCliError as exc:
+        return {
+            "available": False,
+            "error": str(exc),
+        }
+
+
+def _collect_generated_input_status(repo_root: Path) -> dict[str, Any]:
+    input_root = repo_root / ".kittify" / "charter" / "generated"
+    counts = {
+        "directive": len(list((input_root / "directives").glob("*.yaml"))),
+        "tactic": len(list((input_root / "tactics").glob("*.yaml"))),
+        "styleguide": len(list((input_root / "styleguides").glob("*.yaml"))),
+    }
+    return {
+        "path": _display_path(input_root, repo_root),
+        "exists": input_root.exists(),
+        "counts": counts,
+        "total": sum(counts.values()),
+    }
+
+
+def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | None]:
+    from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
+
+    manifest_path = repo_root / MANIFEST_PATH
+    doctrine_root = repo_root / ".kittify" / "doctrine"
+    provenance_root = repo_root / ".kittify" / "charter" / "provenance"
+    live_artifact_count = sum(
+        len(list((doctrine_root / subdir).glob("*.yaml")))
+        for subdir in ("directives", "tactics", "styleguides")
+    )
+    live_provenance_count = len(list(provenance_root.glob("*.yaml")))
+
+    if not manifest_path.exists():
+        state = "partial" if live_artifact_count or live_provenance_count else "missing"
+        return (
+            {
+                "path": _display_path(manifest_path, repo_root),
+                "exists": False,
+                "state": state,
+                "artifact_count": 0,
+                "live_artifact_count": live_artifact_count,
+                "live_provenance_count": live_provenance_count,
+                "run_id": None,
+                "created_at": None,
+                "adapter_id": None,
+                "adapter_version": None,
+                "missing_provenance_paths": [],
+                "error": None,
+            },
+            None,
+        )
+
+    try:
+        manifest = load_yaml(manifest_path)
+        try:
+            verify(manifest, repo_root)
+            state = "valid"
+            error = None
+        except Exception as exc:  # noqa: BLE001
+            state = "invalid"
+            error = str(exc)
+    except Exception as exc:  # noqa: BLE001
+        return (
+            {
+                "path": _display_path(manifest_path, repo_root),
+                "exists": True,
+                "state": "invalid",
+                "artifact_count": 0,
+                "live_artifact_count": live_artifact_count,
+                "live_provenance_count": live_provenance_count,
+                "run_id": None,
+                "created_at": None,
+                "adapter_id": None,
+                "adapter_version": None,
+                "missing_provenance_paths": [],
+                "error": f"manifest could not be parsed: {exc}",
+            },
+            None,
+        )
+
+    missing_provenance_paths = [
+        entry.provenance_path
+        for entry in manifest.artifacts
+        if not (repo_root / entry.provenance_path).exists()
+    ]
+
+    return (
+        {
+            "path": _display_path(manifest_path, repo_root),
+            "exists": True,
+            "state": state,
+            "artifact_count": len(manifest.artifacts),
+            "live_artifact_count": live_artifact_count,
+            "live_provenance_count": live_provenance_count,
+            "run_id": manifest.run_id,
+            "created_at": manifest.created_at,
+            "adapter_id": manifest.adapter_id,
+            "adapter_version": manifest.adapter_version,
+            "missing_provenance_paths": missing_provenance_paths,
+            "error": error,
+        },
+        manifest,
+    )
+
+
+def _collect_provenance_status(
+    repo_root: Path,
+    manifest: Any | None,
+    *,
+    include_entries: bool,
+) -> dict[str, Any]:
+    from charter.synthesizer.provenance import load_yaml as load_provenance
+
+    provenance_root = repo_root / ".kittify" / "charter" / "provenance"
+    paths = sorted(provenance_root.glob("*.yaml"))
+    warnings: list[str] = []
+    entries: list[dict[str, Any]] = []
+    visible_paths = {_display_path(path, repo_root) for path in paths}
+    manifest_paths = (
+        {entry.provenance_path for entry in manifest.artifacts}
+        if manifest is not None
+        else set()
+    )
+    corpus_snapshot_ids: set[str] = set()
+    adapters: set[str] = set()
+
+    for path in paths:
+        rel_path = _display_path(path, repo_root)
+        try:
+            entry = load_provenance(path)
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"{rel_path}: {exc}")
+            continue
+
+        if entry.corpus_snapshot_id:
+            corpus_snapshot_ids.add(entry.corpus_snapshot_id)
+        adapters.add(f"{entry.adapter_id}@{entry.adapter_version}")
+
+        if include_entries:
+            entries.append(
+                {
+                    "path": rel_path,
+                    "kind": entry.artifact_kind,
+                    "slug": entry.artifact_slug,
+                    "artifact_urn": entry.artifact_urn,
+                    "adapter_id": entry.adapter_id,
+                    "adapter_version": entry.adapter_version,
+                    "corpus_snapshot_id": entry.corpus_snapshot_id,
+                    "evidence_bundle_hash": entry.evidence_bundle_hash,
+                    "generated_at": entry.generated_at,
+                }
+            )
+
+    missing_for_manifest = sorted(manifest_paths - visible_paths)
+    return {
+        "path": _display_path(provenance_root, repo_root),
+        "count": len(paths),
+        "parsed_count": len(paths) - len(warnings),
+        "manifest_artifact_count": len(manifest_paths),
+        "missing_for_manifest_count": len(missing_for_manifest),
+        "missing_for_manifest": missing_for_manifest,
+        "corpus_snapshot_ids": sorted(corpus_snapshot_ids),
+        "adapters": sorted(adapters),
+        "warnings": warnings,
+        "entries": entries,
+    }
+
+
+def _summarize_evidence(repo_root: Path) -> dict[str, Any]:
+    evidence_result = _collect_evidence_result(
+        repo_root,
+        skip_code_evidence=False,
+        skip_corpus=False,
+    )
+    bundle = evidence_result.bundle
+    code_summary: dict[str, Any] | None = None
+    if bundle.code_signals is not None:
+        code_summary = {
+            "stack_id": bundle.code_signals.stack_id,
+            "primary_language": bundle.code_signals.primary_language,
+            "frameworks": list(bundle.code_signals.frameworks),
+            "test_frameworks": list(bundle.code_signals.test_frameworks),
+            "representative_files_count": len(
+                bundle.code_signals.representative_files
+            ),
+            "representative_files_preview": list(
+                bundle.code_signals.representative_files[:5]
+            ),
+        }
+
+    return {
+        "warnings": evidence_result.warnings,
+        "code": code_summary,
+        "configured_urls": list(bundle.url_list),
+        "configured_url_count": len(bundle.url_list),
+        "corpus_snapshot_id": (
+            bundle.corpus_snapshot.snapshot_id
+            if bundle.corpus_snapshot is not None
+            else None
+        ),
+        "corpus_entry_count": (
+            len(bundle.corpus_snapshot.entries)
+            if bundle.corpus_snapshot is not None
+            else 0
+        ),
+    }
+
+
+def _collect_synthesis_status(
+    repo_root: Path,
+    *,
+    include_provenance: bool,
+) -> dict[str, Any]:
+    generated_inputs = _collect_generated_input_status(repo_root)
+    manifest_status, manifest = _collect_manifest_status(repo_root)
+    provenance_status = _collect_provenance_status(
+        repo_root,
+        manifest,
+        include_entries=include_provenance,
+    )
+    evidence_summary = _summarize_evidence(repo_root)
+
+    if (
+        manifest_status["state"] == "valid"
+        and provenance_status["missing_for_manifest_count"] == 0
+        and not provenance_status["warnings"]
+    ):
+        generation_state = "promoted"
+    elif (
+        manifest_status["state"] in {"invalid", "partial"}
+        or provenance_status["missing_for_manifest_count"] > 0
+        or provenance_status["warnings"]
+    ):
+        generation_state = "needs_attention"
+    elif generated_inputs["total"] > 0:
+        generation_state = "ready_for_validation"
+    else:
+        generation_state = "not_started"
+
+    return {
+        "generation_state": generation_state,
+        "generated_inputs": generated_inputs,
+        "manifest": manifest_status,
+        "provenance": provenance_status,
+        "evidence": evidence_summary,
+    }
+
+
 @app.command()
 def interview(
     mission_type: str | None = typer.Option(
@@ -399,95 +716,188 @@ def sync(
 
 
 @app.command()
-def status(
+def status(  # noqa: C901
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+    provenance: bool = typer.Option(
+        False,
+        "--provenance",
+        help="Include per-artifact provenance details.",
+    ),
 ) -> None:
-    """Display charter sync status."""
+    """Display charter sync status plus synthesis/operator state."""
     try:
         repo_root = find_repo_root()
-        # FR-004 chokepoint: route the status handler through
-        # ``ensure_charter_bundle_fresh`` so the displayed metadata reflects
-        # a freshly synced bundle, and so the displayed paths are anchored at
-        # the canonical (main-checkout) root even when invoked from a worktree.
-        sync_result = ensure_charter_bundle_fresh(repo_root)
-        canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
-        charter_path = _resolve_charter_path(canonical_root)
-        output_dir = charter_path.parent
-        metadata_path = output_dir / "metadata.yaml"
-
-        stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
-
-        files_info: list[dict[str, str | bool | float]] = []
-        for filename in ["governance.yaml", "directives.yaml", "metadata.yaml", "references.yaml"]:
-            file_path = output_dir / filename
-            if file_path.exists():
-                size = file_path.stat().st_size
-                size_kb = size / 1024
-                files_info.append({"name": filename, "exists": True, "size_kb": size_kb})
-            else:
-                files_info.append({"name": filename, "exists": False, "size_kb": 0.0})
-
-        library_count = len(list((output_dir / "library").glob("*.md"))) if (output_dir / "library").exists() else 0
-
-        last_sync = None
-        if metadata_path.exists():
-            from ruamel.yaml import YAML
-
-            yaml = YAML(typ="safe")
-            metadata = yaml.load(metadata_path.read_text(encoding="utf-8")) or {}
-            if isinstance(metadata, dict):
-                last_sync = metadata.get("timestamp_utc") or metadata.get("extracted_at")
+        payload = {
+            "result": "success",
+            "charter_sync": _collect_charter_sync_status(repo_root),
+            "synthesis": _collect_synthesis_status(
+                repo_root,
+                include_provenance=provenance,
+            ),
+        }
 
         if json_output:
-            data = {
-                "charter_path": str(charter_path.relative_to(canonical_root)),
-                "status": "stale" if stale else "synced",
-                "current_hash": current_hash,
-                "stored_hash": stored_hash,
-                "last_sync": last_sync,
-                "library_docs": library_count,
-                "files": files_info,
-            }
-            print(json.dumps(data, indent=2))
+            print(json.dumps(payload, indent=2))
             return
 
-        console.print(f"Charter: {charter_path.relative_to(canonical_root)}")
-
-        if stale:
-            console.print("Status: [yellow]STALE[/yellow] (modified since last sync)")
-            if stored_hash:
-                console.print(f"Expected hash: {stored_hash}")
-            console.print(f"Current hash:  {current_hash}")
-            console.print("\n[dim]Run: spec-kitty charter sync[/dim]")
-        else:
-            console.print("Status: [green]SYNCED[/green]")
-            if last_sync:
-                console.print(f"Last sync: {last_sync}")
-            console.print(f"Hash: {current_hash}")
-
-        console.print(f"Library docs: {library_count}")
-
-        console.print("\nExtracted files:")
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("File", style="cyan")
-        table.add_column("Status", justify="center")
-        table.add_column("Size", justify="right")
-
-        for file_info in files_info:
-            name = str(file_info["name"])
-            exists = bool(file_info["exists"])
-            size_kb = float(file_info["size_kb"])
-
-            if exists:
-                status_icon = "[green]Y[/green]"
-                size_str = f"{size_kb:.1f} KB"
+        sync_status = payload["charter_sync"]
+        console.print("[bold]Charter sync[/bold]")
+        if sync_status["available"]:
+            console.print(f"Charter: {sync_status['charter_path']}")
+            if sync_status["status"] == "stale":
+                console.print(
+                    "Status: [yellow]STALE[/yellow] (modified since last sync)"
+                )
+                if sync_status["stored_hash"]:
+                    console.print(f"Expected hash: {sync_status['stored_hash']}")
+                console.print(f"Current hash:  {sync_status['current_hash']}")
+                console.print("\n[dim]Run: spec-kitty charter sync[/dim]")
             else:
-                status_icon = "[red]N[/red]"
-                size_str = "[dim]-[/dim]"
+                console.print("Status: [green]SYNCED[/green]")
+                if sync_status["last_sync"]:
+                    console.print(f"Last sync: {sync_status['last_sync']}")
+                console.print(f"Hash: {sync_status['current_hash']}")
 
-            table.add_row(name, status_icon, size_str)
+            console.print(f"Library docs: {sync_status['library_docs']}")
+            console.print("\nExtracted files:")
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("File", style="cyan")
+            table.add_column("Status", justify="center")
+            table.add_column("Size", justify="right")
 
-        console.print(table)
+            for file_info in sync_status["files"]:
+                name = str(file_info["name"])
+                exists = bool(file_info["exists"])
+                size_kb = float(file_info["size_kb"])
+
+                if exists:
+                    status_icon = "[green]Y[/green]"
+                    size_str = f"{size_kb:.1f} KB"
+                else:
+                    status_icon = "[red]N[/red]"
+                    size_str = "[dim]-[/dim]"
+
+                table.add_row(name, status_icon, size_str)
+
+            console.print(table)
+        else:
+            console.print(
+                f"[yellow]Unavailable[/yellow]: {sync_status['error']}"
+            )
+
+        synthesis = payload["synthesis"]
+        manifest = synthesis["manifest"]
+        generated_inputs = synthesis["generated_inputs"]
+        evidence = synthesis["evidence"]
+        provenance_status = synthesis["provenance"]
+
+        state_styles = {
+            "promoted": "green",
+            "ready_for_validation": "yellow",
+            "needs_attention": "red",
+            "not_started": "blue",
+        }
+        state = synthesis["generation_state"]
+        state_style = state_styles.get(state, "white")
+
+        console.print("\n[bold]Synthesis[/bold]")
+        console.print(
+            f"Generation state: [{state_style}]{state.upper()}[/{state_style}]"
+        )
+        console.print(
+            "Generated inputs: "
+            f"{generated_inputs['counts']['directive']} directive, "
+            f"{generated_inputs['counts']['tactic']} tactic, "
+            f"{generated_inputs['counts']['styleguide']} styleguide "
+            f"under {generated_inputs['path']}"
+        )
+
+        manifest_state_style = {
+            "valid": "green",
+            "missing": "blue",
+            "partial": "yellow",
+            "invalid": "red",
+        }.get(manifest["state"], "white")
+        console.print(
+            f"Manifest: [{manifest_state_style}]{manifest['state'].upper()}[/{manifest_state_style}] "
+            f"({manifest['path']})"
+        )
+        if manifest["exists"]:
+            if manifest["run_id"] and manifest["adapter_id"] and manifest["adapter_version"]:
+                console.print(
+                    f"  Run: {manifest['run_id']}  Adapter: {manifest['adapter_id']} v{manifest['adapter_version']}"
+                )
+            console.print(
+                f"  Artifacts: {manifest['artifact_count']} "
+                f"(live doctrine files: {manifest['live_artifact_count']})"
+            )
+        if manifest["error"]:
+            console.print(f"  [red]Error:[/red] {manifest['error']}")
+        if manifest["missing_provenance_paths"]:
+            console.print("  Missing provenance paths:")
+            for path in manifest["missing_provenance_paths"]:
+                console.print(f"    [red]-[/red] {path}")
+
+        if evidence["code"] is not None:
+            code = evidence["code"]
+            console.print(
+                "Evidence: "
+                f"stack={code['stack_id']} "
+                f"(lang={code['primary_language']}, "
+                f"frameworks={len(code['frameworks'])}, "
+                f"test_frameworks={len(code['test_frameworks'])})"
+            )
+        else:
+            console.print("Evidence: code signals unavailable")
+        console.print(
+            f"  Configured URLs: {evidence['configured_url_count']}  "
+            f"Corpus snapshot: {evidence['corpus_snapshot_id'] or '(none)'}"
+        )
+        if evidence["warnings"]:
+            for warning in evidence["warnings"]:
+                console.print(f"  [yellow]Warning:[/yellow] {warning}")
+
+        console.print(
+            "Provenance: "
+            f"{provenance_status['parsed_count']} visible sidecar(s)"
+        )
+        if provenance_status["manifest_artifact_count"]:
+            console.print(
+                "  Manifest coverage: "
+                f"{provenance_status['manifest_artifact_count'] - provenance_status['missing_for_manifest_count']}/"
+                f"{provenance_status['manifest_artifact_count']}"
+            )
+        if provenance_status["corpus_snapshot_ids"]:
+            console.print(
+                "  Corpus snapshots: "
+                + ", ".join(provenance_status["corpus_snapshot_ids"])
+            )
+        if provenance_status["warnings"]:
+            for warning in provenance_status["warnings"]:
+                console.print(f"  [yellow]Warning:[/yellow] {warning}")
+
+        if provenance and provenance_status["entries"]:
+            console.print("\nProvenance entries:")
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("Kind", style="cyan")
+            table.add_column("Slug", style="cyan")
+            table.add_column("Artifact URN", style="magenta")
+            table.add_column("Adapter")
+            table.add_column("Corpus")
+            table.add_column("Evidence Hash")
+
+            for entry in provenance_status["entries"]:
+                evidence_hash = entry["evidence_bundle_hash"] or ""
+                table.add_row(
+                    str(entry["kind"]),
+                    str(entry["slug"]),
+                    str(entry["artifact_urn"]),
+                    f"{entry['adapter_id']} v{entry['adapter_version']}",
+                    str(entry["corpus_snapshot_id"] or "-"),
+                    evidence_hash[:12] if evidence_hash else "-",
+                )
+
+            console.print(table)
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
