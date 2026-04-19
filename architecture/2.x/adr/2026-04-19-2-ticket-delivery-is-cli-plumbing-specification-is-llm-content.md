@@ -112,10 +112,14 @@ NOT write mission specification content. It MUST hand off to the LLM.
 
 1. Detect the presence of `.kittify/ticket-context.md` and treat it as the
    mission brief.
-2. Read the full ticket content — title, body, labels, comments — and produce
-   a spec from it using normal specification reasoning.
-3. On completion, call `spec-kitty agent mission finalize-origin` (or equivalent)
-   to confirm the mission and trigger SaaS finalisation.
+2. Read the full ticket content — title, body, labels, comments — as written to
+   `.kittify/ticket-context.md` by the CLI (the context file includes labels and
+   comments in addition to the standard fields) and produce a spec from it using
+   normal specification reasoning.
+3. On completion, call the mission origin finalisation surface (exact command name
+   to be determined by sk#695 implementation; the current placeholder is
+   `spec-kitty agent mission finalize-origin`) to confirm the mission and trigger
+   SaaS finalisation.
 
 **SaaS (on mission confirmation):**
 
@@ -132,10 +136,15 @@ NOT write mission specification content. It MUST hand off to the LLM.
   Abandoned specify runs MUST NOT leave comments on tracker issues.
 - `/spec-kitty.specify` MUST treat `.kittify/ticket-context.md` as optional
   context, not a required input. The specify flow must work without it.
-- The `mission_id` reserved at `mission create` time MUST be the same one
-  assigned to the resulting mission. The CLI MUST NOT allow a second `mission
+- The SaaS provisional record ID assigned at `mission create` time MUST be the
+  same one promoted to confirmed when the mission is finalised. This is a
+  SaaS-internal record ID, not the spec-kitty mission ULID (as defined in
+  `2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md`); the two
+  namespaces are separate. The CLI MUST NOT allow a second `mission
   create --from-ticket` on the same ticket to create a duplicate pending record
-  while one is already active.
+  while one is already active. Deduplication is checked against the local
+  `.kittify/` state first; if local state is absent, the CLI queries SaaS to
+  confirm no active pending record exists for that ticket ID and repo.
 
 ---
 
@@ -156,13 +165,16 @@ NOT write mission specification content. It MUST hand off to the LLM.
   `/spec-kitty.specify`. A user who runs the command and walks away will have a
   dangling pending origin record that must be cleaned up.
 - The CLI must implement a pending-origin TTL or explicit cancel path to prevent
-  orphaned records accumulating on SaaS.
+  orphaned records accumulating on SaaS. The specific TTL value and cancel
+  interface are deferred to sk#695; a provisional default of 7 days is assumed
+  until that implementation decides otherwise.
 
 ### Neutral
 
 - The ticket context file is a normalised Markdown document. Its schema is
-  intentionally simple: a heading, standard fields (status, assignee, URL), and
-  the raw body. The LLM is not constrained to a fixed template.
+  intentionally simple: a heading, standard fields (status, assignee, URL), the
+  raw body, labels (as a comma-separated list), and any comments appended in
+  chronological order. The LLM is not constrained to a fixed template.
 
 ---
 
@@ -185,7 +197,7 @@ This decision is validated when:
 
 ## Related ADRs
 
-- `2026-03-09-1-prompts-do-not-discover-context-commands-do.md` — the parent
+- `architecture/adrs/2026-03-09-1-prompts-do-not-discover-context-commands-do.md` — the parent
   principle: commands own execution context, LLMs own content reasoning. This ADR
   applies that principle to the ticket-to-mission surface.
 - `2026-04-04-1-tracker-binding-context-is-discovered-not-user-supplied.md` —
