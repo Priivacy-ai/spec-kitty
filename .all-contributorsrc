@@ -410,6 +410,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Regnology",
+      "name": "Regnology Germany GmbH",
+      "avatar_url": "https://avatars.githubusercontent.com/u/109597127?v=4",
+      "profile": "https://www.regnology.net/en/",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }
