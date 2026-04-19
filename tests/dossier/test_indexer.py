@@ -224,7 +224,7 @@ class TestMissingArtifactDetection:
             mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
-            manifest=manifest.dict(),
+            manifest=manifest.model_dump(),
         )
 
         # Mock manifest registry
@@ -265,7 +265,7 @@ class TestMissingArtifactDetection:
             mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
-            manifest=manifest.dict(),
+            manifest=manifest.model_dump(),
         )
 
         indexer = Indexer(ManifestRegistry())
@@ -308,7 +308,7 @@ class TestMissingArtifactDetection:
             mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
-            manifest=manifest.dict(),
+            manifest=manifest.model_dump(),
         )
 
         indexer = Indexer(ManifestRegistry())
@@ -337,7 +337,7 @@ class TestMissingArtifactDetection:
             mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
-            manifest=manifest.dict(),
+            manifest=manifest.model_dump(),
         )
 
         indexer = Indexer(ManifestRegistry())
@@ -366,7 +366,7 @@ class TestMissingArtifactDetection:
             mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
-            manifest=manifest.dict(),
+            manifest=manifest.model_dump(),
         )
 
         indexer = Indexer(ManifestRegistry())

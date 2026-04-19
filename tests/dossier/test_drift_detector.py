@@ -542,7 +542,7 @@ class TestDriftDetection:
             baseline_key=key,
             baseline_key_hash=key.compute_hash(),
             parity_hash_sha256="a" * 64,
-            captured_at=datetime.utcnow(),
+            captured_at=datetime.now(UTC),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -582,7 +582,7 @@ class TestDriftDetection:
             baseline_key=key,
             baseline_key_hash=key.compute_hash(),
             parity_hash_sha256="a" * 64,  # Baseline hash
-            captured_at=datetime.utcnow(),
+            captured_at=datetime.now(UTC),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
@@ -648,7 +648,7 @@ class TestDriftDetection:
             baseline_key=old_key,
             baseline_key_hash=old_key.compute_hash(),
             parity_hash_sha256="a" * 64,
-            captured_at=datetime.utcnow(),
+            captured_at=datetime.now(UTC),
             captured_by="abcdef123456",
         )
         save_baseline("042-local-mission-dossier", baseline, tmp_path)

@@ -9,7 +9,7 @@ Tests cover:
 
 import json
 import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 from pydantic import ValidationError
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
@@ -350,7 +350,7 @@ class TestArtifactRefSerialization:
             required_status="required",
         )
         # Use json_compatible approach for testing
-        json_data = json.loads(artifact.json())
+        json_data = json.loads(artifact.model_dump_json())
         assert json_data["artifact_key"] == "test.key"
         assert json_data["artifact_class"] == "input"
         assert json_data["relative_path"] == "spec.md"
@@ -374,10 +374,10 @@ class TestArtifactRefSerialization:
             error_reason=None,
         )
         # Serialize to JSON
-        json_str = original.json()
+        json_str = original.model_dump_json()
 
         # Deserialize back
-        restored = ArtifactRef.parse_raw(json_str)
+        restored = ArtifactRef.model_validate_json(json_str)
 
         # Verify all fields match
         assert restored.artifact_key == original.artifact_key
@@ -393,7 +393,7 @@ class TestArtifactRefSerialization:
 
     def test_datetime_serialization(self):
         """Datetime fields serialize to ISO format."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         artifact = ArtifactRef(
             artifact_key="test",
             artifact_class="input",
@@ -402,7 +402,7 @@ class TestArtifactRefSerialization:
             size_bytes=1024,
             indexed_at=now,
         )
-        json_data = json.loads(artifact.json())
+        json_data = json.loads(artifact.model_dump_json())
         # Should be ISO format
         assert isinstance(json_data["indexed_at"], str)
         assert "T" in json_data["indexed_at"]  # ISO datetime format
