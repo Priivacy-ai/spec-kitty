@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Charter synthesizer now has a real harness-owned operator path: the new generated-artifact adapter reads agent-authored YAML from `.kittify/charter/generated/` and promotes validated doctrine into the live `.kittify/doctrine/` tree.
+- `spec-kitty charter resynthesize --list-topics` now lists valid project-artifact selectors, DRG URNs, and interview-section selectors, including hyphenated aliases for section names.
+
+### Changed
+
+- `spec-kitty charter synthesize` and `spec-kitty charter resynthesize` now default to the generated-artifact adapter. `--adapter fixture` remains available only for deterministic offline regression runs.
+- `spec-kitty charter synthesize --dry-run` is now a real stage-and-validate pass: it writes the staged artifact set, runs project DRG validation and neutrality gating, and only skips the final promote step.
+
+### Fixed
+
+- Directive provenance now records canonical URNs (`directive:PROJECT_<NNN>`) instead of slug-based placeholders, which restores correct directive filenames, provenance reload, and `directive:PROJECT_<NNN>` resynthesis.
+- Bounded resynthesis now preserves evidence inputs end-to-end, so regenerated provenance entries keep the correct `evidence_bundle_hash` and `corpus_snapshot_id`.
+
 ## [3.2.0] - 2026-04-19
 
 ### Removed
