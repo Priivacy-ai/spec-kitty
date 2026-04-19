@@ -75,21 +75,21 @@ class GeneratedArtifactAdapter:
         path: Path,
     ) -> None:
         raw_id = body.get("id")
+        expected_id = request.target.artifact_id
         if not isinstance(raw_id, str) or not raw_id.strip():
             raise GeneratedArtifactLoadError(
                 artifact_path=str(path),
                 reason="artifact body must include a non-empty 'id' field",
+                expected_id=expected_id,
             )
 
-        expected_id = request.target.artifact_id
         actual_id = raw_id.strip()
         if actual_id != expected_id:
             raise GeneratedArtifactLoadError(
                 artifact_path=str(path),
-                reason=(
-                    f"artifact id mismatch: expected '{expected_id}', "
-                    f"got '{actual_id}'"
-                ),
+                reason="artifact id mismatch",
+                expected_id=expected_id,
+                actual_id=actual_id,
             )
 
     def generate(self, request: SynthesisRequest) -> AdapterOutput:
@@ -99,6 +99,7 @@ class GeneratedArtifactAdapter:
                 expected_path=str(path),
                 kind=request.target.kind,
                 slug=request.target.slug,
+                expected_id=request.target.artifact_id,
             )
 
         body = self._load_body(path)

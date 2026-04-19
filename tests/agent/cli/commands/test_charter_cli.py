@@ -113,8 +113,8 @@ def test_status_command_json_output(mock_repo: Path) -> None:
 
         assert result.exit_code == 0
         data = json.loads(result.stdout)
-        assert data["status"] == "synced"
-        assert len(data["files"]) == 4
+        assert data["charter_sync"]["status"] == "synced"
+        assert len(data["charter_sync"]["files"]) == 4
 
 
 def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
