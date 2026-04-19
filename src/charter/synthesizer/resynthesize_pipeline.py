@@ -31,6 +31,7 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,6 +49,14 @@ from .manifest import (
 from .request import SynthesisRequest, SynthesisTarget
 from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
+
+_KITTIFY_DIRNAME = ".kittify"
+_DIRECTIVE_DEFAULT_NUMERIC_SEGMENT = "000"
+_DOCTRINE_SUBDIRS = {
+    "directive": "directives",
+    "tactic": "tactics",
+    "styleguide": "styleguides",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -88,6 +97,92 @@ def _new_ulid() -> str:
     return ts_part + rand_part
 
 
+def _directive_numeric_segment(artifact_id: str | None) -> str:
+    """Extract the numeric suffix from a directive artifact id."""
+    if not artifact_id:
+        return _DIRECTIVE_DEFAULT_NUMERIC_SEGMENT
+
+    _, _, suffix = artifact_id.rpartition("_")
+    return suffix.zfill(3) if suffix.isdigit() else _DIRECTIVE_DEFAULT_NUMERIC_SEGMENT
+
+
+def _manifest_filename(kind: str, slug: str, artifact_id: str | None) -> str:
+    """Return the manifest content filename for a synthesized artifact."""
+    if kind == "directive":
+        return f"{_directive_numeric_segment(artifact_id)}-{slug}.directive.yaml"
+    if kind == "tactic":
+        return f"{slug}.tactic.yaml"
+    if kind == "styleguide":
+        return f"{slug}.styleguide.yaml"
+    raise ValueError(f"Unknown artifact kind: {kind!r}")
+
+
+def _doctrine_subdir(kind: str) -> str:
+    return _DOCTRINE_SUBDIRS[kind]
+
+
+def _artifact_id_from_provenance(kind: str, artifact_urn: str) -> str | None:
+    if kind != "directive":
+        return None
+    return artifact_urn.split(":", 1)[1]
+
+
+def _build_manifest_entry(body: Mapping[str, Any], prov: ProvenanceEntry) -> ManifestArtifactEntry:
+    kind = prov.artifact_kind
+    slug = prov.artifact_slug
+    artifact_id = _artifact_id_from_provenance(kind, prov.artifact_urn)
+    filename = _manifest_filename(kind, slug, artifact_id)
+    yaml_bytes = canonical_yaml(body)
+    content_hash = hashlib.sha256(yaml_bytes).hexdigest()
+    rel_content = f"{_KITTIFY_DIRNAME}/doctrine/{_doctrine_subdir(kind)}/{filename}"
+    rel_prov = f"{_KITTIFY_DIRNAME}/charter/provenance/{kind}-{slug}.yaml"
+    return ManifestArtifactEntry(
+        kind=kind,  # type: ignore[arg-type]
+        slug=slug,
+        path=rel_content,
+        provenance_path=rel_prov,
+        content_hash=content_hash,
+    )
+
+
+def _merge_manifest_entries(
+    existing: SynthesisManifest,
+    new_entries_by_key: Mapping[tuple[str, str], ManifestArtifactEntry],
+) -> list[ManifestArtifactEntry]:
+    """Update existing entries in place and append genuinely new ones."""
+    merged: list[ManifestArtifactEntry] = []
+    existing_keys: set[tuple[str, str]] = set()
+
+    for entry in existing.artifacts:
+        key = (entry.kind, entry.slug)
+        existing_keys.add(key)
+        merged.append(new_entries_by_key.get(key, entry))
+
+    for key, new_entry in new_entries_by_key.items():
+        if key not in existing_keys:
+            merged.append(new_entry)
+
+    return merged
+
+
+def _resolve_adapter_identity(
+    existing: SynthesisManifest,
+    new_adapter_ids: set[str],
+    new_adapter_versions: set[str],
+) -> tuple[str, str]:
+    """Prefer a unique adapter identity from regenerated artifacts."""
+    if len(new_adapter_ids) != 1:
+        return existing.adapter_id, existing.adapter_version
+
+    primary_adapter_id = next(iter(new_adapter_ids))
+    primary_adapter_version = (
+        next(iter(new_adapter_versions))
+        if len(new_adapter_versions) == 1
+        else existing.adapter_version
+    )
+    return primary_adapter_id, primary_adapter_version
+
+
 def _rewrite_manifest(
     existing: SynthesisManifest,
     new_results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
@@ -116,30 +211,7 @@ def _rewrite_manifest(
     SynthesisManifest
         The merged manifest (not yet written to disk; caller does the write).
     """
-    import hashlib
-    import re
     from datetime import UTC, datetime
-
-    # Filename helper (mirrors write_pipeline._artifact_filename)
-    _DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
-
-    def _filename(kind: str, slug: str, artifact_id: str | None) -> str:
-        if kind == "directive":
-            nnn = "000"
-            if artifact_id:
-                m = _DIRECTIVE_NUM_RE.search(artifact_id)
-                if m:
-                    nnn = m.group(1).zfill(3)
-            return f"{nnn}-{slug}.directive.yaml"
-        elif kind == "tactic":
-            return f"{slug}.tactic.yaml"
-        elif kind == "styleguide":
-            return f"{slug}.styleguide.yaml"
-        else:
-            raise ValueError(f"Unknown artifact kind: {kind!r}")
-
-    def _doctrine_subdir(kind: str) -> str:
-        return {"directive": "directives", "tactic": "tactics", "styleguide": "styleguides"}[kind]
 
     # Build a key → new ManifestArtifactEntry dict for regenerated artifacts
     new_entries_by_key: dict[tuple[str, str], ManifestArtifactEntry] = {}
@@ -149,50 +221,16 @@ def _rewrite_manifest(
     for body, prov in new_results:
         kind = prov.artifact_kind
         slug = prov.artifact_slug
-        artifact_id: str | None = None
-        if kind == "directive":
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
-
-        filename = _filename(kind, slug, artifact_id)
-        yaml_bytes = canonical_yaml(body)
-        content_hash = hashlib.sha256(yaml_bytes).hexdigest()
-
-        rel_content = f".kittify/doctrine/{_doctrine_subdir(kind)}/{filename}"
-        rel_prov = f".kittify/charter/provenance/{kind}-{slug}.yaml"
-
-        new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
-            kind=kind,  # type: ignore[arg-type]
-            slug=slug,
-            path=rel_content,
-            provenance_path=rel_prov,
-            content_hash=content_hash,
-        )
+        new_entries_by_key[(kind, slug)] = _build_manifest_entry(body, prov)
         new_adapter_ids.add(prov.adapter_id)
         new_adapter_versions.add(prov.adapter_version)
 
-    # Merge: existing entries updated where regenerated, retained otherwise
-    merged: list[ManifestArtifactEntry] = []
-    existing_keys: set[tuple[str, str]] = set()
-    for entry in existing.artifacts:
-        key = (entry.kind, entry.slug)
-        existing_keys.add(key)
-        if key in new_entries_by_key:
-            merged.append(new_entries_by_key[key])
-        else:
-            merged.append(entry)
-
-    # Add genuinely new artifacts (not previously in the manifest)
-    for key, new_entry in new_entries_by_key.items():
-        if key not in existing_keys:
-            merged.append(new_entry)
-
-    # Adapter identity (aggregate from new results; fall back to existing)
-    if len(new_adapter_ids) == 1:
-        primary_adapter_id = new_adapter_ids.pop()
-        primary_adapter_version = new_adapter_versions.pop() if len(new_adapter_versions) == 1 else existing.adapter_version
-    else:
-        primary_adapter_id = existing.adapter_id
-        primary_adapter_version = existing.adapter_version
+    merged = _merge_manifest_entries(existing, new_entries_by_key)
+    primary_adapter_id, primary_adapter_version = _resolve_adapter_identity(
+        existing,
+        new_adapter_ids,
+        new_adapter_versions,
+    )
 
     return SynthesisManifest(
         schema_version="1",
@@ -442,7 +480,7 @@ def run(
             spec_kitty_version=_SPEC_KITTY_VERSION,
             shipped_drg=shipped_drg,
         )
-        existing_graph_path = _repo_root / ".kittify" / "doctrine" / "graph.yaml"
+        existing_graph_path = _repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
         project_graph = updated_overlay
         if existing_graph_path.exists():
             project_graph = _merge_project_overlay(
@@ -472,7 +510,7 @@ def run(
 
     guard = _PathGuard(
         repo_root=_repo_root,
-        extra_allowed_prefixes=(_repo_root / ".kittify",),
+        extra_allowed_prefixes=(_repo_root / _KITTIFY_DIRNAME,),
     )
     _dump_manifest(new_manifest, manifest_path, guard)
 
@@ -504,7 +542,7 @@ def _load_project_artifacts_from_provenance(
     """
     from ruamel.yaml import YAML  # noqa: PLC0415
 
-    prov_dir = repo_root / ".kittify" / "charter" / "provenance"
+    prov_dir = repo_root / _KITTIFY_DIRNAME / "charter" / "provenance"
     if not prov_dir.exists():
         return []
 
@@ -548,7 +586,7 @@ def _load_merged_drg(
     """
     from ruamel.yaml import YAML  # noqa: PLC0415
 
-    project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    project_graph_path = repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
     if not project_graph_path.exists():
         return request.drg_snapshot
 

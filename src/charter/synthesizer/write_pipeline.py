@@ -30,7 +30,6 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 from __future__ import annotations
 
 import hashlib
-import re
 from collections.abc import Callable, Mapping
 from datetime import datetime, UTC
 from pathlib import Path
@@ -53,7 +52,22 @@ from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
 # Filename helpers (data-model §E-2 "Filename rule")
 # ---------------------------------------------------------------------------
 
-_DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
+_KITTIFY_DIRNAME = ".kittify"
+_DIRECTIVE_DEFAULT_NUMERIC_SEGMENT = "000"
+_DOCTRINE_SUBDIRS = {
+    "directive": "directives",
+    "tactic": "tactics",
+    "styleguide": "styleguides",
+}
+
+
+def _directive_numeric_segment(artifact_id: str | None) -> str:
+    """Extract the numeric suffix from a directive artifact id."""
+    if not artifact_id:
+        return _DIRECTIVE_DEFAULT_NUMERIC_SEGMENT
+
+    _, _, suffix = artifact_id.rpartition("_")
+    return suffix.zfill(3) if suffix.isdigit() else _DIRECTIVE_DEFAULT_NUMERIC_SEGMENT
 
 
 def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> str:
@@ -66,12 +80,7 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
     - styleguide: ``<slug>.styleguide.yaml``
     """
     if kind == "directive":
-        nnn = "000"
-        if artifact_id:
-            m = _DIRECTIVE_NUM_RE.search(artifact_id)
-            if m:
-                nnn = m.group(1).zfill(3)
-        return f"{nnn}-{slug}.directive.yaml"
+        return f"{_directive_numeric_segment(artifact_id)}-{slug}.directive.yaml"
     elif kind == "tactic":
         return f"{slug}.tactic.yaml"
     elif kind == "styleguide":
@@ -82,11 +91,7 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
 
 def _doctrine_kind_subdir(kind: str) -> str:
     """Return the doctrine subdirectory name for a given artifact kind."""
-    return {
-        "directive": "directives",
-        "tactic": "tactics",
-        "styleguide": "styleguides",
-    }[kind]
+    return _DOCTRINE_SUBDIRS[kind]
 
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:
@@ -137,6 +142,7 @@ def promote(
     StagingPromoteError
         If any ``os.replace`` call or the manifest write fails.
     """
+    _ = request
     if repo_root is None:
         # staging_dir.root == .kittify/charter/.staging/<run_id>
         # → repo_root == staging_dir.root.parent.parent.parent.parent
@@ -189,12 +195,12 @@ def promote(
     # Ensure destination directories exist.
     for kind_subdir in ("directives", "tactics", "styleguides"):
         guard.mkdir(
-            repo_root / ".kittify" / "doctrine" / kind_subdir,
+            repo_root / _KITTIFY_DIRNAME / "doctrine" / kind_subdir,
             caller="write_pipeline.promote[mkdir-doctrine]",
         )
 
     guard.mkdir(
-        repo_root / ".kittify" / "charter" / "provenance",
+        repo_root / _KITTIFY_DIRNAME / "charter" / "provenance",
         caller="write_pipeline.promote[mkdir-provenance]",
     )
 
@@ -215,12 +221,12 @@ def promote(
 
             # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
             staged_content = staging_dir.path_for_content(kind, filename)
-            live_content = repo_root / ".kittify" / "doctrine" / _doctrine_kind_subdir(kind) / filename
+            live_content = repo_root / _KITTIFY_DIRNAME / "doctrine" / _doctrine_kind_subdir(kind) / filename
             guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
 
             # Provenance: staging → .kittify/charter/provenance/<kind>-<slug>.yaml
             staged_prov = staging_dir.path_for_provenance(kind, slug)
-            live_prov = repo_root / ".kittify" / "charter" / "provenance" / f"{kind}-{slug}.yaml"
+            live_prov = repo_root / _KITTIFY_DIRNAME / "charter" / "provenance" / f"{kind}-{slug}.yaml"
             guard.replace(staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]")
 
             rel_content = str(live_content.relative_to(repo_root))
@@ -239,7 +245,7 @@ def promote(
         # Check for a staged DRG overlay graph and promote it
         staged_graph = staging_dir.root / "doctrine" / "graph.yaml"
         if staged_graph.exists():
-            live_graph = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+            live_graph = repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
             guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
 
     except Exception as exc:
