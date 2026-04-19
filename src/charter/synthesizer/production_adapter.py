@@ -6,9 +6,10 @@ import os
 from typing import Any
 
 import anthropic
+from ruamel.yaml import YAML
 
 from charter.synthesizer.adapter import AdapterOutput
-from charter.synthesizer.errors import ProductionAdapterUnavailableError
+from charter.synthesizer.errors import ProductionAdapterUnavailableError, SynthesisSchemaError
 from charter.synthesizer.request import SynthesisRequest
 
 _DEFAULT_MODEL = "claude-sonnet-4-6"
@@ -72,8 +73,7 @@ class ProductionAdapter:
         body_text = "".join(
             block.text for block in message.content if hasattr(block, "text")
         )
-        # AdapterOutput.body is Mapping[str, Any]; wrap text in a dict
-        body: dict[str, Any] = {"text": body_text}
+        body = _parse_yaml_mapping(body_text, request)
         return AdapterOutput(
             body=body,
             generated_at=datetime.datetime.now(datetime.timezone.utc),
@@ -136,3 +136,38 @@ def _format_evidence(evidence: Any) -> str:
         for entry in snap.entries[:3]:
             sections.append(f"  [{entry.topic}] {entry.guidance[:200]}")
     return "\n".join(sections)
+
+
+def _parse_yaml_mapping(
+    response_text: str,
+    request: SynthesisRequest,
+) -> dict[str, Any]:
+    """Parse the model response into a YAML mapping for schema validation."""
+    yaml_text = response_text.strip()
+    if yaml_text.startswith("```"):
+        lines = yaml_text.splitlines()
+        if lines:
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        yaml_text = "\n".join(lines).strip()
+
+    yaml = YAML(typ="safe")
+    try:
+        parsed = yaml.load(yaml_text)
+    except Exception as exc:  # noqa: BLE001
+        raise SynthesisSchemaError(
+            artifact_kind=request.target.kind,
+            artifact_slug=request.target.slug,
+            validation_errors=(f"Adapter returned invalid YAML: {exc}",),
+        ) from exc
+
+    if not isinstance(parsed, dict):
+        raise SynthesisSchemaError(
+            artifact_kind=request.target.kind,
+            artifact_slug=request.target.slug,
+            validation_errors=(
+                "Adapter returned YAML that is not a mapping/object.",
+            ),
+        )
+    return dict(parsed)

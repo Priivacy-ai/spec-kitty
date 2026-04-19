@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
-from charter.synthesizer.errors import ProductionAdapterUnavailableError
+from charter.synthesizer.errors import ProductionAdapterUnavailableError, SynthesisSchemaError
 from charter.synthesizer.production_adapter import ProductionAdapter, _DEFAULT_MODEL
 
 
@@ -97,7 +97,7 @@ def test_generate_returns_adapter_output(mock_cls, minimal_request):
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text="Generated content")]
+    mock_message.content = [MagicMock(text="id: how-we-work\nschema_version: \"1.0\"\nname: How We Work\nsteps:\n  - title: Start here\n")]
     mock_client.messages.create.return_value = mock_message
 
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
@@ -112,16 +112,16 @@ def test_generate_body_contains_text(mock_cls, minimal_request):
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text="Generated content")]
+    mock_message.content = [MagicMock(text="id: how-we-work\nschema_version: \"1.0\"\nname: How We Work\nsteps:\n  - title: Start here\n")]
     mock_client.messages.create.return_value = mock_message
 
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         adapter = ProductionAdapter()
     output = adapter.generate(minimal_request)
 
-    # AdapterOutput.body is Mapping[str, Any]
-    assert "text" in output.body
-    assert output.body["text"] == "Generated content"
+    assert output.body["id"] == "how-we-work"
+    assert output.body["name"] == "How We Work"
+    assert output.body["steps"][0]["title"] == "Start here"
 
 
 @patch("anthropic.Anthropic")
@@ -131,7 +131,7 @@ def test_generate_sets_generated_at(mock_cls, minimal_request):
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text="some output")]
+    mock_message.content = [MagicMock(text="id: how-we-work\nschema_version: \"1.0\"\nname: How We Work\nsteps:\n  - title: Start here\n")]
     mock_client.messages.create.return_value = mock_message
 
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
@@ -147,8 +147,8 @@ def test_generate_concatenates_multiple_content_blocks(mock_cls, minimal_request
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
     mock_message = MagicMock()
-    block1 = MagicMock(text="Hello ")
-    block2 = MagicMock(text="World")
+    block1 = MagicMock(text="id: how-we-work\nschema_version: \"1.0\"\n")
+    block2 = MagicMock(text="name: How We Work\nsteps:\n  - title: Start here\n")
     mock_message.content = [block1, block2]
     mock_client.messages.create.return_value = mock_message
 
@@ -156,7 +156,41 @@ def test_generate_concatenates_multiple_content_blocks(mock_cls, minimal_request
         adapter = ProductionAdapter()
     output = adapter.generate(minimal_request)
 
-    assert output.body["text"] == "Hello World"
+    assert output.body["id"] == "how-we-work"
+    assert output.body["steps"][0]["title"] == "Start here"
+
+
+@patch("anthropic.Anthropic")
+def test_generate_strips_yaml_fences(mock_cls, minimal_request):
+    mock_client = MagicMock()
+    mock_cls.return_value = mock_client
+    mock_message = MagicMock()
+    mock_message.content = [
+        MagicMock(
+            text="```yaml\nid: how-we-work\nschema_version: \"1.0\"\nname: How We Work\nsteps:\n  - title: Start here\n```"
+        )
+    ]
+    mock_client.messages.create.return_value = mock_message
+
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        adapter = ProductionAdapter()
+    output = adapter.generate(minimal_request)
+
+    assert output.body["id"] == "how-we-work"
+
+
+@patch("anthropic.Anthropic")
+def test_generate_invalid_yaml_raises_schema_error(mock_cls, minimal_request):
+    mock_client = MagicMock()
+    mock_cls.return_value = mock_client
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="not: [valid")]
+    mock_client.messages.create.return_value = mock_message
+
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        adapter = ProductionAdapter()
+    with pytest.raises(SynthesisSchemaError):
+        adapter.generate(minimal_request)
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +246,7 @@ def test_generate_batch_returns_list(mock_cls, minimal_request):
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text="output")]
+    mock_message.content = [MagicMock(text="id: how-we-work\nschema_version: \"1.0\"\nname: How We Work\nsteps:\n  - title: Start here\n")]
     mock_client.messages.create.return_value = mock_message
 
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
