@@ -19,6 +19,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-intake-auto-detect-01KPNGCX
+base_commit: a42b7699392e55c425edc005acc3bb7a10137ffc
+created_at: '2026-04-20T13:38:37.193634+00:00'
 subtasks:
 - T005
 - T006
@@ -27,6 +30,7 @@ subtasks:
 - T009
 - T010
 - T011
+shell_pid: '72247'
 history:
 - date: '2026-04-20'
   author: spec-kitty.tasks
