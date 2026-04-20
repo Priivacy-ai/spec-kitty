@@ -335,3 +335,27 @@ def test_auto_tty_out_of_range_number_exits_1(
 
     assert result.exit_code == 1
     assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+
+
+def test_auto_tty_zero_input_exits_1(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
+    """TTY --auto: selection of 0 (below valid range) exits 1."""
+    _make_plan_file(tmp_path, "plan-a.md")
+    _make_plan_file(tmp_path, "plan-b.md")
+    mock_sources = [
+        ("harness-a", "agent-a", ["plan-a.md"]),
+        ("harness-b", "agent-b", ["plan-b.md"]),
+    ]
+
+    with (
+        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
+        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
+        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
+        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        result = runner.invoke(intake_app, ["--auto"], input="0\n", catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
