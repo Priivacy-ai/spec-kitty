@@ -13,6 +13,10 @@ from pathlib import Path
 
 import pytest
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: trampoline bug: subprocess
+pytestmark = pytest.mark.non_sandbox
+
 
 @pytest.mark.windows_ci
 def test_hook_executes_with_python_stripped_from_path(

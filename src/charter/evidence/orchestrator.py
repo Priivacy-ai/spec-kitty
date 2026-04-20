@@ -67,7 +67,7 @@ class EvidenceOrchestrator:
             code_signals=code_signals,
             url_list=self._url_list,
             corpus_snapshot=corpus_snapshot,
-            collected_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            collected_at=datetime.datetime.now(datetime.UTC).isoformat(),
         )
         return EvidenceResult(bundle=bundle, warnings=warnings)
 

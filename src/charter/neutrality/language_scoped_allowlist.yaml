@@ -54,3 +54,13 @@ paths:
     owner: "charter team"
     reason: "JavaScript best-practice corpus; Jest/Vitest/TypeScript references are the subject matter."
     added_in: "3.3.0"
+  - path: "src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md"
+    scope: python
+    owner: "charter team"
+    reason: "Python mutation-tools toolguide companion; pytest/python -m references are the subject matter."
+    added_in: "3.3.0"
+  - path: "src/doctrine/toolguides/shipped/python-mutation-tools.toolguide.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Python mutation-tools toolguide; pytest is the subject matter."
+    added_in: "3.3.0"

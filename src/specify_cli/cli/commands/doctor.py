@@ -623,3 +623,149 @@ def sparse_checkout(
             console.print(f"[red]✗[/red] {r.path}: failed at {step} — {detail}")
 
     raise typer.Exit(0 if rep.overall_success and not any_failure else 1)
+
+
+def _print_overdue_details(report: object, console: Console) -> None:
+    console.print()
+    console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
+    for e in report.entries:  # type: ignore[union-attr]
+        if e.status.value == "overdue":
+            canonical = (
+                ", ".join(e.entry.canonical_import)
+                if isinstance(e.entry.canonical_import, list)
+                else e.entry.canonical_import
+            )
+            console.print(f"\n  [red]{e.entry.legacy_path}[/red]")
+            console.print(f"    Canonical import : {canonical}")
+            console.print(f"    Removal target   : {e.entry.removal_target_release}")
+            console.print(f"    Tracker          : {e.entry.tracker_issue}")
+            console.print("    Remediation:")
+            console.print(
+                f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py"
+                " (or __init__.py)"
+            )
+            console.print(
+                "      Option B: Extend removal_target_release in"
+                " architecture/2.x/shim-registry.yaml with extension_rationale"
+            )
+
+
+@app.command(name="shim-registry")
+def shim_registry(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Check for overdue compatibility shims in the shim registry.
+
+    Reads architecture/2.x/shim-registry.yaml and compares each entry's
+    removal_target_release against the current project version. Fails with
+    exit code 1 if any shim is overdue (removal release has shipped but
+    shim file still exists on disk).
+
+    Exit codes:
+      0  All entries are pending, removed, or grandfathered.
+      1  At least one entry is overdue — shim must be deleted or window extended.
+      2  Configuration error (registry file or pyproject.toml missing/invalid).
+
+    Examples:
+        spec-kitty doctor shim-registry
+        spec-kitty doctor shim-registry --json
+    """
+    from collections import Counter
+
+    from specify_cli.compat import (
+        RegistrySchemaError,
+        ShimStatus,
+        check_shim_registry,
+    )
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(2)
+
+    try:
+        report = check_shim_registry(repo_root)
+    except FileNotFoundError as exc:
+        console.print(f"[red]Configuration error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    except RegistrySchemaError as exc:
+        console.print("[red]Registry schema error:[/red]")
+        for err in exc.errors:
+            console.print(f"  {err}")
+        raise typer.Exit(2) from exc
+    except KeyError as exc:
+        console.print(f"[red]Configuration error:[/red] missing key {exc} in pyproject.toml")
+        raise typer.Exit(2) from exc
+
+    if json_output:
+        output = {
+            "project_version": report.project_version,
+            "registry_path": str(report.registry_path),
+            "entries": [
+                {
+                    "legacy_path": e.entry.legacy_path,
+                    "canonical_import": e.entry.canonical_import,
+                    "removal_target_release": e.entry.removal_target_release,
+                    "grandfathered": e.entry.grandfathered,
+                    "tracker_issue": e.entry.tracker_issue,
+                    "status": e.status.value,
+                    "shim_exists": e.shim_exists,
+                }
+                for e in report.entries
+            ],
+            "has_overdue": report.has_overdue,
+            "exit_code": report.recommended_exit_code,
+        }
+        console.print_json(json.dumps(output, indent=2))
+        raise typer.Exit(report.recommended_exit_code)
+
+    if not report.entries:
+        console.print("[green]Shim Registry[/green]: registry is empty — no shims to check.")
+        raise typer.Exit(0)
+
+    console.print(
+        f"\n[bold]Shim Registry[/bold] — {len(report.entries)} entry/entries"
+        f" (project version: {report.project_version})\n"
+    )
+
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("Legacy Path", style="cyan", min_width=24)
+    table.add_column("Canonical Import", min_width=20)
+    table.add_column("Removal Target", min_width=14)
+    table.add_column("Status", min_width=12)
+
+    _status_styles: dict[ShimStatus, str] = {
+        ShimStatus.PENDING: "[cyan]pending[/cyan]",
+        ShimStatus.OVERDUE: "[bold red]OVERDUE[/bold red]",
+        ShimStatus.GRANDFATHERED: "[yellow]grandfathered[/yellow]",
+        ShimStatus.REMOVED: "[dim]removed[/dim]",
+    }
+
+    for e in report.entries:
+        canonical = (
+            ", ".join(e.entry.canonical_import)
+            if isinstance(e.entry.canonical_import, list)
+            else e.entry.canonical_import
+        )
+        table.add_row(
+            e.entry.legacy_path,
+            canonical,
+            e.entry.removal_target_release,
+            _status_styles[e.status],
+        )
+
+    console.print(table)
+    console.print()
+
+    counts = Counter(e.status.value for e in report.entries)
+    parts = [f"{v} {k}" for k, v in sorted(counts.items())]
+    console.print(f"Summary: {', '.join(parts)}")
+
+    if report.has_overdue:
+        _print_overdue_details(report, console)
+
+    console.print()
+    raise typer.Exit(report.recommended_exit_code)

@@ -14,8 +14,7 @@ import pytest
 
 from tests.tasks.conftest import create_mission_fast
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
     """Test that create command works in main without creating worktree."""
     # Run create command

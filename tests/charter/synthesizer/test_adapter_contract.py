@@ -17,6 +17,7 @@ import pytest
 from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
 from charter.synthesizer.fixture_adapter import FixtureAdapter
 from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+from datetime import UTC
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +169,7 @@ class TestAdapterOutputOverrides:
 
         output = AdapterOutput(
             body={"id": "TEST", "title": "t"},
-            generated_at=datetime.now(tz=timezone.utc),
+            generated_at=datetime.now(tz=UTC),
             adapter_id_override="custom-model-v2",
             adapter_version_override="20260101",
         )
@@ -187,7 +188,7 @@ class TestAdapterOutputOverrides:
 
         output = AdapterOutput(
             body={"id": "TEST", "title": "t"},
-            generated_at=datetime.now(tz=timezone.utc),
+            generated_at=datetime.now(tz=UTC),
         )
         adapter = FixtureAdapter()
 

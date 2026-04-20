@@ -1,0 +1,17 @@
+# Compatibility Shim Registry
+# Mission: migration-shim-ownership-rules-01KPDYDW (#615)
+#
+# Schema: kitty-specs/migration-shim-ownership-rules-01KPDYDW/contracts/shim-registry-schema.yaml
+# Rulebook: architecture/2.x/06_migration_and_shim_rules.md
+#
+# To register a new shim: follow the instructions in the rulebook Section 4
+# (rule family d — removal plans and registry contract) and the quickstart at
+# kitty-specs/migration-shim-ownership-rules-01KPDYDW/quickstart.md
+#
+# CI enforcement: spec-kitty doctor shim-registry
+# Scanner test: tests/architectural/test_unregistered_shim_scanner.py
+#
+# Baseline (2026-04-19): zero shims present at mission-615 start.
+# Every future entry must set grandfathered: false.
+
+shims: []

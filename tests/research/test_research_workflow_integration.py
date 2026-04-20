@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
 @pytest.fixture
 def research_project_root(tmp_path: Path) -> Path:
     """Create a test research mission project."""

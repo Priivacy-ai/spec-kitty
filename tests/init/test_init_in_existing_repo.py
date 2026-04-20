@@ -133,6 +133,6 @@ def test_init_does_not_touch_git_state_in_existing_repo(
         if not line.startswith("?? ")  # untracked new files are expected
     ]
     assert modified_tracked == [], (
-        f"init modified existing tracked files:\n"
+        "init modified existing tracked files:\n"
         + "\n".join(modified_tracked)
     )

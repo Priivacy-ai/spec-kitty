@@ -23,8 +23,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from specify_cli.migration.runner import (
-    _create_backup,
+from specify_cli.migration.runner import (    _create_backup,
     _restore_backup,
     _update_gitignore,
     _update_schema_version,
@@ -32,6 +31,10 @@ from specify_cli.migration.runner import (
     _GITIGNORE_ADD_ENTRIES,
     _BACKUP_DIR_NAME,
 )
+
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: subprocess CLI invocation
+pytestmark = pytest.mark.non_sandbox
 
 
 # ---------------------------------------------------------------------------

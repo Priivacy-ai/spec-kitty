@@ -15,6 +15,10 @@ from pathlib import Path
 
 import pytest
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: subprocess CLI invocation
+pytestmark = pytest.mark.non_sandbox
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

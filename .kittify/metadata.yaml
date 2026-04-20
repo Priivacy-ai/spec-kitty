@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 3.1.6
+  version: 3.2.0
   initialized_at: '2026-04-07T09:10:40.826207'
-  last_upgraded_at: '2026-04-09T16:23:40.925198'
+  last_upgraded_at: '2026-04-19T14:40:14.289952'
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -80,3 +80,13 @@ migrations:
       normalised status.json; 077-mission-terminology-cleanup: normalised status.json;
       078-planning-artifact-and-query-consistency: normalised status.json; 079-post-555-release-hardening:
       normalised status.json'
+  - id: 3.2.0_codex_to_skills
+    applied_at: '2026-04-19T14:40:14.278127'
+    result: success
+    notes: Installed 11 Codex skill packages under .agents/skills/; Moved 8 superseded
+      Codex prompt(s) from .codex/prompts/ to .codex/prompts.superseded/ (new skill
+      packages live in .agents/skills/)
+  - id: 3.2.0_update_planning_templates
+    applied_at: '2026-04-19T14:40:14.287114'
+    result: success
+    notes: 'Updated: .claude/commands/spec-kitty.tasks-outline.md; Updated: .opencode/command/spec-kitty.tasks-outline.md'

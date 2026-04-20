@@ -58,7 +58,7 @@ def test_apply_removes_all_known_clarify_artifacts(tmp_path: Path) -> None:
 
     assert result.success is True
     assert result.errors == []
-    assert any("Removed 5 clarify command artifacts" == change for change in result.changes_made)
+    assert any(change == "Removed 5 clarify command artifacts" for change in result.changes_made)
     for target in targets:
         assert not target.exists()
 

@@ -60,7 +60,7 @@ def _write_mission(
     )
 
     wp_content = dedent(
-        f"""\
+        """\
         ---
         work_package_id: WP01
         status: done

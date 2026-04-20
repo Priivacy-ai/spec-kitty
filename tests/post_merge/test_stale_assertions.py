@@ -326,7 +326,6 @@ class TestMergeRunnerImportsLibraryDirectly:
     def test_merge_runner_will_import_library_directly(self) -> None:
         """Assert run_check is importable from specify_cli.post_merge."""
         from specify_cli.post_merge import (  # noqa: F401
-            StaleAssertionFinding,
             StaleAssertionReport,
             run_check,
         )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from ulid import ULID
@@ -47,7 +47,7 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
         "friendly_name": slug.replace("-", " "),
         "mission_type": "software-dev",
         "target_branch": "main",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2) + "\n",

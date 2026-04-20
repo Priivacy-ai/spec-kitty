@@ -9,12 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-04-20
+
 ### Added
 
+- **Mutation testing** — `mutmut` 3.5.0 added to `[project.optional-dependencies.test]` and configured in `[tool.mutmut]` as a **local-only** quality gate. Includes a curated doctrine set: `tactic:mutation-testing-workflow`, `styleguide:mutation-aware-test-design`, and language-specific toolguides for Python (`mutmut`) and TypeScript (`stryker`), all anchored to `DIRECTIVE_034` in the DRG graph. ADR `2026-04-20-1-mutation-testing-as-local-only-quality-gate.md` records the decision, the sandbox constraints, and the two-marker exclusion taxonomy.
+- **`non_sandbox` / `flaky` pytest markers** — registered in `pytest.ini` and `pyproject.toml[tool.pytest.ini_options].markers`. Per-file `--ignore=` entries for sandbox-incompatible tests have been migrated to module-level `pytestmark` declarations; `[tool.mutmut].pytest_add_cli_args` now deselects via `-m "not non_sandbox and not flaky ..."`. Directory-level ignores remain only where tests fail during pytest *collection* (import errors that markers cannot intercept). 1 test is currently marked `flaky` as debt to be root-caused.
+- **`docs/how-to/run-mutation-tests.md`** — Contributor how-to covering local `mutmut run` invocation, the kill-the-survivor workflow, equivalent-mutant suppression, and the `non_sandbox` / `flaky` marker taxonomy.
 - Charter synthesizer now has a real harness-owned operator path: the new generated-artifact adapter reads agent-authored YAML from `.kittify/charter/generated/` and promotes validated doctrine into the live `.kittify/doctrine/` tree.
 - `spec-kitty charter resynthesize --list-topics` now lists valid project-artifact selectors, DRG URNs, and interview-section selectors, including hyphenated aliases for section names.
 - `spec-kitty charter status --provenance` now reports synthesis generation state, evidence summary, manifest health, and per-artifact provenance visibility alongside the older charter sync surface.
 - ADR `2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md` now records the host-side charter handoff contract: exact file layout, identity rules, and CLI sequence.
+- **`architecture/2.x/06_migration_and_shim_rules.md`** — Authoritative compatibility shim lifecycle
+  rulebook covering 4 rule families: schema/version gating, bundle/runtime migration authoring contract,
+  shim lifecycle (with copy-paste template), and removal plans/registry contract. Required reading for
+  all future extraction missions (#615).
+- **`architecture/2.x/shim-registry.yaml`** — Machine-readable registry of all known compatibility
+  shims. Starts empty (zero-shim baseline confirmed at mission-615 start). Future shims must be
+  registered here before merging. Validated by `spec-kitty doctor shim-registry` (#615).
+- **`spec-kitty doctor shim-registry`** — New CI enforcement subcommand that classifies each
+  registered shim as `pending`, `overdue`, `grandfathered`, or `removed`. Exits 1 when any shim
+  is overdue; exits 2 on configuration error. Supports `--json` for machine-readable CI output (#615).
 
 ### Changed
 
@@ -31,11 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - `spec-kitty auth whoami` — removed. Scripts using this command for canary preflight identity checks should switch to `spec-kitty auth status`.
-
-## [3.2.0] - 2026-04-19
-
-### Removed
-
 - **`specify_cli.charter` compatibility shim** — The re-export shim at `src/specify_cli/charter/` has been
   removed. External code importing `specify_cli.charter.*` must migrate to the canonical package:
   `from charter import <name>`. See

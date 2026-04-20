@@ -15,8 +15,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
 # Get repo root for Python module invocation
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

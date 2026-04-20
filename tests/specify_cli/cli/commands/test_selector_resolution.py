@@ -21,8 +21,7 @@ from specify_cli.cli.commands.mission import app as mission_app
 from specify_cli.cli.commands.next_cmd import next_step
 from specify_cli.cli.selector_resolution import resolve_selector
 
-pytestmark = pytest.mark.fast
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: warning assertion fails in sandbox
 runner = CliRunner()
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
@@ -89,7 +89,7 @@ class TestDoctorCommand:
         mock_config.get_server_url.return_value = "https://test.example.com"
         mock_config_cls.return_value = mock_config
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session = _make_fake_session(
             access_expires_at=now + timedelta(days=30),
             refresh_expires_at=now + timedelta(days=30),
@@ -125,7 +125,7 @@ class TestDoctorCommand:
         mock_config.get_server_url.return_value = "https://test.example.com"
         mock_config_cls.return_value = mock_config
 
-        past = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        past = datetime(2020, 1, 1, tzinfo=UTC)
         session = _make_fake_session(
             access_expires_at=past,
             refresh_expires_at=past,

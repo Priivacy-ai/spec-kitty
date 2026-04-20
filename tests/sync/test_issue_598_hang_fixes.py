@@ -1019,4 +1019,4 @@ class TestConstants:
 
     def test_daemon_retry_count_matches_10s(self):
         """100 retries x 0.1 s sleep = ~10 s total bounded wait."""
-        assert 100 * 0.1 == pytest.approx(10.0)
+        assert pytest.approx(10.0) == 100 * 0.1

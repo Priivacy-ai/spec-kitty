@@ -18,8 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
 from specify_cli.merge.state import (
     MergeState,
     clear_state,

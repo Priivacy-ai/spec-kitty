@@ -15,6 +15,10 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import charter_bundle
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: trampoline bug: subprocess
+pytestmark = pytest.mark.non_sandbox
+
 
 runner = CliRunner()
 
@@ -88,7 +92,7 @@ def non_repo_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return bare
 
 
-def _invoke_validate_json() -> "CliRunner.Result":
+def _invoke_validate_json() -> CliRunner.Result:
     return runner.invoke(charter_bundle.app, ["validate", "--json"])
 
 

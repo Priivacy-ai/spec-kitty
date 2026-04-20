@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: reads scripts/git-hooks/ not in sandbox
 def _init_repo(repo: Path) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(

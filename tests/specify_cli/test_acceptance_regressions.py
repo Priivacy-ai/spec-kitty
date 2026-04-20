@@ -16,20 +16,23 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Tuple
 
 import pytest
 
-from specify_cli.acceptance import (
-    AcceptanceError,
+from specify_cli.acceptance import (    AcceptanceError,
     AcceptanceSummary,
     collect_feature_summary,
     perform_acceptance,
 )
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import StoreError, append_event
+
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: subprocess CLI invocation
+pytestmark = pytest.mark.non_sandbox
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +111,7 @@ def _create_test_feature(
         # Build a valid transition chain: planned -> done (with force to skip intermediate)
         from ulid import ULID
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         event = StatusEvent(
             event_id=str(ULID()),
             mission_slug=mission_slug,

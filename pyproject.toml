@@ -172,6 +172,8 @@ markers = [
     "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
     "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
     "live_adapter: tests that call the real Anthropic API (deselect with -m 'not live_adapter')",
+    "non_sandbox: test is structurally incompatible with mutmut's forked sandbox (subprocess CLI calls, whole-codebase AST walks, wheel builds, or repo-state fixtures outside also_copy). See ADR 2026-04-20-1",
+    "flaky: test passes in the main suite but is non-deterministic under mutmut or forking pipelines. Each entry is debt — root-cause and remove. See ADR 2026-04-20-1",
 ]
 
 [tool.ruff]
@@ -197,10 +199,17 @@ ignore = [
     "S603",   # subprocess without shell check (CLI tool by design)
     "S607",   # partial executable path (CLI tool by design)
     "B008",   # function calls in default arguments (intentional in CLI/Typer)
+    "S110",   # try-except-pass: redundant with SIM105 (contextlib.suppress), which is already selected
+    "S310",   # urllib-urlopen: spec-kitty intentionally makes HTTP requests to the SaaS backend
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ARG", "S"]  # Relax unused-arg and security rules in tests
+"tests/**" = ["ARG", "S", "E402"]  # Relax unused-arg, security, and import-order rules in tests
+# B904 (raise-without-from) in these CLI files requires human review: raise typer.Exit() calls
+# appear inside nested if/else branches within except blocks, making automated patching unsafe.
+"src/specify_cli/cli/commands/agent/config.py" = ["B904"]
+"src/specify_cli/cli/commands/agent/status.py" = ["B904"]
+"src/specify_cli/cli/commands/agent/workflow.py" = ["B904"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15  # Match SonarCloud S3776 threshold
@@ -303,39 +312,61 @@ module = [
 ignore_errors = true
 
 [tool.mutmut]
-# WP05 scope: all 4 priority modules — final floor measurement
 paths_to_mutate = [
-    "src/specify_cli/status/",
-    "src/specify_cli/glossary/",
-    "src/specify_cli/merge/",
-    "src/specify_cli/core/",
+    "src/",
 ]
-tests_dir = ["tests/unit/", "tests/specify_cli/"]
+tests_dir = ["tests/"]
+max_stack_depth = 8
+max_children = 8
+# Configure how long mutmut waits before killing a slow mutation
+# Currently calculated as (duration_of_original_tests + timeout_constant) * timeout_multiplier seconds
+timeout_constant = 1.0
+timeout_multiplier = 15.0
+# mutate_only_covered_lines=true # Optional flag to only mutate lines covered by tests; can be re-enabled later for more comprehensive mutation testing once coverage is improved.
+# type_check_command disabled — mypy produces multi-line JSON (hint fields span lines)
+# which breaks mutmut's line-based JSON parser. Without it, type-error mutants simply
+# fail their tests instead of being filtered out. See mutmut issue for tracking.
+# type_check_command = ['mypy', 'src/specify_cli/', '--output', 'json', '--disable-error-code', 'unused-ignore']
 pytest_add_cli_args = [
     "--timeout=30",
-    # tests/unit/ subdirs that fail in the mutants environment
+    # Marker-based deselection. See ADR 2026-04-20-1 for the taxonomy.
+    # - Category markers (pre-existing): slow, e2e, distribution, adversarial, windows_ci,
+    #   platform_darwin, live_adapter, architectural — none of these belong in the mutmut sandbox.
+    # - non_sandbox (new): tests structurally incompatible with the sandbox (subprocess CLI calls,
+    #   whole-codebase AST walks, wheel builds, repo-state fixtures outside also_copy).
+    # - flaky (new): tests that pass in the main suite but are non-deterministic under mutmut —
+    #   tech debt; each entry should shrink over time.
+    "-m", "not slow and not e2e and not distribution and not adversarial and not windows_ci and not platform_darwin and not live_adapter and not architectural and not non_sandbox and not flaky",
+    # Directories we skip at collection time because many files fail to *import* in the sandbox
+    # (bare-name script-module imports via sys.path tricks that don't survive the fork, repo-state
+    # consistency checks that walk the live repo). Marker-based deselection can't help here —
+    # the marker is evaluated *after* import. When we address the collection-time failure mode
+    # (e.g., by adjusting also_copy or the script module layout) we can lift these too.
     "--ignore=tests/unit/agent/",
     "--ignore=tests/unit/mission_v1/",
     "--ignore=tests/unit/next/",
     "--ignore=tests/unit/orchestrator_api/",
     "--ignore=tests/unit/runtime/",
-    # tests/unit/ flat files that fail in the mutants environment
-    "--ignore=tests/unit/test_atomic_status_commits.py",
-    "--ignore=tests/unit/test_move_task_git_validation.py",
-    # tests/unit/ file that uses inspect.getsource() on multi-mutation files
-    "--ignore=tests/unit/test_pre_commit_wp_guard.py",
-    # tests/specify_cli/ files that fail in the mutants environment
-    "--ignore=tests/specify_cli/cli/commands/test_event_emission.py",
+    "--ignore=tests/specify_cli/cli/commands/agent/",
+    "--ignore=tests/specify_cli/core/",
     "--ignore=tests/specify_cli/test_cli/",
-    "--ignore=tests/specify_cli/test_implement_command.py",
-    "--ignore=tests/specify_cli/test_review_warnings.py",
-    "--ignore=tests/specify_cli/test_workflow_auto_moves.py",
-    "--ignore=tests/specify_cli/upgrade/test_migration_robustness.py",
-    "--ignore=tests/specify_cli/status/test_parity.py",
+    "--ignore=tests/specify_cli/upgrade/",
+    "--ignore=tests/upgrade/",
+    "--ignore=tests/specify_cli/scripts/",
+    "--ignore=tests/cross_cutting/",
+    "--ignore=tests/release/",
+    "--ignore=tests/architecture/",
+    "--ignore=tests/docs/",
+    "--ignore=tests/test_dashboard/",
 ]
 also_copy = [
     "LICENSE",
+    "src/specify_cli/compat/",  # compat package under test
     "README.md",
+    "contracts/",  # JSON fixture files for contract tests
+    "docs/",  # Markdown files referenced by contract/terminology tests
+    "architecture/",  # Architecture docs referenced by tests/docs/ consistency checks
+
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
     "src/kernel/",           # Copy kernel package for shared utilities
@@ -364,10 +395,13 @@ also_copy = [
     "src/specify_cli/mission_v1/",  # Copy mission v1
     "src/specify_cli/scripts/",  # Copy scripts
     "src/specify_cli/skills/",  # Copy skills distribution runtime
+    "mutmut_pytest.ini",  # Custom pytest config for mutmut runs
 ]
 # Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
+# version_utils.py contains the mutmut trampoline itself — mutating it breaks all sandbox imports
 do_not_mutate = [
     "src/specify_cli/upgrade/migrations/",
+    "src/specify_cli/version_utils.py",
 ]
 
 [tool.uv]

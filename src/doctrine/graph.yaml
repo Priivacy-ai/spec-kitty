@@ -338,6 +338,18 @@ nodes:
 - urn: toolguide:python-review-checks
   kind: toolguide
   label: Python Review Checks
+- urn: styleguide:mutation-aware-test-design
+  kind: styleguide
+  label: Mutation-Aware Test Design
+- urn: tactic:mutation-testing-workflow
+  kind: tactic
+  label: Mutation Testing Workflow
+- urn: toolguide:python-mutation-tools
+  kind: toolguide
+  label: Python Mutation Testing with mutmut
+- urn: toolguide:typescript-mutation-tools
+  kind: toolguide
+  label: TypeScript Mutation Testing with Stryker
 edges:
 - source: action:software-dev/implement
   target: directive:DIRECTIVE_024
@@ -1089,4 +1101,28 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_037
   target: tactic:usage-examples-sync
+  relation: requires
+- source: directive:DIRECTIVE_034
+  target: tactic:mutation-testing-workflow
+  relation: requires
+- source: tactic:mutation-testing-workflow
+  target: styleguide:mutation-aware-test-design
+  relation: requires
+- source: tactic:mutation-testing-workflow
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: tactic:mutation-testing-workflow
+  target: toolguide:python-mutation-tools
+  relation: suggests
+- source: tactic:mutation-testing-workflow
+  target: toolguide:typescript-mutation-tools
+  relation: suggests
+- source: toolguide:python-mutation-tools
+  target: tactic:mutation-testing-workflow
+  relation: requires
+- source: toolguide:typescript-mutation-tools
+  target: tactic:mutation-testing-workflow
+  relation: requires
+- source: toolguide:python-mutation-tools
+  target: styleguide:mutation-aware-test-design
   relation: requires
