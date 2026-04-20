@@ -625,6 +625,31 @@ def sparse_checkout(
     raise typer.Exit(0 if rep.overall_success and not any_failure else 1)
 
 
+def _print_overdue_details(report: object, console: Console) -> None:
+    console.print()
+    console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
+    for e in report.entries:  # type: ignore[union-attr]
+        if e.status.value == "overdue":
+            canonical = (
+                ", ".join(e.entry.canonical_import)
+                if isinstance(e.entry.canonical_import, list)
+                else e.entry.canonical_import
+            )
+            console.print(f"\n  [red]{e.entry.legacy_path}[/red]")
+            console.print(f"    Canonical import : {canonical}")
+            console.print(f"    Removal target   : {e.entry.removal_target_release}")
+            console.print(f"    Tracker          : {e.entry.tracker_issue}")
+            console.print("    Remediation:")
+            console.print(
+                f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py"
+                " (or __init__.py)"
+            )
+            console.print(
+                "      Option B: Extend removal_target_release in"
+                " architecture/2.x/shim-registry.yaml with extension_rationale"
+            )
+
+
 @app.command(name="shim-registry")
 def shim_registry(
     json_output: Annotated[
@@ -740,28 +765,7 @@ def shim_registry(
     console.print(f"Summary: {', '.join(parts)}")
 
     if report.has_overdue:
-        console.print()
-        console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
-        for e in report.entries:
-            if e.status == ShimStatus.OVERDUE:
-                canonical = (
-                    ", ".join(e.entry.canonical_import)
-                    if isinstance(e.entry.canonical_import, list)
-                    else e.entry.canonical_import
-                )
-                console.print(f"\n  [red]{e.entry.legacy_path}[/red]")
-                console.print(f"    Canonical import : {canonical}")
-                console.print(f"    Removal target   : {e.entry.removal_target_release}")
-                console.print(f"    Tracker          : {e.entry.tracker_issue}")
-                console.print("    Remediation:")
-                console.print(
-                    f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py"
-                    " (or __init__.py)"
-                )
-                console.print(
-                    "      Option B: Extend removal_target_release in"
-                    " architecture/2.x/shim-registry.yaml with extension_rationale"
-                )
+        _print_overdue_details(report, console)
 
     console.print()
     raise typer.Exit(report.recommended_exit_code)

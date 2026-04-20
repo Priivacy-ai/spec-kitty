@@ -9,7 +9,7 @@ from packaging.version import InvalidVersion, Version
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-_DOTTED_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+_DOTTED_NAME = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$")
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:[a-z]\d+)?$")
 _TRACKER = re.compile(r"^(#\d+|https?://.+)$")
 
@@ -85,6 +85,26 @@ def _validate_version_order(i: int, entry: dict[str, object], errors: list[str])
         errors.append(f"entry[{i}]: version strings are not valid semver")
 
 
+def _validate_legacy_path(i: int, entry: dict[str, object], seen_paths: set[str], errors: list[str]) -> None:
+    lp = entry["legacy_path"]
+    if not isinstance(lp, str) or not _DOTTED_NAME.match(lp):
+        errors.append(f"entry[{i}].legacy_path: must be a dotted identifier string")
+    elif lp in seen_paths:
+        errors.append(f"entry[{i}].legacy_path: duplicate value '{lp}'")
+    else:
+        seen_paths.add(lp)
+
+
+def _validate_optional_fields(i: int, entry: dict[str, object], errors: list[str]) -> None:
+    er = entry.get("extension_rationale")
+    if er is not None and (not isinstance(er, str) or not er.strip()):
+        errors.append(f"entry[{i}].extension_rationale: if present, must be a non-empty string")
+
+    notes = entry.get("notes")
+    if notes is not None and not isinstance(notes, str):
+        errors.append(f"entry[{i}].notes: if present, must be a string")
+
+
 def _validate_entry(i: int, entry: object, seen_paths: set[str], errors: list[str]) -> None:
     if not isinstance(entry, dict):
         errors.append(f"entry[{i}]: must be a mapping")
@@ -96,14 +116,7 @@ def _validate_entry(i: int, entry: object, seen_paths: set[str], errors: list[st
     if missing:
         return
 
-    lp = entry["legacy_path"]
-    if not isinstance(lp, str) or not _DOTTED_NAME.match(lp):
-        errors.append(f"entry[{i}].legacy_path: must be a dotted identifier string")
-    elif lp in seen_paths:
-        errors.append(f"entry[{i}].legacy_path: duplicate value '{lp}'")
-    else:
-        seen_paths.add(lp)
-
+    _validate_legacy_path(i, entry, seen_paths, errors)
     _validate_canonical_import(i, entry["canonical_import"], errors)
 
     for field in ("introduced_in_release", "removal_target_release"):
@@ -121,13 +134,7 @@ def _validate_entry(i: int, entry: object, seen_paths: set[str], errors: list[st
     if not isinstance(gf, bool):
         errors.append(f"entry[{i}].grandfathered: must be a boolean (true/false), got {type(gf).__name__}")
 
-    er = entry.get("extension_rationale")
-    if er is not None and (not isinstance(er, str) or not er.strip()):
-        errors.append(f"entry[{i}].extension_rationale: if present, must be a non-empty string")
-
-    notes = entry.get("notes")
-    if notes is not None and not isinstance(notes, str):
-        errors.append(f"entry[{i}].notes: if present, must be a string")
+    _validate_optional_fields(i, entry, errors)
 
 
 def validate_registry(data: object) -> None:
