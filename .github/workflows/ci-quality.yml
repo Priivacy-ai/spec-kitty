@@ -67,7 +67,7 @@ jobs:
       doctrine: ${{ steps.filter.outputs.doctrine }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -2054,7 +2054,7 @@ jobs:
 
       - name: "[ENFORCED] SonarCloud Scan"
         if: steps.sonar_token.outputs.enabled == 'true'
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v7
         with:
           args: >
             -Dsonar.host.url=${{ steps.sonar_settings.outputs.host_url }}
