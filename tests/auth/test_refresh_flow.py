@@ -290,7 +290,8 @@ class TestRefreshErrors:
                 await flow.refresh(session)
 
     @pytest.mark.asyncio
-    async def test_unknown_400_error_raises_token_refresh_error(self):
+    @pytest.mark.parametrize("status_code", [400, 401])
+    async def test_unknown_error_raises_token_refresh_error(self, status_code):
         flow = TokenRefreshFlow()
         session = _make_session()
 
@@ -298,7 +299,7 @@ class TestRefreshErrors:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(
-                400, {"error": "mystery"}, text="mystery error"
+                status_code, {"error": "mystery"}, text="mystery error"
             )
 
             with pytest.raises(TokenRefreshError):
