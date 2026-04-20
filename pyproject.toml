@@ -358,6 +358,13 @@ pytest_add_cli_args = [
     "--ignore=tests/architecture/",
     "--ignore=tests/docs/",
     "--ignore=tests/test_dashboard/",
+    # sparse_checkout integration tests depend on a live `main` branch locally;
+    # mutmut runs from a feature-branch worktree where `main` may not exist.
+    "--ignore=tests/integration/sparse_checkout/",
+    # tests/auth/ requires `respx` which is not installed in the mutmut sandbox.
+    "--ignore=tests/auth/",
+    # tests/agent/cli/commands/ uses subprocess git commit which fails without git config in sandbox.
+    "--ignore=tests/agent/cli/commands/",
 ]
 also_copy = [
     "LICENSE",

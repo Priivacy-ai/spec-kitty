@@ -231,6 +231,7 @@ class TestAuthLoginAlreadyAuthenticated:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.non_sandbox
 class TestAuthLoginHeadlessWithoutWP05:
 
     def test_headless_without_device_code_module_fails_clearly(self):

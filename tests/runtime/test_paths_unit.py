@@ -256,6 +256,7 @@ def test_broken_symlink_handling(tmp_path: Path) -> None:
     assert check_broken_symlink(regular_file) is False
 
 
+@pytest.mark.non_sandbox
 def test_locate_project_root_no_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test path resolution when no .kittify marker exists."""
     # Create directory without .kittify

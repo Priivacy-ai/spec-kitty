@@ -26,6 +26,12 @@ from specify_cli.core.context_validation import (
     set_context_env_vars,
 )
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: repo_root detection returns /tmp in mutmut's forked sandbox CWD,
+#         which breaks the "not a worktree" negative assertion. Structural
+#         sandbox incompatibility; not a regression of production behaviour.
+pytestmark = pytest.mark.non_sandbox
+
 
 class TestContextDetection:
     """Tests for context detection logic."""

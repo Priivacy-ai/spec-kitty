@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.intake import intake
 from specify_cli.mission_brief import BRIEF_SOURCE_FILENAME, MISSION_BRIEF_FILENAME
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
 # Single shared runner (no mix_stderr — not supported in typer 0.24.x)
 runner = CliRunner()
@@ -77,8 +77,10 @@ def test_auto_single_match_writes_brief(intake_app: typer.Typer, tmp_path: Path)
 
     assert result.exit_code == 0, f"output: {result.output}"
     assert "BRIEF DETECTED" in result.output
-    # Rich may line-wrap long paths; check the filename is present anywhere in output
-    assert plan.name in result.output
+    # Rich may line-wrap long paths mid-string; join wrapped segments before the
+    # substring check so tmp_path length doesn't flake the assertion.
+    output_unwrapped = result.output.replace("\n", "")
+    assert plan.name in output_unwrapped, f"output: {result.output}"
 
     brief_path = tmp_path / ".kittify" / MISSION_BRIEF_FILENAME
     source_path = tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME
