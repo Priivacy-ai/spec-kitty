@@ -27,8 +27,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "98442"
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "1686"
 history:
 - date: '2026-04-20'
   author: spec-kitty.tasks
@@ -267,3 +267,4 @@ Expected: lines in ascending order — Charter Bootstrap line number < Brief Con
 
 - 2026-04-20T08:31:22Z – claude:sonnet:implementer:implementer – shell_pid=98442 – Started implementation via action command
 - 2026-04-20T08:37:49Z – claude:sonnet:implementer:implementer – shell_pid=98442 – Brief Context Detection section inserted and propagated to all configured agent directories (global runtime architecture)
+- 2026-04-20T08:38:40Z – claude:sonnet:reviewer:reviewer – shell_pid=1686 – Started review via action command
