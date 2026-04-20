@@ -96,6 +96,7 @@ class FakeRefreshFlow:
     call_count = 0
     delay_seconds: float = 0.05
     raise_session_invalid: bool = False
+    raise_refresh_expired: bool = False
 
     def __init__(self) -> None:
         # Instance counter so each test starts clean.
@@ -104,6 +105,8 @@ class FakeRefreshFlow:
     async def refresh(self, session: StoredSession) -> StoredSession:
         FakeRefreshFlow.call_count += 1
         await asyncio.sleep(FakeRefreshFlow.delay_seconds)
+        if FakeRefreshFlow.raise_refresh_expired:
+            raise RefreshTokenExpiredError("refresh token invalid")
         if FakeRefreshFlow.raise_session_invalid:
             raise SessionInvalidError("server says no")
         # Return a brand-new session with a fresh access token and a non-expired window.
@@ -131,6 +134,7 @@ def install_fake_refresh_flow(monkeypatch):
     """Install ``specify_cli.auth.flows.refresh`` as a fake module in sys.modules."""
     FakeRefreshFlow.call_count = 0
     FakeRefreshFlow.raise_session_invalid = False
+    FakeRefreshFlow.raise_refresh_expired = False
     FakeRefreshFlow.delay_seconds = 0.05
 
     flows_pkg = types.ModuleType("specify_cli.auth.flows")
@@ -262,7 +266,8 @@ async def test_get_access_token_refreshes_within_buffer_window(install_fake_refr
 async def test_refresh_if_needed_raises_when_refresh_token_expired(
     install_fake_refresh_flow,
 ):
-    tm = TokenManager(FakeStorage())
+    storage = FakeStorage()
+    tm = TokenManager(storage)
     tm.set_session(
         _make_session(
             access_expires_in=-1,
@@ -273,6 +278,24 @@ async def test_refresh_if_needed_raises_when_refresh_token_expired(
         await tm.refresh_if_needed()
     # No network call was made.
     assert install_fake_refresh_flow.call_count == 0
+    # Locally-known expiry is not stale state; keep the session loaded so
+    # status commands can still explain why re-login is required.
+    assert tm.get_current_session() is not None
+    assert storage.deletes == 0
+
+
+@pytest.mark.asyncio
+async def test_refresh_if_needed_clears_session_on_server_invalid_grant(
+    install_fake_refresh_flow,
+):
+    install_fake_refresh_flow.raise_refresh_expired = True
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    tm.set_session(_make_session(access_expires_in=-1))
+    with pytest.raises(RefreshTokenExpiredError):
+        await tm.refresh_if_needed()
+    assert tm.get_current_session() is None
+    assert storage.deletes >= 1
 
 
 @pytest.mark.asyncio

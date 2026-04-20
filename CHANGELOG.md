@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `requests` floor to `>=2.33.0` (CVE-2026-25645).
 - Bump `pytest` floor to `>=9.0.3` (CVE-2025-71176).
 - Pin `pygments>=2.20.0` explicitly to resolve CVE-2026-4539 in the transitive dependency pulled in via `rich`.
+- `auth refresh` now treats `HTTP 401` responses with `invalid_grant` or `session_invalid` error codes identically to `HTTP 400`, and clears the locally stored session on server-side refresh rejection so `auth status` no longer reports stale credentials as authenticated.
 
 ### Removed
 
