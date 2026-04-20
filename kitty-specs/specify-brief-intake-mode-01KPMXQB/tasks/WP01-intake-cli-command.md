@@ -28,7 +28,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '94785'
+shell_pid: "94785"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - date: '2026-04-20'
   author: spec-kitty.tasks
@@ -393,3 +394,7 @@ def test_intake_file_writes_artifacts(tmp_path, monkeypatch):
 - Verify `read_mission_brief` returns `None` (not `""`) when file is absent
 - Verify `clear_mission_brief` is idempotent — second call must not raise
 - Verify existing `spec-kitty plan` command (`lifecycle_module.plan`) is unaffected by the new registration
+
+## Activity Log
+
+- 2026-04-20T08:18:32Z – claude:sonnet:implementer:implementer – shell_pid=94785 – Assigned agent via action command
