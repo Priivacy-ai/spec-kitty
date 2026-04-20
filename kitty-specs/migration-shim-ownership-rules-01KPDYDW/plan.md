@@ -1,108 +1,158 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Migration and Shim Ownership Rules
 
+**Branch**: `kitty/mission-migration-shim-ownership-rules-01KPDYDW` | **Date**: 2026-04-19 | **Spec**: [spec.md](spec.md)
+**Input**: `kitty-specs/migration-shim-ownership-rules-01KPDYDW/spec.md`
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+---
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Write the compatibility-shim rulebook (`architecture/2.x/06_migration_and_shim_rules.md`), the machine-readable shim registry (`architecture/2.x/shim-registry.yaml`), and the CLI enforcement check (`spec-kitty doctor shim-registry`). Every downstream extraction mission (#612, #613, #614) will cite the rulebook and land a registry entry; CI will gate overdue shims via exit code. No live shim is added, modified, or removed by this mission.
+
+---
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: typer, rich, ruamel.yaml (YAML parsing), packaging (semver comparison — explicit dep, already a transitive dep), pytest, mypy --strict
+**Storage**: Filesystem only — `architecture/2.x/shim-registry.yaml` (YAML), `architecture/2.x/06_migration_and_shim_rules.md` (Markdown), Python shim modules read via AST
+**Testing**: pytest with 90%+ coverage on new code; mypy --strict; integration tests for the new `spec-kitty doctor shim-registry` CLI subcommand
+**Target Platform**: Cross-platform CLI (Linux, macOS, Windows 10+)
+**Project Type**: Single project (spec-kitty CLI monorepo)
+**Performance Goals**: `spec-kitty doctor shim-registry` completes in ≤2 s for ≤50 registry entries (NFR-001); registry schema pytest completes in ≤500 ms (NFR-002)
+**Constraints**: Read-only CI check (C-004); no live shim mutations (C-001); no version bump (C-008); `spec-kitty doctor` subcommand group must integrate cleanly with existing doctor commands (C-007)
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+---
 
 ## Charter Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*Evaluated against `.kittify/charter/charter.md` v1.1.0*
 
-[Gates determined based on charter file]
+| Charter rule | Compliance |
+|---|---|
+| Python 3.11+ | ✅ — only baseline requirement |
+| typer / rich / ruamel.yaml as primary deps | ✅ — all present; adding `packaging` as explicit dep (was transitive) |
+| pytest 90%+ coverage for new code | ✅ — planned across all new modules |
+| mypy --strict | ✅ — enforced in CI; all new code annotated |
+| Integration tests for CLI commands | ✅ — `tests/doctor/test_shim_registry.py` covers `spec-kitty doctor shim-registry` |
+| No version bump | ✅ — C-008 confirmed |
+| Terminology: Mission / Work Package | ✅ — C-006 confirmed; no `--feature` flags introduced |
+| ADR for material architectural decisions | ✅ — the rulebook itself documents the shim lifecycle pattern; no new ADR required (rule change is the deliverable, not infrastructure) |
+
+**Gate result**: PASS — no violations.
+
+---
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (this mission)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/migration-shim-ownership-rules-01KPDYDW/
+├── spec.md
+├── plan.md              ← this file
+├── research.md          ← Phase 0 complete
+├── data-model.md        ← Phase 1 complete
+├── quickstart.md        ← Phase 1 complete
+├── contracts/
+│   ├── shim-registry-schema.yaml
+│   ├── doctor-shim-registry-cli.md
+│   └── README.md
+└── tasks/               ← generated by /spec-kitty.tasks (not yet)
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source code layout
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+architecture/2.x/
+├── 06_migration_and_shim_rules.md   # NEW — rulebook (FR-001, FR-002..FR-005, FR-012..FR-014)
+└── shim-registry.yaml               # NEW — machine-readable registry (FR-006, FR-007, FR-008)
+
+src/specify_cli/
+├── compat/                          # NEW package — Python compat-shim infrastructure
+│   ├── __init__.py
+│   ├── registry.py                  # load/validate shim-registry.yaml (R3 design)
+│   └── doctor.py                    # check_shim_registry() called by CLI (R1, R2, R6)
+└── cli/commands/doctor.py           # ADD shim-registry subcommand (C-007)
 
 tests/
-├── contract/
-├── integration/
-└── unit/
+├── architectural/
+│   ├── conftest.py                  # existing — provides repo_root and pytestarch fixtures
+│   ├── test_shim_registry_schema.py # NEW — FR-011: YAML schema validation
+│   └── test_unregistered_shim_scanner.py  # NEW — FR-010: AST-based shim scanner
+└── doctor/
+    └── test_shim_registry.py        # NEW — FR-009: CLI integration (pending/overdue/grandfathered)
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+CHANGELOG.md                         # FR-015: Unreleased/Added entry
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure decision**: New `src/specify_cli/compat/` package for compat-shim infrastructure.
+`src/specify_cli/shims/` already exists but owns *agent-skill* shim routing — a separate domain. To avoid name collision and confusion, compat-shim registry logic lands in `compat/`. This also mirrors the doctor.py pattern of importing from domain packages (`specify_cli.runtime.doctor`, `specify_cli.state.doctor`, `specify_cli.compat.doctor`).
+
+> **Research correction (R3)**: The research document named `src/specify_cli/architecture/shim_registry.py` as the target. Discovery found that `src/specify_cli/shims/` is already claimed by an unrelated domain. `src/specify_cli/compat/` is the correct, conflict-free home.
+
+---
+
+## Key Design Decisions
+
+### D1 — Semver comparator
+
+Use `packaging.version.Version` (R1). Handles pre-release suffixes correctly (current project version is `3.2.0`). Add `packaging` as an explicit `pyproject.toml` dependency if not already declared (it is a transitive dep today; the first WP confirms and adds it if needed).
+
+### D2 — Project version reader
+
+Use `stdlib tomllib` to read `[project].version` from `pyproject.toml` at repo root (R2). Exit code `2` on missing file or missing key, distinct from exit code `1` (overdue shim).
+
+### D3 — Registry YAML validation
+
+Manual validation in `src/specify_cli/compat/registry.py` using `ruamel.yaml` safe loader — no new validation framework (R3). Accumulate all errors before raising `RegistrySchemaError`. Schema contract documented in `contracts/shim-registry-schema.yaml`.
+
+### D4 — Shim file existence probe
+
+For `legacy_path = "specify_cli.charter"`, probe `src/specify_cli/charter.py` first, then `src/specify_cli/charter/__init__.py` (R6). First match = exists; neither = removed.
+
+### D5 — Unregistered-shim scanner (FR-010)
+
+AST-based walk (no import — no `DeprecationWarning` side-effects) of all `.py` under `src/specify_cli/`. Detect module-level `__deprecated__ = True`. Assert every detected path is in the registry. Lives in `tests/architectural/` alongside existing layer-rules tests.
+
+### D6 — Doctor subcommand integration
+
+New `@app.command(name="shim-registry")` in `src/specify_cli/cli/commands/doctor.py`, importing `from specify_cli.compat.doctor import check_shim_registry`. Follows the exact same pattern as `command-files`, `state-roots`, `identity`, `sparse-checkout` subcommands (C-007).
+
+### D7 — Registry initial state
+
+Current project version is `3.2.0`. No modules in `src/specify_cli/` carry `__deprecated__ = True` at mission start (confirmed by grep — zero results). The registry begins empty (`shims: []`). The FR-010 scanner test passes against an empty registry on day one; each downstream extraction mission adds its entry in its own PR.
+
+---
+
+## Charter Check (Post-Design)
+
+Re-evaluated after Phase 1 design:
+
+| Area | Check |
+|---|---|
+| New `packaging` explicit dep | ✅ — defensive hardening; no incompatibility with existing deps |
+| `src/specify_cli/compat/` new package | ✅ — no circular import risk; pure read-only logic |
+| Doctor subcommand is read-only (C-004) | ✅ — all writes are explicitly excluded from the implementation |
+| `architecture/` directory as home for rulebook + registry | ✅ — matches assumption A1; `architecture/2.x/` already contains `05_ownership_map.md` and `05_ownership_manifest.yaml` |
+| No new `grandfathered` entries after mission lands | ✅ — registry starts empty; FR-008 one-shot exception period is now open (future violations caught by a separate pytest) |
+
+**Gate result**: PASS — no conflicts introduced by Phase 1 design.
+
+---
 
 ## Complexity Tracking
 
-*Fill ONLY if Charter Check has violations that must be justified*
+*No charter violations identified. Section left empty per template rules.*
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+---
+
+## Risks and Mitigations (Premortem)
+
+| Risk | Likelihood | Mitigation |
+|---|---|---|
+| `packaging` not actually available as transitive dep in some install paths | Low | WP01 explicitly checks and adds to `pyproject.toml` if absent |
+| Future extraction PR adds shim without registering it | Medium | FR-010 scanner test catches it in CI before merge |
+| `removal_target_release` semantics ambiguous for pre-release versions (e.g., `3.3.0a1`) | Low | R1 documents: `Version("3.3.0") >= Version("3.3.0a1")` is True — stable release ships the shim out |
+| Doctor subcommand breaks existing doctor command group | Low | Subcommand is appended; existing commands are not modified; CI runs full test suite |
+| Worked-example content in rulebook outdated before review | Low | Rulebook cites mission slug + mid8; if #610 already removed `specify_cli.charter`, the example uses the "no-shim" baseline case (documented in R5) |
