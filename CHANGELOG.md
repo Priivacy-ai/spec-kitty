@@ -7,7 +7,7 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased - 3.2.0]
 
 ### Added
 
@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `spec-kitty charter resynthesize --list-topics` now lists valid project-artifact selectors, DRG URNs, and interview-section selectors, including hyphenated aliases for section names.
 - `spec-kitty charter status --provenance` now reports synthesis generation state, evidence summary, manifest health, and per-artifact provenance visibility alongside the older charter sync surface.
 - ADR `2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md` now records the host-side charter handoff contract: exact file layout, identity rules, and CLI sequence.
+- **`architecture/2.x/06_migration_and_shim_rules.md`** — Authoritative compatibility shim lifecycle
+  rulebook covering 4 rule families: schema/version gating, bundle/runtime migration authoring contract,
+  shim lifecycle (with copy-paste template), and removal plans/registry contract. Required reading for
+  all future extraction missions (#615).
+- **`architecture/2.x/shim-registry.yaml`** — Machine-readable registry of all known compatibility
+  shims. Starts empty (zero-shim baseline confirmed at mission-615 start). Future shims must be
+  registered here before merging. Validated by `spec-kitty doctor shim-registry` (#615).
+- **`spec-kitty doctor shim-registry`** — New CI enforcement subcommand that classifies each
+  registered shim as `pending`, `overdue`, `grandfathered`, or `removed`. Exits 1 when any shim
+  is overdue; exits 2 on configuration error. Supports `--json` for machine-readable CI output (#615).
 
 ### Changed
 
@@ -31,11 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - `spec-kitty auth whoami` — removed. Scripts using this command for canary preflight identity checks should switch to `spec-kitty auth status`.
-
-## [3.2.0] - 2026-04-19
-
-### Removed
-
 - **`specify_cli.charter` compatibility shim** — The re-export shim at `src/specify_cli/charter/` has been
   removed. External code importing `specify_cli.charter.*` must migrate to the canonical package:
   `from charter import <name>`. See
