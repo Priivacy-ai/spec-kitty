@@ -1,0 +1,35 @@
+{
+  "event_count": 16,
+  "last_event_id": "01KPN0Z3TY7FKPYM4CVG49CRT7",
+  "materialized_at": "2026-04-20T08:43:59.710451+00:00",
+  "mission_number": "",
+  "mission_slug": "specify-brief-intake-mode-01KPMXQB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPN06NXNS4A9JBGYVHRYNFGR",
+      "last_transition_at": "2026-04-20T08:30:39.029143+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPN0Z3TY7FKPYM4CVG49CRT7",
+      "last_transition_at": "2026-04-20T08:43:59.710451+00:00"
+    }
+  }
+}

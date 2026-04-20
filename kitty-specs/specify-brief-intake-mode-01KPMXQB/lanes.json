@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mission_slug": "specify-brief-intake-mode-01KPMXQB",
+  "mission_id": "01KPMXQBM67RJQTCWB31SC6PGM",
+  "mission_branch": "kitty/mission-specify-brief-intake-mode-01KPMXQB",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".agent/workflows/spec-kitty.specify.md",
+        ".agents/skills/spec-kitty.specify/SKILL.md",
+        ".amazonq/prompts/spec-kitty.specify.md",
+        ".augment/commands/spec-kitty.specify.md",
+        ".claude/commands/spec-kitty.specify.md",
+        ".cursor/commands/spec-kitty.specify.md",
+        ".gemini/commands/spec-kitty.specify.md",
+        ".github/prompts/spec-kitty.specify.md",
+        ".gitignore",
+        ".kilocode/workflows/spec-kitty.specify.md",
+        ".kiro/prompts/spec-kitty.specify.md",
+        ".opencode/command/spec-kitty.specify.md",
+        ".qwen/commands/spec-kitty.specify.md",
+        ".roo/commands/spec-kitty.specify.md",
+        ".windsurf/workflows/spec-kitty.specify.md",
+        "src/specify_cli/cli/commands/__init__.py",
+        "src/specify_cli/cli/commands/intake.py",
+        "src/specify_cli/mission_brief.py",
+        "src/specify_cli/missions/software-dev/command-templates/specify.md",
+        "tests/specify_cli/cli/commands/test_intake.py",
+        "tests/specify_cli/test_mission_brief.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-20T08:07:09.213528+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}
