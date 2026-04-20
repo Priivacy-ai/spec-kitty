@@ -10,7 +10,7 @@ def test_spec_kitty_events_fixture_shape_matches_scope_b_contract() -> None:
     """Pinned downstream fixtures must retain canonical mission identity names."""
     import spec_kitty_events
 
-    assert spec_kitty_events.__version__ == "3.0.0"
+    assert spec_kitty_events.__version__ == "3.2.0"
 
     fixture_dir = resources.files("spec_kitty_events") / "conformance" / "fixtures" / "events" / "valid"
     for fixture_name in ("mission_created.json", "mission_closed.json"):
