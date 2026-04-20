@@ -39,6 +39,7 @@ from typing import Any
 from doctrine.drg.loader import load_graph
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
 
+from .artifact_naming import artifact_filename, doctrine_kind_subdir
 from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
@@ -117,29 +118,7 @@ def _rewrite_manifest(
         The merged manifest (not yet written to disk; caller does the write).
     """
     import hashlib
-    import re
     from datetime import UTC, datetime
-
-    # Filename helper (mirrors write_pipeline._artifact_filename)
-    _DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
-
-    def _filename(kind: str, slug: str, artifact_id: str | None) -> str:
-        if kind == "directive":
-            nnn = "000"
-            if artifact_id:
-                m = _DIRECTIVE_NUM_RE.search(artifact_id)
-                if m:
-                    nnn = m.group(1).zfill(3)
-            return f"{nnn}-{slug}.directive.yaml"
-        elif kind == "tactic":
-            return f"{slug}.tactic.yaml"
-        elif kind == "styleguide":
-            return f"{slug}.styleguide.yaml"
-        else:
-            raise ValueError(f"Unknown artifact kind: {kind!r}")
-
-    def _doctrine_subdir(kind: str) -> str:
-        return {"directive": "directives", "tactic": "tactics", "styleguide": "styleguides"}[kind]
 
     # Build a key → new ManifestArtifactEntry dict for regenerated artifacts
     new_entries_by_key: dict[tuple[str, str], ManifestArtifactEntry] = {}
@@ -153,11 +132,11 @@ def _rewrite_manifest(
         if kind == "directive":
             artifact_id = prov.artifact_urn.split(":", 1)[1]
 
-        filename = _filename(kind, slug, artifact_id)
+        filename = artifact_filename(kind, slug, artifact_id)
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()
 
-        rel_content = f".kittify/doctrine/{_doctrine_subdir(kind)}/{filename}"
+        rel_content = f".kittify/doctrine/{doctrine_kind_subdir(kind)}/{filename}"
         rel_prov = f".kittify/charter/provenance/{kind}-{slug}.yaml"
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(

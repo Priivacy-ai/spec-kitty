@@ -30,12 +30,12 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 from __future__ import annotations
 
 import hashlib
-import re
 from collections.abc import Callable, Mapping
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+from .artifact_naming import artifact_filename, doctrine_kind_subdir
 from .errors import NeutralityGateViolation, StagingPromoteError
 from .evidence import EvidenceBundle
 from .manifest import (
@@ -54,8 +54,6 @@ from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
 # Filename helpers (data-model §E-2 "Filename rule")
 # ---------------------------------------------------------------------------
 
-_DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
-
 
 def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> str:
     """Return the repository-glob-matching filename for an artifact.
@@ -66,28 +64,12 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
     - tactic:    ``<slug>.tactic.yaml``
     - styleguide: ``<slug>.styleguide.yaml``
     """
-    if kind == "directive":
-        nnn = "000"
-        if artifact_id:
-            m = _DIRECTIVE_NUM_RE.search(artifact_id)
-            if m:
-                nnn = m.group(1).zfill(3)
-        return f"{nnn}-{slug}.directive.yaml"
-    elif kind == "tactic":
-        return f"{slug}.tactic.yaml"
-    elif kind == "styleguide":
-        return f"{slug}.styleguide.yaml"
-    else:
-        raise ValueError(f"Unknown artifact kind: {kind!r}")
+    return artifact_filename(kind, slug, artifact_id)
 
 
 def _doctrine_kind_subdir(kind: str) -> str:
     """Return the doctrine subdirectory name for a given artifact kind."""
-    return {
-        "directive": "directives",
-        "tactic": "tactics",
-        "styleguide": "styleguides",
-    }[kind]
+    return doctrine_kind_subdir(kind)
 
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:
