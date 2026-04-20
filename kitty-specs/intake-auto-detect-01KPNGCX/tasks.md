@@ -14,13 +14,13 @@
 | T002 | Produce `docs/reference/agent-plan-artifacts.md` with per-harness tables + source_agent mapping | WP01 | No | [D] |
 | T003 | Create `src/specify_cli/intake_sources.py` with `HARNESS_PLAN_SOURCES` list | WP01 | No | [D] |
 | T004 | Implement `scan_for_plans(cwd)` function in `intake_sources.py` | WP01 | No | [D] |
-| T005 | Extend `write_mission_brief()` with optional `source_agent` kwarg; conditional YAML field | WP02 | No |
-| T006 | Add `--auto` flag to `intake.py` with mutual exclusion guard | WP02 | No |
-| T007 | Implement 0-match path: print no-match message, exit 1 | WP02 | [P] |
-| T008 | Implement 1-match path: print BRIEF DETECTED, --force check, write brief, exit 0 | WP02 | [P] |
-| T009 | Implement 2+-match path: numbered list, TTY prompt or non-TTY stderr + exit 1 | WP02 | [P] |
-| T010 | Write `tests/specify_cli/test_intake_sources.py` (unit tests for scan_for_plans) | WP02 | [P] |
-| T011 | Write `tests/specify_cli/cli/commands/test_intake.py` (CLI tests for --auto scenarios) | WP02 | [P] |
+| T005 | Extend `write_mission_brief()` with optional `source_agent` kwarg; conditional YAML field | WP02 | No | [D] |
+| T006 | Add `--auto` flag to `intake.py` with mutual exclusion guard | WP02 | No | [D] |
+| T007 | Implement 0-match path: print no-match message, exit 1 | WP02 | [D] |
+| T008 | Implement 1-match path: print BRIEF DETECTED, --force check, write brief, exit 0 | WP02 | [D] |
+| T009 | Implement 2+-match path: numbered list, TTY prompt or non-TTY stderr + exit 1 | WP02 | [D] |
+| T010 | Write `tests/specify_cli/test_intake_sources.py` (unit tests for scan_for_plans) | WP02 | [D] |
+| T011 | Write `tests/specify_cli/cli/commands/test_intake.py` (CLI tests for --auto scenarios) | WP02 | [D] |
 
 ---
 
@@ -74,13 +74,13 @@
 **Goal**: Wire `--auto` into `spec-kitty intake`, extend `write_mission_brief()` with `source_agent`, and add full test coverage for all `--auto` scenarios.
 
 **Included subtasks**:
-- [ ] T005 Extend `write_mission_brief()` with optional `source_agent` kwarg (WP02)
-- [ ] T006 Add `--auto` flag to `intake.py` with mutual exclusion guard (WP02)
-- [ ] T007 Implement 0-match path in `--auto` (WP02)
-- [ ] T008 Implement 1-match path in `--auto` (WP02)
-- [ ] T009 Implement 2+-match path in `--auto` (WP02)
-- [ ] T010 Write `tests/specify_cli/test_intake_sources.py` (WP02)
-- [ ] T011 Write `tests/specify_cli/cli/commands/test_intake.py` (WP02)
+- [x] T005 Extend `write_mission_brief()` with optional `source_agent` kwarg (WP02)
+- [x] T006 Add `--auto` flag to `intake.py` with mutual exclusion guard (WP02)
+- [x] T007 Implement 0-match path in `--auto` (WP02)
+- [x] T008 Implement 1-match path in `--auto` (WP02)
+- [x] T009 Implement 2+-match path in `--auto` (WP02)
+- [x] T010 Write `tests/specify_cli/test_intake_sources.py` (WP02)
+- [x] T011 Write `tests/specify_cli/cli/commands/test_intake.py` (WP02)
 
 **Implementation sketch**:
 1. Extend `write_mission_brief()` signature — `source_agent` kwarg, conditional dict inclusion
