@@ -162,6 +162,12 @@ class TokenManager:
             flow = TokenRefreshFlow()
             try:
                 updated = await flow.refresh(self._session)
+            except RefreshTokenExpiredError:
+                # The server rejected the stored refresh token. Clear the
+                # local session so follow-up status/diagnostics do not report
+                # stale credentials as still authenticated.
+                self.clear_session()
+                raise
             except SessionInvalidError:
                 # Server-side invalidation: clear local state and propagate.
                 self.clear_session()
