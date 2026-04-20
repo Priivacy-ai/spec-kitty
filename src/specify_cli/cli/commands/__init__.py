@@ -13,6 +13,7 @@ from . import context as context_module
 from . import dashboard as dashboard_module
 from . import doctor as doctor_module
 from . import glossary as glossary_module
+from . import intake as intake_module
 from . import implement as implement_module
 from . import lifecycle as lifecycle_module
 from . import materialize as materialize_module
@@ -51,6 +52,7 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
+    app.command()(intake_module.intake)
     app.command()(lifecycle_module.specify)
     app.command()(lifecycle_module.plan)
     app.command()(lifecycle_module.tasks)

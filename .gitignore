@@ -145,3 +145,5 @@ pytest-of-*/
 *.cdx.json
 .kittify/ticket-context.md
 .kittify/pending-origin.yaml
+.kittify/mission-brief.md
+.kittify/brief-source.yaml
