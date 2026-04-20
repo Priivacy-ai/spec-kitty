@@ -266,3 +266,4 @@ Expected: lines in ascending order — Charter Bootstrap line number < Brief Con
 ## Activity Log
 
 - 2026-04-20T08:31:22Z – claude:sonnet:implementer:implementer – shell_pid=98442 – Started implementation via action command
+- 2026-04-20T08:37:49Z – claude:sonnet:implementer:implementer – shell_pid=98442 – Brief Context Detection section inserted and propagated to all configured agent directories (global runtime architecture)
