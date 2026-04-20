@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from specify_cli.intake_sources import scan_for_plans
 from specify_cli.mission_brief import (
     MISSION_BRIEF_FILENAME,
     read_brief_source,
@@ -28,13 +29,93 @@ def _resolve_repo_root() -> Path:
         return Path.cwd().resolve()
 
 
+def _write_brief_from_candidate(
+    repo_root: Path,
+    found_path: Path,
+    harness_key: str,
+    source_agent_value: str | None,
+    *,
+    force: bool,
+) -> None:
+    """Write the brief from a resolved candidate file; exits 1 on conflict or error."""
+    console.print(f"BRIEF DETECTED: {found_path} (source: {harness_key})")
+    brief_path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
+    if brief_path.exists() and not force:
+        err_console.print(
+            "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
+        )
+        raise typer.Exit(1)
+    try:
+        content = found_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        err_console.print(f"[red]Could not read file: {exc}[/red]")
+        raise typer.Exit(1) from None
+    write_mission_brief(repo_root, content, str(found_path), source_agent=source_agent_value)
+    console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
+    console.print("[green]\u2713[/green] Provenance written to .kittify/brief-source.yaml")
+
+
+def _prompt_candidate_selection(
+    candidates: list[tuple[Path, str, str | None]],
+) -> tuple[Path, str, str | None]:
+    """Interactively prompt the user to pick one candidate; exits 1 on bad input."""
+    err_console.print("Found multiple plan documents. Which should I use?")
+    for idx, (found_path, harness_key, _) in enumerate(candidates, start=1):
+        err_console.print(f"  {idx}. {found_path}  ({harness_key})")
+
+    if not sys.stdin.isatty():
+        err_console.print(
+            "\nNon-interactive stdin — pass a path explicitly: spec-kitty intake <path>"
+        )
+        raise typer.Exit(1)
+
+    selection_str = typer.prompt("Enter number")
+    try:
+        selection = int(selection_str)
+        if not 1 <= selection <= len(candidates):
+            raise ValueError  # noqa: TRY301
+    except ValueError:
+        err_console.print(
+            f"[red]Invalid selection. Enter a number between 1 and {len(candidates)}.[/red]"
+        )
+        raise typer.Exit(1) from None
+
+    return candidates[selection - 1]
+
+
+def _auto_branch(repo_root: Path, *, force: bool) -> None:
+    """Implement the --auto scan-and-ingest logic."""
+    candidates = scan_for_plans(Path.cwd())
+
+    if not candidates:
+        err_console.print(
+            "No plan document detected in known harness locations.\n"
+            "Pass a path explicitly: spec-kitty intake <path>"
+        )
+        raise typer.Exit(1)
+
+    if len(candidates) == 1:
+        found_path, harness_key, source_agent_value = candidates[0]
+    else:
+        found_path, harness_key, source_agent_value = _prompt_candidate_selection(candidates)
+
+    _write_brief_from_candidate(
+        repo_root,
+        found_path,
+        harness_key,
+        source_agent_value,
+        force=force,
+    )
+
+
 def intake(
     path: str | None = typer.Argument(
         None,
-        help="Path to plan document, or '-' to read from stdin. Omit when using --show.",
+        help="Path to plan document, or '-' to read from stdin. Omit when using --show or --auto.",
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing brief."),
     show: bool = typer.Option(False, "--show", help="Print current brief and provenance; no writes."),
+    auto: bool = typer.Option(False, "--auto", help="Scan known harness plan locations and ingest automatically."),
 ) -> None:
     """Ingest a plan document as a mission brief for /spec-kitty.specify."""
     repo_root = _resolve_repo_root()
@@ -56,9 +137,19 @@ def intake(
             console.print(brief)
         return
 
-    # No path and no --show: print usage hint and exit 1
+    # --auto + path mutual exclusion
+    if path is not None and auto:
+        err_console.print("[red]--auto cannot be combined with a positional path argument.[/red]")
+        raise typer.Exit(1)
+
+    # --auto branch
+    if auto:
+        _auto_branch(repo_root, force=force)
+        return
+
+    # No path, no --show, no --auto: print usage hint and exit 1
     if path is None:
-        err_console.print("[red]Provide a file path, '-' for stdin, or --show[/red]")
+        err_console.print("[red]Provide a file path, '-' for stdin, --show, or --auto[/red]")
         raise typer.Exit(1)
 
     # Normal write branch

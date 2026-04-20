@@ -31,6 +31,8 @@ def write_mission_brief(
     repo_root: Path,
     content: str,
     source_file: str,
+    *,
+    source_agent: str | None = None,
 ) -> tuple[Path, Path]:
     """Write ``.kittify/mission-brief.md`` and ``.kittify/brief-source.yaml``.
 
@@ -38,6 +40,14 @@ def write_mission_brief(
     provenance, followed by a blank line, then the original content.
     The YAML sidecar captures the source path, ingestion timestamp, and
     SHA-256 hash of the *raw* content (before the header is prepended).
+
+    Args:
+        repo_root: Project root directory.
+        content: Raw plan document content.
+        source_file: Human-readable source path or label (e.g. ``"stdin"``).
+        source_agent: Optional harness/agent identifier (e.g. ``"opencode"``).
+            When ``None``, the ``source_agent`` key is omitted from
+            ``brief-source.yaml`` entirely (no null written).
 
     Returns a tuple of ``(brief_path, source_path)``.
     """
@@ -61,6 +71,8 @@ def write_mission_brief(
         "ingested_at": ingested_at,
         "brief_hash": brief_hash,
     }
+    if source_agent is not None:
+        source_data["source_agent"] = source_agent
     source_path = kittify / BRIEF_SOURCE_FILENAME
     source_path.write_text(yaml.safe_dump(source_data, default_flow_style=False), encoding="utf-8")
 
