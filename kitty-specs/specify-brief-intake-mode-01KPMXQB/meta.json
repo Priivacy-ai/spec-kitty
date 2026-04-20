@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-20T07:47:19.925889+00:00",
+  "friendly_name": "Specify Brief Intake Mode",
+  "mission_id": "01KPMXQBM67RJQTCWB31SC6PGM",
+  "mission_number": null,
+  "mission_slug": "specify-brief-intake-mode-01KPMXQB",
+  "mission_type": "software-dev",
+  "slug": "specify-brief-intake-mode-01KPMXQB",
+  "source_description": "GitHub issue Priivacy-ai/spec-kitty#700 — brief-intake mode for /spec-kitty.specify",
+  "target_branch": "main",
+  "vcs": "git"
+}
