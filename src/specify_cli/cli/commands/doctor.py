@@ -656,12 +656,7 @@ def shim_registry(
         check_shim_registry,
     )
 
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(2) from exc
-
+    repo_root = locate_project_root()
     if repo_root is None:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(2)
@@ -678,9 +673,6 @@ def shim_registry(
         raise typer.Exit(2) from exc
     except KeyError as exc:
         console.print(f"[red]Configuration error:[/red] missing key {exc} in pyproject.toml")
-        raise typer.Exit(2) from exc
-    except Exception as exc:
-        console.print(f"[red]Configuration error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
     if json_output:

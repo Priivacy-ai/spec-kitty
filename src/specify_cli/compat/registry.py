@@ -7,6 +7,7 @@ from pathlib import Path
 
 from packaging.version import InvalidVersion, Version
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 _DOTTED_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:[a-z]\d+)?$")
@@ -47,8 +48,11 @@ def load_registry(repo_root: Path) -> list[ShimEntry]:
     if not registry_path.exists():
         raise FileNotFoundError(f"Shim registry not found at {registry_path}")
     yaml = YAML(typ="safe")
-    with registry_path.open() as fp:
-        data = yaml.load(fp)
+    try:
+        with registry_path.open() as fp:
+            data = yaml.load(fp)
+    except YAMLError as exc:
+        raise RegistrySchemaError([f"YAML parse error: {exc}"]) from exc
     validate_registry(data)
     return [ShimEntry(**entry) for entry in data["shims"]]
 
