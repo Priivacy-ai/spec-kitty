@@ -27,6 +27,8 @@ subtasks:
 - T007
 - T008
 - T009
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "98442"
 history:
 - date: '2026-04-20'
   author: spec-kitty.tasks
@@ -260,3 +262,7 @@ Expected: lines in ascending order — Charter Bootstrap line number < Brief Con
 - Verify the cleanup `rm -f` commands cover all four files: `mission-brief.md`, `brief-source.yaml`, `ticket-context.md`, `pending-origin.yaml`
 - The "If no brief file is found" branch must explicitly say to proceed with the normal Discovery Gate (FR-016)
 - Compare `.claude/commands/spec-kitty.specify.md` before and after upgrade to confirm only the new section was added
+
+## Activity Log
+
+- 2026-04-20T08:31:22Z – claude:sonnet:implementer:implementer – shell_pid=98442 – Started implementation via action command
