@@ -30,7 +30,8 @@ subtasks:
 - T009
 - T010
 - T011
-shell_pid: '72247'
+shell_pid: "72247"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - date: '2026-04-20'
   author: spec-kitty.tasks
@@ -564,3 +565,7 @@ class TestManualIntakeUnchanged:
 - Check that the `--show` path is not affected: run `--show` and confirm output is unchanged
 - Run `spec-kitty intake --help` and confirm `--auto` appears
 - Check `ruff check` and `pytest` both pass before approving
+
+## Activity Log
+
+- 2026-04-20T13:38:38Z – claude:sonnet:implementer:implementer – shell_pid=72247 – Assigned agent via action command
