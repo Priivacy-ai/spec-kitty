@@ -467,6 +467,13 @@ def implement(
             ),
         ),
     ] = False,
+    acknowledge_not_bulk_edit: Annotated[
+        bool,
+        typer.Option(
+            "--acknowledge-not-bulk-edit",
+            help="Suppress the bulk-edit inference warning when spec language resembles a bulk edit but the mission is not one.",
+        ),
+    ] = False,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -568,7 +575,13 @@ def implement(
 
             print(f"Creating workspace for {normalized_wp_id}...")
             try:
-                top_level_implement(wp_id=normalized_wp_id, mission=mission_slug, json_output=False, recover=False)
+                top_level_implement(
+                    wp_id=normalized_wp_id,
+                    mission=mission_slug,
+                    json_output=False,
+                    recover=False,
+                    acknowledge_not_bulk_edit=acknowledge_not_bulk_edit,
+                )
             except typer.Exit:
                 # Worktree creation failed - propagate error
                 raise
