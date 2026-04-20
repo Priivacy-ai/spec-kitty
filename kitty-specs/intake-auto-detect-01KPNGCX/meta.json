@@ -1,10 +1,12 @@
 {
   "created_at": "2026-04-20T13:13:41.163171+00:00",
-  "friendly_name": "intake auto detect",
+  "friendly_name": "Intake Auto-Detect from Harness Plan Artifacts",
   "mission_id": "01KPNGCX8BQQ0JDNQ2KFKA1GDC",
   "mission_number": null,
   "mission_slug": "intake-auto-detect-01KPNGCX",
   "mission_type": "software-dev",
   "slug": "intake-auto-detect-01KPNGCX",
-  "target_branch": "main"
+  "source_description": "Research harness plan-mode artifact locations, produce docs/reference/agent-plan-artifacts.md, then add --auto flag to spec-kitty intake. GitHub issue #703.",
+  "target_branch": "main",
+  "vcs": "git"
 }
