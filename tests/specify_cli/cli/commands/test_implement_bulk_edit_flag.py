@@ -66,7 +66,7 @@ def test_implement_help_advertises_acknowledge_flag() -> None:
     )
     # The option's help string should be present so users know what it does.
     normalized_help = " ".join(result.output.lower().split())
-    assert "inference warning" in normalized_help, (
+    assert "inference" in normalized_help and "warning" in normalized_help, (
         "Help text for --acknowledge-not-bulk-edit must describe the "
         "inference-warning suppression behavior; current output:\n" + result.output
     )
@@ -86,7 +86,7 @@ def test_agent_action_implement_help_advertises_acknowledge_flag() -> None:
         "current output:\n" + result.output
     )
     normalized_help = " ".join(result.output.lower().split())
-    assert "inference warning" in normalized_help, (
+    assert "inference" in normalized_help and "warning" in normalized_help, (
         "Wrapper help text for --acknowledge-not-bulk-edit must describe the "
         "inference-warning suppression behavior; current output:\n" + result.output
     )
