@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.2.0] - 2026-04-20
+## [4.2.0a1] - 2026-04-20
 
 ### Added
 
@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `spec-kitty charter synthesize` and `spec-kitty charter resynthesize` now default to the generated-artifact adapter. `--adapter fixture` remains available only for deterministic offline regression runs.
 - `spec-kitty charter synthesize --dry-run` is now a real stage-and-validate pass: it writes the staged artifact set, runs project DRG validation and neutrality gating, and only skips the final promote step.
+- Shared contract-library pins now align with the current released pair consumed across the CLI and SaaS surfaces: `spec-kitty-events==3.2.0` and `spec-kitty-tracker==0.4.2`.
 - Release pipeline now generates and attaches a CycloneDX SBOM (`sbom.cdx.json`) to every GitHub Release. The SBOM is an environment-snapshot of the fully resolved dependency tree at build time, making it straightforward for enterprise users to ingest the inventory into tools like Dependency-Track for continuous CVE monitoring without rescanning the package themselves.
 
 ### Fixed
