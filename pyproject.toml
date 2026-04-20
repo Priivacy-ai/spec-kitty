@@ -320,7 +320,7 @@ max_stack_depth=8
 timeout_constant = 1.0
 timeout_multiplier = 15.0
 # mutate_only_covered_lines=true # Optional flag to only mutate lines covered by tests; can be re-enabled later for more comprehensive mutation testing once coverage is improved.
-type_check_command = ['mypy', 'your_source_dir', '--output', 'json', '--disable-error-code', 'unused-ignore']
+type_check_command = ['mypy', 'src/specify_cli/', '--output', 'json', '--disable-error-code', 'unused-ignore']
 pytest_add_cli_args = [
     "--timeout=30",
        # tests/unit/ subdirs that fail in the mutants environment
