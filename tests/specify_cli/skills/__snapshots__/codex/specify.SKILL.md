@@ -88,6 +88,64 @@ spec-kitty charter context --action specify --json
 - If no charter exists yet, note that and continue. Missing charter is not a
   blocker for `/spec-kitty.specify`.
 
+## Brief Context Detection (check before discovery)
+
+Before starting discovery, check for a pre-existing mission brief:
+
+```bash
+ls .kittify/mission-brief.md 2>/dev/null && echo "MISSION_BRIEF_FOUND"
+ls .kittify/ticket-context.md 2>/dev/null && echo "TICKET_CONTEXT_FOUND"
+```
+
+Check in priority order:
+1. `.kittify/mission-brief.md` — general plan intake (written by `spec-kitty intake`)
+2. `.kittify/ticket-context.md` — tracker ticket (written by `mission create --from-ticket`)
+
+### If a brief file is found → Enter Brief-Intake Mode
+
+**BRIEF DETECTED: `.kittify/<filename>` (source: `<source_file>`)**
+
+1. **Read the full brief.** Do not skim.
+
+2. **Summarise for the user.** Present a single paragraph: what the brief says the goal is, who it is for, and what the key constraints are. Example: "I found a plan document from Claude Code plan mode. Here's what I understand the goal to be: [summary]. I'll extract the spec from this brief rather than running a full discovery interview."
+
+3. **Extract requirements directly.** Map the brief's content to `FR-###`, `NFR-###`, and `C-###` IDs. Do not ask questions the brief already answers. Specifically extract:
+   - Objective → Functional Requirements
+   - Constraints and non-goals → Non-Functional Requirements and Constraints
+   - Acceptance criteria → FR status and Definition of Done markers
+   - Risks and open questions → Assumptions or `[NEEDS CLARIFICATION]` markers (max 3)
+
+4. **Ask gap-filling questions only.** Scale to brief quality:
+
+   | Brief quality | Discovery questions |
+   |---------------|---------------------|
+   | Comprehensive (objective + constraints + approach + ACs) | 0–1 gap-filling questions |
+   | Good (objective + constraints, no ACs) | 2–3 questions |
+   | Partial (goal statement only) | 4–5 questions |
+   | Empty / missing | Proceed to normal Discovery Gate below |
+
+5. **Show the extracted requirement set.** Present the full FR/NFR/C table to the user: "I extracted X functional requirements and Y non-functional requirements. Does this look right?" Wait for one round of confirmation. The user may correct or supplement before you write the spec.
+
+6. **Write spec.md normally.** Apply the same quality checklist and readiness gate as standard specify. Brief-intake mode does NOT lower the quality bar — spec.md must still pass all validation items.
+
+7. **After spec.md is committed, delete all brief files** (each only if present):
+   ```bash
+   rm -f .kittify/mission-brief.md
+   rm -f .kittify/brief-source.yaml
+   rm -f .kittify/ticket-context.md
+   rm -f .kittify/pending-origin.yaml
+   ```
+
+**What brief-intake mode does NOT do:**
+- Does not copy brief prose verbatim into spec.md — it extracts and structures requirements
+- Does not skip the quality checklist
+- Does not skip the readiness gate
+- Does not require the brief to be in any particular format — Markdown prose is fine
+
+### If no brief file is found → Proceed with normal Discovery Gate
+
+No change to current behaviour. Continue to the Discovery Gate section below.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.

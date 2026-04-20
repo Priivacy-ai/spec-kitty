@@ -156,6 +156,12 @@ class TestLoadRegistryHappyPath:
         result = load_registry(root)
         assert result[0].grandfathered is True
 
+    def test_extra_unknown_keys_are_ignored_on_load(self, tmp_path: Path) -> None:
+        entry = {**_VALID_ENTRY, "future_field": "preserve-compat"}
+        root = _write_registry(tmp_path, {"shims": [entry]})
+        result = load_registry(root)
+        assert result[0] == ShimEntry(**_VALID_ENTRY)
+
 
 # ---------------------------------------------------------------------------
 # load_registry() — missing file
