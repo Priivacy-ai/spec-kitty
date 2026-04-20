@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent.workflow import app as agent_action_app
 from specify_cli.cli.commands.implement import implement as implement_fn
 
 
@@ -66,5 +67,24 @@ def test_implement_help_advertises_acknowledge_flag() -> None:
     # The option's help string should be present so users know what it does.
     assert "inference warning" in result.output.lower(), (
         "Help text for --acknowledge-not-bulk-edit must describe the "
+        "inference-warning suppression behavior; current output:\n" + result.output
+    )
+
+
+def test_agent_action_implement_help_advertises_acknowledge_flag() -> None:
+    """The wrapper help text must expose the same acknowledgement override."""
+    runner = CliRunner(env={"COLUMNS": "200", "TERM": "dumb"})
+    result = runner.invoke(agent_action_app, ["implement", "--help"], terminal_width=200)
+
+    assert result.exit_code == 0, f"help invocation failed: {result.output}"
+    assert (
+        "--acknowledge-not-bulk-edit" in result.output
+        or "--acknowledge-not-bulk" in result.output
+    ), (
+        "agent action implement help must advertise --acknowledge-not-bulk-edit; "
+        "current output:\n" + result.output
+    )
+    assert "inference warning" in result.output.lower(), (
+        "Wrapper help text for --acknowledge-not-bulk-edit must describe the "
         "inference-warning suppression behavior; current output:\n" + result.output
     )
