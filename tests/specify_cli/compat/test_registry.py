@@ -7,11 +7,15 @@ import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.compat.registry import (
+    _validate_canonical_import,
+    _validate_version_order,
     RegistrySchemaError,
     ShimEntry,
     load_registry,
     validate_registry,
 )
+
+pytestmark = pytest.mark.fast
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -326,3 +330,73 @@ class TestAdversarialValidation:
             for i in range(50)
         ]
         validate_registry({"shims": entries})
+
+
+# ---------------------------------------------------------------------------
+# _validate_canonical_import — branch coverage for line 63, 66
+# ---------------------------------------------------------------------------
+
+
+class TestValidateCanonicalImport:
+    def test_string_failing_dotted_name_regex_emits_error(self) -> None:
+        errors: list[str] = []
+        _validate_canonical_import(0, "123-not-a-dotted-name", errors)
+        assert len(errors) == 1
+        assert "canonical_import" in errors[0]
+        assert "dotted identifier" in errors[0]
+
+    def test_empty_list_emits_error(self) -> None:
+        errors: list[str] = []
+        _validate_canonical_import(0, [], errors)
+        assert len(errors) == 1
+        assert "list must not be empty" in errors[0]
+
+    def test_empty_list_does_not_iterate(self) -> None:
+        errors: list[str] = []
+        _validate_canonical_import(0, [], errors)
+        assert len(errors) == 1  # only the empty-list error, no per-item errors
+
+
+# ---------------------------------------------------------------------------
+# _validate_version_order — branch coverage for lines 83-85
+# ---------------------------------------------------------------------------
+
+
+class TestValidateVersionOrder:
+    def test_removal_before_introduced_emits_error(self) -> None:
+        errors: list[str] = []
+        entry = {"introduced_in_release": "3.3.0", "removal_target_release": "3.2.0"}
+        _validate_version_order(0, entry, errors)
+        assert len(errors) == 1
+        assert "removal_target_release" in errors[0]
+        assert ">= introduced_in_release" in errors[0]
+
+    def test_invalid_version_string_emits_error(self) -> None:
+        # "1.2.3z1" passes _SEMVER (any [a-z] letter) but is not valid PEP 440
+        errors: list[str] = []
+        entry = {"introduced_in_release": "1.2.3z1", "removal_target_release": "1.2.3z2"}
+        _validate_version_order(0, entry, errors)
+        assert len(errors) == 1
+        assert "not valid semver" in errors[0]
+
+    def test_equal_versions_are_valid(self) -> None:
+        errors: list[str] = []
+        entry = {"introduced_in_release": "3.2.0", "removal_target_release": "3.2.0"}
+        _validate_version_order(0, entry, errors)
+        assert errors == []
+
+
+# ---------------------------------------------------------------------------
+# validate_registry — branch coverage for lines 130, 137
+# ---------------------------------------------------------------------------
+
+
+class TestValidateRegistryBranches:
+    def test_notes_as_integer_raises_schema_error(self) -> None:
+        entry = {**_VALID_ENTRY, "notes": 42}
+        with pytest.raises(RegistrySchemaError, match="notes"):
+            validate_registry({"shims": [entry]})
+
+    def test_shims_not_a_list_raises_schema_error(self) -> None:
+        with pytest.raises(RegistrySchemaError, match="top-level.shims"):
+            validate_registry({"shims": "not-a-list"})
