@@ -310,17 +310,20 @@ module = [
 ignore_errors = true
 
 [tool.mutmut]
-# WP05 scope: all 4 priority modules — final floor measurement
 paths_to_mutate = [
-    "src/specify_cli/status/",
-    "src/specify_cli/glossary/",
-    "src/specify_cli/merge/",
-    "src/specify_cli/core/",
+    "src/",
 ]
-tests_dir = ["tests/unit/", "tests/specify_cli/"]
+tests_dir = ["tests/"]
+max_stack_depth=8
+# Configure how long mutmut waits before killing a slow mutation
+# Currently calculated as (duration_of_original_tests + timeout_constant) * timeout_multiplier seconds
+timeout_constant = 1.0
+timeout_multiplier = 15.0
+# mutate_only_covered_lines=true # Optional flag to only mutate lines covered by tests; can be re-enabled later for more comprehensive mutation testing once coverage is improved.
+type_check_command = ['mypy', 'your_source_dir', '--output', 'json', '--disable-error-code', 'unused-ignore']
 pytest_add_cli_args = [
     "--timeout=30",
-    # tests/unit/ subdirs that fail in the mutants environment
+       # tests/unit/ subdirs that fail in the mutants environment
     "--ignore=tests/unit/agent/",
     "--ignore=tests/unit/mission_v1/",
     "--ignore=tests/unit/next/",
@@ -331,17 +334,26 @@ pytest_add_cli_args = [
     "--ignore=tests/unit/test_move_task_git_validation.py",
     # tests/unit/ file that uses inspect.getsource() on multi-mutation files
     "--ignore=tests/unit/test_pre_commit_wp_guard.py",
-    # tests/specify_cli/ files that fail in the mutants environment
+    # tests/specify_cli/ files/dirs that fail in the mutants environment
+    # (missing kitty-specs/, full repo git state, or subprocess-heavy setup)
     "--ignore=tests/specify_cli/cli/commands/test_event_emission.py",
+    "--ignore=tests/specify_cli/cli/commands/test_selector_resolution.py",
+    "--ignore=tests/specify_cli/cli/commands/test_materialize.py",
+    "--ignore=tests/specify_cli/cli/commands/test_merge.py",
+    "--ignore=tests/specify_cli/cli/commands/test_agent_config_vibe.py",
+    "--ignore=tests/specify_cli/cli/commands/agent/",
+    "--ignore=tests/specify_cli/core/",
     "--ignore=tests/specify_cli/test_cli/",
     "--ignore=tests/specify_cli/test_implement_command.py",
     "--ignore=tests/specify_cli/test_review_warnings.py",
     "--ignore=tests/specify_cli/test_workflow_auto_moves.py",
     "--ignore=tests/specify_cli/upgrade/test_migration_robustness.py",
     "--ignore=tests/specify_cli/status/test_parity.py",
+    "--ignore=tests/specify_cli/scripts/",  # trampoline NoneType bug in mutmut 3.5.0
 ]
 also_copy = [
     "LICENSE",
+    "src/specify_cli/compat/",  # compat package under test
     "README.md",
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
@@ -371,6 +383,7 @@ also_copy = [
     "src/specify_cli/mission_v1/",  # Copy mission v1
     "src/specify_cli/scripts/",  # Copy scripts
     "src/specify_cli/skills/",  # Copy skills distribution runtime
+    "mutmut_pytest.ini",  # Custom pytest config for mutmut runs
 ]
 # Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
 do_not_mutate = [

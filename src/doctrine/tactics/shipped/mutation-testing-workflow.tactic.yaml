@@ -1,0 +1,60 @@
+schema_version: "1.0"
+id: mutation-testing-workflow
+name: Mutation Testing Workflow
+purpose: >
+  Verify that tests detect real bugs — not merely execute code. Mutation testing
+  answers "if I introduced a bug here, would my tests fail?" where coverage only
+  answers "did my tests run this line?".
+steps:
+  - title: Identify targets
+    description: >
+      Locate changed or newly written functions. Focus on conditionals, arithmetic
+      operators, boolean logic, and collection operations — the mutation families
+      most likely to produce surviving mutants.
+    examples:
+      - "git diff main...HEAD --name-only | grep '\\.py$' | grep -v 'test_'"
+      - "Prioritise functions with >= / <= guards, AND/OR chains, or any()/all() calls."
+  - title: Generate mental mutants
+    description: >
+      For each function, mentally apply operator mutations and ask whether an
+      existing test would fail. Cover: comparison flips (>= → >), arithmetic swaps
+      (+ → -), logical inversions (AND → OR), boolean negations, and removed
+      statements.
+    examples:
+      - "If _classify() uses current >= removal_version, is there a test at exactly current == removal_version?"
+      - "If validate() accumulates errors, is each individual check independently exercised?"
+  - title: Verify detection strength
+    description: >
+      For each potential mutant, confirm a specific assertion would fail — not
+      merely that the code path executes. Check: Is the assertion value precise
+      enough? Are boundary values covered? Are both branches of logical operators
+      tested?
+    examples:
+      - "assert result == ShimStatus.OVERDUE is stronger than assert result is not None."
+      - "multiply(10, 3) distinguishes * from /; multiply(10, 1) does not."
+  - title: Categorise findings
+    description: >
+      Classify each potential mutant as Killed (test would fail), Survived (test
+      would pass — requires action), No Coverage (no test reaches the code — add
+      test), or Equivalent (mutation produces identical observable behaviour — no
+      action required).
+    examples:
+      - "Survived: _validate_entry() grandfathered branch not independently asserted — all tests use grandfathered=False."
+      - "Equivalent: removing 'from exc' on a re-raise that is never inspected in tests."
+  - title: Strengthen survivors
+    description: >
+      For each Survived mutant: add a boundary-value test, a bi-directional branch
+      test, or replace identity-value inputs. Re-run mutation tests to confirm the
+      new test kills the mutant.
+    examples:
+      - "Add test_existing_shim_at_deadline_is_overdue(version==removal) to kill the >= → > mutant."
+      - "Add test with exactly one True operand to kill AND → OR mutations."
+failure_modes:
+  - "Focusing exclusively on high mutation score rather than on meaningful, maintainable tests."
+  - "Accepting 'no coverage' as equivalent to 'equivalent' — the former requires a test, the latter does not."
+  - "Running mutation testing on generated, migrated, or boilerplate code where survivors are always equivalent."
+notes: >
+  Target mutation scores: < 60% indicates structurally weak tests; 60–80%
+  moderate — many improvements possible; 80–90% good; > 90% strong — watch for
+  equivalent mutant inflation. Use # pragma: no mutate to suppress specific lines
+  where mutations are semantically equivalent (e.g. version strings, log messages).

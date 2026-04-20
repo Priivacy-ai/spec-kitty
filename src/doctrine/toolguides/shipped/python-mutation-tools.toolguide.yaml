@@ -1,0 +1,16 @@
+schema_version: "1.0"
+id: python-mutation-tools
+tool: mutmut
+title: Python Mutation Testing with mutmut
+guide_path: src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md
+applies_to_languages:
+  - python
+summary: >
+  Operator reference and mutmut workflow for Python mutation testing. Covers
+  Python-specific mutation families (identity operators, membership, floor
+  division, any/all, break/continue) and the mutmut run/browse/apply cycle.
+commands:
+  - mutmut
+  - uv
+  - pytest
+last_updated: "2026-04-20"
