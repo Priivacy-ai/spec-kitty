@@ -10,10 +10,10 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Research plan-mode behavior for all 13 harnesses (docs, GitHub source, empirical test) | WP01 | No |
-| T002 | Produce `docs/reference/agent-plan-artifacts.md` with per-harness tables + source_agent mapping | WP01 | No |
-| T003 | Create `src/specify_cli/intake_sources.py` with `HARNESS_PLAN_SOURCES` list | WP01 | No |
-| T004 | Implement `scan_for_plans(cwd)` function in `intake_sources.py` | WP01 | No |
+| T001 | Research plan-mode behavior for all 13 harnesses (docs, GitHub source, empirical test) | WP01 | No | [D] |
+| T002 | Produce `docs/reference/agent-plan-artifacts.md` with per-harness tables + source_agent mapping | WP01 | No | [D] |
+| T003 | Create `src/specify_cli/intake_sources.py` with `HARNESS_PLAN_SOURCES` list | WP01 | No | [D] |
+| T004 | Implement `scan_for_plans(cwd)` function in `intake_sources.py` | WP01 | No | [D] |
 | T005 | Extend `write_mission_brief()` with optional `source_agent` kwarg; conditional YAML field | WP02 | No |
 | T006 | Add `--auto` flag to `intake.py` with mutual exclusion guard | WP02 | No |
 | T007 | Implement 0-match path: print no-match message, exit 1 | WP02 | [P] |
@@ -38,10 +38,10 @@
 **Goal**: Produce the canonical harness reference document and the `intake_sources.py` module. WP02 cannot start until this is complete.
 
 **Included subtasks**:
-- [ ] T001 Research plan-mode behavior for all 13 harnesses (WP01)
-- [ ] T002 Produce `docs/reference/agent-plan-artifacts.md` (WP01)
-- [ ] T003 Create `src/specify_cli/intake_sources.py` with `HARNESS_PLAN_SOURCES` (WP01)
-- [ ] T004 Implement `scan_for_plans(cwd)` in `intake_sources.py` (WP01)
+- [x] T001 Research plan-mode behavior for all 13 harnesses (WP01)
+- [x] T002 Produce `docs/reference/agent-plan-artifacts.md` (WP01)
+- [x] T003 Create `src/specify_cli/intake_sources.py` with `HARNESS_PLAN_SOURCES` (WP01)
+- [x] T004 Implement `scan_for_plans(cwd)` in `intake_sources.py` (WP01)
 
 **Implementation sketch**:
 1. Research each of the 13 harnesses in priority order: official docs → GitHub source → empirical test → community reports
