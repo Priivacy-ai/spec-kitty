@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -15,13 +14,22 @@ from specify_cli.mission_brief import (
     read_mission_brief,
     write_mission_brief,
 )
+from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 console = Console()
 err_console = Console(stderr=True)
 
 
+def _resolve_repo_root() -> Path:
+    """Resolve the project root for brief artifacts, falling back to CWD."""
+    try:
+        return find_repo_root(Path.cwd())
+    except TaskCliError:
+        return Path.cwd().resolve()
+
+
 def intake(
-    path: Optional[str] = typer.Argument(
+    path: str | None = typer.Argument(
         None,
         help="Path to plan document, or '-' to read from stdin. Omit when using --show.",
     ),
@@ -29,7 +37,7 @@ def intake(
     show: bool = typer.Option(False, "--show", help="Print current brief and provenance; no writes."),
 ) -> None:
     """Ingest a plan document as a mission brief for /spec-kitty.specify."""
-    repo_root = Path.cwd()
+    repo_root = _resolve_repo_root()
 
     # --show branch: print and exit, no writes
     if show:
@@ -71,10 +79,10 @@ def intake(
             source_file = path
         except FileNotFoundError:
             err_console.print(f"[red]File not found: {path}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
         except OSError as exc:
             err_console.print(f"[red]Could not read file: {exc}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
     write_mission_brief(repo_root, content, source_file)
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")

@@ -41,7 +41,6 @@ def test_write_brief_content(tmp_path: Path) -> None:
     assert "<!-- spec-kitty intake: ingested from plan.md at " in text
     assert "<!-- brief_hash: " in text
     assert RAW_CONTENT in text
-    # Header comes before content
     header_end = text.index("<!-- brief_hash:")
     content_start = text.index(RAW_CONTENT)
     assert header_end < content_start
@@ -53,12 +52,10 @@ def test_write_brief_hash_is_sha256_of_raw_content(tmp_path: Path) -> None:
 
     expected_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()
 
-    # Check header in brief file
     brief_path = tmp_path / ".kittify" / MISSION_BRIEF_FILENAME
     text = brief_path.read_text(encoding="utf-8")
     assert f"<!-- brief_hash: {expected_hash} -->" in text
 
-    # Check YAML sidecar
     source = read_brief_source(tmp_path)
     assert source is not None
     assert source["brief_hash"] == expected_hash
@@ -118,6 +115,17 @@ def test_read_source_returns_dict_when_present(tmp_path: Path) -> None:
     assert "brief_hash" in result
 
 
+def test_read_source_returns_none_for_non_mapping_yaml(tmp_path: Path) -> None:
+    """read_brief_source returns None when the YAML root is not a mapping."""
+    source_path = tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME
+    source_path.parent.mkdir()
+    source_path.write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+
+    result = read_brief_source(tmp_path)
+
+    assert result is None
+
+
 def test_clear_removes_both_files(tmp_path: Path) -> None:
     """clear_mission_brief removes both artefacts."""
     write_mission_brief(tmp_path, RAW_CONTENT, "plan.md")
@@ -135,9 +143,8 @@ def test_clear_removes_both_files(tmp_path: Path) -> None:
 
 def test_clear_is_idempotent(tmp_path: Path) -> None:
     """clear_mission_brief does not raise when files are already absent."""
-    # No files written — calling clear should not raise
-    clear_mission_brief(tmp_path)  # first call with no files
-    clear_mission_brief(tmp_path)  # second call — still no error
+    clear_mission_brief(tmp_path)
+    clear_mission_brief(tmp_path)
 
 
 def test_write_twice_overwrites(tmp_path: Path) -> None:

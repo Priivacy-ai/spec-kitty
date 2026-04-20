@@ -57,6 +57,7 @@ def test_intake_stdin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
 
     import yaml  # noqa: PLC0415
+
     source = yaml.safe_load(
         (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).read_text(encoding="utf-8")
     )
@@ -69,11 +70,9 @@ def test_intake_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
-    # First write
     result1 = runner.invoke(app, ["intake", str(plan_file)], catch_exceptions=False)
     assert result1.exit_code == 0
 
-    # Write updated content with --force
     plan_file.write_text("# Updated Plan\n\nNew content.\n")
     result2 = runner.invoke(app, ["intake", "--force", str(plan_file)], catch_exceptions=False)
     assert result2.exit_code == 0
@@ -89,18 +88,15 @@ def test_intake_no_force_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
-    # First write succeeds
     result1 = runner.invoke(app, ["intake", str(plan_file)], catch_exceptions=False)
     assert result1.exit_code == 0
 
     original_brief = (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).read_text(encoding="utf-8")
 
-    # Second write without --force exits 1
     plan_file.write_text("# Different content\n")
     result2 = runner.invoke(app, ["intake", str(plan_file)], catch_exceptions=False)
     assert result2.exit_code == 1
 
-    # Original file unchanged
     current_brief = (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).read_text(encoding="utf-8")
     assert current_brief == original_brief
 
@@ -115,7 +111,6 @@ def test_intake_show_prints_brief(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     result = runner.invoke(app, ["intake", "--show"], catch_exceptions=False)
     assert result.exit_code == 0
-    # Output should include something from the brief
     assert "Source:" in result.output or PLAN_CONTENT in result.output
 
 
@@ -135,3 +130,38 @@ def test_intake_missing_file_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert result.exit_code == 1
     assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
     assert not (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).exists()
+
+
+def test_intake_from_subdir_writes_to_repo_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When invoked below the repo root, intake writes artifacts to the repo root."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    (repo_root / ".kittify").mkdir()
+    subdir = repo_root / "docs"
+    subdir.mkdir()
+    plan_file = repo_root / "PLAN.md"
+    plan_file.write_text(PLAN_CONTENT)
+
+    monkeypatch.chdir(subdir)
+
+    result = runner.invoke(app, ["intake", str(plan_file)], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert (repo_root / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+    assert (repo_root / ".kittify" / BRIEF_SOURCE_FILENAME).exists()
+    assert not (subdir / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+
+
+def test_intake_show_ignores_invalid_source_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--show still prints the brief when the provenance YAML is malformed."""
+    monkeypatch.chdir(tmp_path)
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / MISSION_BRIEF_FILENAME).write_text(PLAN_CONTENT, encoding="utf-8")
+    (kittify / BRIEF_SOURCE_FILENAME).write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["intake", "--show"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert PLAN_CONTENT in result.output

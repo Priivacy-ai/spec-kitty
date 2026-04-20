@@ -11,7 +11,7 @@ Neither file should be committed to version control; both are gitignored.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +45,7 @@ def write_mission_brief(
     kittify.mkdir(exist_ok=True)
 
     brief_hash = hashlib.sha256(content.encode()).hexdigest()
-    ingested_at = datetime.now(tz=timezone.utc).isoformat()
+    ingested_at = datetime.now(tz=UTC).isoformat()
 
     header = (
         f"<!-- spec-kitty intake: ingested from {source_file} at {ingested_at} -->\n"
@@ -62,7 +62,7 @@ def write_mission_brief(
         "brief_hash": brief_hash,
     }
     source_path = kittify / BRIEF_SOURCE_FILENAME
-    source_path.write_text(yaml.dump(source_data, default_flow_style=False), encoding="utf-8")
+    source_path.write_text(yaml.safe_dump(source_data, default_flow_style=False), encoding="utf-8")
 
     return brief_path, source_path
 
@@ -89,8 +89,8 @@ def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        result: dict[str, Any] | None = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        return result
+        result = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        return result if isinstance(result, dict) else None
     except Exception:  # noqa: BLE001
         return None
 
