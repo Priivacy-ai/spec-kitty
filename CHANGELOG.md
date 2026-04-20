@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.6] - 2026-04-20
+
+### Fixed
+
+- `spec-kitty agent action implement` now exposes and forwards
+  `--acknowledge-not-bulk-edit` to the underlying workspace-allocation command,
+  allowing non-bulk-edit missions to suppress false-positive bulk-edit inference
+  warnings during workspace creation.
+
+### Docs
+
+- Spec Kitty's internal maintainer charter now records the ownership boundary
+  for user-authored custom commands, custom skills, and project overrides, with
+  an explicit proof trail showing that package-owned mutation flows must preserve
+  files whose ownership is not proven by managed-path or manifest data.
+
 ## [3.1.5] - 2026-04-16
 
 ### Changed

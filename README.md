@@ -101,17 +101,11 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current release: `3.1.5` on `main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v3.1.x` (current release: `3.1.6` on GitHub Releases and PyPI)
 
 **3.1.x highlights:**
-- **Runtime loop is the primary workflow** — `spec-kitty next` drives implementation and review, and omitting `--result` is a safe query-only mode
-- **Review and merge resilience** — focused fix prompts, persisted `review-cycle-N.md` artifacts, `merge --resume`, `implement --recover`, and stronger recovery diagnostics in `doctor`
-- **Hosted auth and sync are first-class** — browser-based `spec-kitty auth login`, explicit SaaS rollout gating, and clearer tracker/discovery readiness checks
-- **Charter bundle is now a validated contract** — bundle health can be checked with `spec-kitty charter bundle validate`, and worktrees read canonical charter outputs from the main checkout
-- **Sparse-checkout failures are defended in depth** — merge/implement preflights fail closed, `safe_commit` rejects out-of-scope staging, and `spec-kitty doctor sparse-checkout --fix` repairs legacy repos
-- **Upgrade auto-commit is safer** — rename-heavy migrations and directory-backed changes now commit cleanly during `spec-kitty upgrade` instead of tripping the staging backstop
-- **Charter guidance is language-neutral by default** — packaged defaults no longer bias planning toward pytest/junit, and scoped doctrine assets still load when no active language filter is available
-- **13 slash-command agents are supported** — including first-class Kiro support while retaining legacy `q` compatibility during the rebrand
+- **`agent action implement` now honors the bulk-edit acknowledgement override** — false-positive bulk-edit inference warnings no longer block workspace creation when the mission is not actually a bulk edit and the user explicitly acknowledges that.
+- **Maintainer governance now documents the ownership boundary for user customizations** — Spec Kitty's internal charter records that package-owned mutation flows must not clobber user-authored custom commands, custom skills, or project overrides without explicit ownership proof.
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •

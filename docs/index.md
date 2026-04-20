@@ -11,17 +11,12 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Latest Release: 3.1.5
+## Latest Release: 3.1.6
 
-Spec Kitty 3.1.5 (released 2026-04-16) continues the `3.1.x` stable line with upgrade hardening, neutral charter defaults, and release-surface cleanup:
+Spec Kitty 3.1.6 (released 2026-04-20) is a focused `3.1.x` hotfix:
 
-- **Runtime loop is now the primary mental model** — `spec-kitty next` remains the canonical driver, and query mode is safe and read-only
-- **Hosted auth and SaaS sync are first-class** — browser-based `spec-kitty auth login`, explicit hosted rollout gating, and clearer tracker readiness checks
-- **13 slash-command agents are supported** — including first-class Kiro support while retaining legacy `q` compatibility
-- **Review and merge resilience improved again** — persisted review-cycle artifacts, focused fix prompts, sparse-checkout preflights, and `spec-kitty doctor sparse-checkout --fix`
-- **Charter bundle is a validated contract** — `spec-kitty charter bundle validate` checks the canonical charter outputs and worktrees now resolve them from the main checkout
-- **Upgrade auto-commit no longer trips on rename-heavy migrations** — `safe_commit` keeps a one-path-per-line probe and upgrade staging expands changed directories before validation
-- **Charter defaults are language-neutral by design** — no pytest/junit bias in packaged defaults or plan templates, and scoped doctrine assets still load when the repo has not declared an active language set yet
+- **`agent action implement` now exposes `--acknowledge-not-bulk-edit`** — the wrapper forwards the override to the underlying workspace-allocation command, so non-bulk-edit missions can proceed past false-positive bulk-edit inference warnings.
+- **The internal maintainer charter now codifies the user-customization ownership boundary** — package-owned mutation flows must preserve user-authored custom commands, custom skills, and project overrides unless ownership is proven by a managed-path or manifest contract.
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 
