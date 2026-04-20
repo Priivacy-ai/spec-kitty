@@ -89,7 +89,7 @@ CLI_DRIVEN_COMMANDS: frozenset[str] = frozenset(
 assert PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS == CONSUMER_SKILLS, (
     "Command classification sets must cover all consumer skills exactly"
 )
-assert PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS == frozenset(), (
+assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS, (
     "PROMPT_DRIVEN_COMMANDS and CLI_DRIVEN_COMMANDS must be disjoint"
 )
 

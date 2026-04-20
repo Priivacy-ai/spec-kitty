@@ -766,7 +766,7 @@ class TestDossierHTTPAPI:
 
         # Check that DashboardRouter has handle_dossier method
         assert hasattr(DashboardRouter, "handle_dossier")
-        assert callable(getattr(DashboardRouter, "handle_dossier"))
+        assert callable(DashboardRouter.handle_dossier)
 
     def test_load_snapshot_argument_order_fixed(self):
         """Verify load_snapshot() has correct argument order.

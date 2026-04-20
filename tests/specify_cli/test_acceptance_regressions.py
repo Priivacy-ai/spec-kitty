@@ -16,7 +16,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Tuple
 
@@ -108,7 +108,7 @@ def _create_test_feature(
         # Build a valid transition chain: planned -> done (with force to skip intermediate)
         from ulid import ULID
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         event = StatusEvent(
             event_id=str(ULID()),
             mission_slug=mission_slug,

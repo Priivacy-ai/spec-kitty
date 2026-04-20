@@ -10,7 +10,7 @@ No external runtime dependencies — stdlib ``pathlib`` and ``os.walk`` only.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
@@ -97,7 +97,7 @@ class CodeReadingError(Exception):
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _is_test_file(rel_path: str, filename: str) -> bool:

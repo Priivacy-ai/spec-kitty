@@ -187,7 +187,7 @@ class TestHashReproducibility:
         hash2 = hash_file(test_file)
         assert hash1 == hash2
         # Verify it matches expected SHA256
-        expected = hashlib.sha256("Hello\n".encode()).hexdigest()
+        expected = hashlib.sha256(b"Hello\n").hexdigest()
         assert hash1 == expected
 
 

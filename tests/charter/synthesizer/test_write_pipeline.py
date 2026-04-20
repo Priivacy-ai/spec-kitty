@@ -163,7 +163,7 @@ def _make_staging_dir_with_artifact(
     slug: str,
     content: str,
     artifact_id: str | None = None,
-) -> "tuple[object, object]":
+) -> tuple[object, object]:
     """Create a StagingDir and a matching ProvenanceEntry for testing the gate."""
     import hashlib
 

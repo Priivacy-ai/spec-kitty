@@ -88,7 +88,7 @@ def non_repo_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return bare
 
 
-def _invoke_validate_json() -> "CliRunner.Result":
+def _invoke_validate_json() -> CliRunner.Result:
     return runner.invoke(charter_bundle.app, ["validate", "--json"])
 
 

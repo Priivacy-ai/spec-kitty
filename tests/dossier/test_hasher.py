@@ -151,7 +151,7 @@ class TestHashFileWithValidation:
         test_file = tmp_path / "bom.txt"
         # Write with UTF-8 BOM
         with open(test_file, "wb") as f:
-            f.write(b"\xef\xbb\xbf" + "Hello, world!".encode("utf-8"))
+            f.write(b"\xef\xbb\xbf" + b"Hello, world!")
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None

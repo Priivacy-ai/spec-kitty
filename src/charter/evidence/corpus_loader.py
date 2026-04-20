@@ -56,5 +56,5 @@ def _parse_snapshot(data: dict[str, Any]) -> CorpusSnapshot:
         snapshot_id=str(data["snapshot_id"]),
         profile_key=str(data["profile_key"]),
         entries=entries,
-        loaded_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        loaded_at=datetime.datetime.now(datetime.UTC).isoformat(),
     )

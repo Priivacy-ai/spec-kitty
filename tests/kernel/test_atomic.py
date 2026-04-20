@@ -30,7 +30,7 @@ class TestAtomicWriteStr:
     def test_encodes_str_to_utf8(self, tmp_path: Path) -> None:
         target = tmp_path / "unicode.txt"
         atomic_write(target, "café ñoño 中文")
-        assert target.read_bytes() == "café ñoño 中文".encode("utf-8")
+        assert target.read_bytes() == "café ñoño 中文".encode()
 
     def test_overwrites_existing_file(self, tmp_path: Path) -> None:
         target = tmp_path / "file.txt"

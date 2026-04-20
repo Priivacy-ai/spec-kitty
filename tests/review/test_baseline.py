@@ -262,7 +262,7 @@ class TestJunitXmlParsing:
         f = failures[0]
         assert f.test == "tests.test_foo.test_fail"
         assert "AssertionError" in f.error
-        assert "tests/test_foo.py:10" == f.file
+        assert f.file == "tests/test_foo.py:10"
 
     def test_parse_truncates_long_error(self, tmp_path: Path) -> None:
         long_msg = "A" * 300

@@ -113,7 +113,7 @@ def test_charter_ownership_invariant(repo_root: Path) -> None:
             "  definitions found in:",
         ]
         if not found:
-            lines.append(f"    (none — canonical file may be missing or renamed)")
+            lines.append("    (none — canonical file may be missing or renamed)")
         else:
             for p_str in found_strs:
                 tag = "(canonical)" if p_str == canonical else "(DUPLICATE — remove or rename)"

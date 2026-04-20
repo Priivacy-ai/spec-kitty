@@ -131,7 +131,7 @@ class TestPromptDrivenCommands:
         assert PROMPT_DRIVEN_COMMANDS.issubset(CONSUMER_SKILLS)
 
     def test_disjoint_from_cli_driven(self) -> None:
-        assert PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS == frozenset()
+        assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS
 
 
 class TestCliDrivenCommands:
@@ -160,7 +160,7 @@ class TestCliDrivenCommands:
         assert CLI_DRIVEN_COMMANDS.issubset(CONSUMER_SKILLS)
 
     def test_disjoint_from_prompt_driven(self) -> None:
-        assert CLI_DRIVEN_COMMANDS & PROMPT_DRIVEN_COMMANDS == frozenset()
+        assert frozenset() == CLI_DRIVEN_COMMANDS & PROMPT_DRIVEN_COMMANDS
 
 
 class TestCommandClassificationInvariant:
@@ -168,7 +168,7 @@ class TestCommandClassificationInvariant:
         assert PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS == CONSUMER_SKILLS
 
     def test_no_overlap_between_sets(self) -> None:
-        assert PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS == frozenset()
+        assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS
 
     def test_total_count_matches_consumer_skills(self) -> None:
         assert len(PROMPT_DRIVEN_COMMANDS) + len(CLI_DRIVEN_COMMANDS) == len(CONSUMER_SKILLS)

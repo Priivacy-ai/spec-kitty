@@ -69,7 +69,7 @@ class _UnionFind:
 
     def __init__(self, elements: list[str]) -> None:
         self._parent: dict[str, str] = {e: e for e in elements}
-        self._rank: dict[str, int] = {e: 0 for e in elements}
+        self._rank: dict[str, int] = dict.fromkeys(elements, 0)
 
     def find(self, x: str) -> str:
         while self._parent[x] != x:

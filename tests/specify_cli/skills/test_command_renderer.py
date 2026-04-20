@@ -456,7 +456,7 @@ def test_replacement_block_constant_unchanged() -> None:
         "referenced elsewhere in these instructions.\n\n"
         "You **MUST** consider this user input before proceeding (if not empty).\n"
     )
-    assert REPLACEMENT_BLOCK == expected, (
+    assert expected == REPLACEMENT_BLOCK, (
         "REPLACEMENT_BLOCK has drifted from its locked value. "
         "This is a load-bearing constant — any change requires a deliberate version bump."
     )
