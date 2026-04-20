@@ -74,6 +74,24 @@ class TestScanForPlans:
         assert len(results) == 1
         assert results[0][0].name == "plan.md"
 
+    def test_directory_candidate_md_files_sorted_alphabetically(self, tmp_path: Path):
+        """Multiple .md files in a candidate directory are returned in sorted (alphabetical) order."""
+        mock_sources = [("opencode", "opencode", [".opencode/plans"])]
+        plans_dir = tmp_path / ".opencode" / "plans"
+        plans_dir.mkdir(parents=True)
+        (plans_dir / "2026-04-20-newest.md").write_text("# Newest", encoding="utf-8")
+        (plans_dir / "2026-01-01-oldest.md").write_text("# Oldest", encoding="utf-8")
+        (plans_dir / "2026-02-15-middle.md").write_text("# Middle", encoding="utf-8")
+
+        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+            results = scan_for_plans(tmp_path)
+
+        assert [r[0].name for r in results] == [
+            "2026-01-01-oldest.md",
+            "2026-02-15-middle.md",
+            "2026-04-20-newest.md",
+        ]
+
     def test_returns_multiple_matches_in_order(self, tmp_path: Path):
         mock_sources = [
             ("harness-a", "agent-a", ["plan-a.md"]),
