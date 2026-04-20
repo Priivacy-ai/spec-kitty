@@ -1,7 +1,7 @@
 {
-  "event_count": 11,
-  "last_event_id": "01KPNHTKCCJJP3FHMVDDFHCGJX",
-  "materialized_at": "2026-04-20T13:38:37.580504+00:00",
+  "event_count": 12,
+  "last_event_id": "01KPNJ9JF83JBWPXXPVW5KMCPS",
+  "materialized_at": "2026-04-20T13:46:48.168532+00:00",
   "mission_number": "",
   "mission_slug": "intake-auto-detect-01KPNGCX",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-20T13:37:53.258158+00:00"
     },
     "WP02": {
-      "actor": "implement-command",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KPNHTKCCJJP3FHMVDDFHCGJX",
-      "last_transition_at": "2026-04-20T13:38:37.580504+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KPNJ9JF83JBWPXXPVW5KMCPS",
+      "last_transition_at": "2026-04-20T13:46:48.168532+00:00"
     }
   }
 }
