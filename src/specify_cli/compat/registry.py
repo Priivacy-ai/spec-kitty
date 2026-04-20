@@ -35,9 +35,6 @@ class ShimEntry:
     notes: str | None = None
 
 
-_SHIM_ENTRY_FIELDS = {field.name for field in dataclasses.fields(ShimEntry)}
-
-
 class RegistrySchemaError(Exception):
     """Raised when the registry YAML fails schema validation."""
 
@@ -57,10 +54,7 @@ def load_registry(repo_root: Path) -> list[ShimEntry]:
     except YAMLError as exc:
         raise RegistrySchemaError([f"YAML parse error: {exc}"]) from exc
     validate_registry(data)
-    return [
-        ShimEntry(**{k: v for k, v in entry.items() if k in _SHIM_ENTRY_FIELDS})
-        for entry in data["shims"]
-    ]
+    return [ShimEntry(**entry) for entry in data["shims"]]
 
 
 def _validate_canonical_import(i: int, ci: object, errors: list[str]) -> None:
