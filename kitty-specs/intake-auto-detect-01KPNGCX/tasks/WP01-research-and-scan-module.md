@@ -303,3 +303,4 @@ def scan_for_plans(cwd: Path) -> list[tuple[Path, str, str | None]]:
 ## Activity Log
 
 - 2026-04-20T13:25:06Z – claude:sonnet:researcher:implementer – shell_pid=63950 – Assigned agent via action command
+- 2026-04-20T13:34:35Z – claude:sonnet:researcher:implementer – shell_pid=63950 – Ready for review: agent-plan-artifacts.md covers all 13 harnesses, intake_sources.py with scan_for_plans implemented (4 active entries: opencode, kiro, cursor, gemini)
