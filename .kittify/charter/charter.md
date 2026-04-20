@@ -1,7 +1,7 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.1.0
+> Version: 1.1.1
 
 ## Purpose
 
@@ -198,6 +198,26 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 - **Public APIs:** Docstrings with parameter types and return values
 - **Breaking changes:** Update migration guide in docs/
 - **Architecture decisions:** Capture in ADRs (architecture/decisions/)
+
+---
+
+## User Customization Preservation
+
+### Ownership Boundaries for Mutating Flows
+
+- This section governs **Spec Kitty development itself**. It is a maintainer rule for the Spec Kitty codebase and release process; it is not a substitute for end-user project charters, which users generate for their own repositories.
+- Package-owned mutation flows (`init`, `upgrade`, install/remove/sync commands, shipped-asset refresh, and migrations) must treat user-authored custom commands, custom skills, and project overrides as **user-owned assets** by default.
+- No mutating flow may overwrite, delete, rename, or chmod a user-owned customization unless the exact path is explicitly package-managed or manifest-tracked.
+- Name-based heuristics alone are not sufficient proof of package ownership. Historical broad matching of `spec-kitty.*` command names has created a real risk of clobbering user-authored slash commands that were never shipped by Spec Kitty.
+- When package-managed files share a directory with user-authored files, cleanup and migration logic must scope destructive changes only to known package-owned paths and leave unknown or third-party files untouched.
+- If ownership cannot be proven from manifest data or an explicit managed-path contract, the safe behavior is to preserve the file and emit a warning instead of deleting or rewriting it.
+
+### Proof Trail
+
+- `src/specify_cli/runtime/merge.py` already encodes the intended ownership model for runtime assets: package-managed paths may be refreshed, while user-owned data must be preserved.
+- `src/specify_cli/skills/command_installer.py` already codifies the same boundary for shared skills roots: third-party paths under `.agents/skills/` are never touched unless they are manifest-owned.
+- `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` is the motivating hazard: broad `spec-kitty.*` filename matching can incorrectly classify user-authored custom slash commands as shipped assets and remove them.
+- Any future migration, installer, or cleanup path that mutates user-visible command or skill directories must document its ownership proof and show why it cannot hit custom user files.
 
 ---
 
