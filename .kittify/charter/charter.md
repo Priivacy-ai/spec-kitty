@@ -223,6 +223,14 @@ Operational reference:
 
 ---
 
+## Central CLI-SaaS API Contract
+
+- The published current-state CLI↔SaaS contract lives at `../spec-kitty-saas/contracts/cli-saas-current-api.yaml`.
+- Any CLI change that alters hosted routes, request/response bodies, auth headers, websocket behavior, sync payloads, or tracker control-plane semantics must update that contract in the same change.
+- ADRs, PRDs, and roadmap notes may describe future APIs, but the authoritative reference for what the CLI actually speaks to SaaS today is that contract file.
+
+---
+
 ## Governance
 
 ### Amendment Process
