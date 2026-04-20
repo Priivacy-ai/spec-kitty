@@ -10,7 +10,7 @@ No external runtime dependencies — stdlib ``pathlib`` and ``os.walk`` only.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
@@ -35,6 +35,8 @@ EXCLUDED_DIRS: frozenset[str] = frozenset(
     }
 )
 
+PACKAGE_JSON = "package.json"
+
 # Indicator file → language (order matters for resolution when multiple found)
 LANGUAGE_INDICATORS: dict[str, str] = {
     "pyproject.toml": "python",
@@ -48,7 +50,7 @@ LANGUAGE_INDICATORS: dict[str, str] = {
     "Gemfile": "ruby",
     "composer.json": "php",
     # package.json is handled separately (js vs ts disambiguation)
-    "package.json": "javascript",
+    PACKAGE_JSON: "javascript",
 }
 
 FRAMEWORK_INDICATORS: dict[str, str] = {
@@ -97,7 +99,7 @@ class CodeReadingError(Exception):
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _is_test_file(rel_path: str, filename: str) -> bool:
@@ -114,9 +116,7 @@ def _is_test_file(rel_path: str, filename: str) -> bool:
             return True
     # Directory-based heuristic
     parts = rel_path.replace("\\", "/").split("/")
-    if "tests" in parts or "__tests__" in parts:
-        return True
-    return False
+    return "tests" in parts or "__tests__" in parts
 
 
 # ---------------------------------------------------------------------------
@@ -171,85 +171,14 @@ class CodeReadingCollector:
     # ------------------------------------------------------------------
 
     def _detect(self) -> CodeSignals:
-        indicator_files: set[str] = set()
-        source_files: list[str] = []
-        test_files: list[str] = []
-        ts_files = 0
-        js_files = 0
-
-        root_str = str(self._repo_root)
-
-        for dirpath, dirnames, filenames in os.walk(root_str):
-            # Compute depth relative to root
-            rel = os.path.relpath(dirpath, root_str)
-            depth = 0 if rel == "." else rel.count(os.sep) + 1
-            if depth > self._max_depth:
-                dirnames.clear()
-                continue
-
-            # Prune excluded directories in-place so os.walk skips them
-            dirnames[:] = [
-                d for d in dirnames if d not in EXCLUDED_DIRS
-            ]
-
-            for filename in filenames:
-                abs_path = os.path.join(dirpath, filename)
-                rel_path = os.path.relpath(abs_path, root_str).replace(
-                    os.sep, "/"
-                )
-
-                # Track indicator filenames for language/framework detection
-                indicator_files.add(filename)
-
-                # Count TS vs JS files for disambiguation
-                if filename.endswith(".ts") or filename.endswith(".tsx"):
-                    ts_files += 1
-                elif filename.endswith(".js") or filename.endswith(".jsx") or filename.endswith(".mjs"):
-                    js_files += 1
-
-                # Bucket into source vs test
-                if _is_test_file(rel_path, filename):
-                    test_files.append(rel_path)
-                else:
-                    source_files.append(rel_path)
-
-        # --- language detection ------------------------------------------
-        language = self._detect_language(indicator_files, ts_files, js_files)
-
-        # --- framework detection ----------------------------------------
-        frameworks: list[str] = []
-        for indicator, fw in FRAMEWORK_INDICATORS.items():
-            if indicator in indicator_files and fw not in frameworks:
-                frameworks.append(fw)
-
-        # --- test framework detection ------------------------------------
-        test_fws: list[str] = []
-        for indicator, tf in TEST_FRAMEWORK_INDICATORS.items():
-            if indicator in indicator_files and tf not in test_fws:
-                test_fws.append(tf)
-
-        # Pytest fallback: look for tests/test_*.py or tests/*_test.py
-        if not test_fws and language == "python":
-            for f in test_files:
-                parts = f.split("/")
-                if "tests" in parts:
-                    test_fws.append("pytest")
-                    break
-
-        # --- stack_id ---------------------------------------------------
-        parts_stack: list[str] = [language]
-        if frameworks:
-            parts_stack.append(frameworks[0])
-        if test_fws:
-            parts_stack.append(test_fws[0])
-
-        stack_id = "+".join(parts_stack) if language != "unknown" else "unknown"
-
-        # --- representative files (5 source + 5 test) -------------------
-        representative: list[str] = (
-            source_files[:5] + test_files[:5]
+        indicator_files, source_files, test_files, ts_files, js_files = (
+            self._collect_files()
         )
-
+        language = self._detect_language(indicator_files, ts_files, js_files)
+        frameworks = self._detect_frameworks(indicator_files)
+        test_fws = self._detect_test_frameworks(indicator_files, test_files, language)
+        stack_id = self._build_stack_id(language, frameworks, test_fws)
+        representative = self._representative_files(source_files, test_files)
         return CodeSignals(
             stack_id=stack_id,
             primary_language=language,
@@ -260,6 +189,100 @@ class CodeReadingCollector:
             detected_at=_utcnow_iso(),
         )
 
+    def _collect_files(
+        self,
+    ) -> tuple[set[str], list[str], list[str], int, int]:
+        indicator_files: set[str] = set()
+        source_files: list[str] = []
+        test_files: list[str] = []
+        ts_files = 0
+        js_files = 0
+
+        root_str = str(self._repo_root)
+        for dirpath, dirnames, filenames in os.walk(root_str):
+            if self._directory_depth(dirpath, root_str) > self._max_depth:
+                dirnames.clear()
+                continue
+
+            dirnames[:] = [
+                d for d in dirnames if d not in EXCLUDED_DIRS
+            ]
+
+            for filename in filenames:
+                indicator_files.add(filename)
+                rel_path = self._relative_file_path(dirpath, filename, root_str)
+                ts_files, js_files = self._count_js_ts_files(
+                    filename, ts_files, js_files
+                )
+                if _is_test_file(rel_path, filename):
+                    test_files.append(rel_path)
+                else:
+                    source_files.append(rel_path)
+
+        return indicator_files, source_files, test_files, ts_files, js_files
+
+    @staticmethod
+    def _directory_depth(dirpath: str, root_str: str) -> int:
+        rel = os.path.relpath(dirpath, root_str)
+        return 0 if rel == "." else rel.count(os.sep) + 1
+
+    @staticmethod
+    def _relative_file_path(dirpath: str, filename: str, root_str: str) -> str:
+        abs_path = os.path.join(dirpath, filename)
+        return os.path.relpath(abs_path, root_str).replace(os.sep, "/")
+
+    @staticmethod
+    def _count_js_ts_files(
+        filename: str, ts_files: int, js_files: int
+    ) -> tuple[int, int]:
+        if filename.endswith((".ts", ".tsx")):
+            return ts_files + 1, js_files
+        if filename.endswith((".js", ".jsx", ".mjs")):
+            return ts_files, js_files + 1
+        return ts_files, js_files
+
+    @staticmethod
+    def _detect_frameworks(indicator_files: set[str]) -> list[str]:
+        frameworks: list[str] = []
+        for indicator, fw in FRAMEWORK_INDICATORS.items():
+            if indicator in indicator_files and fw not in frameworks:
+                frameworks.append(fw)
+        return frameworks
+
+    @staticmethod
+    def _detect_test_frameworks(
+        indicator_files: set[str], test_files: list[str], language: str
+    ) -> list[str]:
+        test_fws: list[str] = []
+        for indicator, tf in TEST_FRAMEWORK_INDICATORS.items():
+            if indicator in indicator_files and tf not in test_fws:
+                test_fws.append(tf)
+
+        if not test_fws and language == "python":
+            for f in test_files:
+                parts = f.split("/")
+                if "tests" in parts:
+                    test_fws.append("pytest")
+                    break
+        return test_fws
+
+    @staticmethod
+    def _build_stack_id(
+        language: str, frameworks: list[str], test_fws: list[str]
+    ) -> str:
+        parts_stack: list[str] = [language]
+        if frameworks:
+            parts_stack.append(frameworks[0])
+        if test_fws:
+            parts_stack.append(test_fws[0])
+        return "+".join(parts_stack) if language != "unknown" else "unknown"
+
+    @staticmethod
+    def _representative_files(
+        source_files: list[str], test_files: list[str]
+    ) -> list[str]:
+        return source_files[:5] + test_files[:5]
+
     def _detect_language(
         self,
         indicator_files: set[str],
@@ -268,7 +291,7 @@ class CodeReadingCollector:
     ) -> str:
         """Return the primary language string."""
         # TypeScript takes precedence over JavaScript when tsconfig.json present
-        if "package.json" in indicator_files:
+        if PACKAGE_JSON in indicator_files:
             if "tsconfig.json" in indicator_files:
                 return "typescript"
             # Majority-extension heuristic
@@ -279,7 +302,7 @@ class CodeReadingCollector:
 
         # Check remaining language indicators in priority order
         for indicator, lang in LANGUAGE_INDICATORS.items():
-            if indicator == "package.json":
+            if indicator == PACKAGE_JSON:
                 continue  # handled above
             if indicator in indicator_files:
                 return lang
