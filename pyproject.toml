@@ -314,15 +314,26 @@ paths_to_mutate = [
     "src/",
 ]
 tests_dir = ["tests/"]
-max_stack_depth=8
+max_stack_depth = 8
+max_children = 8
 # Configure how long mutmut waits before killing a slow mutation
 # Currently calculated as (duration_of_original_tests + timeout_constant) * timeout_multiplier seconds
 timeout_constant = 1.0
 timeout_multiplier = 15.0
 # mutate_only_covered_lines=true # Optional flag to only mutate lines covered by tests; can be re-enabled later for more comprehensive mutation testing once coverage is improved.
-type_check_command = ['mypy', 'src/specify_cli/', '--output', 'json', '--disable-error-code', 'unused-ignore']
+# type_check_command disabled — mypy produces multi-line JSON (hint fields span lines)
+# which breaks mutmut's line-based JSON parser. Without it, type-error mutants simply
+# fail their tests instead of being filtered out. See mutmut issue for tracking.
+# type_check_command = ['mypy', 'src/specify_cli/', '--output', 'json', '--disable-error-code', 'unused-ignore']
 pytest_add_cli_args = [
     "--timeout=30",
+    # Deselect marker sets that don't belong in the mutmut sandbox:
+    #  - slow: >10 s tests blow the 30 s timeout
+    #  - e2e / distribution / adversarial: subprocess / wheel-install infra
+    #  - windows_ci / platform_darwin: non-Linux platform guards
+    #  - live_adapter: real Anthropic API calls
+    #  - architectural: pytestarch whole-codebase walks
+    "-m", "not slow and not e2e and not distribution and not adversarial and not windows_ci and not platform_darwin and not live_adapter and not architectural",
        # tests/unit/ subdirs that fail in the mutants environment
     "--ignore=tests/unit/agent/",
     "--ignore=tests/unit/mission_v1/",
@@ -347,14 +358,81 @@ pytest_add_cli_args = [
     "--ignore=tests/specify_cli/test_implement_command.py",
     "--ignore=tests/specify_cli/test_review_warnings.py",
     "--ignore=tests/specify_cli/test_workflow_auto_moves.py",
-    "--ignore=tests/specify_cli/upgrade/test_migration_robustness.py",
+    # Upgrade tests need real .kittify/ layouts and scripts from repo-root — sandbox-hostile at dir level
+    "--ignore=tests/specify_cli/upgrade/",
+    # tests/cross_cutting/ tests import script-modules not on sandbox sys.path
+    # (generate_contextive_glossaries, acceptance_support, etc.)
+    "--ignore=tests/cross_cutting/",
+    # tests/release/ ships release-infra tests (validate_release script imports, repo-state diff-cover policy, etc.)
+    "--ignore=tests/release/",
+    # tests/adversarial/ builds wheels or spawns subprocess git/CLI runs (>30s sandbox timeout)
+    "--ignore=tests/adversarial/",
+    # tests/architectural/ uses pytestarch which re-parses the entire codebase per test (>30s)
+    "--ignore=tests/architectural/",
+    # tests/architecture/ reads repo-level architecture/*.yaml files not present in sandbox
+    "--ignore=tests/architecture/",
+    # tests/charter/ subprocess tests hit mutmut 3.5.0 trampoline NoneType bug when invoking `python -m specify_cli`
+    "--ignore=tests/charter/evidence/test_orchestrator.py",
+    "--ignore=tests/charter/test_worktree_charter_via_canonical_root.py",
+    "--ignore=tests/charter/test_chokepoint_overhead.py",
+    "--ignore=tests/charter/test_phase3_integration.py",
+    "--ignore=tests/charter/test_bundle_validate_cli.py",
+    "--ignore=tests/charter/test_resolution_overhead.py",
+    "--ignore=tests/charter/test_bundle_contract.py",
+    "--ignore=tests/charter/test_canonical_root_resolution.py",
+    # AST-parses every .py file in the repo (>30s for whole-codebase walk)
+    "--ignore=tests/charter/test_charter_ownership_invariant.py",
+    "--ignore=tests/charter/test_chokepoint_coverage.py",
+    "--ignore=tests/charter/test_surface_calibration.py",
+    # concurrency tests spawn multiprocessing children that conflict with mutmut's set_start_method('fork')
+    "--ignore=tests/concurrency/",
+    # tests/docs/ link-check tests need kitty-specs/ (too large to also_copy)
+    "--ignore=tests/docs/",
+    # tests that spawn `python -m specify_cli` subprocess hit mutmut 3.5.0 trampoline bug
+    "--ignore=tests/doctrine/test_package_smoke.py",
+    "--ignore=tests/missions/test_specify_metadata_explicit_integration.py",
+    "--ignore=tests/regressions/test_issue_105_hook_python_lookup.py",
+    # Builds and installs a wheel into a fresh venv (too slow for 30s sandbox timeout)
+    "--ignore=tests/doctrine/test_wheel_packaging.py",
+    # tests/e2e/ invokes specify_cli from an isolated test-venv that lacks mutmut → trampoline import fails
+    "--ignore=tests/e2e/",
+    # tests/merge/ integration tests invoke git merge driver that shells out to specify_cli → trampoline bug
+    "--ignore=tests/merge/test_event_log_merge_driver_integration.py",
+    "--ignore=tests/merge/test_merge_recovery.py",
+    "--ignore=tests/merge/test_profile_charter_e2e.py",
+    "--ignore=tests/merge/test_merge_workspace_unit.py",
+    # `run_cli` fixture subprocess-invokes specify_cli → hits trampoline bug in sandbox
+    "--ignore=tests/missions/test_mission_switching_integration.py",
+    "--ignore=tests/research/test_research_workflow_integration.py",
+    "--ignore=tests/tasks/test_planning_workflow_integration.py",
+    "--ignore=tests/test_isolation_helpers.py",
     "--ignore=tests/specify_cli/status/test_parity.py",
+    # Walks up from cwd to find kitty-specs/; in the sandbox it finds the real repo's kitty-specs and CI-validates WP files
+    "--ignore=tests/specify_cli/status/test_wp_metadata.py",
+    # Subprocess-invokes specify_cli CLI → mutmut 3.5.0 trampoline bug
+    "--ignore=tests/specify_cli/test_acceptance_regressions.py",
+    "--ignore=tests/specify_cli/test_standalone_tasks_cli_canonical.py",
+    "--ignore=tests/specify_cli/test_active_mission_removal.py",
+    "--ignore=tests/specify_cli/core/test_feature_creation.py",
+    "--ignore=tests/specify_cli/skills/test_registry.py",
+    "--ignore=tests/specify_cli/cli/commands/agent/test_tests_stale_check.py",
+    "--ignore=tests/specify_cli/migration/test_runner.py",
+    "--ignore=tests/specify_cli/lanes/test_recovery.py",
+    # Scans repo-root scripts/ dir not present in mutants/ sandbox
+    "--ignore=tests/specify_cli/test_lane_regression_guard.py",
+    "--ignore=tests/tasks/test_pre_commit_wp_guard_unit.py",
+    # Dashboard tests: majority use _DummyAPIHandler(APIHandler.handle_x) calls or subprocess baseline captures — sandbox-hostile at dir level
+    "--ignore=tests/test_dashboard/",
     "--ignore=tests/specify_cli/scripts/",  # trampoline NoneType bug in mutmut 3.5.0
 ]
 also_copy = [
     "LICENSE",
     "src/specify_cli/compat/",  # compat package under test
     "README.md",
+    "contracts/",  # JSON fixture files for contract tests
+    "docs/",  # Markdown files referenced by contract/terminology tests
+    "architecture/",  # Architecture docs referenced by tests/docs/ consistency checks
+
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
     "src/kernel/",           # Copy kernel package for shared utilities
@@ -386,8 +464,10 @@ also_copy = [
     "mutmut_pytest.ini",  # Custom pytest config for mutmut runs
 ]
 # Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
+# version_utils.py contains the mutmut trampoline itself — mutating it breaks all sandbox imports
 do_not_mutate = [
     "src/specify_cli/upgrade/migrations/",
+    "src/specify_cli/version_utils.py",
 ]
 
 [tool.uv]

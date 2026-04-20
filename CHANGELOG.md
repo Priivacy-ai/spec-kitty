@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Mutation testing** — `mutmut` 3.5.0 added to `[project.optional-dependencies.test]` and configured in `[tool.mutmut]` as a **local-only** quality gate. Includes a curated doctrine set: `tactic:mutation-testing-workflow`, `styleguide:mutation-aware-test-design`, and language-specific toolguides for Python (`mutmut`) and TypeScript (`stryker`), all anchored to `DIRECTIVE_034` in the DRG graph. ADR `2026-04-20-1-mutation-testing-as-local-only-quality-gate.md` records the decision and the planned `pytestmark`-based successor to the current explicit `--ignore=` list.
 - Charter synthesizer now has a real harness-owned operator path: the new generated-artifact adapter reads agent-authored YAML from `.kittify/charter/generated/` and promotes validated doctrine into the live `.kittify/doctrine/` tree.
 - `spec-kitty charter resynthesize --list-topics` now lists valid project-artifact selectors, DRG URNs, and interview-section selectors, including hyphenated aliases for section names.
 - `spec-kitty charter status --provenance` now reports synthesis generation state, evidence summary, manifest health, and per-artifact provenance visibility alongside the older charter sync surface.
