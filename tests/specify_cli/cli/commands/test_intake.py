@@ -246,3 +246,92 @@ def test_show_works_after_auto_changes(intake_app: typer.Typer, tmp_path: Path) 
     assert result.exit_code == 0, f"output: {result.output}"
     assert "My Brief" in result.output
     assert "manual.md" in result.output
+
+
+# ---------------------------------------------------------------------------
+# T009b: --auto, multiple candidates, TTY — interactive selection
+# ---------------------------------------------------------------------------
+
+
+def test_auto_tty_valid_selection_ingests_correct_file(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
+    """TTY --auto: entering a valid number ingests the chosen candidate."""
+    _make_plan_file(tmp_path, "plan-a.md", content="# Plan A")
+    _make_plan_file(tmp_path, "plan-b.md", content="# Plan B")
+    mock_sources = [
+        ("harness-a", "agent-a", ["plan-a.md"]),
+        ("harness-b", "agent-b", ["plan-b.md"]),
+    ]
+
+    with (
+        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
+        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
+        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
+        # Patch sys as seen by the intake module so isatty() returns True.
+        # CliRunner replaces sys.stdin during invoke, so we must patch the
+        # module-level sys reference, not sys.stdin directly.
+        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        # CliRunner feeds "2\n" through its own input mechanism (not sys.stdin),
+        # so typer.prompt still receives the selection correctly.
+        result = runner.invoke(intake_app, ["--auto"], input="2\n", catch_exceptions=False)
+
+    assert result.exit_code == 0, f"output: {result.output}"
+    assert "BRIEF DETECTED" in result.output
+    brief = (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).read_text(encoding="utf-8")
+    assert "Plan B" in brief
+
+    source_data = yaml.safe_load(
+        (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).read_text(encoding="utf-8")
+    )
+    assert source_data.get("source_agent") == "agent-b"
+
+
+def test_auto_tty_non_numeric_input_exits_1(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
+    """TTY --auto: non-numeric selection exits 1 with an error message."""
+    _make_plan_file(tmp_path, "plan-a.md")
+    _make_plan_file(tmp_path, "plan-b.md")
+    mock_sources = [
+        ("harness-a", "agent-a", ["plan-a.md"]),
+        ("harness-b", "agent-b", ["plan-b.md"]),
+    ]
+
+    with (
+        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
+        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
+        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
+        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        result = runner.invoke(intake_app, ["--auto"], input="abc\n", catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+
+
+def test_auto_tty_out_of_range_number_exits_1(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
+    """TTY --auto: a number outside the valid range exits 1."""
+    _make_plan_file(tmp_path, "plan-a.md")
+    _make_plan_file(tmp_path, "plan-b.md")
+    mock_sources = [
+        ("harness-a", "agent-a", ["plan-a.md"]),
+        ("harness-b", "agent-b", ["plan-b.md"]),
+    ]
+
+    with (
+        patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
+        patch("specify_cli.cli.commands.intake._resolve_repo_root", return_value=tmp_path),
+        patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources),
+        patch("specify_cli.cli.commands.intake.sys") as mock_sys,
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        result = runner.invoke(intake_app, ["--auto"], input="99\n", catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()

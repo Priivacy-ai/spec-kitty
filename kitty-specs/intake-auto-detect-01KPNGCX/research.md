@@ -67,9 +67,18 @@ def write_mission_brief(
 
 **Decision**: Separate `scan_for_plans(cwd)` function in `intake_sources.py`; returns a flat list of `(Path, harness_key, source_agent_value)` tuples.
 
-**Rationale**: Separating scan logic from CLI logic allows unit testing scan behavior without invoking the CLI runner. The function iterates `HARNESS_PLAN_SOURCES` in order, checks each candidate path with `(cwd / candidate).is_file()` (silently catching `PermissionError`), and appends matches. Order matters: declaration order in `HARNESS_PLAN_SOURCES` is the priority order.
+**Rationale**: Separating scan logic from CLI logic allows unit testing scan behavior without invoking the CLI runner. The function iterates `HARNESS_PLAN_SOURCES` in order and appends matches. Order matters: declaration order in `HARNESS_PLAN_SOURCES` is the priority order.
 
 **Return type**: `list[tuple[Path, str, str | None]]` — `(absolute_path, harness_key, source_agent_value)`. An empty list means no matches.
+
+**Directory expansion (post-mission-review correction)**: The original plan spec said "use `is_file()` — directories at candidate paths are silently skipped." This was revised during implementation because all 4 active `HARNESS_PLAN_SOURCES` entries are *directories* (harnesses write timestamped or slug-named files into a well-known directory, not a predictable filename). The actual behavior is:
+
+- If the candidate path is a file → include it directly.
+- If the candidate path is a directory → include all `*.md` files inside it (non-recursive, `sorted()` order).
+- If the candidate path does not exist → skip silently.
+- `PermissionError` / `OSError` at any level → skip silently.
+
+This is the intended design. The "skip directories" instruction in the WP01 prompt was an error and should not be reinstated.
 
 ---
 

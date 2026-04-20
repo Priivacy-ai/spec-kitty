@@ -328,6 +328,16 @@ project-level (or configurable) path are included as active tuples in `HARNESS_P
 
 ---
 
+## Scan Behaviour Notes
+
+### Multiple files from the same harness directory
+
+When a harness directory (e.g. `.opencode/plans/`) contains more than one `.md` file, `scan_for_plans()` returns each file as a separate candidate. All will share the same harness key. The files are returned in `sorted()` order (alphabetical by filename).
+
+For harnesses that use timestamp-prefixed filenames (e.g. `2026-04-01-feature-foo.md`), alphabetical order matches chronological order. The most-recent plan will appear **last** in the candidate list. If `--auto` finds multiple candidates, the numbered prompt will list them in this order — users should choose the highest-numbered entry for the most-recent plan, or pass an explicit path to skip the prompt entirely.
+
+---
+
 ## How to Update
 
 When new evidence changes the status of a harness:

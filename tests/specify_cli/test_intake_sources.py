@@ -35,13 +35,44 @@ class TestScanForPlans:
     def test_nonexistent_dir_returns_empty(self):
         assert scan_for_plans(Path("/nonexistent/path/does/not/exist/xyz")) == []
 
-    def test_directory_at_candidate_path_is_skipped(self, tmp_path: Path):
+    def test_empty_directory_at_candidate_path_returns_empty(self, tmp_path: Path):
         if not HARNESS_PLAN_SOURCES:
             pytest.skip("No active entries")
         _, _, candidate_paths = HARNESS_PLAN_SOURCES[0]
         target = tmp_path / candidate_paths[0]
-        target.mkdir(parents=True, exist_ok=True)
+        target.mkdir(parents=True, exist_ok=True)  # empty dir → no .md children
         assert scan_for_plans(tmp_path) == []
+
+    def test_directory_at_candidate_path_expands_md_children(self, tmp_path: Path):
+        """A directory at a candidate path yields its .md files as results."""
+        mock_sources = [("opencode", "opencode", [".opencode/plans"])]
+        plans_dir = tmp_path / ".opencode" / "plans"
+        plans_dir.mkdir(parents=True)
+        plan_file = plans_dir / "2026-04-20-my-plan.md"
+        plan_file.write_text("# My Plan", encoding="utf-8")
+
+        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+            results = scan_for_plans(tmp_path)
+
+        assert len(results) == 1
+        assert results[0][0] == plan_file
+        assert results[0][1] == "opencode"
+        assert results[0][2] == "opencode"
+
+    def test_non_md_files_in_directory_are_excluded(self, tmp_path: Path):
+        """Only .md files are included when expanding a directory candidate."""
+        mock_sources = [("opencode", "opencode", [".opencode/plans"])]
+        plans_dir = tmp_path / ".opencode" / "plans"
+        plans_dir.mkdir(parents=True)
+        (plans_dir / "plan.md").write_text("# Plan", encoding="utf-8")
+        (plans_dir / "plan.json").write_text("{}", encoding="utf-8")
+        (plans_dir / ".hidden").write_text("hidden", encoding="utf-8")
+
+        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources):
+            results = scan_for_plans(tmp_path)
+
+        assert len(results) == 1
+        assert results[0][0].name == "plan.md"
 
     def test_returns_multiple_matches_in_order(self, tmp_path: Path):
         mock_sources = [
