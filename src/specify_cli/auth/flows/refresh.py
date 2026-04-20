@@ -13,12 +13,13 @@ is absent. The CLI NEVER hardcodes a TTL.
 
 Error semantics (feature 080, spec §7.2):
 
-- SaaS returns ``400 invalid_grant`` → :class:`RefreshTokenExpiredError`.
-  The refresh token is invalid or expired; the user must re-run
-  ``spec-kitty auth login``.
-- SaaS returns ``400 session_invalid`` → :class:`SessionInvalidError`. The
-  server has administratively invalidated this session; ``TokenManager``
-  clears local state and the user must re-login.
+- SaaS returns ``400`` or ``401`` with ``invalid_grant`` →
+  :class:`RefreshTokenExpiredError`. The refresh token is invalid or expired;
+  the user must re-run ``spec-kitty auth login``.
+- SaaS returns ``400`` or ``401`` with ``session_invalid`` →
+  :class:`SessionInvalidError`. The server has administratively invalidated
+  this session; ``TokenManager`` clears local state and the user must
+  re-login.
 - Any other HTTP error → :class:`TokenRefreshError`.
 - Transport-level failures → :class:`NetworkError`.
 """
@@ -64,9 +65,10 @@ class TokenRefreshFlow:
 
         Raises:
             RefreshTokenExpiredError: The SaaS rejected the refresh token
-                (``400 invalid_grant``). The user must re-run ``auth login``.
+                (``400/401 invalid_grant``). The user must re-run
+                ``auth login``.
             SessionInvalidError: The SaaS reports the session has been
-                invalidated server-side (``400 session_invalid``).
+                invalidated server-side (``400/401 session_invalid``).
             TokenRefreshError: Any other HTTP failure during refresh.
             NetworkError: Transport-level failure (DNS, connect, timeout).
         """
@@ -93,7 +95,7 @@ class TokenRefreshFlow:
                 ) from exc
             return self._update_session(session, tokens)
 
-        if response.status_code == 400:
+        if response.status_code in {400, 401}:
             try:
                 body = response.json()
             except ValueError:

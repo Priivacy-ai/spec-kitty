@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `auth refresh` now treats `HTTP 401` responses with `invalid_grant` or `session_invalid` error codes identically to `HTTP 400`, and clears the locally stored session on server-side refresh rejection so `auth status` no longer reports stale credentials as authenticated.
 ## [3.1.6] - 2026-04-20
 
 ### Fixed
