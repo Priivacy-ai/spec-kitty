@@ -25,9 +25,7 @@ from specify_cli.lanes.recovery import (
 from specify_cli.status.models import GuardContext, Lane
 from specify_cli.status.transitions import validate_transition
 
-pytestmark = pytest.mark.fast
-
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: subprocess CLI invocation
 # ---------------------------------------------------------------------------
 # T016: _get_recovery_transitions() replaces _RECOVERY_TRANSITIONS dict
 # ---------------------------------------------------------------------------

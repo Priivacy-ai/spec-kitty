@@ -15,8 +15,7 @@ from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event, read_events
 from tests.utils import REPO_ROOT, run_python_script
 
-pytestmark = pytest.mark.fast
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: subprocess CLI invocation
 ROOT_TASKS_CLI = REPO_ROOT / "scripts" / "tasks" / "tasks_cli.py"
 SRC_TASKS_CLI = REPO_ROOT / "src" / "specify_cli" / "scripts" / "tasks" / "tasks_cli.py"
 SRC_TASK_HELPERS = REPO_ROOT / "src" / "specify_cli" / "scripts" / "tasks" / "task_helpers.py"

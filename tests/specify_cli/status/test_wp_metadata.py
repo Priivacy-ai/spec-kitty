@@ -15,6 +15,10 @@ from pydantic import ValidationError
 from specify_cli.status.models import AgentAssignment
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: walks up to repo kitty-specs/
+pytestmark = pytest.mark.non_sandbox
+
 
 # ─────────────────────────────────────────────────────────────
 # T012: WPMetadata unit tests

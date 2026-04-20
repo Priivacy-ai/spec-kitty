@@ -37,6 +37,10 @@ from pathlib import Path
 
 import pytest
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: AST-walks every .py in the repo (>30s)
+pytestmark = pytest.mark.non_sandbox
+
 
 CANONICAL_OWNERS: dict[str, str] = {
     "build_charter_context": "src/charter/context.py",

@@ -16,9 +16,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.fast
-
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
 _GITIGNORE_BODY = """\
 .kittify/charter/directives.yaml
 .kittify/charter/governance.yaml

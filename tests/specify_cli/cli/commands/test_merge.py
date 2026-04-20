@@ -22,9 +22,7 @@ from specify_cli.cli.commands.merge import (
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
-pytestmark = pytest.mark.fast
-
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: subprocess CLI invocation
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

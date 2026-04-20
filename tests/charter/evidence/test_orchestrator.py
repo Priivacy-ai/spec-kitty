@@ -8,11 +8,14 @@ from pathlib import Path
 import pytest
 import ruamel.yaml
 
-from charter.evidence.orchestrator import (
-    EvidenceOrchestrator,
+from charter.evidence.orchestrator import (    EvidenceOrchestrator,
     EvidenceResult,
     load_url_list_from_config,
 )
+
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: trampoline bug: python -m specify_cli subprocess
+pytestmark = pytest.mark.non_sandbox
 
 
 def test_full_collection_returns_bundle(tmp_path: Path) -> None:

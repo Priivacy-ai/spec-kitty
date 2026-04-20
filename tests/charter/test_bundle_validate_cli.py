@@ -15,6 +15,10 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import charter_bundle
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: trampoline bug: subprocess
+pytestmark = pytest.mark.non_sandbox
+
 
 runner = CliRunner()
 

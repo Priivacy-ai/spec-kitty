@@ -12,11 +12,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from charter.resolution import (
-    GitCommonDirUnavailableError,
+from charter.resolution import (    GitCommonDirUnavailableError,
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
 )
+
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: trampoline bug: subprocess
+pytestmark = pytest.mark.non_sandbox
 
 
 # ---------------------------------------------------------------------------

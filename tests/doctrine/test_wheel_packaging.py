@@ -8,9 +8,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.slow
-
-
+pytestmark = [pytest.mark.slow, pytest.mark.non_sandbox]  # non_sandbox: builds and installs a wheel (>30s)
 # These tests reuse the session-scoped build_artifacts and installed_wheel_venv
 # fixtures from tests/cross_cutting/packaging/conftest.py.
 # They are discovered via conftest.py fixture resolution because pytest

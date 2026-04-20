@@ -24,9 +24,7 @@ from charter.interview import (
 from charter.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
-pytestmark = pytest.mark.fast
-
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
 def _write_yaml(path: Path, data: dict[object, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()

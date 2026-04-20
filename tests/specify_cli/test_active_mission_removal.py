@@ -13,6 +13,11 @@ import json
 import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+import pytest
+
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: subprocess CLI invocation
+pytestmark = pytest.mark.non_sandbox
 
 
 

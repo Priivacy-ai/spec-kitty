@@ -43,9 +43,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.fast
-
-
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: AST-walks every .py in the repo (>30s)
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
 

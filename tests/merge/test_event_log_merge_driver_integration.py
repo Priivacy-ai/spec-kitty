@@ -10,8 +10,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: git merge driver shells out to specify_cli
 REPO_ROOT = Path(__file__).resolve().parents[2]
 _ATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 

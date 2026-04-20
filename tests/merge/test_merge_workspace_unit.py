@@ -11,8 +11,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
 from specify_cli.merge.workspace import (
     cleanup_merge_workspace,
     create_merge_workspace,

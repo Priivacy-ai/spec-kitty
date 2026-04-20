@@ -81,35 +81,53 @@ Concretely:
 The `--ignore=` list is a brittle external registry — it goes stale when tests move or rename, and the
 reason a test is excluded lives in a TOML comment rather than next to the test itself.
 
-## Target state (To-Be)
+## Target state (landed 2026-04-20)
 
-**Replace the explicit `--ignore=` list with a `non_sandbox` pytest marker.** The refactor:
+**The explicit per-file `--ignore=` list has been replaced with two pytest markers:
+`non_sandbox` and `flaky`.** The two categories capture different exclusion intents and must
+not be conflated.
 
-1. Register `non_sandbox: test is incompatible with mutmut's forked sandbox (subprocess CLI calls,
-   whole-codebase AST walks, wheel builds, or repo-state fixtures that fall outside mutmut's
-   also_copy tree)` in `[tool.pytest.ini_options].markers`.
-2. At the top of each currently-ignored test file, add `pytestmark = pytest.mark.non_sandbox` with a
+1. **Register both markers** in `[tool.pytest.ini_options].markers`:
+   - `non_sandbox: test is structurally incompatible with mutmut's forked sandbox — subprocess CLI
+     calls, whole-codebase AST walks, wheel builds, or repo-state fixtures that fall outside
+     mutmut's also_copy tree. Exclusion is deterministic: the test will never pass in the sandbox
+     until the underlying sandbox constraint changes.`
+   - `flaky: test passes reliably in the main test suite but produces non-deterministic results
+     under mutmut (or other mutation/forking pipelines) — e.g., race conditions in target-branch
+     detection, time-sensitive assertions, implicit reliance on process-wide state. Re-evaluate on
+     every pipeline tooling upgrade; aim to fix root causes and remove the marker.`
+2. At the top of each currently-ignored test file, add `pytestmark = pytest.mark.<marker>` with a
    one-line comment stating *why*. For wholesale-ignored directories, use a directory-level
    `conftest.py` that applies the marker collectively.
-3. Collapse the long `--ignore=` block in `pyproject.toml` into a single deselection clause:
-   `"-m", "... and not non_sandbox"`.
+3. Collapse the long `--ignore=` block in `pyproject.toml` into two deselection clauses:
+   `"-m", "... and not non_sandbox and not flaky"`.
+
+Why the distinction matters:
+
+- `non_sandbox` tests are **accepted losses** — we've decided the coverage trade-off is worth the
+  stability. No follow-up is planned unless the upstream trampoline bug is fixed.
+- `flaky` tests are **debt** — they indicate real test-suite weaknesses (hidden global state,
+  timing dependencies, missing fixture isolation). Each `flaky` marker should have a TODO comment
+  pointing to the root cause; they should shrink over time, not accumulate.
 
 Benefits:
 
 - **Co-located intent.** The "why" sits next to the test, not in a separate config file.
 - **Rename-safe.** Moving or renaming a test no longer silently removes it from the ignore list.
 - **Individually re-enableable.** When the upstream mutmut trampoline bug is fixed, we remove the
-  marker from subprocess tests without touching the TOML.
-- **Discoverable.** `pytest -m non_sandbox --collect-only` lists exactly which tests are excluded and
-  why, replacing `grep` archaeology on `pyproject.toml`.
+  `non_sandbox` marker from subprocess tests without touching the TOML.
+- **Discoverable.** `pytest -m non_sandbox --collect-only` and `pytest -m flaky --collect-only`
+  list exactly which tests are excluded and for which reason — replacing `grep` archaeology on
+  `pyproject.toml`.
+- **Signals tech debt.** The `flaky` bucket surfaces tests that may be lying to us in CI; the
+  `non_sandbox` bucket does not.
 
 ## Required follow-up work
 
-- **Contributor guidance document.** A short `docs/how-to/run-mutation-tests.md` covering:
-  - Running `mutmut run` locally and reading `mutmut results`.
-  - The kill-the-survivor workflow (link to the tactic + styleguide).
-  - When to mark a mutant with `# pragma: no mutate` (equivalent mutants only).
-  - How to add the `non_sandbox` marker when adding a test that won't run in the mutant sandbox.
+- **Contributor guidance document.** Landed 2026-04-20 at `docs/how-to/run-mutation-tests.md`.
+  Covers running `mutmut run`, reading results, the kill-the-survivor workflow, equivalent-mutant
+  suppression, and how to add the `non_sandbox`/`flaky` markers to new tests that won't run in
+  the mutant sandbox.
 - **User-facing rationale.** A short section in the main `README.md` or a dedicated explanation doc
   describing *why* mutation score matters and how it differs from coverage — enough to prevent a
   contributor from treating the two as interchangeable.

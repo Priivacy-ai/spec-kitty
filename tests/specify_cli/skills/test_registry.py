@@ -8,6 +8,10 @@ import pytest
 
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: subprocess CLI invocation
+pytestmark = pytest.mark.non_sandbox
+
 
 def _make_skill(
     root: Path,

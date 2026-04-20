@@ -24,13 +24,16 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.evidence import (
-    CodeSignals,
+from charter.synthesizer.evidence import (    CodeSignals,
     CorpusEntry,
     CorpusSnapshot,
     EvidenceBundle,
 )
 from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+
+# Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
+# Reason: trampoline bug: subprocess
+pytestmark = pytest.mark.non_sandbox
 
 
 # ---------------------------------------------------------------------------

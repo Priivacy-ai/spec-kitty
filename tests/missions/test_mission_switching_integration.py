@@ -12,8 +12,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
-
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
 def test_mission_switch_shows_helpful_error(clean_project: Path, run_cli) -> None:
     """Mission switch command should show helpful error about per-feature missions."""
     result = run_cli(clean_project, "mission", "switch", "research")

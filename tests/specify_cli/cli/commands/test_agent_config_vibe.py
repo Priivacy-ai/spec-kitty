@@ -19,8 +19,7 @@ from specify_cli.cli.commands.agent.config import app
 from specify_cli.core.agent_config import save_agent_config, load_agent_config, AgentConfig
 from specify_cli.skills import command_installer, manifest_store
 
-pytestmark = pytest.mark.integration
-
+pytestmark = [pytest.mark.integration, pytest.mark.non_sandbox]  # non_sandbox: subprocess CLI invocation
 runner = CliRunner()
 
 # ---------------------------------------------------------------------------
