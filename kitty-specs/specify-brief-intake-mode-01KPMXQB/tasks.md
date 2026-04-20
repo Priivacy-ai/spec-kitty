@@ -17,9 +17,9 @@
 | T004 | Update `.gitignore` — add `.kittify/mission-brief.md` and `.kittify/brief-source.yaml` | WP01 | [D] |
 | T005 | Write `tests/specify_cli/test_mission_brief.py` — unit tests for mission_brief module | WP01 | [D] |
 | T006 | Write `tests/specify_cli/cli/commands/test_intake.py` — integration tests via `CliRunner` | WP01 | [D] |
-| T007 | Edit `src/specify_cli/missions/software-dev/command-templates/specify.md` — insert Brief Context Detection section | WP02 | |
-| T008 | Run `spec-kitty upgrade` to propagate the template change to all 13 agent directories | WP02 | |
-| T009 | Verify propagation — spot-check section presence in `.claude/commands/spec-kitty.specify.md` | WP02 | |
+| T007 | Edit `src/specify_cli/missions/software-dev/command-templates/specify.md` — insert Brief Context Detection section | WP02 | | [D] |
+| T008 | Run `spec-kitty upgrade` to propagate the template change to all 13 agent directories | WP02 | | [D] |
+| T009 | Verify propagation — spot-check section presence in `.claude/commands/spec-kitty.specify.md` | WP02 | | [D] |
 
 ---
 
@@ -63,9 +63,9 @@
 **Prompt**: [tasks/WP02-specify-template-brief-context-detection.md](tasks/WP02-specify-template-brief-context-detection.md)
 
 **Included subtasks**:
-- [ ] T007 Edit specify source template — insert Brief Context Detection section (WP02)
-- [ ] T008 Run `spec-kitty upgrade` to propagate to all 13 agent directories (WP02)
-- [ ] T009 Verify propagation in `.claude/commands/spec-kitty.specify.md` (WP02)
+- [x] T007 Edit specify source template — insert Brief Context Detection section (WP02)
+- [x] T008 Run `spec-kitty upgrade` to propagate to all 13 agent directories (WP02)
+- [x] T009 Verify propagation in `.claude/commands/spec-kitty.specify.md` (WP02)
 
 **Parallel opportunities**: T008 must follow T007. T009 must follow T008. Sequential.
 
