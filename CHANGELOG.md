@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `spec-kitty charter synthesize` and `spec-kitty charter resynthesize` now default to the generated-artifact adapter. `--adapter fixture` remains available only for deterministic offline regression runs.
 - `spec-kitty charter synthesize --dry-run` is now a real stage-and-validate pass: it writes the staged artifact set, runs project DRG validation and neutrality gating, and only skips the final promote step.
+- Release pipeline now generates and attaches a CycloneDX SBOM (`sbom.cdx.json`) to every GitHub Release. The SBOM is an environment-snapshot of the fully resolved dependency tree at build time, making it straightforward for enterprise users to ingest the inventory into tools like Dependency-Track for continuous CVE monitoring without rescanning the package themselves.
 
 ### Fixed
 
@@ -27,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bounded resynthesis now preserves evidence inputs end-to-end, so regenerated provenance entries keep the correct `evidence_bundle_hash` and `corpus_snapshot_id`.
 - Generated-artifact synthesis errors now point to the exact expected file path and exact expected artifact id, which makes harness handoff mistakes easier to diagnose.
 - Charter neutrality lint now scans mission `templates/` directories in addition to `command-templates/`, so banned terms in generic mission prompt files are caught by the default repo scan (#653 tripwire).
+- Bump `requests` floor to `>=2.33.0` (CVE-2026-25645).
+- Bump `pytest` floor to `>=9.0.3` (CVE-2025-71176).
+- Pin `pygments>=2.20.0` explicitly to resolve CVE-2026-4539 in the transitive dependency pulled in via `rich`.
 
 ### Removed
 
@@ -42,23 +46,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [architecture/2.x/05_ownership_map.md](architecture/2.x/05_ownership_map.md) for the full
   charter slice entry and the reference exemplar pattern. Closes #611.
 
-## [3.1.6] - 2026-04-17
+## [3.1.6] - 2026-04-20
 
-### Security
+### Fixed
 
-- Bump `requests` floor to `>=2.33.0` (CVE-2026-25645).
-- Bump `pytest` floor to `>=9.0.3` (CVE-2025-71176).
-- Pin `pygments>=2.20.0` explicitly to resolve CVE-2026-4539 in the
-  transitive dependency pulled in via `rich`.
+- `spec-kitty agent action implement` now exposes and forwards
+  `--acknowledge-not-bulk-edit` to the underlying workspace-allocation command,
+  allowing non-bulk-edit missions to suppress false-positive bulk-edit inference
+  warnings during workspace creation.
 
-### Changed
+### Docs
 
-- Release pipeline now generates and attaches a CycloneDX SBOM
-  (`sbom.cdx.json`) to every GitHub Release. The SBOM is an
-  environment-snapshot of the fully resolved dependency tree at build
-  time, making it straightforward for enterprise users to ingest the
-  inventory into tools like Dependency-Track for continuous CVE
-  monitoring without rescanning the package themselves.
+- Spec Kitty's internal maintainer charter now records the ownership boundary
+  for user-authored custom commands, custom skills, and project overrides, with
+  an explicit proof trail showing that package-owned mutation flows must preserve
+  files whose ownership is not proven by managed-path or manifest data.
 
 ## [3.1.5] - 2026-04-16
 
