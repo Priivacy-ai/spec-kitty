@@ -203,3 +203,140 @@ for meta_file in Path('mutants').rglob('*.meta'):
         else: killed += 1
 print(f'Kill rate: {100*killed/(killed+survived):.1f}%')
 ```
+
+---
+
+## 2026-04-20 whole-`src/` partial run
+
+First whole-repository mutation run since the local-only adoption (ADR
+`2026-04-20-1`). The run was sampled partway through (`max_children=8`, ~1 h
+elapsed, ~75 % of mutants tested); results below are a snapshot, not a final
+score. Configuration: `paths_to_mutate = ["src/"]`, `do_not_mutate =
+["src/specify_cli/upgrade/migrations/", "src/specify_cli/version_utils.py"]`,
+sandbox baseline green after the marker migration described in ADR
+`2026-04-20-1` To-Be.
+
+### Snapshot (in-flight totals)
+
+Computed from `mutants/**/*.meta` (`exit_code_by_key` → `0` = survived, else
+killed). `mutmut results` agrees on the non-killed categories:
+
+| Status | Count | Notes |
+|--------|------:|-------|
+| Killed | 55,096 | Silent in `mutmut results`; read from `.meta` |
+| Survived | 15,389 | Actionable — tests pass with mutant in place |
+| No tests | 30,244 | Mutation location not reached by any test |
+| Timeout | 755 | Mutation caused hang; treat like survived unless clearly benign |
+| Not checked | 13,067 | Still pending at the snapshot |
+
+Apparent kill rate: **55,096 / (55,096 + 15,389) = 78.2 %** against the
+tested-set. Including `no tests` as unkilled brings the effective score on
+reached-plus-unreached code to roughly **55 %** — the "no coverage" bucket is
+the single largest category and the first lever to pull.
+
+### Hotspot modules by survivor count (top-level)
+
+```
+2053  specify_cli.cli            — sprawling CLI entry points; many handlers
+1136  specify_cli.glossary       — already audited in the 2026-03-01 WP05 baseline
+1103  specify_cli.sync           — tracker/daemon IO wrappers
+ 904  specify_cli.core           — mission selectors, worktree topology
+ 855  specify_cli.migration      — bulk mutation operations (semi-equivalent risk)
+ 683  specify_cli.verify_enhanced
+ 615  specify_cli.tracker
+ 594  specify_cli.runtime
+ 562  specify_cli.next
+ 524  specify_cli.status
+ 508  specify_cli.review
+ 439  charter.synthesizer
+ 434  specify_cli.agent_utils
+```
+
+### Hotspot sub-modules (top 15)
+
+```
+1716  specify_cli.cli.commands                  ← single biggest pile of survivors
+ 519  specify_cli.glossary.events
+ 432  specify_cli.agent_utils.status
+ 296  specify_cli.review.baseline
+ 295  specify_cli.migration.rebuild_state
+ 280  specify_cli.validators.research
+ 244  specify_cli.sync.events
+ 233  specify_cli.dashboard.scanner
+ 219  specify_cli.sync.daemon
+ 219  specify_cli.migration.backfill_identity
+ 217  specify_cli.next.runtime_bridge
+ 216  specify_cli.cli.ui
+ 209  specify_cli.core.worktree_topology
+ 204  specify_cli.runtime.agent_commands
+ 200  specify_cli.next.prompt_builder
+```
+
+`specify_cli.cli.commands` alone accounts for ~11 % of all survivors — many of
+its handlers are thin adapters that either lack direct unit coverage (most
+tests use `typer.testing.CliRunner` and assert only on exit codes) or use
+assertion patterns that miss mutation operators on branch conditions and
+string literals.
+
+### Compat module (the original trigger)
+
+```
+29  no tests
+20  survived
+```
+
+All survivors cluster in `_validate_canonical_import` and
+`_validate_version_order`. Example survivor IDs:
+
+```
+specify_cli.compat.registry.x__validate_canonical_import__mutmut_7..12  (6)
+specify_cli.compat.registry.x__validate_version_order__mutmut_10,12    (2)
+specify_cli.compat.registry.x_load_registry__mutmut_14                 (1)
+specify_cli.compat.registry.xǁRegistrySchemaErrorǁ__init____mutmut_4   (1)
+```
+
+Validation-function survivors are the canonical case for the Boundary Pair +
+Non-Identity Inputs styleguide patterns — the tests exercise the happy path
+and a broad "malformed input" case but miss the **exact** comparison boundaries
+that `>=` / `>` / `<=` / `<` mutation operators flip.
+
+### Follow-up prioritisation
+
+Order kill-the-survivor passes by survivor density and review-blast-radius:
+
+1. **`specify_cli.compat`** (20 survivors, narrow surface) — first PR. Small
+   enough to demonstrate the kill-the-survivor workflow end-to-end; directly
+   protects the compatibility-shim mission we just landed.
+2. **`specify_cli.cli.commands`** (1716 survivors) — not a single PR. Split by
+   sub-command file; target ≥ 80 % mutation score on the top-5 busiest files.
+3. **`specify_cli.glossary.events`** (519) and **`specify_cli.agent_utils.status`** (432)
+    — both have strong existing coverage; survivors indicate
+   assertion-strength gaps, not coverage gaps. Good candidate for
+   mutation-aware pattern demonstrations in review.
+4. **`specify_cli.review.baseline` / `specify_cli.migration.rebuild_state`**
+   (~295 each) — overlap with the post-merge stale-assertion detector landed
+   in mission 068. Cross-reference before mutating to avoid duplicate work.
+
+### Caveats
+
+- The snapshot is partial; the final kill rate will drift as the remaining
+  ~13 k pending mutants resolve. Re-sample after the run completes.
+- The `no tests` category inflates easily in packages with large data-model
+  modules where the "test" is really a schema round-trip — mutations on
+  private helpers are structurally unreachable from black-box tests. Not
+  every `no tests` entry is a real coverage bug.
+- Migration packages (`specify_cli.migration.*`) produce many equivalent
+  mutants by construction (idempotent `dict.setdefault` / `copy()` operations).
+  Apply `# pragma: no mutate` liberally and don't treat the survivor count
+  there as comparable to business-logic modules.
+- The run still included some sandbox-hostile tests before we landed the
+  `non_sandbox` / `flaky` marker migration. Post-migration re-runs should
+  produce slightly tighter numbers (fewer no-tests entries caused by tests
+  that silently skipped).
+
+### Re-sampling
+
+Once the run completes, repeat the `.meta` scan; if the ratio holds,
+publish the completed numbers here. Kill-the-survivor PRs should cite the
+specific mutant IDs they address (`mutmut show <id>`) in their commit
+messages so the lineage is traceable across snapshots.
