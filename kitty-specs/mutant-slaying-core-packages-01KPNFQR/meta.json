@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-20T13:02:20.606163+00:00",
+  "friendly_name": "mutant slaying core packages",
+  "mission_id": "01KPNFQRP4J1KYKBDE453R1NJ2",
+  "mission_number": 91,
+  "mission_slug": "mutant-slaying-core-packages-01KPNFQR",
+  "mission_type": "software-dev",
+  "slug": "mutant-slaying-core-packages-01KPNFQR",
+  "target_branch": "feature/711-mutant-slaying"
+}
