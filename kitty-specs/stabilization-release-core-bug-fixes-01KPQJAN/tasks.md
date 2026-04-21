@@ -16,13 +16,13 @@
 | T003 | Regression test: untracked files do not abort merge | WP01 | [D] |
 | T004 | Regression test: tracked-dirty files abort with correct message | WP01 | [D] |
 | T005 | Full suite green check | WP01 | | [D] |
-| T006 | Add Gemini + Qwen to `AGENT_ARG_PLACEHOLDERS` (`{{args}}`) | WP02 | |
-| T007 | Add `AGENT_SHIM_FORMATS` dispatch dict (`gemini → toml`) | WP02 | |
-| T008 | Implement `generate_shim_content_toml()` for Gemini TOML schema | WP02 | |
-| T009 | Update `generate_all_shims()` for per-agent format + extension dispatch | WP02 | |
-| T010 | Regression tests: Gemini produces `.toml`, correct schema, `{{args}}` | WP02 | [P] |
-| T011 | Regression tests: Qwen stays `.md` but uses `{{args}}` | WP02 | [P] |
-| T012 | Regression tests: Claude/Codex output unchanged | WP02 | [P] |
+| T006 | Add Gemini + Qwen to `AGENT_ARG_PLACEHOLDERS` (`{{args}}`) | WP02 | | [D] |
+| T007 | Add `AGENT_SHIM_FORMATS` dispatch dict (`gemini → toml`) | WP02 | | [D] |
+| T008 | Implement `generate_shim_content_toml()` for Gemini TOML schema | WP02 | | [D] |
+| T009 | Update `generate_all_shims()` for per-agent format + extension dispatch | WP02 | | [D] |
+| T010 | Regression tests: Gemini produces `.toml`, correct schema, `{{args}}` | WP02 | [D] |
+| T011 | Regression tests: Qwen stays `.md` but uses `{{args}}` | WP02 | [D] |
+| T012 | Regression tests: Claude/Codex output unchanged | WP02 | [D] |
 | T013 | Change review-claim emit to `Lane.IN_REVIEW`, remove `force=True` | WP03 | |
 | T014 | Update `is_review_claimed` to OR new + legacy shapes | WP03 | |
 | T015 | Update lane-entry guard to accept `{FOR_REVIEW, IN_REVIEW, legacy-in-progress-claim}` | WP03 | |
@@ -71,13 +71,13 @@
 **Goal**: Produce valid TOML shims for Gemini and correct argument placeholders for Gemini and Qwen, without regressing any other agent.
 
 **Subtasks**:
-- [ ] T006 Add Gemini + Qwen to `AGENT_ARG_PLACEHOLDERS` (`{{args}}`) (WP02)
-- [ ] T007 Add `AGENT_SHIM_FORMATS` dispatch dict (`gemini → toml`) (WP02)
-- [ ] T008 Implement `generate_shim_content_toml()` for Gemini TOML schema (WP02)
-- [ ] T009 Update `generate_all_shims()` for per-agent format + extension dispatch (WP02)
-- [ ] T010 Regression tests: Gemini produces `.toml`, correct schema, `{{args}}` (WP02)
-- [ ] T011 Regression tests: Qwen stays `.md` but uses `{{args}}` (WP02)
-- [ ] T012 Regression tests: Claude/Codex output unchanged (WP02)
+- [x] T006 Add Gemini + Qwen to `AGENT_ARG_PLACEHOLDERS` (`{{args}}`) (WP02)
+- [x] T007 Add `AGENT_SHIM_FORMATS` dispatch dict (`gemini → toml`) (WP02)
+- [x] T008 Implement `generate_shim_content_toml()` for Gemini TOML schema (WP02)
+- [x] T009 Update `generate_all_shims()` for per-agent format + extension dispatch (WP02)
+- [x] T010 Regression tests: Gemini produces `.toml`, correct schema, `{{args}}` (WP02)
+- [x] T011 Regression tests: Qwen stays `.md` but uses `{{args}}` (WP02)
+- [x] T012 Regression tests: Claude/Codex output unchanged (WP02)
 
 **Success criteria**: Running shim generation for a project with Gemini produces `.toml` files with `{{args}}`. Qwen produces `.md` files with `{{args}}`. All other agent output is byte-for-byte identical to pre-fix.
 
