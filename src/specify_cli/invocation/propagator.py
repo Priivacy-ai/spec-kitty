@@ -58,8 +58,8 @@ def _get_saas_client(repo_root: Path) -> Any | None:  # noqa: ARG001
     or the WebSocket is not yet connected.
     """
     try:
-        from specify_cli.auth import get_token_manager  # type: ignore[import-untyped]
-        from specify_cli.sync.client import WebSocketClient  # type: ignore[import-untyped]
+        from specify_cli.auth import get_token_manager
+        from specify_cli.sync.client import WebSocketClient
 
         token_manager = get_token_manager()
         if not bool(token_manager.is_authenticated):

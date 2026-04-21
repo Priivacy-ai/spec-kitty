@@ -211,7 +211,7 @@ The answer is a three-tier model. Tier 1 (mandatory, every invocation): one `Inv
 ## 6. Key Entities
 
 - **ProfileInvocationExecutor** — the single internal execution primitive: accepts `(request, profile_hint?, governance_context_source)`, resolves `(profile_id, action)` via the action router, assembles the governance context block, writes the Tier 1 `InvocationRecord`, and returns the invocation payload to the caller. All CLI surfaces delegate to this.
-- **InvocationRecord** — the v1 minimal audit record for every profile-governed invocation. Fields: `invocation_id` (ULID), `profile_id`, `action`, `request_text`, `governance_context_hash`, `actor`, `started_at`, `completed_at`, `outcome`, `evidence_ref`. Written as JSONL to `.kittify/events/profile-invocations/<profile_id>-<invocation_id>.jsonl`.
+- **InvocationRecord** — the v1 minimal audit record for every profile-governed invocation. Fields: `invocation_id` (ULID), `profile_id`, `action`, `request_text`, `governance_context_hash`, `actor`, `started_at`, `completed_at`, `outcome`, `evidence_ref`. Written as JSONL to `.kittify/events/profile-invocations/<invocation_id>.jsonl`.
 - **ActionRouter** — the component that maps `(request_text, profile_hint?)` to `(profile_id, action)`. Exposes a defined interface seam; the implementation choice is ADR-3's responsibility.
 - **GovernanceContextBlock** — the assembled bundle of doctrine, tactics, directives, and constraints relevant to a specific `(profile_id, action)` pair. Assembled from the DRG; its SHA-256 hash is stored in the `InvocationRecord` for provenance.
 - **Profile** — a named agent identity defined in `.kittify/profiles/`. Has a `profile_id`, `friendly_name`, declared action domains, and governance scope.

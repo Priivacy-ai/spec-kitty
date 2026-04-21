@@ -77,7 +77,7 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
             "One InvocationRecord written locally before executor returns. "
             "Applies to all advise / ask / do invocations."
         ),
-        storage_path=".kittify/events/profile-invocations/{profile_id}-{invocation_id}.jsonl",
+        storage_path=".kittify/events/profile-invocations/{invocation_id}.jsonl",
     ),
     tier_2=TierPolicy(
         name="evidence_artifact",
