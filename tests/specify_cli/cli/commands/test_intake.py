@@ -103,11 +103,13 @@ def test_auto_single_match_existing_brief_no_force(intake_app: typer.Typer, tmp_
     _make_plan_file(tmp_path, "opencode-plan.md", content="# New Plan")
     mock_sources = [("opencode", "opencode", ["opencode-plan.md"])]
 
-    # Pre-create the brief
+    # Pre-create both brief files (complete state). The conflict guard requires
+    # both files to be present since fix(intake) 2026-04-21 (partial state is recovered).
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     existing_brief = kittify / MISSION_BRIEF_FILENAME
     existing_brief.write_text("# Old Brief", encoding="utf-8")
+    (kittify / BRIEF_SOURCE_FILENAME).write_text("source", encoding="utf-8")
 
     with (
         patch("specify_cli.cli.commands.intake.Path.cwd", return_value=tmp_path),
