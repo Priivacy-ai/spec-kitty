@@ -104,17 +104,20 @@ jobs:
         id: fetch_refs
         run: |
           set -euo pipefail
-          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN must be configured for release-time SaaS compatibility checks."
-            exit 1
-          fi
-
           mkdir -p /tmp/spec-kitty-release-contracts
 
           curl -fsSL \
             -H "Accept: application/vnd.github.raw" \
             "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-runtime/contents/pyproject.toml?ref=main" \
             -o /tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml
+
+          echo "runtime_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml" >> "$GITHUB_OUTPUT"
+
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS compatibility fetches for this release run."
+            exit 0
+          fi
 
           curl -fsSL \
             -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
@@ -128,20 +131,29 @@ jobs:
             "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main" \
             -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json
 
-          echo "runtime_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml" >> "$GITHUB_OUTPUT"
+          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
           echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
           echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
 
       - name: Validate shared package drift
         run: |
-          python scripts/release/check_shared_package_drift.py \
-            --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}" \
+          ARGS=(
             --runtime-pyproject "${{ steps.fetch_refs.outputs.runtime_pyproject }}"
+          )
+
+          if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
+            ARGS+=(
+              --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
+            )
+          fi
+
+          python scripts/release/check_shared_package_drift.py "${ARGS[@]}"
 
       - name: Verify exact installability from built wheel
         run: python scripts/release/check_exact_install.py --package spec-kitty-cli
 
       - name: Validate candidate against SaaS consumer contract
+        if: steps.fetch_refs.outputs.saas_fetched == 'true'
         run: |
           python scripts/release/check_candidate_consumer_compat.py \
             --package spec-kitty-cli \

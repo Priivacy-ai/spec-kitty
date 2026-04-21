@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0a3] - 2026-04-21
+
+### Fixed
+
+- Release publish no longer hard-fails when the private `SPEC_KITTY_SAAS_READ_TOKEN` secret is absent. The pipeline still enforces runtime drift and exact wheel installability, and it runs the SaaS consumer-contract check whenever the private compatibility reference can actually be fetched.
+
 ## [3.2.0a2] - 2026-04-21
 
 ### Changed
