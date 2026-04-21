@@ -341,18 +341,6 @@ publish the completed numbers here. Kill-the-survivor PRs should cite the
 specific mutant IDs they address (`mutmut show <id>`) in their commit
 messages so the lineage is traceable across snapshots.
 
-## WP01 residuals — `specify_cli.compat.registry` (2026-04-20)
-
-**Mission**: `mutant-slaying-core-packages-01KPNFQR`, WP01
-**Scope**: `specify_cli.compat.registry` validators (FR-001, NFR-001 target ≥ 80 %)
-**Pre-WP survivor count** (from 2026-04-20 baseline above): 20
-
-**Kill claim**: 17 of 20 survivors addressed via assertion strengthening → **85 %**. 3 residuals (2 unloadable mutants, 1 functionally equivalent YAML loader mutation) documented in lane-a findings.
-
-**NFR-005 check**: `pytest tests/specify_cli/compat/ -v` → 65 passed (0 errors).
-
----
-
 ## WP03 residuals — kernel.paths + kernel.atomic + kernel.glossary_runner (2026-04-20)
 
 This section documents the kill-the-survivor pass executed by WP03 of mission
@@ -660,46 +648,6 @@ entries in the 2026-04-20 baseline but zero survivors — per the WP
 prompt that is a coverage gap, not a kill-rate target under FR-002.
 It is deliberately not addressed here and is flagged for a follow-up
 coverage pass.
-
----
-
-## WP01 residuals — `specify_cli.compat.registry` (2026-04-20)
-
-**Mission**: `mutant-slaying-core-packages-01KPNFQR`, WP01
-**Scope**: `specify_cli.compat.registry` validators (FR-001, NFR-001 target ≥ 80 %)
-**Pre-WP survivor count** (from 2026-04-20 baseline above): 20
-**Tests added**: 23 new tests in `tests/specify_cli/compat/test_registry.py` across 5 new classes:
-
-- `TestValidateEntryMutationKills` — 7 tests targeting mutants 7, 8, 16, 34, 36, 53, 54
-- `TestValidateCanonicalImportMutationKills` — 5 tests targeting mutants 8, 9, 10, 11, 12
-- `TestValidateVersionOrderMutationKills` — 3 tests targeting mutants 10, 12
-- `TestValidateRegistryMessageKills` — 3 tests targeting mutants 7, 11
-- `TestRegistrySchemaErrorMessageKills` — 3 tests targeting mutant 4
-
-**Patterns applied** (from `mutation-aware-test-design` styleguide):
-
-- **Boundary Pair** — `TestValidateEntryMutationKills::test_non_bool_grandfathered_error_reports_actual_type` (asserts actual vs `NoneType`).
-- **Non-Identity Inputs** — `TestValidateCanonicalImportMutationKills::test_valid_list_of_dotted_names_produces_no_error` (valid strings must not trigger errors).
-- **Bi-Directional Logic** — `TestValidateVersionOrderMutationKills::test_one_field_str_one_not_returns_silently` (mixed-type inputs probe `and`→`or` flips).
-- **Exact message assertions** (replaces None-substitution mutations) — all `TestValidateRegistryMessageKills` and `TestRegistrySchemaErrorMessageKills` tests.
-
-**Residuals (accepted, no kill planned in this mission)**:
-
-- `specify_cli.compat.registry.x__validate_canonical_import__mutmut_7` — **unloadable mutant** (mutmut 3.5.0 `find_mutant` raises when attempting to load). Not a coverage gap; infrastructure artifact.
-- `specify_cli.compat.registry.x_validate_registry__mutmut_18` — **unloadable mutant** (same issue).
-- `specify_cli.compat.registry.x_load_registry__mutmut_14` — **functionally equivalent**: `YAML(typ="safe")` vs `YAML(typ=None)` (ruamel.yaml round-trip loader) produce identical observable output for the shim-registry input shape (plain dict/list of strings/bools; no tags, no dates, no preserved formatting). Both loaders reject Python-tag injection. Kill would require a tag that one loader accepts and the other rejects — no such tag exists for this input. Source line is NOT annotated `# pragma: no mutate` because the mutant is benign and annotating would be theatre.
-
-**Kill claim**: 17 of 20 survivors addressable via assertion strengthening → **85 %** on the original 20 survivor set. 3 residuals documented above; none represent a real coverage or safety gap.
-
-**NFR-003 annotation density**: 0 `# pragma: no mutate` annotations added in `src/specify_cli/compat/registry.py`. Density remains 0 % — well below the 10 % ceiling.
-
-**NFR-005 check**: `pytest tests/specify_cli/compat/ -v` → 65 passed (0 errors). Main-suite collection stability preserved.
-
-**NFR-006 check**: Scoped rerun on WP01's surface; out-of-scope kill counts to be confirmed against the full-run snapshot at review time.
-
-**Verification**: `uv run mutmut run "specify_cli.compat*"` (after `rm mutants/src/specify_cli/compat/*.meta`) expected to report ≤ 4 survivors (3 residuals + up to 1 flaky).
-
-**Verification status (WP01 close-out)**: scoped mutmut verification **deferred to review time**. Running mutmut in the lane-a worktree surfaced a cascade of *baseline-phase* sandbox-hostile tests (git-subprocess timeouts, live-`main` branch assumptions, whole-src AST walks) that each required `pytestmark = pytest.mark.non_sandbox` or directory-level `--ignore=` additions before mutmut could reach the mutant-testing phase. After three iterations adding markers (`tests/agent/test_context_validation_unit.py`, `tests/architectural/test_{shim_registry_schema,unregistered_shim_scanner}.py`, `tests/integration/sparse_checkout/`), a fourth blocker surfaced (`tests/agent/cli/commands/test_feature_slug_validation.py::test_valid_kebab_case_slugs_accepted` — git-commit subprocess timeout). Each of the 23 new tests in this WP **directly encodes the surviving mutation's observable difference** (e.g., `test_invalid_legacy_path_error_contains_entry_index` asserts `"entry[7]"` appears and `"entry[None]"` does not — exactly the divergence produced by `x__validate_entry__mutmut_8`), so correctness is carried by pytest-level assertions rather than by a mutmut re-run. The reviewer may run the scoped re-run if desired; it is not blocking for WP01 acceptance.
 
 ---
 
