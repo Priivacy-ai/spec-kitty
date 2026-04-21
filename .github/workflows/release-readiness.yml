@@ -32,6 +32,10 @@ permissions:
 jobs:
   check-readiness:
     runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
+      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -116,6 +120,64 @@ jobs:
           python -m build --wheel
           echo "::endgroup::"
 
+      - name: Fetch compatibility references
+        id: fetch_refs
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/spec-kitty-release-contracts
+
+          curl -fsSL \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-runtime/contents/pyproject.toml?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml
+          echo "runtime_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml" >> "$GITHUB_OUTPUT"
+
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS compatibility fetches."
+            exit 0
+          fi
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json
+
+          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
+          echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
+          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
+
+      - name: Validate shared package drift
+        run: |
+          ARGS=(
+            --runtime-pyproject "${{ steps.fetch_refs.outputs.runtime_pyproject }}"
+          )
+
+          if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
+            ARGS+=(
+              --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
+            )
+          fi
+
+          python scripts/release/check_shared_package_drift.py "${ARGS[@]}"
+
+      - name: Verify exact installability from built wheel
+        run: python scripts/release/check_exact_install.py --package spec-kitty-cli
+
+      - name: Validate candidate against SaaS consumer contract
+        if: steps.fetch_refs.outputs.saas_fetched == 'true'
+        run: |
+          python scripts/release/check_candidate_consumer_compat.py \
+            --package spec-kitty-cli \
+            --consumer-contract "${{ steps.fetch_refs.outputs.consumer_contract }}"
+
       - name: Generate readiness summary
         if: always()
         run: |
@@ -131,6 +193,8 @@ jobs:
             echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
             echo "- Tests pass" >> $GITHUB_STEP_SUMMARY
             echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
+            echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

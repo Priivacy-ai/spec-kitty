@@ -1,25 +1,25 @@
-name: Check spec-kitty-events Alignment
+name: Check Shared Package Drift
 
 on:
   pull_request:
     branches: [main, develop, "2.x"]
     paths:
       - 'pyproject.toml'
-      - 'src/specify_cli/sync/**'
+      - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   push:
     branches: [main, develop, "2.x"]
     paths:
       - 'pyproject.toml'
-      - 'src/specify_cli/sync/**'
+      - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
 
 permissions:
   contents: read
 
 jobs:
-  verify-alignment:
-    name: Verify spec-kitty-events pin and cross-repo parity
+  verify-drift:
+    name: Verify shared package drift
     runs-on: ubuntu-latest
     env:
       REPO_OWNER: ${{ github.repository_owner }}
@@ -30,40 +30,32 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate local pin format and source discipline
-        id: local_pin
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install script dependencies
         run: |
-          PINNED=$(python - <<'PY'
-          import tomllib
-          from pathlib import Path
+          python -m pip install --upgrade pip
+          python -m pip install packaging
 
-          data = tomllib.loads(Path("pyproject.toml").read_text())
-          deps = data["project"]["dependencies"]
-
-          pin = None
-          for dep in deps:
-              if dep.startswith("spec-kitty-events=="):
-                  pin = dep.split("==", 1)[1]
-              if "spec-kitty-events @" in dep:
-                  raise SystemExit(
-                      "Invalid dependency source: spec-kitty-events direct references are forbidden; use exact PyPI pin."
-                  )
-
-          if not pin:
-              raise SystemExit("spec-kitty-events exact pin not found. Expected spec-kitty-events==<version>.")
-
-          print(pin)
-          PY
-          )
-          echo "pin=${PINNED}" >> "$GITHUB_OUTPUT"
-
-      - name: Fetch spec-kitty-saas pyproject.toml from GitHub API
-        id: fetch_saas
+      - name: Fetch compatibility references
+        id: fetch_refs
         run: |
           set -euo pipefail
+          mkdir -p /tmp/spec-kitty-release-contracts
+
+          curl -fsSL \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-runtime/contents/pyproject.toml?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml
+
+          echo "runtime_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml" >> "$GITHUB_OUTPUT"
+
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "fetched=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private cross-repo parity check against ${REPO_OWNER}/spec-kitty-saas."
+            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS parity portion of the drift check."
             exit 0
           fi
 
@@ -72,44 +64,26 @@ jobs:
             -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
             -H "Accept: application/vnd.github.raw" \
             "$URL" \
-            -o /tmp/spec-kitty-saas-pyproject.toml; then
-            echo "fetched=true" >> "$GITHUB_OUTPUT"
+            -o /tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml; then
+            echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
+            echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
           else
-            echo "fetched=false" >> "$GITHUB_OUTPUT"
+            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
             echo "Unable to fetch spec-kitty-saas/pyproject.toml from main."
             echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
             exit 1
           fi
 
-      - name: Extract SaaS pin
-        id: saas_pin
-        if: steps.fetch_saas.outputs.fetched == 'true'
+      - name: Validate shared package drift
         run: |
-          SAAS_PIN=$(python - <<'PY'
-          import tomllib
-          from pathlib import Path
-
-          data = tomllib.loads(Path("/tmp/spec-kitty-saas-pyproject.toml").read_text())
-          deps = data["project"]["dependencies"]
-          pin = None
-          for dep in deps:
-              if dep.startswith("spec-kitty-events=="):
-                  pin = dep.split("==", 1)[1]
-                  break
-          if not pin:
-              raise SystemExit("spec-kitty-events exact pin not found in spec-kitty-saas pyproject.toml")
-          print(pin)
-          PY
+          ARGS=(
+            --runtime-pyproject "${{ steps.fetch_refs.outputs.runtime_pyproject }}"
           )
-          echo "pin=${SAAS_PIN}" >> "$GITHUB_OUTPUT"
 
-      - name: Compare pins
-        if: steps.fetch_saas.outputs.fetched == 'true'
-        run: |
-          if [ "${{ steps.local_pin.outputs.pin }}" != "${{ steps.saas_pin.outputs.pin }}" ]; then
-            echo "Pin mismatch detected:"
-            echo "spec-kitty pin:      ${{ steps.local_pin.outputs.pin }}"
-            echo "spec-kitty-saas pin: ${{ steps.saas_pin.outputs.pin }}"
-            exit 1
+          if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
+            ARGS+=(
+              --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
+            )
           fi
-          echo "Pins match: ${{ steps.local_pin.outputs.pin }}"
+
+          python scripts/release/check_shared_package_drift.py "${ARGS[@]}"

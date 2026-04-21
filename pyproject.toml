@@ -403,13 +403,3 @@ do_not_mutate = [
     "src/specify_cli/upgrade/migrations/",
     "src/specify_cli/version_utils.py",
 ]
-
-[tool.uv]
-# Override spec-kitty-runtime's transitive pin on spec-kitty-events==2.9.0.
-# runtime 0.4.2 imports from spec_kitty_events.mission_next which exists in
-# the current contract-bearing events release line. This remains an upstream
-# packaging bug in spec-kitty-runtime
-# (tracked: Priivacy-ai/spec-kitty-runtime#TBD).
-override-dependencies = [
-    "spec-kitty-events==3.2.0",
-]

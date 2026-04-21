@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0a2] - 2026-04-21
+
+### Changed
+
+- `spec-kitty-runtime` is now pinned to `0.4.4`, matching the corrected published runtime line rather than the broken `0.4.3` metadata.
+- Release readiness and tag-time publish pipelines now verify shared-package drift, candidate-wheel installability with plain `pip`, and candidate compatibility against the SaaS consumer contract before publish.
+
+### Removed
+
+- Temporary `tool.uv.override-dependencies` masking for `spec-kitty-events`. Release validation now requires the published runtime metadata to resolve cleanly without local overrides.
+
 ## [3.2.0a1] - 2026-04-20
 
 ### Added

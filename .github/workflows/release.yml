@@ -11,6 +11,10 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
+      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -95,6 +99,53 @@ jobs:
 
       - name: Build distributions
         run: python -m build
+
+      - name: Fetch compatibility references
+        id: fetch_refs
+        run: |
+          set -euo pipefail
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN must be configured for release-time SaaS compatibility checks."
+            exit 1
+          fi
+
+          mkdir -p /tmp/spec-kitty-release-contracts
+
+          curl -fsSL \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-runtime/contents/pyproject.toml?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main" \
+            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json
+
+          echo "runtime_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml" >> "$GITHUB_OUTPUT"
+          echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
+          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
+
+      - name: Validate shared package drift
+        run: |
+          python scripts/release/check_shared_package_drift.py \
+            --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}" \
+            --runtime-pyproject "${{ steps.fetch_refs.outputs.runtime_pyproject }}"
+
+      - name: Verify exact installability from built wheel
+        run: python scripts/release/check_exact_install.py --package spec-kitty-cli
+
+      - name: Validate candidate against SaaS consumer contract
+        run: |
+          python scripts/release/check_candidate_consumer_compat.py \
+            --package spec-kitty-cli \
+            --consumer-contract "${{ steps.fetch_refs.outputs.consumer_contract }}"
 
       - name: Verify wheel contents
         run: |

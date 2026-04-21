@@ -51,12 +51,29 @@ Use this checklist for releases from `main`.
   python -m build
   twine check dist/*
   ```
+- [ ] Verify shared package drift against the current stack:
+  ```bash
+  python scripts/release/check_shared_package_drift.py \
+    --saas-pyproject ../spec-kitty-saas/pyproject.toml \
+    --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
+  ```
+- [ ] Verify the built wheel installs cleanly with plain `pip`:
+  ```bash
+  python scripts/release/check_exact_install.py --package spec-kitty-cli
+  ```
+- [ ] Verify the built wheel satisfies the SaaS consumer contract:
+  ```bash
+  python scripts/release/check_candidate_consumer_compat.py \
+    --package spec-kitty-cli \
+    --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
+  ```
 
 ### Documentation and Metadata
 
 - [ ] Bump `version` in `pyproject.toml`.
 - [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 - [ ] For prereleases, use the exact prerelease heading (`## [X.Y.ZaN] - YYYY-MM-DD`, etc.).
+- [ ] Remove any `tool.uv.override-dependencies` entries for `spec-kitty-*` packages before tagging.
 - [ ] Review `README.md` release-track messaging:
   - `main` should be described as the stable `3.x` line.
   - `1.x-maintenance` should be described as deprecated maintenance-only.
@@ -131,6 +148,9 @@ git tag -a vX.Y.ZaN -m "Release vX.Y.ZaN"
 git push origin vX.Y.ZaN
 ```
 
+If this release depends on a newly pinned shared package, release that upstream
+package first, verify it is installable from PyPI, and only then tag the CLI.
+
 ### 7. Monitor Automated Publishing
 
 - [ ] Watch `.github/workflows/release.yml`:
@@ -140,6 +160,9 @@ git push origin vX.Y.ZaN
 - [ ] Verify the workflow:
   - runs tests
   - validates release metadata
+  - checks shared-package drift
+  - proves exact wheel installability with plain `pip`
+  - validates candidate compatibility against the SaaS consumer contract
   - builds distributions
   - publishes to PyPI
   - creates the GitHub release
@@ -170,6 +193,13 @@ git push origin vX.Y.ZaN
   ```bash
   python -m pip install --force-reinstall spec-kitty-cli==X.Y.Z
   spec-kitty --version
+  ```
+- [ ] Test an exact prerelease install path in a clean virtualenv:
+  ```bash
+  python -m venv /tmp/spec-kitty-release-check
+  /tmp/spec-kitty-release-check/bin/python -m pip install --upgrade pip
+  /tmp/spec-kitty-release-check/bin/python -m pip install "spec-kitty-cli==X.Y.ZaN"
+  /tmp/spec-kitty-release-check/bin/spec-kitty --version
   ```
 - [ ] Test upgrade from the previous stable release on a sample project.
 
@@ -206,8 +236,9 @@ If a critical issue is discovered after release:
 - **Fresh install still shows the old version**:
   wait a few minutes for package indexes to refresh, then retry with `pip cache purge` if needed.
 - **Prerelease install does not resolve**:
-  use `pip install --pre spec-kitty-cli` or pin the exact prerelease version.
+  stop and inspect the published dependency metadata, starting with the built
+  wheel's `Requires-Dist` and any newly pinned shared packages.
 
 ---
 
-**Last Updated**: 2026-03-21
+**Last Updated**: 2026-04-21

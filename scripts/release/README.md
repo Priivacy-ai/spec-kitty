@@ -54,6 +54,39 @@ Extracts a version section from `CHANGELOG.md` for GitHub Release notes.
 python scripts/release/extract_changelog.py 2.0.0
 ```
 
+### `check_shared_package_drift.py`
+
+Validates that the CLI, SaaS app, and published runtime source agree on the
+current contract-bearing package pins and that no emergency `tool.uv`
+override remains in the CLI metadata.
+
+```bash
+python scripts/release/check_shared_package_drift.py \
+  --saas-pyproject ../spec-kitty-saas/pyproject.toml \
+  --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
+```
+
+### `check_exact_install.py`
+
+Builds a clean temporary virtualenv and installs the built wheel with plain
+`pip` so release-time dependency metadata is exercised exactly as users will
+see it from PyPI.
+
+```bash
+python scripts/release/check_exact_install.py --package spec-kitty-cli
+```
+
+### `check_candidate_consumer_compat.py`
+
+Validates the built wheel's `Requires-Dist` metadata against the SaaS consumer
+contract document.
+
+```bash
+python scripts/release/check_candidate_consumer_compat.py \
+  --package spec-kitty-cli \
+  --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
+```
+
 ## Workflow Integration
 
 - PR checks: `.github/workflows/release-readiness.yml`
@@ -63,9 +96,12 @@ Release workflow sequence:
 
 1. run tests
 2. validate release metadata
-3. build and verify artifacts
-4. extract changelog notes
-5. create GitHub Release
+3. build the wheel candidate
+4. verify shared-package drift
+5. verify exact installability from the built wheel
+6. verify candidate compatibility against the SaaS consumer contract
+7. verify artifacts and extract changelog notes
+8. create GitHub Release
 
 ## Local Release Workflow
 
@@ -77,7 +113,14 @@ vim CHANGELOG.md     # add ## [3.1.0a0] - YYYY-MM-DD (or final ## [3.1.0])
 # 2) validate
 python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 python -m pytest
+python scripts/release/check_shared_package_drift.py \
+  --saas-pyproject ../spec-kitty-saas/pyproject.toml \
+  --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
 python -m build
+python scripts/release/check_exact_install.py --package spec-kitty-cli
+python scripts/release/check_candidate_consumer_compat.py \
+  --package spec-kitty-cli \
+  --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
 twine check dist/*
 
 # 3) clean build artifacts
@@ -131,6 +174,11 @@ python -m pip install --upgrade --pre spec-kitty-cli
 # or pin an exact build
 python -m pip install --upgrade "spec-kitty-cli==3.1.0a0"
 ```
+
+If exact install fails locally but the repo still resolves under `uv`, stop and
+fix the published dependency metadata first. Do not reintroduce
+`tool.uv.override-dependencies` for `spec-kitty-*` packages as a release
+workaround.
 
 ## Testing
 
