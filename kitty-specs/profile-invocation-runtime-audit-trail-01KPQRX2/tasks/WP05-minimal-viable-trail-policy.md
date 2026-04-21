@@ -12,6 +12,8 @@ subtasks:
 - T019
 - T020
 - T021
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "6359"
 history:
 - date: '2026-04-21'
   event: created
@@ -306,3 +308,7 @@ def test_tier3_actions_contains_expected():
 2. Verify `tier_3` only triggers for actions in `TIER_3_ACTIONS` — not for `advise`, `ask`, `do`.
 3. Verify `promote_to_evidence` creates exactly two files and nothing else.
 4. Verify `__init__.py` exports are complete (all public symbols listed).
+
+## Activity Log
+
+- 2026-04-21T12:35:23Z – claude:sonnet-4-6:implementer:implementer – shell_pid=6359 – Started implementation via action command
