@@ -1,18 +1,18 @@
 {
-  "event_count": 15,
-  "last_event_id": "01KPQP00MFAQ6VRRK23YD2KMEK",
-  "materialized_at": "2026-04-21T09:29:58.159734+00:00",
+  "event_count": 18,
+  "last_event_id": "01KPQP2WX1FGXTFJR1M5AJ81QX",
+  "materialized_at": "2026-04-21T09:31:32.641205+00:00",
   "mission_number": "",
   "mission_slug": "stabilization-release-core-bug-fixes-01KPQJAN",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 2
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-21T09:24:17.904772+00:00"
     },
     "WP02": {
-      "actor": "claude:sonnet:reviewer:reviewer",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KPQP00MFAQ6VRRK23YD2KMEK",
-      "last_transition_at": "2026-04-21T09:29:58.159734+00:00"
+      "lane": "approved",
+      "last_event_id": "01KPQP2WX1FGXTFJR1M5AJ81QX",
+      "last_transition_at": "2026-04-21T09:31:32.641205+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
