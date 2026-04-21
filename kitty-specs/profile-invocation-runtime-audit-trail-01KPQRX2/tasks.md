@@ -37,10 +37,10 @@
 | T024 | Benchmark list perf at 10K entries; implement invocation-index if > 200ms | WP06 | — | [D] |
 | T025 | Integration tests: cli/test_invocations.py (query, filter, empty log, limit) | WP06 | [D] |
 | T026 | Skill pack: `.agents/skills/spec-kitty.advise/SKILL.md` | WP06 | [D] |
-| T027 | Entry gate: verify CLI-SaaS contract field coverage for InvocationRecord v1 | WP07 | — |
-| T028 | `propagator.py` — InvocationSaaSPropagator (background thread, atexit, error log) | WP07 | — |
-| T029 | Wire propagator into executor.py post write_completed | WP07 | — |
-| T030 | `test_propagator.py` — mock SaaS client, non-blocking, error log, idempotency, no-op | WP07 | [P] |
+| T027 | Entry gate: verify CLI-SaaS contract field coverage for InvocationRecord v1 | WP07 | — | [D] |
+| T028 | `propagator.py` — InvocationSaaSPropagator (background thread, atexit, error log) | WP07 | — | [D] |
+| T029 | Wire propagator into executor.py post write_completed | WP07 | — | [D] |
+| T030 | `test_propagator.py` — mock SaaS client, non-blocking, error log, idempotency, no-op | WP07 | [D] |
 
 ---
 
@@ -173,10 +173,10 @@ Included subtasks:
 **Prompt file**: [tasks/WP07-saas-propagation.md](tasks/WP07-saas-propagation.md)
 
 Included subtasks:
-- [ ] T027 Entry gate: verify CLI-SaaS contract field coverage for InvocationRecord v1 (WP07)
-- [ ] T028 `propagator.py` — InvocationSaaSPropagator (background thread, atexit, error log) (WP07)
-- [ ] T029 Wire propagator into executor.py post write_completed (WP07)
-- [ ] T030 `test_propagator.py` — mock SaaS, non-blocking, error log, idempotency, no-op (WP07)
+- [x] T027 Entry gate: verify CLI-SaaS contract field coverage for InvocationRecord v1 (WP07)
+- [x] T028 `propagator.py` — InvocationSaaSPropagator (background thread, atexit, error log) (WP07)
+- [x] T029 Wire propagator into executor.py post write_completed (WP07)
+- [x] T030 `test_propagator.py` — mock SaaS, non-blocking, error log, idempotency, no-op (WP07)
 
 **Dependencies**: WP01 (executor), WP06 (stable writer)
 **Blocks**: none
