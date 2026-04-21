@@ -71,10 +71,19 @@
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
   Fill them out with the right edge cases.
+  Prefer concrete exception paths, invalid state changes, and rule boundaries
+  over generic system errors.
 -->
 
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
+
+### Domain Language *(include when terminology precision matters)*
+
+- **Canonical terms**:
+  - **[Term]**: [Exact meaning in this feature]
+- **Avoid / ambiguous synonyms**:
+  - [Term or synonym that should not be used interchangeably]
 
 ## Requirements *(mandatory)*
 
@@ -114,6 +123,16 @@
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
+
+## Assumptions & Open Questions *(include when discovery leaves documented defaults or deferred decisions)*
+
+### Assumptions
+
+- [Reasonable default carried into the spec]
+
+### Open Questions
+
+- [Decision intentionally deferred by the user]
 
 ## Success Criteria *(mandatory)*
 
