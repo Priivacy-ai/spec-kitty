@@ -355,3 +355,4 @@ def test_regression_baselines_match_generated_output():
 ## Activity Log
 
 - 2026-04-21T09:24:56Z – claude:sonnet:implementer:implementer – shell_pid=64353 – Assigned agent via action command
+- 2026-04-21T09:29:32Z – claude:sonnet:implementer:implementer – shell_pid=64353 – Ready for review: TOML shim generation for Gemini/Qwen, routing function, both generation paths fixed, 32 new tests + 66 total passing, 185 regression tests passing
