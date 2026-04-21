@@ -1,7 +1,7 @@
 {
-  "event_count": 51,
-  "last_event_id": "01KPR1AZKBHCKBDTQQCAX4F3PH",
-  "materialized_at": "2026-04-21T12:48:11.883075+00:00",
+  "event_count": 52,
+  "last_event_id": "01KPR1KGQBV1GCDCDSNVW9HASV",
+  "materialized_at": "2026-04-21T12:52:51.563088+00:00",
   "mission_number": "",
   "mission_slug": "profile-invocation-runtime-audit-trail-01KPQRX2",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -60,11 +60,11 @@
       "last_transition_at": "2026-04-21T12:47:28.514861+00:00"
     },
     "WP07": {
-      "actor": "claude:sonnet-4-6:implementer:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KPR1AZKBHCKBDTQQCAX4F3PH",
-      "last_transition_at": "2026-04-21T12:48:11.883075+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KPR1KGQBV1GCDCDSNVW9HASV",
+      "last_transition_at": "2026-04-21T12:52:51.563088+00:00"
     }
   }
 }

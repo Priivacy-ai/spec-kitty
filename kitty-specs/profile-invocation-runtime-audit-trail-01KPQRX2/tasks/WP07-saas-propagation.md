@@ -435,3 +435,4 @@ def test_propagator_error_log_never_raises_on_disk_full(tmp_path):
 ## Activity Log
 
 - 2026-04-21T12:48:11Z – claude:sonnet-4-6:implementer:implementer – shell_pid=49473 – Started implementation via action command
+- 2026-04-21T12:52:52Z – claude:sonnet-4-6:implementer:implementer – shell_pid=49473 – WP07 complete: propagator, executor wired, completed events propagated via complete_invocation()
