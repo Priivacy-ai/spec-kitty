@@ -21,11 +21,11 @@
 | T008 | `router.py` — ActionRouter with CANONICAL_VERB_MAP, token normalization, domain_keyword match | WP02 | — | [D] |
 | T009 | Wire router into executor.py invoke() (no-hint path); add ActionRouterPlugin stub | WP02 | — | [D] |
 | T010 | `test_router.py` — 7 table-driven cases; confirm ADR-3 doc as review gate | WP02 | [D] |
-| T011 | `advise.py` — `spec-kitty advise <request> [--profile <name>] [--json]` | WP03 | — |
-| T012 | Add `spec-kitty ask <profile> <request>` shim in advise.py | WP03 | [P] |
-| T013 | Add `spec-kitty profile-invocation complete --invocation-id <id>` in advise.py | WP03 | [P] |
-| T014 | Register advise / ask / profile-invocation groups in main.py | WP03 | — |
-| T015 | Integration tests: cli/test_advise.py (happy path, profile missing, no charter, --json) | WP03 | [P] |
+| T011 | `advise.py` — `spec-kitty advise <request> [--profile <name>] [--json]` | WP03 | — | [D] |
+| T012 | Add `spec-kitty ask <profile> <request>` shim in advise.py | WP03 | [D] |
+| T013 | Add `spec-kitty profile-invocation complete --invocation-id <id>` in advise.py | WP03 | [D] |
+| T014 | Register advise / ask / profile-invocation groups in main.py | WP03 | — | [D] |
+| T015 | Integration tests: cli/test_advise.py (happy path, profile missing, no charter, --json) | WP03 | [D] |
 | T016 | `do_cmd.py` — `spec-kitty do <request> [--json]` (router always invoked) | WP04 | — |
 | T017 | Register do command in main.py | WP04 | — |
 | T018 | Integration tests: cli/test_do.py (happy path, ambiguity error, no-match error) | WP04 | [P] |
@@ -97,11 +97,11 @@ Included subtasks:
 **Prompt file**: [tasks/WP03-advise-ask-complete-cli.md](tasks/WP03-advise-ask-complete-cli.md)
 
 Included subtasks:
-- [ ] T011 `advise.py` — `spec-kitty advise <request> [--profile <name>] [--json]` (WP03)
-- [ ] T012 Add `spec-kitty ask <profile> <request>` shim in advise.py (WP03)
-- [ ] T013 Add `spec-kitty profile-invocation complete --invocation-id <id>` in advise.py (WP03)
-- [ ] T014 Register advise / ask / profile-invocation groups in main.py (WP03)
-- [ ] T015 Integration tests: cli/test_advise.py (WP03)
+- [x] T011 `advise.py` — `spec-kitty advise <request> [--profile <name>] [--json]` (WP03)
+- [x] T012 Add `spec-kitty ask <profile> <request>` shim in advise.py (WP03)
+- [x] T013 Add `spec-kitty profile-invocation complete --invocation-id <id>` in advise.py (WP03)
+- [x] T014 Register advise / ask / profile-invocation groups in main.py (WP03)
+- [x] T015 Integration tests: cli/test_advise.py (WP03)
 
 **Dependencies**: WP02
 **Blocks**: none (parallel with WP04–WP07)
