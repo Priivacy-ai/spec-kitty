@@ -14,12 +14,16 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-stabilization-release-core-bug-fixes-01KPQJAN
+base_commit: aa295eb7d50473be016f6cbddca2976f68ca93b8
+created_at: '2026-04-21T09:19:07.181460+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
 - T005
+shell_pid: '56480'
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP01
 authoritative_surface: src/specify_cli/cli/commands/merge.py
