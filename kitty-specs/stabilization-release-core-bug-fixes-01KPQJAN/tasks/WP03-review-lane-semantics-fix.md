@@ -26,7 +26,8 @@ subtasks:
 - T017
 - T018
 - T019
-shell_pid: '73261'
+shell_pid: "73261"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP03
 authoritative_surface: src/specify_cli/cli/commands/agent/workflow.py
@@ -419,3 +420,7 @@ def test_legacy_in_progress_review_claim_is_readable(tmp_path, ...):
 2. Confirm the rejection test (T018) asserts `to_lane == IN_PROGRESS`.
 3. Confirm no `force=True` in the review-claim emit.
 4. Verify the legacy-compat test (T019) uses a real JSONL event matching the historical format.
+
+## Activity Log
+
+- 2026-04-21T09:32:06Z – claude:sonnet:implementer:implementer – shell_pid=73261 – Assigned agent via action command
