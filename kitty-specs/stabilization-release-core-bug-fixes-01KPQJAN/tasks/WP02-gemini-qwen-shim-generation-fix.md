@@ -26,7 +26,8 @@ subtasks:
 - T010
 - T011
 - T012
-shell_pid: '64353'
+shell_pid: "64353"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP02
 authoritative_surface: src/specify_cli/shims/
@@ -350,3 +351,7 @@ def test_regression_baselines_match_generated_output():
 2. Verify `tomllib.loads()` succeeds on every generated Gemini/Qwen shim.
 3. Confirm the TOML schema matches `tests/specify_cli/regression/_twelve_agent_baseline/gemini/specify.toml` structure.
 4. Confirm Claude/Codex outputs are byte-for-byte identical to pre-fix output.
+
+## Activity Log
+
+- 2026-04-21T09:24:56Z – claude:sonnet:implementer:implementer – shell_pid=64353 – Assigned agent via action command
