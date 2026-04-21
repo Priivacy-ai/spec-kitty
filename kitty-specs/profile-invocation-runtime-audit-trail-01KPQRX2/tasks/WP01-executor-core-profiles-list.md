@@ -28,7 +28,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: '71316'
+shell_pid: "71316"
+agent: "claude:sonnet-4-6:implementer:implementer"
 history:
 - date: '2026-04-21'
   event: created
@@ -683,3 +684,7 @@ cd src && mypy specify_cli/invocation/ --strict
 3. Verify `ActionRouterPlugin` Protocol has no methods (it is a stub for WP02's extension).
 4. Verify `spec-kitty profiles list --json` output has all 5 required fields per descriptor.
 5. Verify no test makes a live charter context call (use fixture profiles only).
+
+## Activity Log
+
+- 2026-04-21T11:54:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=71316 – Assigned agent via action command
