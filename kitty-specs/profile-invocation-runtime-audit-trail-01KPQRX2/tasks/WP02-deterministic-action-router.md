@@ -447,3 +447,4 @@ def test_adr3_document_exists():
 ## Activity Log
 
 - 2026-04-21T12:09:47Z – claude:sonnet-4-6:implementer:implementer – shell_pid=76739 – Started implementation via action command
+- 2026-04-21T12:16:05Z – claude:sonnet-4-6:implementer:implementer – shell_pid=76739 – WP02 complete: ActionRouter with CANONICAL_VERB_MAP (59 entries), executor wired with real import, 21 table-driven tests, ADR-3 doc gate test passes, mypy --strict clean on router.py
