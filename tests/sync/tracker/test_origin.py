@@ -10,15 +10,18 @@ Covers:
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 
 from specify_cli.tracker.origin import (
     OriginBindingError,
     _derive_slug_from_ticket,
+    _resolve_repo_root,
     bind_mission_origin,
     search_origin_candidates,
     start_mission_from_ticket,
@@ -60,15 +63,23 @@ def _setup_repo(
     *,
     provider: str = "linear",
     project_slug: str = "acme-web",
+    binding_ref: str | None = None,
+    provider_context: dict[str, str] | None = None,
 ) -> Path:
     """Create a minimal .kittify/config.yaml with tracker config."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     config_yaml = kittify / "config.yaml"
-    config_yaml.write_text(
-        f"tracker:\n  provider: {provider}\n  project_slug: {project_slug}\n",
-        encoding="utf-8",
-    )
+    lines = ["tracker:", f"  provider: {provider}"]
+    if project_slug:
+        lines.append(f"  project_slug: {project_slug}")
+    if binding_ref:
+        lines.append(f"  binding_ref: {binding_ref}")
+    if provider_context:
+        lines.append("  provider_context:")
+        for key, value in provider_context.items():
+            lines.append(f"    {key}: {value}")
+    config_yaml.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return tmp_path
 
 
@@ -88,6 +99,7 @@ def _setup_feature(
         "mission_number": "061",
         "slug": mission_slug,
         "mission_slug": mission_slug,
+        "mission_id": "01KTESTMISSIONID00000000001",
         "friendly_name": "add clerk auth",
         "mission_type": "software-dev",
         "target_branch": "main",
@@ -503,7 +515,150 @@ class TestBindMissionOrigin:
             external_issue_key="WEB-123",
             external_issue_url="https://linear.app/acme/issue/WEB-123/add-clerk-auth",
             title="Add Clerk auth",
+            mission_id="01KTESTMISSIONID00000000001",
         )
+
+    def test_binding_ref_routing_and_derived_resource_context(self, tmp_path: Path) -> None:
+        """Bind should route via binding_ref and derive resource context from config."""
+        feature_dir = _setup_feature(
+            tmp_path,
+            project_slug="",
+        )
+        _setup_repo(
+            tmp_path,
+            provider="linear",
+            project_slug="",
+            binding_ref="bind-linear-123",
+            provider_context={"workspace_id": "team-derived-uuid"},
+        )
+        candidate = _make_candidate()
+        client = MagicMock()
+        client.bind_mission_origin.return_value = {"origin_link_id": "x"}
+
+        with patch("specify_cli.sync.events.get_emitter"):
+            result, _ = bind_mission_origin(
+                feature_dir,
+                candidate,
+                "linear",
+                client=client,
+            )
+
+        client.bind_mission_origin.assert_called_once_with(
+            "linear",
+            None,
+            binding_ref="bind-linear-123",
+            mission_id="01KTESTMISSIONID00000000001",
+            mission_slug="061-add-clerk-auth",
+            external_issue_id="issue-uuid-1",
+            external_issue_key="WEB-123",
+            external_issue_url="https://linear.app/acme/issue/WEB-123/add-clerk-auth",
+            title="Add Clerk auth",
+            external_status="In Progress",
+        )
+        assert result["origin_ticket"]["resource_type"] == "linear_team"
+        assert result["origin_ticket"]["resource_id"] == "team-derived-uuid"
+
+    def test_remote_mapping_fallback_without_local_tracker_config(self, tmp_path: Path) -> None:
+        """Bind should fall back to the hosted project mapping when local tracker config is absent."""
+        repo_root = tmp_path
+        (repo_root / ".kittify").mkdir(parents=True, exist_ok=True)
+        feature_dir = repo_root / "kitty-specs" / "061-add-clerk-auth"
+        feature_dir.mkdir(parents=True, exist_ok=True)
+        meta = {
+            "mission_number": "061",
+            "slug": "061-add-clerk-auth",
+            "mission_slug": "061-add-clerk-auth",
+            "mission_id": "01KTESTMISSIONID00000000001",
+            "friendly_name": "add clerk auth",
+            "mission_type": "software-dev",
+            "target_branch": "main",
+            "created_at": "2026-04-01T00:00:00+00:00",
+        }
+        (feature_dir / "meta.json").write_text(
+            json.dumps(meta, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        candidate = _make_candidate()
+        client = MagicMock()
+        client.bind_resolve.return_value = {
+            "match_type": "exact",
+            "binding_ref": "bind-remote-123",
+            "project_slug": "spec-kitty",
+            "display_label": "Priivacy",
+        }
+        client.bind_validate.return_value = {
+            "valid": True,
+            "binding_ref": "bind-remote-123",
+            "display_label": "Priivacy",
+            "provider_context": {"workspace_id": "team-remote-uuid"},
+        }
+        client.bind_mission_origin.return_value = {"origin_link_id": "x"}
+
+        identity = SimpleNamespace(
+            project_uuid=UUID("8a4a7da6-a97c-4bb4-893a-b31664abfee4"),
+            project_slug="spec-kitty",
+            node_id="node-123",
+            repo_slug="Priivacy-ai/spec-kitty",
+            build_id="build-123",
+        )
+
+        with (
+            patch("specify_cli.sync.project_identity.ensure_identity", return_value=identity),
+            patch("specify_cli.sync.events.get_emitter"),
+        ):
+            result, _ = bind_mission_origin(
+                feature_dir,
+                candidate,
+                "linear",
+                client=client,
+            )
+
+        client.bind_resolve.assert_called_once_with(
+            "linear",
+            {
+                "uuid": "8a4a7da6-a97c-4bb4-893a-b31664abfee4",
+                "slug": "spec-kitty",
+                "node_id": "node-123",
+                "repo_slug": "Priivacy-ai/spec-kitty",
+                "build_id": "build-123",
+            },
+        )
+        client.bind_validate.assert_called_once_with(
+            "linear",
+            "bind-remote-123",
+            {
+                "uuid": "8a4a7da6-a97c-4bb4-893a-b31664abfee4",
+                "slug": "spec-kitty",
+                "node_id": "node-123",
+                "repo_slug": "Priivacy-ai/spec-kitty",
+                "build_id": "build-123",
+            },
+        )
+        client.bind_mission_origin.assert_called_once_with(
+            "linear",
+            "spec-kitty",
+            binding_ref="bind-remote-123",
+            mission_id="01KTESTMISSIONID00000000001",
+            mission_slug="061-add-clerk-auth",
+            external_issue_id="issue-uuid-1",
+            external_issue_key="WEB-123",
+            external_issue_url="https://linear.app/acme/issue/WEB-123/add-clerk-auth",
+            title="Add Clerk auth",
+            external_status="In Progress",
+        )
+        assert result["origin_ticket"]["resource_type"] == "linear_team"
+        assert result["origin_ticket"]["resource_id"] == "team-remote-uuid"
+
+    def test_resolve_repo_root_ignores_feature_local_kittify(self, tmp_path: Path) -> None:
+        """Feature-local .kittify must not mask the actual project root."""
+        repo_root = tmp_path
+        (repo_root / ".git").mkdir(parents=True, exist_ok=True)
+        (repo_root / ".kittify").mkdir(parents=True, exist_ok=True)
+        feature_dir = repo_root / "kitty-specs" / "061-add-clerk-auth"
+        (feature_dir / ".kittify").mkdir(parents=True, exist_ok=True)
+
+        assert _resolve_repo_root(feature_dir) == repo_root
 
     def test_missing_meta_json_raises(self, tmp_path: Path) -> None:
         """No meta.json -> OriginBindingError."""

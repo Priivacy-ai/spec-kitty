@@ -516,6 +516,7 @@ def _saas_fan_out(
             to_lane=str(event.to_lane),
             actor=event.actor,
             mission_slug=mission_slug,
+            mission_id=event.mission_id,
             policy_metadata=policy_metadata,
             ensure_daemon=ensure_sync_daemon,
         )

@@ -276,6 +276,18 @@ class TestWPStatusChanged:
         assert event is not None
         assert event["payload"]["mission_slug"] == "028-sync"
 
+    def test_canonical_mission_id_passes_through(self, emitter: EventEmitter, temp_queue):
+        """WPStatusChanged can carry canonical mission identity alongside the slug."""
+        event = emitter.emit_wp_status_changed(
+            "WP01",
+            "planned",
+            "in_progress",
+            mission_slug="028-sync",
+            mission_id="01KTESTMISSIONID00000000001",
+        )
+        assert event is not None
+        assert event["payload"]["mission_id"] == "01KTESTMISSIONID00000000001"
+
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""
         emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -322,6 +334,17 @@ class TestWPCreated:
         )
         assert event is not None
         assert event["payload"]["dependencies"] == ["WP01"]
+
+    def test_canonical_mission_id_passes_through(self, emitter: EventEmitter, temp_queue):
+        """WPCreated can carry canonical mission identity alongside the slug."""
+        event = emitter.emit_wp_created(
+            "WP02",
+            "Title",
+            "028-sync",
+            mission_id="01KTESTMISSIONID00000000001",
+        )
+        assert event is not None
+        assert event["payload"]["mission_id"] == "01KTESTMISSIONID00000000001"
 
 
 class TestWPAssigned:
@@ -598,6 +621,37 @@ class TestConvenienceFunctions:
         mock_emitter.emit_wp_status_changed.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
+    def test_emit_wp_status_changed_resolves_mission_id_from_slug(self, mock_get):
+        """Convenience WP fan-out resolves canonical mission identity when possible."""
+        mock_emitter = MagicMock()
+        mock_emitter.emit_wp_status_changed.return_value = {"event_id": "evt-1"}
+        mock_get.return_value = mock_emitter
+        with (
+            patch(
+                "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
+                return_value=Path("/tmp/project"),
+            ),
+            patch(
+                "specify_cli.sync.events._resolve_mission_id_for_slug",
+                return_value="01KTESTMISSIONID00000000001",
+            ) as mock_resolve,
+            patch("specify_cli.sync.events._publish_event_via_sync_daemon"),
+            patch("specify_cli.sync.events._request_dashboard_sync"),
+        ):
+            emit_wp_status_changed("WP01", "planned", "in_progress", mission_slug="028-sync")
+        mock_resolve.assert_called_once_with(Path("/tmp/project"), "028-sync")
+        mock_emitter.emit_wp_status_changed.assert_called_once_with(
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="in_progress",
+            actor="user",
+            mission_slug="028-sync",
+            mission_id="01KTESTMISSIONID00000000001",
+            causation_id=None,
+            policy_metadata=None,
+        )
+
+    @patch("specify_cli.sync.events.get_emitter")
     def test_emit_wp_status_changed_can_skip_daemon_start(self, mock_get):
         """emit_wp_status_changed can suppress daemon startup during merge batching."""
         mock_emitter = MagicMock()
@@ -623,6 +677,34 @@ class TestConvenienceFunctions:
         mock_emitter.emit_wp_created.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
+    def test_emit_wp_created_resolves_mission_id_from_slug(self, mock_get):
+        """WPCreated fan-out resolves canonical mission identity when possible."""
+        mock_emitter = MagicMock()
+        mock_get.return_value = mock_emitter
+        with (
+            patch(
+                "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
+                return_value=Path("/tmp/project"),
+            ),
+            patch(
+                "specify_cli.sync.events._resolve_mission_id_for_slug",
+                return_value="01KTESTMISSIONID00000000001",
+            ) as mock_resolve,
+            patch("specify_cli.sync.events._publish_event_via_sync_daemon"),
+            patch("specify_cli.sync.events._request_dashboard_sync"),
+        ):
+            emit_wp_created("WP01", "Title", "028-sync")
+        mock_resolve.assert_called_once_with(Path("/tmp/project"), "028-sync")
+        mock_emitter.emit_wp_created.assert_called_once_with(
+            wp_id="WP01",
+            title="Title",
+            mission_slug="028-sync",
+            mission_id="01KTESTMISSIONID00000000001",
+            dependencies=None,
+            causation_id=None,
+        )
+
+    @patch("specify_cli.sync.events.get_emitter")
     def test_emit_wp_assigned_delegates(self, mock_get):
         """emit_wp_assigned delegates to singleton."""
         mock_emitter = MagicMock()
@@ -640,11 +722,18 @@ class TestConvenienceFunctions:
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emit_mission_closed_delegates(self, mock_get):
-        """emit_mission_closed delegates to singleton."""
+        """emit_mission_closed delegates canonical mission identity to singleton."""
         mock_emitter = MagicMock()
         mock_get.return_value = mock_emitter
-        emit_mission_closed("028-sync", 5)
-        mock_emitter.emit_mission_closed.assert_called_once()
+        emit_mission_closed("028-sync", 5, mission_id="01KTESTMISSIONID00000000001")
+        mock_emitter.emit_mission_closed.assert_called_once_with(
+            mission_slug="028-sync",
+            total_wps=5,
+            completed_at=None,
+            total_duration=None,
+            causation_id=None,
+            mission_id="01KTESTMISSIONID00000000001",
+        )
 
     @patch("specify_cli.sync.events.get_emitter")
     def test_emit_history_added_delegates(self, mock_get):

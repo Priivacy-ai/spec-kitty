@@ -52,6 +52,7 @@ from specify_cli.merge.state import (
 from specify_cli.mission_metadata import resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
+from specify_cli.sync import emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -1035,6 +1036,12 @@ def _run_lane_based_merge_locked(
     # -- T002: Cleanup workspace (preserves state.json) then clear state --
     cleanup_merge_workspace(canonical_id, main_repo)
     clear_state(main_repo, canonical_id)
+
+    emit_mission_closed(
+        mission_slug=mission_slug,
+        total_wps=len(all_wp_ids),
+        mission_id=canonical_id,
+    )
 
     # -- T013: Render stale-assertion findings in the merge summary --
     console.print("\n[bold]Stale assertion findings:[/bold]")

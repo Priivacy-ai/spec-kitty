@@ -510,6 +510,7 @@ class EventEmitter:
         to_lane: str,
         actor: str = "user",
         mission_slug: str | None = None,
+        mission_id: str | None = None,
         causation_id: str | None = None,
         policy_metadata: dict | None = None,
     ) -> dict[str, Any] | None:
@@ -522,6 +523,8 @@ class EventEmitter:
             "mission_slug": mission_slug,
             "policy_metadata": policy_metadata,
         }
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
         return self._emit(
             event_type="WPStatusChanged",
             aggregate_id=wp_id,
@@ -540,6 +543,7 @@ class EventEmitter:
         wp_id: str,
         title: str,
         mission_slug: str,
+        mission_id: str | None = None,
         dependencies: list[str] | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
@@ -550,6 +554,8 @@ class EventEmitter:
             "dependencies": dependencies or [],
             "mission_slug": mission_slug,
         }
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
         return self._emit(
             event_type="WPCreated",
             aggregate_id=wp_id,

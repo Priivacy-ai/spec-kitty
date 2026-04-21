@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import re
 import shutil
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
 from specify_cli.sync.events import emit_mission_created
+
+logger = logging.getLogger(__name__)
 
 
 class MissionCreationError(RuntimeError):
@@ -40,6 +43,9 @@ class MissionCreationResult:
     target_branch: str
     current_branch: str
     created_files: list[Path] = field(default_factory=list)
+    origin_binding_attempted: bool = False
+    origin_binding_succeeded: bool = False
+    origin_binding_error: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +369,22 @@ def create_mission_core(
         )
 
     # ------------------------------------------------------------------
-    # 9. Build result
+    # 9. Consume pending origin if present (ticket-first flow)
+    # ------------------------------------------------------------------
+    origin_binding_attempted = False
+    origin_binding_succeeded = False
+    origin_binding_error: str | None = None
+
+    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = (
+        _consume_pending_origin_if_present(
+            repo_root=resolved_root,
+            feature_dir=feature_dir,
+            meta=meta,
+        )
+    )
+
+    # ------------------------------------------------------------------
+    # 10. Build result
     # ------------------------------------------------------------------
     created_files = [spec_file, meta_file, tasks_readme]
 
@@ -375,4 +396,62 @@ def create_mission_core(
         target_branch=planning_branch,
         current_branch=current_branch,
         created_files=created_files,
+        origin_binding_attempted=origin_binding_attempted,
+        origin_binding_succeeded=origin_binding_succeeded,
+        origin_binding_error=origin_binding_error,
     )
+
+
+def _consume_pending_origin_if_present(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    meta: dict[str, Any],
+) -> tuple[bool, bool, str | None, dict[str, Any]]:
+    """Bind a staged pending origin after mission creation, if present."""
+    from specify_cli.tracker.origin import OriginBindingError, bind_mission_origin
+    from specify_cli.tracker.origin_models import OriginCandidate
+    from specify_cli.tracker.ticket_context import clear_pending_origin, read_pending_origin
+
+    pending = read_pending_origin(repo_root)
+    if not pending:
+        return False, False, None, meta
+
+    provider = str(pending.get("provider") or "").strip().lower()
+    issue_id = str(pending.get("issue_id") or "").strip()
+    issue_key = str(pending.get("issue_key") or "").strip()
+
+    if not provider or not issue_id or not issue_key:
+        return (
+            True,
+            False,
+            "Pending origin is missing required provider/issue identifiers.",
+            meta,
+        )
+
+    candidate = OriginCandidate(
+        external_issue_id=issue_id,
+        external_issue_key=issue_key,
+        title=str(pending.get("title") or "").strip(),
+        status=str(pending.get("status") or "").strip(),
+        url=str(pending.get("url") or "").strip(),
+        match_type="pending_origin",
+    )
+
+    try:
+        updated_meta, _ = bind_mission_origin(
+            feature_dir=feature_dir,
+            candidate=candidate,
+            provider=provider,
+            resource_type=None,
+            resource_id=None,
+        )
+    except OriginBindingError as exc:
+        logger.warning("Pending origin bind failed for %s: %s", feature_dir, exc)
+        return True, False, str(exc), meta
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Pending origin bind failed unexpectedly for %s: %s", feature_dir, exc)
+        return True, False, str(exc), meta
+
+    clear_pending_origin(repo_root)
+    return True, True, None, updated_meta

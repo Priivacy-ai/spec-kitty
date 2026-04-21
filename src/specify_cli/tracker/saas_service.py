@@ -51,6 +51,7 @@ def _normalize_ticket_item(item: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "identifier": item.get("identifier") or item.get("external_issue_key") or item.get("external_issue_id"),
+        "external_issue_id": item.get("external_issue_id") or item.get("id"),
         "title": item.get("title") or "",
         "url": item.get("url") or "",
         "state": {"name": state.get("name") if isinstance(state, dict) else None},

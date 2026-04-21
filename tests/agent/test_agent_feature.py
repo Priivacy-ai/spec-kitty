@@ -97,6 +97,11 @@ class TestCreateFeatureCommand:
         assert "Completed changes must merge into main." in output["branch_strategy_summary"]
         assert output["TARGET_BRANCH"] == "main"
         assert output["BASE_BRANCH"] == "main"
+        assert output["origin_binding"] == {
+            "attempted": False,
+            "succeeded": False,
+            "error": None,
+        }
 
         # Verify feature directory was created
         feature_dir = tmp_path / "kitty-specs" / f"test-feature-{TEST_MISSION_MID8}"

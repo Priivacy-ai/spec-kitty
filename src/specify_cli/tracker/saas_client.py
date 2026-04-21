@@ -550,9 +550,11 @@ class SaaSTrackerClient:
     def bind_mission_origin(
         self,
         provider: str,
-        project_slug: str,
+        project_slug: str | None = None,
         *,
-        mission_slug: str,
+        binding_ref: str | None = None,
+        mission_id: str,
+        mission_slug: str | None = None,
         external_issue_id: str,
         external_issue_key: str,
         external_issue_url: str,
@@ -569,14 +571,25 @@ class SaaSTrackerClient:
         key = idempotency_key or str(uuid.uuid4())
         payload: dict[str, Any] = {
             "provider": provider,
-            "project_slug": project_slug,
-            "mission_id": mission_slug,
+            "mission_id": mission_id,
             "external_issue_id": external_issue_id,
             "external_issue_key": external_issue_key,
             "external_issue_url": external_issue_url,
             "external_title": title,
             "external_status": external_status,
         }
+        if mission_slug:
+            payload["mission_slug"] = mission_slug
+        if binding_ref:
+            payload["binding_ref"] = binding_ref
+        elif project_slug:
+            payload["project_slug"] = project_slug
+        else:
+            raise SaaSTrackerClientError(
+                "Either project_slug or binding_ref must be provided.",
+                error_code="invalid_routing",
+                status_code=400,
+            )
         response = self._request_with_retry(
             "POST",
             self._BIND_ORIGIN_PATH,

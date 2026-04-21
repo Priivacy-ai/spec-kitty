@@ -124,6 +124,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
         ):
             stale_report = MagicMock()
@@ -194,6 +195,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
             patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled") as mock_dossier,
         ):
@@ -296,6 +298,7 @@ class TestMergeDoneTransitions:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
         ):
             stale_report = MagicMock()
@@ -409,6 +412,7 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
         ):
             stale_report = MagicMock()
@@ -456,3 +460,77 @@ class TestDoneEventsCommittedToGit:
         )
         # Explicitly: do NOT use git reset --hard HEAD here — that would be a no-op
         # (the file is already at HEAD) and proves nothing about the commit having occurred.
+
+    def test_merge_emits_mission_closed_with_canonical_id(self, tmp_path: Path) -> None:
+        mission_slug = "068-mission-closed-test"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": "01KTESTMISSIONID00000000001",
+                    "mission_slug": mission_slug,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        manifest = MagicMock()
+        manifest.target_branch = "main"
+        manifest.mission_branch = f"kitty/mission-{mission_slug}"
+
+        lane_a = MagicMock()
+        lane_a.lane_id = "lane-a"
+        lane_a.wp_ids = ["WP01", "WP02"]
+        manifest.lanes = [lane_a]
+
+        lane_result = MagicMock(success=True, errors=[])
+        mission_result = MagicMock(success=True, commit="abc1234", errors=[])
+
+        with (
+            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
+            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
+            patch("specify_cli.cli.commands.merge.save_state"),
+            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
+            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
+            patch("specify_cli.cli.commands.merge.safe_commit", return_value=True),
+            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
+            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
+            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
+            patch("specify_cli.cli.commands.merge.run_command", return_value=(0, "abc123", "")),
+            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
+            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
+            patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed") as mock_emit_mission_closed,
+            patch("specify_cli.merge.state.MergeState"),
+        ):
+            stale_report = MagicMock()
+            stale_report.findings = []
+            mock_run_check.return_value = stale_report
+
+            gate_eval = MagicMock()
+            gate_eval.overall_pass = True
+            gate_eval.gates = []
+            mock_gates.return_value = gate_eval
+
+            policy = MagicMock()
+            policy.merge_gates = []
+            mock_policy.return_value = policy
+
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+            )
+
+        mock_emit_mission_closed.assert_called_once_with(
+            mission_slug=mission_slug,
+            total_wps=2,
+            mission_id="01KTESTMISSIONID00000000001",
+        )

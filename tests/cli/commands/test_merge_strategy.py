@@ -201,6 +201,7 @@ class TestStrategyFlagFlowsThrough:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
         ):
             stale_report = MagicMock()
@@ -264,6 +265,7 @@ class TestStrategyFlagFlowsThrough:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
         ):
             stale_report = MagicMock()
@@ -335,6 +337,7 @@ class TestLaneToMissionUsesMergeCommit:
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
         ):
             stale_report = MagicMock()

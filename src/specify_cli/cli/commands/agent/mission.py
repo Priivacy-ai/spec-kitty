@@ -639,6 +639,11 @@ def create_mission(
             "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
             "write_mode": "update_existing_files",
             "next_step": "Read then update spec_file/meta_file; do not recreate with blind write.",
+            "origin_binding": {
+                "attempted": result.origin_binding_attempted,
+                "succeeded": result.origin_binding_succeeded,
+                "error": result.origin_binding_error,
+            },
         }
         _emit_json(
             _inject_branch_contract(

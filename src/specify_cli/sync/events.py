@@ -108,6 +108,24 @@ def _request_dashboard_sync(repo_root: Path | None) -> None:
         logger.debug("Dashboard sync trigger skipped: %s", exc)
 
 
+def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | None) -> str | None:
+    """Best-effort lookup of the canonical mission_id for a mission slug."""
+    if repo_root is None or not mission_slug:
+        return None
+
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    if not feature_dir.is_dir():
+        return None
+
+    try:
+        from specify_cli.mission_metadata import resolve_mission_identity
+
+        return resolve_mission_identity(feature_dir).mission_id
+    except Exception as exc:
+        logger.debug("Could not resolve mission_id for %s: %s", mission_slug, exc)
+        return None
+
+
 def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None) -> None:
     """Best-effort real-time publish through the machine-global sync daemon."""
     if repo_root is None or not is_saas_sync_enabled():
@@ -187,6 +205,7 @@ def emit_wp_status_changed(
     to_lane: str,
     actor: str = "user",
     mission_slug: str | None = None,
+    mission_id: str | None = None,
     causation_id: str | None = None,
     policy_metadata: dict[str, Any] | None = None,
     *,
@@ -194,12 +213,14 @@ def emit_wp_status_changed(
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
+    resolved_mission_id = mission_id or _resolve_mission_id_for_slug(repo_root, mission_slug)
     event = get_emitter().emit_wp_status_changed(
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
         actor=actor,
         mission_slug=mission_slug,
+        mission_id=resolved_mission_id,
         causation_id=causation_id,
         policy_metadata=policy_metadata,
     )
@@ -213,6 +234,7 @@ def emit_wp_created(
     wp_id: str,
     title: str,
     mission_slug: str,
+    mission_id: str | None = None,
     dependencies: list[str] | None = None,
     causation_id: str | None = None,
     *,
@@ -220,10 +242,12 @@ def emit_wp_created(
 ) -> dict[str, Any] | None:
     """Emit WPCreated event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
+    resolved_mission_id = mission_id or _resolve_mission_id_for_slug(repo_root, mission_slug)
     event = get_emitter().emit_wp_created(
         wp_id=wp_id,
         title=title,
         mission_slug=mission_slug,
+        mission_id=resolved_mission_id,
         dependencies=dependencies,
         causation_id=causation_id,
     )
@@ -290,6 +314,7 @@ def emit_mission_closed(
     completed_at: str | None = None,
     total_duration: str | None = None,
     causation_id: str | None = None,
+    mission_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionClosed event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
@@ -299,6 +324,7 @@ def emit_mission_closed(
         completed_at=completed_at,
         total_duration=total_duration,
         causation_id=causation_id,
+        mission_id=mission_id,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)

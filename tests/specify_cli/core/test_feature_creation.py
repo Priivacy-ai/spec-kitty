@@ -133,6 +133,93 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
     assert "README.md" in names
 
 
+def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
+    """A staged pending origin is bound and cleared during mission creation."""
+    _init_git_repo(tmp_path)
+    pending_origin = tmp_path / ".kittify" / "pending-origin.yaml"
+    pending_origin.write_text(
+        "\n".join(
+            [
+                "provider: linear",
+                "issue_key: ENG-42",
+                "issue_id: issue-123",
+                "title: Implement dark mode",
+                "url: https://linear.app/acme/ENG-42",
+                "status: In Progress",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.tracker.origin.bind_mission_origin") as mock_bind_origin,
+    ):
+        mock_bind_origin.return_value = (
+            {
+                "mission_id": "01KTESTMISSIONID00000000003",
+                "mission_number": None,
+                "slug": "ticket-feature-01KTESTM",
+                "mission_slug": "ticket-feature-01KTESTM",
+                "friendly_name": "ticket feature",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-04-01T00:00:00+00:00",
+                "origin_ticket": {"provider": "linear"},
+            },
+            True,
+        )
+        result = create_mission_core(tmp_path, "ticket-feature")
+
+    assert result.origin_binding_attempted is True
+    assert result.origin_binding_succeeded is True
+    assert result.origin_binding_error is None
+    assert pending_origin.exists() is False
+    mock_bind_origin.assert_called_once()
+
+
+def test_pending_origin_failure_is_reported_and_retained(tmp_path: Path) -> None:
+    """Bind failures should not clear the staged pending origin."""
+    _init_git_repo(tmp_path)
+    pending_origin = tmp_path / ".kittify" / "pending-origin.yaml"
+    pending_origin.write_text(
+        "\n".join(
+            [
+                "provider: linear",
+                "issue_key: ENG-42",
+                "issue_id: issue-123",
+                "title: Implement dark mode",
+                "url: https://linear.app/acme/ENG-42",
+                "status: In Progress",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")),
+    ):
+        result = create_mission_core(tmp_path, "ticket-feature")
+
+    assert result.origin_binding_attempted is True
+    assert result.origin_binding_succeeded is False
+    assert result.origin_binding_error == "bind failed"
+    assert pending_origin.exists() is True
+
+
 # ---------------------------------------------------------------------------
 # Validation error tests
 # ---------------------------------------------------------------------------

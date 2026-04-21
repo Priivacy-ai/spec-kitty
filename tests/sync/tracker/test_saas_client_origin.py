@@ -304,6 +304,7 @@ class TestBindMissionOrigin:
     """Tests for SaaSTrackerClient.bind_mission_origin()."""
 
     _BIND_KWARGS: dict[str, Any] = {
+        "mission_id": "01KTESTMISSIONID00000000001",
         "mission_slug": "061-ticket-first",
         "external_issue_id": "12345",
         "external_issue_key": "PROJ-42",
@@ -468,9 +469,28 @@ class TestBindMissionOrigin:
         payload = kwargs["json"]
         assert payload["provider"] == "jira"
         assert payload["project_slug"] == "proj-1"
-        assert payload["mission_id"] == "061-ticket-first"
+        assert payload["mission_id"] == "01KTESTMISSIONID00000000001"
+        assert payload["mission_slug"] == "061-ticket-first"
         assert payload["external_issue_id"] == "12345"
         assert payload["external_issue_key"] == "PROJ-42"
         assert payload["external_issue_url"] == "https://jira.example.com/browse/PROJ-42"
         assert payload["external_title"] == "Fix login bug"
         assert payload["external_status"] == ""
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_binding_ref_routing_in_payload(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(
+            200, {"origin_link_id": "link-abc-123"}
+        )
+
+        client.bind_mission_origin("jira", binding_ref="bind-origin-123", **self._BIND_KWARGS)
+
+        _, kwargs = mock_http.request.call_args
+        payload = kwargs["json"]
+        assert payload["binding_ref"] == "bind-origin-123"
+        assert "project_slug" not in payload

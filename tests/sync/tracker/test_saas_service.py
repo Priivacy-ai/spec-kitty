@@ -60,6 +60,7 @@ def mock_client() -> MagicMock:
         "candidates": [
             {
                 "identifier": "PRI-17",
+                "external_issue_id": "linear-issue-17",
                 "title": "Wire hosted tracker reads",
                 "url": "https://linear.app/priivacy/issue/PRI-17",
                 "state": {"name": "todo"},
@@ -75,6 +76,7 @@ def mock_client() -> MagicMock:
         "tickets": [
             {
                 "identifier": "PRI-1",
+                "external_issue_id": "linear-issue-1",
                 "title": "First ticket",
                 "url": "https://linear.app/priivacy/issue/PRI-1",
                 "state": {"name": "todo"},
@@ -817,6 +819,7 @@ class TestIssueSearch:
             limit=20,
         )
         assert result[0]["identifier"] == "PRI-17"
+        assert result[0]["external_issue_id"] == "linear-issue-17"
         assert result[0]["team"]["key"] == "PRI"
 
     def test_issue_search_without_matching_bound_provider_uses_provider_only(
@@ -845,6 +848,7 @@ class TestListTickets:
             limit=15,
         )
         assert result[0]["identifier"] == "PRI-1"
+        assert result[0]["external_issue_id"] == "linear-issue-1"
 
     def test_list_tickets_without_matching_bound_provider_uses_provider_only(
         self, repo_root: Path, mock_client: MagicMock
