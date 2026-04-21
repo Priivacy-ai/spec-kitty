@@ -164,6 +164,9 @@ This decision is validated when all of the following are true:
 
 ## Implementation Status (2026-04-21)
 
+Status: shipped in `spec-kitty` commit `de8274f5` and verified against the
+deployed `spec-kitty-dev` SaaS environment.
+
 The current monorepo implementation now reflects this ADR in the CLI layer:
 
 1. checkout routing resolves to `Private Teamspace` by default
@@ -173,3 +176,10 @@ The current monorepo implementation now reflects this ADR in the CLI layer:
 5. routing visibility exposes the owning user/build plus current shared-team state
 6. opting out can stop ingress immediately and optionally delete already-synced
    private-only data after explicit confirmation
+
+Validation completed for the shipped slice:
+
+1. targeted CLI/auth/sync pytest coverage passed (`248 passed`)
+2. targeted Ruff checks passed on the changed CLI/sync surface
+3. the corresponding SaaS deployment and smoke checks passed on
+   `https://spec-kitty-dev.fly.dev/`
