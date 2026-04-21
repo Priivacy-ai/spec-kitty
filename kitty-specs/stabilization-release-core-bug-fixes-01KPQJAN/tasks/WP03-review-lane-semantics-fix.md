@@ -31,6 +31,7 @@ mission_id: 01KPQJAN4P2V4MTHRFGS7VW17M
 mission_slug: stabilization-release-core-bug-fixes-01KPQJAN
 owned_files:
 - src/specify_cli/cli/commands/agent/workflow.py
+- src/specify_cli/core/execution_context.py
 - tests/specify_cli/cli/commands/agent/test_workflow_review*.py
 tags: []
 ---
@@ -71,7 +72,9 @@ Downstream from the claim, `is_review_claimed` checks for `to_lane == Lane.IN_PR
 
 The lane-entry guard checks `current_lane not in {Lane.FOR_REVIEW, Lane.IN_PROGRESS}` to allow entry — `IN_PROGRESS` was included to allow re-entry into an already-claimed WP. After the fix, the allowed set should be `{Lane.FOR_REVIEW, Lane.IN_REVIEW}`, plus a special case for the legacy `IN_PROGRESS + review_ref` shape (for old logs only).
 
-**Important**: Approval and rejection from `in_review` must work. The transition matrix already allows `in_review → approved` and `in_review → for_review` (rejected/returned). No changes to approval/rejection code should be needed — just ensure those paths read `current_lane` at execution time, not the lane at claim time.
+**Important**: Approval and rejection from `in_review` must work. The transition matrix (`src/specify_cli/status/transitions.py`) allows `in_review → approved` and `in_review → in_progress` (rejection — returns WP to implementation). There is **no** `in_review → for_review` transition in the matrix; rejection returns to `in_progress`, not `for_review`. No changes to the transition matrix are needed.
+
+**Second site in `execution_context.py`**: `src/specify_cli/core/execution_context.py` contains a duplicate `_is_review_claimed()` helper (around line 163) and a lane check at line 183 that also hard-codes the legacy `IN_PROGRESS + review_ref` shape. Both must be updated to recognize `IN_REVIEW` alongside the legacy shape. Failing to fix this file would leave the workflow-next command (which uses `execution_context.py`) on the old detection logic while `workflow.py` is on the new one.
 
 ---
 
@@ -215,6 +218,52 @@ The lane-entry guard checks `current_lane not in {Lane.FOR_REVIEW, Lane.IN_PROGR
 
 ---
 
+## Subtask T015b — Fix `_is_review_claimed` and lane check in `execution_context.py`
+
+**File**: `src/specify_cli/core/execution_context.py`
+
+This file contains a duplicate of the `is_review_claimed` detection used by the workflow-next path. It must receive the same OR-condition fix as `workflow.py`.
+
+1. Find `_is_review_claimed()` (around line 160):
+   ```python
+   def _is_review_claimed(_wp_id: str) -> bool:
+       for event in reversed(events):
+           if getattr(event, "wp_id", None) == _wp_id:
+               return bool(event.to_lane == Lane.IN_PROGRESS and event.review_ref == "action-review-claim")
+       return False
+   ```
+   Update to:
+   ```python
+   def _is_review_claimed(_wp_id: str) -> bool:
+       for event in reversed(events):
+           if getattr(event, "wp_id", None) == _wp_id:
+               return bool(
+                   event.to_lane == Lane.IN_REVIEW
+                   or (
+                       event.to_lane == Lane.IN_PROGRESS
+                       and event.review_ref == "action-review-claim"
+                   )
+               )
+       return False
+   ```
+
+2. Find the lane check at line 183:
+   ```python
+   if lane == Lane.IN_PROGRESS and _is_review_claimed(candidate_wp_id):
+       return candidate_wp_id
+   ```
+   Update to accept both `IN_PROGRESS` (legacy) and `IN_REVIEW` (new):
+   ```python
+   if lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW) and _is_review_claimed(candidate_wp_id):
+       return candidate_wp_id
+   ```
+
+**Validation**:
+- [ ] After fix, a WP in `IN_REVIEW` is correctly returned as the "review-claimed" WP by the execution context scan
+- [ ] Legacy `IN_PROGRESS + review_ref=action-review-claim` WPs are still returned correctly
+
+---
+
 ## Subtask T016 — Regression test: new claim emits `in_review`
 
 **File**: `tests/specify_cli/cli/commands/agent/test_workflow_review.py` (create if absent; check nearby test files for test infrastructure patterns)
@@ -271,23 +320,25 @@ def test_approval_from_in_review_succeeds(tmp_path, ...):
 
 **File**: `tests/specify_cli/cli/commands/agent/test_workflow_review.py`
 
+**Rejection semantics**: The transition matrix (`src/specify_cli/status/transitions.py`) allows `in_review → in_progress` as the rejection/return path. There is **no** `in_review → for_review` transition. Rejection returns the WP to `in_progress` so the implementer can make corrections before re-submitting for review.
+
 **Test to write**:
 
 ```python
-def test_rejection_from_in_review_returns_to_for_review(tmp_path, ...):
-    """A WP in in_review can be rejected and returns to for_review."""
+def test_rejection_from_in_review_returns_to_in_progress(tmp_path, ...):
+    """A WP in in_review can be rejected, returning it to in_progress."""
     # Setup: feature with a WP in in_review
     # Run: trigger the rejection/return path
-    # Assert: WP moves back to for_review
+    # Assert: WP moves back to in_progress
     events = read_events(feature_dir)
     latest = events[-1]
-    assert latest.to_lane == Lane.FOR_REVIEW
+    assert latest.to_lane == Lane.IN_PROGRESS
     assert latest.from_lane == Lane.IN_REVIEW
 ```
 
 **Validation**:
 - [ ] Test passes
-- [ ] Confirm `in_review → for_review` is in the allowed transitions matrix
+- [ ] Confirm `in_review → in_progress` is in the allowed transitions matrix (it is — line ~49 in transitions.py)
 
 ---
 
@@ -341,26 +392,26 @@ def test_legacy_in_progress_review_claim_is_readable(tmp_path, ...):
 
 ## Definition of Done
 
-- [ ] `to_lane=Lane.IN_REVIEW` in the review-claim emit, `force=True` removed
-- [ ] `is_review_claimed` recognizes both `IN_REVIEW` (new) and `IN_PROGRESS + review_ref` (legacy)
-- [ ] Lane-entry guard accepts `IN_REVIEW` as a valid entry state
-- [ ] Error message for `IN_PROGRESS` without review_ref updated
+- [ ] `to_lane=Lane.IN_REVIEW` in the review-claim emit in `workflow.py`, `force=True` removed
+- [ ] `is_review_claimed` in `workflow.py` recognizes both `IN_REVIEW` (new) and `IN_PROGRESS + review_ref` (legacy)
+- [ ] `_is_review_claimed()` in `execution_context.py` updated with the same OR condition
+- [ ] Lane check at `execution_context.py:183` accepts `IN_REVIEW` as a review-claimed state
+- [ ] Lane-entry guard in `workflow.py` accepts `IN_REVIEW` as a valid entry state
 - [ ] `tests/specify_cli/cli/commands/agent/test_workflow_review.py` has ≥4 regression tests (T016–T019)
-- [ ] All new tests pass
-- [ ] No pre-existing tests fail
-- [ ] `mypy --strict src/specify_cli/cli/commands/agent/workflow.py` exits 0
+- [ ] T018 asserts rejection returns to `in_progress`, not `for_review`
+- [ ] All new tests pass, no pre-existing tests fail
+- [ ] `mypy --strict src/specify_cli/cli/commands/agent/workflow.py src/specify_cli/core/execution_context.py` exits 0
 - [ ] FR-009, FR-010, FR-011, FR-012 satisfied (verify spec scenarios S-05, S-06)
 
 ## Risks
 
-- **Other `IN_PROGRESS` references in the review path**: Search `workflow.py` for `Lane.IN_PROGRESS` within the review workflow block. Any additional occurrences that were relying on `IN_PROGRESS` as the review-claimed state must be updated. The plan identifies lines ~1344 and ~1362 as the primary sites, but a full-file search is required.
-- **Transition matrix check**: Confirm `for_review → in_review` is in `ALLOWED_TRANSITIONS` in `src/specify_cli/status/transitions.py` before removing `force=True`. If it's missing, add it — that would be a pre-existing omission.
-- **Approval/rejection path**: These paths read `current_lane` from the snapshot at the time of approval/rejection. Since new claims produce `IN_REVIEW`, and the transition matrix should allow `in_review → approved` and `in_review → for_review`, no changes should be needed. But explicitly verify this by reading the approval/rejection emit calls.
+- **`execution_context.py` scan loop**: Line 183 is inside a loop that also checks `FOR_REVIEW`. Make sure the `IN_REVIEW` check is added correctly and does not accidentally return non-review-claimed WPs.
+- **Transition matrix**: `for_review → in_review` is already in `ALLOWED_TRANSITIONS`. Removing `force=True` is safe.
+- **No `in_review → for_review`**: The matrix does NOT have this transition. The rejection path is `in_review → in_progress`. Tests must reflect this.
 
 ## Reviewer Guidance
 
-1. Confirm no `force=True` in the review-claim emit.
-2. Confirm `is_review_claimed` has the OR condition for both shapes.
-3. Check the transition matrix (`src/specify_cli/status/transitions.py`) to verify `for_review → in_review` is allowed (not forced).
-4. Verify the legacy-compat test (T019) uses a real JSONL event that matches the historical format exactly.
-5. Run `spec-kitty agent tasks status --mission stabilization-release-core-bug-fixes-01KPQJAN` after approval to confirm WP03 shows as approved.
+1. Confirm `execution_context.py` and `workflow.py` are both updated — a search for `action-review-claim` across the codebase should return no sites where it is checked only against `IN_PROGRESS` without also checking `IN_REVIEW`.
+2. Confirm the rejection test (T018) asserts `to_lane == IN_PROGRESS`.
+3. Confirm no `force=True` in the review-claim emit.
+4. Verify the legacy-compat test (T019) uses a real JSONL event matching the historical format.

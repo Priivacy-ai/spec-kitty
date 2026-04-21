@@ -67,9 +67,13 @@ src/specify_cli/
 │   ├── merge.py                  # WP01: post-merge invariant fix
 │   └── agent/
 │       └── workflow.py           # WP03: review-claim lane transition fix
+├── core/
+│   └── execution_context.py      # WP03: _is_review_claimed duplicate fix
 ├── shims/
 │   └── generator.py              # WP02: Gemini/Qwen shim format fix
-├── mission_brief.py              # WP04: atomic write fix
+├── runtime/
+│   └── agent_commands.py         # WP02: second shim generation path fix
+├── mission_brief.py              # WP04: resilient write fix
 ├── cli/commands/intake.py        # WP04: file size cap
 └── intake_sources.py             # WP04: path containment + symlink exclusion
 
@@ -105,24 +109,21 @@ tests/
 
 ### WP02 — Gemini/Qwen Shim Generation Fix
 
-**Root cause**: In `src/specify_cli/shims/generator.py`:
-- `AGENT_ARG_PLACEHOLDERS` maps only `claude` → `$ARGUMENTS` and `codex` → `$PROMPT`. All other agents fall through to `_DEFAULT_ARG_PLACEHOLDER = "$ARGUMENTS"`. Gemini and Qwen both need `{{args}}`.
-- `generate_shim_content()` always returns Markdown with YAML frontmatter. There is no per-agent format dispatch.
-- `generate_all_shims()` always writes `spec-kitty.{skill}.md` with hardcoded `.md` extension.
+**Root cause**: `src/specify_cli/core/config.py` (`AGENT_COMMAND_CONFIG`) is the authoritative format registry and already records both Gemini and Qwen as `ext: toml, arg_format: {{args}}`. Neither `generator.py` nor `agent_commands.py` reads this config — both always call `generate_shim_content()` which returns Markdown. There are **two generation paths** to fix.
+
+**Authoritative TOML schema**: Regression baselines in `tests/specify_cli/regression/_twelve_agent_baseline/gemini/specify.toml` and `qwen/specify.toml` show the correct flat schema: `description = "..."` + `prompt = """..."""`. Not `[[commands]]`.
 
 **Fix approach**:
-1. Add `"gemini": "{{args}}"` and `"qwen": "{{args}}"` to `AGENT_ARG_PLACEHOLDERS`.
-2. Add an `AGENT_SHIM_FORMATS` dict mapping agent key → format spec (`"md"` or `"toml"`). Gemini maps to `"toml"`; Qwen maps to `"toml"` (assumption 2 from spec; verify during implementation).
-3. Add a `generate_shim_content_toml()` function that returns valid TOML for Gemini/Qwen (TOML format differs: no YAML frontmatter, uses `[command]` or equivalent Gemini command schema).
-4. In `generate_all_shims()`, dispatch to the correct generator and use the correct file extension per agent.
-5. All other agents continue to use the existing `generate_shim_content()` / `.md` path.
+1. Add `generate_shim_content_toml()` using the flat `description`/`prompt` schema.
+2. Add `generate_shim_content_for_agent(command, agent_key)` routing function that reads `AGENT_COMMAND_CONFIG` for format and placeholder dispatch.
+3. Update `generate_all_shims()` in `generator.py` to call the routing function and derive the filename extension from config.
+4. Update `_sync_agent_commands()` in `agent_commands.py` to call `generate_shim_content_for_agent()` instead of `generate_shim_content()` directly.
 
-**Gemini TOML schema** (to confirm during WP02):
-- Gemini CLI commands are `.toml` files with a `[[commands]]` array or similar structure. The implementation must confirm the exact schema from the Gemini command spec and hard-fail in tests if the format is invalid.
+**Files changed**: `src/specify_cli/shims/generator.py`, `src/specify_cli/runtime/agent_commands.py`
 
-**Test surface**: New `tests/specify_cli/shims/` test module (or extend existing). Cover: file extension per agent, content format per agent (Markdown vs TOML), placeholder per agent.
+**Test surface**: `tests/specify_cli/shims/test_generator.py` — cover TOML validity (`tomllib.loads()`), flat schema shape, placeholder, non-regression for Claude/Codex, and baseline comparison.
 
-**Risks**: Qwen format assumption wrong. If Qwen uses Markdown (not TOML), this will be surfaced during implementation. Update this plan if so.
+**Risks**: Any other callers of `generate_shim_content()` not updated will still produce Markdown for TOML agents. Search for all call sites before closing.
 
 ---
 
@@ -140,16 +141,20 @@ emit_status_transition(TransitionRequest(
 ```
 Additionally, around line 1344, `is_review_claimed` checks for `to_lane == Lane.IN_PROGRESS` with `review_ref == "action-review-claim"` to detect an already-claimed WP — this logic must also be updated.
 
+**Fix scope**: `workflow.py` **and** `src/specify_cli/core/execution_context.py`. Both files contain `_is_review_claimed` logic that checks only the legacy `IN_PROGRESS + review_ref` shape.
+
 **Fix approach**:
-1. Change `to_lane=Lane.IN_PROGRESS` to `to_lane=Lane.IN_REVIEW` in the review-claim emit.
-2. Remove `force=True` — `for_review → in_review` is a legal transition in the 9-lane matrix and must not be forced.
-3. Update `is_review_claimed` to detect `to_lane == Lane.IN_REVIEW` (new canonical shape) OR the legacy shape (`to_lane == Lane.IN_PROGRESS and review_ref == "action-review-claim"`) so historical logs continue to work.
-4. Update the guard at line ~1362 that checks `current_lane not in {Lane.FOR_REVIEW, Lane.IN_PROGRESS}` — the allowed entry set for review is now `{Lane.FOR_REVIEW, Lane.IN_REVIEW}` (where `IN_REVIEW` means already claimed).
-5. Ensure approval and rejection paths that follow from `IN_REVIEW` are not blocked — verify the transition matrix allows `in_review → approved` and `in_review → for_review` (rejected).
+1. Change `to_lane=Lane.IN_PROGRESS` to `to_lane=Lane.IN_REVIEW` in the review-claim emit in `workflow.py`.
+2. Remove `force=True` — `for_review → in_review` is a legal transition.
+3. Update `is_review_claimed` in `workflow.py` to OR the new `IN_REVIEW` shape with the legacy shape.
+4. Update `_is_review_claimed()` in `execution_context.py` (line 163) with the same OR condition.
+5. Update the lane check at `execution_context.py:183` to accept `IN_REVIEW` as a review-claimed state.
+6. Update the entry guard in `workflow.py` to accept `{FOR_REVIEW, IN_REVIEW}` + legacy.
+7. **Rejection path**: The transition matrix allows `in_review → in_progress` (rejection returns to implementation). There is **no** `in_review → for_review` transition. Tests must assert `to_lane == IN_PROGRESS` for rejection.
 
-**Test surface**: `tests/specify_cli/status/` or adjacent workflow tests. Cover: new claim emits `in_review`; approval from `in_review` succeeds; rejection from `in_review` succeeds; reading a log with old `in_progress + review_ref=action-review-claim` does not raise.
+**Test surface**: Workflow review tests. Cover: new claim → `in_review`; approval → `approved`; rejection → `in_progress`; historical `in_progress + review_ref` logs readable.
 
-**Risks**: Approval/rejection paths may have additional `Lane.IN_PROGRESS` references downstream. A targeted search for `Lane.IN_PROGRESS` in the review workflow is required before finalizing the fix.
+**Risks**: Search for `action-review-claim` across the entire codebase to find all detection sites. Any site not updated will remain on the legacy-only check.
 
 ---
 
@@ -157,9 +162,9 @@ Additionally, around line 1344, `is_review_claimed` checks for `to_lane == Lane.
 
 **Root cause and fix for each sub-issue:**
 
-**#723 (atomic write)**:  
-`write_mission_brief()` in `src/specify_cli/mission_brief.py` writes `brief_path` first, then `source_path`. A crash between these two writes leaves an inconsistent state.  
-Fix: Write both files to temp paths first (using `tempfile.NamedTemporaryFile` with `delete=False` in the same directory), then call `Path.replace()` for each. `Path.replace()` is atomic on POSIX. Both temp files must be written before either replace is called, so a crash before either replace leaves no partial state (both temps are cleaned up on the next run or GC).
+**#723 (resilient write)**:  
+`write_mission_brief()` in `src/specify_cli/mission_brief.py` writes `brief_path` first, then `source_path`. A crash between the two writes leaves an inconsistent state.  
+Fix: Two-part approach — (1) at the start of every `write_mission_brief()` call, detect and clean any partial state (brief-without-source or source-without-brief) before writing; (2) use PID-namespaced temp files + `Path.replace()` for the actual write. This handles all three crash windows: pre-write, between temp writes, and between the two replace calls. True two-file atomicity is not achievable with standard filesystem operations; recovery-at-write-start achieves the spec goal (re-ingest not blocked) without that requirement.
 
 **#722 (file size cap)**:  
 `intake.py` calls `found_path.read_text()` without a size guard.  

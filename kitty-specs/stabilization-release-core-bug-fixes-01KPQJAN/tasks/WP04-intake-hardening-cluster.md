@@ -68,24 +68,36 @@ Ship regression tests for all four fixes. Valid in-repo markdown intake must rem
 
 ---
 
-## Subtask T020 — Atomic write in `write_mission_brief()`
+## Subtask T020 — Resilient write in `write_mission_brief()`
 
 **File**: `src/specify_cli/mission_brief.py`
 
 **Current behavior** (around lines 55–79): `brief_path.write_text(...)` is called first, then `source_path.write_text(...)`. A crash between these two calls leaves `mission-brief.md` present without `brief-source.yaml`, which blocks subsequent re-ingest.
 
+**Why two `replace()` calls still have a gap**: Even with temp files, a crash between `tmp_brief.replace(brief_path)` (brief now live) and `tmp_source.replace(source_path)` (source not yet live) leaves a one-file partial state. True two-file atomicity is not achievable with standard filesystem operations.
+
+**Approach — recovery-at-write-start + temp files**: Detect and clean partial state at the start of every `write_mission_brief()` call, before attempting any writes. This satisfies the spec requirement that re-ingest is not blocked after interruption.
+
 **Steps**:
 
 1. Import `os` at the top of the file (if not already imported).
 
-2. Replace the two `write_text` calls with atomic temp-file logic:
-
+2. At the start of `write_mission_brief()`, before any temp file creation, resolve paths and clean any partial state:
    ```python
-   import os
+   kittify = repo_root / ".kittify"
+   kittify.mkdir(exist_ok=True)
+   brief_path = kittify / MISSION_BRIEF_FILENAME
+   source_path = kittify / BRIEF_SOURCE_FILENAME
 
-   # Write to PID-namespaced temp files in the same directory first.
-   # Both temps are fully written before either replace is called,
-   # so a crash before the first replace leaves no committed state.
+   # Clean partial state from any previous interrupted write.
+   # Brief-without-source or source-without-brief are both incomplete.
+   if brief_path.exists() != source_path.exists():
+       brief_path.unlink(missing_ok=True)
+       source_path.unlink(missing_ok=True)
+   ```
+
+3. After cleanup, use temp files + `replace()` for the actual write:
+   ```python
    tmp_brief = kittify / f".tmp-brief-{os.getpid()}.md"
    tmp_source = kittify / f".tmp-source-{os.getpid()}.yaml"
    try:
@@ -94,22 +106,27 @@ Ship regression tests for all four fixes. Valid in-repo markdown intake must rem
            yaml.safe_dump(source_data, default_flow_style=False),
            encoding="utf-8",
        )
-       tmp_brief.replace(brief_path)      # atomic on POSIX (os.rename)
-       tmp_source.replace(source_path)    # atomic on POSIX
+       tmp_brief.replace(brief_path)
+       tmp_source.replace(source_path)
    except Exception:
-       tmp_brief.unlink(missing_ok=True)  # clean up on any error
+       tmp_brief.unlink(missing_ok=True)
        tmp_source.unlink(missing_ok=True)
        raise
    ```
 
-3. `Path.replace()` is atomic on POSIX. On Windows it is best-effort (not atomic but still safe in practice for this use case). No platform guard is needed.
+4. **Crash window coverage**:
+   - Crash before any write: no files, next call proceeds normally
+   - Crash inside `write_text` (pre-replace): temp cleaned up by `except`, final paths unchanged
+   - Crash between first and second `replace()`: one final file present; **next call** detects the mismatch and cleans before re-writing
+   - Complete success: both files present
 
-4. Do not change the return value or the function signature — `write_mission_brief()` still returns `(brief_path, source_path)`.
+5. Do not change return value or function signature.
 
 **Validation**:
-- [ ] After a successful call, both `brief_path` and `source_path` exist and contain correct content
-- [ ] No temp files (`.tmp-brief-*.md`, `.tmp-source-*.yaml`) remain after a successful call
-- [ ] A simulated crash mid-way (e.g., exception after `tmp_brief.write_text` but before `tmp_brief.replace`) leaves no partial state at `brief_path`
+- [ ] After a successful call, both `brief_path` and `source_path` exist
+- [ ] No temp files remain after a successful call
+- [ ] Calling `write_mission_brief()` when brief exists but source doesn't → partial state cleaned → both files written successfully
+- [ ] Calling `write_mission_brief()` when source exists but brief doesn't → same cleanup behavior
 
 ---
 
@@ -242,60 +259,74 @@ Ship regression tests for all four fixes. Valid in-repo markdown intake must rem
 
 ---
 
-## Subtask T024 — Tests: brief atomicity
+## Subtask T024 — Tests: brief resilient write
 
-**File**: `tests/specify_cli/test_mission_brief.py` (create if absent; check for existing test file)
+**File**: `tests/specify_cli/test_mission_brief.py` (create if absent)
 
 **Tests to write**:
 
 ```python
 def test_write_mission_brief_both_files_present_after_success(tmp_path):
-    """Both brief and sidecar are written atomically."""
-    brief_path, source_path = write_mission_brief(
-        tmp_path, "# Test brief", "test.md"
-    )
+    """Both brief and sidecar are written after a successful call."""
+    brief_path, source_path = write_mission_brief(tmp_path, "# Test brief", "test.md")
     assert brief_path.exists()
     assert source_path.exists()
-    # No temp files left behind
-    assert not list(tmp_path.glob(".kittify/.tmp-brief-*.md"))
-    assert not list(tmp_path.glob(".kittify/.tmp-source-*.yaml"))
+    assert not list((tmp_path / ".kittify").glob(".tmp-brief-*.md"))
+    assert not list((tmp_path / ".kittify").glob(".tmp-source-*.yaml"))
 
-def test_write_mission_brief_no_partial_state_on_error(tmp_path, monkeypatch):
-    """A crash between the two write_text calls leaves no partial state at the final paths."""
+def test_write_mission_brief_pre_replace_crash_leaves_no_final_files(tmp_path, monkeypatch):
+    """A crash inside write_text (before replace) leaves no partial final-path state."""
     call_count = [0]
-    original_write_text = Path.write_text
-
-    def patched_write_text(self, text, **kwargs):
+    original = Path.write_text
+    def patched(self, text, **kwargs):
         call_count[0] += 1
         if call_count[0] == 2:
-            raise OSError("simulated crash")
-        return original_write_text(self, text, **kwargs)
-
-    monkeypatch.setattr(Path, "write_text", patched_write_text)
+            raise OSError("simulated pre-replace crash")
+        return original(self, text, **kwargs)
+    monkeypatch.setattr(Path, "write_text", patched)
 
     with pytest.raises(OSError):
         write_mission_brief(tmp_path, "# Test", "test.md")
 
     kittify = tmp_path / ".kittify"
-    # Neither final path should exist (temp files cleaned up, replace never called)
     assert not (kittify / "mission-brief.md").exists()
-    # No temp files should remain either
     assert not list(kittify.glob(".tmp-brief-*.md"))
-    assert not list(kittify.glob(".tmp-source-*.yaml"))
+
+def test_write_mission_brief_recovers_from_brief_without_source(tmp_path):
+    """If brief exists without source (post-replace-1 crash), next call recovers."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    # Simulate the crash window: brief exists, source does not
+    (kittify / "mission-brief.md").write_text("# partial")
+
+    # Next call should detect mismatch, clean up, and write both files
+    brief_path, source_path = write_mission_brief(tmp_path, "# recovered", "test.md")
+    assert brief_path.exists()
+    assert source_path.exists()
+    assert brief_path.read_text(encoding="utf-8").endswith("# recovered\n")
+
+def test_write_mission_brief_recovers_from_source_without_brief(tmp_path):
+    """If source exists without brief, next call recovers."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    (kittify / "brief-source.yaml").write_text("source_file: partial\n")
+
+    brief_path, source_path = write_mission_brief(tmp_path, "# recovered", "test.md")
+    assert brief_path.exists()
+    assert source_path.exists()
 
 def test_write_mission_brief_return_value_unchanged(tmp_path):
-    """write_mission_brief still returns (brief_path, source_path) tuple."""
     result = write_mission_brief(tmp_path, "# content", "source.md")
-    assert isinstance(result, tuple)
-    assert len(result) == 2
+    assert isinstance(result, tuple) and len(result) == 2
     brief, source = result
     assert brief.name == "mission-brief.md"
     assert source.name == "brief-source.yaml"
 ```
 
 **Validation**:
-- [ ] All three tests pass
-- [ ] The crash-simulation test verifies no partial state (key requirement from FR-013)
+- [ ] All five tests pass
+- [ ] The between-replaces crash window (T020 step 4, scenario 3) is tested by `test_write_mission_brief_recovers_from_brief_without_source`
+- [ ] The pre-replace crash window is tested by `test_write_mission_brief_pre_replace_crash_leaves_no_final_files`
 
 ---
 
@@ -456,28 +487,28 @@ def test_scan_for_plans_excludes_inbound_symlink_too(tmp_path):
 
 ## Definition of Done
 
-- [ ] `write_mission_brief()` uses atomic temp-file + replace pattern
-- [ ] `MAX_BRIEF_FILE_SIZE_BYTES = 5 * 1024 * 1024` constant in `intake.py` (module level)
-- [ ] Size check in `intake.py` fires before `read_text()` in both candidate and explicit-path flows
+- [ ] `write_mission_brief()` has partial-state cleanup at write-start and uses temp-file + replace
+- [ ] Recovery tests pass: both "brief-without-source" and "source-without-brief" scenarios are handled
+- [ ] `MAX_BRIEF_FILE_SIZE_BYTES = 5 * 1024 * 1024` constant in `intake.py` (module level, importable)
+- [ ] Size check fires before `read_text()` in both candidate and explicit-path flows
 - [ ] `scan_for_plans()` checks `resolve().is_relative_to(cwd_resolved)` for all candidates
 - [ ] `scan_for_plans()` directory expansion skips symlinks before `is_file()` check
-- [ ] Regression tests exist for all four fixes (T024–T027), covering both the fix and the happy path
+- [ ] Regression tests T024–T027 pass (pre-replace crash, between-replaces crash, size reject, containment, symlink)
 - [ ] No pre-existing intake or mission_brief tests fail
 - [ ] `mypy --strict src/specify_cli/mission_brief.py src/specify_cli/cli/commands/intake.py src/specify_cli/intake_sources.py` exits 0
-- [ ] FR-013, FR-014, FR-015, FR-016, FR-017 satisfied (verify spec scenarios S-07 through S-11)
+- [ ] FR-013, FR-014, FR-015, FR-016, FR-017 satisfied (spec scenarios S-07–S-11)
 
 ## Risks
 
-- **Temp file cleanup on Windows**: `Path.replace()` on Windows requires the destination to not exist. `brief_path` and `source_path` may already exist (overwrite scenario). Test the overwrite case on the CI platform.
-- **Stat failure edge case**: If `stat()` raises (e.g., file disappears between detection and stat), we set `file_size = 0` and let `read_text()` raise its own `FileNotFoundError`. This is the correct behavior — don't swallow stat errors silently.
-- **`is_relative_to` on Python 3.9 vs 3.11**: The project requires 3.11+, so this is fine. But if a CI matrix runs 3.9 for any reason, this will fail. Confirm CI matrix in `pyproject.toml`.
-- **Symlink resolution edge case**: On some filesystems, `child.is_symlink()` returns `False` for bind mounts. This is out of scope for this fix.
+- **Concurrent writes**: Two simultaneous `write_mission_brief()` calls could both pass the partial-state check and race. Very unlikely in practice; out of scope.
+- **`Path.replace()` on Windows**: Cleanup at write-start removes existing partial files, so the destination is clear before replace is called.
+- **Stat failure edge case**: If `stat()` raises before the size check, `file_size = 0` and `read_text()` raises its own error. Correct — don't swallow stat errors.
+- **`is_relative_to` availability**: Python 3.9+. Project requires 3.11+ — confirmed safe.
 
 ## Reviewer Guidance
 
-1. Confirm `write_mission_brief()` has no direct `write_text()` calls — only the atomic temp-file pattern.
-2. Confirm `MAX_BRIEF_FILE_SIZE_BYTES` is at module level in `intake.py` and importable.
-3. Confirm the size check comes before `read_text()` in both intake paths (use test T025's spy to verify).
-4. Confirm `is_symlink()` check appears **before** `is_file()` check in the directory iteration loop.
+1. Confirm `write_mission_brief()` has the partial-state mismatch check at the start, before any temp file creation.
+2. Confirm the recovery tests (T024) test the between-replaces crash scenario, not just the pre-replace crash.
+3. Confirm `MAX_BRIEF_FILE_SIZE_BYTES` is at module level and is tested with a spy that confirms `read_text()` is never called on an oversized file.
+4. Confirm `is_symlink()` check appears before `is_file()` in the directory iteration loop.
 5. Confirm `is_relative_to(cwd_resolved)` is applied to both direct file paths and directory expansion.
-6. Run the full intake test suite and the mission_brief test suite to confirm zero regressions.
