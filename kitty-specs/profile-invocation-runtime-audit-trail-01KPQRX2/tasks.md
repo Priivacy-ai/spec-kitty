@@ -11,13 +11,13 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|---------|
-| T001 | Package scaffold: `invocation/__init__.py`, fixture profiles, `errors.py` | WP01 | — |
-| T002 | `record.py` — InvocationRecord Pydantic v2 model + MinimalViableTrailPolicy stub | WP01 | — |
-| T003 | `registry.py` — ProfileRegistry wrapping AgentProfileRepository | WP01 | [P] |
-| T004 | `writer.py` — InvocationWriter (write_started, write_completed, append-only) | WP01 | [P] |
-| T005 | `executor.py` — ProfileInvocationExecutor (invoke + governance context assembly) | WP01 | — |
-| T006 | `profiles_cmd.py` — `spec-kitty profiles list [--json]` + main.py registration | WP01 | [P] |
-| T007 | Tests: test_record, test_registry, test_writer, test_executor, test_profiles CLI | WP01 | — |
+| T001 | Package scaffold: `invocation/__init__.py`, fixture profiles, `errors.py` | WP01 | — | [D] |
+| T002 | `record.py` — InvocationRecord Pydantic v2 model + MinimalViableTrailPolicy stub | WP01 | — | [D] |
+| T003 | `registry.py` — ProfileRegistry wrapping AgentProfileRepository | WP01 | [D] |
+| T004 | `writer.py` — InvocationWriter (write_started, write_completed, append-only) | WP01 | [D] |
+| T005 | `executor.py` — ProfileInvocationExecutor (invoke + governance context assembly) | WP01 | — | [D] |
+| T006 | `profiles_cmd.py` — `spec-kitty profiles list [--json]` + main.py registration | WP01 | [D] |
+| T007 | Tests: test_record, test_registry, test_writer, test_executor, test_profiles CLI | WP01 | — | [D] |
 | T008 | `router.py` — ActionRouter with CANONICAL_VERB_MAP, token normalization, domain_keyword match | WP02 | — |
 | T009 | Wire router into executor.py invoke() (no-hint path); add ActionRouterPlugin stub | WP02 | — |
 | T010 | `test_router.py` — 7 table-driven cases; confirm ADR-3 doc as review gate | WP02 | [P] |
@@ -56,13 +56,13 @@
 **Prompt file**: [tasks/WP01-executor-core-profiles-list.md](tasks/WP01-executor-core-profiles-list.md)
 
 Included subtasks:
-- [ ] T001 Package scaffold: `invocation/__init__.py`, fixture profiles, `errors.py` (WP01)
-- [ ] T002 `record.py` — InvocationRecord Pydantic v2 model + MinimalViableTrailPolicy stub (WP01)
-- [ ] T003 `registry.py` — ProfileRegistry wrapping AgentProfileRepository (WP01)
-- [ ] T004 `writer.py` — InvocationWriter (write_started, write_completed, append-only) (WP01)
-- [ ] T005 `executor.py` — ProfileInvocationExecutor (invoke + governance context assembly) (WP01)
-- [ ] T006 `profiles_cmd.py` — `spec-kitty profiles list [--json]` + main.py registration (WP01)
-- [ ] T007 Tests: test_record, test_registry, test_writer, test_executor, test_profiles CLI (WP01)
+- [x] T001 Package scaffold: `invocation/__init__.py`, fixture profiles, `errors.py` (WP01)
+- [x] T002 `record.py` — InvocationRecord Pydantic v2 model + MinimalViableTrailPolicy stub (WP01)
+- [x] T003 `registry.py` — ProfileRegistry wrapping AgentProfileRepository (WP01)
+- [x] T004 `writer.py` — InvocationWriter (write_started, write_completed, append-only) (WP01)
+- [x] T005 `executor.py` — ProfileInvocationExecutor (invoke + governance context assembly) (WP01)
+- [x] T006 `profiles_cmd.py` — `spec-kitty profiles list [--json]` + main.py registration (WP01)
+- [x] T007 Tests: test_record, test_registry, test_writer, test_executor, test_profiles CLI (WP01)
 
 **Dependencies**: none (root WP)
 **Blocks**: WP02, WP03, WP04, WP05, WP06, WP07
