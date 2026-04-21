@@ -688,3 +688,4 @@ cd src && mypy specify_cli/invocation/ --strict
 ## Activity Log
 
 - 2026-04-21T11:54:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=71316 – Assigned agent via action command
+- 2026-04-21T12:05:19Z – claude:sonnet-4-6:implementer:implementer – shell_pid=71316 – WP01 complete: invocation package, ProfileRegistry, InvocationWriter, ProfileInvocationExecutor, profiles list CLI — 44 tests pass, mypy --strict clean
