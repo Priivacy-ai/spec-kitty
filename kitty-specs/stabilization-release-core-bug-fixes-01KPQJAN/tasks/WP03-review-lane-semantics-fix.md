@@ -26,8 +26,8 @@ subtasks:
 - T017
 - T018
 - T019
-shell_pid: "73261"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "79894"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP03
 authoritative_surface: src/specify_cli/cli/commands/agent/workflow.py
@@ -425,3 +425,4 @@ def test_legacy_in_progress_review_claim_is_readable(tmp_path, ...):
 
 - 2026-04-21T09:32:06Z – claude:sonnet:implementer:implementer – shell_pid=73261 – Assigned agent via action command
 - 2026-04-21T09:36:19Z – claude:sonnet:implementer:implementer – shell_pid=73261 – Ready for review: in_review emit, legacy compat, execution_context.py fixed, tests passing
+- 2026-04-21T09:36:49Z – claude:sonnet:reviewer:reviewer – shell_pid=79894 – Started review via action command
