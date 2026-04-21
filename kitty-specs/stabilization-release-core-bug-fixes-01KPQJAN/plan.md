@@ -1,108 +1,200 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Stabilization Release: Core Bug Fixes
 
+**Branch**: `main` | **Date**: 2026-04-21 | **Spec**: [spec.md](spec.md)  
+**Mission ID**: 01KPQJAN4P2V4MTHRFGS7VW17M  
+**Input**: `kitty-specs/stabilization-release-core-bug-fixes-01KPQJAN/spec.md`
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+---
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Fix four validated bugs on current `main` with targeted, in-place changes to six existing modules. No new packages introduced. Each work package ships its own regression tests. The WPs are ordered by user impact: merge invariant false-positives affect all multi-agent users immediately; Gemini shim breakage blocks Gemini integrations entirely; review-lane misstate poisons the event log; and the intake cluster hardens against edge cases users are less likely to hit during normal use.
+
+**Execution strategy**: Single lane, serial execution (WP01 → WP02 → WP03 → WP04). Each WP must pass the full test suite before the next begins.
+
+---
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: Python 3.11+  
+**Primary Dependencies**: typer (CLI), rich (console output), ruamel.yaml (YAML parsing) — no new dependencies introduced  
+**Storage**: Filesystem only (YAML/JSON/JSONL/Markdown files, no database)  
+**Testing**: pytest with 90%+ coverage requirement; mypy --strict must pass; integration tests for CLI commands  
+**Target Platform**: Linux/macOS (POSIX path semantics assumed; atomic `Path.replace()` used for write safety)  
+**Project Type**: Single Python CLI project  
+**Performance Goals**: No latency-sensitive changes; correctness only  
+**Constraints**: Backward compatibility with existing event logs and intake workflows must be preserved; no new modules
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+---
 
 ## Charter Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+**Charter source**: `.kittify/charter/charter.md` (Bootstrap mode)
 
-[Gates determined based on charter file]
+| Check | Status | Notes |
+|-------|--------|-------|
+| Uses typer for CLI | ✓ Pass | All CLI entry points remain in existing typer commands |
+| Uses rich for console output | ✓ Pass | Error messages use existing `console.print()` and `err_console.print()` |
+| pytest with 90%+ coverage | ✓ Pass | Each WP includes regression tests covering the fixed path |
+| mypy --strict passes | ✓ Pass | No new type annotations required; existing strict config in force |
+| Integration tests for CLI commands | ✓ Pass | WP01 and WP04 will include integration-level tests for `merge` and `intake` CLI paths |
+| DIRECTIVE_003 (decision documentation) | ✓ Pass | Design decisions documented in `research.md` |
+| DIRECTIVE_010 (spec fidelity) | ✓ Pass | Implementation anchored to spec FR/NFR/C requirements |
+
+Post-Phase-1 re-check: All checks still pass. No charter violations.
+
+---
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (this mission)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/stabilization-release-core-bug-fixes-01KPQJAN/
+├── spec.md              # Requirements
+├── plan.md              # This file
+├── research.md          # Technical design decisions per WP
+├── checklists/
+│   └── requirements.md
+└── tasks.md             # Generated by /spec-kitty.tasks
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Code (change targets)
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/
+├── cli/commands/
+│   ├── merge.py                  # WP01: post-merge invariant fix
+│   └── agent/
+│       └── workflow.py           # WP03: review-claim lane transition fix
+├── shims/
+│   └── generator.py              # WP02: Gemini/Qwen shim format fix
+├── mission_brief.py              # WP04: atomic write fix
+├── cli/commands/intake.py        # WP04: file size cap
+└── intake_sources.py             # WP04: path containment + symlink exclusion
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── merge/                        # WP01 regression tests land here
+├── specify_cli/shims/            # WP02 regression tests (create if needed)
+├── specify_cli/status/           # WP03 regression tests land here
+└── specify_cli/                  # WP04 regression tests land here
+    ├── test_mission_brief.py
+    ├── cli/commands/test_intake.py
+    └── test_intake_sources.py
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+---
 
-## Complexity Tracking
+## Implementation Strategy
 
-*Fill ONLY if Charter Check has violations that must be justified*
+### WP01 — Merge Post-Merge Invariant Fix
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+**Root cause**: In `src/specify_cli/cli/commands/merge.py` around lines 864–884, the invariant iterates porcelain status lines and collects any path not in `expected_paths` as `offending_lines`. It does not parse the two-character porcelain status code, so `??` (untracked) lines land in `offending_lines` the same as `M ` (modified tracked) lines. The error message always blames sparse-checkout regardless of the actual failure type.
+
+**Fix approach**:
+1. Parse the first two characters of each porcelain line.
+2. Skip lines where the status code is `??` (untracked, not diverged from HEAD).
+3. Continue collecting all other unexpected status codes as genuine divergence.
+4. Bifurcate the error message: sparse-checkout guidance only when the failure looks like a tracked-file drop; a generic "unexpected working-tree state" message otherwise.
+
+**Test surface**: `tests/merge/` — add tests simulating `??` lines (must not abort) and `M ` lines (must abort with correct message).
+
+**Risks**: Narrowing too aggressively. The fix must collect any non-`??` unexpected code, not just `M `. An `A ` (staged new file) or `D ` (deleted) is also unexpected and must still abort.
+
+---
+
+### WP02 — Gemini/Qwen Shim Generation Fix
+
+**Root cause**: In `src/specify_cli/shims/generator.py`:
+- `AGENT_ARG_PLACEHOLDERS` maps only `claude` → `$ARGUMENTS` and `codex` → `$PROMPT`. All other agents fall through to `_DEFAULT_ARG_PLACEHOLDER = "$ARGUMENTS"`. Gemini and Qwen both need `{{args}}`.
+- `generate_shim_content()` always returns Markdown with YAML frontmatter. There is no per-agent format dispatch.
+- `generate_all_shims()` always writes `spec-kitty.{skill}.md` with hardcoded `.md` extension.
+
+**Fix approach**:
+1. Add `"gemini": "{{args}}"` and `"qwen": "{{args}}"` to `AGENT_ARG_PLACEHOLDERS`.
+2. Add an `AGENT_SHIM_FORMATS` dict mapping agent key → format spec (`"md"` or `"toml"`). Gemini maps to `"toml"`; Qwen maps to `"toml"` (assumption 2 from spec; verify during implementation).
+3. Add a `generate_shim_content_toml()` function that returns valid TOML for Gemini/Qwen (TOML format differs: no YAML frontmatter, uses `[command]` or equivalent Gemini command schema).
+4. In `generate_all_shims()`, dispatch to the correct generator and use the correct file extension per agent.
+5. All other agents continue to use the existing `generate_shim_content()` / `.md` path.
+
+**Gemini TOML schema** (to confirm during WP02):
+- Gemini CLI commands are `.toml` files with a `[[commands]]` array or similar structure. The implementation must confirm the exact schema from the Gemini command spec and hard-fail in tests if the format is invalid.
+
+**Test surface**: New `tests/specify_cli/shims/` test module (or extend existing). Cover: file extension per agent, content format per agent (Markdown vs TOML), placeholder per agent.
+
+**Risks**: Qwen format assumption wrong. If Qwen uses Markdown (not TOML), this will be surfaced during implementation. Update this plan if so.
+
+---
+
+### WP03 — Review Lane Semantics Fix
+
+**Root cause**: In `src/specify_cli/cli/commands/agent/workflow.py` around lines 1418–1426:
+```python
+emit_status_transition(TransitionRequest(
+    ...
+    to_lane=Lane.IN_PROGRESS,   # ← BUG: should be Lane.IN_REVIEW
+    force=True,
+    review_ref="action-review-claim",
+    ...
+))
+```
+Additionally, around line 1344, `is_review_claimed` checks for `to_lane == Lane.IN_PROGRESS` with `review_ref == "action-review-claim"` to detect an already-claimed WP — this logic must also be updated.
+
+**Fix approach**:
+1. Change `to_lane=Lane.IN_PROGRESS` to `to_lane=Lane.IN_REVIEW` in the review-claim emit.
+2. Remove `force=True` — `for_review → in_review` is a legal transition in the 9-lane matrix and must not be forced.
+3. Update `is_review_claimed` to detect `to_lane == Lane.IN_REVIEW` (new canonical shape) OR the legacy shape (`to_lane == Lane.IN_PROGRESS and review_ref == "action-review-claim"`) so historical logs continue to work.
+4. Update the guard at line ~1362 that checks `current_lane not in {Lane.FOR_REVIEW, Lane.IN_PROGRESS}` — the allowed entry set for review is now `{Lane.FOR_REVIEW, Lane.IN_REVIEW}` (where `IN_REVIEW` means already claimed).
+5. Ensure approval and rejection paths that follow from `IN_REVIEW` are not blocked — verify the transition matrix allows `in_review → approved` and `in_review → for_review` (rejected).
+
+**Test surface**: `tests/specify_cli/status/` or adjacent workflow tests. Cover: new claim emits `in_review`; approval from `in_review` succeeds; rejection from `in_review` succeeds; reading a log with old `in_progress + review_ref=action-review-claim` does not raise.
+
+**Risks**: Approval/rejection paths may have additional `Lane.IN_PROGRESS` references downstream. A targeted search for `Lane.IN_PROGRESS` in the review workflow is required before finalizing the fix.
+
+---
+
+### WP04 — Intake Hardening Cluster
+
+**Root cause and fix for each sub-issue:**
+
+**#723 (atomic write)**:  
+`write_mission_brief()` in `src/specify_cli/mission_brief.py` writes `brief_path` first, then `source_path`. A crash between these two writes leaves an inconsistent state.  
+Fix: Write both files to temp paths first (using `tempfile.NamedTemporaryFile` with `delete=False` in the same directory), then call `Path.replace()` for each. `Path.replace()` is atomic on POSIX. Both temp files must be written before either replace is called, so a crash before either replace leaves no partial state (both temps are cleaned up on the next run or GC).
+
+**#722 (file size cap)**:  
+`intake.py` calls `found_path.read_text()` without a size guard.  
+Fix: Before any `read_text()` call on an incoming brief file, check `file.stat().st_size` against `MAX_BRIEF_FILE_SIZE_BYTES = 5 * 1024 * 1024` (5 MB, defined as a module-level constant in `intake.py`). Raise a `typer.Exit(1)` with a message that states the size in MB and the limit.
+
+**#720 (path containment)**:  
+`scan_for_plans()` in `intake_sources.py` builds `abs_path = cwd / rel_path` but never checks that `abs_path.resolve()` is inside `cwd.resolve()`. A `rel_path` of `../../escape/plan.md` would be admitted.  
+Fix: After resolving `abs_path`, assert `abs_path.resolve().is_relative_to(cwd.resolve())`. If not, skip silently (same behavior as `PermissionError`). Apply this check both to the direct file case and to the directory-expansion path.
+
+**#721 (symlink exclusion)**:  
+The directory expansion in `scan_for_plans()` calls `child.is_file()` which follows symlinks, admitting symlinked targets outside the repo.  
+Fix: Add `child.is_symlink()` check before `child.is_file()`. If the child is a symlink, skip it (log a debug message if a debug mode is present, otherwise silently skip).
+
+**Test surface**: Extend existing tests for `mission_brief`, `intake`, and `intake_sources`. Cover: crash-simulation for atomic write, oversized file rejection, out-of-bounds path exclusion, symlink exclusion, and happy-path regression for normal in-repo files.
+
+---
+
+## Work Package Summary
+
+| WP | Title | Files Changed | Key Requirements | Sequencing |
+|----|-------|---------------|-----------------|------------|
+| WP01 | Merge Post-Merge Invariant Fix | `merge.py` | FR-001–004, NFR-001–004 | First (highest user impact) |
+| WP02 | Gemini/Qwen Shim Generation Fix | `shims/generator.py` | FR-005–008, NFR-001–004 | Second (Gemini users fully blocked) |
+| WP03 | Review Lane Semantics Fix | `agent/workflow.py` | FR-009–012, NFR-001–004 | Third (state corruption, medium-urgency) |
+| WP04 | Intake Hardening Cluster | `mission_brief.py`, `intake.py`, `intake_sources.py` | FR-013–017, C-003, C-005, NFR-001–004 | Fourth (defensive hardening) |
+
+**Lane assignment**: Single lane (all WPs serial). Each WP must have a green test suite before the next starts.
+
+---
+
+## Definition of Done (per WP)
+
+- [ ] The specific bug scenario from the spec user scenarios no longer reproduces
+- [ ] All pre-existing tests in the affected module's test file still pass
+- [ ] At least one new regression test covers the previously-failing case
+- [ ] `pytest -q tests/` passes fully
+- [ ] `mypy --strict src/specify_cli/` passes with zero new errors
+- [ ] No new modules, packages, or dependencies introduced
