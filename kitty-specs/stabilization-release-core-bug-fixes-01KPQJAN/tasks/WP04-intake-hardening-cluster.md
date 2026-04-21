@@ -30,8 +30,8 @@ subtasks:
 - T025
 - T026
 - T027
-shell_pid: "85533"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "87454"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP04
 authoritative_surface: src/specify_cli/mission_brief.py
@@ -522,3 +522,4 @@ def test_scan_for_plans_excludes_inbound_symlink_too(tmp_path):
 
 - 2026-04-21T09:41:13Z – claude:sonnet:implementer:implementer – shell_pid=85533 – Assigned agent via action command
 - 2026-04-21T09:46:25Z – claude:sonnet:implementer:implementer – shell_pid=85533 – Ready for review: resilient write, size cap, containment, symlink exclusion, tests passing
+- 2026-04-21T09:47:01Z – claude:sonnet:reviewer:reviewer – shell_pid=87454 – Started review via action command
