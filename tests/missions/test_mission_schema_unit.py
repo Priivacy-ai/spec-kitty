@@ -238,6 +238,7 @@ class TestGetFeatureMissionKey:
         assert get_mission_type(feature_dir) == "software-dev"
 
 
+@pytest.mark.non_sandbox
 class TestGetMissionForFeature:
     """Tests for get_mission_for_feature() function (T004)."""
 

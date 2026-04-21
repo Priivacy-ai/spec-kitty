@@ -1701,7 +1701,7 @@ def finalize_tasks(
                 if not validate_only:
                     write_frontmatter(
                         wp_file,
-                        updated_meta.model_dump(exclude_none=True),
+                        updated_meta.model_dump(exclude_none=True, mode="json"),
                         body,
                     )
                 else:

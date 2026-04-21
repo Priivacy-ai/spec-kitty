@@ -9,11 +9,15 @@ Coverage:
 - T004: Cross-platform kittify home resolution
 - T005: SPEC_KITTY_HOME env-var override
 - T006: Package asset root discovery (env-var + importlib)
+- T011: Kill render_runtime_path mutants (WP03)
+- T012: Kill get_kittify_home mutants (WP03)
+- T013: Kill get_package_asset_root mutants (WP03)
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -192,3 +196,211 @@ class TestRenderRuntimePath:
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         rendered = render_runtime_path(tmp_path / ".kittify" / "auth", for_user=False)
         assert rendered == str((tmp_path / ".kittify" / "auth").resolve(strict=False))
+
+
+# ---------------------------------------------------------------------------
+# T011: Kill render_runtime_path survivors (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestRenderRuntimePathMutantKills:
+    """Assertion-strengthening tests that pin render_runtime_path behaviour.
+
+    Each test encodes the observable difference between the original source and
+    a specific surviving mutant, per the mutation-aware-test-design styleguide.
+    """
+
+    def test_default_for_user_compresses_to_tilde_on_posix(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Default for_user=True must tilde-compress on POSIX.
+
+        Kills __mutmut_1 (for_user default flipped from True to False): with
+        for_user=False the function returns the absolute path, not the tilde
+        form — so a call that omits the keyword must produce the tilde string.
+        """
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(tmp_path / ".kittify" / "auth")
+        assert rendered == "~/.kittify/auth"
+        assert rendered.startswith("~/")
+
+    def test_home_must_exist_when_resolving(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """home.resolve() uses strict=False so missing home does not raise.
+
+        Kills __mutmut_11 (home resolve flipped to strict=True): if the home
+        directory is missing and strict=True is used, Path.resolve() raises
+        FileNotFoundError. The original, strict=False, must succeed and
+        tilde-compress the target.
+        """
+        fake_home = tmp_path / "no-such-home-directory"
+        assert not fake_home.exists()
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
+        # Target path is beneath the (nonexistent) home root — should still
+        # render as tilde form without raising FileNotFoundError.
+        rendered = render_runtime_path(fake_home / ".kittify" / "state")
+        assert rendered == "~/.kittify/state"
+
+    def test_tilde_output_uses_forward_slash_separator(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Output uses forward-slash separator, never backslash.
+
+        Kills __mutmut_21 (replace("\\\\", "/") mutated to replace("XX\\\\XX", "/"))
+        and __mutmut_22 (replace("\\\\", "/") mutated to replace("\\\\", "XX/XX")).
+        We cannot force backslashes into a POSIX Path literal, so we assert the
+        observable invariant instead: the returned string contains forward
+        slashes and no "XX" literal from a mangled replacement target/source.
+        """
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(tmp_path / "nested" / "dir" / "file.txt")
+        assert rendered == "~/nested/dir/file.txt"
+        assert "XX" not in rendered
+        assert "\\" not in rendered
+
+    def test_path_resolve_accepts_nonexistent_target(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Target path resolve uses strict=False so missing target is ok.
+
+        Documents the behaviour that __mutmut_3 (resolve(strict=None)) leaves
+        unchanged because CPython treats None as falsy at the C layer, making
+        that mutant equivalent. This test anchors the contract even so: a
+        nonexistent target under home is rendered in tilde form.
+        """
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        missing = tmp_path / ".kittify" / "never-created"
+        assert not missing.exists()
+        rendered = render_runtime_path(missing)
+        assert rendered == "~/.kittify/never-created"
+
+
+# ---------------------------------------------------------------------------
+# T012: Kill get_kittify_home Windows-branch survivors (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestGetKittifyHomeWindowsPlatformdirsContract:
+    """Pin the exact platformdirs.user_data_dir() call contract.
+
+    These tests spy on user_data_dir and assert the three positional/keyword
+    arguments — "spec-kitty", appauthor=False, roaming=False — are all passed
+    unchanged. A single spy kills the ten surviving mutants that permute,
+    replace, or drop one of those arguments.
+    """
+
+    def _install_platformdirs_spy(
+        self, monkeypatch: pytest.MonkeyPatch, return_value: str
+    ) -> list[tuple[tuple[Any, ...], dict[str, Any]]]:
+        """Install a recording spy for platformdirs.user_data_dir.
+
+        Returns a list that will accumulate (args, kwargs) tuples for each
+        call — the test body inspects this list after invoking the code
+        under test.
+        """
+        import platformdirs
+
+        calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+        def _spy(*args: Any, **kwargs: Any) -> str:
+            calls.append((args, kwargs))
+            return return_value
+
+        monkeypatch.setattr(platformdirs, "user_data_dir", _spy)
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
+        return calls
+
+    def test_user_data_dir_receives_spec_kitty_app_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """First argument to user_data_dir must be the exact string 'spec-kitty'.
+
+        Kills __mutmut_7 (app name -> None), __mutmut_10 (positional arg removed),
+        __mutmut_13 ("XXspec-kittyXX"), and __mutmut_14 ("SPEC-KITTY").
+        """
+        calls = self._install_platformdirs_spy(monkeypatch, r"C:\fake")
+        get_kittify_home()
+
+        assert len(calls) == 1
+        args, kwargs = calls[0]
+        # The app name must be in the first positional slot OR in a kwarg
+        # with key 'appname'. Either way it must equal exactly 'spec-kitty'.
+        app_name: Any = args[0] if args else kwargs.get("appname")
+        assert app_name == "spec-kitty"
+        assert app_name != "SPEC-KITTY"
+        assert "XX" not in str(app_name)
+
+    def test_user_data_dir_receives_appauthor_false_explicitly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """appauthor must be passed as exactly False (not True, not omitted).
+
+        Kills __mutmut_8 (appauthor=None), __mutmut_11 (appauthor kwarg removed),
+        and __mutmut_15 (appauthor=True).
+        """
+        calls = self._install_platformdirs_spy(monkeypatch, r"C:\fake")
+        get_kittify_home()
+
+        args, kwargs = calls[0]
+        assert "appauthor" in kwargs, "appauthor kwarg must be passed explicitly"
+        assert kwargs["appauthor"] is False
+        # Bi-Directional Logic: False and True are distinct observables.
+        assert kwargs["appauthor"] is not True
+
+    def test_user_data_dir_receives_roaming_false_explicitly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """roaming must be passed as exactly False (not True, not omitted).
+
+        Kills __mutmut_9 (roaming=None), __mutmut_12 (roaming kwarg removed),
+        and __mutmut_16 (roaming=True). The FR-005/C-002 invariant requires
+        roaming=False so that kernel.paths matches
+        specify_cli.paths.get_runtime_root on Windows.
+        """
+        calls = self._install_platformdirs_spy(monkeypatch, r"C:\fake")
+        get_kittify_home()
+
+        args, kwargs = calls[0]
+        assert "roaming" in kwargs, "roaming kwarg must be passed explicitly"
+        assert kwargs["roaming"] is False
+        assert kwargs["roaming"] is not True
+
+
+# ---------------------------------------------------------------------------
+# T013: Kill get_package_asset_root survivor (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestGetPackageAssetRootErrorMessage:
+    """Pin the exact error message emitted when assets cannot be located."""
+
+    def test_missing_assets_error_message_is_exact(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FileNotFoundError message must be the plain English sentence.
+
+        Kills __mutmut_17 (error string replaced with "XXCannot locate …XX").
+        We assert the message starts with the real sentence and contains no
+        mutmut sentinel markers, and also verify it contains the actionable
+        remediation substring.
+        """
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        # Force the importlib fallback to fail so we reach the final raise.
+        monkeypatch.setattr(
+            "kernel.paths.importlib.resources.files",
+            lambda _pkg: (_ for _ in ()).throw(ModuleNotFoundError("forced")),
+        )
+        with pytest.raises(FileNotFoundError) as exc_info:
+            get_package_asset_root()
+
+        message = str(exc_info.value)
+        assert message.startswith("Cannot locate package mission assets"), message
+        assert "XX" not in message, f"mutmut sentinel leaked into message: {message!r}"
+        assert "SPEC_KITTY_TEMPLATE_ROOT" in message
+        assert "spec-kitty-cli" in message

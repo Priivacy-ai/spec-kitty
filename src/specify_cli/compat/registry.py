@@ -22,6 +22,9 @@ _REQUIRED_KEYS = {
     "grandfathered",
 }
 
+_OPTIONAL_KEYS = {"extension_rationale", "notes"}
+_ALL_KNOWN_KEYS = _REQUIRED_KEYS | _OPTIONAL_KEYS
+
 
 @dataclasses.dataclass(frozen=True)
 class ShimEntry:
@@ -33,9 +36,6 @@ class ShimEntry:
     grandfathered: bool
     extension_rationale: str | None = None
     notes: str | None = None
-
-
-_SHIM_ENTRY_FIELDS = {field.name for field in dataclasses.fields(ShimEntry)}
 
 
 class RegistrySchemaError(Exception):
@@ -57,10 +57,7 @@ def load_registry(repo_root: Path) -> list[ShimEntry]:
     except YAMLError as exc:
         raise RegistrySchemaError([f"YAML parse error: {exc}"]) from exc
     validate_registry(data)
-    return [
-        ShimEntry(**{k: v for k, v in entry.items() if k in _SHIM_ENTRY_FIELDS})
-        for entry in data["shims"]
-    ]
+    return [ShimEntry(**entry) for entry in data["shims"]]
 
 
 def _validate_canonical_import(i: int, ci: object, errors: list[str]) -> None:
@@ -115,6 +112,10 @@ def _validate_entry(i: int, entry: object, seen_paths: set[str], errors: list[st
     if not isinstance(entry, dict):
         errors.append(f"entry[{i}]: must be a mapping")
         return
+
+    unknown = set(entry) - _ALL_KNOWN_KEYS
+    for key in sorted(unknown):
+        errors.append(f"entry[{i}].{key}: unknown field")
 
     missing = _REQUIRED_KEYS - set(entry)
     for key in sorted(missing):

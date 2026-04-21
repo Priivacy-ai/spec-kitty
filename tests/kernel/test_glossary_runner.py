@@ -176,3 +176,59 @@ class TestRunnerExecution:
 
         assert result == "done"
         assert calls == ["my-context"]
+
+
+# ---------------------------------------------------------------------------
+# T015: Kill register() TypeError-message survivors (WP03)
+# ---------------------------------------------------------------------------
+
+
+class TestRegisterTypeErrorMessageIdentifiesInput:
+    """Pin the TypeError message to identify the actual bad argument.
+
+    Kills __mutmut_3 (type(runner_cls) -> type(None) in the f-string): the
+    mutant produces the constant string "<class 'NoneType'>" for every bad
+    input, hiding the caller's mistake. The original reports the real
+    runtime type of the argument so the caller can see what they passed.
+    """
+
+    def test_type_error_reports_string_input_type(self) -> None:
+        """Passing a str produces a message mentioning <class 'str'>, not NoneType."""
+        with pytest.raises(TypeError) as exc_info:
+            register("not-a-class")  # type: ignore[arg-type]
+
+        message = str(exc_info.value)
+        assert "<class 'str'>" in message, (
+            f"expected str type identifier in error, got {message!r}"
+        )
+        assert "NoneType" not in message, (
+            f"error must not misreport bad input as NoneType; got {message!r}"
+        )
+
+    def test_type_error_reports_int_input_type(self) -> None:
+        """Passing an int produces a message mentioning <class 'int'>.
+
+        Bi-Directional evidence: a second concrete non-None input further
+        proves the type() call uses the runtime argument, not the literal
+        None the mutant substitutes.
+        """
+        with pytest.raises(TypeError) as exc_info:
+            register(42)  # type: ignore[arg-type]
+
+        message = str(exc_info.value)
+        assert "<class 'int'>" in message, (
+            f"expected int type identifier in error, got {message!r}"
+        )
+        assert "<class 'NoneType'>" not in message
+
+    def test_type_error_reports_instance_input_type(self) -> None:
+        """Passing an instance (not a class) shows the instance's class name."""
+        instance = _MinimalRunner(repo_root=Path("/tmp"))
+        with pytest.raises(TypeError) as exc_info:
+            register(instance)  # type: ignore[arg-type]
+
+        message = str(exc_info.value)
+        # The instance's runtime type is _MinimalRunner, so the message
+        # must include that class's name — not NoneType.
+        assert "_MinimalRunner" in message
+        assert "NoneType" not in message

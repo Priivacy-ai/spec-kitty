@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.0a3"
+version = "3.2.0a4"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -358,6 +358,16 @@ pytest_add_cli_args = [
     "--ignore=tests/architecture/",
     "--ignore=tests/docs/",
     "--ignore=tests/test_dashboard/",
+    # The three entries below are mutmut-sandbox-only workarounds. This entire list lives in
+    # [tool.mutmut] pytest_add_cli_args, which is passed exclusively when mutmut forks pytest —
+    # plain `pytest` invocations are unaffected and will still collect these directories.
+    # sparse_checkout integration tests depend on a live `main` branch locally;
+    # mutmut runs from a feature-branch worktree where `main` may not exist.
+    "--ignore=tests/integration/sparse_checkout/",
+    # tests/auth/ requires `respx` which is not installed in the mutmut sandbox.
+    "--ignore=tests/auth/",
+    # tests/agent/cli/commands/ uses subprocess git commit which fails without git config in sandbox.
+    "--ignore=tests/agent/cli/commands/",
 ]
 also_copy = [
     "LICENSE",

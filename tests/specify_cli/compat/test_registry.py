@@ -8,6 +8,7 @@ from ruamel.yaml import YAML
 
 from specify_cli.compat.registry import (
     _validate_canonical_import,
+    _validate_entry,
     _validate_version_order,
     RegistrySchemaError,
     ShimEntry,
@@ -156,11 +157,12 @@ class TestLoadRegistryHappyPath:
         result = load_registry(root)
         assert result[0].grandfathered is True
 
-    def test_extra_unknown_keys_are_ignored_on_load(self, tmp_path: Path) -> None:
+    def test_extra_unknown_keys_raise_on_load(self, tmp_path: Path) -> None:
         entry = {**_VALID_ENTRY, "future_field": "preserve-compat"}
         root = _write_registry(tmp_path, {"shims": [entry]})
-        result = load_registry(root)
-        assert result[0] == ShimEntry(**_VALID_ENTRY)
+        with pytest.raises(RegistrySchemaError, match="future_field"):
+            load_registry(root)
+
 
 
 # ---------------------------------------------------------------------------
@@ -303,10 +305,11 @@ class TestAdversarialValidation:
             validate_registry({"shims": [bad]})
         assert len(exc_info.value.errors) >= 5
 
-    def test_extra_unknown_keys_are_tolerated(self) -> None:
-        """Unknown keys do not cause validation failure — only missing required keys matter."""
+    def test_extra_unknown_keys_raise_schema_error(self) -> None:
+        """Unknown keys are rejected — only the declared ShimEntry fields are allowed."""
         entry = {**_VALID_ENTRY, "unknown_future_field": "some_value"}
-        validate_registry({"shims": [entry]})
+        with pytest.raises(RegistrySchemaError, match="unknown_future_field"):
+            validate_registry({"shims": [entry]})
 
     def test_whitespace_only_extension_rationale_raises(self) -> None:
         with pytest.raises(RegistrySchemaError, match="extension_rationale"):
@@ -406,3 +409,278 @@ class TestValidateRegistryBranches:
     def test_shims_not_a_list_raises_schema_error(self) -> None:
         with pytest.raises(RegistrySchemaError, match="top-level.shims"):
             validate_registry({"shims": "not-a-list"})
+
+
+# ---------------------------------------------------------------------------
+# Mutation-aware kills for 2026-04-20 survivors (WP01, FR-001).
+#
+# Each class below targets the survivor set from
+# docs/development/mutation-testing-findings.md, applying the patterns
+# documented in src/doctrine/styleguides/shipped/mutation-aware-test-design.
+# Patterns cited in the docstring; specific mutant IDs cited per test.
+# ---------------------------------------------------------------------------
+
+
+class TestValidateEntryMutationKills:
+    """Kill _validate_entry survivors: mutants 7, 8, 16, 34, 36, 53, 54.
+
+    The common pattern is ``None``-substitution on positional args to helper
+    validators and on error-string payloads. Kill strategy: assert on exact
+    error-message shape (index + field + reason) so the mutated call paths
+    produce observably different output.
+    """
+
+    def test_missing_field_error_contains_field_name_not_none(self) -> None:
+        """Kills mutant 7: errors.append(None) replacing the missing-field message."""
+        errors: list[str] = []
+        # Missing: grandfathered. Other required fields present.
+        entry = {k: v for k, v in _VALID_ENTRY.items() if k != "grandfathered"}
+        _validate_entry(0, entry, set(), errors)
+        # If mutant 7 ran, errors would contain None (or f"entry[{i}].{key}" replaced by None).
+        assert all(isinstance(e, str) for e in errors)
+        assert any("grandfathered" in e and "required field is missing" in e for e in errors)
+
+    def test_invalid_legacy_path_error_contains_entry_index(self) -> None:
+        """Kills mutant 8: _validate_legacy_path(None, ...) masks the entry index."""
+        errors: list[str] = []
+        entry = dict(_VALID_ENTRY, legacy_path="123-not-a-dotted-name")
+        _validate_entry(7, entry, set(), errors)
+        # Index 7 must appear — not entry[None]
+        assert any("entry[7]" in e and "legacy_path" in e for e in errors)
+        assert not any("entry[None]" in e for e in errors)
+
+    def test_invalid_canonical_import_error_contains_entry_index(self) -> None:
+        """Kills mutant 16: _validate_canonical_import(None, ...) masks the entry index."""
+        errors: list[str] = []
+        entry = dict(_VALID_ENTRY, canonical_import=42)
+        _validate_entry(3, entry, set(), errors)
+        assert any("entry[3]" in e and "canonical_import" in e for e in errors)
+        assert not any("entry[None]" in e for e in errors)
+
+    def test_invalid_version_order_error_contains_entry_index(self) -> None:
+        """Kills mutant 34: _validate_version_order(None, ...) masks the entry index."""
+        errors: list[str] = []
+        entry = dict(
+            _VALID_ENTRY,
+            introduced_in_release="3.3.0",
+            removal_target_release="3.2.0",
+        )
+        _validate_entry(5, entry, set(), errors)
+        assert any("entry[5]" in e and "removal_target_release" in e for e in errors)
+        assert not any("entry[None]" in e for e in errors)
+
+    def test_invalid_version_order_appends_to_caller_errors(self) -> None:
+        """Kills mutant 36: _validate_version_order(i, entry, None) swallows the error.
+
+        Original behaviour: version-order error is appended to the caller's errors list.
+        Mutant: called with None, which would AttributeError on .append. Raising would
+        be visible; silent pass means the mutant accidentally succeeded. Regardless,
+        the caller's errors list must receive the version-order message.
+        """
+        errors: list[str] = []
+        entry = dict(
+            _VALID_ENTRY,
+            introduced_in_release="3.3.0",
+            removal_target_release="3.2.0",
+        )
+        _validate_entry(0, entry, set(), errors)
+        assert any(">= introduced_in_release" in e for e in errors), (
+            "version-order error did not reach caller's errors list"
+        )
+
+    def test_non_bool_grandfathered_error_reports_actual_type(self) -> None:
+        """Kills mutant 53: type(gf).__name__ → type(None).__name__.
+
+        Boundary Pair pattern: assert the error message names the actual offending
+        type ("str"), not "NoneType" from the mutation.
+        """
+        errors: list[str] = []
+        entry = dict(_VALID_ENTRY, grandfathered="yes")
+        _validate_entry(0, entry, set(), errors)
+        assert any("grandfathered" in e and "str" in e for e in errors)
+        assert not any("NoneType" in e for e in errors)
+
+    def test_invalid_optional_field_error_contains_entry_index(self) -> None:
+        """Kills mutant 54: _validate_optional_fields(None, ...) masks the entry index."""
+        errors: list[str] = []
+        entry = dict(_VALID_ENTRY, extension_rationale="   ")  # whitespace-only
+        _validate_entry(9, entry, set(), errors)
+        assert any("entry[9]" in e and "extension_rationale" in e for e in errors)
+        assert not any("entry[None]" in e for e in errors)
+
+
+class TestValidateCanonicalImportMutationKills:
+    """Kill _validate_canonical_import survivors: mutants 7–12.
+
+    Pattern mix: Non-Identity Inputs (valid vs invalid items), exact message
+    assertions (replaces None-substitution on error strings), and Boundary Pair
+    on the list-vs-scalar discriminator.
+    """
+
+    def test_valid_list_of_dotted_names_produces_no_error(self) -> None:
+        """Kills mutants 8 (truthy inversion), 9 (regex negation removed), 10 (match(None)).
+
+        Non-Identity Inputs: a list of VALID dotted names must produce zero errors.
+        Mutants flip the validation polarity so that valid inputs incorrectly
+        trigger errors; the bare match(None) mutant crashes on the first item.
+        """
+        errors: list[str] = []
+        _validate_canonical_import(0, ["module.a", "module.b", "module.c"], errors)
+        assert errors == []
+
+    def test_valid_single_string_produces_no_error(self) -> None:
+        """Reinforcement for the scalar path."""
+        errors: list[str] = []
+        _validate_canonical_import(0, "module.submodule.Class", errors)
+        assert errors == []
+
+    def test_list_item_error_message_names_the_field_and_index(self) -> None:
+        """Kills mutant 11: errors.append(None) on per-list-item error.
+
+        Exact-shape assertion: the error string must name both the entry index,
+        the sub-index, and the "dotted identifier" descriptor.
+        """
+        errors: list[str] = []
+        _validate_canonical_import(2, ["valid.module", "123-bad"], errors)
+        assert len(errors) == 1
+        assert isinstance(errors[0], str)
+        assert "entry[2].canonical_import[1]" in errors[0]
+        assert "dotted identifier" in errors[0]
+
+    def test_non_str_non_list_input_error_message_names_the_field(self) -> None:
+        """Kills mutant 12: errors.append(None) on else-branch.
+
+        Bi-Directional Logic on the outer discriminator: cover the non-str,
+        non-list branch explicitly with a dict input. Exact-shape assertion.
+        """
+        errors: list[str] = []
+        _validate_canonical_import(4, {"not": "a string or list"}, errors)
+        assert len(errors) == 1
+        assert isinstance(errors[0], str)
+        assert "entry[4].canonical_import" in errors[0]
+        assert "string or list of strings" in errors[0]
+
+    def test_integer_input_produces_specific_error(self) -> None:
+        """Secondary kill for mutant 12 using a different non-str non-list type."""
+        errors: list[str] = []
+        _validate_canonical_import(0, 42, errors)
+        assert len(errors) == 1
+        assert "string or list of strings" in errors[0]
+
+
+class TestValidateVersionOrderMutationKills:
+    """Kill _validate_version_order survivors: mutants 10, 12.
+
+    Bi-Directional Logic: mutants flip ``and`` → ``or`` in defensive type/format
+    guards. Test with MIXED inputs (one valid, one invalid) where the truthy
+    polarity of AND vs OR diverges.
+    """
+
+    def test_one_field_str_one_not_returns_silently(self) -> None:
+        """Kills mutant 10: ``isinstance(introduced, str) and isinstance(removal, str)``
+        → ``or``. When only introduced is a string, the mutant proceeds to call
+        ``_SEMVER.match(None)`` which raises ``TypeError``; the original short-circuits.
+        """
+        errors: list[str] = []
+        _validate_version_order(
+            0,
+            {"introduced_in_release": "3.2.0", "removal_target_release": None},
+            errors,
+        )
+        assert errors == []
+
+    def test_both_fields_non_str_returns_silently(self) -> None:
+        """Original: ``not(False and False)`` = True → return.
+        Mutant: ``not(False or False)`` = True → return. Same behaviour.
+        Keep this test for defensive coverage; not a direct kill but adjacent."""
+        errors: list[str] = []
+        _validate_version_order(
+            0,
+            {"introduced_in_release": 42, "removal_target_release": None},
+            errors,
+        )
+        assert errors == []
+
+    def test_one_semver_one_non_semver_string_returns_silently(self) -> None:
+        """Kills mutant 12: ``_SEMVER.match(introduced) and _SEMVER.match(removal)``
+        → ``or``. With only one matching, original returns silently; mutant proceeds
+        to Version() which raises InvalidVersion, caught and appended as an error.
+        """
+        errors: list[str] = []
+        _validate_version_order(
+            0,
+            {"introduced_in_release": "1.0.0", "removal_target_release": "not-semver"},
+            errors,
+        )
+        # Original returns silently because the format check filters out non-SEMVER.
+        # If the mutant were live, Version("not-semver") would raise InvalidVersion
+        # → error appended.
+        assert errors == []
+
+
+class TestValidateRegistryMessageKills:
+    """Kill validate_registry survivors: mutants 7, 11.
+
+    Pattern: exact-string assertions on error messages replace the "XX-prefixed"
+    placeholder mutations.
+    """
+
+    def test_top_level_non_mapping_exact_error_message(self) -> None:
+        """Kills mutant 7: error string wrapped in ``XX...XX`` sentinels."""
+        with pytest.raises(RegistrySchemaError) as exc_info:
+            validate_registry("not a mapping")
+        errors = exc_info.value.errors
+        assert errors == ["top-level: must be a mapping with a 'shims' key"]
+
+    def test_missing_shims_key_exact_error_message(self) -> None:
+        """Kills mutant 7 via the alternate branch (dict without shims key)."""
+        with pytest.raises(RegistrySchemaError) as exc_info:
+            validate_registry({"other_key": []})
+        errors = exc_info.value.errors
+        assert errors == ["top-level: must be a mapping with a 'shims' key"]
+
+    def test_shims_non_list_exact_error_message(self) -> None:
+        """Kills mutant 11: error string wrapped in ``XX...XX`` sentinels."""
+        with pytest.raises(RegistrySchemaError) as exc_info:
+            validate_registry({"shims": "not a list"})
+        errors = exc_info.value.errors
+        assert errors == ["top-level.shims: must be a list"]
+
+
+class TestRegistrySchemaErrorMessageKills:
+    """Kill RegistrySchemaError.__init__ survivor: mutant 4.
+
+    Pattern: exact assertion on the separator inserted by ``"\\n".join(errors)``.
+    Mutant replaces the separator with ``"XX\\nXX"`` — kill by asserting the
+    exact string form of the rendered message.
+    """
+
+    def test_str_uses_single_newline_separator(self) -> None:
+        exc = RegistrySchemaError(["first error", "second error"])
+        assert str(exc) == "first error\nsecond error"
+
+    def test_str_does_not_contain_sentinel_markers(self) -> None:
+        exc = RegistrySchemaError(["a", "b"])
+        assert "XX" not in str(exc)
+
+    def test_single_error_has_no_separator(self) -> None:
+        exc = RegistrySchemaError(["only one"])
+        assert str(exc) == "only one"
+
+
+# ---------------------------------------------------------------------------
+# Residual — not killed in WP01 (documented under:
+# docs/development/mutation-testing-findings.md → WP01 residuals).
+#
+# * specify_cli.compat.registry.x__validate_canonical_import__mutmut_7
+#     empty/unloadable mutant (mutmut ``find_mutant`` fails)
+# * specify_cli.compat.registry.x_validate_registry__mutmut_18
+#     empty/unloadable mutant (mutmut ``find_mutant`` fails)
+# * specify_cli.compat.registry.x_load_registry__mutmut_14
+#     functionally equivalent: YAML(typ="safe") vs YAML(typ=None) produce
+#     identical observable output for our shim-registry input shape (plain
+#     dict/list of strings/bools; no tags, no dates, no preserved formatting).
+#     The safety guarantee is preserved by ruamel's tag-rejection policy in
+#     both loaders. Kill would require an unsafe-tag test that neither loader
+#     accepts — moot.
+# ---------------------------------------------------------------------------

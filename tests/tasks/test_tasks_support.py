@@ -3,7 +3,7 @@
 import pytest
 from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliError
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
 def test_find_repo_root_normal_repo(tmp_path):
     """Test find_repo_root in a normal git repository."""
