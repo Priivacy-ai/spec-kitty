@@ -23,8 +23,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: "56480"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "62357"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP01
 authoritative_surface: src/specify_cli/cli/commands/merge.py
@@ -260,3 +260,4 @@ Verify:
 
 - 2026-04-21T09:19:08Z – claude:sonnet:implementer:implementer – shell_pid=56480 – Assigned agent via action command
 - 2026-04-21T09:22:32Z – claude:sonnet:implementer:implementer – shell_pid=56480 – Ready for review: ?? filtering added, error message bifurcated, 8 regression tests passing
+- 2026-04-21T09:23:03Z – claude:sonnet:reviewer:reviewer – shell_pid=62357 – Started review via action command
