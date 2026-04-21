@@ -12,6 +12,8 @@ requirement_refs:
 - FR-013
 - FR-014
 - FR-017
+- FR-018
+- FR-019
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: 'Planning base: main. Merge target: main. Execution worktrees are allocated per computed lane from lanes.json.'
