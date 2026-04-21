@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-profile-invocation-runtime-audit-trail-01KPQRX2
+base_commit: 58bb950fc9cc9068a3d217d94fa88ca86fff2020
+created_at: '2026-04-21T11:54:43.061688+00:00'
 subtasks:
 - T001
 - T002
@@ -25,6 +28,7 @@ subtasks:
 - T005
 - T006
 - T007
+shell_pid: '71316'
 history:
 - date: '2026-04-21'
   event: created
