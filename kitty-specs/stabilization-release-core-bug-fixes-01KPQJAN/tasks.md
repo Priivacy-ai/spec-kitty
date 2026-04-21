@@ -30,14 +30,14 @@
 | T017 | Regression test: approval from `in_review` succeeds | WP03 | [D] |
 | T018 | Regression test: rejection from `in_review` succeeds | WP03 | [D] |
 | T019 | Regression test: historical `in_progress + review_ref` logs parse without error | WP03 | [D] |
-| T020 | Atomic write (temp + replace) in `write_mission_brief()` | WP04 | |
-| T021 | Add `MAX_BRIEF_FILE_SIZE_BYTES` constant + size guard in `intake.py` | WP04 | |
-| T022 | Add repo-root containment check in `scan_for_plans()` | WP04 | |
-| T023 | Add symlink exclusion in `scan_for_plans()` directory expansion | WP04 | |
-| T024 | Regression tests: brief atomicity (partial write does not block re-ingest) | WP04 | [P] |
-| T025 | Regression tests: oversized file rejected before read | WP04 | [P] |
-| T026 | Regression tests: out-of-bounds path excluded, in-bounds accepted | WP04 | [P] |
-| T027 | Regression tests: symlink excluded, regular file accepted | WP04 | [P] |
+| T020 | Atomic write (temp + replace) in `write_mission_brief()` | WP04 | | [D] |
+| T021 | Add `MAX_BRIEF_FILE_SIZE_BYTES` constant + size guard in `intake.py` | WP04 | | [D] |
+| T022 | Add repo-root containment check in `scan_for_plans()` | WP04 | | [D] |
+| T023 | Add symlink exclusion in `scan_for_plans()` directory expansion | WP04 | | [D] |
+| T024 | Regression tests: brief atomicity (partial write does not block re-ingest) | WP04 | [D] |
+| T025 | Regression tests: oversized file rejected before read | WP04 | [D] |
+| T026 | Regression tests: out-of-bounds path excluded, in-bounds accepted | WP04 | [D] |
+| T027 | Regression tests: symlink excluded, regular file accepted | WP04 | [D] |
 
 ---
 
@@ -115,13 +115,13 @@
 **Goal**: Brief writes are atomic, oversized inputs are rejected before read, auto-scan stays within the repo root, and directory expansion does not follow symlinks out of the allowed tree.
 
 **Subtasks**:
-- [ ] T020 Atomic write (temp + replace) in `write_mission_brief()` (WP04)
-- [ ] T021 Add `MAX_BRIEF_FILE_SIZE_BYTES` constant + size guard in `intake.py` (WP04)
-- [ ] T022 Add repo-root containment check in `scan_for_plans()` (WP04)
-- [ ] T023 Add symlink exclusion in `scan_for_plans()` directory expansion (WP04)
-- [ ] T024 Regression tests: brief atomicity (partial write does not block re-ingest) (WP04)
-- [ ] T025 Regression tests: oversized file rejected before read (WP04)
-- [ ] T026 Regression tests: out-of-bounds path excluded, in-bounds accepted (WP04)
-- [ ] T027 Regression tests: symlink excluded, regular file accepted (WP04)
+- [x] T020 Atomic write (temp + replace) in `write_mission_brief()` (WP04)
+- [x] T021 Add `MAX_BRIEF_FILE_SIZE_BYTES` constant + size guard in `intake.py` (WP04)
+- [x] T022 Add repo-root containment check in `scan_for_plans()` (WP04)
+- [x] T023 Add symlink exclusion in `scan_for_plans()` directory expansion (WP04)
+- [x] T024 Regression tests: brief atomicity (partial write does not block re-ingest) (WP04)
+- [x] T025 Regression tests: oversized file rejected before read (WP04)
+- [x] T026 Regression tests: out-of-bounds path excluded, in-bounds accepted (WP04)
+- [x] T027 Regression tests: symlink excluded, regular file accepted (WP04)
 
 **Success criteria**: A simulated mid-write crash leaves no blocking partial state. A file exceeding 5 MB is rejected with a human-readable error before any read. An out-of-bounds path never appears in auto-scan results. A symlink to an external file is not followed. Normal in-repo markdown intake is unchanged.
