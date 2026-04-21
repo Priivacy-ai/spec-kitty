@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec Kitty — Technical Evolution v1.x → v3.1.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+
+  --bg: #0b1120;
+  --bg-grid: rgba(56, 97, 140, 0.07);
+  --surface: #111a2e;
+  --surface-elevated: #162035;
+  --surface-recessed: #0a0e1a;
+  --border: rgba(100, 160, 220, 0.12);
+  --border-bright: rgba(100, 160, 220, 0.22);
+  --text: #c8d6e5;
+  --text-bright: #e8f0f8;
+  --text-dim: #6b7fa0;
+
+  --v1: #d97706;
+  --v1-dim: rgba(217, 119, 6, 0.12);
+  --v1-glow: rgba(217, 119, 6, 0.06);
+  --v2: #0891b2;
+  --v2-dim: rgba(8, 145, 178, 0.12);
+  --v2-glow: rgba(8, 145, 178, 0.06);
+  --v3: #1e6bb8;
+  --v3-dim: rgba(30, 107, 184, 0.12);
+  --v3-glow: rgba(30, 107, 184, 0.06);
+  --v3-gold: #d4a73a;
+  --v3-gold-dim: rgba(212, 167, 58, 0.12);
+
+  --green: #059669;
+  --green-dim: rgba(5, 150, 105, 0.12);
+  --red: #dc2626;
+  --red-dim: rgba(220, 38, 38, 0.1);
+  --amber: #d97706;
+  --amber-dim: rgba(217, 119, 6, 0.1);
+
+  --timeline-width: 3px;
+  --timeline-dot: 14px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f0f4f8;
+    --bg-grid: rgba(30, 60, 100, 0.04);
+    --surface: #ffffff;
+    --surface-elevated: #f8fafc;
+    --surface-recessed: #e8eef4;
+    --border: rgba(30, 60, 100, 0.1);
+    --border-bright: rgba(30, 60, 100, 0.18);
+    --text: #1e3a5f;
+    --text-bright: #0f2640;
+    --text-dim: #6b82a0;
+    --v1: #b45309;
+    --v1-dim: rgba(180, 83, 9, 0.08);
+    --v1-glow: rgba(180, 83, 9, 0.04);
+    --v2: #0e7490;
+    --v2-dim: rgba(14, 116, 144, 0.08);
+    --v2-glow: rgba(14, 116, 144, 0.04);
+    --v3: #1d4ed8;
+    --v3-dim: rgba(29, 78, 216, 0.08);
+    --v3-glow: rgba(29, 78, 216, 0.04);
+    --v3-gold: #92400e;
+    --v3-gold-dim: rgba(146, 64, 14, 0.08);
+    --green: #047857;
+    --green-dim: rgba(4, 120, 87, 0.08);
+    --red: #b91c1c;
+    --red-dim: rgba(185, 28, 28, 0.06);
+    --amber: #b45309;
+    --amber-dim: rgba(180, 83, 9, 0.06);
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  background-image: radial-gradient(circle, var(--bg-grid) 1px, transparent 1px);
+  background-size: 20px 20px;
+  color: var(--text);
+  line-height: 1.6;
+  padding: 40px;
+  overflow-wrap: break-word;
+}
+
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0 36px;
+}
+.main { min-width: 0; }
+
+/* ── TOC ── */
+.toc {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  padding: 14px 0;
+  grid-row: 1 / -1;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+.toc::-webkit-scrollbar { width: 3px; }
+.toc::-webkit-scrollbar-thumb { background: var(--surface-elevated); border-radius: 2px; }
+.toc-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  padding: 0 0 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.toc a {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  line-height: 1.4;
+  margin-bottom: 1px;
+}
+.toc a:hover { color: var(--text); background: var(--surface); }
+.toc a.active { color: var(--text-bright); border-left-color: var(--v3); background: var(--v3-dim); }
+.toc .toc-v1 { border-left-color: var(--v1); }
+.toc .toc-v2 { border-left-color: var(--v2); }
+.toc .toc-v3 { border-left-color: var(--v3); }
+
+/* ── Hero ── */
+.hero {
+  padding: 48px 0 40px;
+  margin-bottom: 48px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100px; right: -100px; bottom: 0;
+  background: radial-gradient(ellipse at 30% 40%, var(--v3-glow) 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 60%, var(--v1-glow) 0%, transparent 40%);
+  pointer-events: none;
+}
+.hero-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--v3);
+  margin-bottom: 12px;
+  position: relative;
+}
+.hero h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+  position: relative;
+}
+.hero-sub {
+  font-size: 16px;
+  color: var(--text-dim);
+  max-width: 600px;
+  position: relative;
+}
+.hero-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  position: relative;
+}
+.hero-range .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── KPI Row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 32px 0 0;
+  position: relative;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  animation: fadeScale 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+}
+.kpi-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-card__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Section Heads ── */
+.sec-head {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 48px 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  scroll-margin-top: 20px;
+}
+.sec-head .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sec-head--v1 { background: var(--v1-dim); color: var(--v1); border: 1px solid rgba(217,119,6,0.18); }
+.sec-head--v2 { background: var(--v2-dim); color: var(--v2); border: 1px solid rgba(8,145,178,0.18); }
+.sec-head--v3 { background: var(--v3-dim); color: var(--v3); border: 1px solid rgba(30,107,184,0.18); }
+.sec-head--evo { background: var(--v3-gold-dim); color: var(--v3-gold); border: 1px solid rgba(212,167,58,0.18); }
+.sec-head--stats { background: var(--green-dim); color: var(--green); border: 1px solid rgba(5,150,105,0.18); }
+
+/* ── Timeline ── */
+.timeline {
+  position: relative;
+  padding-left: 40px;
+  margin-bottom: 32px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: var(--timeline-width);
+  border-radius: 2px;
+}
+.timeline--v1::before { background: linear-gradient(to bottom, var(--v1), rgba(217,119,6,0.2)); }
+.timeline--v2::before { background: linear-gradient(to bottom, var(--v2), rgba(8,145,178,0.2)); }
+.timeline--v3::before { background: linear-gradient(to bottom, var(--v3), rgba(30,107,184,0.2)); }
+
+.tl-entry {
+  position: relative;
+  margin-bottom: 20px;
+  animation: fadeUp 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.06s);
+}
+.tl-entry::before {
+  content: '';
+  position: absolute;
+  left: -40px;
+  top: 14px;
+  width: var(--timeline-dot);
+  height: var(--timeline-dot);
+  border-radius: 50%;
+  border: 2px solid;
+  background: var(--bg);
+}
+.timeline--v1 .tl-entry::before { border-color: var(--v1); }
+.timeline--v2 .tl-entry::before { border-color: var(--v2); }
+.timeline--v3 .tl-entry::before { border-color: var(--v3); }
+
+.tl-entry--major::before {
+  width: 18px;
+  height: 18px;
+  left: -42px;
+  top: 12px;
+}
+.timeline--v1 .tl-entry--major::before { background: var(--v1); border-color: var(--v1); }
+.timeline--v2 .tl-entry--major::before { background: var(--v2); border-color: var(--v2); }
+.timeline--v3 .tl-entry--major::before { background: var(--v3); border-color: var(--v3); }
+
+.tl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.tl-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.tl-card--hero {
+  border-width: 2px;
+}
+.timeline--v1 .tl-card--hero { border-color: rgba(217,119,6,0.35); background: color-mix(in srgb, var(--surface) 94%, var(--v1) 6%); }
+.timeline--v2 .tl-card--hero { border-color: rgba(8,145,178,0.35); background: color-mix(in srgb, var(--surface) 94%, var(--v2) 6%); }
+.timeline--v3 .tl-card--hero { border-color: rgba(30,107,184,0.35); background: color-mix(in srgb, var(--surface) 94%, var(--v3) 6%); }
+
+.tl-version {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+.timeline--v1 .tl-version { background: var(--v1-dim); color: var(--v1); }
+.timeline--v2 .tl-version { background: var(--v2-dim); color: var(--v2); }
+.timeline--v3 .tl-version { background: var(--v3-dim); color: var(--v3); }
+
+.tl-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 8px;
+}
+
+.tl-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+.tl-desc {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.tl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.tag--breaking { background: var(--red-dim); color: var(--red); }
+.tag--new { background: var(--green-dim); color: var(--green); }
+.tag--removed { background: var(--amber-dim); color: var(--amber); }
+.tag--arch { background: var(--v3-dim); color: var(--v3); }
+
+.tl-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.tl-list li {
+  padding-left: 14px;
+  position: relative;
+  color: var(--text);
+}
+.tl-list li::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.tl-list code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--text-bright);
+}
+
+/* ── Evolution Diagrams ── */
+.evo-section { margin-bottom: 36px; }
+.evo-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.evo-title .evo-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.evo-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.evo-step {
+  flex: 1;
+  min-width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  animation: fadeUp 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+  position: relative;
+}
+.evo-step--active {
+  border-color: var(--v3);
+  background: color-mix(in srgb, var(--surface) 94%, var(--v3) 6%);
+  box-shadow: 0 0 20px var(--v3-glow);
+}
+.evo-step__ver {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.evo-step__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.evo-step__desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.evo-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  color: var(--border-bright);
+  font-size: 20px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+}
+
+/* ── Stats Grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  animation: fadeUp 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.06s);
+}
+.stat-card__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.stat-card__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.stat-card__detail {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Diff Panels ── */
+.diff-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+.diff-panels > * { min-width: 0; overflow-wrap: break-word; }
+.diff-panel__header {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 10px 16px;
+}
+.diff-panel__header--before {
+  background: var(--red-dim);
+  color: var(--red);
+  border-bottom: 2px solid var(--red);
+}
+.diff-panel__header--after {
+  background: var(--green-dim);
+  color: var(--green);
+  border-bottom: 2px solid var(--green);
+}
+.diff-panel__body {
+  padding: 14px 16px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.diff-panel__body code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+/* ── Agent Grid ── */
+.agent-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.agent-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1000px) {
+  .wrap { grid-template-columns: 1fr; padding-top: 0; }
+  body { padding: 20px; padding-top: 0; }
+  .toc {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    max-height: none;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    grid-row: auto;
+  }
+  .toc::-webkit-scrollbar { display: none; }
+  .toc-title { display: none; }
+  .toc a {
+    white-space: nowrap;
+    flex-shrink: 0;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 4px 4px 0 0;
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+  .toc a.active { border-left: none; border-bottom-color: var(--v3); background: var(--surface); }
+  .main { padding-top: 20px; }
+  .sec-head { scroll-margin-top: 52px; }
+  .evo-flow { flex-wrap: wrap; gap: 8px; }
+  .evo-arrow { display: none; }
+  .diff-panels { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 24px; }
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc" id="toc">
+  <div class="toc-title">Evolution</div>
+  <a href="#hero">Overview</a>
+  <a href="#s1">v1.x — Stable Release</a>
+  <a href="#s2">v2.x — Event Arch</a>
+  <a href="#s3">v3.x — Redesign</a>
+  <a href="#s4">State Management</a>
+  <a href="#s5">Command Execution</a>
+  <a href="#s6">Feature Detection</a>
+  <a href="#s7">Agent Ecosystem</a>
+  <a href="#s8">By The Numbers</a>
+</nav>
+
+<div class="main">
+
+<!-- ════════ HERO ════════ -->
+<div class="hero" id="hero">
+  <div class="hero-label">Spec-Driven Development Toolkit</div>
+  <h1>Spec Kitty Technical Evolution</h1>
+  <p class="hero-sub">From first stable PyPI release to event-log architecture and thin agent shims — every major technical addition from v1.0.0 through v3.1.1.</p>
+  <div class="hero-range">
+    <span class="dot" style="background:var(--v1)"></span> v1.0.0
+    <span style="color:var(--text-dim)">→</span>
+    <span class="dot" style="background:var(--v2)"></span> v2.1.4
+    <span style="color:var(--text-dim)">→</span>
+    <span class="dot" style="background:var(--v3)"></span> v3.1.1
+    <span style="color:var(--text-dim); margin-left:4px">Feb — Apr 2026</span>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card" style="--i:0">
+      <div class="kpi-card__value" style="color:var(--v1)">1,957</div>
+      <div class="kpi-card__label">Total Commits</div>
+    </div>
+    <div class="kpi-card" style="--i:1">
+      <div class="kpi-card__value" style="color:var(--v2)">100+</div>
+      <div class="kpi-card__label">Git Tags</div>
+    </div>
+    <div class="kpi-card" style="--i:2">
+      <div class="kpi-card__value" style="color:var(--v3)">12</div>
+      <div class="kpi-card__label">Agent Support</div>
+    </div>
+    <div class="kpi-card" style="--i:3">
+      <div class="kpi-card__value" style="color:var(--v3-gold)">4</div>
+      <div class="kpi-card__label">Mission Types</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ V1.x ════════ -->
+<div id="s1" class="sec-head sec-head--v1"><span class="dot" style="background:var(--v1)"></span> Version 1.x — First Stable PyPI Release</div>
+
+<div class="timeline timeline--v1">
+  <div class="tl-entry tl-entry--major" style="--i:0">
+    <div class="tl-card tl-card--hero">
+      <span class="tl-version">v1.0.0</span><span class="tl-date">Feb 24, 2026</span>
+      <div class="tl-title">First Stable Release — Promoted from v0.16.2</div>
+      <div class="tl-desc">The culmination of 16 pre-release cycles. Spec Kitty graduates to a stable PyPI package with a clear contract boundary: the bundled orchestrator is gone.</div>
+      <div class="tl-tags">
+        <span class="tag tag--breaking">Breaking</span>
+        <span class="tag tag--removed">Orchestrator Removed</span>
+        <span class="tag tag--new">Orchestrator API</span>
+      </div>
+      <ul class="tl-list">
+        <li>Bundled <code>spec-kitty orchestrate</code> hard-removed with no compatibility shim</li>
+        <li>Orchestration externalized behind <code>spec-kitty orchestrator-api</code> command group</li>
+        <li>Versioned host orchestration contract with JSON envelope responses</li>
+        <li>Boundary CI guardrail prevents re-introducing bundled orchestrator</li>
+        <li>ADR documentation for orchestration externalization (security, extensibility)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:1">
+    <div class="tl-card">
+      <span class="tl-version">v1.0.1</span><span class="tl-date">Feb 27</span>
+      <div class="tl-title">Dependency Floor Hardening</div>
+      <div class="tl-desc">Explicit lower bounds for typer, rich, httpx, platformdirs, and readchar. Release validation robustness for version tags and branch parity.</div>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:2">
+    <div class="tl-card">
+      <span class="tl-version">v1.0.2</span><span class="tl-date">Mar 4</span>
+      <div class="tl-title">MIT-Cleared Dependency Pins</div>
+      <div class="tl-desc"><code>spec-kitty-events==0.4.1</code> stabilized. Release train compatibility matrix added for downstream packages.</div>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:3">
+    <div class="tl-card">
+      <span class="tl-version">v1.0.3</span><span class="tl-date">Mar 6</span>
+      <div class="tl-title">Template Schema Readiness Gate</div>
+      <div class="tl-desc">Upgrade JSON made machine-parseable. Migration status reporting consistency. Template schema validation gate for <code>meta.json</code>.</div>
+      <div class="tl-tags">
+        <span class="tag tag--new">Schema Gate</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ V2.x ════════ -->
+<div id="s2" class="sec-head sec-head--v2"><span class="dot" style="background:var(--v2)"></span> Version 2.x — Event Architecture &amp; Skills</div>
+
+<div class="timeline timeline--v2">
+  <div class="tl-entry tl-entry--major" style="--i:0">
+    <div class="tl-card tl-card--hero">
+      <span class="tl-version">v2.0.0</span><span class="tl-date">Feb 22, 2026</span>
+      <div class="tl-title">Parallel Development Track — GitHub-Only Releases</div>
+      <div class="tl-desc">A parallel 2.x branch for SaaS features, running alongside 1.x on PyPI. Semantic versioning adoption and deterministic runtime mission template selection.</div>
+      <div class="tl-tags">
+        <span class="tag tag--arch">SemVer</span>
+        <span class="tag tag--new">Runtime Templates</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:1">
+    <div class="tl-card">
+      <span class="tl-version">v2.0.3 – v2.0.7</span><span class="tl-date">Jan–Feb</span>
+      <div class="tl-title">Architecture Cleanup Sprint</div>
+      <ul class="tl-list">
+        <li>Target branch routing for status commits (ADR-13)</li>
+        <li>Explicit metadata fields (ADR-14)</li>
+        <li>Smart dependency detection (ADR-15)</li>
+        <li>Auto-create target branch on first implement (ADR-17)</li>
+        <li>Rich JSON outputs for agent commands (ADR-16)</li>
+        <li>Centralized feature detection with priority-6 fallback</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:2">
+    <div class="tl-card">
+      <span class="tl-version">v2.0.8 – v2.0.11</span><span class="tl-date">Feb</span>
+      <div class="tl-title">Dashboard, Merge &amp; Skills Foundation</div>
+      <ul class="tl-list">
+        <li>Merge target resolution from feature <code>meta.json</code></li>
+        <li>Dashboard sidebar collapsibility and "Done" lane semantics (ADR-21)</li>
+        <li>Multi-parent merge optimization</li>
+        <li><strong>Agent Skills Pack introduced</strong> — canonical skill distribution (Feature 055)</li>
+        <li>Structured requirement mapping for WP tracing</li>
+      </ul>
+      <div class="tl-tags">
+        <span class="tag tag--new">Skills Pack</span>
+        <span class="tag tag--new">Req Mapping</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl-entry tl-entry--major" style="--i:3">
+    <div class="tl-card tl-card--hero">
+      <span class="tl-version">v2.1.0</span><span class="tl-date">Mar 21</span>
+      <div class="tl-title">Promoted to Stable Main — Replaces 1.x</div>
+      <div class="tl-desc">The 2.x line becomes the primary release. 6 canonical bundled skills with registry/installer/verification. Structured requirement mapping for delivery intent tracing.</div>
+      <div class="tl-tags">
+        <span class="tag tag--new">6 Skills</span>
+        <span class="tag tag--removed">/clarify Removed</span>
+        <span class="tag tag--arch">Stable Main</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:4">
+    <div class="tl-card">
+      <span class="tl-version">v2.1.2</span><span class="tl-date">Mar 23</span>
+      <div class="tl-title">Skills Expansion &amp; DocFX Sprint</div>
+      <ul class="tl-list">
+        <li>6 → 8 skills: added <code>mission-system</code> and <code>git-workflow</code></li>
+        <li>All 8 skills audited with full architecture documentation</li>
+        <li>56 docs files now in DocFX build</li>
+        <li>10 upgrade migrations for skill fixes/installations</li>
+      </ul>
+      <div class="tl-tags">
+        <span class="tag tag--new">8 Skills</span>
+        <span class="tag tag--new">56 Docs</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:5">
+    <div class="tl-card">
+      <span class="tl-version">v2.1.4</span><span class="tl-date">Mar 27</span>
+      <div class="tl-title">Command File State Enforcement</div>
+      <div class="tl-desc">Version markers in command files (<code>&lt;!-- spec-kitty-command-version: X.Y.Z --&gt;</code>). New <code>spec-kitty doctor command-files</code> subcommand for validation.</div>
+      <div class="tl-tags">
+        <span class="tag tag--new">Version Markers</span>
+        <span class="tag tag--new">Doctor CLI</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ V3.x ════════ -->
+<div id="s3" class="sec-head sec-head--v3"><span class="dot" style="background:var(--v3)"></span> Version 3.x — Architecture Refresh</div>
+
+<div class="timeline timeline--v3">
+  <div class="tl-entry tl-entry--major" style="--i:0">
+    <div class="tl-card tl-card--hero">
+      <span class="tl-version">v3.0.0</span><span class="tl-date">Mar 30, 2026</span>
+      <div class="tl-title">Fundamental Architecture Redesign</div>
+      <div class="tl-desc">The largest single release in Spec Kitty history. Event log becomes the sole authority for mutable WP state. Feature detection deleted. Sparse checkout removed. Hybrid command templates introduced.</div>
+      <div class="tl-tags">
+        <span class="tag tag--breaking">3 Breaking Changes</span>
+        <span class="tag tag--new">6 New Systems</span>
+        <span class="tag tag--removed">8 Modules Deleted</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:1">
+    <div class="tl-card">
+      <div class="tl-title" style="color:var(--red); font-size:13px; font-family:var(--font-mono);">BREAKING CHANGES</div>
+      <ul class="tl-list">
+        <li><strong>Event log is sole authority</strong> — frontmatter <code>lane</code>, <code>review_status</code>, <code>reviewed_by</code>, <code>progress</code> no longer written at runtime. ~650 lines of dual-write code removed</li>
+        <li><strong>Feature detection deleted</strong> — <code>feature_detection.py</code> (668 lines) removed. All commands require explicit <code>--feature &lt;slug&gt;</code></li>
+        <li><strong>Sparse checkout removed</strong> — planning artifacts work in-repo; code WPs use standard worktrees</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:2">
+    <div class="tl-card">
+      <div class="tl-title" style="color:var(--green); font-size:13px; font-family:var(--font-mono);">NEW SYSTEMS</div>
+      <ul class="tl-list">
+        <li><strong>MissionContext</strong> — opaque token-based bound identity, replaces string feature detection</li>
+        <li><strong>WP Ownership Manifest</strong> — <code>execution_mode</code>, <code>owned_files</code>, <code>authoritative_surface</code> per WP</li>
+        <li><strong>Lane-weighted progress</strong> — planned=0.0, in_progress=0.3, for_review=0.6, done=1.0</li>
+        <li><strong>Dedicated merge workspace</strong> — <code>.kittify/runtime/merge/</code> with atomic lock mechanism</li>
+        <li><strong>Thin agent shims</strong> — 56 template files → 9 canonical + 7 thin shims</li>
+        <li><strong>One-shot migration framework</strong> — backfill_identity, backfill_ownership, rebuild_state, strip_frontmatter</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:3">
+    <div class="tl-card">
+      <div class="tl-title" style="color:var(--amber); font-size:13px; font-family:var(--font-mono);">REMOVED</div>
+      <ul class="tl-list">
+        <li><code>feature_detection.py</code> (668 lines)</li>
+        <li><code>status/legacy_bridge.py</code>, <code>phase.py</code>, <code>reconcile.py</code>, <code>migrate.py</code></li>
+        <li><code>merge/executor.py</code>, <code>forecast.py</code>, <code>status_resolver.py</code></li>
+        <li><code>core/agent_context.py</code></li>
+        <li>56 full command template files</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tl-entry tl-entry--major" style="--i:4">
+    <div class="tl-card tl-card--hero">
+      <span class="tl-version">v3.1.0</span><span class="tl-date">Apr 2026</span>
+      <div class="tl-title">Architecture Consolidation</div>
+      <div class="tl-desc">Post-3.0 stabilization with major deduplication, new interactive constitution command, and mission-aware cleanup wiring.</div>
+      <div class="tl-tags">
+        <span class="tag tag--new">Constitution</span>
+        <span class="tag tag--arch">900+ Lines Deduped</span>
+      </div>
+      <ul class="tl-list">
+        <li><strong>Interactive constitution command</strong> — 4-phase discovery workflow</li>
+        <li><strong>Mission-aware cleanup &amp; docs wiring</strong></li>
+        <li><strong>Worktree topology context</strong> for stacked branches</li>
+        <li><strong>Shared task helpers consolidation</strong> — ~900 lines deduplicated</li>
+        <li><strong>Shared acceptance core</strong> module extraction</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tl-entry" style="--i:5">
+    <div class="tl-card">
+      <span class="tl-version">v3.1.1</span><span class="tl-date">Apr 21</span>
+      <div class="tl-title">Contract Hardening Closeout</div>
+      <div class="tl-desc">Current release. Deterministic branch and runtime JSON contracts. Upgrade migration status consistency. Template schema readiness gate.</div>
+      <div class="tl-tags">
+        <span class="tag tag--arch">Current</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ EVOLUTION: State Management ════════ -->
+<div id="s4" class="sec-head sec-head--evo"><span class="dot" style="background:var(--v3-gold)"></span> Evolution — State Management</div>
+
+<div class="evo-section">
+  <div class="evo-flow">
+    <div class="evo-step" style="--i:0">
+      <div class="evo-step__ver" style="color:var(--v1)">v0.x – v1.x</div>
+      <div class="evo-step__title">Direct Frontmatter</div>
+      <div class="evo-step__desc">WP state lived in YAML frontmatter fields. Every status change wrote directly to the file. Simple but fragile — merge conflicts on every parallel edit.</div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-step" style="--i:1">
+      <div class="evo-step__ver" style="color:var(--v2)">v2.x</div>
+      <div class="evo-step__title">Dual-Write</div>
+      <div class="evo-step__desc">Event log + frontmatter written simultaneously. The event log was source of truth, but frontmatter was still updated for backward compatibility. ~650 lines of dual-write code.</div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-step evo-step--active" style="--i:2">
+      <div class="evo-step__ver" style="color:var(--v3)">v3.x</div>
+      <div class="evo-step__title">Event Log Authority</div>
+      <div class="evo-step__desc">Event log (<code>status.events.jsonl</code>) is the sole authority. Frontmatter is read-only. Dual-write code eliminated. State derived via reducer function.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ EVOLUTION: Command Execution ════════ -->
+<div id="s5" class="sec-head sec-head--evo"><span class="dot" style="background:var(--v3-gold)"></span> Evolution — Command Execution</div>
+
+<div class="evo-section">
+  <div class="evo-flow">
+    <div class="evo-step" style="--i:0">
+      <div class="evo-step__ver" style="color:var(--v1)">v1.x</div>
+      <div class="evo-step__title">Python CLI + Full Templates</div>
+      <div class="evo-step__desc">56 command template files deployed to each agent directory. Every template was a full prompt with embedded logic and context.</div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-step" style="--i:1">
+      <div class="evo-step__ver" style="color:var(--v2)">v2.x</div>
+      <div class="evo-step__title">Slash Commands + Missions</div>
+      <div class="evo-step__desc">Slash commands (<code>/spec-kitty.*</code>) routed through mission templates. Skills pack distributed alongside. Version markers added for drift detection.</div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-step evo-step--active" style="--i:2">
+      <div class="evo-step__ver" style="color:var(--v3)">v3.x</div>
+      <div class="evo-step__title">Hybrid Thin Shims</div>
+      <div class="evo-step__desc">Planning commands = full prompts. Execution commands = thin CLI-dispatch shims. 56 templates → 9 canonical + 7 shims. Massive reduction in template drift surface.</div>
+    </div>
+  </div>
+
+  <div class="diff-panels" style="margin-top:16px">
+    <div class="diff-panel__header diff-panel__header--before">Before (v2.x) — 56 Templates</div>
+    <div class="diff-panel__header diff-panel__header--after">After (v3.x) — 16 Templates</div>
+    <div class="diff-panel__body">
+      Each of 12 agents got full copies of every command template. Each template contained the full prompt, context instructions, file discovery sections, and workflow logic. Template drift was constant.
+    </div>
+    <div class="diff-panel__body">
+      9 canonical planning prompts (specify, plan, tasks, etc.) with full content. 7 thin shims for execution commands (implement, review, merge, etc.) that dispatch to <code>spec-kitty agent shim</code>. Template drift nearly eliminated.
+    </div>
+  </div>
+</div>
+
+<!-- ════════ EVOLUTION: Feature Detection ════════ -->
+<div id="s6" class="sec-head sec-head--evo"><span class="dot" style="background:var(--v3-gold)"></span> Evolution — Feature Detection</div>
+
+<div class="evo-section">
+  <div class="evo-flow">
+    <div class="evo-step" style="--i:0">
+      <div class="evo-step__ver" style="color:var(--v1)">v1.x</div>
+      <div class="evo-step__title">Branch Auto-Detect</div>
+      <div class="evo-step__desc">Branch scanning, env var detection, and cwd walking to guess which feature you meant. Magic but unreliable in multi-feature repos.</div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-step" style="--i:1">
+      <div class="evo-step__ver" style="color:var(--v2)">v2.x</div>
+      <div class="evo-step__title">Priority Fallback</div>
+      <div class="evo-step__desc">Centralized detection with a priority cascade. Priority-6 fallback to latest incomplete feature. Better, but still implicit — wrong guesses in edge cases.</div>
+    </div>
+    <div class="evo-arrow">→</div>
+    <div class="evo-step evo-step--active" style="--i:2">
+      <div class="evo-step__ver" style="color:var(--v3)">v3.x</div>
+      <div class="evo-step__title">Explicit MissionContext</div>
+      <div class="evo-step__desc">Feature detection deleted (668 lines). All commands require <code>--feature &lt;slug&gt;</code>. MissionContext tokens provide opaque, bound identity. Zero ambiguity.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ AGENT ECOSYSTEM ════════ -->
+<div id="s7" class="sec-head sec-head--evo"><span class="dot" style="background:var(--v3-gold)"></span> Agent Ecosystem — 12 Supported Agents</div>
+
+<div style="margin-bottom:32px">
+  <div class="evo-title">Supported Agents<span class="evo-line"></span></div>
+  <div class="agent-grid">
+    <span class="agent-badge">Claude Code</span>
+    <span class="agent-badge">GitHub Copilot</span>
+    <span class="agent-badge">Google Gemini</span>
+    <span class="agent-badge">Cursor</span>
+    <span class="agent-badge">Qwen Code</span>
+    <span class="agent-badge">OpenCode</span>
+    <span class="agent-badge">Windsurf</span>
+    <span class="agent-badge">GitHub Codex</span>
+    <span class="agent-badge">Kilocode</span>
+    <span class="agent-badge">Augment Code</span>
+    <span class="agent-badge">Roo Cline</span>
+    <span class="agent-badge">Amazon Q</span>
+  </div>
+
+  <div class="evo-title" style="margin-top:20px">Config-Driven Management (v0.12.0+)<span class="evo-line"></span></div>
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+    <div class="tl-card">
+      <div class="tl-title" style="font-size:13px">Single Source of Truth</div>
+      <div class="tl-desc" style="font-size:12px"><code>.kittify/config.yaml</code> — only configured agents get directories, migrations, and template updates. CLI commands: <code>list</code>, <code>add</code>, <code>remove</code>, <code>status</code>, <code>sync</code>.</div>
+    </div>
+    <div class="tl-card">
+      <div class="tl-title" style="font-size:13px">Skills Distribution</div>
+      <div class="tl-desc" style="font-size:12px">v2.1.0: 6 canonical skills. v2.1.2: 8 skills with full architecture docs. Bundled in wheels with registry, installer, and SHA-256 verification.</div>
+    </div>
+  </div>
+
+  <div class="evo-title" style="margin-top:20px">Mission Types<span class="evo-line"></span></div>
+  <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+    <div class="tl-card" style="text-align:center; padding:12px">
+      <div style="font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--v3); margin-bottom:4px">SOFTWARE-DEV</div>
+      <div style="font-size:11px; color:var(--text-dim)">Full lifecycle</div>
+    </div>
+    <div class="tl-card" style="text-align:center; padding:12px">
+      <div style="font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--v2); margin-bottom:4px">RESEARCH</div>
+      <div style="font-size:11px; color:var(--text-dim)">Discovery + evidence</div>
+    </div>
+    <div class="tl-card" style="text-align:center; padding:12px">
+      <div style="font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--v1); margin-bottom:4px">DOCUMENTATION</div>
+      <div style="font-size:11px; color:var(--text-dim)">Divio 4-type suite</div>
+    </div>
+    <div class="tl-card" style="text-align:center; padding:12px">
+      <div style="font-family:var(--font-mono); font-size:11px; font-weight:600; color:var(--v3-gold); margin-bottom:4px">CONSTITUTION</div>
+      <div style="font-size:11px; color:var(--text-dim)">Governance + knowledge</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ STATS ════════ -->
+<div id="s8" class="sec-head sec-head--stats"><span class="dot" style="background:var(--green)"></span> By The Numbers</div>
+
+<div class="stats-grid">
+  <div class="stat-card" style="--i:0">
+    <div class="stat-card__label">v1.x Commits</div>
+    <div class="stat-card__value" style="color:var(--v1)">1,124</div>
+    <div class="stat-card__detail">v0.15.x → v1.0.3</div>
+  </div>
+  <div class="stat-card" style="--i:1">
+    <div class="stat-card__label">v2.x Commits</div>
+    <div class="stat-card__value" style="color:var(--v2)">311</div>
+    <div class="stat-card__detail">v2.0.0a1 → v2.1.4</div>
+  </div>
+  <div class="stat-card" style="--i:2">
+    <div class="stat-card__label">v3.x Commits</div>
+    <div class="stat-card__value" style="color:var(--v3)">522</div>
+    <div class="stat-card__detail">v3.0.0 → v3.1.1</div>
+  </div>
+  <div class="stat-card" style="--i:3">
+    <div class="stat-card__label">Templates Eliminated</div>
+    <div class="stat-card__value" style="color:var(--red)">56</div>
+    <div class="stat-card__detail">v3.0.0 → 16 hybrid</div>
+  </div>
+  <div class="stat-card" style="--i:4">
+    <div class="stat-card__label">Feature Detection Removed</div>
+    <div class="stat-card__value" style="color:var(--red)">668</div>
+    <div class="stat-card__detail">lines in v3.0.0</div>
+  </div>
+  <div class="stat-card" style="--i:5">
+    <div class="stat-card__label">Dual-Write Removed</div>
+    <div class="stat-card__value" style="color:var(--red)">~650</div>
+    <div class="stat-card__detail">lines in v3.0.0</div>
+  </div>
+  <div class="stat-card" style="--i:6">
+    <div class="stat-card__label">Task Helpers Deduped</div>
+    <div class="stat-card__value" style="color:var(--green)">900+</div>
+    <div class="stat-card__detail">lines in v3.1.0</div>
+  </div>
+  <div class="stat-card" style="--i:7">
+    <div class="stat-card__label">ADRs Written</div>
+    <div class="stat-card__value" style="color:var(--v3-gold)">11+</div>
+    <div class="stat-card__detail">ADR-6 through ADR-21</div>
+  </div>
+  <div class="stat-card" style="--i:8">
+    <div class="stat-card__label">Docs Files</div>
+    <div class="stat-card__value" style="color:var(--v2)">56</div>
+    <div class="stat-card__detail">DocFX build (v2.1.2)</div>
+  </div>
+  <div class="stat-card" style="--i:9">
+    <div class="stat-card__label">Bundled Skills</div>
+    <div class="stat-card__value" style="color:var(--v2)">8</div>
+    <div class="stat-card__detail">with SHA-256 verification</div>
+  </div>
+  <div class="stat-card" style="--i:10">
+    <div class="stat-card__label">Upgrade Migrations</div>
+    <div class="stat-card__value" style="color:var(--v3-gold)">30+</div>
+    <div class="stat-card__detail">across all versions</div>
+  </div>
+  <div class="stat-card" style="--i:11">
+    <div class="stat-card__label">Review Scrutiny Categories</div>
+    <div class="stat-card__value" style="color:var(--v1)">12</div>
+    <div class="stat-card__detail">505 lines, 7 security greps</div>
+  </div>
+</div>
+
+<div class="footer">
+  Spec Kitty v3.1.1 — Technical Evolution — Generated April 2026
+</div>
+
+</div><!-- /main -->
+</div><!-- /wrap -->
+
+<script>
+(function() {
+  var toc = document.getElementById('toc');
+  var links = toc.querySelectorAll('a');
+  var sections = [];
+
+  links.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        links.forEach(function(l) { l.classList.remove('active'); });
+        var match = sections.find(function(s) { return s.el === entry.target; });
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1000) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  sections.forEach(function(s) { observer.observe(s.el); });
+
+  links.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      var id = link.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
