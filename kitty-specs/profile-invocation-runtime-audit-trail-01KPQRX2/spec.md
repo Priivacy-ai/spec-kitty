@@ -9,6 +9,7 @@
 | Created | 2026-04-21 |
 | Status | Draft (specify) |
 
+**Release target**: `3.2.0` — this is the major remaining product chunk for the `3.2.0` line, building on the already-landed `3.2.0a3` charter/doctrine baseline.
 **Roadmap anchors**: Charter EPIC #461 · Phase 4 tracker #466 · WP4.6 event schema #495 · ADR-3 router design #519 · Minimal Viable Trail EPIC #701 · Workflow composition (out of scope) #682
 
 ---
