@@ -14,6 +14,8 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "92886"
 history:
 - date: '2026-04-21'
   event: created
@@ -232,3 +234,7 @@ def test_do_creates_jsonl_record(tmp_path, monkeypatch):
 2. Verify ambiguity error contains `candidates` list (helps operator choose `ask <profile>`).
 3. Verify rich output path shows `router_confidence`.
 4. Verify `main.py` has exactly one `add_typer()` call for `do`.
+
+## Activity Log
+
+- 2026-04-21T12:28:54Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92886 – Started implementation via action command
