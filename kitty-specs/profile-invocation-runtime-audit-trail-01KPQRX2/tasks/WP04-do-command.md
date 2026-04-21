@@ -240,3 +240,4 @@ def test_do_creates_jsonl_record(tmp_path, monkeypatch):
 - 2026-04-21T12:28:54Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92886 – Started implementation via action command
 - 2026-04-21T12:33:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92886 – WP04 complete: do command with router dispatch, 11/11 tests passing
 - 2026-04-21T12:33:59Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=1662 – Started review via action command
+- 2026-04-21T12:34:43Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=1662 – Review passed: do command correct, always routes via ActionRouter with profile_hint=None, RouterAmbiguityError exits 1 with candidates, no LLM imports, 11 tests pass
