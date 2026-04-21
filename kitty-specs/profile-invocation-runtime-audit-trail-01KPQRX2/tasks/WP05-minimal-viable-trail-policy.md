@@ -312,3 +312,4 @@ def test_tier3_actions_contains_expected():
 ## Activity Log
 
 - 2026-04-21T12:35:23Z – claude:sonnet-4-6:implementer:implementer – shell_pid=6359 – Started implementation via action command
+- 2026-04-21T12:37:51Z – claude:sonnet-4-6:implementer:implementer – shell_pid=6359 – WP05 complete: MinimalViableTrailPolicy + tier_eligible + promote_to_evidence
