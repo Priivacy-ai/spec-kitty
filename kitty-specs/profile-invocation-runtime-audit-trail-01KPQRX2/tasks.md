@@ -32,11 +32,11 @@
 | T019 | Finalize MinimalViableTrailPolicy frozen dataclass (all 3 tiers fully specified) | WP05 | — | [D] |
 | T020 | Implement `tier_eligible(record)` and `promote_to_evidence(record, dir, content)` | WP05 | — | [D] |
 | T021 | Export MinimalViableTrailPolicy from `__init__.py`; extend test_record.py | WP05 | [D] |
-| T022 | `invocations_cmd.py` — `invocations list [--profile] [--limit N] [--json]` | WP06 | — |
-| T023 | Register invocations group in main.py | WP06 | — |
-| T024 | Benchmark list perf at 10K entries; implement invocation-index if > 200ms | WP06 | — |
-| T025 | Integration tests: cli/test_invocations.py (query, filter, empty log, limit) | WP06 | [P] |
-| T026 | Skill pack: `.agents/skills/spec-kitty.advise/SKILL.md` | WP06 | [P] |
+| T022 | `invocations_cmd.py` — `invocations list [--profile] [--limit N] [--json]` | WP06 | — | [D] |
+| T023 | Register invocations group in main.py | WP06 | — | [D] |
+| T024 | Benchmark list perf at 10K entries; implement invocation-index if > 200ms | WP06 | — | [D] |
+| T025 | Integration tests: cli/test_invocations.py (query, filter, empty log, limit) | WP06 | [D] |
+| T026 | Skill pack: `.agents/skills/spec-kitty.advise/SKILL.md` | WP06 | [D] |
 | T027 | Entry gate: verify CLI-SaaS contract field coverage for InvocationRecord v1 | WP07 | — |
 | T028 | `propagator.py` — InvocationSaaSPropagator (background thread, atexit, error log) | WP07 | — |
 | T029 | Wire propagator into executor.py post write_completed | WP07 | — |
@@ -153,11 +153,11 @@ Included subtasks:
 **Prompt file**: [tasks/WP06-invocations-list-skill-packs.md](tasks/WP06-invocations-list-skill-packs.md)
 
 Included subtasks:
-- [ ] T022 `invocations_cmd.py` — `invocations list [--profile] [--limit N] [--json]` (WP06)
-- [ ] T023 Register invocations group in main.py (WP06)
-- [ ] T024 Benchmark list perf at 10K entries; implement index if > 200ms (WP06)
-- [ ] T025 Integration tests: cli/test_invocations.py (WP06)
-- [ ] T026 Skill pack: `.agents/skills/spec-kitty.advise/SKILL.md` (WP06)
+- [x] T022 `invocations_cmd.py` — `invocations list [--profile] [--limit N] [--json]` (WP06)
+- [x] T023 Register invocations group in main.py (WP06)
+- [x] T024 Benchmark list perf at 10K entries; implement index if > 200ms (WP06)
+- [x] T025 Integration tests: cli/test_invocations.py (WP06)
+- [x] T026 Skill pack: `.agents/skills/spec-kitty.advise/SKILL.md` (WP06)
 
 **Dependencies**: WP01
 **Blocks**: WP07 (propagation relies on writer being stable)
