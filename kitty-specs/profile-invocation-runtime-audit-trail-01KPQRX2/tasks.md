@@ -26,9 +26,9 @@
 | T013 | Add `spec-kitty profile-invocation complete --invocation-id <id>` in advise.py | WP03 | [D] |
 | T014 | Register advise / ask / profile-invocation groups in main.py | WP03 | — | [D] |
 | T015 | Integration tests: cli/test_advise.py (happy path, profile missing, no charter, --json) | WP03 | [D] |
-| T016 | `do_cmd.py` — `spec-kitty do <request> [--json]` (router always invoked) | WP04 | — |
-| T017 | Register do command in main.py | WP04 | — |
-| T018 | Integration tests: cli/test_do.py (happy path, ambiguity error, no-match error) | WP04 | [P] |
+| T016 | `do_cmd.py` — `spec-kitty do <request> [--json]` (router always invoked) | WP04 | — | [D] |
+| T017 | Register do command in main.py | WP04 | — | [D] |
+| T018 | Integration tests: cli/test_do.py (happy path, ambiguity error, no-match error) | WP04 | [D] |
 | T019 | Finalize MinimalViableTrailPolicy frozen dataclass (all 3 tiers fully specified) | WP05 | — |
 | T020 | Implement `tier_eligible(record)` and `promote_to_evidence(record, dir, content)` | WP05 | — |
 | T021 | Export MinimalViableTrailPolicy from `__init__.py`; extend test_record.py | WP05 | [P] |
@@ -117,9 +117,9 @@ Included subtasks:
 **Prompt file**: [tasks/WP04-do-command.md](tasks/WP04-do-command.md)
 
 Included subtasks:
-- [ ] T016 `do_cmd.py` — `spec-kitty do <request> [--json]` (WP04)
-- [ ] T017 Register do command in main.py (WP04)
-- [ ] T018 Integration tests: cli/test_do.py (WP04)
+- [x] T016 `do_cmd.py` — `spec-kitty do <request> [--json]` (WP04)
+- [x] T017 Register do command in main.py (WP04)
+- [x] T018 Integration tests: cli/test_do.py (WP04)
 
 **Dependencies**: WP02
 **Blocks**: none
