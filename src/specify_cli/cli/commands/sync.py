@@ -7,11 +7,11 @@ This module provides two groups of sync functionality:
 
 from __future__ import annotations
 
+import contextlib
 import re
 import subprocess
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import typer
@@ -149,6 +149,317 @@ app = typer.Typer(
 )
 
 
+def _require_active_checkout():
+    from specify_cli.sync.routing import resolve_checkout_sync_routing
+
+    routing = resolve_checkout_sync_routing()
+    if routing is None:
+        console.print("[red]Error:[/red] Could not locate the active Spec Kitty checkout.")
+        raise typer.Exit(1)
+    return routing
+
+
+def _require_authenticated_session():
+    from specify_cli.auth import get_token_manager
+
+    session = get_token_manager().get_current_session()
+    if session is None:
+        console.print("[red]Error:[/red] Not authenticated. Run `spec-kitty auth login`.")
+        raise typer.Exit(1)
+    return session
+
+
+def _private_team_name(session) -> str | None:
+    for team in session.teams:
+        if team.is_private_teamspace:
+            return team.name
+    return None
+
+
+def _materialize_private_source_project() -> None:
+    from specify_cli.sync.background import get_sync_service
+    from specify_cli.sync.events import get_emitter
+
+    event = get_emitter().emit_build_registered()
+    if event is None:
+        raise RuntimeError("Could not emit BuildRegistered for this checkout.")
+    get_sync_service().sync_now()
+
+
+@app.command()
+def routes() -> None:
+    """Show where the current checkout sends data and which teams it is shared with."""
+    from specify_cli.sync.routing import resolve_checkout_sync_routing
+    from specify_cli.sync.sharing_client import (
+        RepositorySharingClientError,
+        list_repository_shares_sync,
+    )
+
+    routing = resolve_checkout_sync_routing()
+    if routing is None:
+        console.print("[red]Error:[/red] Could not locate the active Spec Kitty checkout.")
+        raise typer.Exit(1)
+
+    console.print()
+    console.print("[cyan]Spec Kitty Teamspace Routing[/cyan]")
+    console.print()
+
+    table = Table(show_header=False, box=None)
+    table.add_column("Key", style="dim")
+    table.add_column("Value")
+    table.add_row("Repository", routing.repo_slug or "[dim]Unavailable[/dim]")
+    table.add_row("Project UUID", routing.project_uuid or "[dim]Unavailable[/dim]")
+    table.add_row("Project Slug", routing.project_slug or "[dim]Unavailable[/dim]")
+    table.add_row("Build ID", routing.build_id or "[dim]Unavailable[/dim]")
+    table.add_row(
+        "Checkout Sync",
+        "[green]Enabled[/green]" if routing.effective_sync_enabled else "[yellow]Disabled[/yellow]",
+    )
+
+    local_value = (
+        "[dim]Not set[/dim]"
+        if routing.local_sync_enabled is None
+        else ("enabled" if routing.local_sync_enabled else "disabled")
+    )
+    table.add_row("Local Override", local_value)
+
+    repo_default = (
+        "[dim]Not set[/dim]"
+        if routing.repo_default_sync_enabled is None
+        else ("enabled" if routing.repo_default_sync_enabled else "disabled")
+    )
+    table.add_row("Future Repo Default", repo_default)
+
+    try:
+        session = _require_authenticated_session()
+    except typer.Exit:
+        console.print(table)
+        console.print()
+        return
+
+    private_team_name = _private_team_name(session)
+    if private_team_name:
+        table.add_row("Private Teamspace", private_team_name)
+
+    console.print(table)
+    console.print()
+
+    if not is_saas_sync_enabled():
+        console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
+        console.print()
+        return
+
+    try:
+        shares = list_repository_shares_sync(source_project_uuid=routing.project_uuid)
+    except RepositorySharingClientError as exc:
+        console.print(f"[yellow]Could not load share state:[/yellow] {exc}")
+        console.print()
+        return
+
+    if not shares:
+        console.print("[dim]No team shares for this checkout yet.[/dim]")
+        console.print()
+        return
+
+    shares_table = Table(show_header=True, header_style="bold")
+    shares_table.add_column("Team", style="cyan")
+    shares_table.add_column("State")
+    shares_table.add_column("Sharers", justify="right")
+    shares_table.add_column("Project", style="dim")
+
+    for share in shares:
+        team = share.get("team") or {}
+        shared_project = share.get("shared_project") or {}
+        shares_table.add_row(
+            str(team.get("name") or team.get("slug") or "Unknown"),
+            str(share.get("state") or "unknown"),
+            str(share.get("active_sharer_count") or 0),
+            str(shared_project.get("project_slug") or "pending"),
+        )
+
+    console.print(shares_table)
+    console.print()
+
+
+@app.command()
+def share(
+    team_slug: str = typer.Argument(..., help="Team slug to share this repository into."),
+) -> None:
+    """Share the current repository from Private Teamspace into a team."""
+    from specify_cli.sync.sharing_client import (
+        RepositorySharingClientError,
+        request_repository_share_sync,
+    )
+
+    if not is_saas_sync_enabled():
+        console.print(f"[red]{saas_sync_disabled_message()}[/red]")
+        raise typer.Exit(1)
+
+    routing = _require_active_checkout()
+    _require_authenticated_session()
+
+    if routing.project_uuid is None:
+        console.print("[red]Error:[/red] Current checkout has no project UUID.")
+        raise typer.Exit(1)
+
+    try:
+        response = request_repository_share_sync(
+            source_project_uuid=routing.project_uuid,
+            destination_team_slug=team_slug,
+        )
+    except RepositorySharingClientError as exc:
+        if exc.status_code == 404:
+            if not routing.effective_sync_enabled:
+                console.print(
+                    "[red]Error:[/red] This checkout is opted out of SaaS sync. "
+                    "Run `spec-kitty sync opt-in` first."
+                )
+                raise typer.Exit(1) from None
+            try:
+                _materialize_private_source_project()
+            except Exception as materialize_error:
+                console.print(
+                    "[red]Error:[/red] Could not materialize this checkout in Private Teamspace: "
+                    f"{materialize_error}"
+                )
+                raise typer.Exit(1) from materialize_error
+            response = request_repository_share_sync(
+                source_project_uuid=routing.project_uuid,
+                destination_team_slug=team_slug,
+            )
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+
+    share_data = response.get("share") or {}
+    share_state = share_data.get("state", "unknown")
+    if share_state == "shared":
+        console.print(
+            f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] "
+            f"to [cyan]{team_slug}[/cyan]."
+        )
+    else:
+        console.print(
+            f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan]."
+        )
+
+    if response.get("auto_approved"):
+        console.print("[dim]Team policy auto-approved the repository share.[/dim]")
+    elif share_state == "pending_approval":
+        console.print("[dim]Waiting for a team admin to approve the repository.[/dim]")
+
+
+@app.command(name="opt-out")
+def opt_out(
+    checkout_only: bool = typer.Option(
+        False,
+        "--checkout-only",
+        help="Disable only this checkout; do not remember the repo default for future checkouts.",
+    ),
+    delete_private_data: bool = typer.Option(
+        False,
+        "--delete-private-data",
+        help="After disabling sync, offer to delete already-synced private-only SaaS data for this checkout.",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        help="Skip the confirmation prompt when used with --delete-private-data.",
+    ),
+) -> None:
+    """Disable SaaS sync for this checkout and purge its pending uploads."""
+    from specify_cli.sync.routing import disable_checkout_sync
+    from specify_cli.sync.sharing_client import (
+        RepositorySharingClientError,
+        delete_private_project_sync,
+        list_repository_shares_sync,
+    )
+
+    routing = _require_active_checkout()
+    result = disable_checkout_sync(
+        routing.repo_root,
+        remember_repo_default=not checkout_only,
+    )
+
+    console.print(
+        f"[green]✓[/green] Disabled SaaS sync for this checkout "
+        f"([cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan])."
+    )
+    console.print(
+        f"[dim]Removed {result.removed_events} queued event(s) and "
+        f"{result.removed_body_uploads} queued body upload(s) for this checkout.[/dim]"
+    )
+    if result.remembered_for_repo:
+        console.print("[dim]Future checkouts of this repository will also default to sync disabled.[/dim]")
+
+    if not delete_private_data or not routing.project_uuid:
+        return
+
+    if not is_saas_sync_enabled():
+        console.print(
+            "[yellow]Skipping private-data deletion because SaaS sync is disabled in this shell.[/yellow]"
+        )
+        return
+
+    try:
+        _require_authenticated_session()
+        shares = list_repository_shares_sync(source_project_uuid=routing.project_uuid)
+    except (RepositorySharingClientError, typer.Exit) as exc:
+        console.print(f"[yellow]Could not inspect remote share state:[/yellow] {exc}")
+        return
+
+    if shares:
+        console.print(
+            "[yellow]Private data was not deleted because this repository has team share history.[/yellow]"
+        )
+        return
+
+    confirmed = yes or typer.confirm(
+        "Delete already-synced private Teamspace data for this checkout from SaaS?",
+        default=False,
+    )
+    if not confirmed:
+        console.print("[dim]Kept private Teamspace data on SaaS.[/dim]")
+        return
+
+    try:
+        deletion = delete_private_project_sync(source_project_uuid=routing.project_uuid)
+    except RepositorySharingClientError as exc:
+        console.print(f"[yellow]Private data was not deleted:[/yellow] {exc}")
+        return
+
+    console.print(
+        f"[green]✓[/green] Deleted private SaaS data for this checkout "
+        f"({deletion.get('deleted_event_count', 0)} event(s), "
+        f"{deletion.get('deleted_build_count', 0)} build(s))."
+    )
+
+
+@app.command(name="opt-in")
+def opt_in(
+    checkout_only: bool = typer.Option(
+        False,
+        "--checkout-only",
+        help="Enable only this checkout; do not update the remembered default for future checkouts.",
+    ),
+) -> None:
+    """Enable SaaS sync for this checkout."""
+    from specify_cli.sync.routing import enable_checkout_sync
+
+    routing = _require_active_checkout()
+    refreshed = enable_checkout_sync(
+        routing.repo_root,
+        remember_repo_default=not checkout_only,
+    )
+
+    console.print(
+        f"[green]✓[/green] Enabled SaaS sync for this checkout "
+        f"([cyan]{refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid}[/cyan])."
+    )
+    if not checkout_only and refreshed.repo_slug:
+        console.print("[dim]Future checkouts of this repository will also default to sync enabled.[/dim]")
+
+
 def _detect_workspace_context() -> tuple[Path, str | None]:
     """Detect current workspace and feature context.
 
@@ -231,10 +542,11 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
 
     for conflict in conflicts:
         # Format line ranges
-        if conflict.line_ranges:
-            lines = ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges)
-        else:
-            lines = "entire file"
+        lines = (
+            ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges)
+            if conflict.line_ranges
+            else "entire file"
+        )
 
         table.add_row(
             str(conflict.file_path),
@@ -345,7 +657,7 @@ def sync_workspace(
         vcs = get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     console.print("[cyan]Backend:[/cyan] git")
     console.print()
@@ -467,10 +779,8 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
             asyncio.set_event_loop(new_loop)
             access_token = new_loop.run_until_complete(_get_token())
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 asyncio.set_event_loop(None)
-            except Exception:
-                pass
             new_loop.close()
     except AuthenticationError:
         access_token = None
@@ -878,7 +1188,7 @@ def doctor() -> None:
     Examples:
         spec-kitty sync doctor
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from specify_cli.auth import get_token_manager
     from specify_cli.sync.config import SyncConfig

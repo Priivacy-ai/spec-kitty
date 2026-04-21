@@ -26,21 +26,26 @@ from __future__ import annotations
 
 import json
 import logging
+import platform
 import re
+import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-logger = logging.getLogger(__name__)
 
 import ulid
 from rich.console import Console
 
+from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
+
 from .clock import LamportClock
 from .config import SyncConfig
 from .queue import OfflineQueue
-from specify_cli.core.contract_gate import validate_outbound_payload
+from .routing import is_sync_enabled_for_checkout
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .client import WebSocketClient
@@ -118,8 +123,6 @@ def _load_contract_schema() -> dict | None:
 # Each entry maps event_type -> (required_fields, field_validators)
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 
-# Broader ID validation via normalize_event_id (accepts ULID + UUID)
-from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(
     r"^(?:\d{3}-[a-z0-9-]+|[a-z0-9]+(?:-[a-z0-9]+)*-[0-9A-HJKMNP-TV-Z]{8})$"
@@ -155,6 +158,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "branch": _is_nullable_string,
             "head_commit": _is_nullable_string,
             "developer_name": _is_nullable_string,
+            "machine_name": _is_nullable_string,
+            "workspace_path": _is_nullable_string,
         },
     },
     "BuildHeartbeat": {
@@ -169,6 +174,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "branch": _is_nullable_string,
             "head_commit": _is_nullable_string,
             "developer_name": _is_nullable_string,
+            "machine_name": _is_nullable_string,
+            "workspace_path": _is_nullable_string,
             "remote_head": _is_nullable_string,
             "ahead_of_remote": lambda v: isinstance(v, int) and v >= 0,
             "behind_remote": lambda v: isinstance(v, int) and v >= 0,
@@ -429,6 +436,38 @@ class EventEmitter:
             return None
         return None
 
+    @staticmethod
+    def _get_machine_name() -> str | None:
+        """Return a user-facing machine label for build provenance."""
+        try:
+            machine_name = platform.node().strip()
+        except Exception:
+            return None
+        return machine_name or None
+
+    def _get_workspace_path(self) -> str | None:
+        """Return the current checkout root for build provenance."""
+        resolver_root = getattr(self._git_resolver, "repo_root", None)
+        if isinstance(resolver_root, Path):
+            return str(resolver_root.resolve())
+
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                cwd=Path.cwd(),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5,
+                check=False,
+            )
+        except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+            return None
+
+        workspace_path = result.stdout.strip() if result.returncode == 0 else ""
+        return str(Path(workspace_path).resolve()) if workspace_path else None
+
     def get_connection_status(self) -> str:
         """Return current connection status."""
         if self.ws_client is not None:
@@ -454,6 +493,8 @@ class EventEmitter:
             "branch": git_meta.git_branch,
             "head_commit": git_meta.head_commit_sha,
             "developer_name": self._get_developer_name(),
+            "machine_name": self._get_machine_name(),
+            "workspace_path": self._get_workspace_path(),
         }
 
     # ── Event Builders ────────────────────────────────────────────
@@ -801,6 +842,10 @@ class EventEmitter:
     ) -> dict[str, Any] | None:
         """Build, validate, and route an event. Non-blocking: never raises."""
         try:
+            if not is_sync_enabled_for_checkout():
+                logger.debug("Sync disabled for current checkout; dropping %s", event_type)
+                return None
+
             # Tick clock for causal ordering
             clock_value = self.clock.tick()
             logger.debug(

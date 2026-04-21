@@ -197,6 +197,7 @@ class TestBuildLifecycle:
 
     def test_build_registered_emission(self, emitter: EventEmitter, temp_queue):
         """BuildRegistered includes build/project/git identity in payload."""
+        expected_workspace_path = str(Path("/tmp/test-repo").resolve())
         event = emitter.emit_build_registered()
         assert event is not None
         assert event["event_type"] == "BuildRegistered"
@@ -209,9 +210,12 @@ class TestBuildLifecycle:
         assert event["payload"]["branch"] == "test-branch"
         assert event["payload"]["head_commit"] == "a" * 40
         assert event["payload"]["developer_name"] == "Test User"
+        assert event["payload"]["machine_name"]
+        assert event["payload"]["workspace_path"] == expected_workspace_path
 
     def test_build_heartbeat_emission(self, emitter: EventEmitter, temp_queue):
         """BuildHeartbeat carries remote-state deltas when provided."""
+        expected_workspace_path = str(Path("/tmp/test-repo").resolve())
         event = emitter.emit_build_heartbeat(
             remote_head="b" * 40,
             ahead_of_remote=2,
@@ -225,6 +229,7 @@ class TestBuildLifecycle:
         assert event["payload"]["ahead_of_remote"] == 2
         assert event["payload"]["behind_remote"] == 0
         assert event["payload"]["recent_commits"] == ["c" * 40]
+        assert event["payload"]["workspace_path"] == expected_workspace_path
 
 
 class TestWPStatusChanged:

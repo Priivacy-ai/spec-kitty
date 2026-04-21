@@ -75,7 +75,7 @@ def _me_response(
         "name": name,
         "teams": teams
         if teams is not None
-        else [{"id": "t1", "name": "Team One", "role": "owner"}],
+        else [{"id": "t1", "name": "Team One", "role": "owner", "is_private_teamspace": False}],
     }
     if refresh_token_expires_at is not None:
         body["refresh_token_expires_at"] = refresh_token_expires_at
@@ -261,6 +261,26 @@ class TestBuildSession:
         assert session.auth_method == "authorization_code"
         # Refresh expiry comes from the server verbatim (no clock math):
         assert session.refresh_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
+
+    @pytest.mark.asyncio
+    async def test_prefers_private_teamspace_for_default_team_id(self):
+        flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
+        tokens = _token_response(refresh_token_expires_at=_FUTURE_ISO)
+        me = _me_response(
+            teams=[
+                {"id": "t-shared", "name": "Shared Team", "role": "member", "is_private_teamspace": False},
+                {"id": "t-private", "name": "Private Teamspace", "role": "owner", "is_private_teamspace": True},
+            ]
+        )
+
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get.return_value = _mock_httpx_response(200, me)
+
+            session = await flow._build_session(tokens)
+
+        assert session.default_team_id == "t-private"
 
     @pytest.mark.asyncio
     async def test_falls_back_to_expires_in_when_absolute_absent(self):

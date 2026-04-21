@@ -21,17 +21,17 @@ from __future__ import annotations
 
 import atexit
 import asyncio
+import contextlib
 import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import yaml
-
 from specify_cli.core.paths import locate_project_root
 
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+from .routing import is_sync_enabled_for_checkout
 
 if TYPE_CHECKING:
     from .background import BackgroundSyncService
@@ -58,27 +58,16 @@ def _safe_queue_size(queue_obj: object) -> int:
 def _auto_start_enabled() -> bool:
     """Check if sync auto-start is enabled via config.
 
-    Reads .kittify/config.yaml for sync.auto_start setting.
-    Defaults to True if config is missing or invalid.
+    Local checkout overrides win. If none is present, the remembered
+    repository default from ``~/.spec-kitty/config.toml`` is used.
     """
-    project_root = locate_project_root(Path.cwd()) or Path.cwd()
-    config_path = project_root / ".kittify" / "config.yaml"
-    if not config_path.exists():
+    project_root = locate_project_root(Path.cwd())
+    if project_root is None:
         return True
-
     try:
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
-        if config is None:
-            return True
-        sync_config = config.get("sync", {})
-        if sync_config is None:
-            return True
-        auto_start = sync_config.get("auto_start", True)
-        # Handle explicit False only
-        return auto_start is not False
+        return is_sync_enabled_for_checkout(project_root)
     except Exception as e:
-        logger.debug(f"Could not read sync config: {e}")
+        logger.debug(f"Could not resolve sync routing config: {e}")
         return True
 
 
@@ -307,17 +296,13 @@ class SyncRuntime:
             self.background_service = None
 
         if self._async_loop is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._async_loop.call_soon_threadsafe(self._async_loop.stop)
-            except Exception:
-                pass
         if self._async_loop_thread is not None and self._async_loop_thread.is_alive():
             self._async_loop_thread.join(timeout=5.0)
         if self._async_loop is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._async_loop.close()
-            except Exception:
-                pass
         self._async_loop = None
         self._async_loop_thread = None
         self.body_queue = None

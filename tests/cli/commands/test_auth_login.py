@@ -109,12 +109,15 @@ class TestAuthLoginDispatch:
             return None
 
         with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
             "specify_cli.cli.commands._auth_login._run_browser_flow",
             new=AsyncMock(side_effect=_noop),
         ) as mock_browser, patch(
             "specify_cli.cli.commands._auth_login._run_device_flow",
             new=AsyncMock(side_effect=_noop),
         ) as mock_device:
+            mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
         assert result.exit_code == 0, result.stdout
@@ -126,12 +129,15 @@ class TestAuthLoginDispatch:
             return None
 
         with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
             "specify_cli.cli.commands._auth_login._run_browser_flow",
             new=AsyncMock(side_effect=_noop),
         ) as mock_browser, patch(
             "specify_cli.cli.commands._auth_login._run_device_flow",
             new=AsyncMock(side_effect=_noop),
         ) as mock_device:
+            mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login", "--headless"])
 
         assert result.exit_code == 0, result.stdout
@@ -224,41 +230,3 @@ class TestAuthLoginAlreadyAuthenticated:
 
         assert result.exit_code == 0, result.stdout
         assert mock_browser.called
-
-
-# ---------------------------------------------------------------------------
-# Headless without WP05: clear "not yet implemented" error
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.non_sandbox
-class TestAuthLoginHeadlessWithoutWP05:
-
-    def test_headless_without_device_code_module_fails_clearly(self):
-        """Until WP05 ships ``auth.flows.device_code``, --headless must error clearly."""
-        # Ensure no device_code module is importable — if WP05 ships it
-        # in the same lane, this test turns into a no-op once the import
-        # succeeds. We explicitly bypass the cache so the ImportError
-        # branch is exercised.
-        import sys
-
-        dropped = sys.modules.pop("specify_cli.auth.flows.device_code", None)
-        try:
-            with patch(
-                "specify_cli.cli.commands._auth_login.get_token_manager"
-            ) as mock_factory:
-                mock_tm = mock_factory.return_value
-                mock_tm.is_authenticated = False
-                mock_tm.get_current_session.return_value = None
-
-                result = runner.invoke(app, ["login", "--headless"])
-        finally:
-            if dropped is not None:
-                sys.modules["specify_cli.auth.flows.device_code"] = dropped
-
-        # If the module already exists in the worktree (WP05 landed), the
-        # flow succeeds. Otherwise it must exit non-zero with a clear
-        # "not yet implemented" message.
-        if dropped is None:
-            assert result.exit_code != 0
-            assert "not yet implemented" in result.stdout.lower() or "WP05" in result.stdout

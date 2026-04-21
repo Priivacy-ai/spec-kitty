@@ -6,6 +6,7 @@ and JSON failure report export.
 
 import gzip
 import json
+from contextlib import suppress
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, UTC
@@ -35,6 +36,22 @@ CATEGORY_ACTIONS: dict[str, str] = {
     "server_error": "Retry later or check server status",
     "unknown": "Inspect the failure report for details: --report <file.json>",
 }
+
+
+def _current_team_slug() -> str | None:
+    """Return the current team slug from the authenticated session, if any."""
+    try:
+        from specify_cli.auth import get_token_manager
+
+        session = get_token_manager().get_current_session()
+        if session is None or not session.teams:
+            return None
+        for team in session.teams:
+            if team.id == session.default_team_id:
+                return team.id
+        return session.teams[0].id
+    except Exception:
+        return None
 
 
 def categorize_error(error_string: str) -> str:
@@ -355,10 +372,8 @@ def batch_sync(  # noqa: C901
 
     # Validate each event envelope against upstream contract before sending
     for evt in events:
-        try:
+        with suppress(Exception):
             validate_outbound_payload(evt, "envelope")
-        except Exception:
-            pass  # Log-only; don't block batch sync for legacy queued events
 
     # Compress payload with gzip
     payload = json.dumps({"events": events}).encode("utf-8")
@@ -370,6 +385,9 @@ def batch_sync(  # noqa: C901
         "Content-Encoding": "gzip",
         "Content-Type": "application/json",
     }
+    team_slug = _current_team_slug()
+    if team_slug:
+        headers["X-Team-Slug"] = team_slug
 
     batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
 

@@ -44,7 +44,7 @@ from ..errors import (
     AuthenticationError,
     NetworkError,
 )
-from ..session import StorageBackend, StoredSession, Team
+from ..session import StorageBackend, StoredSession, Team, pick_default_team_id
 
 log = logging.getLogger(__name__)
 
@@ -273,7 +273,12 @@ class DeviceCodeFlow:
             ) from exc
 
         teams = [
-            Team(id=t["id"], name=t["name"], role=t["role"])
+            Team(
+                id=t["id"],
+                name=t["name"],
+                role=t["role"],
+                is_private_teamspace=bool(t.get("is_private_teamspace", False)),
+            )
             for t in me.get("teams", [])
         ]
         if not teams:
@@ -281,8 +286,8 @@ class DeviceCodeFlow:
                 "User has no team memberships. Contact your administrator."
             )
         # Client-picked default (see C-011): the SaaS does not return
-        # ``default_team_id``; we pick the first team on first login.
-        default_team_id = teams[0].id
+        # ``default_team_id``; we prefer Private Teamspace when available.
+        default_team_id = pick_default_team_id(teams)
 
         now = datetime.now(UTC)
         try:

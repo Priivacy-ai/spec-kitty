@@ -2,11 +2,14 @@
 
 import gzip
 import json
-import pytest
+import tempfile
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from unittest.mock import Mock, patch
-import tempfile
 
+import pytest
+
+from specify_cli.auth.session import StoredSession, Team
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.batch import batch_sync, sync_all_queued_events, BatchSyncResult
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
@@ -194,6 +197,49 @@ class TestBatchSyncSuccess:
         call_args = mock_post.call_args
         headers = call_args.kwargs["headers"]
         assert headers["Authorization"] == "Bearer my-secret-token"
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_sends_explicit_team_slug_header(self, mock_post, populated_queue, monkeypatch):
+        """Batch sync should route against the session's current team explicitly."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"results": []}
+        mock_post.return_value = mock_response
+
+        now = datetime.now(UTC)
+        fake_tm = Mock()
+        fake_tm.get_current_session.return_value = StoredSession(
+            user_id="user-1",
+            email="robert@example.com",
+            name="Robert",
+            teams=[
+                Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
+                Team(id="product-team", name="Product Team", role="member"),
+            ],
+            default_team_id="private-team",
+            access_token="access",
+            refresh_token="refresh",
+            session_id="sess-1",
+            issued_at=now,
+            access_token_expires_at=now + timedelta(hours=1),
+            refresh_token_expires_at=now + timedelta(days=30),
+            scope="offline_access",
+            storage_backend="file",
+            last_used_at=now,
+            auth_method="authorization_code",
+        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+
+        batch_sync(
+            queue=populated_queue,
+            auth_token="my-secret-token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        call_args = mock_post.call_args
+        headers = call_args.kwargs["headers"]
+        assert headers["X-Team-Slug"] == "private-team"
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_url_construction(self, mock_post, populated_queue):

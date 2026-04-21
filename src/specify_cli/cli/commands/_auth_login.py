@@ -161,7 +161,8 @@ def _print_success(session: StoredSession) -> None:
             None,
         )
         if default_team:
-            console.print(f"  Default team: {default_team.name}")
+            suffix = " [Private Teamspace]" if default_team.is_private_teamspace else ""
+            console.print(f"  Default team: {default_team.name}{suffix}")
 
 
 __all__ = ["login_impl"]

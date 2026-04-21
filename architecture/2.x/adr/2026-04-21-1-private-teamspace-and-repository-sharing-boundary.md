@@ -161,3 +161,15 @@ This decision is validated when all of the following are true:
 
 **Related issue:**
 - `Priivacy-ai/spec-kitty-saas#99`
+
+## Implementation Status (2026-04-21)
+
+The current monorepo implementation now reflects this ADR in the CLI layer:
+
+1. checkout routing resolves to `Private Teamspace` by default
+2. repository sharing is explicit through CLI sync commands
+3. per-checkout opt-in and opt-out persist locally without git-tracked side effects
+4. future new checkouts can inherit a remembered repository-level sync preference
+5. routing visibility exposes the owning user/build plus current shared-team state
+6. opting out can stop ingress immediately and optionally delete already-synced
+   private-only data after explicit confirmation

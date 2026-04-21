@@ -105,6 +105,7 @@ def mock_git_resolver(mock_git_metadata: GitMetadata) -> MagicMock:
     """Mock GitMetadataResolver that returns fixed metadata."""
     resolver = MagicMock(spec=GitMetadataResolver)
     resolver.resolve.return_value = mock_git_metadata
+    resolver.repo_root = Path("/tmp/test-repo")
     return resolver
 
 

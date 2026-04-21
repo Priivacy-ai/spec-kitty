@@ -46,7 +46,7 @@ from ..loopback.callback_handler import CallbackHandler
 from ..loopback.callback_server import CallbackServer
 from ..loopback.state import PKCEState
 from ..loopback.state_manager import StateManager
-from ..session import StorageBackend, StoredSession, Team
+from ..session import StorageBackend, StoredSession, Team, pick_default_team_id
 
 log = logging.getLogger(__name__)
 
@@ -237,8 +237,9 @@ class AuthorizationCodeFlow:
            absolute form is present.
 
         The SaaS does not return ``default_team_id`` (that is a
-        client-picked field — see C-011). The CLI sets it to ``teams[0].id``
-        on first login; a future mission can add
+        client-picked field — see C-011). The CLI prefers the team's
+        ``is_private_teamspace`` membership when present and otherwise falls
+        back to ``teams[0].id`` on first login; a future mission can add
         ``spec-kitty auth set-default-team`` for explicit override.
         """
         url = f"{self._saas_base_url}/api/v1/me"
@@ -263,7 +264,12 @@ class AuthorizationCodeFlow:
             ) from exc
 
         teams = [
-            Team(id=t["id"], name=t["name"], role=t["role"])
+            Team(
+                id=t["id"],
+                name=t["name"],
+                role=t["role"],
+                is_private_teamspace=bool(t.get("is_private_teamspace", False)),
+            )
             for t in me.get("teams", [])
         ]
         if not teams:
@@ -271,8 +277,8 @@ class AuthorizationCodeFlow:
                 "User has no team memberships. Contact your administrator."
             )
         # Client-picked default (see C-011): the SaaS does not return
-        # ``default_team_id``; we pick the first team on first login.
-        default_team_id = teams[0].id
+        # ``default_team_id``; we prefer Private Teamspace when available.
+        default_team_id = pick_default_team_id(teams)
 
         now = datetime.now(UTC)
         try:

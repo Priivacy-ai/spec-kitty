@@ -3,9 +3,9 @@ import json
 import sqlite3
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import toml
 
@@ -472,7 +472,10 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             placeholders = ",".join("?" * len(event_ids))
-            conn.execute(f"DELETE FROM queue WHERE event_id IN ({placeholders})", event_ids)  # nosec B608 — placeholders is "?,?,?" (count-based), no user data in SQL string
+            conn.execute(
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                event_ids,
+            )
             conn.commit()
         finally:
             conn.close()
@@ -491,7 +494,8 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})", event_ids  # nosec B608 — placeholders is "?,?,?" (count-based), no user data in SQL string
+                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                event_ids,
             )
             conn.commit()
         finally:
@@ -523,6 +527,38 @@ class OfflineQueue:
         finally:
             conn.close()
 
+    def remove_project_events(self, project_uuid: str) -> int:
+        """Remove queued events that belong to one project UUID."""
+        if not project_uuid:
+            return 0
+
+        matching_ids: list[str] = []
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute("SELECT event_id, data FROM queue")
+            for event_id, raw_data in cursor:
+                try:
+                    event = json.loads(raw_data)
+                except (TypeError, ValueError):
+                    continue
+                payload = event.get("payload") or {}
+                event_project_uuid = event.get("project_uuid") or payload.get("project_uuid")
+                if str(event_project_uuid or "") == project_uuid:
+                    matching_ids.append(str(event_id))
+
+            if not matching_ids:
+                return 0
+
+            placeholders = ",".join("?" * len(matching_ids))
+            conn.execute(
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                matching_ids,
+            )
+            conn.commit()
+            return len(matching_ids)
+        finally:
+            conn.close()
+
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
         """Process batch sync results: remove synced/duplicate, bump retry for failures.
 
@@ -547,13 +583,13 @@ class OfflineQueue:
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 conn.execute(
-                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # nosec B608 — placeholders is "?,?,?" (count-based), no user data in SQL string
+                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                     synced_or_duplicate,
                 )
             if rejected:
                 placeholders = ",".join("?" * len(rejected))
                 conn.execute(
-                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # nosec B608 — placeholders is "?,?,?" (count-based), no user data in SQL string
+                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                     rejected,
                 )
             conn.commit()

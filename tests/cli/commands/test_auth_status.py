@@ -88,7 +88,7 @@ def _make_session(
     now = datetime.now(UTC)
     if teams is None:
         teams = [
-            Team(id="tm_acme", name="Acme Corp", role="admin"),
+            Team(id="tm_acme", name="Acme Corp", role="admin", is_private_teamspace=True),
             Team(id="tm_widgets", name="Widgets Inc", role="member"),
         ]
     refresh_exp: datetime | None
@@ -318,6 +318,7 @@ class TestAuthStatusCommand:
         # Teams with default marker
         assert "Acme Corp" in result.stdout
         assert "Widgets Inc" in result.stdout
+        assert "private" in result.stdout
         assert "default" in result.stdout  # default-team marker
         # Expiry — access ~1 hour, refresh 89 days
         assert "1 hour" in result.stdout

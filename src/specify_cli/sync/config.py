@@ -1,6 +1,6 @@
 """Sync configuration management"""
 import sys
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,7 @@ from specify_cli.core.atomic import atomic_write
 from .queue import DEFAULT_MAX_QUEUE_SIZE
 
 
-class BackgroundDaemonPolicy(str, Enum):
+class BackgroundDaemonPolicy(StrEnum):
     """Policy controlling how the background sync daemon is started."""
 
     AUTO = "auto"
@@ -126,4 +126,38 @@ class SyncConfig:
         if "sync" not in config:
             config["sync"] = {}
         config["sync"]["background_daemon"] = policy.value
+        self._save(config)
+
+    def get_repository_sync_enabled(self, repo_slug: str) -> bool | None:
+        """Return the remembered default sync preference for a repository.
+
+        Preferences are stored under:
+
+            [sync.repo_defaults."<repo-slug>"]
+            enabled = true | false
+
+        Returns ``None`` when no preference has been recorded.
+        """
+        config = self._load()
+        repo_defaults = config.get("sync", {}).get("repo_defaults", {})
+        if not isinstance(repo_defaults, dict):
+            return None
+        entry = repo_defaults.get(repo_slug)
+        if not isinstance(entry, dict):
+            return None
+        enabled = entry.get("enabled")
+        if isinstance(enabled, bool):
+            return enabled
+        return None
+
+    def set_repository_sync_enabled(self, repo_slug: str, enabled: bool) -> None:
+        """Persist the default sync preference for future checkouts of a repo."""
+        config = self._load()
+        if "sync" not in config:
+            config["sync"] = {}
+        repo_defaults = config["sync"].setdefault("repo_defaults", {})
+        if not isinstance(repo_defaults, dict):
+            repo_defaults = {}
+            config["sync"]["repo_defaults"] = repo_defaults
+        repo_defaults[repo_slug] = {"enabled": bool(enabled)}
         self._save(config)

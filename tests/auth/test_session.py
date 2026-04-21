@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 
-from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.session import StoredSession, Team, pick_default_team_id
 
 
 def _now() -> datetime:
@@ -34,7 +34,7 @@ def _make_session(
         email="jane@example.com",
         name="Jane Doe",
         teams=[
-            Team(id="team-1", name="Primary", role="owner"),
+            Team(id="team-1", name="Primary", role="owner", is_private_teamspace=True),
             Team(id="team-2", name="Secondary", role="member"),
         ],
         default_team_id="team-1",
@@ -137,8 +137,24 @@ def test_touch_updates_last_used_at():
 
 
 def test_team_roundtrip():
-    t = Team(id="team-x", name="Team X", role="admin")
+    t = Team(id="team-x", name="Team X", role="admin", is_private_teamspace=True)
     assert Team.from_dict(t.to_dict()) == t
+
+
+def test_pick_default_team_id_prefers_private_teamspace():
+    teams = [
+        Team(id="team-1", name="Shared", role="member"),
+        Team(id="team-2", name="Private", role="owner", is_private_teamspace=True),
+    ]
+    assert pick_default_team_id(teams) == "team-2"
+
+
+def test_pick_default_team_id_falls_back_to_first_team():
+    teams = [
+        Team(id="team-1", name="Shared", role="member"),
+        Team(id="team-2", name="Shared 2", role="owner"),
+    ]
+    assert pick_default_team_id(teams) == "team-1"
 
 
 def test_no_hardcoded_90_days_in_session_module():

@@ -257,6 +257,22 @@ class OfflineBodyUploadQueue:
         finally:
             conn.close()
 
+    def remove_project_tasks(self, project_uuid: str) -> int:
+        """Remove queued body uploads for a specific project UUID."""
+        if not project_uuid:
+            return 0
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "DELETE FROM body_upload_queue WHERE project_uuid = ?",
+                (project_uuid,),
+            )
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+
     def size(self) -> int:
         """Get current body queue size."""
         conn = sqlite3.connect(self.db_path)

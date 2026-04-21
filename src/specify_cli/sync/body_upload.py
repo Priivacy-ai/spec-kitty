@@ -13,8 +13,11 @@ from kernel._safe_re import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from specify_cli.core.paths import locate_project_root
+
 from .body_queue import BodyEnqueueResult
 from .namespace import UploadOutcome, UploadStatus, is_supported_format
+from .routing import is_sync_enabled_for_checkout
 
 if TYPE_CHECKING:
     from specify_cli.dossier.models import ArtifactRef
@@ -141,6 +144,17 @@ def prepare_body_uploads(
     Returns a list of UploadOutcome for every artifact processed
     (including skipped ones for diagnostics per FR-012).
     """
+    repo_root = locate_project_root(feature_dir)
+    if repo_root is not None and not is_sync_enabled_for_checkout(repo_root):
+        return [
+            UploadOutcome(
+                artifact_path=artifact.relative_path,
+                status=UploadStatus.SKIPPED,
+                reason="sync_disabled",
+            )
+            for artifact in artifacts
+        ]
+
     outcomes: list[UploadOutcome] = []
 
     for artifact in artifacts:

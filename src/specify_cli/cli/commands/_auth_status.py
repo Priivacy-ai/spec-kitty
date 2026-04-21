@@ -113,11 +113,12 @@ def _print_teams(session: StoredSession) -> None:
     console.print("  Teams:")
     for team in session.teams:
         is_default = team.id == session.default_team_id
-        # Parens (not square brackets) because Rich treats bracketed
-        # tokens as style markup — ``[default]`` would be consumed as a
-        # color name and silently stripped. ``(default)`` is also more
-        # readable in a plain terminal.
-        marker = " [dim](default)[/dim]" if is_default else ""
+        marker_parts: list[str] = []
+        if team.is_private_teamspace:
+            marker_parts.append("private")
+        if is_default:
+            marker_parts.append("default")
+        marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
         console.print(f"    - {team.name} ({team.role}){marker}")
 
 

@@ -14,8 +14,9 @@ Important field contracts (spec 080 §7.1, contracts/saas-amendment-refresh-ttl.
   (constraint C-012). The CLI NEVER hardcodes a TTL — if the server does not
   communicate refresh-token expiry, the client learns about expiry from a
   ``400 invalid_grant`` response during refresh (decision D-9).
-- ``default_team_id`` is picked by the CLI client (from ``teams[0].id`` or from
-  an explicit user selection), not supplied by the server.
+- ``default_team_id`` is picked by the CLI client (preferring the team's
+  ``is_private_teamspace`` flag, otherwise ``teams[0].id`` or an explicit user
+  selection), not supplied by the server.
 """
 
 from __future__ import annotations
@@ -39,13 +40,30 @@ class Team:
     id: str
     name: str
     role: str  # "admin" | "member" | "owner" | ...
+    is_private_teamspace: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Team:
-        return cls(id=data["id"], name=data["name"], role=data["role"])
+        return cls(
+            id=data["id"],
+            name=data["name"],
+            role=data["role"],
+            is_private_teamspace=bool(data.get("is_private_teamspace", False)),
+        )
+
+
+def pick_default_team_id(teams: list[Team]) -> str:
+    """Return the preferred default team id for a new session.
+
+    Private Teamspace wins when present; otherwise preserve the legacy first-team fallback.
+    """
+    for team in teams:
+        if team.is_private_teamspace:
+            return team.id
+    return teams[0].id
 
 
 @dataclass
