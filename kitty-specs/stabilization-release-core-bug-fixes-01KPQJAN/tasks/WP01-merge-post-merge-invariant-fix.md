@@ -23,7 +23,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '56480'
+shell_pid: "56480"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP01
 authoritative_surface: src/specify_cli/cli/commands/merge.py
@@ -254,3 +255,7 @@ Verify:
 2. The error message for `??`-only violations was not accidentally suppressed — `??`-only output means `offending_lines` is empty, which correctly skips the error block entirely.
 3. The message for deletion/modification failures mentions `sparse-checkout`; the message for other unexpected states does not.
 4. Regression tests cover the mixed case (untracked + tracked in same status output).
+
+## Activity Log
+
+- 2026-04-21T09:19:08Z – claude:sonnet:implementer:implementer – shell_pid=56480 – Assigned agent via action command
