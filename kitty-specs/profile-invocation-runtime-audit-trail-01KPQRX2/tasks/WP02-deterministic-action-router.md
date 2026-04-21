@@ -15,6 +15,8 @@ subtasks:
 - T008
 - T009
 - T010
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "76739"
 history:
 - date: '2026-04-21'
   event: created
@@ -441,3 +443,7 @@ def test_adr3_document_exists():
 3. Verify no `httpx`, `anthropic`, or LLM client import anywhere in `router.py`.
 4. Verify `ActionRouterPlugin` is a no-op Protocol (no methods, not called).
 5. Verify routing_priority tiebreaker works correctly in the ambiguity case.
+
+## Activity Log
+
+- 2026-04-21T12:09:47Z – claude:sonnet-4-6:implementer:implementer – shell_pid=76739 – Started implementation via action command
