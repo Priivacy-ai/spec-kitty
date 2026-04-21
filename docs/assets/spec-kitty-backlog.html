@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec Kitty — Public Backlog &amp; Direction</title>
+<style>
+:root {
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --bg: #A7C7E7;
+  --bg-grid: rgba(123, 182, 97, 0.05);
+  --surface: #FFFDF7;
+  --surface-elevated: #fff;
+  --surface-recessed: #f0eeea;
+  --border: rgba(44, 62, 80, 0.1);
+  --border-bright: rgba(44, 62, 80, 0.18);
+  --text: #2c3e50;
+  --text-bright: #1a252f;
+  --text-dim: #546e7a;
+
+  --saas: #0e7490;
+  --saas-dim: rgba(14, 116, 144, 0.12);
+  --doctrine: #b8860b;
+  --doctrine-dim: rgba(255, 242, 117, 0.3);
+  --ui: #8b5ea7;
+  --ui-dim: rgba(201, 160, 220, 0.2);
+  --agent: #3d8b37;
+  --agent-dim: rgba(123, 182, 97, 0.18);
+  --intake: #c2410c;
+  --intake-dim: rgba(255, 216, 177, 0.3);
+  --workflow: #2563a8;
+  --workflow-dim: rgba(167, 199, 231, 0.3);
+  --arch: #4338a0;
+  --arch-dim: rgba(67, 56, 160, 0.1);
+  --bugs: #c0392b;
+  --bugs-dim: rgba(192, 57, 43, 0.1);
+  --win: #0284c7;
+  --win-dim: rgba(2, 132, 199, 0.1);
+
+  --green: #3d8b37;
+  --green-dim: rgba(123, 182, 97, 0.18);
+  --red: #c0392b;
+  --red-dim: rgba(192, 57, 43, 0.1);
+  --amber: #c2410c;
+  --amber-dim: rgba(255, 216, 177, 0.25);
+
+  --sunny-yellow: #FFF275;
+  --grassy-green: #7BB661;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18222c;
+    --bg-grid: rgba(143, 201, 122, 0.03);
+    --surface: #1e2832;
+    --surface-elevated: #243040;
+    --surface-recessed: #141c24;
+    --border: rgba(232, 238, 244, 0.1);
+    --border-bright: rgba(232, 238, 244, 0.18);
+    --text: #e8eef4;
+    --text-bright: #f0f4f8;
+    --text-dim: #9aacbc;
+
+    --saas: #22d3ee;
+    --saas-dim: rgba(34, 211, 238, 0.12);
+    --doctrine: #e6d45a;
+    --doctrine-dim: rgba(230, 212, 90, 0.12);
+    --ui: #c09edb;
+    --ui-dim: rgba(192, 158, 219, 0.12);
+    --agent: #8fc97a;
+    --agent-dim: rgba(143, 201, 122, 0.12);
+    --intake: #e6a070;
+    --intake-dim: rgba(230, 160, 112, 0.12);
+    --workflow: #7db8e8;
+    --workflow-dim: rgba(125, 184, 232, 0.12);
+    --arch: #a5a0f0;
+    --arch-dim: rgba(165, 160, 240, 0.1);
+    --bugs: #e57373;
+    --bugs-dim: rgba(229, 115, 115, 0.12);
+    --win: #38bdf8;
+    --win-dim: rgba(56, 189, 248, 0.1);
+
+    --green: #8fc97a;
+    --green-dim: rgba(143, 201, 122, 0.12);
+    --red: #e57373;
+    --red-dim: rgba(229, 115, 115, 0.12);
+    --amber: #e6a070;
+    --amber-dim: rgba(230, 160, 112, 0.12);
+
+    --sunny-yellow: #e6d45a;
+    --grassy-green: #8fc97a;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 40px;
+  overflow-wrap: break-word;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0 36px;
+}
+.main { min-width: 0; }
+
+/* ── Nav Bar ── */
+.page-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 300;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 40px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.page-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-right: 16px;
+  font-size: 12px;
+  text-decoration: none;
+}
+.page-nav__logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(123, 182, 97, 0.3);
+  background: #fff;
+  padding: 2px;
+}
+.page-nav a {
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 5px;
+  transition: all 0.15s;
+}
+.page-nav a:hover { color: var(--text); background: var(--surface); }
+.page-nav a.active { color: var(--text-bright); background: var(--surface); }
+body { padding-top: 56px; }
+
+/* ── TOC ── */
+.toc {
+  position: sticky;
+  top: 56px;
+  align-self: start;
+  padding: 14px 0;
+  grid-row: 1 / -1;
+  max-height: calc(100dvh - 72px);
+  overflow-y: auto;
+}
+.toc::-webkit-scrollbar { width: 3px; }
+.toc::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+.toc-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  padding: 0 0 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.toc a {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  line-height: 1.4;
+  margin-bottom: 1px;
+}
+.toc a:hover { color: var(--text); background: var(--surface); }
+.toc a.active { color: var(--text-bright); border-left-color: var(--grassy-green); background: rgba(123, 182, 97, 0.12); }
+
+/* ── Hero ── */
+.hero {
+  padding: 48px 0 40px;
+  margin-bottom: 48px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100px; right: -100px; bottom: 0;
+  background: radial-gradient(ellipse at 30% 40%, var(--workflow-dim) 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 60%, var(--doctrine-dim) 0%, transparent 40%);
+  pointer-events: none;
+}
+.hero-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--grassy-green);
+  margin-bottom: 12px;
+  position: relative;
+}
+.hero h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  color: var(--grassy-green);
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+  position: relative;
+}
+.hero-sub {
+  font-size: 16px;
+  color: var(--text-dim);
+  max-width: 650px;
+  position: relative;
+}
+
+/* ── KPI Row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 28px 0 0;
+  position: relative;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  border-top: 3px solid var(--sunny-yellow);
+  padding: 14px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  animation: fadeScale 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+}
+.kpi-card__value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-card__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Section Heads ── */
+.sec-head {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 48px 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  scroll-margin-top: 70px;
+}
+.sec-head .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sec-head .count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* ── Theme Cards ── */
+.theme-intro {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 16px;
+  line-height: 1.6;
+  max-width: 800px;
+}
+.issue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
+  margin-bottom: 32px;
+}
+.issue-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  animation: fadeUp 0.35s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.03s);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.issue-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.issue-card__num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  padding-top: 1px;
+  min-width: 32px;
+}
+.issue-card__body { min-width: 0; }
+.issue-card__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-bright);
+  line-height: 1.4;
+}
+.issue-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.tag--p0 { background: var(--red-dim); color: var(--red); }
+.tag--p1 { background: var(--amber-dim); color: var(--amber); }
+.tag--epic { background: var(--workflow-dim); color: var(--workflow); }
+.tag--spike { background: var(--doctrine-dim); color: var(--doctrine); }
+.tag--adr { background: var(--arch-dim); color: var(--arch); }
+.tag--bug { background: var(--red-dim); color: var(--red); }
+.tag--sec { background: rgba(192,57,43,0.15); color: var(--red); font-weight: 700; }
+
+/* Per-theme section coloring */
+.sec-head--saas { background: var(--saas-dim); color: var(--saas); border: 1px solid rgba(14,116,144,0.18); }
+.sec-head--doctrine { background: var(--doctrine-dim); color: var(--doctrine); border: 1px solid rgba(184,134,11,0.18); }
+.sec-head--ui { background: var(--ui-dim); color: var(--ui); border: 1px solid rgba(139,94,167,0.14); }
+.sec-head--agent { background: var(--agent-dim); color: var(--agent); border: 1px solid rgba(61,139,55,0.18); }
+.sec-head--intake { background: var(--intake-dim); color: var(--intake); border: 1px solid rgba(194,65,12,0.14); }
+.sec-head--workflow { background: var(--workflow-dim); color: var(--workflow); border: 1px solid rgba(37,99,168,0.18); }
+.sec-head--arch { background: var(--arch-dim); color: var(--arch); border: 1px solid rgba(67,56,160,0.14); }
+.sec-head--bugs { background: var(--bugs-dim); color: var(--bugs); border: 1px solid rgba(192,57,43,0.14); }
+.sec-head--win { background: var(--win-dim); color: var(--win); border: 1px solid rgba(2,132,199,0.14); }
+
+.issue-card--saas { border-left: 3px solid var(--saas); }
+.issue-card--doctrine { border-left: 3px solid var(--doctrine); }
+.issue-card--ui { border-left: 3px solid var(--ui); }
+.issue-card--agent { border-left: 3px solid var(--agent); }
+.issue-card--intake { border-left: 3px solid var(--intake); }
+.issue-card--workflow { border-left: 3px solid var(--workflow); }
+.issue-card--arch { border-left: 3px solid var(--arch); }
+.issue-card--bugs { border-left: 3px solid var(--bugs); }
+.issue-card--win { border-left: 3px solid var(--win); }
+
+/* ── Direction Summary ── */
+.direction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 20px 0 32px;
+}
+.direction-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  border-top: 3px solid;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  animation: fadeUp 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 0.06s);
+}
+.direction-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+.direction-card__desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.direction-card__count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1000px) {
+  .wrap { grid-template-columns: 1fr; padding-top: 0; }
+  body { padding: 20px; padding-top: 56px; }
+  .toc {
+    position: sticky;
+    top: 44px;
+    z-index: 200;
+    max-height: none;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    grid-row: auto;
+  }
+  .toc::-webkit-scrollbar { display: none; }
+  .toc-title { display: none; }
+  .toc a {
+    white-space: nowrap;
+    flex-shrink: 0;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 4px 4px 0 0;
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+  .toc a.active { border-left: none; border-bottom-color: var(--grassy-green); background: var(--surface); }
+  .main { padding-top: 20px; }
+  .sec-head { scroll-margin-top: 100px; }
+  .issue-grid { grid-template-columns: 1fr; }
+  .page-nav { padding: 6px 20px; }
+}
+@media (max-width: 600px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .direction-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Page Nav ── -->
+<nav class="page-nav">
+  <a class="page-nav__brand" href="spec-kitty-evolution-v1-to-v3.html">
+    <img class="page-nav__logo" src="images/logo_small.webp" alt="Spec Kitty logo">
+    Spec Kitty
+  </a>
+  <a href="spec-kitty-evolution-v1-to-v3.html">v1 to v3 Evolution</a>
+  <a href="spec-kitty-backlog.html" class="active">Public Backlog</a>
+</nav>
+
+<div class="wrap">
+
+<nav class="toc" id="toc">
+  <div class="toc-title">Backlog</div>
+  <a href="#hero">Overview</a>
+  <a href="#s0">Direction Summary</a>
+  <a href="#s1">SaaS Platform</a>
+  <a href="#s2">Doctrine &amp; Knowledge</a>
+  <a href="#s3">Dashboard &amp; UI</a>
+  <a href="#s4">Agent Ecosystem</a>
+  <a href="#s5">Intake Pipeline</a>
+  <a href="#s6">Workflow Engine</a>
+  <a href="#s7">Architecture</a>
+  <a href="#s8">P0/P1 Bugs</a>
+  <a href="#s9">Windows</a>
+</nav>
+
+<div class="main">
+
+<!-- ════════ HERO ════════ -->
+<div class="hero" id="hero">
+  <div class="hero-label">Public Backlog Snapshot</div>
+  <h1>Where Spec Kitty Is Headed</h1>
+  <p class="hero-sub">The open backlog organized into thematic feature sets, showing the direction of the project. Based on 96 open issues as of April 21, 2026.</p>
+
+  <div class="kpi-row">
+    <div class="kpi-card" style="--i:0">
+      <div class="kpi-card__value" style="color:var(--red)">96</div>
+      <div class="kpi-card__label">Open Issues</div>
+    </div>
+    <div class="kpi-card" style="--i:1">
+      <div class="kpi-card__value" style="color:var(--amber)">14</div>
+      <div class="kpi-card__label">P0/P1 Bugs</div>
+    </div>
+    <div class="kpi-card" style="--i:2">
+      <div class="kpi-card__value" style="color:var(--workflow)">5</div>
+      <div class="kpi-card__label">Epics</div>
+    </div>
+    <div class="kpi-card" style="--i:3">
+      <div class="kpi-card__value" style="color:var(--doctrine)">9</div>
+      <div class="kpi-card__label">Themes</div>
+    </div>
+    <div class="kpi-card" style="--i:4">
+      <div class="kpi-card__value" style="color:var(--arch)">8</div>
+      <div class="kpi-card__label">ADRs Pending</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ DIRECTION SUMMARY ════════ -->
+<div id="s0" class="sec-head" style="background:var(--workflow-dim); color:var(--workflow); border:1px solid rgba(37,99,168,0.18)"><span class="dot" style="background:var(--workflow)"></span> Direction at a Glance</div>
+
+<div class="direction-grid">
+  <div class="direction-card" style="border-top-color:var(--saas); --i:0">
+    <div class="direction-card__title">SaaS Platform</div>
+    <div class="direction-card__desc">Browser-mediated auth, PKCE login, keychain token management, teamspace privacy controls. Moving from CLI-only to a connected platform.</div>
+    <div class="direction-card__count" style="color:var(--saas)">9 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--doctrine); --i:1">
+    <div class="direction-card__title">Doctrine &amp; Knowledge Graph</div>
+    <div class="direction-card__desc">Charter provenance, glossary entity pages with backlinks, decay detection, explain queries with citations. Building institutional memory into the tool.</div>
+    <div class="direction-card__count" style="color:var(--doctrine)">19 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--ui); --i:2">
+    <div class="direction-card__title">Dashboard &amp; UI/UX</div>
+    <div class="direction-card__desc">Frontend decoupling from Python CLI, shared design system, agent avatars, static site generation, charter exploration UI. Moving toward a standalone web experience.</div>
+    <div class="direction-card__count" style="color:var(--ui)">8 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--agent); --i:3">
+    <div class="direction-card__title">Agent Ecosystem</div>
+    <div class="direction-card__desc">Mistral Vibe and Google Antigravity support, Opencode hardening, Gemini TOML shims, Codex consistency. Expanding beyond the original 12 agents.</div>
+    <div class="direction-card__count" style="color:var(--agent)">5 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--intake); --i:4">
+    <div class="direction-card__title">Intake Pipeline</div>
+    <div class="direction-card__desc">Mission brief security hardening (path traversal, symlink escape, atomic writes, OOM cap), intake CLI commands, and brief integrity. Securing the entry point.</div>
+    <div class="direction-card__count" style="color:var(--intake)">11 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--workflow); --i:5">
+    <div class="direction-card__title">Workflow Engine</div>
+    <div class="direction-card__desc">Composable sequencing, ticket intake from Jira/Linear/GitHub/GitLab, post-merge follow-ups, merge driver for event logs, mission correction workflow.</div>
+    <div class="direction-card__count" style="color:var(--workflow)">12 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--arch); --i:6">
+    <div class="direction-card__title">Architecture &amp; Quality</div>
+    <div class="direction-card__desc">Module boundary extraction, encoding audit, Sonar quality gates, mutation testing, runtime internalization. Hardening the foundation.</div>
+    <div class="direction-card__count" style="color:var(--arch)">7 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--bugs); --i:7">
+    <div class="direction-card__title">P0/P1 Bug Fixes</div>
+    <div class="direction-card__desc">Status emission ordering, worktree root resolution, upgrade safety, merge invariants, review-cycle inflation. Critical workflow blockers.</div>
+    <div class="direction-card__count" style="color:var(--bugs)">14 issues</div>
+  </div>
+  <div class="direction-card" style="border-top-color:var(--win); --i:8">
+    <div class="direction-card__title">Windows Compatibility</div>
+    <div class="direction-card__desc">Symlink fallback tests, shell=True removal, MCP worktree workaround. Cross-platform parity.</div>
+    <div class="direction-card__count" style="color:var(--win)">3 issues</div>
+  </div>
+</div>
+
+<!-- ════════ SAAS PLATFORM ════════ -->
+<div id="s1" class="sec-head sec-head--saas"><span class="dot" style="background:var(--saas)"></span> SaaS Platform &amp; Authentication <span class="count">9 issues</span></div>
+<p class="theme-intro">The CLI is evolving toward a connected platform with browser-mediated authentication, teamspace-scoped access control, and centralized token management. This replaces the legacy password-based auth entirely.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--saas" style="--i:0"><div class="issue-card__num">#559</div><div class="issue-card__body"><div class="issue-card__title">Epic: browser-mediated CLI auth against spec-kitty-saas</div><div class="issue-card__tags"><span class="tag tag--epic">epic</span></div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:1"><div class="issue-card__num">#561</div><div class="issue-card__body"><div class="issue-card__title">Replace password login with browser PKCE login and device-code fallback</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:2"><div class="issue-card__num">#562</div><div class="issue-card__body"><div class="issue-card__title">Introduce centralized TokenManager and keychain-backed session storage</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:3"><div class="issue-card__num">#564</div><div class="issue-card__body"><div class="issue-card__title">Rewire sync, tracker, and websocket clients to the centralized auth transport</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:4"><div class="issue-card__num">#565</div><div class="issue-card__body"><div class="issue-card__title">Remove password-era CLI auth code, tests, and token assumptions</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:5"><div class="issue-card__num">#617</div><div class="issue-card__body"><div class="issue-card__title">Wire MissionAudit and operator-override event families across CLI, events, and SaaS</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:6"><div class="issue-card__num">#717</div><div class="issue-card__body"><div class="issue-card__title">Token refresh failures should be silent or deduplicated per session</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:7"><div class="issue-card__num">#738</div><div class="issue-card__body"><div class="issue-card__title">Default new checkouts to Private Teamspace and add repository share routing</div></div></div>
+  <div class="issue-card issue-card--saas" style="--i:8"><div class="issue-card__num">#739</div><div class="issue-card__body"><div class="issue-card__title">Persist per-checkout Teamspace opt-out and future checkout share preference</div></div></div>
+</div>
+
+<!-- ════════ DOCTRINE ════════ -->
+<div id="s2" class="sec-head sec-head--doctrine"><span class="dot" style="background:var(--doctrine)"></span> Doctrine &amp; Knowledge Graph <span class="count">19 issues</span></div>
+<p class="theme-intro">Building institutional memory into the tool: charter provenance tracking, glossary as a first-class module with entity pages and backlinks, decay detection, explain queries with citations, and composable workflow sequencing driven by doctrine.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--doctrine" style="--i:0"><div class="issue-card__num">#701</div><div class="issue-card__body"><div class="issue-card__title">EPIC: Minimal Viable Trail for Every Spec Kitty Action</div><div class="issue-card__tags"><span class="tag tag--epic">epic</span></div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:1"><div class="issue-card__num">#534</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty explain: query surface with citations</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:2"><div class="issue-card__num">#533</div><div class="issue-card__body"><div class="issue-card__title">charter lint: graph-native feature-level decay detection</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:3"><div class="issue-card__num">#532</div><div class="issue-card__body"><div class="issue-card__title">Glossary entity pages with two-way backlinks</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:4"><div class="issue-card__num">#531</div><div class="issue-card__body"><div class="issue-card__title">Configure model selection</div><div class="issue-card__tags"><span class="tag tag--spike">agent-profiles</span></div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:5"><div class="issue-card__num">#535</div><div class="issue-card__body"><div class="issue-card__title">Karpathy wiki patterns -- remaining 5 ideas not yet scheduled</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:6"><div class="issue-card__num">#590</div><div class="issue-card__body"><div class="issue-card__title">Caveman response mode for efficiency</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:7"><div class="issue-card__num">#613</div><div class="issue-card__body"><div class="issue-card__title">Establish glossary as a clearly owned functional module</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:8"><div class="issue-card__num">#682</div><div class="issue-card__body"><div class="issue-card__title">Composable workflow sequencing</div><div class="issue-card__tags"><span class="tag tag--spike">doctrine</span></div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:9"><div class="issue-card__num">#691</div><div class="issue-card__body"><div class="issue-card__title">[ADR-6] Harness-owned generated-artifact charter synthesis handoff</div><div class="issue-card__tags"><span class="tag tag--adr">ADR</span></div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:10"><div class="issue-card__num">#510</div><div class="issue-card__body"><div class="issue-card__title">Per-mission action surface calibration pass</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:11"><div class="issue-card__num">#511</div><div class="issue-card__body"><div class="issue-card__title">Cross-mission retrospective summary view</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:12"><div class="issue-card__num">#512</div><div class="issue-card__body"><div class="issue-card__title">src/doctrine/versioning.py compatibility registry + first migration</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:13"><div class="issue-card__num">#513</div><div class="issue-card__body"><div class="issue-card__title">Per-artifact + bundle schema_version</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:14"><div class="issue-card__num">#514</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty charter status --provenance command</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:15"><div class="issue-card__num">#515</div><div class="issue-card__body"><div class="issue-card__title">Provenance sidecar hardening</div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:16"><div class="issue-card__num">#518</div><div class="issue-card__body"><div class="issue-card__title">[ADR-1] DRG storage format -- YAML vs JSON</div><div class="issue-card__tags"><span class="tag tag--adr">ADR</span></div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:17"><div class="issue-card__num">#519</div><div class="issue-card__body"><div class="issue-card__title">[ADR-3] Profile action router design</div><div class="issue-card__tags"><span class="tag tag--adr">ADR</span></div></div></div>
+  <div class="issue-card issue-card--doctrine" style="--i:18"><div class="issue-card__num">#520</div><div class="issue-card__body"><div class="issue-card__title">[ADR-5] Glossary chokepoint p95 target measurement</div><div class="issue-card__tags"><span class="tag tag--adr">ADR</span></div></div></div>
+</div>
+
+<!-- ════════ DASHBOARD & UI ════════ -->
+<div id="s3" class="sec-head sec-head--ui"><span class="dot" style="background:var(--ui)"></span> Dashboard &amp; UI/UX <span class="count">8 issues</span></div>
+<p class="theme-intro">Decoupling the dashboard from the Python CLI into a standalone frontend with a shared design system, agent profile avatars, charter exploration UI, and static site generation for project history and roadmaps.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--ui" style="--i:0"><div class="issue-card__num">#645</div><div class="issue-card__body"><div class="issue-card__title">Epic: Frontend Decoupling and Application API Platform</div><div class="issue-card__tags"><span class="tag tag--epic">epic</span></div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:1"><div class="issue-card__num">#650</div><div class="issue-card__body"><div class="issue-card__title">Epic: UI/UX and Shared Design System</div><div class="issue-card__tags"><span class="tag tag--epic">epic</span></div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:2"><div class="issue-card__num">#651</div><div class="issue-card__body"><div class="issue-card__title">Epic: Public Site and Documentation Experience</div><div class="issue-card__tags"><span class="tag tag--epic">epic</span></div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:3"><div class="issue-card__num">#646</div><div class="issue-card__body"><div class="issue-card__title">Extract Shared Design System and Style Bundle</div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:4"><div class="issue-card__num">#647</div><div class="issue-card__body"><div class="issue-card__title">Add Agent Profile Avatars to Work-Package Cards</div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:5"><div class="issue-card__num">#648</div><div class="issue-card__body"><div class="issue-card__title">Static Project Site Generation for History, Vision, Roadmap, and Glossary</div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:6"><div class="issue-card__num">#649</div><div class="issue-card__body"><div class="issue-card__title">Doctrine / Charter Exploration UI</div></div></div>
+  <div class="issue-card issue-card--ui" style="--i:7"><div class="issue-card__num">#667</div><div class="issue-card__body"><div class="issue-card__title">Add routes to dashboard URL and a slash command to open kanban</div></div></div>
+</div>
+
+<!-- ════════ AGENT ECOSYSTEM ════════ -->
+<div id="s4" class="sec-head sec-head--agent"><span class="dot" style="background:var(--agent)"></span> Agent Ecosystem Expansion <span class="count">5 issues</span></div>
+<p class="theme-intro">Expanding from 12 to 15 agents with Mistral Vibe, Google Antigravity, and Kiro support. Hardening existing integrations for Opencode, Gemini TOML shims, and Codex path consistency.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--agent" style="--i:0"><div class="issue-card__num">#624</div><div class="issue-card__body"><div class="issue-card__title">Design spike: add support for Mistral Vibe CLI as a supported coding agent</div><div class="issue-card__tags"><span class="tag tag--spike">design-spike</span></div></div></div>
+  <div class="issue-card issue-card--agent" style="--i:1"><div class="issue-card__num">#582</div><div class="issue-card__body"><div class="issue-card__title">Harden implement-review orchestration for Opencode and shared-lane workflows</div></div></div>
+  <div class="issue-card issue-card--agent" style="--i:2"><div class="issue-card__num">#673</div><div class="issue-card__body"><div class="issue-card__title">Gemini CLI shims are generated in Markdown instead of TOML</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--agent" style="--i:3"><div class="issue-card__num">#702</div><div class="issue-card__body"><div class="issue-card__title">Codex integration inconsistent across install path, .gitignore, docs, and CLI</div></div></div>
+  <div class="issue-card issue-card--agent" style="--i:4"><div class="issue-card__num">#665</div><div class="issue-card__body"><div class="issue-card__title">Brownfield investigation skill with hierarchical architecture and best-practice references</div></div></div>
+</div>
+
+<!-- ════════ INTAKE PIPELINE ════════ -->
+<div id="s5" class="sec-head sec-head--intake"><span class="dot" style="background:var(--intake)"></span> Intake Pipeline Hardening <span class="count">11 issues</span></div>
+<p class="theme-intro">Security and reliability hardening of the mission intake system: path traversal prevention, symlink escape, atomic writes, OOM guards on large files, and brief integrity verification. Several of these are security-sensitive.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--intake" style="--i:0"><div class="issue-card__num">#724</div><div class="issue-card__body"><div class="issue-card__title">source_file path interpolated into HTML comment without sanitization -- prompt injection</div><div class="issue-card__tags"><span class="tag tag--sec">security</span></div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:1"><div class="issue-card__num">#720</div><div class="issue-card__body"><div class="issue-card__title">scan_for_plans does not verify resolved paths stay within cwd (path traversal)</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span><span class="tag tag--sec">security</span></div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:2"><div class="issue-card__num">#721</div><div class="issue-card__body"><div class="issue-card__title">Directory expansion follows symlinks -- symlink escape into arbitrary files</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span><span class="tag tag--sec">security</span></div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:3"><div class="issue-card__num">#722</div><div class="issue-card__body"><div class="issue-card__title">No file size cap -- read_text() on arbitrarily large .md files can OOM</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:4"><div class="issue-card__num">#723</div><div class="issue-card__body"><div class="issue-card__title">write_mission_brief is not atomic -- interrupted write leaves corrupt state</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:5"><div class="issue-card__num">#725</div><div class="issue-card__body"><div class="issue-card__title">_auto_branch scans Path.cwd() but writes to repo_root -- path mismatch</div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:6"><div class="issue-card__num">#727</div><div class="issue-card__body"><div class="issue-card__title">read_mission_brief swallows all exceptions -- corrupt brief looks like missing</div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:7"><div class="issue-card__num">#706</div><div class="issue-card__body"><div class="issue-card__title">Add spec-kitty intake --clear command and route template cleanup</div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:8"><div class="issue-card__num">#729</div><div class="issue-card__body"><div class="issue-card__title">--show truncates brief_hash to 16 chars -- insufficient for integrity</div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:9"><div class="issue-card__num">#726</div><div class="issue-card__body"><div class="issue-card__title">sorted() in scan_for_plans should key on filename, not full path</div></div></div>
+  <div class="issue-card issue-card--intake" style="--i:10"><div class="issue-card__num">#728</div><div class="issue-card__body"><div class="issue-card__title">clear_mission_brief should use unlink(missing_ok=True)</div></div></div>
+</div>
+
+<!-- ════════ WORKFLOW ENGINE ════════ -->
+<div id="s6" class="sec-head sec-head--workflow"><span class="dot" style="background:var(--workflow)"></span> Workflow Engine <span class="count">12 issues</span></div>
+<p class="theme-intro">Making the spec-driven workflow more powerful: ticket intake from external trackers (Jira, Linear, GitHub, GitLab), composable workflow sequencing, post-merge follow-ups, event log merge drivers, and mission correction for incorrectly completed work.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--workflow" style="--i:0"><div class="issue-card__num">#687</div><div class="issue-card__body"><div class="issue-card__title">Product: repo-local issue tracker inbox and ticket intake across Jira/Linear/GitHub/GitLab</div><div class="issue-card__tags"><span class="tag tag--epic">epic</span></div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:1"><div class="issue-card__num">#695</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty mission create --from-ticket &lt;provider:ID&gt; --json</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:2"><div class="issue-card__num">#668</div><div class="issue-card__body"><div class="issue-card__title">First-class mission correction workflow for incorrectly completed/merged missions</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:3"><div class="issue-card__num">#718</div><div class="issue-card__body"><div class="issue-card__title">First-class support for post-merge follow-up commits and PRs</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:4"><div class="issue-card__num">#569</div><div class="issue-card__body"><div class="issue-card__title">Git merge driver for status.events.jsonl -- union append-only event log</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:5"><div class="issue-card__num">#570</div><div class="issue-card__body"><div class="issue-card__title">Auto-transition approved WPs to done after merge completes</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:6"><div class="issue-card__num">#572</div><div class="issue-card__body"><div class="issue-card__title">Opt-in broader test gate before WP moves to for_review</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:7"><div class="issue-card__num">#536</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty.specify: support explicit slug/number override for parallel streams</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:8"><div class="issue-card__num">#591</div><div class="issue-card__body"><div class="issue-card__title">Allow explicit mission number in agent mission create</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:9"><div class="issue-card__num">#704</div><div class="issue-card__body"><div class="issue-card__title">Add command to delete a spec (and its tasks and branches)</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:10"><div class="issue-card__num">#736</div><div class="issue-card__body"><div class="issue-card__title">Main working branch is pinned to 'main' but users want to keep main clean</div></div></div>
+  <div class="issue-card issue-card--workflow" style="--i:11"><div class="issue-card__num">#635</div><div class="issue-card__body"><div class="issue-card__title">Deprecate /spec-kitty.checklist</div></div></div>
+</div>
+
+<!-- ════════ ARCHITECTURE ════════ -->
+<div id="s7" class="sec-head sec-head--arch"><span class="dot" style="background:var(--arch)"></span> Architecture &amp; Internal Quality <span class="count">7 issues</span></div>
+<p class="theme-intro">Sharpening module boundaries, encoding consistency, CI deduplication, Sonar quality gates, mutation testing survivors, and runtime internalization to reduce release drift.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--arch" style="--i:0"><div class="issue-card__num">#614</div><div class="issue-card__body"><div class="issue-card__title">Separate integration boundaries from core domain logic inside src/specify_cli</div></div></div>
+  <div class="issue-card issue-card--arch" style="--i:1"><div class="issue-card__num">#612</div><div class="issue-card__body"><div class="issue-card__title">Extract runtime and mission decisioning into a clear functional boundary</div></div></div>
+  <div class="issue-card issue-card--arch" style="--i:2"><div class="issue-card__num">#732</div><div class="issue-card__body"><div class="issue-card__title">Make spec-kitty-runtime internal to reduce release drift</div></div></div>
+  <div class="issue-card issue-card--arch" style="--i:3"><div class="issue-card__num">#644</div><div class="issue-card__body"><div class="issue-card__title">Encoding mixups: stop assuming UTF-8 and record encoding at lifecycle boundaries</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span></div></div></div>
+  <div class="issue-card issue-card--arch" style="--i:4"><div class="issue-card__num">#662</div><div class="issue-card__body"><div class="issue-card__title">Resolve CI workflow duplication: release readiness vs CI-quality</div></div></div>
+  <div class="issue-card issue-card--arch" style="--i:5"><div class="issue-card__num">#595</div><div class="issue-card__body"><div class="issue-card__title">Close Sonar quality-gate debt on release-path coverage and hotspot review</div></div></div>
+  <div class="issue-card issue-card--arch" style="--i:6"><div class="issue-card__num">#711</div><div class="issue-card__body"><div class="issue-card__title">Mutant Slaying: kill survivors from the 2026-04-20 mutation baseline</div></div></div>
+</div>
+
+<!-- ════════ P0/P1 BUGS ════════ -->
+<div id="s8" class="sec-head sec-head--bugs"><span class="dot" style="background:var(--bugs)"></span> P0/P1 Bug Fixes <span class="count">14 issues</span></div>
+<p class="theme-intro">Critical workflow blockers that affect day-to-day usage: status emission ordering, worktree root resolution, upgrade safety (silently deleting customizations), merge invariants, and review-cycle counter inflation.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--bugs" style="--i:0"><div class="issue-card__num">#715</div><div class="issue-card__body"><div class="issue-card__title">finalize-tasks: dependent WPs should collapse into a single sequential lane</div><div class="issue-card__tags"><span class="tag tag--p0">P0-critical</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:1"><div class="issue-card__num">#674</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty upgrade silently deletes user-customized commands and skills</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:2"><div class="issue-card__num">#676</div><div class="issue-card__body"><div class="issue-card__title">Re-running agent action implement auto-inflates the review-cycle counter</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:3"><div class="issue-card__num">#675</div><div class="issue-card__body"><div class="issue-card__title">Merge post-merge invariant treats untracked files as HEAD divergence</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:4"><div class="issue-card__num">#622</div><div class="issue-card__body"><div class="issue-card__title">Review-claim emits for_review to in_progress instead of in_review</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:5"><div class="issue-card__num">#538</div><div class="issue-card__body"><div class="issue-card__title">WP stays planned in dashboard while worktree has uncommitted work</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:6"><div class="issue-card__num">#539</div><div class="issue-card__body"><div class="issue-card__title">find_repo_root() resolves to worktree root -- events and config writes land wrong</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:7"><div class="issue-card__num">#551</div><div class="issue-card__body"><div class="issue-card__title">agent action implement cannot resolve workspace for planning-artifact WPs</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:8"><div class="issue-card__num">#552</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty next stuck in '[QUERY -- no result provided]' for valid mission-run</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:9"><div class="issue-card__num">#735</div><div class="issue-card__body"><div class="issue-card__title">Suppress cosmetic final-sync/shutdown errors after successful mission create</div><div class="issue-card__tags"><span class="tag tag--p1">P1</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:10"><div class="issue-card__num">#540</div><div class="issue-card__body"><div class="issue-card__title">Top-level implement bypasses canonical status transition pipeline</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:11"><div class="issue-card__num">#541</div><div class="issue-card__body"><div class="issue-card__title">require_main_repo misses external git worktrees outside .worktrees/</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:12"><div class="issue-card__num">#542</div><div class="issue-card__body"><div class="issue-card__title">implement can leave uncommitted mechanical changes in main checkout</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span></div></div></div>
+  <div class="issue-card issue-card--bugs" style="--i:13"><div class="issue-card__num">#526</div><div class="issue-card__body"><div class="issue-card__title">spec-kitty next advances the DAG on every call -- no completion guard</div><div class="issue-card__tags"><span class="tag tag--bug">bug</span></div></div></div>
+</div>
+
+<!-- ════════ WINDOWS ════════ -->
+<div id="s9" class="sec-head sec-head--win"><span class="dot" style="background:var(--win)"></span> Windows Compatibility <span class="count">3 issues</span></div>
+<p class="theme-intro">Cross-platform parity: symlink fallback testing, removing shell=True subprocess calls, and documenting MCP worktree workarounds for Windows.</p>
+<div class="issue-grid">
+  <div class="issue-card issue-card--win" style="--i:0"><div class="issue-card__num">#629</div><div class="issue-card__body"><div class="issue-card__title">Add @pytest.mark.windows_ci test for os.symlink fallback in worktree migration</div></div></div>
+  <div class="issue-card issue-card--win" style="--i:1"><div class="issue-card__num">#630</div><div class="issue-card__body"><div class="issue-card__title">Replace shell=True subprocess calls in review/baseline.py and acceptance_matrix.py</div></div></div>
+  <div class="issue-card issue-card--win" style="--i:2"><div class="issue-card__num">#631</div><div class="issue-card__body"><div class="issue-card__title">Document workaround for MCP agent root confusion with worktrees on Windows</div></div></div>
+</div>
+
+<div class="footer">
+  Spec Kitty Public Backlog Snapshot — 96 open issues as of April 21, 2026 — Generated with Claude Code
+</div>
+
+</div><!-- /main -->
+</div><!-- /wrap -->
+
+<script>
+(function() {
+  var toc = document.getElementById('toc');
+  var links = toc.querySelectorAll('a');
+  var sections = [];
+  links.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        links.forEach(function(l) { l.classList.remove('active'); });
+        var match = sections.find(function(s) { return s.el === entry.target; });
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1000) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+  sections.forEach(function(s) { observer.observe(s.el); });
+  links.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      var id = link.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
