@@ -55,8 +55,7 @@ start the next group.
 ---
 
 You are writing a single Work Package prompt file for the spec-kitty planning
-pipeline. Write exactly one file, then update `tasks.md` to reference it, and
-return the filename and final line count.
+pipeline. Write exactly one file and return the filename and final line count.
 
 **Mission directory**: `{mission_dir}` (absolute path)
 **Write to**: `{mission_dir}/tasks/{wp_id}-{slug}.md`
@@ -104,22 +103,20 @@ Include the implementation command (pick one):
 - No dependencies: `spec-kitty implement {wp_id}`
 - With dependencies: `spec-kitty implement {wp_id} --base {first_dep}`
 
-After writing the file, update `tasks.md` to reference the prompt filename on the
-WP's line (e.g., append `→ tasks/{wp_id}-{slug}.md`).
-
 Sizing: target 200–500 lines (3–7 subtasks), maximum 700 lines (10 subtasks).
 If >700 lines would be needed: write the file anyway but add a `> NOTE: This WP
 should be split` callout at the top.
 
 ---
 
-**After all sub-agents confirm completion**, proceed to Step 4.
+**After all sub-agents confirm completion**, update `tasks.md` once to reference
+each generated prompt file, then proceed to Step 4.
 
 **Fallback — if your host does not support sub-agents**: Generate all WP files
 sequentially and issue all Write tool calls in a single batched response.
 
-Do NOT update `tasks.md` during sub-agent dispatch — each sub-agent updates its
-own reference, or collect all and update once after all complete.
+Do NOT update `tasks.md` during sub-agent dispatch — collect prompt filenames
+from sub-agent results, then update `tasks.md` once after all complete.
 
 ### 4. Include Dependencies in Frontmatter
 

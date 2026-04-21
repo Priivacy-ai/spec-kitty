@@ -89,6 +89,7 @@ pipeline. Write exactly one file and return the filename and final line count.
 - title: `{title}`
 - dependencies: `{dependencies}`
 - owned_files: `{owned_files}`
+- execution_mode: derive from `owned_files` (`planning_artifact` for kitty-specs/docs-only WPs, otherwise `code_change`)
 - requirement_refs: `{requirement_refs}`
 - subtasks: `{subtasks}`
 
@@ -109,7 +110,7 @@ requirement_refs: {requirement_refs}
 subtasks: {subtasks}
 owned_files: {owned_files}
 authoritative_surface: "{longest common path prefix of owned_files}"
-execution_mode: "code_change"
+execution_mode: "{execution_mode}"
 ---
 ```
 
