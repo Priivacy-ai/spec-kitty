@@ -412,3 +412,4 @@ Also update `spec-kitty-saas/.kittify/command-skills-manifest.json` if it tracks
 ## Activity Log
 
 - 2026-04-21T12:39:42Z – claude:sonnet-4-6:implementer:implementer – shell_pid=20451 – Started implementation via action command
+- 2026-04-21T12:46:22Z – claude:sonnet-4-6:implementer:implementer – shell_pid=20451 – WP06 complete: invocations list, performance gate (index-based, < 200ms at 10K), skill pack
