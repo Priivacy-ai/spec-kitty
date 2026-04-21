@@ -58,41 +58,95 @@ work_packages:
     prompt_file: null     # fill in this step
 ```
 
-### 3. Generate Prompt Files
+### 3. Generate Prompt Files in Parallel
 
-For each work package defined in `wps.yaml`:
+Parse all WP definitions from `wps.yaml`. Each WP prompt file is independent —
+dispatch one sub-agent per WP in a **single message** so they run concurrently
+rather than generating all WP content in one serial response.
 
-**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
+**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/`
+directory, NOT in subdirectories!
 
 - Correct: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
 - WRONG: `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
 
-**For each WP**:
-1. Derive a kebab-case slug from the title
-2. Filename: `WPxx-slug.md` (e.g., `WP01-create-html-page.md`)
-3. Full path: `feature_dir/tasks/WP01-create-html-page.md`
-4. Follow the WP prompt template structure below (**do NOT write instructions to read a template file from `.kittify/`**)
-5. Include frontmatter with:
-   - `work_package_id`, `subtasks` array, `dependencies`, history entry
-   - `requirement_refs` array from the WP's `requirement_refs` in `wps.yaml`
-   - `owned_files`, `authoritative_surface`, `execution_mode` (required ownership fields)
-6. Include in body:
-   - Objective, context, detailed guidance per subtask
-   - Test strategy (only if requested)
-   - Definition of Done, risks, reviewer guidance
+**Batching for large missions**: If there are more than 6 WPs, dispatch in groups
+of 4. Send all agents in a group in one message, wait for all to complete, then
+start the next group.
 
-**TARGET PROMPT SIZE**: 200-500 lines per WP (3-7 subtasks)
-**MAXIMUM PROMPT SIZE**: 700 lines per WP (10 subtasks max)
-**If prompts are >700 lines**: Split the WP — it's too large
+**Sub-agent prompt** (send one per WP, all dispatched simultaneously in one message):
 
-**IMPORTANT**: All WP files live in flat `tasks/` directory. Status is managed via `status.events.jsonl`, not by directory location or frontmatter fields.
+---
+
+You are writing a single Work Package prompt file for the spec-kitty planning
+pipeline. Write exactly one file and return the filename and final line count.
+
+**Feature directory**: `{feature_dir}` (absolute path)
+**Write to**: `{feature_dir}/tasks/{wp_id}-{slug}.md`
+
+**Work Package** (from wps.yaml):
+- id: `{wp_id}`
+- title: `{title}`
+- dependencies: `{dependencies}`
+- owned_files: `{owned_files}`
+- requirement_refs: `{requirement_refs}`
+- subtasks: `{subtasks}`
+
+**Read for context** (all from `feature_dir`):
+- `plan.md` (required — tech architecture, stack)
+- `spec.md` (required — user stories, acceptance criteria)
+- `data-model.md`, `research.md` (read if present)
+
+**Write the WP prompt file with this structure:**
+
+Frontmatter:
+```yaml
+---
+work_package_id: "{wp_id}"
+title: "{title}"
+dependencies: {dependencies}
+requirement_refs: {requirement_refs}
+subtasks: {subtasks}
+owned_files: {owned_files}
+authoritative_surface: "{longest common path prefix of owned_files}"
+execution_mode: "code_change"
+---
+```
+
+Body sections (in order):
+1. `## Objective` — 1–3 sentence goal
+2. `## Context` — why this WP exists, what depends on it, key design decisions from plan.md
+3. `### Subtask {T-id}: {name}` — one section per subtask, ~60 lines each:
+   - **Purpose**: what this subtask accomplishes
+   - **Steps**: numbered, with specific file paths and implementation details
+   - **Files**: what to create/modify, approximate size
+   - **Validation**: how to verify it works
+4. `## Definition of Done` — verifiable checklist covering all subtasks
+5. `## Risks` — known risks and mitigations
+6. `## Reviewer Guidance` — what reviewers should focus on
+
+Include the implementation command: `spec-kitty agent action implement {wp_id} --agent <name>`
+
+Sizing: target 200–500 lines (3–7 subtasks), maximum 700 lines (10 subtasks).
+If >700 lines would be needed: write the file anyway but add a `> NOTE: This WP
+should be split` callout at the top.
+
+---
+
+**After all sub-agents confirm completion**, proceed to Step 4.
+
+**Fallback — if your host does not support sub-agents**: Generate all WP files
+sequentially and issue all Write tool calls in a single batched response.
+
+Do NOT update `wps.yaml` during sub-agent dispatch — collect all confirmations,
+then update once in Step 4.
 
 ### 4. Update `wps.yaml` With Per-WP Details
 
-After generating each WP prompt file, update the corresponding entry in `wps.yaml`
-to fill in `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file`.
-Write the updated `wps.yaml` back to disk after each WP is generated (or
-accumulate changes and write once at the end).
+After all sub-agents have confirmed completion, update `wps.yaml` once with all
+per-WP details collected from sub-agent results: `owned_files`, `requirement_refs`,
+`subtasks`, and `prompt_file` for every WP. Write the updated `wps.yaml` in a
+single write.
 
 **Critical rule**: Do NOT modify a `dependencies` field that is already present in
 `wps.yaml` — even if it is empty (`[]`). It is authoritative. Only populate
@@ -145,10 +199,11 @@ Include the correct implementation command:
 
 ### 5. Self-Check
 
-After generating each prompt:
-- Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT
-- Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT
-- Can implement in one session? ✓ | Multiple sessions needed? ❌ SPLIT
+After all sub-agents complete, verify each generated prompt:
+- Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ needs splitting
+- Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ needs splitting
+- owned_files glob patterns non-overlapping across all WPs? ✓
+- Can implement in one session? ✓ | Multiple sessions needed? ❌ needs splitting
 
 ## Output
 
