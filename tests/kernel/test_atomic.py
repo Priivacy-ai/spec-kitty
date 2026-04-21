@@ -11,8 +11,6 @@ Coverage:
 
 from __future__ import annotations
 
-import os
-import stat
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -285,8 +283,6 @@ class TestAtomicWriteCleanupSuppressesOSError:
 
         # Force Path.replace() (the rename step) to raise OSError so the
         # except branch runs.
-        original_replace = Path.replace
-
         def _failing_replace(self: Path, other: Any) -> Any:
             raise OSError("forced replace failure")
 
@@ -294,8 +290,6 @@ class TestAtomicWriteCleanupSuppressesOSError:
 
         # Force Path.unlink() on the temp file to raise OSError so the
         # suppressor is actually exercised.
-        original_unlink = Path.unlink
-
         def _failing_unlink(self: Path, *args: Any, **kwargs: Any) -> None:
             raise OSError("forced unlink failure during cleanup")
 
@@ -303,7 +297,3 @@ class TestAtomicWriteCleanupSuppressesOSError:
 
         with pytest.raises(OSError, match="forced replace failure"):
             atomic_write(target, "content")
-
-        # Restore so tmp_path cleanup in pytest still works.
-        monkeypatch.setattr(Path, "replace", original_replace)
-        monkeypatch.setattr(Path, "unlink", original_unlink)

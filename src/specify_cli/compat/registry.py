@@ -22,6 +22,9 @@ _REQUIRED_KEYS = {
     "grandfathered",
 }
 
+_OPTIONAL_KEYS = {"extension_rationale", "notes"}
+_ALL_KNOWN_KEYS = _REQUIRED_KEYS | _OPTIONAL_KEYS
+
 
 @dataclasses.dataclass(frozen=True)
 class ShimEntry:
@@ -109,6 +112,10 @@ def _validate_entry(i: int, entry: object, seen_paths: set[str], errors: list[st
     if not isinstance(entry, dict):
         errors.append(f"entry[{i}]: must be a mapping")
         return
+
+    unknown = set(entry) - _ALL_KNOWN_KEYS
+    for key in sorted(unknown):
+        errors.append(f"entry[{i}].{key}: unknown field")
 
     missing = _REQUIRED_KEYS - set(entry)
     for key in sorted(missing):

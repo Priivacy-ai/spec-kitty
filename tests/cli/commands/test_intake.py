@@ -10,7 +10,9 @@ from typer.testing import CliRunner
 from specify_cli import app
 from specify_cli.mission_brief import BRIEF_SOURCE_FILENAME, MISSION_BRIEF_FILENAME
 
-pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: intake --show CWD walk-up escapes tmp_path in mutmut's forked sandbox and finds the also_copy'd .kittify/; passes in normal pytest. See ADR 2026-04-20-1.
+# non_sandbox: intake --show CWD walk-up escapes tmp_path in mutmut's forked sandbox
+# and finds the also_copy'd .kittify/; passes in normal pytest. See ADR 2026-04-20-1.
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
 runner = CliRunner()
 

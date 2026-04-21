@@ -157,11 +157,11 @@ class TestLoadRegistryHappyPath:
         result = load_registry(root)
         assert result[0].grandfathered is True
 
-    def test_extra_unknown_keys_are_ignored_on_load(self, tmp_path: Path) -> None:
+    def test_extra_unknown_keys_raise_on_load(self, tmp_path: Path) -> None:
         entry = {**_VALID_ENTRY, "future_field": "preserve-compat"}
         root = _write_registry(tmp_path, {"shims": [entry]})
-        result = load_registry(root)
-        assert result[0] == ShimEntry(**_VALID_ENTRY)
+        with pytest.raises(RegistrySchemaError, match="future_field"):
+            load_registry(root)
 
 
 
@@ -305,10 +305,11 @@ class TestAdversarialValidation:
             validate_registry({"shims": [bad]})
         assert len(exc_info.value.errors) >= 5
 
-    def test_extra_unknown_keys_are_tolerated(self) -> None:
-        """Unknown keys do not cause validation failure — only missing required keys matter."""
+    def test_extra_unknown_keys_raise_schema_error(self) -> None:
+        """Unknown keys are rejected — only the declared ShimEntry fields are allowed."""
         entry = {**_VALID_ENTRY, "unknown_future_field": "some_value"}
-        validate_registry({"shims": [entry]})
+        with pytest.raises(RegistrySchemaError, match="unknown_future_field"):
+            validate_registry({"shims": [entry]})
 
     def test_whitespace_only_extension_rationale_raises(self) -> None:
         with pytest.raises(RegistrySchemaError, match="extension_rationale"):
