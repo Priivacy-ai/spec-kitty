@@ -1,0 +1,8 @@
+profile-id: reviewer-fixture
+name: "Reviewer (fixture)"
+role: reviewer
+purpose: "Review code for correctness, quality, and adherence to standards."
+specialization:
+  primary-focus: "Code review and quality assurance"
+specialization-context:
+  domain-keywords: [review, audit, assess]
