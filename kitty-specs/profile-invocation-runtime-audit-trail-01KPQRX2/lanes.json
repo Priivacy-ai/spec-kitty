@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "mission_slug": "profile-invocation-runtime-audit-trail-01KPQRX2",
+  "mission_id": "01KPQRX2EVGMRVB4Q1JQBAZJV3",
+  "mission_branch": "kitty/mission-profile-invocation-runtime-audit-trail-01KPQRX2",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        ".agents/skills/spec-kitty.advise/**",
+        "src/specify_cli/cli/commands/advise.py",
+        "src/specify_cli/cli/commands/do_cmd.py",
+        "src/specify_cli/cli/commands/invocations_cmd.py",
+        "src/specify_cli/cli/commands/profiles_cmd.py",
+        "src/specify_cli/invocation/__init__.py",
+        "src/specify_cli/invocation/errors.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/propagator.py",
+        "src/specify_cli/invocation/record.py",
+        "src/specify_cli/invocation/registry.py",
+        "src/specify_cli/invocation/router.py",
+        "src/specify_cli/invocation/writer.py",
+        "tests/specify_cli/invocation/__init__.py",
+        "tests/specify_cli/invocation/cli/__init__.py",
+        "tests/specify_cli/invocation/cli/test_advise.py",
+        "tests/specify_cli/invocation/cli/test_do.py",
+        "tests/specify_cli/invocation/cli/test_invocations.py",
+        "tests/specify_cli/invocation/cli/test_profiles.py",
+        "tests/specify_cli/invocation/fixtures/**",
+        "tests/specify_cli/invocation/test_executor.py",
+        "tests/specify_cli/invocation/test_propagator.py",
+        "tests/specify_cli/invocation/test_record.py",
+        "tests/specify_cli/invocation/test_registry.py",
+        "tests/specify_cli/invocation/test_router.py",
+        "tests/specify_cli/invocation/test_writer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-21T11:02:46.228409+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP01"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

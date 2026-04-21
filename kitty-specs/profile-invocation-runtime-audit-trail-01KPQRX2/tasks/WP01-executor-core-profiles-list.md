@@ -16,7 +16,7 @@ requirement_refs:
 - FR-019
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning base: main. Merge target: main. Execution worktrees are allocated per computed lane from lanes.json.'
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -34,13 +34,17 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/invocation/__init__.py
 - src/specify_cli/invocation/errors.py
-- src/specify_cli/invocation/record.py
 - src/specify_cli/invocation/registry.py
 - src/specify_cli/invocation/writer.py
 - src/specify_cli/invocation/executor.py
 - src/specify_cli/cli/commands/profiles_cmd.py
-- src/specify_cli/cli/main.py
-- tests/specify_cli/invocation/**
+- tests/specify_cli/invocation/__init__.py
+- tests/specify_cli/invocation/test_executor.py
+- tests/specify_cli/invocation/test_registry.py
+- tests/specify_cli/invocation/test_writer.py
+- tests/specify_cli/invocation/cli/__init__.py
+- tests/specify_cli/invocation/cli/test_profiles.py
+- tests/specify_cli/invocation/fixtures/**
 tags: []
 ---
 

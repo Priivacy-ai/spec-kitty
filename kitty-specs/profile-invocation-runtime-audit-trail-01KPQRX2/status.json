@@ -1,0 +1,70 @@
+{
+  "event_count": 7,
+  "last_event_id": "01KPQV9Y69M67QPH2JR6ZMCRS8",
+  "materialized_at": "2026-04-21T11:02:46.217716+00:00",
+  "mission_number": "",
+  "mission_slug": "profile-invocation-runtime-audit-trail-01KPQRX2",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 7
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9XRY4F593Y9YTYZZ8JFE",
+      "last_transition_at": "2026-04-21T11:02:45.790157+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9Y5B1V8JCYFDB5FZT3MT",
+      "last_transition_at": "2026-04-21T11:02:46.187663+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9Y5P8S6Q0H513KP3Z1SJ",
+      "last_transition_at": "2026-04-21T11:02:46.198964+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9Y5W2RFPXR41BDQQNMY3",
+      "last_transition_at": "2026-04-21T11:02:46.204054+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9Y6023X5NVC5P0YTWS3W",
+      "last_transition_at": "2026-04-21T11:02:46.208553+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9Y65VK21H12HAQRMXYK8",
+      "last_transition_at": "2026-04-21T11:02:46.213358+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPQV9Y69M67QPH2JR6ZMCRS8",
+      "last_transition_at": "2026-04-21T11:02:46.217716+00:00"
+    }
+  }
+}
