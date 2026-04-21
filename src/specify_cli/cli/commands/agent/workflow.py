@@ -1250,7 +1250,13 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     def _is_review_claimed(_wp_id: str) -> bool:
         for _event in reversed(_fr_events):
             if getattr(_event, "wp_id", None) == _wp_id:
-                return bool(_event.to_lane == Lane.IN_PROGRESS and _event.review_ref == "action-review-claim")
+                return bool(
+                    _event.to_lane == Lane.IN_REVIEW  # new canonical shape
+                    or (
+                        _event.to_lane == Lane.IN_PROGRESS  # legacy shape
+                        and _event.review_ref == "action-review-claim"
+                    )
+                )
         return False
 
     for wp_file in wp_files:
@@ -1264,7 +1270,7 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
         wp_id = extract_scalar(frontmatter, "work_package_id")
-        if wp_id and _fr_lanes.get(wp_id, Lane.PLANNED) == Lane.IN_PROGRESS and _is_review_claimed(wp_id):
+        if wp_id and _fr_lanes.get(wp_id, Lane.PLANNED) in {Lane.IN_PROGRESS, Lane.IN_REVIEW} and _is_review_claimed(wp_id):
             return wp_id
 
     return None
@@ -1341,15 +1347,24 @@ def review(
             if getattr(_event, "wp_id", None) == normalized_wp_id:
                 latest_event = _event
                 break
-        is_review_claimed = bool(latest_event is not None and latest_event.to_lane == Lane.IN_PROGRESS and latest_event.review_ref == "action-review-claim")
+        is_review_claimed = bool(
+            latest_event is not None
+            and (
+                latest_event.to_lane == Lane.IN_REVIEW  # new canonical shape
+                or (
+                    latest_event.to_lane == Lane.IN_PROGRESS  # legacy shape
+                    and latest_event.review_ref == "action-review-claim"
+                )
+            )
+        )
         if current_lane == Lane.IN_PROGRESS and not is_review_claimed:
             print(f"Error: {normalized_wp_id} is still being implemented, not claimed for review.")
-            print("Only work packages in 'for_review' (or already review-claimed in_progress) can start workflow review.")
+            print("Only work packages in 'for_review' (or already review-claimed in_review) can start workflow review.")
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
-        if current_lane not in {Lane.FOR_REVIEW, Lane.IN_PROGRESS}:
+        if current_lane not in {Lane.FOR_REVIEW, Lane.IN_REVIEW} and not is_review_claimed:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane}', not 'for_review'.")
-            print("Only work packages in 'for_review' can start workflow review.")
+            print("Only work packages in 'for_review' (or already claimed for review) can start workflow review.")
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
 
@@ -1396,7 +1411,7 @@ def review(
                 for _w in _diff_result.warnings:
                     _rich_console.print(f"[yellow]manual_review:[/] {_w}")
 
-        if current_lane != Lane.IN_PROGRESS:
+        if current_lane not in {Lane.IN_PROGRESS, Lane.IN_REVIEW}:
             # Require --agent parameter to track who is reviewing
             if not agent:
                 print("Error: --agent parameter required when starting review.")
@@ -1414,14 +1429,13 @@ def review(
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
             with feature_status_lock(main_repo_root, mission_slug):
-                # Emit the actual for_review -> in_progress transition
+                # Emit the actual for_review -> in_review transition
                 emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=normalized_wp_id,
-                    to_lane=Lane.IN_PROGRESS,
+                    to_lane=Lane.IN_REVIEW,
                     actor=agent,
-                    force=True,  # review claim is always allowed
                     reason="Started review via action command",
                     review_ref="action-review-claim",
                     workspace_context=f"action-review:{main_repo_root}",
@@ -1464,7 +1478,7 @@ def review(
             # Reload to get updated content
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to in_progress.")
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to in_review.")
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path

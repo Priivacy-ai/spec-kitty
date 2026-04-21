@@ -117,11 +117,7 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
     skill packages under ``.agents/skills/``.
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
-    from specify_cli.shims.generator import (
-        AGENT_ARG_PLACEHOLDERS,
-        _DEFAULT_ARG_PLACEHOLDER,
-        generate_shim_content,
-    )
+    from specify_cli.shims.generator import generate_shim_content_for_agent
     from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
     from specify_cli.template.asset_generator import render_command_template
 
@@ -165,12 +161,11 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
         out_path.chmod(out_path.stat().st_mode & ~0o222)
 
     # --- CLI-driven shims ---
-    arg_placeholder = AGENT_ARG_PLACEHOLDERS.get(agent_key, _DEFAULT_ARG_PLACEHOLDER)
     for command in sorted(CLI_DRIVEN_COMMANDS):
         filename = _compute_output_filename(command, agent_key)
         canonical_filenames.add(filename)
         try:
-            content = generate_shim_content(command, agent_key, arg_placeholder)
+            content = generate_shim_content_for_agent(command, agent_key)
         except Exception:
             logger.warning(
                 "Failed to generate shim %r for agent %r",

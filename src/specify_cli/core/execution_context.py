@@ -160,7 +160,13 @@ def _resolve_wp_id(
             def _is_review_claimed(_wp_id: str) -> bool:
                 for event in reversed(events):
                     if getattr(event, "wp_id", None) == _wp_id:
-                        return bool(event.to_lane == Lane.IN_PROGRESS and event.review_ref == "action-review-claim")
+                        return bool(
+                            event.to_lane == Lane.IN_REVIEW  # new canonical shape
+                            or (
+                                event.to_lane == Lane.IN_PROGRESS  # legacy shape
+                                and event.review_ref == "action-review-claim"
+                            )
+                        )
                 return False
 
             for wp_file in sorted(tasks_dir.glob("WP*.md")):
@@ -180,7 +186,7 @@ def _resolve_wp_id(
                 if not candidate_wp_id:
                     continue
                 lane = get_wp_lane(feature_dir, candidate_wp_id)
-                if lane == Lane.IN_PROGRESS and _is_review_claimed(candidate_wp_id):
+                if lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW) and _is_review_claimed(candidate_wp_id):
                     return candidate_wp_id
         except CanonicalStatusNotFoundError as exc:
             raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc

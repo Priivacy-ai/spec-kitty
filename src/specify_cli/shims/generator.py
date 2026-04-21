@@ -132,6 +132,67 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
     )
 
 
+def generate_shim_content_toml(
+    command: str, agent_name: str, arg_placeholder: str
+) -> str:
+    """Return a TOML shim for agents that require TOML format (Gemini, Qwen).
+
+    Uses the flat ``description``/``prompt`` schema matching the regression
+    baselines in ``tests/specify_cli/regression/_twelve_agent_baseline/``.
+
+    Args:
+        command:         Skill verb, e.g. ``"implement"``.
+        agent_name:      Agent key, e.g. ``"gemini"``.
+        arg_placeholder: Runtime variable name, e.g. ``"{{args}}"``.
+
+    Returns:
+        A multi-line string ready to write as a ``.toml`` file.
+    """
+    version = _get_cli_version()
+    cli_call = _canonical_command(command, agent_name, arg_placeholder)
+    description = SHIM_DESCRIPTIONS.get(command, f"spec-kitty {command}")
+    body = (
+        f"<!-- spec-kitty-command-version: {version} -->\n"
+        "Run this exact command and treat its output as authoritative.\n"
+        "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
+        "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
+        "\n"
+        f"`{cli_call}`\n"
+    )
+    body_escaped = body.replace('"""', '""\\"')
+    return (
+        f'description = "{description}"\n'
+        "\n"
+        f'prompt = """\n{body_escaped}"""\n'
+    )
+
+
+def generate_shim_content_for_agent(command: str, agent_key: str) -> str:
+    """Return shim content for *command* targeting *agent_key*.
+
+    Reads ``AGENT_COMMAND_CONFIG`` for the format (ext) and arg placeholder,
+    then dispatches to :func:`generate_shim_content` (Markdown) or
+    :func:`generate_shim_content_toml` (TOML).
+    Falls back to Markdown / ``$ARGUMENTS`` for unknown agents.
+
+    Args:
+        command:   Skill verb, e.g. ``"implement"``.
+        agent_key: Agent configuration key, e.g. ``"gemini"``.
+
+    Returns:
+        A multi-line string ready to write as the agent's native command file.
+    """
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
+    config = AGENT_COMMAND_CONFIG.get(agent_key, {})
+    arg_placeholder: str = config.get("arg_format", _DEFAULT_ARG_PLACEHOLDER)
+    ext: str = config.get("ext", "md")
+
+    if ext == "toml":
+        return generate_shim_content_toml(command, agent_key, arg_placeholder)
+    return generate_shim_content(command, agent_key, arg_placeholder)
+
+
 def generate_all_shims(repo_root: Path) -> list[Path]:
     """Generate shim files for all configured agents and CLI-driven skills.
 
@@ -156,14 +217,16 @@ def generate_all_shims(repo_root: Path) -> list[Path]:
 
     for agent_root, command_subdir in agent_dirs:
         agent_key = AGENT_DIR_TO_KEY.get(agent_root, agent_root.lstrip("."))
-        arg_placeholder = _get_arg_placeholder(agent_key)
 
         target_dir = repo_root / agent_root / command_subdir
         target_dir.mkdir(parents=True, exist_ok=True)
 
         for skill in cli_skills:
-            filename = f"spec-kitty.{skill}.md"
-            content = generate_shim_content(skill, agent_key, arg_placeholder)
+            from specify_cli.core.config import AGENT_COMMAND_CONFIG as _ACC
+            _agent_cfg = _ACC.get(agent_key, {})
+            _ext = _agent_cfg.get("ext", "md")
+            filename = f"spec-kitty.{skill}.{_ext}"
+            content = generate_shim_content_for_agent(skill, agent_key)
             out_path = target_dir / filename
             out_path.write_text(content, encoding="utf-8")
             written.append(out_path)

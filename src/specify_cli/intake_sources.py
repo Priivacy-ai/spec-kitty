@@ -171,16 +171,36 @@ def scan_for_plans(cwd: Path) -> list[tuple[Path, str, str | None]]:
         List of ``(absolute_path, harness_key, source_agent_value)`` tuples.
     """
     results: list[tuple[Path, str, str | None]] = []
+    cwd_resolved = cwd.resolve()
     for harness_key, source_agent_value, candidate_paths in HARNESS_PLAN_SOURCES:
         for rel_path in candidate_paths:
             abs_path = cwd / rel_path
             try:
+                # T022: Repo-root containment — skip paths that escape the cwd
+                try:
+                    if not abs_path.resolve().is_relative_to(cwd_resolved):
+                        continue  # silently skip out-of-bounds paths
+                except (ValueError, OSError):
+                    continue
+
                 if abs_path.is_file():
+                    # T023: Symlink exclusion
+                    if abs_path.is_symlink():
+                        continue
                     results.append((abs_path, harness_key, source_agent_value))
                 elif abs_path.is_dir():
+                    # T022: containment check on the directory itself
+                    try:
+                        if not abs_path.resolve().is_relative_to(cwd_resolved):
+                            continue
+                    except (ValueError, OSError):
+                        continue
                     # Expand directory: collect all *.md files (non-recursive)
                     for child in sorted(abs_path.iterdir()):
                         try:
+                            # T023: Symlink exclusion
+                            if child.is_symlink():
+                                continue  # never follow symlinks
                             if child.is_file() and child.suffix == ".md":
                                 results.append(
                                     (child, harness_key, source_agent_value)

@@ -20,6 +20,9 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 console = Console()
 err_console = Console(stderr=True)
 
+# Maximum size for a mission brief file. Rejects oversized input before reading into memory.
+MAX_BRIEF_FILE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
+
 
 def _resolve_repo_root() -> Path:
     """Resolve the project root for brief artifacts, falling back to CWD."""
@@ -43,6 +46,16 @@ def _write_brief_from_candidate(
     if brief_path.exists() and not force:
         err_console.print(
             "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
+        )
+        raise typer.Exit(1)
+    try:
+        file_size = found_path.stat().st_size
+    except OSError:
+        file_size = 0
+    if file_size > MAX_BRIEF_FILE_SIZE_BYTES:
+        err_console.print(
+            f"[red]File is too large to ingest ({file_size / 1024 / 1024:.1f} MB). "
+            f"Maximum allowed size is {MAX_BRIEF_FILE_SIZE_BYTES // 1024 // 1024} MB.[/red]"
         )
         raise typer.Exit(1)
     try:
@@ -165,8 +178,19 @@ def intake(
         content = sys.stdin.read()
         source_file = "stdin"
     else:
+        explicit_path = Path(path)
         try:
-            content = Path(path).read_text(encoding="utf-8")
+            file_size = explicit_path.stat().st_size
+        except OSError:
+            file_size = 0
+        if file_size > MAX_BRIEF_FILE_SIZE_BYTES:
+            err_console.print(
+                f"[red]File is too large to ingest ({file_size / 1024 / 1024:.1f} MB). "
+                f"Maximum allowed size is {MAX_BRIEF_FILE_SIZE_BYTES // 1024 // 1024} MB.[/red]"
+            )
+            raise typer.Exit(1)
+        try:
+            content = explicit_path.read_text(encoding="utf-8")
             source_file = path
         except FileNotFoundError:
             err_console.print(f"[red]File not found: {path}[/red]")

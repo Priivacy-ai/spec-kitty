@@ -11,6 +11,8 @@ from specify_cli.shims.generator import (
     SHIM_DESCRIPTIONS,
     _canonical_command,
     generate_shim_content,
+    generate_shim_content_toml,
+    generate_shim_content_for_agent,
     generate_all_shims,
 )
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, CONSUMER_SKILLS, PROMPT_DRIVEN_COMMANDS
@@ -351,3 +353,200 @@ class TestGenerateAllShims:
         cmd_dir = tmp_path / ".claude" / "commands"
         for internal_skill in ["doctor", "materialize", "debug"]:
             assert not (cmd_dir / f"spec-kitty.{internal_skill}.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# generate_shim_content_toml
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateShimContentToml:
+    def test_is_valid_toml(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_toml("implement", "gemini", "{{args}}")
+        parsed = tomllib.loads(content)
+        assert "description" in parsed
+        assert "prompt" in parsed
+
+    def test_arg_placeholder_in_prompt(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_toml("implement", "gemini", "{{args}}")
+        parsed = tomllib.loads(content)
+        assert "{{args}}" in parsed["prompt"]
+        assert "$ARGUMENTS" not in parsed["prompt"]
+
+    def test_description_from_shim_descriptions_map(self) -> None:
+        content = generate_shim_content_toml("implement", "gemini", "{{args}}")
+        assert content.startswith('description = "Execute a work package implementation"')
+
+    def test_description_fallback_for_unknown_command(self) -> None:
+        content = generate_shim_content_toml("status", "gemini", "{{args}}")
+        assert content.startswith('description = "Show mission and work package status"')
+
+    def test_flat_schema_no_frontmatter(self) -> None:
+        content = generate_shim_content_toml("status", "gemini", "{{args}}")
+        assert "---" not in content
+        assert "[[commands]]" not in content
+
+    def test_flat_schema_structure(self) -> None:
+        content = generate_shim_content_toml("status", "gemini", "{{args}}")
+        assert content.startswith('description = "')
+        assert 'prompt = """' in content
+
+    def test_version_marker_in_prompt(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_toml("implement", "gemini", "{{args}}")
+        parsed = tomllib.loads(content)
+        assert "spec-kitty-command-version:" in parsed["prompt"]
+
+    def test_invariant_lines_in_prompt(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_toml("implement", "gemini", "{{args}}")
+        parsed = tomllib.loads(content)
+        assert "Run this exact command and treat its output as authoritative." in parsed["prompt"]
+        assert "Do not rediscover context" in parsed["prompt"]
+
+    def test_canonical_cli_call_in_prompt(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_toml("implement", "gemini", "{{args}}")
+        parsed = tomllib.loads(content)
+        assert "spec-kitty agent action implement {{args}} --agent gemini" in parsed["prompt"]
+
+
+# ---------------------------------------------------------------------------
+# generate_shim_content_for_agent
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateShimContentForAgent:
+    def test_gemini_returns_toml(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_for_agent("implement", "gemini")
+        parsed = tomllib.loads(content)
+        assert "description" in parsed
+        assert "prompt" in parsed
+
+    def test_gemini_uses_mustache_placeholder(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_for_agent("status", "gemini")
+        parsed = tomllib.loads(content)
+        assert "{{args}}" in parsed["prompt"]
+        assert "$ARGUMENTS" not in parsed["prompt"]
+
+    def test_qwen_returns_toml(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_for_agent("implement", "qwen")
+        parsed = tomllib.loads(content)
+        assert "description" in parsed
+        assert "prompt" in parsed
+
+    def test_qwen_uses_mustache_placeholder(self) -> None:
+        import tomllib
+
+        content = generate_shim_content_for_agent("status", "qwen")
+        parsed = tomllib.loads(content)
+        assert "{{args}}" in parsed["prompt"]
+        assert "$ARGUMENTS" not in parsed["prompt"]
+
+    def test_claude_returns_markdown(self) -> None:
+        content = generate_shim_content_for_agent("implement", "claude")
+        assert content.startswith("---\n")
+        assert "$ARGUMENTS" in content
+        assert "{{args}}" not in content
+
+    def test_opencode_returns_markdown(self) -> None:
+        content = generate_shim_content_for_agent("implement", "opencode")
+        assert content.startswith("---\n")
+        assert "$ARGUMENTS" in content
+
+    def test_unknown_agent_returns_markdown_with_default_placeholder(self) -> None:
+        content = generate_shim_content_for_agent("implement", "unknown_agent")
+        assert content.startswith("---\n")
+        assert "$ARGUMENTS" in content
+
+    def test_codex_uses_prompt_placeholder(self) -> None:
+        """codex is in AGENT_ARG_PLACEHOLDERS with $PROMPT but not in AGENT_COMMAND_CONFIG."""
+        # codex is migrated to skills pipeline; not in AGENT_COMMAND_CONFIG
+        # so falls back to Markdown with default $ARGUMENTS placeholder
+        content = generate_shim_content_for_agent("implement", "codex")
+        # codex not in AGENT_COMMAND_CONFIG → falls back to Markdown / $ARGUMENTS
+        assert content.startswith("---\n")
+
+    def test_all_cli_driven_commands_valid_for_gemini(self) -> None:
+        """All CLI-driven commands must produce valid TOML for Gemini."""
+        import tomllib
+
+        for command in sorted(CLI_DRIVEN_COMMANDS):
+            content = generate_shim_content_for_agent(command, "gemini")
+            parsed = tomllib.loads(content)
+            assert "description" in parsed
+            assert "prompt" in parsed
+            assert "{{args}}" in parsed["prompt"]
+
+    def test_all_cli_driven_commands_valid_for_qwen(self) -> None:
+        """All CLI-driven commands must produce valid TOML for Qwen."""
+        import tomllib
+
+        for command in sorted(CLI_DRIVEN_COMMANDS):
+            content = generate_shim_content_for_agent(command, "qwen")
+            parsed = tomllib.loads(content)
+            assert "description" in parsed
+            assert "prompt" in parsed
+            assert "{{args}}" in parsed["prompt"]
+
+
+# ---------------------------------------------------------------------------
+# generate_all_shims — TOML extension for Gemini/Qwen
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateAllShimsTomlAgents:
+    def test_gemini_shims_have_toml_extension(self, tmp_path: Path) -> None:
+        _setup_kittify_config(tmp_path, ["gemini"])
+        (tmp_path / ".gemini" / "commands").mkdir(parents=True)
+        written = generate_all_shims(tmp_path)
+        names = {p.name for p in written}
+        for skill in CLI_DRIVEN_COMMANDS:
+            assert f"spec-kitty.{skill}.toml" in names, (
+                f"Expected spec-kitty.{skill}.toml for gemini, got: {names}"
+            )
+
+    def test_gemini_shims_are_valid_toml(self, tmp_path: Path) -> None:
+        import tomllib
+
+        _setup_kittify_config(tmp_path, ["gemini"])
+        (tmp_path / ".gemini" / "commands").mkdir(parents=True)
+        generate_all_shims(tmp_path)
+        cmd_dir = tmp_path / ".gemini" / "commands"
+        for skill in CLI_DRIVEN_COMMANDS:
+            toml_file = cmd_dir / f"spec-kitty.{skill}.toml"
+            assert toml_file.exists(), f"Missing {toml_file}"
+            parsed = tomllib.loads(toml_file.read_text(encoding="utf-8"))
+            assert "description" in parsed
+            assert "prompt" in parsed
+
+    def test_qwen_shims_have_toml_extension(self, tmp_path: Path) -> None:
+        _setup_kittify_config(tmp_path, ["qwen"])
+        (tmp_path / ".qwen" / "commands").mkdir(parents=True)
+        written = generate_all_shims(tmp_path)
+        names = {p.name for p in written}
+        for skill in CLI_DRIVEN_COMMANDS:
+            assert f"spec-kitty.{skill}.toml" in names, (
+                f"Expected spec-kitty.{skill}.toml for qwen, got: {names}"
+            )
+
+    def test_claude_shims_still_have_md_extension(self, tmp_path: Path) -> None:
+        _setup_kittify_config(tmp_path, ["claude"])
+        (tmp_path / ".claude" / "commands").mkdir(parents=True)
+        written = generate_all_shims(tmp_path)
+        names = {p.name for p in written}
+        for skill in CLI_DRIVEN_COMMANDS:
+            assert f"spec-kitty.{skill}.md" in names

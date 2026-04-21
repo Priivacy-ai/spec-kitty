@@ -11,6 +11,7 @@ Neither file should be committed to version control; both are gitignored.
 from __future__ import annotations
 
 import hashlib
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -53,6 +54,13 @@ def write_mission_brief(
     """
     kittify = repo_root / ".kittify"
     kittify.mkdir(exist_ok=True)
+    brief_path = kittify / MISSION_BRIEF_FILENAME
+    source_path = kittify / BRIEF_SOURCE_FILENAME
+
+    # Clean any partial state from a previous interrupted write.
+    if brief_path.exists() != source_path.exists():
+        brief_path.unlink(missing_ok=True)
+        source_path.unlink(missing_ok=True)
 
     brief_hash = hashlib.sha256(content.encode()).hexdigest()
     ingested_at = datetime.now(tz=UTC).isoformat()
@@ -63,9 +71,6 @@ def write_mission_brief(
     )
     brief_text = header + "\n\n" + content
 
-    brief_path = kittify / MISSION_BRIEF_FILENAME
-    brief_path.write_text(brief_text, encoding="utf-8")
-
     source_data: dict[str, str] = {
         "source_file": source_file,
         "ingested_at": ingested_at,
@@ -73,8 +78,22 @@ def write_mission_brief(
     }
     if source_agent is not None:
         source_data["source_agent"] = source_agent
-    source_path = kittify / BRIEF_SOURCE_FILENAME
-    source_path.write_text(yaml.safe_dump(source_data, default_flow_style=False), encoding="utf-8")
+
+    # Write using temp files + replace() for atomic writes.
+    tmp_brief = kittify / f".tmp-brief-{os.getpid()}.md"
+    tmp_source = kittify / f".tmp-source-{os.getpid()}.yaml"
+    try:
+        tmp_brief.write_text(brief_text, encoding="utf-8")
+        tmp_source.write_text(
+            yaml.safe_dump(source_data, default_flow_style=False),
+            encoding="utf-8",
+        )
+        tmp_brief.replace(brief_path)
+        tmp_source.replace(source_path)
+    except Exception:
+        tmp_brief.unlink(missing_ok=True)
+        tmp_source.unlink(missing_ok=True)
+        raise
 
     return brief_path, source_path
 
