@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased - 3.2.0]
 
+## [3.2.0a4] - 2026-04-21
+
+### Added
+
+- **Mutation-aware test suites** — kill-the-survivor passes for `doctrine.resolver`, `doctrine.agent_profiles`, `doctrine.missions`, `doctrine.shared`, and `specify_cli.compat.registry`. Achieves 75–85 % kill rates per module; residuals documented as trampoline-equivalent, unloadable, or functionally equivalent in `docs/development/mutation-testing-findings.md`.
+- `_OPTIONAL_KEYS` / `_ALL_KNOWN_KEYS` constants in `specify_cli.compat.registry._validate_entry` — unknown YAML keys now raise `RegistrySchemaError` before `ShimEntry(**entry)` can raise `TypeError`.
+- `model_dump(mode="json")` on WP frontmatter serialization in `finalize_tasks` — prevents `Path` objects from reaching YAML serialization.
+
 ## [3.2.0a3] - 2026-04-21
 
 ### Fixed
