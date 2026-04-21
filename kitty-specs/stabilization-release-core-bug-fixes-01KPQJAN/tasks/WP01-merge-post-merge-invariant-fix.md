@@ -259,3 +259,4 @@ Verify:
 ## Activity Log
 
 - 2026-04-21T09:19:08Z – claude:sonnet:implementer:implementer – shell_pid=56480 – Assigned agent via action command
+- 2026-04-21T09:22:32Z – claude:sonnet:implementer:implementer – shell_pid=56480 – Ready for review: ?? filtering added, error message bifurcated, 8 regression tests passing
