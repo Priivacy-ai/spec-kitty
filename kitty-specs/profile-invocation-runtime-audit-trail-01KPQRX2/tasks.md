@@ -29,9 +29,9 @@
 | T016 | `do_cmd.py` — `spec-kitty do <request> [--json]` (router always invoked) | WP04 | — | [D] |
 | T017 | Register do command in main.py | WP04 | — | [D] |
 | T018 | Integration tests: cli/test_do.py (happy path, ambiguity error, no-match error) | WP04 | [D] |
-| T019 | Finalize MinimalViableTrailPolicy frozen dataclass (all 3 tiers fully specified) | WP05 | — |
-| T020 | Implement `tier_eligible(record)` and `promote_to_evidence(record, dir, content)` | WP05 | — |
-| T021 | Export MinimalViableTrailPolicy from `__init__.py`; extend test_record.py | WP05 | [P] |
+| T019 | Finalize MinimalViableTrailPolicy frozen dataclass (all 3 tiers fully specified) | WP05 | — | [D] |
+| T020 | Implement `tier_eligible(record)` and `promote_to_evidence(record, dir, content)` | WP05 | — | [D] |
+| T021 | Export MinimalViableTrailPolicy from `__init__.py`; extend test_record.py | WP05 | [D] |
 | T022 | `invocations_cmd.py` — `invocations list [--profile] [--limit N] [--json]` | WP06 | — |
 | T023 | Register invocations group in main.py | WP06 | — |
 | T024 | Benchmark list perf at 10K entries; implement invocation-index if > 200ms | WP06 | — |
@@ -135,9 +135,9 @@ Included subtasks:
 **Prompt file**: [tasks/WP05-minimal-viable-trail-policy.md](tasks/WP05-minimal-viable-trail-policy.md)
 
 Included subtasks:
-- [ ] T019 Finalize MinimalViableTrailPolicy frozen dataclass (all 3 tiers fully specified) (WP05)
-- [ ] T020 Implement `tier_eligible(record)` and `promote_to_evidence(record, dir, content)` (WP05)
-- [ ] T021 Export from `__init__.py`; extend test_record.py (WP05)
+- [x] T019 Finalize MinimalViableTrailPolicy frozen dataclass (all 3 tiers fully specified) (WP05)
+- [x] T020 Implement `tier_eligible(record)` and `promote_to_evidence(record, dir, content)` (WP05)
+- [x] T021 Export from `__init__.py`; extend test_record.py (WP05)
 
 **Dependencies**: WP01
 **Blocks**: none
