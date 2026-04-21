@@ -220,23 +220,31 @@ profile_invocation_app = typer.Typer(name="profile-invocation", help="Manage inv
 @profile_invocation_app.command("complete")
 def complete_invocation(
     invocation_id: str = typer.Option(..., "--invocation-id", "-i", help="Invocation ULID to close"),
-    profile_id: str = typer.Option(..., "--profile-id", help="Profile ID for the invocation"),
+    # NO --profile-id: filename is <invocation_id>.jsonl, lookup is by invocation_id alone
     outcome: str | None = typer.Option(None, "--outcome", help="done | failed | abandoned"),
     evidence: str | None = typer.Option(None, "--evidence", help="Path to evidence file (Tier 2 promotion)"),
     json_output: bool = typer.Option(False, "--json"),
 ) -> None:
-    """Close an open invocation record."""
+    """Close an open invocation record. Only --invocation-id is required."""
     from specify_cli.invocation.writer import InvocationWriter
+    from specify_cli.invocation.errors import AlreadyClosedError
     repo_root = _get_repo_root()
     writer = InvocationWriter(repo_root)
     try:
         completed = writer.write_completed(
             invocation_id=invocation_id,
-            profile_id=profile_id,
             repo_root=repo_root,
             outcome=outcome,
             evidence_ref=evidence,
         )
+    except AlreadyClosedError:
+        # Structured warning: already closed is not an error
+        msg = {"warning": "already_closed", "invocation_id": invocation_id}
+        if json_output:
+            typer.echo(json.dumps(msg))
+        else:
+            console.print(f"[yellow]Warning:[/yellow] Invocation {invocation_id} is already closed.")
+        raise typer.Exit(0)
     except Exception as e:
         typer.echo(json.dumps({"error": "complete_failed", "message": str(e)}), err=True)
         raise typer.Exit(1)
@@ -323,15 +331,12 @@ def test_ask_shim_delegates_to_advise(tmp_path, monkeypatch):
     assert data["profile_id"] == "implementer-fixture"
 
 def test_profile_invocation_complete(tmp_path, monkeypatch):
-    """Complete closes the record."""
-    # First open a record
+    """Complete closes the record. NO --profile-id required."""
     result = runner.invoke(app, ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"])
     invocation_id = json.loads(result.output)["invocation_id"]
-    # Then close it
     result2 = runner.invoke(app, [
         "profile-invocation", "complete",
         "--invocation-id", invocation_id,
-        "--profile-id", "implementer-fixture",
         "--outcome", "done",
         "--json",
     ])
@@ -339,6 +344,16 @@ def test_profile_invocation_complete(tmp_path, monkeypatch):
     data2 = json.loads(result2.output)
     assert data2["event"] == "completed"
     assert data2["outcome"] == "done"
+
+def test_profile_invocation_complete_already_closed(tmp_path, monkeypatch):
+    """Calling complete twice returns warning, exit 0, no duplicate write."""
+    result = runner.invoke(app, ["advise", "implement the feature", "--profile", "implementer-fixture", "--json"])
+    invocation_id = json.loads(result.output)["invocation_id"]
+    runner.invoke(app, ["profile-invocation", "complete", "--invocation-id", invocation_id, "--json"])
+    result3 = runner.invoke(app, ["profile-invocation", "complete", "--invocation-id", invocation_id, "--json"])
+    assert result3.exit_code == 0
+    data3 = json.loads(result3.output)
+    assert data3.get("warning") == "already_closed"
 ```
 
 **Files**: `tests/specify_cli/invocation/cli/test_advise.py`

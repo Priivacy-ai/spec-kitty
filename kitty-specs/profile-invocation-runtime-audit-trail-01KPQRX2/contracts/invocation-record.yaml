@@ -6,7 +6,11 @@ description: |
   `completed` (appended when `profile-invocation complete` is called).
   Lines are append-only and immutable after write.
 version: "1.0"
-storage_path_pattern: ".kittify/events/profile-invocations/{profile_id}-{invocation_id}.jsonl"
+storage_path_pattern: ".kittify/events/profile-invocations/{invocation_id}.jsonl"
+storage_path_note: |
+  Filename is invocation_id ONLY (no profile_id prefix). This enables
+  profile-invocation complete to locate the file with --invocation-id alone.
+  Profile filtering in invocations list reads profile_id from file content.
 
 events:
   started:

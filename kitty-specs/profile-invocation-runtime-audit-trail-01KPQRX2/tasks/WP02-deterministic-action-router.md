@@ -239,7 +239,14 @@ class ActionRouter:
         # Level 3: domain keyword match
         keyword_matches: list[tuple[str, str, str]] = []  # (profile_id, action, keyword)
         for profile in profiles:
-            kws = getattr(getattr(profile, "specialization", None), "domain_keywords", []) or []
+            # domain_keywords lives in specialization_context (SpecializationContext),
+            # NOT in specialization (Specialization). Always check for None.
+            sc = getattr(profile, "specialization_context", None)
+            kws = list(sc.domain_keywords) if sc and sc.domain_keywords else []
+            # Also check collaboration.canonical_verbs as profile-specific verb signals
+            collab = getattr(profile, "collaboration", None)
+            collab_verbs = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
+            kws = kws + [v for v in collab_verbs if v not in kws]
             for kw in kws:
                 if kw.lower() in tokens:
                     caps = DEFAULT_ROLE_CAPABILITIES.get(profile.role) if hasattr(profile, "role") else None

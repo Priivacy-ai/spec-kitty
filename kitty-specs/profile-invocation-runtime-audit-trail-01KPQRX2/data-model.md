@@ -43,7 +43,8 @@ InvocationSaaSPropagator (background)
 
 The canonical Tier 1 audit record. Written as a JSONL file; each line is a JSON object.
 
-**File path**: `.kittify/events/profile-invocations/<profile_id>-<invocation_id>.jsonl`
+**File path**: `.kittify/events/profile-invocations/<invocation_id>.jsonl`
+*(Keyed on invocation_id only — no profile_id prefix. Allows `profile-invocation complete --invocation-id <id>` with no other locator argument. Profile filtering in `invocations list` reads `profile_id` from the started-event content.)*
 **Immutability rule**: lines are append-only. `started` event is written first; `completed` event is appended when `profile-invocation complete` is called.
 
 ### `started` event line
@@ -90,7 +91,7 @@ Returned to the caller by `advise`, `ask`, and `do`. Not persisted.
 |-------|------|-------------|
 | `invocation_id` | `str` | ULID — used by caller to call `profile-invocation complete` |
 | `profile_id` | `str` | Resolved profile identity |
-| `profile_friendly_name` | `str` | Human-readable profile name |
+| `profile_friendly_name` | `str` | Human-readable profile name — sourced from `AgentProfile.name` |
 | `action` | `str` | Resolved canonical action token |
 | `governance_context_text` | `str` | Full `CharterContextResult.text` for this `(profile, action)` pair |
 | `governance_context_hash` | `str` | Hash matching the `started` event record |
@@ -137,7 +138,7 @@ Raised (or returned) when the router cannot unambiguously resolve a `(profile, a
 | Field | Type | Description |
 |-------|------|-------------|
 | `profile_id` | `str` | Profile identity |
-| `friendly_name` | `str` | Human-readable name |
+| `name` | `str` | Human-readable name — `AgentProfile.name` (the field is `name`, not `friendly_name`) |
 | `role` | `str` | Role enum value or custom role string |
 | `action_domains` | `list[str]` | Canonical verbs + domain keywords combined |
 | `source` | `"shipped" \| "project_local"` | Whether profile is shipped or project-local override |
@@ -187,8 +188,8 @@ Created by `promote_to_evidence(record, evidence_dir, content)`.
 .kittify/
 └── events/
     ├── profile-invocations/
-    │   ├── implementer-01KPQRX2EVGMRVB4Q1JQBAZJV3.jsonl    # started + completed
-    │   ├── reviewer-01KPQRX3XXXXXXXXXXXXXXXXXX.jsonl        # started only (open)
+    │   ├── 01KPQRX2EVGMRVB4Q1JQBAZJV3.jsonl    # started + completed (profile_id inside)
+    │   ├── 01KPQRX3XXXXXXXXXXXXXXXXXX.jsonl     # started only (open)
     │   └── ...
     ├── invocation-index.jsonl                                # optional; added if list latency > 200ms
     └── propagation-errors.jsonl                             # SaaS propagation failures

@@ -25,7 +25,7 @@ Scope is bounded: `intake` does not route through the executor; workflow composi
 **Release**: `3.2.0` (current prerelease line: `3.2.0a3`)
 **Language/Version**: Python 3.11+ (existing spec-kitty baseline)
 **Primary Dependencies (existing, reused)**: `typer` (CLI), `rich` (console), `ruamel.yaml` (YAML), `pydantic` v2 (models + schema validation), `pytest` (tests), `mypy` strict (type-check)
-**New Dependencies**: **None**. ULID generation reuses `python-ulid` or `ulid2` already present for mission identity (mission 083); confirm in plan gate. SHA-256 is `hashlib` stdlib.
+**New Dependencies**: **None**. ULID generation uses `import ulid as _ulid_mod` — this is the library already in use throughout `src/specify_cli/` (confirmed in `status/emit.py`, `core/mission_creation.py`, `sync/emitter.py`). Generation: `str(_ulid_mod.new().str)` with fallback `str(_ulid_mod.ULID())` matching the emit.py pattern (lines 83–84). SHA-256 is `hashlib` stdlib. Do NOT use `ulid2.generate_ulid_as_uuid()`.
 **Storage**: Filesystem only. New paths:
 - `.kittify/events/profile-invocations/<profile_id>-<invocation_id>.jsonl` — per-invocation JSONL record
 - `.kittify/events/propagation-errors.jsonl` — SaaS propagation error log
@@ -98,13 +98,17 @@ No changes are made to `src/specify_cli/next/` (the mission-advancement loop). T
 
 **ADR-3 document**: produced as `kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/adr-3-deterministic-action-router.md` before WP4.2 implementation is approved.
 
-### KD-3 · Governance context assembly — `build_charter_context()` direct call
+### KD-3 · Governance context assembly — action-scoped bootstrap, profile param reserved
 
-The executor calls `build_charter_context(repo_root, profile=profile_id, action=action, mark_loaded=False)` from `src/charter/context.py` to assemble the governance context block. `mark_loaded=False` prevents invocations from poisoning the first-load tracking used by `specify`/`plan`/`implement`/`review` flows.
+The executor calls `build_charter_context(repo_root, profile=profile_id, action=action, mark_loaded=False)` from `src/charter/context.py`.
+
+**Critical 3.2 constraint**: `build_charter_context` currently has `_ = profile` (line 79 of `context.py`) — the profile parameter is accepted but silently ignored. Context is action-scoped only. Bootstrap actions (`implement`, `review`, `plan`, `specify`) receive full DRG-backed context; all other canonical action tokens (e.g., `analyze`, `curate`, `coordinate`, `design`) receive `mode="compact"` with generic governance text. Profile-specific DRG filtering is a future enhancement, not part of 3.2.
+
+`mark_loaded=False` prevents invocations from poisoning the first-load tracking used by `specify`/`plan`/`implement`/`review` flows. This is critical — if accidentally omitted, the context-state.json file is corrupted.
 
 The governance context hash stored in `InvocationRecord.governance_context_hash` is the first 16 hex characters of `sha256(result.text.encode()).hexdigest()`. This is sufficient for provenance; it is not a security hash.
 
-**Degraded-mode handling**: if `build_charter_context()` returns `mode="missing"` (no charter synthesized), the executor emits a structured warning and returns a minimal context block indicating that governance context is unavailable. An `InvocationRecord` is still written so the invocation is auditable. The CLI exits with code 0 but the JSON payload contains `governance_context_available: false`.
+**Degraded-mode handling**: if `build_charter_context()` returns `mode="missing"` (no charter synthesized — the charter.md file does not exist), the executor continues. An `InvocationRecord` is still written with `governance_context_available=false`. The CLI exits with code 0 and the JSON payload includes `governance_context_available: false` with a warning. **This is intentional**: missing charter degrades gracefully; only missing profile fails closed (see KD-4).
 
 ### KD-4 · Profile resolution — shipped-first, project-local-override
 
@@ -112,21 +116,42 @@ The governance context hash stored in `InvocationRecord.governance_context_hash`
 
 If `.kittify/profiles/` does not exist (the common case for projects that have not run Phase 3 synthesis), the repository gracefully falls back to shipped profiles only, with no error.
 
-### KD-5 · InvocationRecord write — append-to-per-invocation JSONL file
+### KD-5 · InvocationRecord write — `<invocation_id>.jsonl`, invocation_id-only lookup
 
-Each invocation writes its record to a dedicated JSONL file at `.kittify/events/profile-invocations/<profile_id>-<invocation_id>.jsonl`. The file starts with the `started` event and gains a `completed` event when `profile-invocation complete` is called.
+Each invocation writes its record to a dedicated JSONL file at `.kittify/events/profile-invocations/<invocation_id>.jsonl`. The file starts with the `started` event and gains a `completed` event when `profile-invocation complete` is called.
 
-**Rationale**: per-invocation files simplify concurrent writes (no cross-file locking needed — ULID ensures uniqueness), make individual record lookup O(1) (filename contains the invocation ID), and make the directory scannable for `invocations list` queries.
+**Filename scheme change from initial design**: the filename is keyed solely on `invocation_id`, not `<profile_id>-<invocation_id>`. This is required so that `profile-invocation complete --invocation-id <id>` can locate the file without a `--profile-id` argument. The `profile_id` is stored inside the JSONL content; `invocations list --profile <name>` filters by reading the `profile_id` field from each file's first line.
+
+**Already-closed check**: before appending the `completed` event, the writer reads the last line of the file. If it is already a `completed` event, the writer returns a structured "already closed" warning without writing.
+
+**Rationale**: per-invocation files simplify concurrent writes (no cross-file locking needed — ULID ensures uniqueness), make individual record lookup O(1) (filename IS the invocation ID), and avoid requiring callers to remember `profile_id` at close time.
 
 **Rejected alternatives**:
+- `<profile_id>-<invocation_id>.jsonl` — requires callers to supply `--profile-id` at close time; adds friction for host-LLM agents.
 - Single append-only log per profile (`<profile_id>.jsonl`) — concurrent writes need advisory locking; read-all scan for specific ID is O(n).
 - Single global log — same concurrency concern plus noisier scans.
 
-### KD-6 · SaaS propagation — background thread, post-write, non-blocking
+### KD-6 · SaaS propagation — asyncio, post-write, non-blocking
 
-After a successful local JSONL write, the propagator submits the record to a `ThreadPoolExecutor` (size 1 per CLI invocation lifecycle). The propagation thread calls the existing SaaS sync client. On failure it appends to `.kittify/events/propagation-errors.jsonl`. On success it is silent. The main CLI thread never joins the propagation thread before returning.
+After a successful local JSONL write, the propagator schedules the event for async SaaS delivery. The real SaaS sync client (`src/specify_cli/sync/client.py`) exposes `async def send_event(self, event: dict)` — it is a WebSocket-based async method, NOT a synchronous call. Propagation must follow the same pattern used by `src/specify_cli/sync/emitter.py` (lines 993–1000):
 
-**Process lifecycle**: for short-lived CLI processes (`advise`, `ask`, `do`), the `ThreadPoolExecutor` is given a 5-second `shutdown(wait=True)` timeout via `atexit` registration. Propagation that exceeds 5 seconds at process exit is abandoned and logged as a timeout error.
+```python
+# sync context calling async SaaS method:
+try:
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        asyncio.ensure_future(client.send_event(event_dict))
+    else:
+        loop.run_until_complete(client.send_event(event_dict))
+except Exception as e:
+    _log_propagation_error(repo_root, record, str(e))
+```
+
+**`event_dict` shape**: a plain `dict` with `event_type` and payload fields — the SaaS client does not accept an `idempotency_key` kwarg. Deduplication is handled server-side by event content hash if supported; otherwise it is the operator's responsibility not to re-propagate.
+
+**Propagation wiring**: both the `started` event (from `executor.invoke()`) and the `completed` event (from `InvocationWriter.write_completed()`) must be propagated. The `profile-invocation complete` CLI command goes through `InvocationWriter`, so the propagator must be injected into the writer (or the executor's `complete_invocation()` method must call the propagator explicitly after the write). Leaving propagation only in the executor would silently skip completed events.
+
+**On failure**: log to `.kittify/events/propagation-errors.jsonl`. Never raise to caller.
 
 ---
 

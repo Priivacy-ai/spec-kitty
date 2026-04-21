@@ -120,19 +120,20 @@ def _iter_records(
     if not events_dir.exists():
         return
 
-    pattern = f"{profile_filter}-*.jsonl" if profile_filter else "*.jsonl"
-    files = sorted(events_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
-
-    count = 0
-    for path in files:
-        if count >= limit:
-            break
+    # Filename is <invocation_id>.jsonl — no profile prefix in filename.
+    # Profile filtering requires reading each file's first line content.
+    # Sort by started_at from file CONTENT (not mtime) to get correct temporal ordering.
+    # Using mtime would produce wrong ordering when old invocations are later completed.
+    raw_records = []
+    for path in events_dir.glob("*.jsonl"):
         started = _read_first_line(path)
         if started is None:
             continue
+        # Apply profile filter by reading content (not filename)
+        if profile_filter and started.get("profile_id") != profile_filter:
+            continue
         last = _read_last_line(path)
         record = dict(started)
-        # Merge completion fields if last event is a completed event
         if last and last.get("event") == "completed" and last.get("invocation_id") == record.get("invocation_id"):
             record["completed_at"] = last.get("completed_at")
             record["outcome"] = last.get("outcome")
@@ -140,6 +141,15 @@ def _iter_records(
             record["status"] = "closed"
         else:
             record["status"] = "open"
+        raw_records.append(record)
+
+    # Sort by started_at descending (ISO-8601 strings sort lexicographically)
+    raw_records.sort(key=lambda r: r.get("started_at", ""), reverse=True)
+
+    count = 0
+    for record in raw_records:
+        if count >= limit:
+            break
         yield record
         count += 1
 

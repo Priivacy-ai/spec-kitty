@@ -131,21 +131,29 @@ is already committed. Read it before implementing the executor's router slot.
 
 3. Create test fixtures directory `tests/specify_cli/invocation/fixtures/profiles/`.
 
-4. Create minimal fixture profile `tests/specify_cli/invocation/fixtures/profiles/implementer.agent.yaml`:
+4. Create minimal fixture profile `tests/specify_cli/invocation/fixtures/profiles/implementer.agent.yaml`.
+
+   **CRITICAL: Use the real AgentProfile schema** (`src/doctrine/agent_profiles/profile.py`). Required fields: `profile-id`, `name`, `purpose`, `specialization.primary-focus`. Domain keywords live in `specialization-context.domain-keywords` (NOT in `specialization`):
    ```yaml
    profile-id: implementer-fixture
-   friendly-name: "Implementer (fixture)"
+   name: "Implementer (fixture)"
    role: implementer
+   purpose: "Implement features and fix bugs in code."
    specialization:
+     primary-focus: "Code implementation and feature development"
+   specialization-context:
      domain-keywords: [implement, build, code]
    ```
 
 5. Create `tests/specify_cli/invocation/fixtures/profiles/reviewer.agent.yaml`:
    ```yaml
    profile-id: reviewer-fixture
-   friendly-name: "Reviewer (fixture)"
+   name: "Reviewer (fixture)"
    role: reviewer
+   purpose: "Review code for correctness, quality, and adherence to standards."
    specialization:
+     primary-focus: "Code review and quality assurance"
+   specialization-context:
      domain-keywords: [review, audit, assess]
    ```
 
@@ -282,16 +290,17 @@ is already committed. Read it before implementing the executor's router slot.
        def _ensure_dir(self) -> None:
            self._dir.mkdir(parents=True, exist_ok=True)
 
-       def invocation_path(self, profile_id: str, invocation_id: str) -> Path:
-           return self._dir / f"{profile_id}-{invocation_id}.jsonl"
+       def invocation_path(self, invocation_id: str) -> Path:
+           # Filename is invocation_id ONLY — no profile_id prefix.
+           # This allows profile-invocation complete to work with --invocation-id alone.
+           return self._dir / f"{invocation_id}.jsonl"
 
        def write_started(self, record: InvocationRecord) -> Path:
            """Write the `started` event. Returns the JSONL file path."""
            self._ensure_dir()
-           path = self.invocation_path(record.profile_id, record.invocation_id)
+           path = self.invocation_path(record.invocation_id)
            try:
                # Use "x" mode (exclusive create) to detect ULID collision (extremely rare).
-               # On collision, caller should retry with a new ULID.
                with path.open("x", encoding="utf-8") as f:
                    f.write(json.dumps(record.model_dump()) + "\n")
            except FileExistsError:
@@ -305,17 +314,33 @@ is already committed. Read it before implementing the executor's router slot.
        def write_completed(
            self,
            invocation_id: str,
-           profile_id: str,
            repo_root: Path,
            *,
            outcome: str | None = None,
            evidence_ref: str | None = None,
        ) -> InvocationRecord:
-           """Append the `completed` event to an existing invocation file."""
-           path = self.invocation_path(profile_id, invocation_id)
+           """Append the `completed` event to an existing invocation file.
+
+           Raises InvocationError if invocation_id not found.
+           Returns structured warning dict (not raises) if already closed.
+           """
+           path = self.invocation_path(invocation_id)
            if not path.exists():
                from specify_cli.invocation.errors import InvocationError
                raise InvocationError(f"Invocation record not found: {invocation_id}")
+
+           # Already-closed check: read last line to see if a completed event exists.
+           import json as _json
+           lines = [l.strip() for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+           last = _json.loads(lines[-1]) if lines else {}
+           if last.get("event") == "completed":
+               # Return the existing completed record; do not write a duplicate.
+               raise AlreadyClosedError(invocation_id)
+
+           # Read profile_id from the started event (first line) for the completed record
+           first = _json.loads(lines[0]) if lines else {}
+           profile_id = first.get("profile_id", "")
+
            completed = InvocationRecord(
                event="completed",
                invocation_id=invocation_id,
@@ -327,13 +352,20 @@ is already committed. Read it before implementing the executor's router slot.
            )
            try:
                with path.open("a", encoding="utf-8") as f:
-                   f.write(json.dumps(completed.model_dump(exclude_none=False)) + "\n")
+                   f.write(_json.dumps(completed.model_dump(exclude_none=False)) + "\n")
            except OSError as e:
                raise InvocationWriteError(f"Failed to append completed event: {e}") from e
            return completed
    ```
 
-2. **Append-only invariant**: The writer only uses `"x"` (exclusive create) for the started event and `"a"` (append) for the completed event. No existing line is ever mutated.
+   Add `AlreadyClosedError` to `errors.py`:
+   ```python
+   class AlreadyClosedError(InvocationError):
+       def __init__(self, invocation_id: str) -> None:
+           super().__init__(f"Invocation {invocation_id} is already closed.")
+   ```
+
+2. **Append-only invariant**: The writer only uses `"x"` (exclusive create) for the started event and `"a"` (append) for the completed event. No existing line is ever mutated. The already-closed check prevents double-completion without mutating the existing record.
 
 **Files**: `src/specify_cli/invocation/writer.py`
 
@@ -351,7 +383,7 @@ is already committed. Read it before implementing the executor's router slot.
    import datetime
    import hashlib
    from pathlib import Path
-   from ulid2 import generate_ulid_as_uuid  # or from ulid import ULID — check existing imports
+   import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
    from charter.context import build_charter_context
    from specify_cli.invocation.errors import ProfileNotFoundError, InvocationWriteError
@@ -363,6 +395,13 @@ is already committed. Read it before implementing the executor's router slot.
    from typing import TYPE_CHECKING, Protocol
    if TYPE_CHECKING:
        from specify_cli.invocation.router import ActionRouter
+
+   def _new_ulid() -> str:
+       """Generate a new ULID string using the codebase's existing ulid library."""
+       try:
+           return str(_ulid_mod.new().str)   # python-ulid >= 1.0 API
+       except AttributeError:
+           return str(_ulid_mod.ULID())       # fallback (matches emit.py lines 83-84)
 
    class ActionRouterPlugin(Protocol):
        """No-op protocol stub — reserved for future hybrid routing extension."""
@@ -408,9 +447,7 @@ is already committed. Read it before implementing the executor's router slot.
            mark_loaded=False ensures first-load state for specify/plan/implement/review
            is NOT poisoned by invocation calls.
            """
-           from ulid2 import generate_ulid_as_uuid as _gen_ulid  # noqa: F401
-           import ulid2  # confirm import style matches existing codebase
-           invocation_id = str(ulid2.generate_ulid_as_uuid())  # adapt to actual import
+           invocation_id = _new_ulid()  # uses codebase-standard ulid library
 
            # 1. Resolve (profile_id, action)
            if profile_hint is not None:
@@ -461,7 +498,7 @@ is already committed. Read it before implementing the executor's router slot.
            return InvocationPayload(
                invocation_id=invocation_id,
                profile_id=profile.profile_id,
-               profile_friendly_name=getattr(profile, "friendly_name", profile.profile_id),
+               profile_friendly_name=profile.name,  # AgentProfile.name (not friendly_name)
                action=action,
                governance_context_text=ctx_result.text,
                governance_context_hash=ctx_hash,
@@ -479,7 +516,7 @@ is already committed. Read it before implementing the executor's router slot.
            return "advise"  # default fallback
    ```
 
-2. **ULID import**: Check `src/specify_cli/status/models.py` for the exact ULID import style used in the codebase and match it.
+2. **ULID confirmed**: Use `import ulid as _ulid_mod` with `_new_ulid()` helper. This matches the pattern in `src/specify_cli/status/emit.py` lines 83–84, `src/specify_cli/core/mission_creation.py`, etc. Do NOT import from `ulid2`.
 
 3. **`mark_loaded=False` is critical**: Add a module-level docstring comment explaining why. Failing to pass this flag would corrupt `context-state.json` and break the `specify`/`plan` first-load detection.
 
@@ -527,13 +564,18 @@ is already committed. Read it before implementing the executor's router slot.
            from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
            caps = DEFAULT_ROLE_CAPABILITIES.get(p.role) if hasattr(p, "role") else None
            canonical_verbs = caps.canonical_verbs if caps else []
-           domain_kws = getattr(getattr(p, "specialization", None), "domain_keywords", []) or []
+           # domain_keywords lives in specialization_context (SpecializationContext), NOT specialization
+           sc = getattr(p, "specialization_context", None)
+           domain_kws = list(sc.domain_keywords) if sc and sc.domain_keywords else []
+           # collaboration.canonical_verbs also carries per-profile verbs
+           collab = getattr(p, "collaboration", None)
+           collab_verbs = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
            source = "project_local" if hasattr(p, "_source") and p._source == "project" else "shipped"
            descriptors.append({
                "profile_id": p.profile_id,
-               "friendly_name": getattr(p, "friendly_name", p.profile_id),
+               "name": p.name,  # AgentProfile.name (not friendly_name — that field does not exist)
                "role": str(p.role),
-               "action_domains": list({*canonical_verbs, *domain_kws}),
+               "action_domains": list({*canonical_verbs, *collab_verbs, *domain_kws}),
                "source": source,
            })
 
@@ -546,7 +588,7 @@ is already committed. Read it before implementing the executor's router slot.
            table.add_column("Role")
            table.add_column("Source")
            for d in descriptors:
-               table.add_row(d["profile_id"], d["friendly_name"], d["role"], d["source"])
+               table.add_row(d["profile_id"], d["name"], d["role"], d["source"])
            console.print(table)
    ```
 

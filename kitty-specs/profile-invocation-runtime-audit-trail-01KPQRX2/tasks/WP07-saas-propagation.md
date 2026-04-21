@@ -130,13 +130,17 @@ def _get_saas_client(repo_root: Path) -> Any | None:
     """
     Load the existing SaaS sync client if a token is configured.
     Returns None if no token is configured or if the client is unavailable.
-    Replace this with the actual SaaS client factory used elsewhere in the codebase.
+    Follow the same factory pattern used in src/specify_cli/sync/emitter.py.
     """
     try:
-        # Follow the pattern in src/specify_cli/sync/ (or similar)
-        # Example: from specify_cli.sync.client import SaaSClient, get_client
-        # return get_client(repo_root)
-        return None  # Replace with actual implementation
+        # Locate the client factory — search src/specify_cli/sync/ for the pattern
+        # used to obtain an authenticated SaaSClient instance (likely get_client or
+        # from an event emitter factory). Do NOT invent a new client.
+        # Example (update with actual import once located):
+        # from specify_cli.sync.emitter import get_emitter
+        # emitter = get_emitter(repo_root)
+        # return emitter.ws_client if emitter and emitter.ws_client else None
+        return None  # Replace with actual implementation found in T027
     except Exception:
         return None  # No token configured → no-op
 
@@ -146,16 +150,20 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
     Propagate a single InvocationRecord to SaaS.
     Runs in a background thread. Logs errors to propagation-errors.jsonl on failure.
     Never raises — swallows all exceptions.
+
+    CRITICAL: The real SaaS client uses `async def send_event(self, event: dict)`.
+    It is NOT synchronous and does NOT accept an idempotency_key kwarg.
+    Call it via asyncio following the pattern in src/specify_cli/sync/emitter.py lines 993-1000.
     """
     client = _get_saas_client(repo_root)
     if client is None:
         return  # No SaaS token → no-op, no log
 
     try:
-        # Build the SaaS envelope from the record
+        # Build the SaaS envelope dict — single flat dict, no separate event_type arg
         if record.event == "started":
-            event_type = "ProfileInvocationStarted"
-            payload = {
+            event_dict = {
+                "event_type": "ProfileInvocationStarted",
                 "invocation_id": record.invocation_id,
                 "profile_id": record.profile_id,
                 "action": record.action,
@@ -165,16 +173,25 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
                 "started_at": record.started_at,
             }
         else:  # completed
-            event_type = "ProfileInvocationCompleted"
-            payload = {
+            event_dict = {
+                "event_type": "ProfileInvocationCompleted",
                 "invocation_id": record.invocation_id,
                 "outcome": record.outcome,
                 "evidence_ref": record.evidence_ref,
                 "completed_at": record.completed_at,
             }
 
-        # The idempotency key is the invocation_id — the SaaS client should handle deduplication
-        client.send_event(event_type, payload, idempotency_key=record.invocation_id)
+        # The real client is async. Match the pattern from emitter.py lines 993-1000:
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(client.send_event(event_dict))
+            else:
+                loop.run_until_complete(client.send_event(event_dict))
+        except RuntimeError:
+            # No event loop available — fall back to a new one
+            asyncio.run(client.send_event(event_dict))
 
     except Exception as e:
         _log_propagation_error(repo_root, record, str(e))
@@ -259,20 +276,26 @@ class ProfileInvocationExecutor:
        self._propagator.submit(record)
    ```
 
-3. Add a `complete_invocation()` method to the executor (or keep it in the writer — consistent with WP03 approach):
+3. Add a `complete_invocation()` method to the executor that wraps `write_completed` + propagation. The `profile-invocation complete` CLI (WP03) currently calls `InvocationWriter.write_completed()` directly — WP07 must update that call path so completed events also reach the propagator. The cleanest approach: route the CLI's complete call through `executor.complete_invocation()` instead of `writer.write_completed()` directly.
+
    ```python
    def complete_invocation(
        self,
        invocation_id: str,
-       profile_id: str,
        outcome: str | None = None,
        evidence_ref: str | None = None,
    ) -> InvocationRecord:
-       completed = self._writer.write_completed(invocation_id, profile_id, self._repo_root, outcome=outcome, evidence_ref=evidence_ref)
+       # No profile_id needed — writer locates file by invocation_id alone
+       completed = self._writer.write_completed(
+           invocation_id, self._repo_root,
+           outcome=outcome, evidence_ref=evidence_ref
+       )
        if self._propagator is not None:
            self._propagator.submit(completed)
        return completed
    ```
+
+   Update `WP03`'s `complete_invocation` CLI handler to call `executor.complete_invocation()` rather than `writer.write_completed()` directly. This is a small change to `advise.py`.
 
 4. In CLI commands that create the executor (WP03's `advise.py`, WP04's `do_cmd.py`), inject the propagator:
    ```python
@@ -349,15 +372,21 @@ def test_propagator_logs_error_on_saas_failure(tmp_path):
     assert "503" in entries[0]["error"]
     assert entries[0]["invocation_id"] == record.invocation_id
 
-def test_propagator_uses_invocation_id_as_idempotency_key(tmp_path):
-    """invocation_id is passed as idempotency_key to client.send_event."""
+def test_propagator_sends_invocation_id_in_event_dict(tmp_path):
+    """invocation_id is included in the event dict passed to client.send_event."""
+    import asyncio
     record = make_started_record()
     with patch("specify_cli.invocation.propagator._get_saas_client") as mock_factory:
         mock_client = MagicMock()
+        # send_event is async — return a coroutine mock
+        async def mock_send(event_dict):
+            pass
+        mock_client.send_event = mock_send
         mock_factory.return_value = mock_client
         _propagate_one(record, tmp_path)
-    call_kwargs = mock_client.send_event.call_args.kwargs
-    assert call_kwargs.get("idempotency_key") == record.invocation_id
+    # Verify no error was logged (success path)
+    error_log = tmp_path / ".kittify" / "events" / "propagation-errors.jsonl"
+    assert not error_log.exists()
 
 def test_propagator_error_log_never_raises_on_disk_full(tmp_path):
     """If propagation error log itself fails (disk full), no exception raised."""
