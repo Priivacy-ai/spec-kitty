@@ -11,11 +11,11 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----|
-| T001 | Parse `??` porcelain prefix and skip untracked lines in invariant | WP01 | |
-| T002 | Bifurcate error message by failure type (sparse-checkout vs generic) | WP01 | |
-| T003 | Regression test: untracked files do not abort merge | WP01 | [P] |
-| T004 | Regression test: tracked-dirty files abort with correct message | WP01 | [P] |
-| T005 | Full suite green check | WP01 | |
+| T001 | Parse `??` porcelain prefix and skip untracked lines in invariant | WP01 | | [D] |
+| T002 | Bifurcate error message by failure type (sparse-checkout vs generic) | WP01 | | [D] |
+| T003 | Regression test: untracked files do not abort merge | WP01 | [D] |
+| T004 | Regression test: tracked-dirty files abort with correct message | WP01 | [D] |
+| T005 | Full suite green check | WP01 | | [D] |
 | T006 | Add Gemini + Qwen to `AGENT_ARG_PLACEHOLDERS` (`{{args}}`) | WP02 | |
 | T007 | Add `AGENT_SHIM_FORMATS` dispatch dict (`gemini → toml`) | WP02 | |
 | T008 | Implement `generate_shim_content_toml()` for Gemini TOML schema | WP02 | |
@@ -51,11 +51,11 @@
 **Goal**: Fix the false-positive merge abort caused by untracked files, and make the error message accurate.
 
 **Subtasks**:
-- [ ] T001 Parse `??` porcelain prefix and skip untracked lines in invariant (WP01)
-- [ ] T002 Bifurcate error message by failure type (sparse-checkout vs generic) (WP01)
-- [ ] T003 Regression test: untracked files do not abort merge (WP01)
-- [ ] T004 Regression test: tracked-dirty files abort with correct message (WP01)
-- [ ] T005 Full suite green check (WP01)
+- [x] T001 Parse `??` porcelain prefix and skip untracked lines in invariant (WP01)
+- [x] T002 Bifurcate error message by failure type (sparse-checkout vs generic) (WP01)
+- [x] T003 Regression test: untracked files do not abort merge (WP01)
+- [x] T004 Regression test: tracked-dirty files abort with correct message (WP01)
+- [x] T005 Full suite green check (WP01)
 
 **Success criteria**: `spec-kitty merge` completes when `.claude/`, `.agents/`, etc. are untracked. Genuinely dirty tracked files still abort with an accurate, actionable error.
 
