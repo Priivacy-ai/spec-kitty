@@ -23,13 +23,13 @@
 | T010 | Regression tests: Gemini produces `.toml`, correct schema, `{{args}}` | WP02 | [D] |
 | T011 | Regression tests: Qwen stays `.md` but uses `{{args}}` | WP02 | [D] |
 | T012 | Regression tests: Claude/Codex output unchanged | WP02 | [D] |
-| T013 | Change review-claim emit to `Lane.IN_REVIEW`, remove `force=True` | WP03 | |
-| T014 | Update `is_review_claimed` to OR new + legacy shapes | WP03 | |
-| T015 | Update lane-entry guard to accept `{FOR_REVIEW, IN_REVIEW, legacy-in-progress-claim}` | WP03 | |
-| T016 | Regression test: new review claim emits `in_review` | WP03 | [P] |
-| T017 | Regression test: approval from `in_review` succeeds | WP03 | [P] |
-| T018 | Regression test: rejection from `in_review` succeeds | WP03 | [P] |
-| T019 | Regression test: historical `in_progress + review_ref` logs parse without error | WP03 | [P] |
+| T013 | Change review-claim emit to `Lane.IN_REVIEW`, remove `force=True` | WP03 | | [D] |
+| T014 | Update `is_review_claimed` to OR new + legacy shapes | WP03 | | [D] |
+| T015 | Update lane-entry guard to accept `{FOR_REVIEW, IN_REVIEW, legacy-in-progress-claim}` | WP03 | | [D] |
+| T016 | Regression test: new review claim emits `in_review` | WP03 | [D] |
+| T017 | Regression test: approval from `in_review` succeeds | WP03 | [D] |
+| T018 | Regression test: rejection from `in_review` succeeds | WP03 | [D] |
+| T019 | Regression test: historical `in_progress + review_ref` logs parse without error | WP03 | [D] |
 | T020 | Atomic write (temp + replace) in `write_mission_brief()` | WP04 | |
 | T021 | Add `MAX_BRIEF_FILE_SIZE_BYTES` constant + size guard in `intake.py` | WP04 | |
 | T022 | Add repo-root containment check in `scan_for_plans()` | WP04 | |
@@ -93,13 +93,13 @@
 **Goal**: Review claims emit `for_review → in_review`. Approval/rejection from `in_review` works. Historical `in_progress` review-claim logs remain readable.
 
 **Subtasks**:
-- [ ] T013 Change review-claim emit to `Lane.IN_REVIEW`, remove `force=True` (WP03)
-- [ ] T014 Update `is_review_claimed` to OR new + legacy shapes (WP03)
-- [ ] T015 Update lane-entry guard to accept `{FOR_REVIEW, IN_REVIEW, legacy-in-progress-claim}` (WP03)
-- [ ] T016 Regression test: new review claim emits `in_review` (WP03)
-- [ ] T017 Regression test: approval from `in_review` succeeds (WP03)
-- [ ] T018 Regression test: rejection from `in_review` succeeds (WP03)
-- [ ] T019 Regression test: historical `in_progress + review_ref` logs parse without error (WP03)
+- [x] T013 Change review-claim emit to `Lane.IN_REVIEW`, remove `force=True` (WP03)
+- [x] T014 Update `is_review_claimed` to OR new + legacy shapes (WP03)
+- [x] T015 Update lane-entry guard to accept `{FOR_REVIEW, IN_REVIEW, legacy-in-progress-claim}` (WP03)
+- [x] T016 Regression test: new review claim emits `in_review` (WP03)
+- [x] T017 Regression test: approval from `in_review` succeeds (WP03)
+- [x] T018 Regression test: rejection from `in_review` succeeds (WP03)
+- [x] T019 Regression test: historical `in_progress + review_ref` logs parse without error (WP03)
 
 **Success criteria**: Event log shows `for_review → in_review` for new claims. Approval and rejection from that state complete normally. Old-format logs are readable.
 
