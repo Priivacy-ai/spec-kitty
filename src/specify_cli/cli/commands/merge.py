@@ -68,6 +68,45 @@ LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
 )
 
 
+def _classify_porcelain_lines(
+    lines: list[str],
+    expected_paths: set[str],
+) -> tuple[list[str], int]:
+    """Classify ``git status --porcelain`` lines into offending vs ignored.
+
+    Returns a 2-tuple ``(offending_lines, skipped_untracked_count)`` where:
+
+    * ``offending_lines`` — lines that represent unexpected divergence from HEAD
+      (tracked modifications, deletions, renames, …).
+    * ``skipped_untracked_count`` — number of ``??`` (untracked) lines that were
+      silently dropped because untracked files cannot diverge from HEAD.
+
+    Lines whose path component is in *expected_paths* are also dropped because
+    the immediately-following safe_commit will persist those files and they are
+    therefore expected to be dirty at this point in the flow.
+
+    Lines that do not match porcelain v1 shape (two status chars + space + path)
+    are silently ignored to avoid false positives from mocked test output.
+    """
+    offending: list[str] = []
+    skipped_untracked = 0
+    for line in lines:
+        if not line.strip():
+            continue
+        # Porcelain v1: two status chars + space + path (minimum 4 chars).
+        if len(line) < 4 or line[2] != " ":
+            continue
+        status_code = line[:2]
+        if status_code == "??":
+            skipped_untracked += 1
+            continue  # untracked files cannot diverge from HEAD
+        path_part = line[3:].strip()
+        if path_part in expected_paths:
+            continue
+        offending.append(line)
+    return offending, skipped_untracked
+
+
 def _is_linear_history_rejection(stderr: str) -> bool:
     """Return True if git push stderr indicates a linear-history rejection.
 
@@ -853,22 +892,10 @@ def _run_lane_based_merge_locked(
             f"kitty-specs/{mission_slug}/status.events.jsonl",
             f"kitty-specs/{mission_slug}/status.json",
         }
-        offending_lines: list[str] = []
-        for line in (_out_status or "").splitlines():
-            if not line.strip():
-                continue
-            # Porcelain v1 format: two status chars + space + path. Only lines
-            # that match this shape represent real status entries; anything
-            # else came from a mocked or foreign source and we skip it to
-            # avoid false positives (tests with heavy mocking of run_command
-            # may return arbitrary strings here — see the WP05 risks section
-            # about false positives on the invariant assertion).
-            if len(line) < 4 or line[2] != " ":
-                continue
-            path_part = line[3:].strip()
-            if path_part in expected_paths:
-                continue
-            offending_lines.append(line)
+        offending_lines, _skipped_untracked = _classify_porcelain_lines(
+            (_out_status or "").splitlines(),
+            expected_paths,
+        )
         if offending_lines:
             console.print(
                 "[red]Error:[/red] Post-merge working-tree invariant violated. "
@@ -876,11 +903,21 @@ def _run_lane_based_merge_locked(
             )
             for line in offending_lines:
                 console.print(f"  {line}")
-            console.print(
-                "\nThis usually indicates sparse-checkout or a stale lock file. Run\n"
-                "  spec-kitty doctor sparse-checkout --fix\n"
-                "before retrying the merge."
+            deleted_or_modified = any(
+                len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M"))
+                for line in offending_lines
             )
+            if deleted_or_modified:
+                console.print(
+                    "\nThis may indicate a sparse-checkout or filter-driver issue. Run\n"
+                    "  spec-kitty doctor sparse-checkout --fix\n"
+                    "before retrying the merge."
+                )
+            else:
+                console.print(
+                    "\nUnexpected working-tree state after merge. "
+                    "Run `git status` to investigate before retrying."
+                )
             raise typer.Exit(1)
     else:
         console.print(
