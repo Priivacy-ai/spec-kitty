@@ -26,8 +26,8 @@ subtasks:
 - T010
 - T011
 - T012
-shell_pid: "64353"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "70133"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - 2026-04-21T08:41:50Z – planned – stabilization WP02
 authoritative_surface: src/specify_cli/shims/
@@ -356,3 +356,4 @@ def test_regression_baselines_match_generated_output():
 
 - 2026-04-21T09:24:56Z – claude:sonnet:implementer:implementer – shell_pid=64353 – Assigned agent via action command
 - 2026-04-21T09:29:32Z – claude:sonnet:implementer:implementer – shell_pid=64353 – Ready for review: TOML shim generation for Gemini/Qwen, routing function, both generation paths fixed, 32 new tests + 66 total passing, 185 regression tests passing
+- 2026-04-21T09:29:58Z – claude:sonnet:reviewer:reviewer – shell_pid=70133 – Started review via action command
