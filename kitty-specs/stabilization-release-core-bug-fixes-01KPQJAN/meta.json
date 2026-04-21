@@ -1,10 +1,12 @@
 {
   "created_at": "2026-04-21T08:25:52.669902+00:00",
-  "friendly_name": "stabilization release core bug fixes",
+  "friendly_name": "Stabilization Release: Core Bug Fixes",
   "mission_id": "01KPQJAN4P2V4MTHRFGS7VW17M",
   "mission_number": null,
   "mission_slug": "stabilization-release-core-bug-fixes-01KPQJAN",
   "mission_type": "software-dev",
   "slug": "stabilization-release-core-bug-fixes-01KPQJAN",
-  "target_branch": "main"
+  "source_description": "Four validated bugs on current main: merge invariant false-positive on untracked files (#675), Gemini/Qwen shim generation format errors (#673), review-claim lane transition emits wrong state (#622), and intake path safety gaps (#723, #722, #720, #721).",
+  "target_branch": "main",
+  "vcs": "git"
 }
