@@ -15,8 +15,8 @@ subtasks:
 - T028
 - T029
 - T030
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "49473"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "65534"
 history:
 - date: '2026-04-21'
   event: created
@@ -436,3 +436,4 @@ def test_propagator_error_log_never_raises_on_disk_full(tmp_path):
 
 - 2026-04-21T12:48:11Z – claude:sonnet-4-6:implementer:implementer – shell_pid=49473 – Started implementation via action command
 - 2026-04-21T12:52:52Z – claude:sonnet-4-6:implementer:implementer – shell_pid=49473 – WP07 complete: propagator, executor wired, completed events propagated via complete_invocation()
+- 2026-04-21T12:53:07Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=65534 – Started review via action command
