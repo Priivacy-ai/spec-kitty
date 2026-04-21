@@ -18,9 +18,9 @@
 | T005 | `executor.py` — ProfileInvocationExecutor (invoke + governance context assembly) | WP01 | — | [D] |
 | T006 | `profiles_cmd.py` — `spec-kitty profiles list [--json]` + main.py registration | WP01 | [D] |
 | T007 | Tests: test_record, test_registry, test_writer, test_executor, test_profiles CLI | WP01 | — | [D] |
-| T008 | `router.py` — ActionRouter with CANONICAL_VERB_MAP, token normalization, domain_keyword match | WP02 | — |
-| T009 | Wire router into executor.py invoke() (no-hint path); add ActionRouterPlugin stub | WP02 | — |
-| T010 | `test_router.py` — 7 table-driven cases; confirm ADR-3 doc as review gate | WP02 | [P] |
+| T008 | `router.py` — ActionRouter with CANONICAL_VERB_MAP, token normalization, domain_keyword match | WP02 | — | [D] |
+| T009 | Wire router into executor.py invoke() (no-hint path); add ActionRouterPlugin stub | WP02 | — | [D] |
+| T010 | `test_router.py` — 7 table-driven cases; confirm ADR-3 doc as review gate | WP02 | [D] |
 | T011 | `advise.py` — `spec-kitty advise <request> [--profile <name>] [--json]` | WP03 | — |
 | T012 | Add `spec-kitty ask <profile> <request>` shim in advise.py | WP03 | [P] |
 | T013 | Add `spec-kitty profile-invocation complete --invocation-id <id>` in advise.py | WP03 | [P] |
@@ -79,9 +79,9 @@ Included subtasks:
 **Prompt file**: [tasks/WP02-deterministic-action-router.md](tasks/WP02-deterministic-action-router.md)
 
 Included subtasks:
-- [ ] T008 `router.py` — ActionRouter with CANONICAL_VERB_MAP, token normalization, domain_keyword match (WP02)
-- [ ] T009 Wire router into executor.py invoke() (no-hint path); add ActionRouterPlugin stub (WP02)
-- [ ] T010 `test_router.py` — 7 table-driven cases; confirm ADR-3 doc as review gate (WP02)
+- [x] T008 `router.py` — ActionRouter with CANONICAL_VERB_MAP, token normalization, domain_keyword match (WP02)
+- [x] T009 Wire router into executor.py invoke() (no-hint path); add ActionRouterPlugin stub (WP02)
+- [x] T010 `test_router.py` — 7 table-driven cases; confirm ADR-3 doc as review gate (WP02)
 
 **Dependencies**: WP01
 **Blocks**: WP03, WP04
