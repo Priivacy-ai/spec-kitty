@@ -390,3 +390,4 @@ def test_profile_invocation_complete_already_closed(tmp_path, monkeypatch):
 ## Activity Log
 
 - 2026-04-21T12:19:14Z – claude:sonnet-4-6:implementer:implementer – shell_pid=81048 – Started implementation via action command
+- 2026-04-21T12:25:43Z – claude:sonnet-4-6:implementer:implementer – shell_pid=81048 – WP03 complete: advise/ask/complete CLI, invocation_id-only complete, already_closed handled. 15/15 tests pass, mypy --strict clean.
