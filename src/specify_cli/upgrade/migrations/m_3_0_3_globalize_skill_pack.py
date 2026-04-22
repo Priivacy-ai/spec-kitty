@@ -104,6 +104,7 @@ class GlobalizeSkillPackMigration(BaseMigration):
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
+        preserved_paths: list[str] = []
 
         registry = _discover_registry()
         if registry is None:
@@ -126,7 +127,8 @@ class GlobalizeSkillPackMigration(BaseMigration):
             )
             return MigrationResult(success=True, changes_made=changes)
 
-        manifest = install_all_skills(project_path, agents, registry)
+        archived_paths: list[Path] = []
+        manifest = install_all_skills(project_path, agents, registry, archived_paths=archived_paths)
         existing = load_manifest(project_path)
         preserved: list[Any] = []
         if existing is not None:
@@ -145,9 +147,24 @@ class GlobalizeSkillPackMigration(BaseMigration):
         manifest.spec_kitty_version = "3.0.3"
         save_manifest(manifest, project_path)
 
+        preserved_paths = sorted(
+            str(path.relative_to(project_path)).replace("\\", "/")
+            for path in archived_paths
+        )
+
         changes.append(
             f"Relinked {len(skills)} canonical skill(s) for {len(agents)} agent(s) "
             f"({len(manifest.entries)} managed files)"
         )
         changes.append("Updated .kittify/skills-manifest.json for global canonical skill links")
-        return MigrationResult(success=True, changes_made=changes, warnings=warnings)
+        changes.extend(
+            f"Archived customized skill file for manual review: {path}"
+            for path in preserved_paths
+        )
+        return MigrationResult(
+            success=True,
+            changes_made=changes,
+            warnings=warnings,
+            manual_review_required=bool(preserved_paths),
+            preserved_paths=preserved_paths,
+        )

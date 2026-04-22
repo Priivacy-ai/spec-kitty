@@ -91,6 +91,11 @@ def test_apply_relinks_project_to_global_skill_home(tmp_path: Path, monkeypatch)
         result = GlobalizeSkillPackMigration().apply(project)
 
     assert result.success is True
+    assert result.manual_review_required is True
+    assert len(result.preserved_paths) == 1
+    assert result.preserved_paths[0].startswith(".kittify/.migration-backup/agent-skills/")
+    assert result.preserved_paths[0].endswith(".claude/skills/spec-kitty-test-skill/SKILL.md")
+    assert (project / result.preserved_paths[0]).is_file()
 
     installed = project / ".claude" / "skills" / "spec-kitty-test-skill" / "SKILL.md"
     assert installed.is_file()
@@ -99,3 +104,27 @@ def test_apply_relinks_project_to_global_skill_home(tmp_path: Path, monkeypatch)
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert data["spec_kitty_version"] == "3.0.3"
     assert data["entries"][0]["delivery_mode"] in {"symlink", "copy"}
+
+
+def test_identical_skill_copy_does_not_require_manual_review(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+
+    project = _setup_project(tmp_path, ["claude"])
+    skills_root = _setup_skills(tmp_path)
+
+    source_skill = skills_root / "spec-kitty-test-skill" / "SKILL.md"
+    copied_skill = project / ".claude" / "skills" / "spec-kitty-test-skill" / "SKILL.md"
+    copied_skill.parent.mkdir(parents=True, exist_ok=True)
+    copied_skill.write_text(source_skill.read_text(encoding="utf-8"), encoding="utf-8")
+
+    with patch(
+        "specify_cli.upgrade.migrations.m_3_0_3_globalize_skill_pack._discover_registry",
+        return_value=SkillRegistry(skills_root),
+    ):
+        result = GlobalizeSkillPackMigration().apply(project)
+
+    assert result.success is True
+    assert result.manual_review_required is False
+    assert result.preserved_paths == []

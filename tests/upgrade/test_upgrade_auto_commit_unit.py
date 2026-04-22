@@ -11,6 +11,8 @@ import pytest
 import typer
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
+from specify_cli.upgrade.migrations.base import MigrationResult
+from specify_cli.upgrade.runner import UpgradeResult
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +389,32 @@ def test_auto_commit_noop_when_baseline_is_none(
     assert warning is None
 
 
+def test_collect_manual_review_paths_deduplicates() -> None:
+    paths = upgrade_cmd._collect_manual_review_paths(
+        {
+            "a": MigrationResult(
+                success=True,
+                manual_review_required=True,
+                preserved_paths=[".claude/commands/spec-kitty.implement.md", ".agents/skills/foo/SKILL.md"],
+            ),
+            "b": MigrationResult(
+                success=True,
+                manual_review_required=False,
+                preserved_paths=["ignored"],
+            ),
+            "c": MigrationResult(
+                success=True,
+                manual_review_required=True,
+                preserved_paths=[".agents/skills/foo/SKILL.md"],
+            ),
+        }
+    )
+    assert paths == [
+        ".agents/skills/foo/SKILL.md",
+        ".claude/commands/spec-kitty.implement.md",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # upgrade() function – auto-commit wiring (no-migrations path)
 # ---------------------------------------------------------------------------
@@ -633,3 +661,119 @@ def test_upgrade_rejects_downgrade_target_in_json_mode(
     assert data["status"] == "failed"
     assert data["success"] is False
     assert data["errors"] == ["Refusing to downgrade project metadata from 1.0.0a1 to 0.9.0"]
+
+
+def test_upgrade_suppresses_auto_commit_when_manual_review_required(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    project_path = _setup_upgrade_project(tmp_path)
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
+
+    fake_migration = MagicMock(
+        migration_id="3.2.0a4_safe_globalize_commands",
+        description="Safely remove lingering per-project spec-kitty command files",
+        target_version="3.2.0a4",
+    )
+    monkeypatch.setattr(
+        "specify_cli.upgrade.registry.MigrationRegistry.get_applicable",
+        lambda *_args, **_kwargs: [fake_migration],
+    )
+    monkeypatch.setattr(
+        "specify_cli.upgrade.runner.MigrationRunner.upgrade",
+        lambda self, *args, **kwargs: UpgradeResult(
+            success=True,
+            from_version="1.0.0a1",
+            to_version="3.2.0a4",
+            migrations_applied=["3.2.0a4_safe_globalize_commands"],
+            migration_results={
+                "3.2.0a4_safe_globalize_commands": MigrationResult(
+                    success=True,
+                    manual_review_required=True,
+                    preserved_paths=[".claude/commands/spec-kitty.implement.md"],
+                )
+            },
+        ),
+    )
+
+    safe_commit_called = {"called": False}
+
+    def _spy_safe_commit(**_kw):
+        safe_commit_called["called"] = True
+        return True
+
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="3.2.0a4",
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+    )
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert data["success"] is True
+    assert data["auto_committed"] is False
+    assert data["manual_review_required"] is True
+    assert data["manual_review_paths"] == [".claude/commands/spec-kitty.implement.md"]
+    assert data["migrations"][0]["manual_review_required"] is True
+    assert data["migrations"][0]["preserved_paths"] == [".claude/commands/spec-kitty.implement.md"]
+    assert any("Skipped auto-commit" in warning for warning in data["warnings"])
+    assert safe_commit_called["called"] is False
+
+
+def test_upgrade_auto_commits_clean_run_when_no_manual_review(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    project_path = _setup_upgrade_project(tmp_path)
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
+
+    fake_migration = MagicMock(
+        migration_id="3.2.0a4_safe_globalize_commands",
+        description="Safely remove lingering per-project spec-kitty command files",
+        target_version="3.2.0a4",
+    )
+    monkeypatch.setattr(
+        "specify_cli.upgrade.registry.MigrationRegistry.get_applicable",
+        lambda *_args, **_kwargs: [fake_migration],
+    )
+    monkeypatch.setattr(
+        "specify_cli.upgrade.runner.MigrationRunner.upgrade",
+        lambda self, *args, **kwargs: UpgradeResult(
+            success=True,
+            from_version="1.0.0a1",
+            to_version="3.2.0a4",
+            migrations_applied=["3.2.0a4_safe_globalize_commands"],
+            migration_results={
+                "3.2.0a4_safe_globalize_commands": MigrationResult(success=True)
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "_auto_commit_upgrade_changes",
+        lambda **_kw: (True, [".kittify/metadata.yaml"], None),
+    )
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="3.2.0a4",
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+    )
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert data["success"] is True
+    assert data["manual_review_required"] is False
+    assert data["manual_review_paths"] == []
+    assert data["auto_committed"] is True
+    assert data["auto_commit_paths"] == [".kittify/metadata.yaml"]

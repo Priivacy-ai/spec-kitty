@@ -127,6 +127,16 @@ def _prepare_upgrade_commit_files(
     return files_to_commit
 
 
+def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
+    """Return sorted preserved/archive paths that require operator review."""
+    manual_review_paths: set[str] = set()
+    for result in migration_results.values():
+        if not getattr(result, "manual_review_required", False):
+            continue
+        manual_review_paths.update(getattr(result, "preserved_paths", []))
+    return sorted(manual_review_paths)
+
+
 def _auto_commit_upgrade_changes(
     project_path: Path,
     from_version: str,
@@ -340,15 +350,23 @@ def upgrade(  # noqa: C901
     auto_committed = False
     auto_commit_paths: list[str] = []
     auto_commit_warning: str | None = None
+    manual_review_paths = _collect_manual_review_paths(result.migration_results)
     if result.success and not dry_run:
-        auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
-            project_path=project_path,
-            from_version=result.from_version,
-            to_version=result.to_version,
-            baseline_paths=baseline_changed_paths,
-        )
-        if auto_commit_warning:
+        if manual_review_paths:
+            auto_commit_warning = (
+                "Skipped auto-commit because the upgrade preserved customized files "
+                "that require manual review."
+            )
             result.warnings.append(auto_commit_warning)
+        else:
+            auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
+                project_path=project_path,
+                from_version=result.from_version,
+                to_version=result.to_version,
+                baseline_paths=baseline_changed_paths,
+            )
+            if auto_commit_warning:
+                result.warnings.append(auto_commit_warning)
 
     if json_output:
         # Build detailed migrations array
@@ -366,6 +384,16 @@ def upgrade(  # noqa: C901
                     "description": migration.description,
                     "target_version": migration.target_version,
                     "status": status,
+                    "manual_review_required": (
+                        result.migration_results.get(migration.migration_id).manual_review_required
+                        if migration.migration_id in result.migration_results
+                        else False
+                    ),
+                    "preserved_paths": (
+                        result.migration_results.get(migration.migration_id).preserved_paths
+                        if migration.migration_id in result.migration_results
+                        else []
+                    ),
                 }
             )
 
@@ -398,6 +426,8 @@ def upgrade(  # noqa: C901
             "success": result.success,
             "errors": result.errors,
             "warnings": result.warnings,
+            "manual_review_required": bool(manual_review_paths),
+            "manual_review_paths": manual_review_paths,
             "auto_committed": auto_committed,
             "auto_commit_paths": auto_commit_paths,
         }
@@ -434,6 +464,11 @@ def upgrade(  # noqa: C901
         console.print("[red]Errors:[/red]")
         for e in result.errors:
             console.print(f"  [red]✗[/red] {e}")
+
+    if manual_review_paths:
+        console.print("[yellow]Manual review required:[/yellow]")
+        for path in manual_review_paths:
+            console.print(f"  [yellow]![/yellow] {path}")
 
     console.print()
     if result.success:

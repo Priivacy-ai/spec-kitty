@@ -18,9 +18,11 @@ function. These tests verify that:
 from __future__ import annotations
 
 import contextlib
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.runtime.agent_commands import _sync_agent_commands
@@ -71,3 +73,35 @@ def test_claude_still_routes_to_command_files(tmp_path: Path) -> None:
         _sync_agent_commands("claude", tmp_path, "sh")
 
     mock_install.assert_not_called()
+
+
+def test_sync_writes_parseable_gemini_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+
+    _sync_agent_commands("gemini", templates_dir, "sh")
+
+    target = home / ".gemini" / "commands" / "spec-kitty.implement.toml"
+    assert target.is_file()
+    parsed = tomllib.loads(target.read_text(encoding="utf-8"))
+    assert parsed["description"] == "Execute a work package implementation"
+    assert "{{args}}" in parsed["prompt"]
+
+
+def test_sync_writes_parseable_qwen_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+
+    _sync_agent_commands("qwen", templates_dir, "sh")
+
+    target = home / ".qwen" / "commands" / "spec-kitty.implement.toml"
+    assert target.is_file()
+    parsed = tomllib.loads(target.read_text(encoding="utf-8"))
+    assert parsed["description"] == "Execute a work package implementation"
+    assert "{{args}}" in parsed["prompt"]

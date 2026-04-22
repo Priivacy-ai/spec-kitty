@@ -15,6 +15,8 @@ class MigrationResult:
     changes_made: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    manual_review_required: bool = False
+    preserved_paths: list[str] = field(default_factory=list)
 
 
 class BaseMigration(ABC):
