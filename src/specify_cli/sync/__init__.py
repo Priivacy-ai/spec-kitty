@@ -34,6 +34,8 @@ from .events import (
     emit_history_added,
     emit_error_logged,
     emit_dependency_resolved,
+    emit_token_usage_recorded,
+    emit_diff_summary_recorded,
 )
 from .queue import OfflineQueue
 from .feature_flags import (
@@ -101,6 +103,8 @@ __all__ = [
     "emit_history_added",
     "emit_error_logged",
     "emit_dependency_resolved",
+    "emit_token_usage_recorded",
+    "emit_diff_summary_recorded",
     "BackgroundSyncService",
     "get_sync_service",
     "reset_sync_service",

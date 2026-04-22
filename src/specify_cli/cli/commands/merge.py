@@ -52,7 +52,7 @@ from specify_cli.merge.state import (
 from specify_cli.mission_metadata import resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
-from specify_cli.sync import emit_mission_closed
+from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -594,6 +594,53 @@ def _resolve_target_branch(
     return resolve_primary_branch(repo_root), "primary_branch"
 
 
+def _emit_merge_diff_summary(
+    *,
+    repo_root: Path,
+    mission_id: str,
+    base_ref: str,
+    head_ref: str = "HEAD",
+    phase_name: str = "accept",
+) -> None:
+    """Emit one mission-level diff summary for the merged mission."""
+    ret, output, _ = run_command(
+        ["git", "diff", "--numstat", f"{base_ref}..{head_ref}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        return
+
+    files_changed = 0
+    lines_added = 0
+    lines_deleted = 0
+    for line in output.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) < 2:
+            continue
+        files_changed += 1
+        added_raw, deleted_raw = parts[0], parts[1]
+        if added_raw.isdigit():
+            lines_added += int(added_raw)
+        if deleted_raw.isdigit():
+            lines_deleted += int(deleted_raw)
+
+    if files_changed == 0 and lines_added == 0 and lines_deleted == 0:
+        return
+
+    emit_diff_summary_recorded(
+        mission_id=mission_id,
+        base_ref=base_ref,
+        head_ref=head_ref,
+        files_changed=files_changed,
+        lines_added=lines_added,
+        lines_deleted=lines_deleted,
+        phase_name=phase_name,
+        source="git-numstat",
+    )
+
+
 def _validate_target_branch(
     repo_root: Path,
     mission_slug: str | None,
@@ -1038,6 +1085,12 @@ def _run_lane_based_merge_locked(
     # -- T002: Cleanup workspace (preserves state.json) then clear state --
     cleanup_merge_workspace(canonical_id, main_repo)
     clear_state(main_repo, canonical_id)
+
+    _emit_merge_diff_summary(
+        repo_root=main_repo,
+        mission_id=canonical_id,
+        base_ref=merge_base_sha,
+    )
 
     emit_mission_closed(
         mission_slug=mission_slug,
