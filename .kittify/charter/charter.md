@@ -251,6 +251,12 @@ Operational reference:
 
 ---
 
+## Tracker Ticket Assignment Rule
+
+1. When an agent starts implementing work from a tracker-backed issue for this repository, the agent must assign that ticket to the Human-in-Charge (HiC) before or as part of beginning the implementation. For Spec Kitty today, GitHub issues are the active tracker case and must follow this rule.
+
+---
+
 ## Governance
 
 ### Amendment Process
