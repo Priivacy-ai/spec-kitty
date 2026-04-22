@@ -27,7 +27,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: '7261'
+shell_pid: "7261"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - date: '2026-04-22'
   event: created
@@ -508,3 +509,7 @@ def test_build_index_empty_store():
 3. Spot-check `glossary_urn("lane")` == `"glossary:" + hashlib.sha256("lane".encode()).hexdigest()[:8]`.
 4. Confirm `build_index()` includes lemmatized aliases in `surface_to_urn`.
 5. Verify no new external dependencies were added (`pip show` the environment).
+
+## Activity Log
+
+- 2026-04-22T12:18:22Z – claude:sonnet:implementer:implementer – shell_pid=7261 – Assigned agent via action command
