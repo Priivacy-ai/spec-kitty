@@ -6,8 +6,47 @@ on:
     branches: [main]
 
 jobs:
+  changes:
+    name: Detect Windows-critical changes
+    runs-on: ubuntu-latest
+    outputs:
+      windows_critical: ${{ steps.filter.outputs.windows_critical }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            windows_critical:
+              - '.github/workflows/ci-windows.yml'
+              - 'pyproject.toml'
+              - 'pytest.ini'
+              - 'tests/conftest.py'
+              - 'tests/auth/secure_storage/test_file_fallback_windows_root.py'
+              - 'tests/cli/test_agent_status_messaging.py'
+              - 'tests/cli/test_migrate_cmd_messaging.py'
+              - 'tests/core/test_worktree_symlink_fallback.py'
+              - 'tests/kernel/test_paths_unified_windows_root.py'
+              - 'tests/mission/test_active_mission_handle_windows.py'
+              - 'tests/paths/test_windows_migrate.py'
+              - 'tests/policy/test_hook_installer_execution.py'
+              - 'tests/regressions/test_issue_101_utf8_startup.py'
+              - 'tests/regressions/test_issue_105_hook_python_lookup.py'
+              - 'tests/regressions/test_issue_71_dashboard_empty.py'
+              - 'tests/runtime/test_home_unit.py'
+              - 'tests/sync/test_daemon_windows_paths.py'
+              - 'tests/sync/test_issue_586_windows_import.py'
+              - 'tests/tracker/test_credentials_windows_paths.py'
+              # Keep this intentionally coarse: the Windows-marked CLI tests
+              # exercise the root app import path, which can pull in modules
+              # across the full source tree.
+              - 'src/kernel/**'
+              - 'src/specify_cli/**'
+
   windows-critical:
     name: Windows critical (pipx, pytest -m windows_ci)
+    needs: [changes]
+    if: needs.changes.outputs.windows_critical == 'true'
     runs-on: windows-latest
     timeout-minutes: 20
     env:
@@ -17,9 +56,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
 
       - name: Install pipx
         shell: bash
