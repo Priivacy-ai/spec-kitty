@@ -62,6 +62,9 @@ env/
 kitty-specs/**/.kittify/dossiers/
 .kittify/charter/context-state.json
 .kittify/charter/directives.yaml
+.kittify/charter/provenance/
+.kittify/charter/synthesis-manifest.yaml
+.kittify/doctrine/
 
 # Local-only working notes / mission drafts (already-tracked files remain tracked)
 /work/
