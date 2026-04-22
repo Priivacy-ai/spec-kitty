@@ -25,16 +25,16 @@
 | T012 | Write benchmark script `bench_chokepoint.py` | WP02 | [P] after T010 | [D] |
 | T013 | Draft ADR-5 with benchmark results | WP02 | No | [D] |
 | T014 | Unit tests for `GlossaryChokepoint` and `GlossaryObservationBundle` | WP02 | No | [D] |
-| T015 | Extend `InvocationPayload.__slots__` with `glossary_observations` | WP03 | No |
-| T016 | Add chokepoint call to `ProfileInvocationExecutor.invoke()` | WP03 | No |
-| T017 | Implement severity routing (high → payload, low/medium → trail) | WP03 | No |
-| T018 | Add `write_glossary_observation()` to `InvocationWriter` | WP03 | [P] with T015 |
-| T019 | Wire `write_glossary_observation()` into `invoke()` | WP03 | No |
-| T020 | Update Codex host guidance (`setup-codex-spec-kitty-launcher.md`) | WP03 | [P] with T021, T022 |
-| T021 | Find and update gstack host guidance | WP03 | [P] with T020, T022 |
-| T022 | Update `docs/trail-model.md` with `"glossary_checked"` event | WP03 | [P] with T020, T021 |
-| T023 | Run full e2e suite; fix any `to_dict()` key breakages | WP03 | No |
-| T024 | Write 3-event JSONL integration test | WP03 | No |
+| T015 | Extend `InvocationPayload.__slots__` with `glossary_observations` | WP03 | No | [D] |
+| T016 | Add chokepoint call to `ProfileInvocationExecutor.invoke()` | WP03 | No | [D] |
+| T017 | Implement severity routing (high → payload, low/medium → trail) | WP03 | No | [D] |
+| T018 | Add `write_glossary_observation()` to `InvocationWriter` | WP03 | [P] with T015 | [D] |
+| T019 | Wire `write_glossary_observation()` into `invoke()` | WP03 | No | [D] |
+| T020 | Update Codex host guidance (`setup-codex-spec-kitty-launcher.md`) | WP03 | [P] with T021, T022 | [D] |
+| T021 | Find and update gstack host guidance | WP03 | [P] with T020, T022 | [D] |
+| T022 | Update `docs/trail-model.md` with `"glossary_checked"` event | WP03 | [P] with T020, T021 | [D] |
+| T023 | Run full e2e suite; fix any `to_dict()` key breakages | WP03 | No | [D] |
+| T024 | Write 3-event JSONL integration test | WP03 | No | [D] |
 
 ---
 
@@ -99,16 +99,16 @@
 **Goal:** Wire `GlossaryChokepoint` into `ProfileInvocationExecutor.invoke()`, add `write_glossary_observation()` to the trail writer, implement the severity routing contract in code, update host guidance docs, and verify the full e2e suite.
 
 **Subtasks:**
-- [ ] T015 Extend `InvocationPayload.__slots__` with `"glossary_observations"` and update `__init__` (WP03)
-- [ ] T016 Add lazy `GlossaryChokepoint` instantiation and call to `invoke()` with try/except boundary (WP03)
-- [ ] T017 Build `high_severity` tuple from classified conflicts (`Severity.HIGH` only) in the bundle (WP03)
-- [ ] T018 Add `write_glossary_observation()` to `InvocationWriter` — best-effort, append-only (WP03)
-- [ ] T019 Wire `write_glossary_observation()` call into `invoke()` after `write_started()` (WP03)
-- [ ] T020 Update `docs/how-to/setup-codex-spec-kitty-launcher.md` with `glossary_observations` contract [P] (WP03)
-- [ ] T021 Find and update gstack host guidance doc with `glossary_observations` contract [P] (WP03)
-- [ ] T022 Update `docs/trail-model.md` with `"glossary_checked"` event type under Tier 1 section [P] (WP03)
-- [ ] T023 Run existing invocation e2e suite; fix any breakages caused by new `to_dict()` key (WP03)
-- [ ] T024 Write 3-event JSONL integration test verifying `started` + `glossary_checked` + `completed` (WP03)
+- [x] T015 Extend `InvocationPayload.__slots__` with `"glossary_observations"` and update `__init__` (WP03)
+- [x] T016 Add lazy `GlossaryChokepoint` instantiation and call to `invoke()` with try/except boundary (WP03)
+- [x] T017 Build `high_severity` tuple from classified conflicts (`Severity.HIGH` only) in the bundle (WP03)
+- [x] T018 Add `write_glossary_observation()` to `InvocationWriter` — best-effort, append-only (WP03)
+- [x] T019 Wire `write_glossary_observation()` call into `invoke()` after `write_started()` (WP03)
+- [x] T020 Update `docs/how-to/setup-codex-spec-kitty-launcher.md` with `glossary_observations` contract [P] (WP03)
+- [x] T021 Find and update gstack host guidance doc with `glossary_observations` contract [P] (WP03)
+- [x] T022 Update `docs/trail-model.md` with `"glossary_checked"` event type under Tier 1 section [P] (WP03)
+- [x] T023 Run existing invocation e2e suite; fix any breakages caused by new `to_dict()` key (WP03)
+- [x] T024 Write 3-event JSONL integration test verifying `started` + `glossary_checked` + `completed` (WP03)
 
 **Parallel opportunities:** T020, T021, T022 (doc updates) are independent and can run in parallel after T019 is complete.
 **Risks:** `InvocationPayload.to_dict()` change adds a new key — any test asserting exact dict contents will need updating (T023). The `mark_loaded=False` invariant in `build_charter_context()` must not be disturbed (C-008).
