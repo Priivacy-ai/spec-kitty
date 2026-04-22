@@ -2,7 +2,7 @@
   "event_count": 30,
   "last_event_id": "01KPQQ3DQDVZTT6G9XVQR228QE",
   "materialized_at": "2026-04-21T09:49:18.445382+00:00",
-  "mission_number": "",
+  "mission_number": "91",
   "mission_slug": "stabilization-release-core-bug-fixes-01KPQJAN",
   "mission_type": "software-dev",
   "summary": {

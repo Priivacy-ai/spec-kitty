@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-21T17:52:55.610645+00:00",
+  "friendly_name": "Profile Roles as Value Object",
+  "mission_id": "01KPRJRY9WC8Q7PVRJ6AKTY109",
+  "mission_number": 93,
+  "mission_slug": "profile-roles-as-value-object-01KPRJRY",
+  "mission_type": "software-dev",
+  "slug": "profile-roles-as-value-object-01KPRJRY",
+  "source_description": "Replace AgentProfile.role (scalar StrEnum) with roles: list[Role] where Role is a half-open value object. Backward-compatible scalar coercion with DeprecationWarning. Full migration of shipped profiles.",
+  "target_branch": "doctrine/profile_reinforcement",
+  "vcs": "git"
+}
