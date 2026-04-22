@@ -51,7 +51,7 @@ Written unconditionally before the executor returns.
 
 Created when the caller explicitly flags that the invocation produced checkable output.
 
-- **Trigger**: Caller sets `--evidence-ref <description>` on `spec-kitty profile-invocation complete`.
+- **Trigger**: Caller sets `--evidence <path>` on `spec-kitty profile-invocation complete`.
 - **Storage**: `.kittify/evidence/{invocation_id}/evidence.md` and `.kittify/evidence/{invocation_id}/record.json`
 - **When**: `task_execution` and `mission_step` modes only.
 

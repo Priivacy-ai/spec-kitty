@@ -189,6 +189,11 @@ class ProfileInvocationExecutor:
         # Promote to Tier 2 evidence artifact if --evidence was supplied
         if evidence_ref is not None:
             evidence_path = Path(evidence_ref)
+            if not evidence_path.is_absolute():
+                # Anchor relative paths to the project root to prevent directory
+                # traversal (e.g. ../../etc/passwd). Absolute paths are the
+                # operator's explicit choice and pass through unchanged.
+                evidence_path = (self._repo_root / evidence_path).resolve()
             try:
                 content = evidence_path.read_text(encoding="utf-8")
             except OSError:

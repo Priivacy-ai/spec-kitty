@@ -25,9 +25,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.invocation.executor import ProfileInvocationExecutor
-from specify_cli.invocation.propagator import InvocationSaaSPropagator, _propagate_one
 from specify_cli.invocation.record import InvocationRecord
-from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter
+from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.sync.routing import CheckoutSyncRouting
 
 
@@ -234,6 +233,10 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     - _get_saas_client is NOT called when effective_sync_enabled=False
     - Local JSONL file is still written (Tier 1 trail is mandatory regardless of sync)
     """
+    # Integrated test: executor.invoke() is called with sync disabled.
+    # Verifies both properties in a single, unbroken execution path:
+    # (a) _get_saas_client is never called (sync gate fires inside _propagate_one)
+    # (b) the JSONL file is written by the executor, not manually
     project = _setup_minimal_project(tmp_path)
 
     disabled_routing = CheckoutSyncRouting(
@@ -247,8 +250,6 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
         effective_sync_enabled=False,
     )
 
-    record = _make_started_record()
-
     with patch(
         "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
         return_value=disabled_routing,
@@ -256,19 +257,25 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
         ) as mock_client:
-            _propagate_one(record, project)
+            with patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ):
+                executor = ProfileInvocationExecutor(project)
+                payload = executor.invoke(
+                    "implement the feature",
+                    profile_hint="implementer-fixture",
+                )
+
+            # (a) SaaS client was never called — sync gate suppressed emission
             mock_client.assert_not_called()
 
-    # The local JSONL must still exist — write it directly (Tier 1 is mandatory,
-    # independently of the propagator).  The propagator is best-effort SaaS sync;
-    # the writer is mandatory.  We write directly here to confirm the writer path
-    # is independent of the propagator gate.
-    writer = InvocationWriter(project)
-    writer.write_started(record)
-
+    # (b) Local JSONL written by the executor (not manually) — Tier 1 is mandatory
     events_dir = project / EVENTS_DIR
-    jsonl_files = list(events_dir.glob("*.jsonl"))
-    assert len(jsonl_files) >= 1, (
-        "Expected local JSONL to exist after write_started; "
-        f"found {len(jsonl_files)} files in {events_dir}"
+    expected_file = events_dir / f"{payload.invocation_id}.jsonl"
+    assert expected_file.exists(), (
+        f"Expected executor to write JSONL at {expected_file}; file not found"
     )
+    import json as _json
+    lines = [ln for ln in expected_file.read_text().splitlines() if ln.strip()]
+    assert len(lines) >= 1 and _json.loads(lines[0])["event"] == "started"
