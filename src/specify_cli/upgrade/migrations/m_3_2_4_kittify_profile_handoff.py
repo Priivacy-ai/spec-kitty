@@ -141,10 +141,7 @@ def _patch_implement(content: str) -> tuple[str, list[str]]:
     # Insert Section 6 handoff block before ## Output (idempotent)
     if _HANDOFF_SENTINEL not in content:
         anchor = "## Output"
-        if anchor in content:
-            content = content.replace(anchor, _IMPLEMENT_HANDOFF_BLOCK + anchor, 1)
-        else:
-            content = content + _IMPLEMENT_HANDOFF_BLOCK
+        content = content.replace(anchor, _IMPLEMENT_HANDOFF_BLOCK + anchor, 1) if anchor in content else content + _IMPLEMENT_HANDOFF_BLOCK
         changes.append("inserted Section 6 'Prepare for Review Hand-off'")
 
     return content, changes
@@ -158,11 +155,7 @@ def _patch_review(content: str) -> tuple[str, list[str]]:
         # Insert after "## 2. Parse WP frontmatter" or equivalent section marker.
         # Look for "### 3." as the anchor to insert before.
         anchor = "### 3."
-        if anchor in content:
-            content = content.replace(anchor, _REVIEW_PROFILE_LOAD_BLOCK + anchor, 1)
-        else:
-            # Fallback: append at end
-            content = content + _REVIEW_PROFILE_LOAD_BLOCK
+        content = content.replace(anchor, _REVIEW_PROFILE_LOAD_BLOCK + anchor, 1) if anchor in content else content + _REVIEW_PROFILE_LOAD_BLOCK
         changes.append("inserted Section 2a 'Load Agent Profile'")
 
     return content, changes
@@ -234,7 +227,7 @@ class KittifyProfileHandoffMigration(BaseMigration):
     )
     target_version = "3.2.4"
 
-    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+    def can_apply(self, _project_path: Path) -> tuple[bool, str]:
         """Always safe to apply — patches are additive and idempotent."""
         return True, ""
 

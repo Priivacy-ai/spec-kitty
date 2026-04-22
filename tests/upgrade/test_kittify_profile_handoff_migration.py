@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from specify_cli.upgrade.migrations.m_3_2_4_kittify_profile_handoff import (
     KittifyProfileHandoffMigration,
@@ -205,7 +204,6 @@ def test_skips_if_agents_skills_missing(tmp_path: Path) -> None:
 
 
 def test_migration_is_in_registry() -> None:
-    import specify_cli.upgrade.migrations  # triggers auto-discovery
     from specify_cli.upgrade.registry import MigrationRegistry
     migration_ids = [m.migration_id for m in MigrationRegistry.get_all()]
     assert "3.2.4_kittify_profile_handoff" in migration_ids
