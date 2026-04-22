@@ -5,7 +5,7 @@ import warnings
 import pytest
 from pydantic import ValidationError
 
-from doctrine.agent_profiles.profile import AgentProfile, Role, Specialization
+from doctrine.agent_profiles.profile import AgentProfile, Role
 
 
 class TestRoleConstruction:
@@ -35,7 +35,7 @@ class TestRoleConstruction:
         assert Role.MANAGER     == "manager"
 
     def test_constant_equality_with_self(self):
-        assert Role.IMPLEMENTER == Role("implementer")
+        assert Role("implementer") == Role.IMPLEMENTER
 
     def test_all_eight_constants_exist(self):
         for constant in (
