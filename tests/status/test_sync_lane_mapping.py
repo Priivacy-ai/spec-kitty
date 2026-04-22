@@ -81,6 +81,7 @@ class TestCanonicalFanOut:
             to_lane=str(to_lane),
             actor="test-actor",
             mission_slug="039-test-feature",
+            mission_id=None,
             policy_metadata=None,
             ensure_daemon=True,
         )

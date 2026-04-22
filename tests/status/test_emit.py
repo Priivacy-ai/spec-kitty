@@ -940,6 +940,7 @@ class TestSaasFanOut:
             to_lane="in_progress",
             actor="test-actor",
             mission_slug="034-test-feature",
+            mission_id=None,
             policy_metadata=None,
             ensure_daemon=True,
         )
