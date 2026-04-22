@@ -11,13 +11,13 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|---------|
-| T001 | Add `NodeKind.GLOSSARY = "glossary"` to `doctrine.drg.models` | WP01 | No |
-| T002 | Implement `glossary_urn()` with collision detection | WP01 | [P] with T001 |
-| T003 | Implement `build_glossary_drg_layer()` | WP01 | No |
-| T004 | Implement `_normalize()` suffix-stripper | WP01 | [P] with T003 |
-| T005 | Implement `build_index() → GlossaryTermIndex` | WP01 | No |
-| T006 | Backward-compat tests for `NodeKind.GLOSSARY` | WP01 | [P] after T001 |
-| T007 | Unit tests for `drg_builder.py` | WP01 | No |
+| T001 | Add `NodeKind.GLOSSARY = "glossary"` to `doctrine.drg.models` | WP01 | No | [D] |
+| T002 | Implement `glossary_urn()` with collision detection | WP01 | [P] with T001 | [D] |
+| T003 | Implement `build_glossary_drg_layer()` | WP01 | No | [D] |
+| T004 | Implement `_normalize()` suffix-stripper | WP01 | [P] with T003 | [D] |
+| T005 | Implement `build_index() → GlossaryTermIndex` | WP01 | No | [D] |
+| T006 | Backward-compat tests for `NodeKind.GLOSSARY` | WP01 | [P] after T001 | [D] |
+| T007 | Unit tests for `drg_builder.py` | WP01 | No | [D] |
 | T008 | Implement `GlossaryObservationBundle` frozen dataclass | WP02 | No |
 | T009 | Implement `GlossaryChokepoint.__init__()` and lazy `_load_index()` | WP02 | No |
 | T010 | Implement `GlossaryChokepoint.run()` | WP02 | No |
@@ -49,13 +49,13 @@
 **Goal:** Establish the `glossary:<id>` URN scheme, the in-memory DRG layer builder, and the `GlossaryTermIndex` that the chokepoint will consume.
 
 **Subtasks:**
-- [ ] T001 Add `NodeKind.GLOSSARY = "glossary"` to `doctrine.drg.models` (WP01)
-- [ ] T002 Implement `glossary_urn()` with collision detection and warning (WP01)
-- [ ] T003 Implement `build_glossary_drg_layer()` — mint DRGNode per active sense, add VOCABULARY edges from all shipped action nodes (WP01)
-- [ ] T004 Implement `_normalize()` — pure-Python suffix stripper for lemmatization (WP01)
-- [ ] T005 Implement `build_index() → GlossaryTermIndex` — surface_to_urn, surface_to_senses, lemmatized aliases (WP01)
-- [ ] T006 Write backward-compat tests in `tests/doctrine/drg/test_glossary_node_kind.py` (WP01)
-- [ ] T007 Write unit tests in `tests/specify_cli/glossary/test_drg_builder.py` (WP01)
+- [x] T001 Add `NodeKind.GLOSSARY = "glossary"` to `doctrine.drg.models` (WP01)
+- [x] T002 Implement `glossary_urn()` with collision detection and warning (WP01)
+- [x] T003 Implement `build_glossary_drg_layer()` — mint DRGNode per active sense, add VOCABULARY edges from all shipped action nodes (WP01)
+- [x] T004 Implement `_normalize()` — pure-Python suffix stripper for lemmatization (WP01)
+- [x] T005 Implement `build_index() → GlossaryTermIndex` — surface_to_urn, surface_to_senses, lemmatized aliases (WP01)
+- [x] T006 Write backward-compat tests in `tests/doctrine/drg/test_glossary_node_kind.py` (WP01)
+- [x] T007 Write unit tests in `tests/specify_cli/glossary/test_drg_builder.py` (WP01)
 
 **Parallel opportunities:** T001 and T002 can be developed in parallel; T004 is independent of T003.
 **Risks:** URN regex in DRG validator must accept `glossary:` prefix — verify `NodeKind.GLOSSARY.value == "glossary"` matches the URN validator's prefix-equals-kind rule.
