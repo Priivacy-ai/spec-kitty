@@ -12,7 +12,10 @@ from __future__ import annotations
 import datetime
 import hashlib
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from specify_cli.glossary.chokepoint import GlossaryChokepoint
 
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
@@ -60,6 +63,7 @@ class InvocationPayload:
         "governance_context_hash",
         "governance_context_available",
         "router_confidence",
+        "glossary_observations",
     )
 
     def __init__(self, **kwargs: object) -> None:
@@ -67,7 +71,15 @@ class InvocationPayload:
             setattr(self, k, v)
 
     def to_dict(self) -> dict[str, object]:
-        return {s: getattr(self, s) for s in self.__slots__}
+        result: dict[str, object] = {}
+        for s in self.__slots__:
+            val = getattr(self, s)
+            # GlossaryObservationBundle is not JSON-serialisable; convert to plain dict.
+            if hasattr(val, "to_dict") and callable(val.to_dict):
+                result[s] = val.to_dict()
+            else:
+                result[s] = val
+        return result
 
 
 class ProfileInvocationExecutor:
@@ -89,6 +101,7 @@ class ProfileInvocationExecutor:
         self._writer = InvocationWriter(repo_root)
         self._router = router
         self._propagator = propagator
+        self._chokepoint: GlossaryChokepoint | None = None  # lazy-loaded on first invoke
 
     def invoke(
         self,
@@ -134,6 +147,23 @@ class ProfileInvocationExecutor:
         ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]
         ctx_available = ctx_result.mode != "missing"
 
+        # 2a. Run glossary chokepoint scan (T016/T017)
+        # Severity routing: bundle.high_severity = HIGH only; bundle.all_conflicts = all severities.
+        # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
+        # Exception guard: any failure returns an error-bundle; the invocation always continues.
+        from specify_cli.glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
+        try:
+            if self._chokepoint is None:
+                self._chokepoint = GlossaryChokepoint(self._repo_root)
+            bundle = self._chokepoint.run(request_text, invocation_id=invocation_id)
+        except Exception as _exc:  # noqa: BLE001
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
+            bundle = GlossaryObservationBundle(
+                matched_urns=(), high_severity=(), all_conflicts=(),
+                tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
+
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         record = InvocationRecord(
@@ -150,6 +180,12 @@ class ProfileInvocationExecutor:
         )
         self._writer.write_started(record)  # raises InvocationWriteError → non-zero exit
 
+        # Step 5: Write glossary observation to trail (best-effort)
+        try:  # noqa: SIM105
+            self._writer.write_glossary_observation(invocation_id, bundle)
+        except Exception:  # noqa: BLE001
+            pass
+
         # Propagate started event (non-blocking, best-effort)
         if self._propagator is not None:
             self._propagator.submit(record)
@@ -163,6 +199,7 @@ class ProfileInvocationExecutor:
             governance_context_hash=ctx_hash,
             governance_context_available=ctx_available,
             router_confidence=router_confidence,
+            glossary_observations=bundle,
         )
 
     def complete_invocation(

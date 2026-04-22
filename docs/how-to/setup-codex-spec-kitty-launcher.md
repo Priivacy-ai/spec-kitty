@@ -228,6 +228,74 @@ ls -la .venv/bin/activate
 Test-Path .venv\Scripts\Activate.ps1
 ```
 
+## Glossary Observations in Invocation Payloads
+
+When Spec Kitty processes a request through the invocation executor, it runs a
+glossary conflict scan (the *glossary chokepoint*) before returning the response.
+The scan result is attached to `InvocationPayload` as the `glossary_observations`
+field and is included in the dict returned by `InvocationPayload.to_dict()`.
+
+### `glossary_observations` field
+
+`to_dict()` includes the key `"glossary_observations"` whose value is a dict with
+the following structure (produced by `GlossaryObservationBundle.to_dict()`):
+
+```json
+{
+  "matched_urns": ["glossary:d93244e7"],
+  "high_severity": [],
+  "all_conflicts": [],
+  "tokens_checked": 12,
+  "duration_ms": 3.2,
+  "error_msg": null
+}
+```
+
+Example with a conflict on the term "lane":
+
+```json
+{
+  "matched_urns": ["glossary:d93244e7"],
+  "high_severity": [
+    {
+      "term": "lane",
+      "conflict_type": "ambiguous_scope",
+      "severity": "HIGH",
+      "candidate_senses": ["execution lane (WP routing)", "git branch lane (worktree)"]
+    }
+  ],
+  "all_conflicts": [ ... ],
+  "tokens_checked": 8,
+  "duration_ms": 2.7,
+  "error_msg": null
+}
+```
+
+### High-severity rendering contract
+
+Host agents (Codex and others) consuming `InvocationPayload.to_dict()` should
+apply the following rendering contract:
+
+- **If `high_severity` is non-empty**: prepend an inline warning before the
+  governance context delivered to the model. For example:
+  ```
+  [GLOSSARY WARNING] The following terms carry HIGH-severity semantic conflicts:
+  lane (glossary:d93244e7) — ambiguous_scope. Review usage before proceeding.
+  ```
+- **If `high_severity` is empty but `all_conflicts` is non-empty**: optionally
+  surface a lower-priority notice; no blocking required.
+- **If `error_msg` is non-null**: log the warning and do not block. The invocation
+  completes normally; the glossary scan degraded gracefully.
+- **If `all_conflicts` is empty and `error_msg` is null**: the invocation is
+  clean. No glossary notice is needed.
+
+### Trail behaviour
+
+A `glossary_checked` event is appended to the Tier 1 JSONL trail **only** when
+`all_conflicts` is non-empty OR `error_msg` is set. Clean invocations produce no
+`glossary_checked` line. See [Trail Model](../trail-model.md) for the full event
+taxonomy.
+
 ## Command Reference
 
 - [CLI Commands](../reference/cli-commands.md)
