@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 from pathlib import Path
+from types import ModuleType
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -401,6 +403,9 @@ def test_agent_mission_create_canonical_succeeds(tmp_path: Path) -> None:
             feature_dir=feature_dir,
             target_branch="main",
             current_branch="main",
+            origin_binding_attempted=False,
+            origin_binding_succeeded=False,
+            origin_binding_error=None,
         )
 
     with (
@@ -438,6 +443,9 @@ def test_agent_mission_create_alias_succeeds_with_warning(
             feature_dir=feature_dir,
             target_branch="main",
             current_branch="main",
+            origin_binding_attempted=False,
+            origin_binding_succeeded=False,
+            origin_binding_error=None,
         )
 
     with (
@@ -479,9 +487,13 @@ def test_next_step_canonical_selector_passes_mission_slug(
             run_id=None,
         )
 
+    fake_runtime_bridge = ModuleType("specify_cli.next.runtime_bridge")
+    fake_runtime_bridge.query_current_state = _fake_query
+    fake_runtime_bridge.QueryModeValidationError = RuntimeError
+
     with (
         patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch("specify_cli.next.runtime_bridge.query_current_state", side_effect=_fake_query),
+        patch.dict(sys.modules, {"specify_cli.next.runtime_bridge": fake_runtime_bridge}),
     ):
         next_step.__wrapped__(
             agent="codex",
@@ -515,9 +527,13 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
             run_id=None,
         )
 
+    fake_runtime_bridge = ModuleType("specify_cli.next.runtime_bridge")
+    fake_runtime_bridge.query_current_state = _fake_query
+    fake_runtime_bridge.QueryModeValidationError = RuntimeError
+
     with (
         patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch("specify_cli.next.runtime_bridge.query_current_state", side_effect=_fake_query),
+        patch.dict(sys.modules, {"specify_cli.next.runtime_bridge": fake_runtime_bridge}),
     ):
         next_step.__wrapped__(
             agent="codex",

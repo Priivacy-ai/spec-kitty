@@ -28,7 +28,17 @@ def reset_singleton():
 @pytest.fixture(autouse=True)
 def mock_body_queue():
     """Prevent OfflineBodyUploadQueue from opening a real SQLite DB."""
-    with patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__", return_value=None):
+    with (
+        patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__", return_value=None),
+        patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue.size", return_value=0),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_sync_feature_flag():
+    """Keep runtime tests independent of the caller's environment."""
+    with patch("specify_cli.sync.runtime.is_saas_sync_enabled", return_value=True):
         yield
 
 
@@ -65,12 +75,13 @@ class TestAutoStartEnabled:
         assert _auto_start_enabled() is True
 
     def test_returns_false_when_auto_start_false(self, tmp_path, monkeypatch):
-        """Returns False when auto_start is explicitly False."""
+        """Returns False when checkout routing disables sync."""
         monkeypatch.chdir(tmp_path)
-        config_dir = tmp_path / ".kittify"
-        config_dir.mkdir()
-        (config_dir / "config.yaml").write_text("sync:\n  auto_start: false\n")
-        assert _auto_start_enabled() is False
+        with (
+            patch("specify_cli.sync.runtime.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.sync.runtime.is_sync_enabled_for_checkout", return_value=False),
+        ):
+            assert _auto_start_enabled() is False
 
     def test_returns_true_on_invalid_yaml(self, tmp_path, monkeypatch):
         """Returns True when config file is invalid YAML."""
@@ -95,26 +106,20 @@ class TestSyncRuntime:
     def test_start_is_idempotent(self, tmp_path, monkeypatch):
         """Multiple start() calls are safe."""
         monkeypatch.chdir(tmp_path)
-        # Disable auto-start to avoid side effects
-        config_dir = tmp_path / ".kittify"
-        config_dir.mkdir()
-        (config_dir / "config.yaml").write_text("sync:\n  auto_start: false\n")
-
         runtime = SyncRuntime()
-        runtime.start()
-        runtime.start()  # Should not raise
-        runtime.start()  # Should not raise
+        with patch("specify_cli.sync.runtime._auto_start_enabled", return_value=False):
+            runtime.start()
+            runtime.start()  # Should not raise
+            runtime.start()  # Should not raise
         assert runtime.started is False  # Because auto_start is disabled
 
     def test_auto_start_disabled_prevents_start(self, tmp_path, monkeypatch):
-        """When sync.auto_start: false, runtime doesn't start services."""
+        """When checkout routing disables sync, runtime doesn't start services."""
         monkeypatch.chdir(tmp_path)
-        config_dir = tmp_path / ".kittify"
-        config_dir.mkdir()
-        (config_dir / "config.yaml").write_text("sync:\n  auto_start: false\n")
 
         runtime = SyncRuntime()
-        runtime.start()
+        with patch("specify_cli.sync.runtime._auto_start_enabled", return_value=False):
+            runtime.start()
 
         assert runtime.started is False
         assert runtime.background_service is None

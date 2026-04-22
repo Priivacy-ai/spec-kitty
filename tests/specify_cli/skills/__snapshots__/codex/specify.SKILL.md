@@ -156,11 +156,24 @@ Before running any scripts or writing to disk you **must** conduct a structured 
   - **Complex Features** (new subsystems, integrations): Ask 3-5 questions covering goals, users, constraints, risks
   - **Platform/Critical Features** (authentication, payments, infrastructure): Full discovery with 5+ questions
 
+- **Scenario-first discovery**: For any non-trivial feature, prefer concrete
+  workflow questions over abstract opinion prompts. Ask for the primary actor,
+  trigger, happy-path outcome, and the most common exception or branch.
+
+- **Terminology discipline**: If the request introduces business or domain
+  terms that may drift, ask which term is canonical and which synonyms should
+  be avoided. When relevant, carry those choices into the optional Domain
+  Language section of the spec instead of leaving them implicit.
+
+- **Rule probing**: For workflows with approvals, validations, state changes,
+  or compliance implications, ask what must always be true and which
+  transitions or checks cannot be skipped.
+
 - **User signals to reduce questioning**: If the user says "just testing", "quick prototype", "skip to next phase", "stop asking questions" - recognize this as a signal to minimize discovery and proceed with reasonable defaults.
 
 - **First response rule**:
   - For TRIVIAL features (hello world, simple test): Ask ONE clarifying question, then if the answer confirms it's simple, proceed directly to spec generation
-  - For other features: Ask a single focused discovery question and end with `WAITING_FOR_DISCOVERY_INPUT`
+  - For other features: Ask a single focused discovery question anchored in the primary user scenario and end with `WAITING_FOR_DISCOVERY_INPUT`
 
 - If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time.
 
@@ -170,8 +183,9 @@ Discovery requirements (scale to feature complexity):
 
 1. Maintain a **Discovery Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for complex). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
 2. For trivial features, reasonable defaults are acceptable. Only probe if truly ambiguous.
-3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief.
-4. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
+3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief. For non-trivial features, include the primary actor, trigger/success outcome, key constraint, and any explicit assumptions or deferred decisions.
+4. Before leaving the interview loop, do a short playback of the primary scenario, the main exception or edge case, and any rule that must always hold.
+5. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
 
 ## Bulk-Edit Detection (mandatory check)
 
@@ -338,14 +352,17 @@ Given that feature description, do this:
     - Use the discovery answers as your authoritative source of truth (do **not** rely on the raw invocation text)
     - For empty invocations, treat the synthesized interview summary as the canonical feature description
     - Identify: actors, actions, data, constraints, motivations, success metrics
+    - Prefer concrete scenario walkthrough facts (actor, trigger, success outcome, exception path) over abstract restatements
     - For any remaining ambiguity:
       - Ask the user a focused follow-up question immediately and halt work until they answer
       - Only use `[NEEDS CLARIFICATION: …]` when the user explicitly defers the decision
       - Record any interim assumption in the Assumptions section
       - Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
     - Fill User Scenarios & Testing section (ERROR if no clear user flow can be determined)
+    - If terminology precision matters, fill the optional Domain Language section with canonical terms and ambiguous synonyms to avoid
     - Generate separated requirement tables: Functional (`FR-###`), Non-Functional (`NFR-###`), and Constraints (`C-###`)
     - Ensure each requirement entry has a status value and testable wording
+    - Capture rules or invariants that shape acceptance scenarios, edge cases, permissions, or lifecycle boundaries
     - Define Success Criteria (measurable, technology-agnostic outcomes)
     - Identify Key Entities (if data involved)
 

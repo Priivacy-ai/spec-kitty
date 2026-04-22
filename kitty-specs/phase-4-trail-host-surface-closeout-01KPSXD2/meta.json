@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-22T06:17:55.233560+00:00",
+  "friendly_name": "Phase 4 Trail and Host-Surface Closeout",
+  "mission_id": "01KPSXD2MH6JXN5F48ZWAYC47J",
+  "mission_number": 93,
+  "mission_slug": "phase-4-trail-host-surface-closeout-01KPSXD2",
+  "mission_type": "software-dev",
+  "slug": "phase-4-trail-host-surface-closeout-01KPSXD2",
+  "source_description": "Phase 4 closeout: harden the landed runtime-consumption baseline so charter/doctrine is operationally coherent across host surfaces, local audit trail, and SaaS projection. Covers trail contract formalization (#701), host-surface rollout (#496), intake positioning, sync-boundary validation, and explicit explain deferral (#534). Release gate for 3.2 before Phase 5/6/7.",
+  "target_branch": "main",
+  "vcs": "git"
+}

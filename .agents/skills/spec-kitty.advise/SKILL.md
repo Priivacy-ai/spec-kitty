@@ -31,6 +31,20 @@ Response fields:
 | `governance_context_available` | boolean | `false` when charter has not been synthesised |
 | `router_confidence` | string or null | Routing confidence score (auto-routing only) |
 
+### Governance context injection
+
+After calling `advise`, `ask`, or `do`, the response includes a `governance_context_text` field.
+
+**You must inject this text into your working context before executing the task.**
+
+Steps:
+1. Read `governance_context_text` from the JSON response.
+2. Add the text to the beginning of your task execution context. Treat it as binding governance: follow any directives, constraints, and guidelines it contains when generating code, plans, or analyses.
+3. If `governance_context_available` is `false`, note it to the user ("governance context unavailable — run `spec-kitty charter synthesize` to build the DRG") but proceed with the task. The invocation trail is still recorded.
+4. After completing the task, close the record (see "Close the record" below).
+
+The `governance_context_hash` field in the response is a checksum of the context used. It is stored in the invocation record for provenance.
+
 ### Close the record
 ```bash
 spec-kitty profile-invocation complete \

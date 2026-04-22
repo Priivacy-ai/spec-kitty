@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.invocation.record import InvocationRecord
+from specify_cli.sync.routing import resolve_checkout_sync_routing
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,10 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
     It is NOT synchronous and does NOT accept an idempotency_key kwarg.
     Call pattern mirrors src/specify_cli/sync/emitter.py lines 993-1000.
     """
+    routing = resolve_checkout_sync_routing(repo_root)
+    if routing is not None and not routing.effective_sync_enabled:
+        return  # Sync explicitly disabled for this checkout → no-op
+
     client = _get_saas_client(repo_root)
     if client is None:
         return  # No SaaS token / client not connected → no-op, no log
