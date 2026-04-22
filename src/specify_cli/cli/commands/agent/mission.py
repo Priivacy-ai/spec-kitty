@@ -543,6 +543,9 @@ def create_mission(
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[str | None, typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
+    friendly_name: Annotated[str | None, typer.Option("--friendly-name", help="Human-friendly mission title")] = None,
+    purpose_tldr: Annotated[str | None, typer.Option("--purpose-tldr", help="One-line stakeholder TLDR for the mission")] = None,
+    purpose_context: Annotated[str | None, typer.Option("--purpose-context", help="Short stakeholder-facing paragraph for the mission")] = None,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -584,6 +587,9 @@ def create_mission(
             mission_slug=mission_slug,
             mission=resolved_mission_type,
             target_branch=target_branch,
+            friendly_name=friendly_name,
+            purpose_tldr=purpose_tldr,
+            purpose_context=purpose_context,
         )
     except MissionCreationError as exc:
         error_msg = str(exc)
@@ -632,6 +638,8 @@ def create_mission(
             "mission_type": str(result.meta.get("mission_type", result.meta.get("mission", ""))),
             "slug": str(result.meta.get("slug", "")),
             "friendly_name": str(result.meta.get("friendly_name", "")),
+            "purpose_tldr": str(result.meta.get("purpose_tldr", "")),
+            "purpose_context": str(result.meta.get("purpose_context", "")),
             "feature_dir": str(feature_dir),
             "spec_file": str(spec_file),
             "meta_file": str(meta_file),
@@ -654,6 +662,9 @@ def create_mission(
         )
     else:
         console.print(f"[green]\u2713[/green] Mission created: {result.mission_slug}")
+        console.print(f"   Title: {result.meta.get('friendly_name', '')}")
+        console.print(f"   TLDR: {result.meta.get('purpose_tldr', '')}")
+        console.print(f"   Context: {result.meta.get('purpose_context', '')}")
         console.print(f"   Directory: {result.feature_dir}")
         console.print(f"   Spec committed to {result.target_branch}")
 

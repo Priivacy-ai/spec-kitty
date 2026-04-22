@@ -55,6 +55,19 @@ def _init_git_repo(repo: Path) -> None:
     )
 
 
+def _mission_summary(slug: str) -> dict[str, str]:
+    """Return valid stakeholder-facing mission summary fields for test creates."""
+    title = slug.replace("-", " ").strip() or "test mission"
+    return {
+        "friendly_name": title.title(),
+        "purpose_tldr": f"Deliver {title} cleanly for the team.",
+        "purpose_context": (
+            f"This mission delivers {title} so product and engineering can move "
+            "forward with a clear outcome and shared understanding."
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Happy-path tests
 # ---------------------------------------------------------------------------
@@ -72,7 +85,7 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "test-feature")
+        result = create_mission_core(tmp_path, "test-feature", **_mission_summary("test-feature"))
 
     assert isinstance(result, MissionCreationResult)
     # Post-083: mission_slug is "<human-slug>-<mid8>" where mid8 is the first
@@ -124,7 +137,7 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "my-feature")
+        result = create_mission_core(tmp_path, "my-feature", **_mission_summary("my-feature"))
 
     assert len(result.created_files) == 3
     names = [f.name for f in result.created_files]
@@ -175,7 +188,7 @@ def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
             },
             True,
         )
-        result = create_mission_core(tmp_path, "ticket-feature")
+        result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
 
     assert result.origin_binding_attempted is True
     assert result.origin_binding_succeeded is True
@@ -212,7 +225,7 @@ def test_pending_origin_failure_is_reported_and_retained(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")),
     ):
-        result = create_mission_core(tmp_path, "ticket-feature")
+        result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
 
     assert result.origin_binding_attempted is True
     assert result.origin_binding_succeeded is False
@@ -230,7 +243,7 @@ def test_invalid_slug_raises(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
 
     with pytest.raises(MissionCreationError, match="Invalid feature slug"):
-        create_mission_core(tmp_path, "Invalid_Slug")
+        create_mission_core(tmp_path, "Invalid_Slug", **_mission_summary("Invalid_Slug"))
 
 
 def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
@@ -240,7 +253,7 @@ def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
     # Slug validation must pass; creation may succeed or fail for non-slug reasons,
     # but must NOT raise MissionCreationError with "Invalid feature slug".
     try:
-        create_mission_core(tmp_path, "123-fix")
+        create_mission_core(tmp_path, "123-fix", **_mission_summary("123-fix"))
     except MissionCreationError as exc:
         assert "Invalid feature slug" not in str(exc), (
             "Digit-prefixed slug '123-fix' must no longer be rejected for slug format. "
@@ -253,7 +266,7 @@ def test_uppercase_slug_raises(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
 
     with pytest.raises(MissionCreationError, match="Invalid feature slug"):
-        create_mission_core(tmp_path, "User-Auth")
+        create_mission_core(tmp_path, "User-Auth", **_mission_summary("User-Auth"))
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +282,7 @@ def test_worktree_context_raises(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=True),
         pytest.raises(MissionCreationError, match="worktree"),
     ):
-        create_mission_core(tmp_path, "test-feature")
+        create_mission_core(tmp_path, "test-feature", **_mission_summary("test-feature"))
 
 
 def test_not_git_repo_raises(tmp_path: Path) -> None:
@@ -281,7 +294,7 @@ def test_not_git_repo_raises(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=False),
         pytest.raises(MissionCreationError, match="git repository"),
     ):
-        create_mission_core(tmp_path, "test-feature")
+        create_mission_core(tmp_path, "test-feature", **_mission_summary("test-feature"))
 
 
 def test_detached_head_raises(tmp_path: Path) -> None:
@@ -294,7 +307,7 @@ def test_detached_head_raises(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=None),
         pytest.raises(MissionCreationError, match="branch"),
     ):
-        create_mission_core(tmp_path, "test-feature")
+        create_mission_core(tmp_path, "test-feature", **_mission_summary("test-feature"))
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +327,12 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "test-feature", target_branch="2.x")
+        result = create_mission_core(
+            tmp_path,
+            "test-feature",
+            target_branch="2.x",
+            **_mission_summary("test-feature"),
+        )
 
     assert result.target_branch == "2.x"
     assert result.current_branch == "main"
@@ -340,7 +358,7 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "my-feature")
+        result = create_mission_core(tmp_path, "my-feature", **_mission_summary("my-feature"))
 
     assert result.target_branch == "develop"
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
@@ -370,7 +388,12 @@ def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "docs-feature", mission="documentation")
+        result = create_mission_core(
+            tmp_path,
+            "docs-feature",
+            mission="documentation",
+            **_mission_summary("docs-feature"),
+        )
 
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["mission_type"] == "documentation"
@@ -390,7 +413,7 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "basic-feature")
+        result = create_mission_core(tmp_path, "basic-feature", **_mission_summary("basic-feature"))
 
     assert result.meta["mission_type"] == "software-dev"
 
@@ -417,7 +440,7 @@ def test_slug_uses_mid8_suffix_not_numeric_prefix(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_mission_core(tmp_path, "padded-test")
+        result = create_mission_core(tmp_path, "padded-test", **_mission_summary("padded-test"))
 
     # No NNN- prefix — slug is "<human-slug>-<mid8>".
     assert result.mission_slug.startswith("padded-test-")

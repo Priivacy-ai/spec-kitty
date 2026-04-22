@@ -319,6 +319,14 @@ return `
     const completionRate = stats.weighted_percentage != null
         ? Math.round(stats.weighted_percentage)
         : (total > 0 ? Math.round((completed / total) * 100) : 0);
+    const purposeTldr = (feature.purpose_tldr || meta.purpose_tldr || '').trim();
+    const purposeContext = (feature.purpose_context || meta.purpose_context || '').trim();
+    const overviewIntro = purposeTldr
+        ? `<p style="color: #374151; font-weight: 600; margin-top: 12px;">${escapeHtml(purposeTldr)}</p>`
+        : '<p style="color: #6b7280;">View and track all artifacts for this feature</p>';
+    const overviewContext = purposeContext
+        ? `<p style="color: #6b7280; margin-top: 10px; max-width: 72ch;">${escapeHtml(purposeContext)}</p>`
+        : '';
 
     const artifacts = feature.artifacts;
     const artifactList = [
@@ -344,7 +352,8 @@ return `
     document.getElementById('overview-content').innerHTML = `
 <div style="margin-bottom: 30px;">
     <h3>Feature: ${feature.name} ${mergeBadge}</h3>
-    <p style="color: #6b7280;">View and track all artifacts for this feature</p>
+    ${overviewIntro}
+    ${overviewContext}
 </div>
 
 <div class="status-summary">

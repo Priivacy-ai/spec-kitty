@@ -84,7 +84,16 @@ def _create_mission(
         patch(f"{_CORE}.is_worktree_context", return_value=False),
         patch(f"{_CORE}._commit_feature_file"),
     ):
-        return create_mission_core(repo, slug)
+        return create_mission_core(
+            repo,
+            slug,
+            friendly_name=slug.replace("-", " ").title(),
+            purpose_tldr=f"Deliver {slug.replace('-', ' ')} cleanly for the team.",
+            purpose_context=(
+                f"This mission delivers {slug.replace('-', ' ')} so product and engineering can "
+                "move forward with a clear outcome and shared understanding."
+            ),
+        )
 
 
 def _read_meta(feature_dir: Path) -> dict[str, Any]:
@@ -159,7 +168,13 @@ def test_t002_creation_succeeds_with_network_blocked(tmp_path: Path) -> None:
         patch(f"{_CORE}._commit_feature_file"),
         patch.object(socket.socket, "connect", _block_connect),
     ):
-        result = create_mission_core(tmp_path, "offline-feature")
+        result = create_mission_core(
+            tmp_path,
+            "offline-feature",
+            friendly_name="Offline Feature",
+            purpose_tldr="Deliver offline feature cleanly for the team.",
+            purpose_context="This mission delivers offline feature so product and engineering can move forward with a clear outcome and shared understanding.",
+        )
 
     meta = _read_meta(result.feature_dir)
     assert "mission_id" in meta, "meta.json must contain mission_id even when network is blocked"

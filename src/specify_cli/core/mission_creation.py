@@ -23,6 +23,7 @@ from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+from specify_cli.mission_metadata import validate_purpose_summary
 from specify_cli.sync.events import emit_mission_created
 
 logger = logging.getLogger(__name__)
@@ -172,6 +173,9 @@ def create_mission_core(
     *,
     mission: str | None = None,
     target_branch: str | None = None,
+    friendly_name: str | None = None,
+    purpose_tldr: str | None = None,
+    purpose_context: str | None = None,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -193,6 +197,12 @@ def create_mission_core(
     target_branch:
         Explicit target branch for the feature.  When *None* the current
         git branch is used.
+    friendly_name:
+        Required mission title shown on operator-facing surfaces.
+    purpose_tldr:
+        Required one-line product/CXO summary for the mission.
+    purpose_context:
+        Required short paragraph explaining the mission in stakeholder terms.
 
     Returns
     -------
@@ -220,6 +230,16 @@ def create_mission_core(
             "\n  - User-Auth (uppercase)"
             "\n  - user_auth (underscores)"
         )
+
+    normalized_friendly_name = " ".join((friendly_name or "").split())
+    if not normalized_friendly_name:
+        raise MissionCreationError("Mission creation requires a non-empty friendly_name.")
+
+    purpose_errors = validate_purpose_summary(purpose_tldr, purpose_context)
+    if purpose_errors:
+        raise MissionCreationError(" ".join(purpose_errors))
+    normalized_purpose_tldr = " ".join((purpose_tldr or "").split())
+    normalized_purpose_context = " ".join((purpose_context or "").split())
 
     # ------------------------------------------------------------------
     # 2. Context guards
@@ -315,7 +335,9 @@ def create_mission_core(
     meta.setdefault("mission_number", None)  # JSON null — pre-merge missions have no number
     meta.setdefault("slug", mission_slug_formatted)
     meta.setdefault("mission_slug", mission_slug_formatted)
-    meta.setdefault("friendly_name", mission_slug.replace("-", " ").strip())
+    meta.setdefault("friendly_name", normalized_friendly_name)
+    meta.setdefault("purpose_tldr", normalized_purpose_tldr)
+    meta.setdefault("purpose_context", normalized_purpose_context)
     meta.setdefault("mission_type", mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())  # noqa: UP017
@@ -351,8 +373,13 @@ def create_mission_core(
         emit_mission_created(
             mission_slug=mission_slug_formatted,
             mission_number=None,  # no number pre-merge (FR-044)
+            mission_type=str(meta.get("mission_type") or mission or "software-dev"),
             target_branch=planning_branch,
             wp_count=0,
+            friendly_name=normalized_friendly_name,
+            purpose_tldr=normalized_purpose_tldr,
+            purpose_context=normalized_purpose_context,
+            created_at=str(meta["created_at"]) if meta.get("created_at") else None,
             mission_id=meta.get("mission_id"),
         )
 
@@ -436,6 +463,7 @@ def _consume_pending_origin_if_present(
         status=str(pending.get("status") or "").strip(),
         url=str(pending.get("url") or "").strip(),
         match_type="pending_origin",
+        body=str(pending.get("body") or "").strip() or None,
     )
 
     try:

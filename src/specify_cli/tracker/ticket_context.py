@@ -96,6 +96,7 @@ def write_pending_origin(
         "issue_key": ticket.get("identifier", ""),
         "issue_id": ticket.get("external_issue_id") or ticket.get("id", ""),
         "title": ticket.get("title", ""),
+        "body": ticket.get("body", "") or "",
         "url": ticket.get("url", ""),
         "status": (ticket.get("state") or {}).get("name", "") or ticket.get("status", ""),
     }

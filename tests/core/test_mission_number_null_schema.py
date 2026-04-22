@@ -41,6 +41,8 @@ def _base_meta(**overrides: Any) -> dict[str, Any]:
         "slug": "083-foo-bar",
         "mission_slug": "083-foo-bar",
         "friendly_name": "foo bar",
+        "purpose_tldr": "Deliver foo bar cleanly for the team.",
+        "purpose_context": "This mission delivers foo bar so product and engineering can move forward with a clear outcome and shared understanding.",
         "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-04-11T08:00:00+00:00",
@@ -191,7 +193,13 @@ def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
     ):
         # Provide a real tmp_path as repo_root so file creation works
         # but without a real git repo
-        result = create_mission_core(tmp_path, "foo-bar")
+        result = create_mission_core(
+            tmp_path,
+            "foo-bar",
+            friendly_name="Foo Bar",
+            purpose_tldr="Deliver foo bar cleanly for the team.",
+            purpose_context="This mission delivers foo bar so product and engineering can move forward with a clear outcome and shared understanding.",
+        )
 
     meta_path = result.feature_dir / "meta.json"
     assert meta_path.exists()
@@ -216,7 +224,13 @@ def test_create_mission_core_mission_number_field_is_none_in_result(tmp_path: Pa
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
         patch("specify_cli.core.mission_creation.emit_mission_created"),
     ):
-        result = create_mission_core(tmp_path, "bar-baz")
+        result = create_mission_core(
+            tmp_path,
+            "bar-baz",
+            friendly_name="Bar Baz",
+            purpose_tldr="Deliver bar baz cleanly for the team.",
+            purpose_context="This mission delivers bar baz so product and engineering can move forward with a clear outcome and shared understanding.",
+        )
 
     assert result.mission_number is None
 
@@ -233,7 +247,13 @@ def test_new_mission_feature_dir_uses_human_slug_mid8(tmp_path: Path) -> None:
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
         patch("specify_cli.core.mission_creation.emit_mission_created"),
     ):
-        result = create_mission_core(tmp_path, "my-feature")
+        result = create_mission_core(
+            tmp_path,
+            "my-feature",
+            friendly_name="My Feature",
+            purpose_tldr="Deliver my feature cleanly for the team.",
+            purpose_context="This mission delivers my feature so product and engineering can move forward with a clear outcome and shared understanding.",
+        )
 
     # Directory name must NOT start with a 3-digit prefix
     dir_name = result.feature_dir.name
