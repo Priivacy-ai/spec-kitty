@@ -57,15 +57,17 @@ Parse frontmatter for:
 - `execution_mode` -- `code_change` or `planning_artifact`
 - `subtasks` -- ordered list of subtask IDs
 - `dependencies` -- WPs that must be done first
-- `profile` -- agent profile identifier to load
-- `role` -- human-readable role for this WP
-- `tool` -- primary tool or skill focus
+- `agent_profile` -- agent profile identifier to load (e.g., `implementer-ivan`)
+- `role` -- role within the profile (e.g., `implementer`)
+- `agent` -- CLI agent/tool identifier (e.g., `claude`, `codex`)
+- `model` -- optional model override (e.g., `claude-sonnet-4-6`)
 
 ### 2a. Load Agent Profile
 
 Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
 
-If `profile` is empty, select the best available profile for the WP's `task_type`.
+If `agent_profile` is empty, run `spec-kitty agent profile list` and select the best
+available profile for the WP's `task_type` and `authoritative_surface`.
 
 ### 3. Verify Dependencies
 
@@ -193,6 +195,33 @@ After completing bulk renames:
    - Template directories checked: yes/no
    - Agent directories checked: yes/no
    - Doc directories checked: yes/no
+
+---
+
+### 6. Prepare for Review Hand-off
+
+Before moving this WP to `for_review`, update the `agent_profile` field in the WP
+prompt frontmatter to a reviewer profile so the reviewing agent loads the correct
+persona automatically.
+
+1. Identify the appropriate reviewer profile:
+   ```bash
+   spec-kitty agent profile list --json | grep reviewer
+   ```
+   The default reviewer profile is `reviewer-renata`. Use it unless the mission or
+   charter specifies a different reviewer.
+
+2. Update the WP frontmatter:
+   ```yaml
+   agent_profile: "reviewer-renata"
+   role: "reviewer"
+   ```
+
+3. Commit the updated frontmatter together with your implementation changes **before**
+   running `spec-kitty agent tasks move-task WPxx --to for_review`.
+
+The reviewer will then use `/ad-hoc-profile-load` with the reviewer profile and apply
+its self-review gates automatically.
 
 ---
 
