@@ -111,10 +111,28 @@ subtasks: {subtasks}
 owned_files: {owned_files}
 authoritative_surface: "{longest common path prefix of owned_files}"
 execution_mode: "{execution_mode}"
+agent_profile: ""  # filled in Step 4a — profile identifier (e.g., implementer-ivan)
+role: ""           # filled in Step 4a — role within the profile (e.g., "implementer")
+agent: ""          # filled in Step 4a — CLI agent identifier (claude, codex, copilot, etc.)
+model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet-4-6), optional
 ---
 ```
 
 Body sections (in order):
+0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. Use this exact structure, substituting frontmatter values:
+   ```markdown
+   ## ⚡ Do This First: Load Agent Profile
+
+   Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
+
+   - **Profile**: `{agent_profile}`
+   - **Role**: `{role}`
+   - **Agent/tool**: `{agent}`
+
+   If no profile is specified, run `spec-kitty agent profile list` and select the best match for this work package's `task_type` and `authoritative_surface`.
+
+   ---
+   ```
 1. `## Objective` — 1–3 sentence goal
 2. `## Context` — why this WP exists, what depends on it, key design decisions from plan.md
 3. `### Subtask {T-id}: {name}` — one section per subtask, ~60 lines each:
@@ -198,11 +216,32 @@ Include the correct implementation command:
 - `execution_mode`: `"code_change"` for source code changes, `"planning_artifact"` for kitty-specs docs.
 - Agents working on a WP must not modify files outside their `owned_files` list.
 
+### 4a. Assign Agent Profiles
+
+After all WP files are written and `wps.yaml` is updated, review all available doctrine-provided and user-created agent profiles and assign the most relevant profile to each work package.
+
+List available profiles:
+```bash
+spec-kitty agent profile list --json
+```
+
+> If this command is unavailable, look for profiles under `src/doctrine/agent_profiles/shipped/` and any user-defined profiles in `.kittify/agent_profiles/` or equivalent.
+
+For each WP, select the best-matching profile based on `task_type`, `authoritative_surface`, `owned_files`, and subtask content. Then update the WP prompt file's frontmatter **in place** with:
+- `agent_profile`: the profile identifier (e.g., `"implementer-ivan"`, `"architect-alphonso"`, `"curator-carla"`)
+- `role`: the role within the profile (e.g., `"implementer"`, `"reviewer"`)
+- `agent`: the CLI agent/tool identifier (e.g., `"claude"`, `"codex"`, `"copilot"`)
+- `model`: the model identifier (optional, e.g., `"claude-sonnet-4-6"`)
+
+Also update the corresponding entry in `wps.yaml` with these fields.
+
 ### 5. Self-Check
 
 After all sub-agents complete, verify each generated prompt:
+- `## ⚡ Do This First: Load Agent Profile` is the **first body section** (before Objective)? ✓ ❌ if missing
 - Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ needs splitting
 - Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ needs splitting
+- `agent_profile`, `role`, `agent` set for every WP? ✓
 - owned_files glob patterns non-overlapping across all WPs? ✓
 - Can implement in one session? ✓ | Multiple sessions needed? ❌ needs splitting
 
