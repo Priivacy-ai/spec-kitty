@@ -61,7 +61,7 @@ class TestPostMergeRefreshAndInvariant:
         return manifest
 
     def test_refresh_and_invariant_run_in_correct_order(self, tmp_path: Path) -> None:
-        """FR-013/FR-014: checkout refresh and status check fire between merge and safe_commit."""
+        """FR-013/FR-014: refresh happens before done events, then status check, then safe_commit."""
         slug = "test-refresh-invariant"
         _init_git_repo(tmp_path)
 
@@ -99,6 +99,9 @@ class TestPostMergeRefreshAndInvariant:
             call_log.append("safe_commit")
             return True
 
+        def fake_mark_wp_merged_done(*args, **kwargs):  # noqa: ANN001
+            call_log.append("mark_done")
+
         with (
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
@@ -108,7 +111,7 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
-            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
+            patch("specify_cli.cli.commands.merge._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
             patch("specify_cli.cli.commands.merge.safe_commit", side_effect=fake_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
@@ -142,20 +145,22 @@ class TestPostMergeRefreshAndInvariant:
                 strategy=MergeStrategy.SQUASH,
             )
 
-        # Required ordering: checkout_refresh → status_check → safe_commit.
+        # Required ordering: checkout_refresh → mark_done → status_check → safe_commit.
         assert "checkout_refresh" in call_log, (
             f"FR-013: post-merge `git checkout HEAD -- .` must fire; call_log={call_log}"
         )
+        assert "mark_done" in call_log, "Merged WPs must be recorded as done after refresh"
         assert "status_check" in call_log, (
             f"FR-014: post-merge `git status --porcelain` must fire; call_log={call_log}"
         )
         assert "safe_commit" in call_log, "safe_commit must still fire after refresh/invariant"
 
         refresh_idx = call_log.index("checkout_refresh")
+        mark_done_idx = call_log.index("mark_done")
         status_idx = call_log.index("status_check")
         commit_idx = call_log.index("safe_commit")
-        assert refresh_idx < status_idx < commit_idx, (
-            f"Expected refresh → status → safe_commit, got {call_log}"
+        assert refresh_idx < mark_done_idx < status_idx < commit_idx, (
+            f"Expected refresh → mark_done → status → safe_commit, got {call_log}"
         )
 
     def test_invariant_violation_aborts_before_safe_commit(self, tmp_path: Path) -> None:
