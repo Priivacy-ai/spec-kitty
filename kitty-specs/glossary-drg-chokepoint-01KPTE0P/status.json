@@ -1,18 +1,18 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KPTKNCV82XX6KP5FE8MZT66C",
-  "materialized_at": "2026-04-22T12:46:56.360840+00:00",
+  "event_count": 24,
+  "last_event_id": "01KPTKTCVEB0FADJJ104CXWE0S",
+  "materialized_at": "2026-04-22T12:49:40.206577+00:00",
   "mission_number": "",
   "mission_slug": "glossary-drg-chokepoint-01KPTE0P",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-22T12:36:50.712098+00:00"
     },
     "WP03": {
-      "actor": "claude:sonnet:reviewer:reviewer",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KPTKNCV82XX6KP5FE8MZT66C",
-      "last_transition_at": "2026-04-22T12:46:56.360840+00:00"
+      "lane": "approved",
+      "last_event_id": "01KPTKTCVEB0FADJJ104CXWE0S",
+      "last_transition_at": "2026-04-22T12:49:40.206577+00:00"
     }
   }
 }
