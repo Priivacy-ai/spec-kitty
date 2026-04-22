@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased - 3.2.0]
 
+## [3.2.0a5] - 2026-04-22
+
+### Added
+
+- `docs/trail-model.md`: Formal operator documentation for the Phase 4 trail contract,
+  mode-of-work taxonomy, tier promotion rules, SaaS projection policy, intake positioning,
+  and explain deferral (WP04).
+- "Governance context injection" section in `.agents/skills/spec-kitty.advise/SKILL.md`
+  for Codex/Vibe hosts, enabling Tier 1 trail recording without host-side SaaS auth (WP03).
+- "Standalone invocations (outside missions)" section in
+  `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` for Claude Code and gstack hosts,
+  covering when to open an invocation record outside the mission workflow (WP04).
+- End-to-end invocation integration tests in
+  `tests/specify_cli/invocation/test_invocation_e2e.py` covering Tier 1 JSONL write,
+  complete-event append, local-only list read, and sync-gate suppression (WP05).
+
+### Fixed
+
+- `propagator.py` (`_propagate_one`): Invocation events are now suppressed when
+  `effective_sync_enabled = False`, even when the user is authenticated. Previously,
+  sync-disabled checkouts could still emit SaaS events if a WebSocket client was
+  connected (WP01).
+- `executor.complete_invocation` now calls `promote_to_evidence()` when the
+  `--evidence` flag is supplied, enabling correct Tier 2 artifact promotion (WP03).
+
+### Changed
+
+- Issue #496: Priority-surface slice complete in 3.2.x (Claude Code via
+  `spec-kitty-runtime-next` doctrine skill, Codex CLI via SKILL.md governance context
+  injection). Remaining 9 surfaces tracked in #496 for a follow-on patch or Phase 5.
+- Issue #534: `spec-kitty explain` explicitly deferred to Phase 5 (requires DRG
+  glossary addressability, issue #499). A partial implementation without glossary
+  citations would be misleading.
+
 ## [3.2.0a4] - 2026-04-21
 
 ### Added

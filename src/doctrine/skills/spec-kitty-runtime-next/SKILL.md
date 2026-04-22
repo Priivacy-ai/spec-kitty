@@ -508,6 +508,58 @@ for null before acting; treat null as blocked.
 
 ---
 
+## Standalone Invocations (Outside Missions)
+
+Not all governed work happens inside an active mission. When a user asks for help with a task that has no active `spec-kitty next` loop — a code review, a quick implementation, an ad-hoc analysis — you should still invoke Spec Kitty's governance layer via the profile invocation surface.
+
+Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes, assembles governance context, and records the trail.
+
+### When to use which command
+
+| Situation | Command |
+|-----------|---------|
+| Request is clear, profile unknown | `spec-kitty do "<request>" --json` |
+| Request is clear, profile known | `spec-kitty ask <profile> "<request>" --json` |
+| Need routing decision only (no implementation) | `spec-kitty advise "<request>" --json` |
+
+### The governance injection loop
+
+1. **Get context**:
+   ```bash
+   spec-kitty do "implement the login handler" --json
+   # or:
+   spec-kitty ask pedro "review WP05" --json
+   ```
+   Response includes `invocation_id`, `governance_context_text`, and `governance_context_available`.
+
+2. **Inject governance**:
+   Read `governance_context_text` and treat it as binding governance context for your task. Follow any directives and constraints it contains.
+   If `governance_context_available` is `false`, note this to the user but proceed with the task.
+
+3. **Execute**:
+   Do the work. Generate the code, analysis, or plan.
+
+4. **Close the record**:
+   ```bash
+   spec-kitty profile-invocation complete \
+     --invocation-id <invocation_id> \
+     --outcome done
+   ```
+   Use `failed` or `abandoned` as appropriate.
+
+### Trail produced
+
+Every standalone invocation writes a Tier 1 JSONL file to:
+```
+.kittify/events/profile-invocations/<invocation_id>.jsonl
+```
+
+Viewable at any time with `spec-kitty invocations list --json`. No SaaS connection required.
+
+For full CLI surface documentation, see `.agents/skills/spec-kitty.advise/SKILL.md`.
+
+---
+
 ## References
 
 - `references/runtime-result-taxonomy.md` -- Decision kinds, output fields, and precedence rules

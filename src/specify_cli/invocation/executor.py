@@ -19,7 +19,7 @@ import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/missi
 from charter.context import build_charter_context
 from specify_cli.invocation.errors import InvocationWriteError, ProfileNotFoundError
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
 from specify_cli.invocation.writer import InvocationWriter
@@ -186,6 +186,15 @@ class ProfileInvocationExecutor:
             outcome=outcome,
             evidence_ref=evidence_ref,
         )
+        # Promote to Tier 2 evidence artifact if --evidence was supplied
+        if evidence_ref is not None:
+            evidence_path = Path(evidence_ref)
+            try:
+                content = evidence_path.read_text(encoding="utf-8")
+            except OSError:
+                content = evidence_ref  # fallback: treat the value as inline content
+            evidence_base_dir = self._repo_root / ".kittify" / "evidence"
+            promote_to_evidence(completed, evidence_base_dir, content)
         # Propagate completed event (non-blocking, best-effort)
         if self._propagator is not None:
             self._propagator.submit(completed)
