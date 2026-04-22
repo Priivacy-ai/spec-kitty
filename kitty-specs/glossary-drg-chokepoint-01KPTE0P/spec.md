@@ -77,10 +77,10 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | Every active glossary term in the glossary store must have a corresponding `glossary:<id>` URN node in the DRG. The `<id>` segment must be stable across DRG regenerations for the same canonical term surface. | Approved |
-| FR-002 | Each `glossary:<id>` DRG node must carry the term's canonical surface form as its `label` and a `NodeKind` of `GLOSSARY` (value `"glossary"` in the `NodeKind` StrEnum, matching the `glossary:` URN prefix). | Approved |
-| FR-003 | The DRG must carry `vocabulary` edges from action nodes to all applicable `glossary:<id>` nodes. For this tranche, applicability follows scope: `spec_kitty_core` and `team_domain` terms are applicable to every action; `mission_local` and `audience_domain` terms are excluded from the static graph and are resolved at runtime from active mission context. | Approved |
-| FR-004 | The DRG must expose a query that accepts an action URN and returns the complete set of `glossary:<id>` nodes reachable via outbound `vocabulary` edges (the action-scoped term set). | Approved |
+| FR-001 | Every active glossary term in the glossary store must have a `glossary:<id>` URN address stable across store rebuilds for the same canonical surface. The URN format and corresponding `DRGNode` representation are defined by `build_glossary_drg_layer()` in `src/specify_cli/glossary/drg_builder.py`. In the live invocation path, the chokepoint resolves terms via `GlossaryTermIndex` built directly from `GlossaryStore` (not from a persisted DRG YAML), consistent with the planning decision to use a runtime-computed in-memory layer. | Approved |
+| FR-002 | Each addressable glossary term must carry its canonical surface form as its `label` and be identified by `NodeKind.GLOSSARY` (value `"glossary"`, matching the `glossary:` URN prefix). | Approved |
+| FR-003 | The glossary DRG layer (`build_glossary_drg_layer()`) must produce `vocabulary` edges from every shipped action node to every term node in the applicable scopes. In the live chokepoint path, `spec_kitty_core` and `team_domain` terms are applied to all invocations regardless of the specific action URN (broad v1 applicability). Per-action scoping is deferred to a follow-on. | Approved |
+| FR-004 | The term index must be queryable by the chokepoint. In v1, the chokepoint applies all applicable-scope terms to every invocation uniformly (no per-action-URN filtering). A DRG-native action-URN → term-node query is deferred to a follow-on tranche. | Approved |
 | FR-005 | `ProfileInvocationExecutor.invoke()` must run the glossary chokepoint synchronously after governance-context assembly and before returning `InvocationPayload`. | Approved |
 | FR-006 | The chokepoint must tokenize the request text and match tokens against the action-scoped term set using deterministic string matching and lemmatization only. No LLM calls are permitted in the hot path. | Approved |
 | FR-007 | For each matched term, the chokepoint must classify any drift using the existing `SemanticConflict` model (`conflict_type`, `severity`, `confidence`). | Approved |
@@ -91,7 +91,7 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 | FR-012 | Low- and medium-severity findings must be written to the local invocation JSONL trail under the invocation's trail entry, but must not appear in `InvocationPayload.glossary_observations.high_severity`. | Approved |
 | FR-013 | The `GlossaryChokepoint` class must be instantiatable without triggering any filesystem I/O. The term index must be lazily loaded on first use and cached for the lifetime of the executor instance. | Approved |
 | FR-014 | The Codex and gstack host guidance documents must be updated to describe the `glossary_observations` field, the `high_severity` rendering contract, and the expected behavior when `error_msg` is set. | Approved |
-| FR-015 | The term index must be rebuildable on demand via a function that scans the DRG for `glossary:<id>` nodes and their outbound `vocabulary` edges. No manual operator step is required to populate the index after DRG regeneration. | Approved |
+| FR-015 | The term index must be rebuildable on demand via `build_index()`, which scans the active `GlossaryStore` for `ACTIVE` senses in the applicable scopes. No manual operator step is required after glossary seed files change. | Approved |
 
 ---
 
@@ -198,7 +198,7 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 Once this spec is approved, the following WP sequence delivers the smallest complete slice:
 
 1. **WP01 — DRG term node model and index builder**
-   Add `NodeKind.GLOSSARY = "glossary"`. Build the index builder that traverses DRG `glossary:<id>` nodes and `vocabulary` edges. Write the ID derivation function (`sha256(surface, utf-8)[:8]`). Update DRG loader and validator for backward-compat (no `glossary` nodes in existing YAML = no error). Define seed-file-to-DRG-node translation. Unit tests + mypy.
+   Add `NodeKind.GLOSSARY = "glossary"`. Implement `glossary_urn()` (SHA-256 8-hex stable URN), `build_glossary_drg_layer()` (produces DRGNode/DRGEdge objects for the full layer), `build_index()` (builds `GlossaryTermIndex` directly from `GlossaryStore` for the live chokepoint path), and `_normalize()` (suffix-stripping lemmatizer). Update DRG loader and validator for backward-compat (no `glossary` nodes in existing YAML = no error). Unit tests + mypy.
 
 2. **WP02 — Chokepoint class, observation bundle, and executor integration**
    Implement `GlossaryObservationBundle` model. Implement `GlossaryChokepoint` with lazy index load, deterministic tokenizer + matcher, conflict classification via existing `SemanticConflict`. Wire into `ProfileInvocationExecutor.invoke()` with try/except safety wrapper. Benchmark chokepoint latency against p95 targets; draft ADR-5 with measurement data. Extend `InvocationPayload.__slots__` with `glossary_observations`. Unit + integration tests + mypy.

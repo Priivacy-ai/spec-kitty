@@ -73,9 +73,14 @@ class InvocationPayload:
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {}
         for s in self.__slots__:
-            val = getattr(self, s)
-            # GlossaryObservationBundle is not JSON-serialisable; convert to plain dict.
-            if hasattr(val, "to_dict") and callable(val.to_dict):
+            # Use getattr default so callers that omit glossary_observations
+            # (e.g. tests constructing InvocationPayload directly) get None
+            # instead of AttributeError. C-005 backward-compat fix.
+            val = getattr(self, s, None)
+            # Only serialise glossary_observations via its to_dict() — explicit,
+            # not duck-typed, to avoid accidentally serialising future slots
+            # that happen to carry objects with a to_dict() method. RISK-3 fix.
+            if s == "glossary_observations" and val is not None:
                 result[s] = val.to_dict()
             else:
                 result[s] = val

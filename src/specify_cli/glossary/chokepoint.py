@@ -10,11 +10,14 @@ Performance target: p95 ≤ 50 ms for a 500-word request text.
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from .drg_builder import GlossaryTermIndex, _normalize, build_index
 from .extraction import COMMON_WORDS, ExtractedTerm
@@ -148,6 +151,12 @@ class GlossaryChokepoint:
             store = self._load_store(self._repo_root)
             scope_values = [s.value for s in self._applicable_scopes]
             self._index = build_index(store, scope_values)
+            if self._index.term_count == 0:
+                _logger.debug(
+                    "GlossaryChokepoint: term index is empty for scopes %s "
+                    "(no .kittify/glossaries/*.yaml seed files found?)",
+                    scope_values,
+                )
         return self._index
 
     # ------------------------------------------------------------------
