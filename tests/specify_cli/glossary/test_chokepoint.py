@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -25,14 +26,10 @@ from specify_cli.glossary.chokepoint import (
 )
 from specify_cli.glossary.drg_builder import GlossaryTermIndex
 from specify_cli.glossary.models import (
-    ConflictType,
     Provenance,
-    SemanticConflict,
-    Severity,
     SenseStatus,
     TermSense,
     TermSurface,
-    SenseRef,
 )
 from specify_cli.glossary.scope import GlossaryScope
 from specify_cli.glossary.store import GlossaryStore
@@ -228,6 +225,26 @@ def test_clean_request_returns_noerror_bundle():
     assert bundle.error_msg is None
     assert bundle.tokens_checked >= 0
     assert isinstance(bundle.duration_ms, float)
+
+
+def test_unknown_term_emits_candidate_event_for_profile_invocation(tmp_path: Path) -> None:
+    """Unknown invocation terms should emit TermCandidateObserved without failing the scan."""
+    cp = _chokepoint_with_store(_make_store(), repo_root=tmp_path)
+
+    with patch("specify_cli.glossary.events.emit_term_candidate_observed") as emit_mock:
+        bundle = cp.run(
+            "frobnicator",
+            invocation_id="01HXYZ1234567890ABCDEFGHJK",
+            actor_id="codex",
+        )
+
+    assert bundle.error_msg is None
+    emit_mock.assert_called_once()
+    extracted_term, context = emit_mock.call_args.args[:2]
+    assert extracted_term.surface == "frobnicator"
+    assert context.actor_id == "codex"
+    assert context.run_id == "01HXYZ1234567890ABCDEFGHJK"
+    assert emit_mock.call_args.kwargs["repo_root"] == tmp_path
 
 
 # ---------------------------------------------------------------------------

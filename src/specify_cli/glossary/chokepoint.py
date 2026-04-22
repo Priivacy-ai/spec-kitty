@@ -17,13 +17,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-_logger = logging.getLogger(__name__)
-
 from .drg_builder import GlossaryTermIndex, _normalize, build_index
 from .extraction import COMMON_WORDS, ExtractedTerm
 from .models import SemanticConflict, TermSense
 from .scope import GlossaryScope, load_seed_file
 from .store import GlossaryStore
+
+_logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Default applicable scopes (T009)
@@ -84,6 +84,16 @@ class GlossaryObservationBundle:
             "duration_ms": self.duration_ms,
             "error_msg": self.error_msg,
         }
+
+
+@dataclass(frozen=True)
+class _InvocationGlossaryEventContext:
+    """Minimal context shim for glossary event emission from profile invocations."""
+
+    step_id: str
+    mission_id: str
+    run_id: str
+    actor_id: str
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +177,7 @@ class GlossaryChokepoint:
         self,
         request_text: str,
         invocation_id: str = "",  # noqa: ARG002  (reserved for future telemetry)
+        actor_id: str = "unknown",
     ) -> GlossaryObservationBundle:
         """Scan *request_text* for glossary conflicts and return a bundle.
 
@@ -183,7 +194,11 @@ class GlossaryChokepoint:
         """
         t0 = time.monotonic()
         try:
-            bundle = self._run_inner(request_text)
+            bundle = self._run_inner(
+                request_text,
+                invocation_id=invocation_id,
+                actor_id=actor_id,
+            )
             return bundle
         except Exception as exc:  # noqa: BLE001
             duration_ms = (time.monotonic() - t0) * 1000.0
@@ -196,7 +211,47 @@ class GlossaryChokepoint:
                 error_msg=str(exc),
             )
 
-    def _run_inner(self, request_text: str) -> GlossaryObservationBundle:
+    def _build_event_context(
+        self,
+        *,
+        invocation_id: str,
+        actor_id: str,
+    ) -> _InvocationGlossaryEventContext | None:
+        """Return a minimal event context for invocation-scoped glossary events."""
+        if not invocation_id:
+            return None
+        mission_id = f"profile-invocation-{invocation_id}"
+        return _InvocationGlossaryEventContext(
+            step_id=f"profile-invocation:{invocation_id}",
+            mission_id=mission_id,
+            run_id=invocation_id,
+            actor_id=actor_id,
+        )
+
+    def _emit_unknown_term_candidate(
+        self,
+        extracted_term: ExtractedTerm,
+        *,
+        event_context: _InvocationGlossaryEventContext | None,
+    ) -> None:
+        """Best-effort emission of unknown glossary term candidates."""
+        if event_context is None:
+            return
+        from .events import emit_term_candidate_observed
+
+        emit_term_candidate_observed(
+            extracted_term,
+            event_context,
+            repo_root=self._repo_root,
+        )
+
+    def _run_inner(
+        self,
+        request_text: str,
+        *,
+        invocation_id: str,
+        actor_id: str,
+    ) -> GlossaryObservationBundle:
         """Core scan logic (called inside the try/except in :meth:`run`).
 
         Tokenises *request_text*, filters common words, normalises via
@@ -210,6 +265,10 @@ class GlossaryChokepoint:
 
         t0 = time.monotonic()
         index = self._load_index()
+        event_context = self._build_event_context(
+            invocation_id=invocation_id,
+            actor_id=actor_id,
+        )
 
         # --- tokenise ---
         raw_tokens = _TOKEN_RE.split(request_text.lower())
@@ -235,6 +294,12 @@ class GlossaryChokepoint:
 
         for normalized in checked_tokens:
             senses: list[TermSense] = []
+            extracted_term = ExtractedTerm(
+                surface=normalized,
+                source="request_text",
+                confidence=1.0,
+                original=normalized,
+            )
 
             # Try the normalised form first, then the raw token
             if normalized in index.surface_to_senses:
@@ -243,15 +308,11 @@ class GlossaryChokepoint:
                 matched_urns.append(urn)
             # If no match, skip conflict classification for this token
             if not senses:
+                self._emit_unknown_term_candidate(
+                    extracted_term,
+                    event_context=event_context,
+                )
                 continue
-
-            # Build an ExtractedTerm to feed the existing classifiers (T011)
-            extracted_term = ExtractedTerm(
-                surface=normalized,
-                source="request_text",
-                confidence=1.0,
-                original=normalized,
-            )
 
             conflict_type = classify_conflict(
                 term=extracted_term,

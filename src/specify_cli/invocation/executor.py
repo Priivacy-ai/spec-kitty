@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
-from specify_cli.invocation.errors import InvocationWriteError, ProfileNotFoundError
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
@@ -160,7 +159,11 @@ class ProfileInvocationExecutor:
         try:
             if self._chokepoint is None:
                 self._chokepoint = GlossaryChokepoint(self._repo_root)
-            bundle = self._chokepoint.run(request_text, invocation_id=invocation_id)
+            bundle = self._chokepoint.run(
+                request_text,
+                invocation_id=invocation_id,
+                actor_id=actor,
+            )
         except Exception as _exc:  # noqa: BLE001
             import logging as _logging
             _logging.getLogger(__name__).warning(
@@ -170,7 +173,7 @@ class ProfileInvocationExecutor:
                 tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
-        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        started_at = datetime.datetime.now(datetime.UTC).isoformat()
         record = InvocationRecord(
             event="started",
             invocation_id=invocation_id,
