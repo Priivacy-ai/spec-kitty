@@ -33,6 +33,10 @@ from . import upgrade as upgrade_module
 from . import validate_encoding as validate_encoding_module
 from . import validate_tasks as validate_tasks_module
 from . import verify as verify_module
+from . import profiles_cmd as profiles_cmd_module
+from . import advise as advise_module
+from . import do_cmd as do_cmd_module
+from . import invocations_cmd as invocations_cmd_module
 
 if is_saas_sync_enabled():
     from . import tracker as tracker_module
@@ -78,6 +82,12 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)
+    app.add_typer(profiles_cmd_module.app, name="profiles")
+    app.command(name="advise", help="Get governance context for a request (opens an invocation record).")(advise_module.advise)
+    app.command(name="ask", help="Invoke a named profile directly.")(advise_module.ask)
+    app.add_typer(advise_module.profile_invocation_app, name="profile-invocation")
+    app.command(name="do", help="Route a request to the best-matching profile (anonymous dispatch).")(do_cmd_module.do)
+    app.add_typer(invocations_cmd_module.app, name="invocations")
 
 
 __all__ = ["register_commands"]

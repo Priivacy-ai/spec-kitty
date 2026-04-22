@@ -1,0 +1,8 @@
+profile-id: implementer-fixture
+name: "Implementer (fixture)"
+role: implementer
+purpose: "Implement features and fix bugs in code."
+specialization:
+  primary-focus: "Code implementation and feature development"
+specialization-context:
+  domain-keywords: [implement, build, code]
