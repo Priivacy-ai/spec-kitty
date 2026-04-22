@@ -189,13 +189,21 @@ class ProfileInvocationExecutor:
         # Promote to Tier 2 evidence artifact if --evidence was supplied
         if evidence_ref is not None:
             evidence_path = Path(evidence_ref)
+            candidate_path: Path | None = None
             if not evidence_path.is_absolute():
-                # Anchor relative paths to the project root to prevent directory
-                # traversal (e.g. ../../etc/passwd). Absolute paths are the
-                # operator's explicit choice and pass through unchanged.
-                evidence_path = (self._repo_root / evidence_path).resolve()
+                repo_root = self._repo_root.resolve()
+                resolved_relative_path = (repo_root / evidence_path).resolve()
+                if resolved_relative_path.is_relative_to(repo_root):
+                    candidate_path = resolved_relative_path
+            else:
+                # Absolute paths are the operator's explicit choice.
+                candidate_path = evidence_path
             try:
-                content = evidence_path.read_text(encoding="utf-8")
+                content = (
+                    candidate_path.read_text(encoding="utf-8")
+                    if candidate_path is not None
+                    else evidence_ref
+                )
             except OSError:
                 content = evidence_ref  # fallback: treat the value as inline content
             evidence_base_dir = self._repo_root / ".kittify" / "evidence"

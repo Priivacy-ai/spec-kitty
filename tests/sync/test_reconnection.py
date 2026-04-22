@@ -316,6 +316,7 @@ class TestClientLifecycle:
         # ``_current_team_id`` so connect() doesn't blow up on NotAuthenticated.
         class _Team:
             id = "team-42"
+            is_private_teamspace = False
 
         class _Session:
             default_team_id = "team-42"

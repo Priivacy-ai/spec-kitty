@@ -95,3 +95,20 @@ def test_complete_with_nonexistent_evidence_path_uses_inline_content(tmp_path: P
     evidence_dir = tmp_path / ".kittify" / "evidence" / invocation_id
     assert evidence_dir.exists()
     assert "all tests passed" in (evidence_dir / "evidence.md").read_text()
+
+
+def test_complete_with_relative_escape_path_uses_inline_content(tmp_path: Path) -> None:
+    """Relative evidence paths must stay inside repo_root after resolution."""
+    outside_file = tmp_path.parent / f"{tmp_path.name}-outside.md"
+    outside_file.write_text("top secret outside repo", encoding="utf-8")
+    executor, invocation_id = _make_executor_with_started_record(tmp_path)
+
+    executor.complete_invocation(
+        invocation_id=invocation_id,
+        outcome="done",
+        evidence_ref=f"../{outside_file.name}",
+    )
+
+    evidence_dir = tmp_path / ".kittify" / "evidence" / invocation_id
+    promoted_content = (evidence_dir / "evidence.md").read_text(encoding="utf-8")
+    assert promoted_content == f"../{outside_file.name}"
