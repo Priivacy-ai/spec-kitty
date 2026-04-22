@@ -15,6 +15,7 @@ from pathlib import Path
 import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
+from specify_cli.auth.session import get_private_team_id
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 from specify_cli.core.contract_gate import validate_outbound_payload
@@ -39,13 +40,16 @@ CATEGORY_ACTIONS: dict[str, str] = {
 
 
 def _current_team_slug() -> str | None:
-    """Return the current team slug from the authenticated session, if any."""
+    """Return the preferred ingress team slug from the authenticated session, if any."""
     try:
         from specify_cli.auth import get_token_manager
 
         session = get_token_manager().get_current_session()
         if session is None or not session.teams:
             return None
+        private_team_id = get_private_team_id(session.teams)
+        if private_team_id:
+            return private_team_id
         for team in session.teams:
             if team.id == session.default_team_id:
                 return team.id

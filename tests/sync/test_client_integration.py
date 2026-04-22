@@ -8,10 +8,12 @@ not require a live connection (heartbeat pong, error surfaces).
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 import pytest
 from unittest.mock import AsyncMock
 from uuid import UUID
 
+from specify_cli.auth.session import StoredSession, Team
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 from specify_cli.sync.project_identity import ProjectIdentity
 
@@ -95,6 +97,39 @@ async def test_client_initialization():
     assert client.get_status() == ConnectionStatus.OFFLINE
     assert client.ws is None
     assert client._listen_task is None
+
+
+def test_websocket_client_prefers_private_team_for_ingress(monkeypatch):
+    """WS provisioning should keep targeting Private Teamspace even if default_team_id drifts."""
+    now = datetime.now(UTC)
+
+    class _FakeTokenManager:
+        def get_current_session(self):
+            return StoredSession(
+                user_id="user-1",
+                email="robert@example.com",
+                name="Robert",
+                teams=[
+                    Team(id="product-team", name="Product Team", role="member"),
+                    Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
+                ],
+                default_team_id="product-team",
+                access_token="access",
+                refresh_token="refresh",
+                session_id="sess-1",
+                issued_at=now,
+                access_token_expires_at=now + timedelta(hours=1),
+                refresh_token_expires_at=now + timedelta(days=30),
+                scope="offline_access",
+                storage_backend="file",
+                last_used_at=now,
+                auth_method="authorization_code",
+            )
+
+    monkeypatch.setattr("specify_cli.sync.client.get_token_manager", lambda: _FakeTokenManager())
+
+    client = WebSocketClient()
+    assert client._current_team_id() == "private-team"
 
 
 @pytest.mark.asyncio

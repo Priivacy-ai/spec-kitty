@@ -161,3 +161,29 @@ class SyncConfig:
             config["sync"]["repo_defaults"] = repo_defaults
         repo_defaults[repo_slug] = {"enabled": bool(enabled)}
         self._save(config)
+
+    def get_checkout_sync_enabled(self, repo_root: Path) -> bool | None:
+        """Return the remembered sync preference for one local checkout path."""
+        config = self._load()
+        checkout_overrides = config.get("sync", {}).get("checkout_overrides", {})
+        if not isinstance(checkout_overrides, dict):
+            return None
+        entry = checkout_overrides.get(str(repo_root.resolve()))
+        if not isinstance(entry, dict):
+            return None
+        enabled = entry.get("enabled")
+        if isinstance(enabled, bool):
+            return enabled
+        return None
+
+    def set_checkout_sync_enabled(self, repo_root: Path, enabled: bool) -> None:
+        """Persist the sync preference for one local checkout path only."""
+        config = self._load()
+        if "sync" not in config:
+            config["sync"] = {}
+        checkout_overrides = config["sync"].setdefault("checkout_overrides", {})
+        if not isinstance(checkout_overrides, dict):
+            checkout_overrides = {}
+            config["sync"]["checkout_overrides"] = checkout_overrides
+        checkout_overrides[str(repo_root.resolve())] = {"enabled": bool(enabled)}
+        self._save(config)

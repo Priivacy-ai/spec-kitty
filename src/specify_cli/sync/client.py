@@ -23,6 +23,7 @@ from specify_cli.auth.errors import (
     NotAuthenticatedError,
     TokenRefreshError,
 )
+from specify_cli.auth.session import get_private_team_id
 from specify_cli.auth.websocket import provision_ws_token
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.sync.feature_flags import (
@@ -87,7 +88,7 @@ class WebSocketClient:
     def _current_team_id(self) -> str:
         """Resolve the team id to use for ws-token provisioning.
 
-        Uses the default team from the current session.
+        Private Teamspace wins when present; otherwise fall back to the session default.
         """
         tm = get_token_manager()
         session = tm.get_current_session()
@@ -101,7 +102,13 @@ class WebSocketClient:
                 raise NotAuthenticatedError(
                     "No teams associated with the current session."
                 )
+            private_team_id = get_private_team_id(session.teams)
+            if private_team_id:
+                return private_team_id
             return session.teams[0].id
+        private_team_id = get_private_team_id(session.teams)
+        if private_team_id:
+            return private_team_id
         return session.default_team_id
 
     async def connect(self):

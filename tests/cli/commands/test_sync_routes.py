@@ -163,6 +163,36 @@ def test_opt_out_command_reports_purged_counts(monkeypatch: pytest.MonkeyPatch) 
     assert "Removed 3 queued event(s) and 1 queued body upload(s)" in result.stdout
 
 
+def test_unshare_command_stops_sharing_for_one_team(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: type(
+            "Routing",
+            (),
+            {
+                "repo_root": "/tmp/repo",
+                "repo_slug": "acme/spec-kitty",
+                "project_slug": "spec-kitty-local",
+                "project_uuid": "11111111-1111-1111-1111-111111111111",
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.leave_repository_share_sync",
+        lambda source_project_uuid=None, destination_team_slug=None: {"left": True},
+    )
+
+    result = runner.invoke(sync_module.app, ["unshare", "product-team"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "Stopped sharing" in result.stdout
+    assert "Private Teamspace data was kept intact" in result.stdout
+
+
 def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_tm = Mock()
     fake_tm.get_current_session.return_value = _session()

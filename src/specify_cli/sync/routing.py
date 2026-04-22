@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-
-from ruamel.yaml import YAML
 
 from specify_cli.core.paths import locate_project_root
 
@@ -90,60 +86,13 @@ def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
 
 
 def read_local_sync_enabled(repo_root: Path) -> bool | None:
-    """Read the checkout-local ``sync.auto_start`` override, if present."""
-    config_path = repo_root / ".kittify" / "config.yaml"
-    if not config_path.exists():
-        return None
-
-    yaml = YAML()
-    try:
-        with open(config_path, encoding="utf-8") as fh:
-            config = yaml.load(fh) or {}
-    except Exception:
-        return None
-
-    sync_config = config.get("sync")
-    if not isinstance(sync_config, dict):
-        return None
-
-    auto_start = sync_config.get("auto_start")
-    if isinstance(auto_start, bool):
-        return auto_start
-    return None
+    """Read the checkout-local sync override from global machine config."""
+    return SyncConfig().get_checkout_sync_enabled(repo_root)
 
 
 def write_local_sync_enabled(repo_root: Path, enabled: bool) -> None:
-    """Persist the checkout-local ``sync.auto_start`` override."""
-    config_path = repo_root / ".kittify" / "config.yaml"
-    yaml = YAML()
-    yaml.preserve_quotes = True
-
-    if config_path.exists():
-        with open(config_path, encoding="utf-8") as fh:
-            config = yaml.load(fh) or {}
-    else:
-        config = {}
-
-    sync_config = config.get("sync")
-    if not isinstance(sync_config, dict):
-        sync_config = {}
-        config["sync"] = sync_config
-    sync_config["auto_start"] = bool(enabled)
-
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=config_path.parent,
-        prefix=".config.yaml.",
-        suffix=".tmp",
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            yaml.dump(config, fh)
-        os.replace(tmp_path, config_path)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
+    """Persist the checkout-local sync override in global machine config."""
+    SyncConfig().set_checkout_sync_enabled(repo_root, enabled)
 
 
 def enable_checkout_sync(

@@ -93,6 +93,24 @@ async def request_repository_share(*, source_project_uuid: str, destination_team
     return data
 
 
+async def leave_repository_share(*, source_project_uuid: str, destination_team_slug: str) -> dict[str, Any]:
+    """Deactivate the current user's repository share membership for one team."""
+    url = f"{_base_url()}/api/v1/sync/repository-shares/leave/"
+    payload = {
+        "source_project_uuid": source_project_uuid,
+        "destination_team_slug": destination_team_slug,
+    }
+
+    async with OAuthHttpClient() as client:
+        response = await client.post(url, json=payload)
+    if response.status_code != 200:
+        raise _error_from_response(response)
+    data = response.json()
+    if not isinstance(data, dict):
+        raise RepositorySharingClientError("Unexpected repository share response shape.")
+    return data
+
+
 def list_repository_shares_sync(*, source_project_uuid: str | None = None) -> list[dict[str, Any]]:
     """Synchronous wrapper for CLI command code."""
     return asyncio.run(list_repository_shares(source_project_uuid=source_project_uuid))
@@ -102,6 +120,16 @@ def request_repository_share_sync(*, source_project_uuid: str, destination_team_
     """Synchronous wrapper for CLI command code."""
     return asyncio.run(
         request_repository_share(
+            source_project_uuid=source_project_uuid,
+            destination_team_slug=destination_team_slug,
+        )
+    )
+
+
+def leave_repository_share_sync(*, source_project_uuid: str, destination_team_slug: str) -> dict[str, Any]:
+    """Synchronous wrapper for CLI command code."""
+    return asyncio.run(
+        leave_repository_share(
             source_project_uuid=source_project_uuid,
             destination_team_slug=destination_team_slug,
         )

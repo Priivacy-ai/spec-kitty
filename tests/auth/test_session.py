@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 
-from specify_cli.auth.session import StoredSession, Team, pick_default_team_id
+from specify_cli.auth.session import StoredSession, Team, get_private_team_id, pick_default_team_id
 
 
 def _now() -> datetime:
@@ -155,6 +155,22 @@ def test_pick_default_team_id_falls_back_to_first_team():
         Team(id="team-2", name="Shared 2", role="owner"),
     ]
     assert pick_default_team_id(teams) == "team-1"
+
+
+def test_get_private_team_id_returns_private_team_when_present():
+    teams = [
+        Team(id="team-1", name="Shared", role="member"),
+        Team(id="team-2", name="Private", role="owner", is_private_teamspace=True),
+    ]
+    assert get_private_team_id(teams) == "team-2"
+
+
+def test_get_private_team_id_returns_none_when_absent():
+    teams = [
+        Team(id="team-1", name="Shared", role="member"),
+        Team(id="team-2", name="Shared 2", role="owner"),
+    ]
+    assert get_private_team_id(teams) is None
 
 
 def test_no_hardcoded_90_days_in_session_module():

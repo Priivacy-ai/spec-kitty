@@ -199,8 +199,8 @@ class TestBatchSyncSuccess:
         assert headers["Authorization"] == "Bearer my-secret-token"
 
     @patch("specify_cli.sync.batch.requests.post")
-    def test_batch_sync_sends_explicit_team_slug_header(self, mock_post, populated_queue, monkeypatch):
-        """Batch sync should route against the session's current team explicitly."""
+    def test_batch_sync_sends_private_team_slug_header(self, mock_post, populated_queue, monkeypatch):
+        """Batch sync should target Private Teamspace for ingress when available."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": []}
@@ -217,6 +217,49 @@ class TestBatchSyncSuccess:
                 Team(id="product-team", name="Product Team", role="member"),
             ],
             default_team_id="private-team",
+            access_token="access",
+            refresh_token="refresh",
+            session_id="sess-1",
+            issued_at=now,
+            access_token_expires_at=now + timedelta(hours=1),
+            refresh_token_expires_at=now + timedelta(days=30),
+            scope="offline_access",
+            storage_backend="file",
+            last_used_at=now,
+            auth_method="authorization_code",
+        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+
+        batch_sync(
+            queue=populated_queue,
+            auth_token="my-secret-token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        call_args = mock_post.call_args
+        headers = call_args.kwargs["headers"]
+        assert headers["X-Team-Slug"] == "private-team"
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_prefers_private_team_over_shared_default(self, mock_post, populated_queue, monkeypatch):
+        """Ingress must keep routing to Private Teamspace even if session default drifts."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"results": []}
+        mock_post.return_value = mock_response
+
+        now = datetime.now(UTC)
+        fake_tm = Mock()
+        fake_tm.get_current_session.return_value = StoredSession(
+            user_id="user-1",
+            email="robert@example.com",
+            name="Robert",
+            teams=[
+                Team(id="product-team", name="Product Team", role="member"),
+                Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
+            ],
+            default_team_id="product-team",
             access_token="access",
             refresh_token="refresh",
             session_id="sess-1",

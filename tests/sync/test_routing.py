@@ -90,6 +90,25 @@ def test_local_override_beats_global_repo_default(tmp_path: Path, monkeypatch: p
     assert routing.effective_sync_enabled is True
 
 
+def test_local_override_is_persisted_outside_repo_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    repo_root = tmp_path / "repo"
+    home.mkdir()
+    repo_root.mkdir()
+    _write_repo_config(repo_root)
+    monkeypatch.setenv("HOME", str(home))
+
+    original_repo_config = (repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+
+    write_local_sync_enabled(repo_root, False)
+
+    assert (repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8") == original_repo_config
+    config_toml = (home / ".spec-kitty" / "config.toml").read_text(encoding="utf-8")
+    assert str(repo_root.resolve()) in config_toml
+    assert "checkout_overrides" in config_toml
+    assert "enabled = false" in config_toml
+
+
 def test_disable_checkout_sync_purges_only_matching_project_data(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

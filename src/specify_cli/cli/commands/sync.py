@@ -349,6 +349,43 @@ def share(
         console.print("[dim]Waiting for a team admin to approve the repository.[/dim]")
 
 
+@app.command()
+def unshare(
+    team_slug: str = typer.Argument(..., help="Team slug to stop sharing this repository into."),
+) -> None:
+    """Stop sharing the current repository from this developer to one team."""
+    from specify_cli.sync.sharing_client import (
+        RepositorySharingClientError,
+        leave_repository_share_sync,
+    )
+
+    if not is_saas_sync_enabled():
+        console.print(f"[red]{saas_sync_disabled_message()}[/red]")
+        raise typer.Exit(1)
+
+    routing = _require_active_checkout()
+    _require_authenticated_session()
+
+    if routing.project_uuid is None:
+        console.print("[red]Error:[/red] Current checkout has no project UUID.")
+        raise typer.Exit(1)
+
+    try:
+        leave_repository_share_sync(
+            source_project_uuid=routing.project_uuid,
+            destination_team_slug=team_slug,
+        )
+    except RepositorySharingClientError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    console.print(
+        f"[green]✓[/green] Stopped sharing [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] "
+        f"to [cyan]{team_slug}[/cyan] from this developer."
+    )
+    console.print("[dim]Private Teamspace data was kept intact.[/dim]")
+
+
 @app.command(name="opt-out")
 def opt_out(
     checkout_only: bool = typer.Option(

@@ -66,6 +66,14 @@ def pick_default_team_id(teams: list[Team]) -> str:
     return teams[0].id
 
 
+def get_private_team_id(teams: list[Team]) -> str | None:
+    """Return the user's Private Teamspace id when one is present."""
+    for team in teams:
+        if team.is_private_teamspace:
+            return team.id
+    return None
+
+
 @dataclass
 class StoredSession:
     """The persisted representation of an authenticated spec-kitty session.
