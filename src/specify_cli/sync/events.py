@@ -405,3 +405,81 @@ def emit_dependency_resolved(
         _publish_event_via_sync_daemon(event, repo_root)
         _request_dashboard_sync(repo_root)
     return event
+
+
+def emit_token_usage_recorded(
+    mission_id: str,
+    input_tokens: int,
+    output_tokens: int,
+    total_tokens: int,
+    estimated_cost_usd: float,
+    source: str,
+    *,
+    run_id: str | None = None,
+    step_id: str | None = None,
+    wp_id: str | None = None,
+    phase_name: str | None = None,
+    actor: dict[str, Any] | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+    causation_id: str | None = None,
+) -> dict[str, Any] | None:
+    """Emit TokenUsageRecorded via singleton."""
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_token_usage_recorded(
+        mission_id=mission_id,
+        run_id=run_id,
+        step_id=step_id,
+        wp_id=wp_id,
+        phase_name=phase_name,
+        actor=actor,
+        provider=provider,
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        total_tokens=total_tokens,
+        estimated_cost_usd=estimated_cost_usd,
+        source=source,
+        causation_id=causation_id,
+    )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
+
+
+def emit_diff_summary_recorded(
+    mission_id: str,
+    base_ref: str,
+    head_ref: str,
+    files_changed: int,
+    lines_added: int,
+    lines_deleted: int,
+    source: str,
+    *,
+    run_id: str | None = None,
+    step_id: str | None = None,
+    wp_id: str | None = None,
+    phase_name: str | None = None,
+    causation_id: str | None = None,
+) -> dict[str, Any] | None:
+    """Emit DiffSummaryRecorded via singleton."""
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_diff_summary_recorded(
+        mission_id=mission_id,
+        run_id=run_id,
+        step_id=step_id,
+        wp_id=wp_id,
+        phase_name=phase_name,
+        base_ref=base_ref,
+        head_ref=head_ref,
+        files_changed=files_changed,
+        lines_added=lines_added,
+        lines_deleted=lines_deleted,
+        source=source,
+        causation_id=causation_id,
+    )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event

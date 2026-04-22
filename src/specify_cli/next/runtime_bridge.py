@@ -49,6 +49,7 @@ from specify_cli.next.decision import (
     _compute_wp_progress,
     _state_to_action,
 )
+from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +427,8 @@ def get_or_start_run(
     mission_slug: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    emitter: Any | None = None,
 ) -> MissionRunRef:
     """Load existing run or start a new one.
 
@@ -456,7 +459,7 @@ def get_or_start_run(
         policy_snapshot=MissionPolicySnapshot(),
         context=context,
         run_store=run_store,
-        emitter=NullEmitter(),
+        emitter=emitter or NullEmitter(),
     )
 
     # Persist to index
@@ -509,6 +512,11 @@ def decide_next_via_runtime(
         )
 
     mission_type = get_mission_type(feature_dir)
+    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        mission_type=mission_type,
+    )
 
     # Resolve origin info
     origin: dict[str, Any] = {}
@@ -528,7 +536,12 @@ def decide_next_via_runtime(
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)
     try:
-        run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
+        run_ref = get_or_start_run(
+            mission_slug,
+            repo_root,
+            mission_type,
+            emitter=sync_emitter,
+        )
     except Exception as exc:
         return Decision(
             kind=DecisionKind.blocked,
@@ -548,6 +561,7 @@ def decide_next_via_runtime(
 
         snapshot = _read_snapshot(Path(run_ref.run_dir))
         current_step_id = snapshot.issued_step_id
+        sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
 
@@ -649,7 +663,7 @@ def decide_next_via_runtime(
             run_ref,
             agent_id=agent,
             result=result,
-            emitter=NullEmitter(),
+            emitter=sync_emitter,
         )
     except Exception as exc:
         return Decision(
@@ -833,14 +847,26 @@ def answer_decision_via_runtime(
     carries an ``--agent`` identity for the surrounding mission loop.
     """
     mission_type = get_mission_type(repo_root / "kitty-specs" / mission_slug)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
+    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        mission_type=mission_type,
+    )
+    try:
+        from spec_kitty_runtime.engine import _read_snapshot
+
+        sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
+    except Exception:
+        pass
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref,
         decision_id,
         answer,
         actor,
-        emitter=NullEmitter(),
+        emitter=sync_emitter,
     )
 
 

@@ -323,6 +323,54 @@ class TestDependencyResolvedEmission:
         assert event is not None
         assert event["payload"]["resolution_type"] == "skipped"
 
+
+class TestAnalyticsEmission:
+    """Mission analytics events for scorecard reporting."""
+
+    def test_token_usage_recorded(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        event = emitter.emit_token_usage_recorded(
+            mission_id="01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM",
+            run_id="run-analytics-001",
+            step_id="implement",
+            wp_id="WP03",
+            phase_name="implementation",
+            actor={
+                "actor_id": "codex",
+                "actor_type": "llm",
+                "display_name": "Codex",
+                "provider": "openai",
+                "model": "gpt-5.4",
+                "tool": "codex",
+            },
+            provider="openai",
+            model="gpt-5.4",
+            input_tokens=1200,
+            output_tokens=300,
+            total_tokens=1500,
+            estimated_cost_usd=0.036,
+            source="runtime-usage",
+        )
+        assert event is not None
+        assert event["event_type"] == "TokenUsageRecorded"
+        assert event["payload"]["total_tokens"] == 1500
+
+    def test_diff_summary_recorded(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        event = emitter.emit_diff_summary_recorded(
+            mission_id="01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM",
+            base_ref="origin/main",
+            head_ref="HEAD",
+            files_changed=7,
+            lines_added=184,
+            lines_deleted=42,
+            step_id="review",
+            wp_id="WP03",
+            phase_name="review",
+            source="git-numstat",
+        )
+        assert event is not None
+        assert event["event_type"] == "DiffSummaryRecorded"
+        assert event["payload"]["files_changed"] == 7
+
     def test_dependency_merged(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """DependencyResolved with merged resolution."""
         event = emitter.emit_dependency_resolved(

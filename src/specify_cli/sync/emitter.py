@@ -145,6 +145,22 @@ def _is_nullable_string(value: Any) -> bool:
     return value is None or (isinstance(value, str))
 
 
+def _is_actor_payload(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    actor_id = value.get("actor_id")
+    actor_type = value.get("actor_type")
+    return (
+        isinstance(actor_id, str)
+        and len(actor_id.strip()) >= 1
+        and actor_type in {"human", "llm", "service"}
+    )
+
+
+def _is_non_negative_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+
+
 def _default_mission_display_name(mission_slug: str) -> str:
     parts = [part for part in str(mission_slug).strip().split("-") if part]
     if not parts:
@@ -259,6 +275,154 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "total_wps": lambda v: isinstance(v, int) and v >= 0,
             "completed_at": lambda v: _is_datetime_string(v),
             "total_duration": lambda v: _is_nullable_string(v),
+            "mission_id": _is_nullable_string,
+        },
+    },
+    "MissionStarted": {
+        "required": {"mission_id", "mission_type", "initial_phase", "actor"},
+        "validators": {
+            "mission_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
+            "initial_phase": lambda v: isinstance(v, str) and len(v) >= 1,
+            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "MissionCompleted": {
+        "required": {"mission_id", "mission_type", "final_phase", "actor"},
+        "validators": {
+            "mission_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
+            "final_phase": lambda v: isinstance(v, str) and len(v) >= 1,
+            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "PhaseEntered": {
+        "required": {"mission_id", "phase_name", "actor"},
+        "validators": {
+            "mission_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "phase_name": lambda v: isinstance(v, str) and len(v) >= 1,
+            "previous_phase": _is_nullable_string,
+            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "MissionRunStarted": {
+        "required": {"run_id", "mission_type", "actor"},
+        "validators": {
+            "run_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
+            "actor": _is_actor_payload,
+            "mission_id": _is_nullable_string,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "NextStepIssued": {
+        "required": {"run_id", "step_id", "agent_id", "actor"},
+        "validators": {
+            "run_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "step_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "agent_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "actor": _is_actor_payload,
+            "mission_id": _is_nullable_string,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "NextStepAutoCompleted": {
+        "required": {"run_id", "step_id", "agent_id", "result", "actor"},
+        "validators": {
+            "run_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "step_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "agent_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "result": lambda v: v in {"success", "failed", "blocked"},
+            "actor": _is_actor_payload,
+            "mission_id": _is_nullable_string,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "DecisionInputRequested": {
+        "required": {"run_id", "decision_id", "step_id", "question", "actor"},
+        "validators": {
+            "run_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "decision_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "step_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "question": lambda v: isinstance(v, str) and len(v) >= 1,
+            "options": lambda v: isinstance(v, list),
+            "input_key": _is_nullable_string,
+            "actor": _is_actor_payload,
+            "mission_id": _is_nullable_string,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "DecisionInputAnswered": {
+        "required": {"run_id", "decision_id", "answer", "actor"},
+        "validators": {
+            "run_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "decision_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "answer": lambda v: isinstance(v, str) and len(v) >= 1,
+            "actor": _is_actor_payload,
+            "mission_id": _is_nullable_string,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "MissionRunCompleted": {
+        "required": {"run_id", "mission_type", "actor"},
+        "validators": {
+            "run_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
+            "actor": _is_actor_payload,
+            "mission_id": _is_nullable_string,
+            "mission_slug": _is_nullable_string,
+        },
+    },
+    "TokenUsageRecorded": {
+        "required": {
+            "mission_id",
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "estimated_cost_usd",
+            "source",
+        },
+        "validators": {
+            "mission_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "run_id": _is_nullable_string,
+            "step_id": _is_nullable_string,
+            "wp_id": _is_nullable_string,
+            "phase_name": _is_nullable_string,
+            "actor": lambda v: v is None or _is_actor_payload(v),
+            "provider": _is_nullable_string,
+            "model": _is_nullable_string,
+            "input_tokens": lambda v: isinstance(v, int) and v >= 0,
+            "output_tokens": lambda v: isinstance(v, int) and v >= 0,
+            "total_tokens": lambda v: isinstance(v, int) and v >= 0,
+            "estimated_cost_usd": _is_non_negative_number,
+            "source": lambda v: isinstance(v, str) and len(v) >= 1,
+        },
+    },
+    "DiffSummaryRecorded": {
+        "required": {
+            "mission_id",
+            "base_ref",
+            "head_ref",
+            "files_changed",
+            "lines_added",
+            "lines_deleted",
+            "source",
+        },
+        "validators": {
+            "mission_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "run_id": _is_nullable_string,
+            "step_id": _is_nullable_string,
+            "wp_id": _is_nullable_string,
+            "phase_name": _is_nullable_string,
+            "base_ref": lambda v: isinstance(v, str) and len(v) >= 1,
+            "head_ref": lambda v: isinstance(v, str) and len(v) >= 1,
+            "files_changed": lambda v: isinstance(v, int) and v >= 0,
+            "lines_added": lambda v: isinstance(v, int) and v >= 0,
+            "lines_deleted": lambda v: isinstance(v, int) and v >= 0,
+            "source": lambda v: isinstance(v, str) and len(v) >= 1,
         },
     },
     "HistoryAdded": {
@@ -750,6 +914,334 @@ class EventEmitter:
         return self._emit(
             event_type="MissionClosed",
             aggregate_id=effective_aggregate_id,
+            aggregate_type="Mission",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    def emit_mission_started(
+        self,
+        mission_id: str,
+        mission_type: str,
+        initial_phase: str,
+        actor: str,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit MissionStarted for a runtime-backed mission."""
+        payload: dict[str, Any] = {
+            "mission_id": mission_id,
+            "mission_type": mission_type,
+            "initial_phase": initial_phase,
+            "actor": actor,
+        }
+        if mission_slug is not None:
+            payload["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="MissionStarted",
+            aggregate_id=mission_id,
+            aggregate_type="Mission",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    def emit_phase_entered(
+        self,
+        mission_id: str,
+        phase_name: str,
+        actor: str,
+        previous_phase: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit PhaseEntered for a runtime-backed mission."""
+        payload: dict[str, Any] = {
+            "mission_id": mission_id,
+            "phase_name": phase_name,
+            "previous_phase": previous_phase,
+            "actor": actor,
+        }
+        if mission_slug is not None:
+            payload["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="PhaseEntered",
+            aggregate_id=mission_id,
+            aggregate_type="Mission",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    def emit_mission_completed(
+        self,
+        mission_id: str,
+        mission_type: str,
+        final_phase: str,
+        actor: str,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit MissionCompleted for a runtime-backed mission."""
+        payload: dict[str, Any] = {
+            "mission_id": mission_id,
+            "mission_type": mission_type,
+            "final_phase": final_phase,
+            "actor": actor,
+        }
+        if mission_slug is not None:
+            payload["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="MissionCompleted",
+            aggregate_id=mission_id,
+            aggregate_type="Mission",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    @staticmethod
+    def _jsonify(value: Any) -> Any:
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json")
+        if hasattr(value, "__dict__"):
+            return {
+                key: EventEmitter._jsonify(val)
+                for key, val in vars(value).items()
+            }
+        if isinstance(value, dict):
+            return {
+                str(key): EventEmitter._jsonify(val)
+                for key, val in value.items()
+            }
+        if isinstance(value, tuple):
+            return [EventEmitter._jsonify(item) for item in value]
+        if isinstance(value, list):
+            return [EventEmitter._jsonify(item) for item in value]
+        return value
+
+    @staticmethod
+    def _payload_dict(payload: Any) -> dict[str, Any]:
+        data = EventEmitter._jsonify(payload)
+        if not isinstance(data, dict):
+            raise TypeError("payload must serialize to a dict")
+        return data
+
+    def emit_mission_run_started(
+        self,
+        payload: Any,
+        *,
+        mission_id: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit MissionRunStarted via the canonical sync envelope."""
+        data = self._payload_dict(payload)
+        if mission_id is not None:
+            data["mission_id"] = mission_id
+        if mission_slug is not None:
+            data["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="MissionRunStarted",
+            aggregate_id=mission_id or str(data.get("run_id") or mission_slug or "mission-run"),
+            aggregate_type="Mission",
+            payload=data,
+            causation_id=causation_id,
+        )
+
+    def emit_next_step_issued(
+        self,
+        payload: Any,
+        *,
+        mission_id: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit NextStepIssued via the canonical sync envelope."""
+        data = self._payload_dict(payload)
+        if mission_id is not None:
+            data["mission_id"] = mission_id
+        if mission_slug is not None:
+            data["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="NextStepIssued",
+            aggregate_id=mission_id or str(data.get("run_id") or mission_slug or "mission-run"),
+            aggregate_type="Mission",
+            payload=data,
+            causation_id=causation_id,
+        )
+
+    def emit_next_step_auto_completed(
+        self,
+        payload: Any,
+        *,
+        mission_id: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit NextStepAutoCompleted via the canonical sync envelope."""
+        data = self._payload_dict(payload)
+        if mission_id is not None:
+            data["mission_id"] = mission_id
+        if mission_slug is not None:
+            data["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="NextStepAutoCompleted",
+            aggregate_id=mission_id or str(data.get("run_id") or mission_slug or "mission-run"),
+            aggregate_type="Mission",
+            payload=data,
+            causation_id=causation_id,
+        )
+
+    def emit_decision_input_requested(
+        self,
+        payload: Any,
+        *,
+        mission_id: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit DecisionInputRequested via the canonical sync envelope."""
+        data = self._payload_dict(payload)
+        if mission_id is not None:
+            data["mission_id"] = mission_id
+        if mission_slug is not None:
+            data["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="DecisionInputRequested",
+            aggregate_id=mission_id or str(data.get("run_id") or mission_slug or "mission-run"),
+            aggregate_type="Mission",
+            payload=data,
+            causation_id=causation_id,
+        )
+
+    def emit_decision_input_answered(
+        self,
+        payload: Any,
+        *,
+        mission_id: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit DecisionInputAnswered via the canonical sync envelope."""
+        data = self._payload_dict(payload)
+        if mission_id is not None:
+            data["mission_id"] = mission_id
+        if mission_slug is not None:
+            data["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="DecisionInputAnswered",
+            aggregate_id=mission_id or str(data.get("run_id") or mission_slug or "mission-run"),
+            aggregate_type="Mission",
+            payload=data,
+            causation_id=causation_id,
+        )
+
+    def emit_mission_run_completed(
+        self,
+        payload: Any,
+        *,
+        mission_id: str | None = None,
+        mission_slug: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit MissionRunCompleted via the canonical sync envelope."""
+        data = self._payload_dict(payload)
+        if mission_id is not None:
+            data["mission_id"] = mission_id
+        if mission_slug is not None:
+            data["mission_slug"] = mission_slug
+        return self._emit(
+            event_type="MissionRunCompleted",
+            aggregate_id=mission_id or str(data.get("run_id") or mission_slug or "mission-run"),
+            aggregate_type="Mission",
+            payload=data,
+            causation_id=causation_id,
+        )
+
+    def emit_token_usage_recorded(
+        self,
+        mission_id: str,
+        input_tokens: int,
+        output_tokens: int,
+        total_tokens: int,
+        estimated_cost_usd: float,
+        source: str,
+        *,
+        run_id: str | None = None,
+        step_id: str | None = None,
+        wp_id: str | None = None,
+        phase_name: str | None = None,
+        actor: dict[str, Any] | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit TokenUsageRecorded for trustworthy runtime usage data."""
+        payload: dict[str, Any] = {
+            "mission_id": mission_id,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "estimated_cost_usd": estimated_cost_usd,
+            "source": source,
+        }
+        if run_id is not None:
+            payload["run_id"] = run_id
+        if step_id is not None:
+            payload["step_id"] = step_id
+        if wp_id is not None:
+            payload["wp_id"] = wp_id
+        if phase_name is not None:
+            payload["phase_name"] = phase_name
+        if actor is not None:
+            payload["actor"] = actor
+        if provider is not None:
+            payload["provider"] = provider
+        if model is not None:
+            payload["model"] = model
+        return self._emit(
+            event_type="TokenUsageRecorded",
+            aggregate_id=mission_id,
+            aggregate_type="Mission",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    def emit_diff_summary_recorded(
+        self,
+        mission_id: str,
+        base_ref: str,
+        head_ref: str,
+        files_changed: int,
+        lines_added: int,
+        lines_deleted: int,
+        source: str,
+        *,
+        run_id: str | None = None,
+        step_id: str | None = None,
+        wp_id: str | None = None,
+        phase_name: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit DiffSummaryRecorded for stable reviewable diffs."""
+        payload: dict[str, Any] = {
+            "mission_id": mission_id,
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "files_changed": files_changed,
+            "lines_added": lines_added,
+            "lines_deleted": lines_deleted,
+            "source": source,
+        }
+        if run_id is not None:
+            payload["run_id"] = run_id
+        if step_id is not None:
+            payload["step_id"] = step_id
+        if wp_id is not None:
+            payload["wp_id"] = wp_id
+        if phase_name is not None:
+            payload["phase_name"] = phase_name
+        return self._emit(
+            event_type="DiffSummaryRecorded",
+            aggregate_id=mission_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
