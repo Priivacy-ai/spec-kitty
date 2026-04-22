@@ -37,19 +37,11 @@ jobs:
               - 'tests/sync/test_daemon_windows_paths.py'
               - 'tests/sync/test_issue_586_windows_import.py'
               - 'tests/tracker/test_credentials_windows_paths.py'
+              # Keep this intentionally coarse: the Windows-marked CLI tests
+              # exercise the root app import path, which can pull in modules
+              # across the full source tree.
               - 'src/kernel/**'
-              - 'src/specify_cli/__init__.py'
-              - 'src/specify_cli/auth/**'
-              - 'src/specify_cli/cli/**'
-              - 'src/specify_cli/context/**'
-              - 'src/specify_cli/core/**'
-              - 'src/specify_cli/dashboard/**'
-              - 'src/specify_cli/encoding.py'
-              - 'src/specify_cli/paths/**'
-              - 'src/specify_cli/policy/**'
-              - 'src/specify_cli/runtime/**'
-              - 'src/specify_cli/sync/**'
-              - 'src/specify_cli/tracker/**'
+              - 'src/specify_cli/**'
 
   windows-critical:
     name: Windows critical (pipx, pytest -m windows_ci)

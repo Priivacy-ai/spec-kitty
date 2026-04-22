@@ -95,6 +95,16 @@ jobs:
           EOF
           python verify_isolation.py
 
+      - name: Detect release metadata changes
+        if: github.event_name == 'pull_request'
+        id: metadata_changes
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            release_metadata:
+              - 'pyproject.toml'
+              - 'CHANGELOG.md'
+
       - name: Run release workflow tests
         if: github.event_name == 'pull_request'
         run: |
@@ -111,6 +121,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Validate release metadata
+        if: github.event_name != 'pull_request' || steps.metadata_changes.outputs.release_metadata == 'true'
         id: validate
         continue-on-error: true
         run: |
@@ -203,6 +214,16 @@ jobs:
             echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
             echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
             echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.release_metadata }}" != "true" ]]; then
+            echo "✅ **Release workflow checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release metadata validation was skipped because this pull request does not modify \`pyproject.toml\` or \`CHANGELOG.md\`." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This branch is ready to merge from a release-readiness workflow perspective:" >> $GITHUB_STEP_SUMMARY
+            echo "- Targeted release workflow tests pass" >> $GITHUB_STEP_SUMMARY
+            echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
+            echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -220,7 +241,7 @@ jobs:
           fi
 
       - name: Fail if validation failed
-        if: steps.validate.outcome != 'success'
+        if: (github.event_name != 'pull_request' || steps.metadata_changes.outputs.release_metadata == 'true') && steps.validate.outcome != 'success'
         run: |
           echo "::error::Release readiness checks failed. Review the validation output and job summary for details."
           exit 1
