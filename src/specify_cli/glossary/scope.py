@@ -145,6 +145,64 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
     return senses
 
 
+def _needs_quoting(value: str) -> bool:
+    return ": " in value or "'" in value
+
+
+def _yaml_scalar(value: str) -> str:
+    if _needs_quoting(value):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+    return value
+
+
+def _confidence_str(conf: float) -> str:
+    return f"{conf:.1f}" if conf == int(conf) else str(round(conf, 4))
+
+
+def _default_header(scope: GlossaryScope) -> list[str]:
+    return [f"# Spec Kitty glossary seed — scope: {scope.value}", ""]
+
+
+def save_seed_file(
+    scope: GlossaryScope,
+    repo_root: Path,
+    terms: list[TermSense],
+) -> None:
+    """Write terms to the seed file for *scope*, sorting alphabetically by surface.
+
+    Creates the file if it does not exist. Preserves the header comment block of
+    an existing file so hand-written documentation is not lost on update.
+    """
+    seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
+    seed_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Preserve existing header comment lines; fall back to a generated one.
+    if seed_path.exists():
+        header: list[str] = []
+        for line in seed_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#") or stripped == "":
+                header.append(line)
+            else:
+                break
+    else:
+        header = _default_header(scope)
+
+    sorted_terms = sorted(terms, key=lambda t: t.surface.surface_text.lower())
+
+    lines: list[str] = list(header) + ["terms:"]
+    for sense in sorted_terms:
+        lines.append("")
+        lines.append(f"  - surface: {_yaml_scalar(sense.surface.surface_text)}")
+        lines.append(f"    definition: {_yaml_scalar(sense.definition)}")
+        lines.append(f"    confidence: {_confidence_str(sense.confidence)}")
+        lines.append(f"    status: {sense.status.value}")
+    lines.append("")
+
+    seed_path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def activate_scope(
     scope: GlossaryScope,
     version_id: str,
