@@ -118,6 +118,12 @@ class TestCreateFeatureCommand:
         assert meta["mission_slug"] == f"test-feature-{TEST_MISSION_MID8}"
         assert meta["mission_type"] == "software-dev"
         assert meta["target_branch"] == "main"
+        assert meta["friendly_name"] == "test feature"
+        assert meta["purpose_tldr"] == "test feature"
+        assert meta["purpose_context"] == (
+            "This mission advances test feature on main so stakeholders can "
+            "track the work from mission creation onward."
+        )
 
     @patch("specify_cli.core.mission_creation.emit_mission_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")

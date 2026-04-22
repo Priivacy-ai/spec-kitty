@@ -2,34 +2,115 @@
 # This file defines the authoritative meanings of Spec Kitty domain concepts.
 
 terms:
-  - surface: workspace
-    definition: Git worktree directory created for implementing a work package
+
+  - surface: action context
+    definition: Aggregated runtime information resolved for a specific agent action, including feature slug, work package ID, base branch, workspace path, and dependency state. Passed to agents at step boundaries.
+    confidence: 0.95
+    status: active
+
+  - surface: advise mode
+    definition: An execution mode in which the harness proposes answers to interview questions for mission owner confirmation, without acting autonomously. The mission owner retains final authority on every decision.
+    confidence: 0.75
+    status: draft
+
+  - surface: agent skills
+    definition: The skills-first agent command discovery model in which capabilities are installed as skill packages under .agents/skills/ and resolved at runtime by name.
+    confidence: 0.9
+    status: active
+
+  - surface: build
+    definition: One checkout or worktree of one repository with its own execution context.
     confidence: 1.0
     status: active
 
-  - surface: work package
-    definition: Execution slice inside a mission run, the unit of human/agent handoff
+  - surface: build_id
+    definition: Per-checkout/worktree identity, unique per working tree. Unchanged from pre-081.
     confidence: 1.0
     status: active
 
-  - surface: wp
-    definition: Abbreviation for work package
+  - surface: bulk edit
+    definition: A codebase-wide mechanical rename or terminology migration tracked as a mission with change_mode set to bulk_edit. Governed by the occurrence classification guardrail workflow.
+    confidence: 0.95
+    status: active
+
+  - surface: change mode
+    definition: "A mission-level metadata flag (change_mode: bulk_edit) that activates the bulk-edit guardrail workflow, requiring an occurrence map before any work package may be approved."
+    confidence: 0.95
+    status: active
+
+  - surface: charter
+    definition: "A governance document synthesizing a project's purpose, constraints, team norms, and doctrine into a durable reference artifact. Produced by the charter interview workflow."
+    confidence: 0.95
+    status: active
+
+  - surface: charter lint
+    definition: Graph-native decay detection that validates the internal consistency and freshness of doctrine artifacts in the doctrine reference graph. Identifies stale references, missing edges, and definition drift.
+    confidence: 0.75
+    status: draft
+
+  - surface: conflict prediction
+    definition: A dry-run forecast of which files will conflict and which conflicts are auto-resolvable, produced before a merge begins to help the mission owner decide whether to proceed.
+    confidence: 0.6
+    status: draft
+
+  - surface: current branch
+    definition: The branch checked out in the active checkout when a planning-stage command starts.
     confidence: 1.0
     status: active
 
-  - surface: mission
-    definition: Purpose-specific workflow machine with defined inputs, process, outcomes, and states
+  - surface: decision moment
+    definition: A local CLI artifact representing a choice point in an interview flow (charter, specify, or plan) where the mission owner or a delegated agent must provide input before the flow can continue.
+    confidence: 0.75
+    status: draft
+
+  - surface: diff compliance gate
+    definition: The review-time check that validates a work package diff against its occurrence map. Blocks approval if uncategorized or improperly changed occurrences are found.
+    confidence: 0.95
+    status: active
+
+  - surface: directive
+    definition: A doctrine artifact encoding a specific governance rule or constraint. The primary building block of project doctrine; referenced by agent profiles and action scopes.
+    confidence: 0.95
+    status: active
+
+  - surface: doctrine
+    definition: The body of project-specific governance artifacts — directives, tactics, and styleguides — that shape how agents and humans collaborate on a project.
+    confidence: 0.95
+    status: active
+
+  - surface: doctrine reference graph
+    definition: "The directed graph of interconnected doctrine directives, tactics, and styleguides that defines a project's governance structure. Abbreviated as drg. Edges encode requires, suggests, and replaces relationships between nodes."
+    confidence: 0.95
+    status: active
+
+  - surface: drg
+    definition: "Abbreviation for doctrine reference graph — the directed graph of interconnected governance artifacts (directives, tactics, styleguides) defining a project's doctrine."
     confidence: 1.0
     status: active
 
-  - surface: primitive
-    definition: Custom mission-defined executable operation or step unit
+  - surface: evidence bundle
+    definition: The set of inputs provided to charter synthesis — code-reading signals, configured URLs, and bundled corpus snapshots. Determines what the harness can reason about when generating doctrine artifacts.
+    confidence: 0.75
+    status: draft
+
+  - surface: feature slug
+    definition: Human-readable, kebab-cased identifier for a feature, used in branch names, directory paths, and artifact keys. Derived from mission_slug in feature missions.
+    confidence: 0.95
+    status: active
+
+  - surface: friendly_name
+    definition: The human-readable title string of a mission, used for display in dashboards and logs. Mutable — changing it does not affect routing or identity.
     confidence: 1.0
     status: active
 
-  - surface: phase
-    definition: Grouping container for mission primitives, not the enforcement unit
-    confidence: 1.0
+  - surface: glossary chokepoint
+    definition: The middleware enforcement point in the agent pipeline where glossary semantic checks are applied before generation proceeds. Configured by the strictness setting.
+    confidence: 0.75
+    status: draft
+
+  - surface: harness
+    definition: "The host LLM or external system responsible for generating doctrine content during charter synthesis. Operates under a contract with spec-kitty's validation and staging pipeline; does not write artifacts directly."
+    confidence: 0.9
     status: active
 
   - surface: lane
@@ -37,62 +118,17 @@ terms:
     confidence: 1.0
     status: active
 
-  - surface: strictness
-    definition: Glossary enforcement mode (off, medium, max)
-    confidence: 1.0
+  - surface: machine-level runtime
+    definition: "The ~/.kittify/ directory on a developer's machine, containing templates, global agent configs, and skills shared across all projects on that machine. Distinct from the per-project .kittify/ directory."
+    confidence: 0.95
     status: active
 
-  - surface: semantic conflict
-    definition: Mismatch or ambiguity in term usage with assigned severity score
-    confidence: 1.0
-    status: active
-
-  - surface: scope
-    definition: Bounded semantic scope (mission_local, team_domain, audience_domain, spec_kitty_core)
-    confidence: 1.0
-    status: active
-
-  - surface: project root checkout
-    definition: "DEPRECATED (mission 081): Use 'repository root checkout' instead. The non-worktree checkout at the root of the current repository."
-    confidence: 1.0
-    status: deprecated
-
-  - surface: repository root checkout
-    definition: The non-worktree checkout at the root of the current repository. Planning commands (specify, plan, tasks) run here. It is a location, not a branch name.
-    confidence: 1.0
-    status: active
-
-  - surface: planning repository
-    definition: "DEPRECATED alias for 'repository root checkout'. Do not use — agents interpret this as a separate repository. Use 'repository root checkout' instead."
-    confidence: 1.0
-    status: deprecated
-
-  - surface: current branch
-    definition: The branch checked out in the active checkout when a planning-stage command starts.
-    confidence: 1.0
-    status: active
-
-  - surface: target branch
-    definition: The branch the mission's planning artifacts and merge intent are recorded against. Defaults to the current branch unless the user or command explicitly overrides it.
-    confidence: 1.0
-    status: active
-
-  - surface: planning_base_branch
-    definition: Canonical branch-context alias for the branch planning should treat as the mission's intended landing branch.
-    confidence: 1.0
-    status: active
-
-  - surface: merge_target_branch
-    definition: Canonical branch-context alias for the branch completed work should merge into unless explicitly overridden at merge time.
-    confidence: 1.0
-    status: active
-
-  - surface: main repository
+  - surface: main repo
     definition: "DEPRECATED ambiguous phrase. It conflates checkout location with branch choice. Use 'repository root checkout' for location or the explicit branch term you mean."
     confidence: 1.0
     status: deprecated
 
-  - surface: main repo
+  - surface: main repository
     definition: "DEPRECATED ambiguous phrase. It conflates checkout location with branch choice. Use 'repository root checkout' for location or the explicit branch term you mean."
     confidence: 1.0
     status: deprecated
@@ -102,8 +138,118 @@ terms:
     confidence: 1.0
     status: deprecated
 
+  - surface: merge state
+    definition: The persistent JSON artifact (.kittify/merge-state.json) tracking progress of a resumable multi-work-package merge operation. Allows an interrupted merge to be restarted without data loss.
+    confidence: 0.75
+    status: draft
+
+  - surface: merge_target_branch
+    definition: Canonical branch-context alias for the branch completed work should merge into unless explicitly overridden at merge time.
+    confidence: 1.0
+    status: active
+
+  - surface: mid8
+    definition: The first 8 characters of a mission_id, used as a compact disambiguator in branch names and worktree paths. Not a stable identity on its own — always paired with mission_slug.
+    confidence: 1.0
+    status: active
+
+  - surface: migration
+    definition: A versioned, idempotent transformation that upgrades project filesystem state from one spec-kitty version to another. Migrations are applied in sequence and must not be re-applied once completed.
+    confidence: 0.95
+    status: active
+
+  - surface: minimal viable trail
+    definition: The minimum auditable artifact trail that every spec-kitty action is required to leave, scaled to action weight. Lightweight actions leave a log entry; heavy actions leave provenance sidecars and durable state artifacts.
+    confidence: 0.75
+    status: draft
+
+  - surface: mission
+    definition: Purpose-specific workflow machine with defined inputs, process, outcomes, and states
+    confidence: 1.0
+    status: active
+
+  - surface: mission_id
+    definition: The ULID-based canonical, immutable machine identity for a mission, assigned at creation and used for all event routing and disambiguation. Never displayed as a mission number.
+    confidence: 1.0
+    status: active
+
+  - surface: mission_number
+    definition: A display-only sequential integer assigned to a mission at merge time. Never used for lookup, locking, or event routing — use mission_id for those purposes.
+    confidence: 1.0
+    status: active
+
+  - surface: mission_slug
+    definition: The human-readable kebab-cased identifier for a mission (e.g., my-feature), used alongside mid8 in branch and worktree names. Chosen by the mission owner at creation.
+    confidence: 1.0
+    status: active
+
+  - surface: node_id
+    definition: Stable machine fingerprint (12-char hex). Unchanged from pre-081.
+    confidence: 1.0
+    status: active
+
+  - surface: occurrence classification
+    definition: The act of categorizing each instance of a changing string by semantic context — source code, import paths, serialized keys, CLI commands, documentation, and so on. Required before bulk-edit work packages are approved.
+    confidence: 0.95
+    status: active
+
+  - surface: occurrence map
+    definition: A mission-level artifact (occurrence_map.yaml) that classifies every occurrence of a changing identifier by semantic context. Required before any bulk-edit work package may proceed.
+    confidence: 0.95
+    status: active
+
+  - surface: phase
+    definition: Grouping container for mission primitives, not the enforcement unit
+    confidence: 1.0
+    status: active
+
+  - surface: planning repository
+    definition: "DEPRECATED alias for 'repository root checkout'. Do not use — agents interpret this as a separate repository. Use 'repository root checkout' instead."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: planning_base_branch
+    definition: "Canonical branch-context alias for the branch planning should treat as the mission's intended landing branch."
+    confidence: 1.0
+    status: active
+
+  - surface: preflight validation
+    definition: Pre-merge checks that verify all resolved execution workspaces are clean and ready before a merge operation begins. A failing preflight check blocks the merge entirely.
+    confidence: 0.75
+    status: draft
+
+  - surface: primitive
+    definition: Custom mission-defined executable operation or step unit
+    confidence: 1.0
+    status: active
+
   - surface: project
     definition: SaaS collaboration surface grouping one or more repositories. Not the local Git resource.
+    confidence: 1.0
+    status: active
+
+  - surface: project root checkout
+    definition: "DEPRECATED (mission 081): Use 'repository root checkout' instead. The non-worktree checkout at the root of the current repository."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: project_uuid
+    definition: Optional SaaS-assigned collaboration identity. Absent until a repository is bound to a SaaS project. Never locally minted.
+    confidence: 1.0
+    status: active
+
+  - surface: provenance
+    definition: A record of what generated a given artifact — the actor identity, timestamp, and source (seed file, user clarification, or LLM generation). Enables audit and reproducibility.
+    confidence: 0.95
+    status: active
+
+  - surface: provenance sidecar
+    definition: A metadata file co-located with a generated artifact, recording its synthesis provenance. Allows any artifact to be traced back to its origin without modifying the artifact itself.
+    confidence: 0.95
+    status: active
+
+  - surface: repo_slug
+    definition: Optional owner/repo Git provider reference (e.g. Priivacy-ai/spec-kitty). Unchanged from pre-081 meaning.
     confidence: 1.0
     status: active
 
@@ -112,13 +258,8 @@ terms:
     confidence: 1.0
     status: active
 
-  - surface: build
-    definition: One checkout or worktree of one repository with its own execution context.
-    confidence: 1.0
-    status: active
-
-  - surface: repository_uuid
-    definition: Stable local repository identity, minted once per repository. Required namespace key for body sync and dedup. Was mislabeled as project_uuid before mission 081.
+  - surface: repository root checkout
+    definition: The non-worktree checkout at the root of the current repository. Planning commands (specify, plan, tasks) run here. It is a location, not a branch name.
     confidence: 1.0
     status: active
 
@@ -127,22 +268,82 @@ terms:
     confidence: 1.0
     status: active
 
-  - surface: project_uuid
-    definition: Optional SaaS-assigned collaboration identity. Absent until a repository is bound to a SaaS project. Never locally minted.
+  - surface: repository_uuid
+    definition: Stable local repository identity, minted once per repository. Required namespace key for body sync and dedup. Was mislabeled as project_uuid before mission 081.
     confidence: 1.0
     status: active
 
-  - surface: repo_slug
-    definition: Optional owner/repo Git provider reference (e.g. Priivacy-ai/spec-kitty). Unchanged from pre-081 meaning.
+  - surface: scope
+    definition: Bounded semantic scope (mission_local, team_domain, audience_domain, spec_kitty_core)
     confidence: 1.0
     status: active
 
-  - surface: build_id
-    definition: Per-checkout/worktree identity, unique per working tree. Unchanged from pre-081.
+  - surface: semantic conflict
+    definition: Mismatch or ambiguity in term usage with assigned severity score
     confidence: 1.0
     status: active
 
-  - surface: node_id
-    definition: Stable machine fingerprint (12-char hex). Unchanged from pre-081.
+  - surface: skill
+    definition: A markdown file encoding a domain-specific agent workflow, discoverable as a named command. Skills are the primary unit of reusable agent capability in spec-kitty.
+    confidence: 0.95
+    status: active
+
+  - surface: skill package
+    definition: A self-contained agent capability directory with a SKILL.md descriptor, installable under .agents/skills/. Provides the discoverable packaging format for a skill.
+    confidence: 0.95
+    status: active
+
+  - surface: step contract
+    definition: A formal specification of what a mission step must accomplish, including its inputs, outputs, and success criteria. The reviewer uses the step contract to validate work package completion.
+    confidence: 0.75
+    status: draft
+
+  - surface: strictness
+    definition: Glossary enforcement mode (off, medium, max)
+    confidence: 1.0
+    status: active
+
+  - surface: styleguide
+    definition: A doctrine artifact specifying coding or writing conventions for a project. Applied during implementation and review to keep outputs consistent.
+    confidence: 0.95
+    status: active
+
+  - surface: synthesis manifest
+    definition: The authoritative commit marker written last during charter synthesis. Its presence and hash integrity indicate a complete, valid synthesis run. Absence or hash mismatch signals a partial or corrupted run.
+    confidence: 0.95
+    status: active
+
+  - surface: tactic
+    definition: A doctrine artifact describing a reusable workflow or procedure that agents follow to accomplish a specific class of task. Composed of ordered steps and cross-references.
+    confidence: 0.95
+    status: active
+
+  - surface: target branch
+    definition: "The branch the mission's planning artifacts and merge intent are recorded against. Defaults to the current branch unless the user or command explicitly overrides it."
+    confidence: 1.0
+    status: active
+
+  - surface: teamspace
+    definition: A shared workspace or channel used for collaborative input to spec-kitty decision moments, particularly in widen mode flows.
+    confidence: 0.6
+    status: draft
+
+  - surface: widen mode
+    definition: A CLI feature that allows a mission owner to escalate an interview question to a collaborative channel for group input, with the response written back into the local decision moment.
+    confidence: 0.75
+    status: draft
+
+  - surface: work package
+    definition: Execution slice inside a mission run, the unit of human/agent handoff
+    confidence: 1.0
+    status: active
+
+  - surface: workspace
+    definition: Git worktree directory created for implementing a work package
+    confidence: 1.0
+    status: active
+
+  - surface: wp
+    definition: Abbreviation for work package
     confidence: 1.0
     status: active
