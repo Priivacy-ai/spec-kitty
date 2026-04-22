@@ -1,0 +1,33 @@
+id: "imp-craft-test-minimisation-003"
+source:
+  title: "Generic Testing Guidelines — Test Minimisation section"
+  type: "internal-guideline"
+  publisher: "craft-guidelines-library"
+  url: "internal://craft-guidelines-library/GENERIC_TESTING.md"
+  accessed_on: "2026-04-19"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    The logical-vs-code-duplication distinction and the five-step coverage-gated
+    minimisation process are not present anywhere in kitty doctrine. They are
+    actionable, agent-executable steps that complement formalized-constraint-testing
+    (contract tests replace spot-checks, then minimisation removes the now-redundant
+    spots) and the reviewer role.
+adaptation:
+  summary: >
+    Extracted the minimisation section from the generic testing guide into a
+    seven-step tactic. Added explicit failure modes covering the most common
+    mistakes: deleting without coverage baseline, confusing overlap types, and
+    removing regression tests.
+  notes:
+    - "Source used @Disabled as the disable mechanism; tactic is language-neutral (mentions equivalent annotations)."
+    - "Bug regression and documentation test exceptions preserved from source."
+source_references:
+  - kind: "local"
+    path: "internal://craft-guidelines-library/GENERIC_TESTING.md"
+    lines: "188-222"
+    note: "Test minimisation section: logical vs code duplication, five-step process, exceptions."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/shipped/test-minimisation.tactic.yaml"

@@ -1,0 +1,40 @@
+id: "imp-craft-testing-principles-002"
+source:
+  title: "Generic Testing Guidelines"
+  type: "internal-guideline"
+  publisher: "craft-guidelines-library"
+  url: "internal://craft-guidelines-library/GENERIC_TESTING.md"
+  accessed_on: "2026-04-19"
+classification:
+  target_concepts:
+    - "styleguide"
+    - "tactic"
+  rationale: >
+    The Test Desiderata, Testing Pyramid, Clear Test Boundaries, and Quad-A structure
+    are cross-language testing principles with no language-agnostic home in kitty
+    doctrine. The Quad-A structure exists only inside python-conventions; it should
+    be a freestanding artifact. The test minimisation process is a distinct reviewable
+    tactic.
+adaptation:
+  summary: >
+    Produced two artifacts: (1) testing-principles styleguide — language-neutral,
+    scope: testing — containing all 12 Desiderata as principles, the Pyramid and
+    Clear Test Boundaries as patterns, and over-mocking and shared-state as
+    anti-patterns; (2) test-minimisation tactic — a seven-step coverage-gated
+    process. The Quad-A content in python-conventions is retained as-is for now;
+    the canonical definition now lives in testing-principles.
+  notes:
+    - "Test Desiderata compressed from table format to principles list; original 12 properties preserved."
+    - "Testing Pyramid rendered as a pattern with a representative distribution comment example."
+    - "Clear Test Boundaries rendered as a pattern with a before/after code example."
+    - "Test minimisation extracted to its own tactic file — see imp-craft-test-minimisation-003."
+    - "All author attributions removed per curation policy; content synthesised without explicit citations."
+source_references:
+  - kind: "local"
+    path: "internal://craft-guidelines-library/GENERIC_TESTING.md"
+    lines: "1-309"
+    note: "Full source document: Desiderata table, Pyramid, Clear Test Boundaries, Quad-A, minimisation, anti-patterns."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/styleguides/shipped/testing-principles.styleguide.yaml"
+  - "src/doctrine/tactics/shipped/test-minimisation.tactic.yaml"
