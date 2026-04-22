@@ -34,8 +34,8 @@ steps:
 
   - title: Disable before delete
     description: >
-      Mark candidate tests with @Disabled (JUnit 5) / @Ignore (JUnit 4) / skip.unless /
-      pytest.mark.skip (Python) before deleting them. Run CI once to confirm the suite
+      Mark candidate tests with a skip/ignore/disabled annotation before deleting them.
+      Run CI once to confirm the suite
       remains green with the candidate disabled. Delete only then.
     examples:
       - "@Disabled(\"covered by round-trip contract test — remove after next green CI run\")"

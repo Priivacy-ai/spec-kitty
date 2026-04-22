@@ -45,7 +45,7 @@ steps:
             Order order = new Order("C-123", 5);
             assertThat(order.getCustomerId()).isEqualTo("C-123");
         }
-        // This test verifies Java syntax, not behavior. Delete it.
+        // This test verifies constructor syntax, not behavior. Delete it.
 
   - title: Avoid asserting implementation details
     description: >
