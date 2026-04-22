@@ -19,6 +19,7 @@ import pytest
 
 from specify_cli.invocation.propagator import (
     InvocationSaaSPropagator,
+    _PENDING_SEND_TASKS,
     _log_propagation_error,
     _propagate_one,
 )
@@ -126,6 +127,31 @@ def test_propagator_sends_invocation_id_in_event_dict(tmp_path: pytest.TempPathF
     assert len(captured) == 1
     assert captured[0]["invocation_id"] == record.invocation_id
     assert captured[0]["event_type"] == "ProfileInvocationStarted"
+
+
+def test_propagator_tracks_tasks_until_completion(tmp_path: pytest.TempPathFactory) -> None:
+    """Running-loop sends stay referenced until the async task completes."""
+    record = make_started_record()
+    captured: list[dict[str, object]] = []
+
+    class MockClient:
+        async def send_event(self, event_dict: dict[str, object]) -> None:
+            captured.append(event_dict)
+
+    async def exercise() -> None:
+        with patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+            return_value=MockClient(),
+        ):
+            _propagate_one(record, tmp_path)
+            assert len(_PENDING_SEND_TASKS) == 1
+            await asyncio.gather(*tuple(_PENDING_SEND_TASKS))
+            await asyncio.sleep(0)
+
+    asyncio.run(exercise())
+
+    assert not _PENDING_SEND_TASKS
+    assert captured[0]["invocation_id"] == record.invocation_id
 
 
 def test_propagator_error_log_never_raises_on_disk_full(tmp_path: pytest.TempPathFactory) -> None:

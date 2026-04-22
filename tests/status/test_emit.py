@@ -582,7 +582,6 @@ class TestDoneEvidence:
 
     def test_done_without_evidence_rejected(self, feature_dir: Path):
         """Transition to done without evidence is rejected."""
-        from specify_cli.status.models import ReviewResult
 
         # Move through the pipeline: planned → claimed → in_progress → for_review → in_review
         emit_status_transition(TransitionRequest(
