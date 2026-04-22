@@ -52,7 +52,7 @@ def test_wheel_contains_doctrine_package_data(wheel_path: Path) -> None:
 
     required_prefixes = [
         "doctrine/agent_profiles/profile.py",
-        "doctrine/agent_profiles/shipped/implementer.agent.yaml",
+        "doctrine/agent_profiles/shipped/implementer-ivan.agent.yaml",
         "doctrine/schemas/agent-profile.schema.yaml",
         "doctrine/schemas/directive.schema.yaml",
         "doctrine/directives/shipped/003-decision-documentation-requirement.directive.yaml",
@@ -77,7 +77,7 @@ def test_wheel_install_imports_doctrine_and_lists_profiles(
                 "from doctrine.agent_profiles import AgentProfileRepository; "
                 "repo = AgentProfileRepository(project_dir=None); "
                 "profiles = repo.list_all(); "
-                "assert any(p.profile_id == 'implementer' for p in profiles); "
+                "assert any(p.profile_id == 'implementer-ivan' for p in profiles); "
                 "print(len(profiles))"
             ),
         ],
