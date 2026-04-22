@@ -419,6 +419,61 @@ class TestRuntimeResultFlow:
         assert any(evt["event_type"] == "NextStepAutoCompleted" for evt in after[len(before) :])
 
 
+class TestAnswerDecisionViaRuntime:
+    def test_snapshot_read_failure_is_tolerated(self, monkeypatch, tmp_path: Path) -> None:
+        """Decision answers should continue even when snapshot hydration fails."""
+        from specify_cli.next import runtime_bridge
+        import spec_kitty_runtime.engine as runtime_engine
+
+        repo_root = tmp_path / "project"
+        repo_root.mkdir()
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        feature_dir.mkdir(parents=True)
+
+        fake_run_ref = SimpleNamespace(run_dir=str(tmp_path / "run"), run_id="run-001")
+        emitter_calls: list[tuple[str, object]] = []
+
+        class FakeEmitter:
+            def seed_from_snapshot(self, snapshot) -> None:
+                emitter_calls.append(("seed", snapshot))
+
+        monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
+        monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
+        monkeypatch.setattr(
+            runtime_bridge.SyncRuntimeEventEmitter,
+            "for_feature",
+            staticmethod(lambda **_: FakeEmitter()),
+        )
+
+        provided: list[tuple[object, str, str, object, object]] = []
+
+        def fake_provide(run_ref, decision_id, answer, actor, *, emitter) -> None:
+            provided.append((run_ref, decision_id, answer, actor, emitter))
+
+        monkeypatch.setattr(runtime_bridge, "runtime_provide_decision_answer", fake_provide)
+        monkeypatch.setattr(
+            runtime_engine,
+            "_read_snapshot",
+            lambda path: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
+
+        runtime_bridge.answer_decision_via_runtime(
+            "042-test-feature",
+            "decision-001",
+            "yes",
+            "robert",
+            repo_root,
+        )
+
+        assert emitter_calls == []
+        assert len(provided) == 1
+        _, decision_id, answer, actor, _ = provided[0]
+        assert decision_id == "decision-001"
+        assert answer == "yes"
+        assert actor.actor_id == "robert"
+        assert actor.actor_type == "human"
+
+
 # ---------------------------------------------------------------------------
 # Guard check tests
 # ---------------------------------------------------------------------------

@@ -269,8 +269,12 @@ class TestOtherPayloads:
             payload={
                 "mission_slug": "039-test-feature",
                 "mission_number": 39,  # int, not str (FR-044, WP02)
+                "mission_type": "software-dev",
                 "target_branch": "main",
                 "wp_count": 5,
+                "friendly_name": "039 Test Feature",
+                "purpose_tldr": "039 Test Feature",
+                "purpose_context": "Deliver 039 Test Feature on main.",
             },
         )
         results = diagnose_events([event])

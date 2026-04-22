@@ -78,8 +78,12 @@ FIXTURE_EVENTS = [
         "payload": {
             "mission_slug": "040-next-feature",
             "mission_number": 40,
+            "mission_type": "software-dev",
             "target_branch": "main",
             "wp_count": 5,
+            "friendly_name": "040 Next Feature",
+            "purpose_tldr": "040 Next Feature",
+            "purpose_context": "Deliver 040 Next Feature on main.",
             "created_at": "2026-02-12T11:02:00+00:00",
         },
         "timestamp": "2026-02-12T11:02:00+00:00",
@@ -229,23 +233,32 @@ class TestEventTypeCoverage:
     def test_valid_event_types_match_emitter(self):
         """Documented outbound types must match VALID_EVENT_TYPES from the emitter."""
         expected = {
-            "WPStatusChanged",
-            "WPCreated",
-            "WPAssigned",
-            "MissionCreated",
-            "MissionClosed",
-            "HistoryAdded",
-            "ErrorLogged",
+            "BuildRegistered",
+            "BuildHeartbeat",
+            "DecisionInputAnswered",
+            "DecisionInputRequested",
             "DependencyResolved",
+            "DiffSummaryRecorded",
+            "ErrorLogged",
+            "HistoryAdded",
+            "MissionClosed",
+            "MissionCompleted",
+            "MissionCreated",
             "MissionDossierArtifactIndexed",
             "MissionDossierArtifactMissing",
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
             "MissionOriginBound",
-            # Build sync events added by "Harden SaaS auth and restore build sync emission"
-            # (commit 533e47d2) — emitted during build lifecycle telemetry.
-            "BuildRegistered",
-            "BuildHeartbeat",
+            "MissionRunCompleted",
+            "MissionRunStarted",
+            "MissionStarted",
+            "NextStepAutoCompleted",
+            "NextStepIssued",
+            "PhaseEntered",
+            "TokenUsageRecorded",
+            "WPAssigned",
+            "WPCreated",
+            "WPStatusChanged",
         }
         assert expected == VALID_EVENT_TYPES
 
