@@ -1,0 +1,47 @@
+id: "imp-craft-java-conventions-enrichment-004"
+source:
+  title: "Java Guidelines — naming conventions, exception discipline, encoding, Test Data Builder"
+  type: "internal-guideline"
+  publisher: "craft-guidelines-library"
+  url: "internal://craft-guidelines-library/programming/java_guidelines.md"
+  accessed_on: "2026-04-19"
+classification:
+  target_concepts:
+    - "styleguide"
+  rationale: >
+    The java_guidelines.md contains three sections absent from the initially created
+    java-conventions styleguide: the naming convention table (§2), the specific-exception
+    assertion discipline (§6.5), explicit encoding for File I/O (§6.6), and the Test
+    Data Builder pattern (§5.1). These fill concrete gaps in the existing kitty artifact.
+adaptation:
+  summary: >
+    Merged four additions into src/doctrine/styleguides/shipped/java-conventions.styleguide.yaml:
+    (1) naming conventions principle (table converted to a single principle string covering
+    all element types); (2) explicit-encoding principle and anti-pattern pair for File I/O;
+    (3) try-with-resources principle; (4) Test Data Builder pattern with good/bad examples;
+    (5) specific-exception anti-pattern with good/bad examples.
+  notes:
+    - "Naming table (§2) converted to a single compact principle; the table format is not supported by the styleguide schema."
+    - "AssertJ syntax retained in examples as it is the standard assertion library referenced in the existing java-conventions tooling section."
+    - "Test Data Builder example uses ExposureRecordFixtures as a concrete illustration but the pattern description is domain-neutral."
+    - "SonarQube omitted from tooling (not currently in the maven-review-checks toolguide scope)."
+source_references:
+  - kind: "local"
+    path: "internal://craft-guidelines-library/programming/java_guidelines.md"
+    lines: "40-48"
+    note: "Naming conventions table — §2."
+  - kind: "local"
+    path: "internal://craft-guidelines-library/programming/java_guidelines.md"
+    lines: "161-189"
+    note: "Test Data Builder pattern — §5.1."
+  - kind: "local"
+    path: "internal://craft-guidelines-library/programming/java_guidelines.md"
+    lines: "275-292"
+    note: "Exception assertion discipline — §6.5."
+  - kind: "local"
+    path: "internal://craft-guidelines-library/programming/java_guidelines.md"
+    lines: "293-309"
+    note: "File I/O encoding discipline — §6.6."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/styleguides/shipped/java-conventions.styleguide.yaml"

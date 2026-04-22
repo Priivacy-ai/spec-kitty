@@ -1,0 +1,37 @@
+id: "imp-craft-formalized-constraint-testing-001"
+source:
+  title: "Formalized Constraint Testing"
+  type: "internal-guideline"
+  publisher: "craft-guidelines-library"
+  url: "internal://craft-guidelines-library/FORMALIZED_CONSTRAINT_TESTING.md"
+  accessed_on: "2026-04-19"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    The four contract patterns (round-trip symmetry, equality contract, hash-code
+    alignment, sparse serialization) are language-agnostic and apply wherever a
+    component has mathematical invariants. They fill a gap in kitty doctrine between
+    black-box integration testing (boundary-level) and TDD (unit loop) — neither
+    of which codifies contract-invariant testing as a named pattern family.
+adaptation:
+  summary: >
+    Distilled the four constraint patterns into a seven-step tactic. Source
+    implementation strategy and positive/negative pair principle preserved.
+    Anti-patterns mapped to failure_modes. No language-specific content retained
+    (the tactic is language-agnostic). References bound to DIRECTIVE_034,
+    DIRECTIVE_030, and the black-box-integration-testing and acceptance-test-first
+    tactics already in kitty doctrine.
+  notes:
+    - "Round-trip pattern translated from Java serialization examples to language-neutral pseudocode."
+    - "Equality contract test matrix preserved verbatim — it is language-agnostic."
+    - "Hash distribution note kept as informational rather than enforcement gate."
+    - "Sparse serialization step retains the @JsonInclude pattern as an example, not a mandate."
+source_references:
+  - kind: "local"
+    path: "internal://craft-guidelines-library/FORMALIZED_CONSTRAINT_TESTING.md"
+    lines: "1-219"
+    note: "Full source document including patterns, implementation strategy, example, and anti-patterns."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/shipped/formalized-constraint-testing.tactic.yaml"
