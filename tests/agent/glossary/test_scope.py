@@ -81,6 +81,14 @@ def test_load_seed_file(sample_seed_file, tmp_path):
     assert senses[0].confidence == 1.0
     assert senses[0].status == SenseStatus.ACTIVE
 
+def test_load_seed_file_empty_terms_value(tmp_path):
+    """Treat a bare `terms:` key as an empty glossary."""
+    seed_path = tmp_path / ".kittify" / "glossaries" / "team_domain.yaml"
+    seed_path.parent.mkdir(parents=True)
+    seed_path.write_text("terms:\n", encoding="utf-8")
+
+    assert load_seed_file(GlossaryScope.TEAM_DOMAIN, tmp_path) == []
+
 def test_load_seed_file_missing(tmp_path):
     """Returns empty list if seed file missing."""
     senses = load_seed_file(GlossaryScope.TEAM_DOMAIN, tmp_path)
@@ -226,7 +234,8 @@ class TestSaveSeedFile:
         save_seed_file(GlossaryScope.TEAM_DOMAIN, tmp_path, [])
         path = tmp_path / ".kittify" / "glossaries" / "team_domain.yaml"
         data = yaml.safe_load(path.read_text())
-        assert data["terms"] == [] or data["terms"] is None
+        assert data["terms"] == []
+        assert load_seed_file(GlossaryScope.TEAM_DOMAIN, tmp_path) == []
 
     def test_round_trip_with_load_seed_file(self, tmp_path):
         original = [

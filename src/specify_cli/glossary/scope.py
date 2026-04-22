@@ -74,7 +74,7 @@ def validate_seed_file(data: dict[str, Any]) -> None:
     if "terms" not in data:
         raise ValueError("Seed file must have 'terms' key")
 
-    for term in data["terms"]:
+    for term in data.get("terms") or []:
         if "surface" not in term:
             raise ValueError("Term must have 'surface' key")
         if "definition" not in term:
@@ -127,7 +127,7 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
     validate_seed_file(data)
 
     senses = []
-    for term_data in data.get("terms", []):
+    for term_data in data.get("terms") or []:
         sense = TermSense(
             surface=TermSurface(term_data["surface"]),
             scope=scope.value,
@@ -191,7 +191,11 @@ def save_seed_file(
 
     sorted_terms = sorted(terms, key=lambda t: t.surface.surface_text.lower())
 
-    lines: list[str] = list(header) + ["terms:"]
+    lines: list[str] = list(header)
+    if not sorted_terms:
+        lines.append("terms: []")
+    else:
+        lines.append("terms:")
     for sense in sorted_terms:
         lines.append("")
         lines.append(f"  - surface: {_yaml_scalar(sense.surface.surface_text)}")

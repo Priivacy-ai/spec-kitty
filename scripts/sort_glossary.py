@@ -42,7 +42,7 @@ def sort_glossary_file(path: Path) -> bool:
     if not isinstance(data, dict) or "terms" not in data:
         return False
 
-    terms = data["terms"]
+    terms = data["terms"] or []
     sorted_terms = sorted(terms, key=lambda t: t["surface"].lower())
 
     if [t["surface"] for t in sorted_terms] == [t["surface"] for t in terms]:
@@ -56,7 +56,11 @@ def sort_glossary_file(path: Path) -> bool:
         else:
             break
 
-    out: list[str] = list(header) + ["terms:"]
+    out: list[str] = list(header)
+    if not sorted_terms:
+        out.append("terms: []")
+    else:
+        out.append("terms:")
     for term in sorted_terms:
         out.append("")
         out.append(f"  - surface: {_render_scalar(term['surface'])}")
