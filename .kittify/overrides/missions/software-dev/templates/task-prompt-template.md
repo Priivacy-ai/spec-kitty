@@ -5,8 +5,11 @@ subtasks:
 title: "Replace with work package title"
 task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
-assignee: ""      # Optional friendly name when claimed/in_progress
-agent: ""         # CLI agent identifier (claude, codex, etc.)
+agent_profile: ""  # Agent profile identifier (e.g., implementer-ivan, architect-alphonso)
+role: ""           # Role within the profile (e.g., "implementer", "reviewer")
+agent: ""          # CLI agent/tool identifier (claude, codex, copilot, etc.)
+model: ""          # Model identifier (e.g., claude-sonnet-4-6) — optional
+assignee: ""       # Optional friendly name when claimed/in_progress
 shell_pid: ""     # PID captured when the task was claimed
 history:
   - at: "{{TIMESTAMP}}"
@@ -15,6 +18,18 @@ history:
 ---
 
 # Work Package Prompt: {{work_package_id}} – {{title}}
+
+## ⚡ Do This First: Load Agent Profile
+
+Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+
+- **Profile**: `{{agent_profile}}`
+- **Role**: `{{role}}`
+- **Agent/tool**: `{{agent}}`
+
+If no profile is specified, run `spec-kitty agent profile list` and select the best match for this work package's `task_type` and `authoritative_surface`.
+
+---
 
 ## ⚠️ IMPORTANT: Review Feedback
 
@@ -47,7 +62,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 ## Context & Constraints
 
 - Reference prerequisite work and related documents.
-- Link to supporting specs: `.kittify/constitution/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
+- Link to supporting specs: `.kittify/charter/charter.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
 - Highlight architectural decisions, constraints, or trade-offs to honor.
 
 ## Branch Strategy
