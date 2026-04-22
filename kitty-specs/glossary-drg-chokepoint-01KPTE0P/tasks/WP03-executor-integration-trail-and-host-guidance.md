@@ -30,6 +30,8 @@ subtasks:
 - T022
 - T023
 - T024
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "52829"
 history:
 - date: '2026-04-22'
   event: created
@@ -635,3 +637,7 @@ def test_conflict_invocation_writes_glossary_checked_event(tmp_path):
 5. Confirm clean invocations (no conflicts) do NOT produce a `"glossary_checked"` trail line.
 6. Read the Codex guidance update — confirm the inline rendering contract is clearly described.
 7. Confirm no import cycle was introduced: `invocation.executor` → `glossary.chokepoint` should be a forward-import-only dependency (inside method body, not at module top).
+
+## Activity Log
+
+- 2026-04-22T12:37:14Z – claude:sonnet:implementer:implementer – shell_pid=52829 – Started implementation via action command
