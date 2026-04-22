@@ -9,57 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased - 3.2.0]
 
-### Added
-
-- **`Role` half-open value object** (`src/doctrine/agent_profiles/profile.py`) — `Role` subclasses
-  `str` instead of `StrEnum`, keeping custom project-specific roles first-class without forking.
-  Eight well-known constants (`IMPLEMENTER`, `REVIEWER`, `ARCHITECT`, `DESIGNER`, `PLANNER`,
-  `RESEARCHER`, `CURATOR`, `MANAGER`) declared as class-level attributes; `Role.is_known()` for
-  informational checks. Relates to #461, #519.
-- **`AgentProfile.roles: list[Role]`** — replaces the previous scalar `role` field. First entry is
-  the primary role; additional entries support secondary-role routing. `AgentProfile.role` property
-  kept for backwards-compatible single-role access (returns `roles[0]`). Scalar `role:` YAML is
-  auto-promoted to `roles: [...]` with a `DeprecationWarning`.
-- **Character-name profile renames** — all shipped profiles now carry a character name:
-  `architect-alphonso`, `curator-carla`, `designer-dagmar`, `implementer-ivan`, `planner-priti`,
-  `python-pedro`, `researcher-robbie`, `reviewer-renata`. Follows the convention established by
-  `java-jenny` (WP04).
-- **`java-jenny` agent profile** (`src/doctrine/agent_profiles/shipped/java-jenny.agent.yaml`) —
-  Java specialist (ATDD/TDD, Maven lifecycle gate, `routing-priority: 80`). Companion
-  `java-conventions` styleguide and `maven-review-checks` toolguide shipped alongside. Relates to
-  #461, #519.
-- **Migration `3.2.4_kittify_profile_handoff`** — idempotent upgrade migration that inserts a
-  "Prepare for Review Hand-off" section into `.kittify` implement templates and a "Load Agent
-  Profile" section into review templates, ensuring agents load the correct persona before
-  implementing or reviewing a WP.
-- **Profile-load preamble in WP prompt files** — `task-prompt-template.md` gains `agent_profile`
-  and `role` frontmatter fields plus a "⚡ Do This First" section directing agents to invoke
-  `/ad-hoc-profile-load` before parsing the rest of the prompt.
-- **Doctrine tactics** — `test-minimisation` (7-step coverage-gated redundancy removal),
-  `formalized-constraint-testing` (4 property-based contract patterns), `work-package-completion-
-  validation` (pre-transition quality gate), and several approach-derived tactics (`locality-of-
-  change`, `traceable-decisions`, `function-over-form-testing`) shipped and wired into the DRG.
-  Graph reaches 139 nodes / 317 edges.
-- **`testing-principles` styleguide** — language-neutral; 12 Test Desiderata, Testing Pyramid,
-  Quad-A structure, anti-patterns (over-mocking, shared mutable state, structural assertions).
-
-### Changed
-
-- **Agent-profile YAML schema** (`agent-profile.schema.yaml`) — `anyOf: [required: role,
-  required: roles]` allows both the deprecated scalar form and the new list form during migration.
-  Schema `$comment` version bumped to `2`.
-- **Repository routing** — `_filter_candidates_by_role` and `_exact_id_signal` check the full
-  `roles` list; secondary roles now participate in routing at 0.5× weight.
-- **`TaskContext.required_role`** — coerces string input to `Role` via `BeforeValidator`.
-- **Neutrality lint** — `language_scoped_allowlist.yaml` updated: stale `python-implementer` entry
-  replaced by `python-pedro`; three new Java-scoped entries added (`java-jenny`, `MAVEN_REVIEW_CHECKS.md`,
-  `maven-review-checks.toolguide.yaml`).
-- **Generic tactics** (`dependency-hygiene`, `work-package-completion-validation`, `test-minimisation`,
-  `function-over-form-testing`) — language-specific tool names removed or replaced with generic
-  descriptions; `dependency-hygiene` gains `applies_to_languages: [java, python]` to opt out of the
-  neutrality gate explicitly.
-- Tactic reference cycle between `test-minimisation` and `formalized-constraint-testing` broken.
-
 ## [3.2.0a5] - 2026-04-22
 
 ### Added
@@ -103,27 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `model_dump(mode="json")` on WP frontmatter serialization in `finalize_tasks` — prevents `Path` objects from reaching YAML serialization.
 
 ### Added
-
-- **Agent profile fields in WP task prompt template** — `profile`, `role`, and `tool` frontmatter fields added to `task-prompt-template.md`. Every generated work package now carries its assigned agent profile identity directly in the prompt file, making it readable by agents before any CLI call is needed. Relates to #461 (Charter as Synthesis north star) and feeds #647 (WP card avatars).
-- **Profile-load preamble in WP prompt files** — new "Do This First: Load Agent Profile" section instructs agents to invoke `/ad-hoc-profile-load` before parsing the rest of the prompt. Falls back to `spec-kitty agent profile list` when the `profile` field is empty.
-- **Step 2a in `/spec-kitty.implement`** — implement template now explicitly loads the agent profile from WP frontmatter as the first action before verifying dependencies or starting code changes.
-- **Step 4a in `/spec-kitty.tasks-packages`** — after all WP prompt files are written, the sub-agent generating them now queries `spec-kitty agent profile list --json`, selects the best-matching profile per WP (by `task_type`, `authoritative_surface`, `owned_files`, and subtask content), and back-fills `profile`/`role`/`tool` into each WP frontmatter and the corresponding `wps.yaml` entry.
-- **Step 8a in `/spec-kitty.tasks`** — same profile-assignment logic added post-`finalize-tasks`, covering the single-agent tasks workflow that does not go through the parallel sub-agent path.
-
-### Changed
-
-- WP frontmatter field list in `/spec-kitty.tasks` updated to include `profile`, `role`, and `tool` alongside existing identity and dependency fields.
-- Self-check in `/spec-kitty.tasks-packages` now verifies that `profile`, `role`, and `tool` are set for every generated WP before reporting success.
-
-<!-- Rationale (doctrine/profile_reinforcement branch, 2026-04-21):
-  These are template-layer changes that reinforce agent profile identity at the point of WP authorship
-  and consumption. They are intentionally scoped to templates and doctrine to avoid touching the runtime
-  until the charter+doctrine+runtime consolidation (EPIC #461 + #612) lands. Once #612 establishes a
-  clear runtime boundary and #461 Phase 4 ships ProfileInvocationExecutor, the `profile` frontmatter
-  field becomes the handoff contract from planning artifacts into the executor. This branch pre-populates
-  that contract so that WPs authored today are already compatible with the forthcoming runtime surface,
-  and so that #647 (WP card avatars) has a reliable source field to read from immediately.
--->
 
 ## [3.2.0a3] - 2026-04-21
 
