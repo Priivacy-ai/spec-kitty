@@ -17,13 +17,13 @@ This gap means:
 - The DRG has a `GLOSSARY_SCOPE` node kind and `VOCABULARY` relation already declared, but no individual glossary term nodes to back them — the DRG graph currently has scope-level placeholders, not per-term addressable nodes.
 - Hosts have no standard contract for what glossary observations to surface inline versus log quietly.
 
-Phase 5 establishes the foundation: stable URN-addressed term nodes in the DRG, typed edges from action and profile nodes to their applicable terms, and a deterministic chokepoint wired directly into `ProfileInvocationExecutor` that fires on every invocation.
+Phase 5 establishes the foundation: stable URN-addressed term nodes in the DRG, typed edges from action nodes to their applicable terms, and a deterministic chokepoint wired directly into `ProfileInvocationExecutor` that fires on every invocation.
 
 ---
 
 ## Goal
 
-Make every active glossary term a stable, DRG-addressable node (`glossary:<id>` URN). Wire typed `vocabulary` edges from action and profile nodes to applicable term nodes. Integrate a deterministic, non-blocking glossary chokepoint into `ProfileInvocationExecutor.invoke()` that returns a structured observation bundle to the host on every `advise` / `ask` / `do` invocation.
+Make every active glossary term a stable, DRG-addressable node (`glossary:<id>` URN). Wire typed `vocabulary` edges from action nodes to applicable term nodes. Integrate a deterministic, non-blocking glossary chokepoint into `ProfileInvocationExecutor.invoke()` that returns a structured observation bundle to the host on every `advise` / `ask` / `do` invocation.
 
 ---
 
@@ -31,9 +31,9 @@ Make every active glossary term a stable, DRG-addressable node (`glossary:<id>` 
 
 ### Scenario 1 — Invocation with no glossary conflict (golden path)
 
-A project operator runs `spec-kitty advise "summarise the WP status"`. The executor resolves the profile, assembles governance context, and runs the chokepoint against the active glossary terms for the resolved action. No conflicts are found. The `InvocationPayload` is returned with an empty `glossary_observations.conflicts` list. The host renders governance context normally — no inline glossary text appears. The JSONL trail records a zero-conflict observation.
+A project operator runs `spec-kitty advise "summarise the WP status"`. The executor resolves the profile, assembles governance context, and runs the chokepoint against the active glossary terms for the resolved action. No conflicts are found. The `InvocationPayload` is returned with an empty `glossary_observations.all_conflicts` tuple. The host renders governance context normally — no inline glossary text appears. No `glossary_checked` event is written to the JSONL trail (clean invocations produce no trail noise).
 
-**Test:** Assert that `payload.glossary_observations.conflict_count == 0` and that `payload.glossary_observations` is present (not `None`).
+**Test:** Assert that `payload.glossary_observations.all_conflicts == ()` and `payload.glossary_observations.high_severity == ()` and that `payload.glossary_observations` is present (not `None`).
 
 ### Scenario 2 — High-severity conflict surfaced inline
 
@@ -78,7 +78,7 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 | ID | Requirement | Status |
 |----|-------------|--------|
 | FR-001 | Every active glossary term in the glossary store must have a corresponding `glossary:<id>` URN node in the DRG. The `<id>` segment must be stable across DRG regenerations for the same canonical term surface. | Approved |
-| FR-002 | Each `glossary:<id>` DRG node must carry the term's canonical surface form as its `label` and a `NodeKind` of `GLOSSARY_TERM`. | Approved |
+| FR-002 | Each `glossary:<id>` DRG node must carry the term's canonical surface form as its `label` and a `NodeKind` of `GLOSSARY` (value `"glossary"` in the `NodeKind` StrEnum, matching the `glossary:` URN prefix). | Approved |
 | FR-003 | The DRG must carry `vocabulary` edges from action nodes to all applicable `glossary:<id>` nodes. For this tranche, applicability follows scope: `spec_kitty_core` and `team_domain` terms are applicable to every action; `mission_local` and `audience_domain` terms are excluded from the static graph and are resolved at runtime from active mission context. | Approved |
 | FR-004 | The DRG must expose a query that accepts an action URN and returns the complete set of `glossary:<id>` nodes reachable via outbound `vocabulary` edges (the action-scoped term set). | Approved |
 | FR-005 | `ProfileInvocationExecutor.invoke()` must run the glossary chokepoint synchronously after governance-context assembly and before returning `InvocationPayload`. | Approved |
@@ -113,7 +113,7 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 |----|------------|--------|
 | C-001 | The chokepoint must never block or propagate an exception from within `ProfileInvocationExecutor.invoke()`. All exceptions from the chokepoint code path must be caught by the executor and result in an empty-bundle payload. | Approved |
 | C-002 | No LLM calls, HTTP requests, subprocess invocations, or blocking I/O operations are permitted inside the chokepoint hot path. Deterministic string matching and lemmatization only. | Approved |
-| C-003 | The `NodeKind.GLOSSARY_TERM` extension must be additive to the DRG schema. Existing `graph.yaml` files that contain no `glossary_term` nodes must still load and validate successfully without migration. | Approved |
+| C-003 | The `NodeKind.GLOSSARY` extension must be additive to the DRG schema. Existing `graph.yaml` files that contain no `glossary` nodes must still load and validate successfully without migration. | Approved |
 | C-004 | The existing `GlossaryStore`, `GlossaryScope`, `TermSense`, and `SemanticConflict` models must not be modified in a breaking way. Any new fields must be additive. | Approved |
 | C-005 | `InvocationPayload.__slots__` must be extended without breaking existing callers of `to_dict()`. The new `glossary_observations` slot must appear in the dict output. | Approved |
 | C-006 | WP5.4 (dashboard glossary tile), WP5.5 (glossary entity pages, #532), and WP5.6 (`spec-kitty charter lint`, #533) are out of scope for this tranche and must not be implemented. | Approved |
@@ -142,9 +142,9 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 | `GlossaryObservationBundle` | New data model returned by the chokepoint: matched term URNs, high-severity conflicts (surfaced to hosts), all conflicts (for trail), token count, duration, optional `error_msg`. |
 | `GlossaryChokepoint` | New service class: accepts an action-scoped term set, tokenizes request text, matches terms, classifies conflicts, returns a `GlossaryObservationBundle`. Stateless except for the lazily loaded term index. |
 | `GlossaryTermIndex` | Internal index structure built by scanning DRG `glossary:<id>` nodes and `vocabulary` edges. Cached per executor instance. Rebuildable without operator action. |
-| `NodeKind.GLOSSARY_TERM` | New enum value added to the existing `NodeKind` StrEnum in `doctrine.drg.models`. Governs the `glossary:` URN prefix in DRG nodes. |
-| `glossary:<id>` node | A DRG node representing one canonical glossary term. The `<id>` is derived deterministically from the term's canonical surface form. |
-| `vocabulary` edge | An existing `Relation.VOCABULARY` edge in the DRG, extended to connect action/profile nodes to `glossary:<id>` term nodes. |
+| `NodeKind.GLOSSARY` | New enum value (`= "glossary"`) added to the existing `NodeKind` StrEnum in `doctrine.drg.models`. The string value `"glossary"` governs the `glossary:` URN prefix via the existing DRG URN validator (`prefix == kind.value`). |
+| `glossary:<id>` node | A DRG node representing one canonical glossary term. The `<id>` is the first 8 hex chars of `sha256(surface_text, utf-8)`. |
+| `vocabulary` edge | An existing `Relation.VOCABULARY` edge in the DRG connecting action nodes to `glossary:<id>` term nodes. |
 | Action-scoped term set | The set of all `glossary:<id>` nodes reachable from a given action URN via outbound `vocabulary` edges. |
 | Invocation trail entry | The per-invocation JSONL record that receives all chokepoint observations, including low/medium conflicts not surfaced inline. |
 
@@ -198,7 +198,7 @@ After a new term is added to a seed file and the DRG is regenerated, the chokepo
 Once this spec is approved, the following WP sequence delivers the smallest complete slice:
 
 1. **WP01 — DRG term node model and index builder**
-   Extend `NodeKind` with `GLOSSARY_TERM`. Build the index builder that traverses DRG `glossary:<id>` nodes and `vocabulary` edges. Write the ID derivation function. Update DRG loader and validator for backward-compat (no `glossary_term` nodes in existing YAML = no error). Define seed-file-to-DRG-node translation. Unit tests + mypy.
+   Add `NodeKind.GLOSSARY = "glossary"`. Build the index builder that traverses DRG `glossary:<id>` nodes and `vocabulary` edges. Write the ID derivation function (`sha256(surface, utf-8)[:8]`). Update DRG loader and validator for backward-compat (no `glossary` nodes in existing YAML = no error). Define seed-file-to-DRG-node translation. Unit tests + mypy.
 
 2. **WP02 — Chokepoint class, observation bundle, and executor integration**
    Implement `GlossaryObservationBundle` model. Implement `GlossaryChokepoint` with lazy index load, deterministic tokenizer + matcher, conflict classification via existing `SemanticConflict`. Wire into `ProfileInvocationExecutor.invoke()` with try/except safety wrapper. Benchmark chokepoint latency against p95 targets; draft ADR-5 with measurement data. Extend `InvocationPayload.__slots__` with `glossary_observations`. Unit + integration tests + mypy.

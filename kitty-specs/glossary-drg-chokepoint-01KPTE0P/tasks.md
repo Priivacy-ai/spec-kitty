@@ -21,7 +21,7 @@
 | T008 | Implement `GlossaryObservationBundle` frozen dataclass | WP02 | No |
 | T009 | Implement `GlossaryChokepoint.__init__()` and lazy `_load_index()` | WP02 | No |
 | T010 | Implement `GlossaryChokepoint.run()` | WP02 | No |
-| T011 | Implement `_classify()` conflict classifier | WP02 | [P] with T010 |
+| T011 | Wire existing `classify_conflict()` / `score_severity()` / `create_conflict()` into `_run_inner()` | WP02 | [P] with T010 |
 | T012 | Write benchmark script `bench_chokepoint.py` | WP02 | [P] after T010 |
 | T013 | Draft ADR-5 with benchmark results | WP02 | No |
 | T014 | Unit tests for `GlossaryChokepoint` and `GlossaryObservationBundle` | WP02 | No |
@@ -77,7 +77,7 @@
 - [ ] T008 Implement `GlossaryObservationBundle` frozen dataclass with `to_dict()` (WP02)
 - [ ] T009 Implement `GlossaryChokepoint.__init__()` (lazy, no I/O) and `_load_index()` (WP02)
 - [ ] T010 Implement `GlossaryChokepoint.run()` — tokenize, normalize, lookup, classify, time (WP02)
-- [ ] T011 Implement `_classify()` private helper — severity routing from senses (WP02)
+- [ ] T011 Wire existing `classify_conflict()` / `score_severity()` / `create_conflict()` from `specify_cli.glossary.conflict` into `_run_inner()` — no new classifier (WP02)
 - [ ] T012 Write benchmark script `tests/specify_cli/glossary/bench_chokepoint.py` (WP02)
 - [ ] T013 Draft `architecture/adrs/2026-04-22-5-glossary-chokepoint-p95-measurement.md` with results (WP02)
 - [ ] T014 Write unit tests in `tests/specify_cli/glossary/test_chokepoint.py` (WP02)

@@ -248,8 +248,9 @@ def run(self, request_text: str, invocation_id: str = "") -> GlossaryObservation
 def _run_inner(
     self, request_text: str, invocation_id: str, t0: float
 ) -> GlossaryObservationBundle:
-    from specify_cli.glossary.extraction import COMMON_WORDS
+    from specify_cli.glossary.conflict import classify_conflict, create_conflict, score_severity
     from specify_cli.glossary.drg_builder import _normalize
+    from specify_cli.glossary.extraction import COMMON_WORDS, ExtractedTerm
 
     index = self._load_index()
     tokens = [t for t in _TOKENIZER.split(request_text.lower()) if t]
@@ -273,10 +274,30 @@ def _run_inner(
         if urn is None:
             continue
 
+        # Term was found in the index — record the URN regardless of conflict result
+        matched_urns.append(urn)
+
         senses = index.surface_to_senses.get(normalized, [])
-        conflict = _classify(normalized, senses, context="request_text")
-        if conflict is not None:
-            matched_urns.append(urn)
+        extracted_term = ExtractedTerm(
+            surface=normalized,
+            confidence=1.0,       # direct index hit = high confidence
+            source="request_text",
+        )
+        conflict_type = classify_conflict(
+            term=extracted_term,
+            resolution_results=senses,
+            is_critical_step=False,
+            llm_output_text=None,  # no LLM output at invoke time
+        )
+        if conflict_type is not None:
+            severity = score_severity(conflict_type, confidence=1.0, is_critical_step=False)
+            conflict = create_conflict(
+                term=extracted_term,
+                conflict_type=conflict_type,
+                severity=severity,
+                candidate_senses=senses,
+                context="request_text",
+            )
             all_conflicts.append(conflict)
 
     high_severity = tuple(c for c in all_conflicts if c.severity == Severity.HIGH)
@@ -300,73 +321,64 @@ def _run_inner(
 
 ---
 
-## Subtask T011 — Implement `_classify()` conflict classifier
+## Subtask T011 — Wire existing conflict classifiers into `_run_inner()`
 
-**Purpose:** Given a matched surface and its active senses, produce a `SemanticConflict` (or `None` for unambiguous clean terms).
+**Purpose:** The existing `specify_cli.glossary.conflict` module has `classify_conflict()`, `score_severity()`, and `create_conflict()`. Use them — do not invent a parallel severity model.
 
-**Implementation:**
+**Why this matters:** Mission primitives use the same classifiers via `execute_with_glossary()`. Shipping a bespoke chokepoint classifier would mean "lane" has different severity semantics for profile invocations vs mission steps on day one.
 
-```python
-def _classify(
-    surface: str,
-    senses: list,  # list[TermSense]
-    context: str = "",
-) -> SemanticConflict | None:
-    """Classify a matched glossary term hit as a SemanticConflict.
+**Steps:**
 
-    v1 severity model:
-    - 0 active senses → None (shouldn't happen if index is correct)
-    - 1 active sense, confidence >= 0.9 → None (unambiguous, no conflict)
-    - 1 active sense, confidence < 0.9 → LOW conflict
-    - 2+ active senses → MEDIUM (ambiguous)
-    - Any sense with confidence < 0.7 → HIGH (inconsistent/low-confidence term)
-    """
-    if not senses:
-        return None
+1. Remove any standalone `_classify()` function from `chokepoint.py`. Do not write one.
 
-    active = [s for s in senses if s.status == SenseStatus.ACTIVE]
-    if not active:
-        return None
+2. In `chokepoint.py`, add imports:
+   ```python
+   from specify_cli.glossary.conflict import classify_conflict, create_conflict, score_severity
+   from specify_cli.glossary.extraction import ExtractedTerm
+   ```
 
-    min_confidence = min(s.confidence for s in active)
-    term_surface = TermSurface(surface)
+3. In `_run_inner()`, replace the classification call with:
+   ```python
+   from specify_cli.glossary.conflict import classify_conflict, score_severity, create_conflict
+   from specify_cli.glossary.extraction import ExtractedTerm
 
-    if min_confidence < 0.7:
-        return SemanticConflict(
-            term=term_surface,
-            conflict_type=ConflictType.INCONSISTENT,
-            severity=Severity.HIGH,
-            confidence=1.0 - min_confidence,
-            candidate_senses=[],
-            context=context,
-        )
-    if len(active) > 1:
-        return SemanticConflict(
-            term=term_surface,
-            conflict_type=ConflictType.AMBIGUOUS,
-            severity=Severity.MEDIUM,
-            confidence=0.8,
-            candidate_senses=[],
-            context=context,
-        )
-    if active[0].confidence < 0.9:
-        return SemanticConflict(
-            term=term_surface,
-            conflict_type=ConflictType.UNKNOWN,
-            severity=Severity.LOW,
-            confidence=active[0].confidence,
-            candidate_senses=[],
-            context=context,
-        )
-    return None  # unambiguous, high-confidence → no conflict surfaced
-```
+   # For each normalized token found in the index:
+   senses = index.surface_to_senses.get(normalized, [])
+   extracted_term = ExtractedTerm(
+       surface=normalized,
+       confidence=1.0,        # direct index hit = high confidence
+       source="request_text",
+   )
+   conflict_type = classify_conflict(
+       term=extracted_term,
+       resolution_results=senses,
+       is_critical_step=False,
+       llm_output_text=None,  # no LLM output available at invoke time
+   )
+   if conflict_type is not None:
+       severity = score_severity(conflict_type, confidence=1.0, is_critical_step=False)
+       conflict = create_conflict(
+           term=extracted_term,
+           conflict_type=conflict_type,
+           severity=severity,
+           candidate_senses=senses,
+           context="request_text",
+       )
+       all_conflicts.append(conflict)
+   # Always record the matched URN, even when no conflict (term was found clean)
+   matched_urns.append(urn)
+   ```
+
+4. Check the `ExtractedTerm` constructor by reading `src/specify_cli/glossary/extraction.py`. It is a dataclass with at minimum `surface: str`, `confidence: float`, `source: str` — use those fields; do not guess additional fields.
+
+**Note on `classify_conflict()` returning `None`:** A return of `None` means the term was found with a single unambiguous active sense and no inconsistency — a clean match. Add the URN to `matched_urns` but do not add to `all_conflicts`. This is the correct "term found, no drift" state.
 
 **Validation:**
-- [ ] Single high-confidence sense → `None`
-- [ ] Single low-confidence sense (< 0.9) → `LOW`
-- [ ] Single very-low-confidence sense (< 0.7) → `HIGH`
-- [ ] Two active senses → `MEDIUM`
-- [ ] Empty senses → `None`
+- [ ] `classify_conflict` / `score_severity` / `create_conflict` imported from `specify_cli.glossary.conflict`
+- [ ] No standalone `_classify()` function exists in `chokepoint.py`
+- [ ] Two active senses → `AMBIGUOUS` (severity from `score_severity()`, not hardcoded)
+- [ ] Single clean sense → `None` from `classify_conflict()` → no conflict, URN still in `matched_urns`
+- [ ] `create_conflict()` produces a `SemanticConflict` with `candidate_senses` populated
 
 ---
 

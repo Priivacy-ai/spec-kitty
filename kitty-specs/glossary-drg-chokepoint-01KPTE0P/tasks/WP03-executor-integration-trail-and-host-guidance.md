@@ -335,7 +335,7 @@ except Exception:  # noqa: BLE001
    ```json
    {
      "glossary_observations": {
-       "matched_urns": ["glossary:c5c5c8d0"],
+       "matched_urns": ["glossary:d93244e7"],
        "high_severity_count": 1,
        "all_conflict_count": 1,
        "tokens_checked": 12,
@@ -343,7 +343,7 @@ except Exception:  # noqa: BLE001
        "error_msg": null,
        "conflicts": [
          {
-           "urn": "glossary:c5c5c8d0",
+           "urn": "glossary:d93244e7",
            "term": "lane",
            "conflict_type": "inconsistent",
            "severity": "high",
@@ -579,7 +579,7 @@ def test_conflict_invocation_writes_glossary_checked_event(tmp_path):
         confidence=0.9,
     )
     conflict_bundle = GlossaryObservationBundle(
-        matched_urns=("glossary:c5c5c8d0",),
+        matched_urns=("glossary:d93244e7",),
         high_severity=(conflict,),
         all_conflicts=(conflict,),
         tokens_checked=10,

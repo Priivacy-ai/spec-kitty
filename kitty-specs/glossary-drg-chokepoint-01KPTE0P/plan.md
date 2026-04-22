@@ -106,7 +106,7 @@ tests/
 
 **Acceptance criteria for WP01:**
 - `NodeKind.GLOSSARY.value == "glossary"` ✓
-- `glossary_urn("lane") == "glossary:c5c5c8d0"` (verify exact hash) ✓
+- `glossary_urn("lane") == "glossary:d93244e7"` (verified: `sha256("lane".encode()).hexdigest()[:8]`) ✓
 - A `DRGGraph` returned by `build_glossary_drg_layer` contains one `DRGNode` per unique canonical surface in `applicable_scopes`, with `kind = NodeKind.GLOSSARY` ✓
 - `VOCABULARY` edges exist from each shipped action node URN to each term node ✓
 - An existing `graph.yaml` without `glossary` nodes loads via `load_graph()` without error ✓
@@ -117,44 +117,27 @@ tests/
 
 ---
 
-### WP02 — GlossaryChokepoint, GlossaryObservationBundle, and Executor Integration
+### WP02 — GlossaryChokepoint and GlossaryObservationBundle
 
 **Depends on:** WP01 (`GlossaryTermIndex`, `build_index()`)
 
-**Goal:** Implement the chokepoint class, wire it into the executor, benchmark it, and draft ADR-5.
+**Goal:** Implement `GlossaryObservationBundle`, `GlossaryChokepoint`, latency benchmarks, and ADR-5. No executor wiring in this WP — all `executor.py` and `writer.py` changes are in WP03.
 
 **Scope:**
-1. Implement `GlossaryObservationBundle` as a frozen dataclass in `src/specify_cli/glossary/chokepoint.py`. Fields: `matched_urns: tuple[str, ...]`, `high_severity: tuple[SemanticConflict, ...]`, `all_conflicts: tuple[SemanticConflict, ...]`, `tokens_checked: int`, `duration_ms: float`, `error_msg: str | None`. Implement `to_dict() -> dict[str, object]` that produces the JSONL-serializable form (see data-model.md).
-2. Implement `GlossaryChokepoint` in `chokepoint.py`. `__init__(repo_root: Path, applicable_scopes: set[GlossaryScope] | None = None)` — lazy, no I/O. `run(request_text: str, invocation_id: str) -> GlossaryObservationBundle` — tokenize, normalize, lookup, classify, return bundle. All exceptions caught; return error-bundle.
-3. Tokenizer in `run()`: split request_text on whitespace and punctuation (`re.split(r'[\s\W]+', text)`), lowercase each token, apply `_normalize()` from `drg_builder.py`, filter stop words (reuse `COMMON_WORDS` from `extraction.py`), lookup against `index.surface_to_urn`.
-4. Conflict classifier (private `_classify(surface, senses, context) -> SemanticConflict | None`): if only one active sense exists, return `SemanticConflict(conflict_type=UNKNOWN, severity=LOW)` for unrecognized terms or `None` for well-known unambiguous terms. If multiple active senses exist, return `SemanticConflict(conflict_type=AMBIGUOUS, severity=MEDIUM)`. If the surface is found but definition contains "inconsistent use" markers, return HIGH. For v1, severity classification can be simplified: HIGH if any active sense has `confidence < 0.7`; AMBIGUOUS (MEDIUM) if multiple senses; LOW otherwise.
-5. Modify `InvocationPayload.__slots__` in `src/specify_cli/invocation/executor.py`: append `"glossary_observations"`.
-6. Modify `ProfileInvocationExecutor.__init__()`: add `self._chokepoint: GlossaryChokepoint | None = None`. Instantiate lazily on first `invoke()` call.
-7. Modify `ProfileInvocationExecutor.invoke()`: after `build_charter_context()` (step 2 in existing flow), insert:
-   ```python
-   try:
-       if self._chokepoint is None:
-           self._chokepoint = GlossaryChokepoint(self._repo_root)
-       bundle = self._chokepoint.run(request_text, invocation_id)
-   except Exception as exc:
-       _logger.warning("glossary chokepoint failed: %r", exc)
-       bundle = GlossaryObservationBundle(
-           matched_urns=(), high_severity=(), all_conflicts=(),
-           tokens_checked=0, duration_ms=0.0, error_msg=repr(exc),
-       )
-   ```
-   Pass `glossary_observations=bundle` to the returned `InvocationPayload`.
-8. Benchmark: write `tests/specify_cli/glossary/bench_chokepoint.py` (standalone, not run in CI by default). Inputs: 500-term index, texts of 50/500/2000 words, 1000 iterations each. Record p95 per text size. Determine if ≤50ms target is met.
-9. Draft `architecture/adrs/2026-04-22-5-glossary-chokepoint-p95-measurement.md` with benchmark results, the confirmed or revised p95 threshold, and rationale. If the p95 target cannot be met at 500 terms / 2000 words, propose a revised threshold.
-10. Unit tests in `tests/specify_cli/glossary/test_chokepoint.py`: happy path (no conflicts), high-severity path, medium-severity path, exception-isolation (inject a store that raises on lookup — verify error-bundle returned, no exception propagates), `to_dict()` serialization, `GlossaryObservationBundle` immutability.
-11. Integration tests in `tests/specify_cli/invocation/test_executor_glossary.py`: `invoke()` returns `InvocationPayload` with `glossary_observations` slot set; error-bundle is returned when chokepoint is broken; `to_dict()` includes `glossary_observations` key.
+1. Implement `GlossaryObservationBundle` as a frozen dataclass in `src/specify_cli/glossary/chokepoint.py`. Fields: `matched_urns: tuple[str, ...]`, `high_severity: tuple[SemanticConflict, ...]`, `all_conflicts: tuple[SemanticConflict, ...]`, `tokens_checked: int`, `duration_ms: float`, `error_msg: str | None`. Implement `to_dict() -> dict[str, object]` (JSONL-serializable form).
+2. Implement `GlossaryChokepoint` in `chokepoint.py`. `__init__(repo_root, applicable_scopes)` — lazy, no I/O. `run(request_text, invocation_id) -> GlossaryObservationBundle` — tokenize, normalize, lookup, classify, return bundle. All exceptions caught inside `run()`.
+3. Tokenizer in `run()`: split on whitespace and punctuation, lowercase, apply `_normalize()` from `drg_builder.py`, filter `COMMON_WORDS` from `extraction.py`, lookup in `index.surface_to_urn`.
+4. Conflict classification: **reuse the existing classifiers in `specify_cli.glossary.conflict`** — do not implement a new one. For each matched term: construct `ExtractedTerm(surface=surface, confidence=1.0, source="request_text")`; call `classify_conflict(term, senses)`; call `score_severity(conflict_type, confidence=1.0, is_critical_step=False)`; call `create_conflict(term, conflict_type, severity, candidate_senses, context="request_text")`. Skip (no conflict added) when `classify_conflict()` returns `None` (single unambiguous active sense). URN is still added to `matched_urns` when the token matches, even with no conflict.
+5. Benchmark: write `tests/specify_cli/glossary/bench_chokepoint.py`. Inputs: 500-term index, texts of 50/500/2000 words, 1000 iterations each. Record p95 per text size.
+6. Draft `architecture/adrs/2026-04-22-5-glossary-chokepoint-p95-measurement.md` with benchmark results.
+7. Unit tests in `tests/specify_cli/glossary/test_chokepoint.py`. Integration tests for the `invoke()` + payload wiring belong in WP03's `test_executor_glossary.py`.
 
 **Acceptance criteria for WP02:**
-- `GlossaryChokepoint.run()` returns a `GlossaryObservationBundle` with `error_msg=None` on happy path ✓
-- When chokepoint raises internally, `invoke()` completes normally with `error_msg` set in the bundle ✓
-- `InvocationPayload.to_dict()` contains `"glossary_observations"` key ✓
-- Benchmark p95 ≤50ms confirmed (or ADR-5 documents a revised threshold with data) ✓
-- All new tests pass; `mypy --strict` and `ruff check` report zero errors ✓
+- `GlossaryChokepoint.run()` returns `GlossaryObservationBundle` with `error_msg=None` on happy path ✓
+- Conflict classification uses `classify_conflict()` / `score_severity()` / `create_conflict()` from `specify_cli.glossary.conflict` — no parallel severity model ✓
+- Exception injection returns error-bundle without propagating ✓
+- Benchmark p95 ≤50ms confirmed (or ADR-5 documents revised threshold) ✓
+- All new tests pass; `mypy --strict` and `ruff check` zero errors ✓
 
 ---
 
@@ -165,7 +148,7 @@ tests/
 **Goal:** Wire the observation bundle into the invocation trail, enforce the severity routing contract in code and docs, and verify the full e2e suite.
 
 **Scope:**
-1. Add `write_glossary_observation(self, invocation_id: str, bundle: GlossaryObservationBundle) -> None` to `InvocationWriter` in `src/specify_cli/invocation/writer.py`. Appends `bundle.to_dict()` as a JSON line to `.kittify/events/profile-invocations/{invocation_id}.jsonl`. Best-effort: all exceptions silently suppressed (consistent with `_append_to_index()`). Only call if `bundle.error_msg is None or bundle.all_conflicts` (skip entirely for clean invocations with empty bundles to avoid noise in the trail).
+1. Add `write_glossary_observation(self, invocation_id: str, bundle: GlossaryObservationBundle) -> None` to `InvocationWriter` in `src/specify_cli/invocation/writer.py`. Appends `bundle.to_dict()` as a JSON line to `.kittify/events/profile-invocations/{invocation_id}.jsonl`. Best-effort: all exceptions silently suppressed (consistent with `_append_to_index()`). Skip entirely for clean invocations: write only if `bundle.all_conflicts or bundle.error_msg is not None`. (The guard in code: `if not bundle.all_conflicts and bundle.error_msg is None: return`.)
 2. Wire `write_glossary_observation()` into `ProfileInvocationExecutor.invoke()` immediately after `write_started()` (step 4 → step 5 in the sequence from data-model.md).
 3. Identify existing Codex host guidance doc path (search for `codex` in `docs/` or `.agents/skills/`). Update the relevant section to document:
    - The `glossary_observations` field in `InvocationPayload` dict

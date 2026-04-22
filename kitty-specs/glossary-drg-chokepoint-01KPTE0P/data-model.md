@@ -31,13 +31,13 @@ Immutable (`frozen=True` dataclass). Always fully populated — never `None`. An
   "invocation_id": "01KPTE0P5JVQFWESWV07R0XG4M",
   "duration_ms": 12.4,
   "tokens_checked": 47,
-  "matched_urns": ["glossary:c5c5c8d0"],
+  "matched_urns": ["glossary:d93244e7"],
   "high_severity_count": 1,
   "all_conflict_count": 2,
   "error_msg": null,
   "conflicts": [
     {
-      "urn": "glossary:c5c5c8d0",
+      "urn": "glossary:d93244e7",
       "term": "lane",
       "conflict_type": "inconsistent",
       "severity": "high",
@@ -104,7 +104,7 @@ build_glossary_drg_layer(store: GlossaryStore, applicable_scopes: set[GlossarySc
   # This graph is NOT merged into the shipped DRG; it is used directly by GlossaryChokepoint.
 
 glossary_urn(surface_text: str) -> str
-  # "lane" → "glossary:c5c5c8d0"
+  # "lane" → "glossary:d93244e7"
   # hashlib.sha256(surface_text.encode()).hexdigest()[:8]
 ```
 
@@ -207,9 +207,9 @@ This text is prepended to the governance context block, not injected into the LL
 
 | Canonical surface | URN |
 |------------------|-----|
-| `lane` | `glossary:c5c5c8d0` |
-| `work package` | `glossary:5f2a1b8e` |
-| `mission` | `glossary:a3d7e6f1` |
+| `lane` | `glossary:d93244e7` |
+| `work package` | `glossary:50064d7f` |
+| `mission` | `glossary:ceb00a91` |
 
 URNs are stable across process restarts, store rebuilds, and Spec Kitty version upgrades, as long as the canonical surface form (lowercased, stripped) does not change. If a term's canonical surface is renamed, the URN changes — this is expected and acceptable (the old URN becomes orphaned).
 

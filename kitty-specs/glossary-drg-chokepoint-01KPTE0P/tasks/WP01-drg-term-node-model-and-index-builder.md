@@ -120,9 +120,10 @@ The existing `DRGNode` validator enforces `urn.split(":")[0] == kind.value`. Add
 4. Implement collision detection in the index builder (T005). Collision here only means the function itself — test it separately.
 5. Verify determinism: same input → same output across process restarts.
 
-**Expected output for test inputs:**
-- `glossary_urn("lane")` → `"glossary:c5c5c8d0"` (verify with `hashlib.sha256("lane".encode()).hexdigest()[:8]` in a Python REPL)
-- `glossary_urn("work package")` → deterministic value (record it in the test file)
+**Expected output for test inputs (verified against Python hashlib):**
+- `glossary_urn("lane")` → `"glossary:d93244e7"`
+- `glossary_urn("work package")` → `"glossary:50064d7f"`
+- `glossary_urn("mission")` → `"glossary:ceb00a91"`
 
 **Files:** `src/specify_cli/glossary/drg_builder.py` (new)
 
@@ -237,18 +238,21 @@ The existing `DRGNode` validator enforces `urn.split(":")[0] == kind.value`. Add
    ```python
    import re as _re
 
+   # IMPORTANT: es$ is intentionally absent. Applying es$ before s$ produces
+   # "lan" from "lanes" (incorrect). The plain s$ rule handles the Spec Kitty
+   # domain correctly: lanes→lane, missions→mission, worktrees→worktree.
    _SUFFIX_RULES = [
        (r"ments$", ""),
        (r"ment$",  ""),
        (r"tions$", ""),
        (r"tion$",  ""),
-       (r"ers$",   ""),
-       (r"ing$",   ""),
        (r"ness$",  ""),
+       (r"ings$",  ""),
+       (r"ing$",   ""),
+       (r"ers$",   ""),
        (r"ed$",    ""),
        (r"er$",    ""),
-       (r"es$",    ""),
-       (r"s$",     ""),
+       (r"s$",     ""),   # handles plurals: lanes→lane, missions→mission
    ]
    _MIN_STEM_LEN = 3
 

@@ -23,7 +23,7 @@
 
 **Decision:** `glossary:<sha256(canonical_surface, utf-8)[:8]>` — 8 lowercase hex characters derived from the canonical surface form.
 
-**Approach:** `canonical_surface = term.surface.surface_text` (already normalized to lowercase, trimmed). The ID is `hashlib.sha256(canonical_surface.encode()).hexdigest()[:8]`. Example: "lane" → `glossary:c5c5c8d0`. The derivation is deterministic and stable: the same term always produces the same URN across process restarts and store rebuilds.
+**Approach:** `canonical_surface = term.surface.surface_text` (already normalized to lowercase, trimmed). The ID is `hashlib.sha256(canonical_surface.encode()).hexdigest()[:8]`. Example: "lane" → `glossary:d93244e7`. The derivation is deterministic and stable: the same term always produces the same URN across process restarts and store rebuilds.
 
 **Collision probability:** With 8 hex chars (4 billion space), expected collision with 10,000 terms is ~1.2×10⁻⁵. Negligible for any realistic glossary. If a collision is detected at index build time, the builder logs a warning and retains the first term (predictable, deterministic behavior).
 
@@ -36,7 +36,7 @@ This is the only clean path through the existing URN validator without relaxing 
 **Alternatives rejected:**
 - Sequential integer IDs: not stable across store rebuilds (different insertion order). Rejected.
 - ULIDs: non-deterministic (time-based). Rejected.
-- `NodeKind.GLOSSARY_TERM = "glossary_term"` with `glossary_term:` URNs: would contradict the spec's `glossary:<id>` notation and require updating all spec references. Rejected.
+- `NodeKind.GLOSSARY_TERM = "glossary_term"` with `glossary_term:` URNs: would contradict the spec's `glossary:<id>` notation. The DRG validator enforces `urn_prefix == kind.value`, so this would require `glossary_term:` URNs everywhere. Rejected in favour of `NodeKind.GLOSSARY = "glossary"` which produces `glossary:` URNs as specified.
 
 ---
 
@@ -44,10 +44,11 @@ This is the only clean path through the existing URN validator without relaxing 
 
 **Decision:** Pure Python suffix-stripping with no new library dependencies.
 
-**Rules applied after lowercasing (in order):**
-1. Strip trailing `s` if remainder is ≥ 3 chars and not itself a stop word
-2. Strip `-es`, `-ing`, `-ed`, `-er`, `-ers`, `-tion`, `-tions`, `-ment`, `-ments`
-3. Normalize hyphens and underscores to spaces; split on whitespace and punctuation
+**Rules applied after lowercasing (in order, first match with stem ≥ 3 chars wins):**
+1. Strip multi-char suffixes first: `-ments`, `-ment`, `-tions`, `-tion`, `-ness`, `-ings`, `-ing`, `-ers`, `-ed`, `-er`
+2. Strip `-s` last (handles "lanes" → "lane", "missions" → "mission")
+3. The `-es` rule is intentionally absent — applying it before `-s` would produce "lan" from "lanes" (incorrect). The simple `-s` rule suffices for Spec Kitty's domain terms.
+4. Normalize hyphens and underscores to spaces; split on whitespace and punctuation
 
 **Rationale:** The existing codebase (`extraction.py`) already uses regex-based patterns with no NLP library. Adding NLTK or spaCy for lemmatization would be a significant dependency. Suffix stripping is sufficient for the chokepoint's purpose — detecting known glossary terms in request text. Operators who want variant forms (e.g., "worktrees" → "worktree") can list them as aliases in seed files.
 
@@ -81,12 +82,12 @@ This is the only clean path through the existing URN validator without relaxing 
   "invocation_id": "<ulid>",
   "duration_ms": 12.4,
   "tokens_checked": 47,
-  "matched_urns": ["glossary:c5c5c8d0"],
+  "matched_urns": ["glossary:d93244e7"],
   "high_severity_count": 1,
   "all_conflict_count": 2,
   "error_msg": null,
   "conflicts": [
-    {"urn": "glossary:c5c5c8d0", "term": "lane", "conflict_type": "inconsistent", "severity": "high", "confidence": 0.9}
+    {"urn": "glossary:d93244e7", "term": "lane", "conflict_type": "inconsistent", "severity": "high", "confidence": 0.9}
   ]
 }
 ```
