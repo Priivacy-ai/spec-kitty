@@ -20,7 +20,7 @@ requirement_refs:
 - NFR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Implement on the lane worktree allocated by spec-kitty implement WP02. WP01 must be merged to main before starting.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T008
 - T009
