@@ -1,4 +1,4 @@
-"""Migration: Add missing task-prompt-template.md and tasks.md to research mission.
+"""Migration: Add missing research mission task template assets.
 
 This migration fixes a bug where research missions were missing:
 1. task-prompt-template.md - The YAML frontmatter template for WP files
@@ -26,20 +26,47 @@ class ResearchMissionTemplatesMigration(BaseMigration):
     - Research WP files used **Status**: for_review in markdown body
     - Review command expected lane: "for_review" in YAML frontmatter
 
-    The fix adds:
+    The historical fix adds:
     - templates/task-prompt-template.md with proper YAML frontmatter
     - command-templates/tasks.md with instructions to use the template
+
+    Modern Spec Kitty versions no longer ship research-specific command templates.
+    The global runtime owns those command surfaces instead. In that layout the
+    task prompt template remains required, while research/command-templates/tasks.md
+    becomes legacy-only and must not block upgrades.
     """
 
     migration_id = "0.9.2_research_mission_templates"
     description = "Add missing task-prompt-template.md and tasks.md to research mission"
     target_version = "0.9.2"
 
-    # Files that should exist in the research mission
+    # Files that must exist in every supported package layout.
     REQUIRED_FILES = [
         ("templates", "task-prompt-template.md"),
+    ]
+
+    # Files that only matter for older package layouts which still bundled
+    # research-specific command templates.
+    LEGACY_REQUIRED_FILES = [
         ("command-templates", "tasks.md"),
     ]
+
+    def _required_files_for_package(self, package_research: Path | None) -> list[tuple[str, str]]:
+        """Return the files this runtime can and should repair.
+
+        Current releases still need the research task prompt template, but the
+        research-specific tasks command was retired once command prompts moved to
+        the global runtime. Treat that file as required only when the packaged
+        mission actually still contains it.
+        """
+        required = list(self.REQUIRED_FILES)
+        if package_research is None:
+            return required
+
+        for subdir, filename in self.LEGACY_REQUIRED_FILES:
+            if (package_research / subdir / filename).exists():
+                required.append((subdir, filename))
+        return required
 
     def detect(self, project_path: Path) -> bool:
         """Check if research mission is missing required templates."""
@@ -48,7 +75,8 @@ class ResearchMissionTemplatesMigration(BaseMigration):
         if not research_mission.exists():
             return False  # No research mission, nothing to fix
 
-        for subdir, filename in self.REQUIRED_FILES:
+        package_research = self._find_package_research_mission()
+        for subdir, filename in self._required_files_for_package(package_research):
             target = research_mission / subdir / filename
             if not target.exists():
                 return True
@@ -68,7 +96,7 @@ class ResearchMissionTemplatesMigration(BaseMigration):
 
         # Check that package has the required files
         missing_in_pkg = []
-        for subdir, filename in self.REQUIRED_FILES:
+        for subdir, filename in self._required_files_for_package(package_research):
             src = package_research / subdir / filename
             if not src.exists():
                 missing_in_pkg.append(f"{subdir}/{filename}")
@@ -103,7 +131,7 @@ class ResearchMissionTemplatesMigration(BaseMigration):
             )
 
         # Copy missing files
-        for subdir, filename in self.REQUIRED_FILES:
+        for subdir, filename in self._required_files_for_package(package_research):
             src = package_research / subdir / filename
             dest_dir = research_mission / subdir
             dest = dest_dir / filename
@@ -133,7 +161,7 @@ class ResearchMissionTemplatesMigration(BaseMigration):
                 if not wt_research.exists():
                     continue
 
-                for subdir, filename in self.REQUIRED_FILES:
+                for subdir, filename in self._required_files_for_package(package_research):
                     src = package_research / subdir / filename
                     dest_dir = wt_research / subdir
                     dest = dest_dir / filename

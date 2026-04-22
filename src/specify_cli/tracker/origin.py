@@ -53,6 +53,7 @@ class OriginBindingError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 _SLUG_SANITIZE_RE = re.compile(r"[^a-z0-9]+")
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def _derive_slug_from_ticket(candidate: OriginCandidate) -> str:
@@ -77,6 +78,34 @@ def _derive_slug_from_ticket(candidate: OriginCandidate) -> str:
         slug = "untitled"
 
     return slug
+
+
+def _normalize_summary_text(value: str) -> str:
+    """Collapse whitespace into a stable single-paragraph representation."""
+    return _WHITESPACE_RE.sub(" ", value or "").strip()
+
+
+def _derive_ticket_summary(candidate: OriginCandidate) -> tuple[str, str, str]:
+    """Return mission presentation fields derived deterministically from a ticket."""
+    friendly_name = _normalize_summary_text(candidate.title)
+    if not friendly_name:
+        raise OriginBindingError("Ticket-first mission creation requires a non-empty ticket title.")
+
+    purpose_tldr = friendly_name
+
+    body = candidate.body or ""
+    paragraphs = [
+        _normalize_summary_text(chunk)
+        for chunk in re.split(r"\n\s*\n", body)
+        if _normalize_summary_text(chunk)
+    ]
+    purpose_context = next((paragraph for paragraph in paragraphs if len(paragraph) >= 24), "")
+    if not purpose_context:
+        raise OriginBindingError(
+            "Ticket-first mission creation requires ticket body text with at least one non-empty explanatory paragraph."
+        )
+
+    return friendly_name, purpose_tldr, purpose_context
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +182,7 @@ def search_origin_candidates(
             status=c["status"],
             url=c["url"],
             match_type=c.get("match_type", "text"),
+            body=c.get("body"),
         )
         for c in response.get("candidates", [])
     ]
@@ -348,6 +378,7 @@ def start_mission_from_ticket(
 
     # 1. Derive slug from candidate
     slug = _derive_slug_from_ticket(candidate)
+    friendly_name, purpose_tldr, purpose_context = _derive_ticket_summary(candidate)
 
     # 2. Create feature
     try:
@@ -356,6 +387,9 @@ def start_mission_from_ticket(
             slug,
             mission=mission_type,
             target_branch=None,
+            friendly_name=friendly_name,
+            purpose_tldr=purpose_tldr,
+            purpose_context=purpose_context,
         )
     except MissionCreationError as exc:
         raise OriginBindingError(str(exc)) from exc

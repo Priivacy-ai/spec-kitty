@@ -27,6 +27,7 @@ class OriginCandidate:
     status: str
     url: str
     match_type: str  # "exact" or "text"
+    body: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

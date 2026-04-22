@@ -33,6 +33,18 @@ def _init_git_repo(repo: Path) -> None:
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
 
 
+def _mission_summary(slug: str) -> dict[str, str]:
+    title = slug.replace("-", " ").strip() or "test mission"
+    return {
+        "friendly_name": title.title(),
+        "purpose_tldr": f"Deliver {title} cleanly for the team.",
+        "purpose_context": (
+            f"This mission delivers {title} so product and engineering can move "
+            "forward with a clear outcome and shared understanding."
+        ),
+    }
+
+
 def _run_create(tmp_path: Path, slug: str) -> object:
     """Helper: call create_mission_core with standard mocks."""
     with (
@@ -43,7 +55,7 @@ def _run_create(tmp_path: Path, slug: str) -> object:
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        return create_mission_core(tmp_path, slug)
+        return create_mission_core(tmp_path, slug, **_mission_summary(slug))
 
 
 # ---------------------------------------------------------------------------

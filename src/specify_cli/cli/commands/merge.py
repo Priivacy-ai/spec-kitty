@@ -189,7 +189,7 @@ def _mark_wp_merged_done(
 
     metadata, _body = read_wp_frontmatter(wp_path)
     from specify_cli.status.lane_reader import get_wp_lane
-    from specify_cli.status.models import DoneEvidence, ReviewApproval, TransitionRequest
+    from specify_cli.status.models import DoneEvidence, ReviewApproval
     from specify_cli.status.emit import emit_status_transition, TransitionError
     from specify_cli.status.history_parser import extract_done_evidence
     from specify_cli.status.transitions import resolve_lane_alias
@@ -838,6 +838,26 @@ def _run_lane_based_merge_locked(
         if mission_result.commit:
             console.print(f"  Commit: {mission_result.commit[:7]}")
 
+    # -- WP05/T006 FR-013: Post-merge working-tree refresh --
+    # Re-sync the primary checkout against HEAD so any paths that git left out
+    # (the observed legacy sparse-checkout case — Priivacy-ai/spec-kitty#588)
+    # are restored before we record done transitions and persist the final
+    # housekeeping commit. Running this refresh after writing status.events.jsonl
+    # would clobber the freshly-recorded done transitions back to HEAD.
+    # This is a no-op on a clean full checkout. Do not abort on failure: the
+    # WP01 commit-layer backstop is the final safety net.
+    _ret_checkout, _out_checkout, _err_checkout = run_command(
+        ["git", "checkout", "HEAD", "--", "."],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if _ret_checkout != 0:
+        console.print(
+            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
+            f"{(_err_checkout or '').strip()}"
+        )
+
     # -- T001: Mark WPs done with per-WP state tracking --
     console.print("  [dim]Recording merged work packages as done...[/dim]")
     for lane in lanes_manifest.lanes:
@@ -856,24 +876,6 @@ def _run_lane_based_merge_locked(
             completed_set.add(wp_id)
 
     _assert_merged_wps_reached_done(main_repo, mission_slug, all_wp_ids)
-
-    # -- WP05/T006 FR-013: Post-merge working-tree refresh --
-    # Re-sync the primary checkout against HEAD so any paths that git left out
-    # (the observed legacy sparse-checkout case — Priivacy-ai/spec-kitty#588)
-    # are restored before the housekeeping commit runs. This is a no-op on a
-    # clean full checkout. Do not abort on failure: the WP01 commit-layer
-    # backstop is the final safety net.
-    _ret_checkout, _out_checkout, _err_checkout = run_command(
-        ["git", "checkout", "HEAD", "--", "."],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    if _ret_checkout != 0:
-        console.print(
-            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
-            f"{(_err_checkout or '').strip()}"
-        )
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
     # After the refresh, `git status --porcelain` MUST report at most the two

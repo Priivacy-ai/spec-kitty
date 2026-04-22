@@ -49,6 +49,8 @@ class MissionMetaRequired(TypedDict):
 class MissionMetaOptional(TypedDict, total=False):
     """Optional fields -- present only after specific operations."""
 
+    purpose_tldr: str
+    purpose_context: str
     vcs: str
     vcs_locked_at: str
     accepted_at: str
@@ -79,6 +81,7 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(MissionMetaRequired.__annotations__)
 HISTORY_CAP: int = 20
 VALID_CHANGE_MODES: frozenset[str] = frozenset({"bulk_edit"})
 _MISSION_NUMBER_PATTERN = re.compile(r"^(?P<number>\d+)-")
+_PURPOSE_FIELDS: tuple[str, str] = ("purpose_tldr", "purpose_context")
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,11 +267,36 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
     for field in sorted(REQUIRED_FIELDS):
         if field not in meta or not meta[field]:
             errors.append(f"Missing or empty required field: {field}")
+    for field in _PURPOSE_FIELDS:
+        if field in meta:
+            value = meta[field]
+            if not isinstance(value, str):
+                errors.append(f"Field {field} must be a string when present")
+            elif not " ".join(value.split()):
+                errors.append(f"Field {field} must not be empty when present")
     if "change_mode" in meta and meta["change_mode"] not in VALID_CHANGE_MODES:
         errors.append(
             f"Invalid change_mode {meta['change_mode']!r}; "
             f"valid values: {sorted(VALID_CHANGE_MODES)}"
         )
+    return errors
+
+
+def validate_purpose_summary(
+    purpose_tldr: str | None,
+    purpose_context: str | None,
+) -> list[str]:
+    """Validate required mission-purpose summary fields for new missions."""
+    errors: list[str] = []
+
+    if not isinstance(purpose_tldr, str) or not " ".join(purpose_tldr.split()):
+        errors.append("purpose_tldr is required and must be a non-empty string")
+    elif "\n" in purpose_tldr.strip():
+        errors.append("purpose_tldr must be a single line")
+
+    if not isinstance(purpose_context, str) or not " ".join(purpose_context.split()):
+        errors.append("purpose_context is required and must be a non-empty string")
+
     return errors
 
 
@@ -494,6 +522,27 @@ def set_target_branch(
 
     meta["target_branch"] = branch
 
+    write_meta(feature_dir, meta)
+    return meta
+
+
+def set_purpose_summary(
+    feature_dir: Path,
+    *,
+    purpose_tldr: str,
+    purpose_context: str,
+) -> dict[str, Any]:
+    """Set mission-purpose summary fields in ``meta.json``."""
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+
+    errors = validate_purpose_summary(purpose_tldr, purpose_context)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    meta["purpose_tldr"] = " ".join(purpose_tldr.split())
+    meta["purpose_context"] = " ".join(purpose_context.split())
     write_meta(feature_dir, meta)
     return meta
 

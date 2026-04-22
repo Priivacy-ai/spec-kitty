@@ -44,6 +44,18 @@ class TestKebabCasePattern:
 class TestCreateMissionCoreSlugValidation:
     """Integration-level test through create_mission_core() entry point."""
 
+    @staticmethod
+    def _mission_summary(slug: str) -> dict[str, str]:
+        title = slug.replace("-", " ").strip() or "test mission"
+        return {
+            "friendly_name": title.title(),
+            "purpose_tldr": f"Deliver {title} cleanly for the team.",
+            "purpose_context": (
+                f"This mission delivers {title} so product and engineering can move "
+                "forward with a clear outcome and shared understanding."
+            ),
+        }
+
     def test_digit_prefix_slug_accepted(self, tmp_path: Path) -> None:
         """FR-017: digit-prefixed slug does not raise MissionCreationError for slug validation."""
         from specify_cli.core.mission_creation import create_mission_core
@@ -58,7 +70,11 @@ class TestCreateMissionCoreSlugValidation:
              patch("specify_cli.core.mission_creation._commit_feature_file"):
             # Create the kitty-specs dir so mkdir doesn't fail
             (tmp_path / "kitty-specs").mkdir()
-            result = create_mission_core(repo_root=tmp_path, mission_slug="070-new-feature")
+            result = create_mission_core(
+                repo_root=tmp_path,
+                mission_slug="070-new-feature",
+                **self._mission_summary("070-new-feature"),
+            )
             assert result is not None
             assert result.mission_slug.startswith("new-feature-")
 
@@ -67,21 +83,33 @@ class TestCreateMissionCoreSlugValidation:
         from specify_cli.core.mission_creation import create_mission_core
 
         with pytest.raises(MissionCreationError, match="Invalid feature slug"):
-            create_mission_core(repo_root=tmp_path, mission_slug="User-Auth")
+            create_mission_core(
+                repo_root=tmp_path,
+                mission_slug="User-Auth",
+                **self._mission_summary("User-Auth"),
+            )
 
     def test_underscore_slug_still_rejected(self, tmp_path: Path) -> None:
         """FR-018: slugs with underscores are still rejected."""
         from specify_cli.core.mission_creation import create_mission_core
 
         with pytest.raises(MissionCreationError, match="Invalid feature slug"):
-            create_mission_core(repo_root=tmp_path, mission_slug="user_auth")
+            create_mission_core(
+                repo_root=tmp_path,
+                mission_slug="user_auth",
+                **self._mission_summary("user_auth"),
+            )
 
     def test_error_message_contains_digit_prefix_example(self, tmp_path: Path) -> None:
         """T036: error message includes a digit-prefix valid example."""
         from specify_cli.core.mission_creation import create_mission_core
 
         with pytest.raises(MissionCreationError) as exc_info:
-            create_mission_core(repo_root=tmp_path, mission_slug="User-Auth")
+            create_mission_core(
+                repo_root=tmp_path,
+                mission_slug="User-Auth",
+                **self._mission_summary("User-Auth"),
+            )
 
         error_text = str(exc_info.value)
         assert "068-feature-name" in error_text, "Error message should include digit-prefix example"

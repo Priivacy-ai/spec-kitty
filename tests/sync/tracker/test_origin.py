@@ -44,6 +44,12 @@ def _make_candidate(
     key: str = "WEB-123",
     issue_id: str = "issue-uuid-1",
     title: str = "Add Clerk auth",
+    body: str = (
+        "Make authentication consistent across the product so teams can launch a reliable sign-in flow "
+        "without patchwork fixes.\n\n"
+        "This ticket creates a single, trustworthy auth path so product and engineering can ship account "
+        "access confidently and reduce avoidable support friction."
+    ),
     status: str = "In Progress",
     url: str = "https://linear.app/acme/issue/WEB-123/add-clerk-auth",
     match_type: str = "text",
@@ -52,6 +58,7 @@ def _make_candidate(
         external_issue_id=issue_id,
         external_issue_key=key,
         title=title,
+        body=body,
         status=status,
         url=url,
         match_type=match_type,
@@ -725,6 +732,9 @@ class TestStartMissionFromTicket:
             "web-123",
             mission="software-dev",
             target_branch=None,
+            friendly_name="Add Clerk auth",
+            purpose_tldr="Add Clerk auth",
+            purpose_context="Make authentication consistent across the product so teams can launch a reliable sign-in flow without patchwork fixes.",
         )
 
     @patch("specify_cli.core.mission_creation.create_mission_core")
@@ -809,4 +819,20 @@ class TestStartMissionFromTicket:
                 "linear_team",
                 "team-uuid",
                 client=client,
+            )
+
+    def test_missing_body_rejected_before_creation(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Ticket-first mission creation requires a product-level body paragraph."""
+        candidate = _make_candidate(body="")
+
+        with pytest.raises(OriginBindingError, match="requires ticket body text"):
+            start_mission_from_ticket(
+                tmp_path,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
             )

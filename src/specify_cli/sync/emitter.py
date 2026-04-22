@@ -145,6 +145,20 @@ def _is_nullable_string(value: Any) -> bool:
     return value is None or (isinstance(value, str))
 
 
+def _default_mission_display_name(mission_slug: str) -> str:
+    parts = [part for part in str(mission_slug).strip().split("-") if part]
+    if not parts:
+        return "Mission"
+    return " ".join(parts)
+
+
+def _default_mission_purpose_context(display_name: str, target_branch: str) -> str:
+    return (
+        f"This mission advances {display_name} on {target_branch} so stakeholders can "
+        "track the work from mission creation onward."
+    )
+
+
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     "BuildRegistered": {
         "required": {"build_id", "repo_slug"},
@@ -215,12 +229,26 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     "MissionCreated": {
         # mission_number is int | None (FR-044, WP02): None for pre-merge,
         # int for post-merge.  mission_id (ULID) is the aggregate identity.
-        "required": {"mission_slug", "mission_number", "target_branch", "wp_count"},
+        "required": {
+            "mission_slug",
+            "mission_number",
+            "mission_type",
+            "target_branch",
+            "wp_count",
+            "friendly_name",
+            "purpose_tldr",
+            "purpose_context",
+        },
         "validators": {
             "mission_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
             "mission_number": lambda v: v is None or (isinstance(v, int) and v >= 0),
+            "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
             "target_branch": lambda v: isinstance(v, str) and len(v) >= 1,
             "wp_count": lambda v: isinstance(v, int) and v >= 0,
+            "friendly_name": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+            "purpose_tldr": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+            "purpose_context": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
+            "mission_id": _is_nullable_string,
             "created_at": lambda v: _is_datetime_string(v),
         },
     },
@@ -637,6 +665,10 @@ class EventEmitter:
         mission_number: int | None,
         target_branch: str,
         wp_count: int,
+        mission_type: str = "software-dev",
+        friendly_name: str | None = None,
+        purpose_tldr: str | None = None,
+        purpose_context: str | None = None,
         created_at: str | None = None,
         causation_id: str | None = None,
         mission_id: str | None = None,
@@ -652,11 +684,18 @@ class EventEmitter:
           - ``mission_slug``   — human display string (never used as join key)
           - ``mission_number`` — int | None (None for pre-merge, int for post-merge)
         """
+        display_name = (friendly_name or "").strip() or _default_mission_display_name(mission_slug)
+        summary_tldr = (purpose_tldr or "").strip() or display_name
+        summary_context = (purpose_context or "").strip() or _default_mission_purpose_context(display_name, target_branch)
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
             "mission_number": mission_number,
+            "mission_type": mission_type,
             "target_branch": target_branch,
             "wp_count": wp_count,
+            "friendly_name": display_name,
+            "purpose_tldr": summary_tldr,
+            "purpose_context": summary_context,
         }
         if created_at is not None:
             payload["created_at"] = created_at
