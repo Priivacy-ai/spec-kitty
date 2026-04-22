@@ -1,108 +1,208 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Glossary DRG Residence and Executor Chokepoint
 
+**Branch**: `main` → `main` | **Date**: 2026-04-22 | **Spec**: [spec.md](spec.md)
+**Mission ID:** `01KPTE0P5JVQFWESWV07R0XG4M`
+**Issue:** #467 (Phase 5 Foundation)
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+---
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Wire a deterministic, non-blocking glossary chokepoint into `ProfileInvocationExecutor.invoke()` that fires on every `advise` / `ask` / `do` invocation. Glossary terms are given stable `glossary:<id>` URNs; a runtime-computed in-memory layer (no persisted YAML, no operator sync step) materializes them as real `DRGNode`/`DRGEdge`/`DRGGraph` objects. The chokepoint tokenizes the request text, matches against the action-scoped term set using pure-Python suffix stripping, classifies conflicts via the existing `SemanticConflict` model, and returns a `GlossaryObservationBundle` attached to the `InvocationPayload`. High-severity findings surface inline to hosts; low/medium findings go to the JSONL trail only. Three work packages: (1) DRG node model + index builder, (2) chokepoint + executor integration + ADR-5 benchmarks, (3) severity routing + trail writes + host doc updates.
+
+---
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version:** Python 3.11+
+**Primary Dependencies:** `doctrine.drg.models` (DRGNode/DRGEdge/DRGGraph/NodeKind/Relation, existing), `specify_cli.glossary.*` (GlossaryStore/TermSense/SemanticConflict, existing), `specify_cli.invocation.*` (executor/writer, existing), `hashlib` + `time` (stdlib only — no new external dependencies)
+**Storage:** No new storage. Chokepoint observations appended as third JSONL event to existing per-invocation files at `.kittify/events/profile-invocations/{invocation_id}.jsonl`
+**Testing:** pytest + mypy --strict. ≥90% line coverage on new modules. Existing invocation e2e suite must pass unchanged.
+**Target Platform:** Linux / macOS (existing spec-kitty targets)
+**Performance Goals:** Chokepoint p95 ≤50ms on 2,000-word request + 500-term index; ≤2ms on ≤50-word request; index load ≤20ms
+**Constraints:** No LLM, no HTTP, no subprocess in hot path. Chokepoint failure never blocks invocation. `mark_loaded=False` invariant in `build_charter_context()` preserved. All new slots in `InvocationPayload` appear in `to_dict()` output.
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+---
 
 ## Charter Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+Charter policies applicable to this plan:
 
-[Gates determined based on charter file]
+| Policy | Applies | Disposition |
+|--------|---------|-------------|
+| `typer` CLI framework | No — no new CLI commands in this tranche | ✓ |
+| `ruamel.yaml` for YAML parsing | No — no new YAML reads/writes | ✓ |
+| `pytest` + 90% coverage | Yes | All new modules get unit tests to ≥90% line coverage |
+| `mypy --strict` | Yes | All new `.py` files must pass with zero errors |
+| Integration tests for CLI commands | Yes — executor is exercised by advise/ask/do | WP02 adds integration test; WP03 verifies e2e suite |
+| DIRECTIVE_003 (Decision Documentation) | Yes — ADR-5 captures the p95 threshold decision | ADR-5 drafted in WP02 |
+| DIRECTIVE_010 (Specification Fidelity) | Yes | Implementation traced against spec FRs in WP reviews |
+
+No violations to justify.
+
+---
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/glossary-drg-chokepoint-01KPTE0P/
+├── spec.md           # Approved specification
+├── plan.md           # This file
+├── research.md       # Phase 0 decisions (DRG model, URN derivation, lemmatization)
+├── data-model.md     # Phase 1 data model (GlossaryObservationBundle, GlossaryChokepoint, etc.)
+└── tasks.md          # Generated by /spec-kitty.tasks (not yet created)
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Code
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+├── doctrine/
+│   └── drg/
+│       └── models.py                          # MODIFY: add NodeKind.GLOSSARY = "glossary"
+├── specify_cli/
+│   ├── glossary/
+│   │   ├── drg_builder.py                     # NEW: GlossaryDRGBuilder, build_glossary_drg_layer(), glossary_urn()
+│   │   └── chokepoint.py                      # NEW: GlossaryChokepoint, GlossaryObservationBundle
+│   └── invocation/
+│       ├── executor.py                        # MODIFY: add chokepoint call, InvocationPayload.glossary_observations slot
+│       └── writer.py                          # MODIFY: add write_glossary_observation() method
+└── architecture/
+    └── adrs/
+        └── 2026-04-22-5-glossary-chokepoint-p95-measurement.md   # NEW (ADR-5, drafted in WP02)
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── doctrine/
+│   └── drg/
+│       └── test_glossary_node_kind.py         # NEW: NodeKind.GLOSSARY backward-compat tests
+├── specify_cli/
+│   ├── glossary/
+│   │   ├── test_drg_builder.py                # NEW: GlossaryDRGBuilder unit tests
+│   │   └── test_chokepoint.py                 # NEW: GlossaryChokepoint unit tests (including failure mode)
+│   └── invocation/
+│       └── test_executor_glossary.py          # NEW: executor integration tests (chokepoint wiring)
+└── (existing invocation e2e suite)            # Must pass unchanged after WP03
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+---
 
-## Complexity Tracking
+## Work Package Definitions
 
-*Fill ONLY if Charter Check has violations that must be justified*
+### WP01 — DRG Term Node Model and Index Builder
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+**Goal:** Establish the addressable `glossary:<id>` URN scheme and the in-memory builder that materializes glossary nodes/edges from the active `GlossaryStore`.
+
+**Scope:**
+1. Add `NodeKind.GLOSSARY = "glossary"` to `src/doctrine/drg/models.py`. Verify existing DRG YAML files load and validate without the new node kind present (backward-compat).
+2. Implement `glossary_urn(surface_text: str) -> str` in `src/specify_cli/glossary/drg_builder.py`. Hash: `hashlib.sha256(surface_text.encode()).hexdigest()[:8]`. Log a warning on collision detection.
+3. Implement `build_glossary_drg_layer(store: GlossaryStore, applicable_scopes: set[GlossaryScope]) -> DRGGraph` in `drg_builder.py`. Uses `load_validated_graph()` to get action node URNs from the shipped DRG; mints one `DRGNode(kind=NodeKind.GLOSSARY)` per active sense in applicable scopes; adds one `DRGEdge(relation=Relation.VOCABULARY)` per (action_urn → glossary_urn) pair. `generated_by = "glossary-drg-builder-v1"`.
+4. Implement `build_index(store: GlossaryStore, applicable_scopes: set[GlossaryScope]) -> GlossaryTermIndex` in `drg_builder.py`. Builds the `surface_to_urn` and `surface_to_senses` dicts from active senses. Also populates lemmatized-form aliases (suffix stripping) into `surface_to_urn` pointing to the canonical URN.
+5. Implement the suffix-stripping normalizer as a module-level function `_normalize(token: str) -> str` in `drg_builder.py`. Rules: lowercase, strip punctuation, apply suffix list (`-s`, `-es`, `-ing`, `-ed`, `-er`, `-ers`, `-tion`, `-tions`, `-ment`, `-ments`) using regex; minimum stem length 3.
+6. Unit tests in `tests/doctrine/drg/test_glossary_node_kind.py`: backward-compat DRG load, URN prefix validation, kind value string check.
+7. Unit tests in `tests/specify_cli/glossary/test_drg_builder.py`: URN derivation (known inputs → known hashes), collision detection/warning, builder output shape (node count, edge count), index lookup, normalizer edge cases.
+8. `mypy --strict` and `ruff check` pass on all new/modified files.
+
+**Acceptance criteria for WP01:**
+- `NodeKind.GLOSSARY.value == "glossary"` ✓
+- `glossary_urn("lane") == "glossary:c5c5c8d0"` (verify exact hash) ✓
+- A `DRGGraph` returned by `build_glossary_drg_layer` contains one `DRGNode` per unique canonical surface in `applicable_scopes`, with `kind = NodeKind.GLOSSARY` ✓
+- `VOCABULARY` edges exist from each shipped action node URN to each term node ✓
+- An existing `graph.yaml` without `glossary` nodes loads via `load_graph()` without error ✓
+- `build_index()` returns an index whose `surface_to_urn` contains both canonical and lemmatized forms ✓
+- All new tests pass; `mypy --strict` reports zero errors ✓
+
+**No-touch boundary:** `GlossaryStore`, `TermSense`, `SemanticConflict`, or any existing glossary module.
+
+---
+
+### WP02 — GlossaryChokepoint, GlossaryObservationBundle, and Executor Integration
+
+**Depends on:** WP01 (`GlossaryTermIndex`, `build_index()`)
+
+**Goal:** Implement the chokepoint class, wire it into the executor, benchmark it, and draft ADR-5.
+
+**Scope:**
+1. Implement `GlossaryObservationBundle` as a frozen dataclass in `src/specify_cli/glossary/chokepoint.py`. Fields: `matched_urns: tuple[str, ...]`, `high_severity: tuple[SemanticConflict, ...]`, `all_conflicts: tuple[SemanticConflict, ...]`, `tokens_checked: int`, `duration_ms: float`, `error_msg: str | None`. Implement `to_dict() -> dict[str, object]` that produces the JSONL-serializable form (see data-model.md).
+2. Implement `GlossaryChokepoint` in `chokepoint.py`. `__init__(repo_root: Path, applicable_scopes: set[GlossaryScope] | None = None)` — lazy, no I/O. `run(request_text: str, invocation_id: str) -> GlossaryObservationBundle` — tokenize, normalize, lookup, classify, return bundle. All exceptions caught; return error-bundle.
+3. Tokenizer in `run()`: split request_text on whitespace and punctuation (`re.split(r'[\s\W]+', text)`), lowercase each token, apply `_normalize()` from `drg_builder.py`, filter stop words (reuse `COMMON_WORDS` from `extraction.py`), lookup against `index.surface_to_urn`.
+4. Conflict classifier (private `_classify(surface, senses, context) -> SemanticConflict | None`): if only one active sense exists, return `SemanticConflict(conflict_type=UNKNOWN, severity=LOW)` for unrecognized terms or `None` for well-known unambiguous terms. If multiple active senses exist, return `SemanticConflict(conflict_type=AMBIGUOUS, severity=MEDIUM)`. If the surface is found but definition contains "inconsistent use" markers, return HIGH. For v1, severity classification can be simplified: HIGH if any active sense has `confidence < 0.7`; AMBIGUOUS (MEDIUM) if multiple senses; LOW otherwise.
+5. Modify `InvocationPayload.__slots__` in `src/specify_cli/invocation/executor.py`: append `"glossary_observations"`.
+6. Modify `ProfileInvocationExecutor.__init__()`: add `self._chokepoint: GlossaryChokepoint | None = None`. Instantiate lazily on first `invoke()` call.
+7. Modify `ProfileInvocationExecutor.invoke()`: after `build_charter_context()` (step 2 in existing flow), insert:
+   ```python
+   try:
+       if self._chokepoint is None:
+           self._chokepoint = GlossaryChokepoint(self._repo_root)
+       bundle = self._chokepoint.run(request_text, invocation_id)
+   except Exception as exc:
+       _logger.warning("glossary chokepoint failed: %r", exc)
+       bundle = GlossaryObservationBundle(
+           matched_urns=(), high_severity=(), all_conflicts=(),
+           tokens_checked=0, duration_ms=0.0, error_msg=repr(exc),
+       )
+   ```
+   Pass `glossary_observations=bundle` to the returned `InvocationPayload`.
+8. Benchmark: write `tests/specify_cli/glossary/bench_chokepoint.py` (standalone, not run in CI by default). Inputs: 500-term index, texts of 50/500/2000 words, 1000 iterations each. Record p95 per text size. Determine if ≤50ms target is met.
+9. Draft `architecture/adrs/2026-04-22-5-glossary-chokepoint-p95-measurement.md` with benchmark results, the confirmed or revised p95 threshold, and rationale. If the p95 target cannot be met at 500 terms / 2000 words, propose a revised threshold.
+10. Unit tests in `tests/specify_cli/glossary/test_chokepoint.py`: happy path (no conflicts), high-severity path, medium-severity path, exception-isolation (inject a store that raises on lookup — verify error-bundle returned, no exception propagates), `to_dict()` serialization, `GlossaryObservationBundle` immutability.
+11. Integration tests in `tests/specify_cli/invocation/test_executor_glossary.py`: `invoke()` returns `InvocationPayload` with `glossary_observations` slot set; error-bundle is returned when chokepoint is broken; `to_dict()` includes `glossary_observations` key.
+
+**Acceptance criteria for WP02:**
+- `GlossaryChokepoint.run()` returns a `GlossaryObservationBundle` with `error_msg=None` on happy path ✓
+- When chokepoint raises internally, `invoke()` completes normally with `error_msg` set in the bundle ✓
+- `InvocationPayload.to_dict()` contains `"glossary_observations"` key ✓
+- Benchmark p95 ≤50ms confirmed (or ADR-5 documents a revised threshold with data) ✓
+- All new tests pass; `mypy --strict` and `ruff check` report zero errors ✓
+
+---
+
+### WP03 — Severity Routing, Trail Integration, and Host Guidance
+
+**Depends on:** WP02 (`GlossaryObservationBundle`, `InvocationPayload.glossary_observations`)
+
+**Goal:** Wire the observation bundle into the invocation trail, enforce the severity routing contract in code and docs, and verify the full e2e suite.
+
+**Scope:**
+1. Add `write_glossary_observation(self, invocation_id: str, bundle: GlossaryObservationBundle) -> None` to `InvocationWriter` in `src/specify_cli/invocation/writer.py`. Appends `bundle.to_dict()` as a JSON line to `.kittify/events/profile-invocations/{invocation_id}.jsonl`. Best-effort: all exceptions silently suppressed (consistent with `_append_to_index()`). Only call if `bundle.error_msg is None or bundle.all_conflicts` (skip entirely for clean invocations with empty bundles to avoid noise in the trail).
+2. Wire `write_glossary_observation()` into `ProfileInvocationExecutor.invoke()` immediately after `write_started()` (step 4 → step 5 in the sequence from data-model.md).
+3. Identify existing Codex host guidance doc path (search for `codex` in `docs/` or `.agents/skills/`). Update the relevant section to document:
+   - The `glossary_observations` field in `InvocationPayload` dict
+   - The `high_severity` rendering contract: prepend inline text before governance context
+   - Suggested inline format (from data-model.md)
+   - What to do when `error_msg` is set (log warning, do not block)
+4. Identify existing gstack host guidance doc path. Apply the same updates.
+5. Update `docs/trail-model.md` to document the new `"glossary_checked"` event type under the Tier 1 section (it is appended to the same file as the `started` event, so it is effectively Tier 1 content).
+6. Run the full existing invocation e2e test suite (`tests/merge/test_profile_charter_e2e.py` and any other invocation e2e tests). Confirm all pass without modification.
+7. Add one e2e-style test in `test_executor_glossary.py` (or a new file) that exercises the full `invoke()` → `write_glossary_observation()` path and verifies the JSONL file for an invocation contains three lines: `started`, `glossary_checked`, and (after `complete_invocation()`) `completed`.
+
+**Acceptance criteria for WP03:**
+- A `spec-kitty advise` call on a project with active glossary terms produces a `.jsonl` invocation file with a `"glossary_checked"` event ✓
+- A clean invocation (no conflicts, no errors) produces NO `"glossary_checked"` event in the trail (to avoid noise) ✓
+- The Codex and gstack host guidance docs contain the `glossary_observations` field description and rendering contract ✓
+- `docs/trail-model.md` documents the `"glossary_checked"` event type ✓
+- Existing invocation e2e tests pass unchanged ✓
+- `mypy --strict` and `ruff check` pass on all modified files ✓
+
+---
+
+## Risk Register
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| p95 benchmark exceeds 50ms on 2,000-word + 500-term inputs | Low-medium | Medium | WP02 benchmarks early; ADR-5 documents revised threshold if needed; worst-case is raising the threshold, not blocking the feature |
+| `NodeKind.GLOSSARY = "glossary"` naming breaks `StrEnum` convention | Low | Low | Convention check only — no runtime impact. The value "glossary" is unique and unambiguous |
+| Collision in `glossary:<id>` URN derivation | Very low | Low | WP01 includes collision detection with logged warning; fallback is retaining the first term (predictable behavior) |
+| Chokepoint adds unexpected import cycle between `glossary` and `invocation` packages | Low | Medium | Use lazy import inside `invoke()` method body; WP02 verifies with `ruff check` (which catches circular imports in most cases) |
+| `write_glossary_observation()` silently fails on filesystem error | Acceptable | Low | Trail write is best-effort (matches existing `_append_to_index()` pattern); invocation succeeds regardless |
+| Existing e2e tests break because `InvocationPayload.to_dict()` now includes `glossary_observations` | Low | Low | Tests that assert exact dict contents will need to add the new key; tests that use `dict.get()` or only check specific keys are unaffected. WP03 discovers and fixes these |
+
+---
+
+## Branch Contract (final)
+
+**Current branch at plan start:** `main`
+**Planning/base branch:** `main`
+**Final merge target:** `main`
+**Strategy:** Three sequential work packages on `main` (or in a feature branch if the implementer prefers a PR-per-WP workflow). Each WP must pass `mypy --strict`, `ruff check`, and `pytest` before the next WP begins.
