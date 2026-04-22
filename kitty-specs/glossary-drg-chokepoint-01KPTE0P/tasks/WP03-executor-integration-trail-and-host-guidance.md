@@ -641,3 +641,4 @@ def test_conflict_invocation_writes_glossary_checked_event(tmp_path):
 ## Activity Log
 
 - 2026-04-22T12:37:14Z – claude:sonnet:implementer:implementer – shell_pid=52829 – Started implementation via action command
+- 2026-04-22T12:46:31Z – claude:sonnet:implementer:implementer – shell_pid=52829 – Ready for review: GlossaryChokepoint wired into executor, trail writer added, 5 new tests, docs updated. 151/151 tests pass.
