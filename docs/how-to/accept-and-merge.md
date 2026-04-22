@@ -1,11 +1,11 @@
 # How to Accept and Merge a Feature
 
-Use this guide to validate feature readiness and merge to `main`.
+Use this guide to validate feature readiness and merge to the mission's target branch.
 
 ## Prerequisites
 
 - All WPs are in `lane: "done"`
-- You are in a checkout where the feature can be resolved (main checkout or execution workspace)
+- You are in a checkout where the feature can be resolved (repository root checkout or execution workspace)
 
 ## Accept the Feature
 
@@ -33,7 +33,7 @@ To run a read-only checklist (in your terminal):
 spec-kitty accept --mode checklist
 ```
 
-## Merge to Main
+## Merge to the Target Branch
 
 In your agent:
 
@@ -46,6 +46,8 @@ Or in your terminal:
 ```bash
 spec-kitty merge --push
 ```
+
+By default, `spec-kitty merge` lands in the mission's recorded target branch. Use `spec-kitty merge --target <branch>` only when you intentionally need to override that destination.
 
 For detailed merge options including dry-run, strategies, and cleanup flags, see [Merge a Feature](merge-feature.md).
 
@@ -91,7 +93,7 @@ git branch -D <feature>-lane-a
 git branch -D <feature>-lane-b
 ```
 
-4. Remove the planning artifacts from main (spec/plan/tasks), then commit:
+4. Remove the planning artifacts from the repository root checkout (spec/plan/tasks), then commit:
 ```bash
 rm -rf kitty-specs/<feature>
 git add kitty-specs/
@@ -102,6 +104,7 @@ git commit -m "Remove abandoned feature <feature>"
 
 - **Accept reports blockers**: Resolve the listed issues, then rerun `/spec-kitty.accept`.
 - **Merge fails**: Ensure your current checkout is clean and the feature resolves correctly.
+- **Merge is heading to the wrong branch**: Inspect the mission's recorded target branch before retrying, and use `spec-kitty merge --target <branch>` only if you intend to override it.
 
 For detailed troubleshooting including pre-flight failures, conflict resolution, and merge recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
 
@@ -115,6 +118,7 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 ## See Also
 
 - [Merge a Feature](merge-feature.md) - Detailed merge workflow
+- [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
 - [Troubleshoot Merge Issues](troubleshoot-merge.md) - Recovery and conflict resolution
 - [Review a Work Package](review-work-package.md) - Required before accept
 - [Upgrade to 0.11.0](install-and-upgrade.md) - Breaking changes in v0.11.0

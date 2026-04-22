@@ -15,7 +15,8 @@ Syntax format in this reference:
 **Purpose**: Create or update a mission specification from a natural-language description.
 
 **Prerequisites**:
-- Run from the main repository root (no worktree).
+- Run from the repository root checkout (no worktree).
+- If the mission should land on a branch other than the current branch, resolve that intent first with `spec-kitty agent mission branch-context --json --target-branch <branch>`.
 - Discovery interview is required before generating artifacts.
 
 **What it does**:
@@ -39,7 +40,7 @@ Syntax format in this reference:
 **Purpose**: Create the implementation plan and design artifacts based on the spec.
 
 **Prerequisites**:
-- Run from the main repository root.
+- Run from the repository root checkout.
 - Spec exists for the feature.
 
 **What it does**:
@@ -66,7 +67,7 @@ Syntax format in this reference:
 **Purpose**: Generate work packages and task prompts from spec and plan.
 
 **Prerequisites**:
-- Run from the main repository root.
+- Run from the repository root checkout.
 - `spec.md` and `plan.md` exist.
 
 **What it does**:
@@ -90,7 +91,7 @@ Syntax format in this reference:
 
 **Prerequisites**:
 - Work packages exist in `kitty-specs/<feature>/tasks/`.
-- Run from the main repository for the action prompt; the execution workspace is created or reused by the CLI.
+- Run from the repository root checkout for the action prompt; the execution workspace is created or reused by the CLI.
 
 **What it does**:
 - If explicit slash-command args are provided, forwards the WP selection into the resolver-first action flow.
@@ -161,7 +162,8 @@ Syntax format in this reference:
 **Purpose**: Merge an accepted mission into the target branch and clean up worktrees.
 
 **Prerequisites**:
-- Run from any checkout where the mission can be resolved (main checkout or execution workspace).
+- Run from any checkout where the mission can be resolved (repository root checkout or execution workspace).
+- By default, merge lands in the mission's recorded target branch; use `--target <branch>` only when you intentionally want to override it.
 - Mission must pass `/spec-kitty.accept`.
 
 **What it does**:
@@ -202,7 +204,7 @@ Syntax format in this reference:
 **Purpose**: Open or stop the Spec Kitty dashboard in the browser.
 
 **Prerequisites**:
-- Can run from main repo or any worktree.
+- Can run from the repository root checkout or any worktree.
 
 **What it does**:
 - Runs `spec-kitty dashboard` to start or stop the dashboard server.
@@ -220,7 +222,7 @@ Syntax format in this reference:
 **Purpose**: Create or update the project charter.
 
 **Prerequisites**:
-- Run from the main repository root.
+- Run from the repository root checkout.
 
 **What it does**:
 - Runs a phase-based discovery interview (minimal or comprehensive).

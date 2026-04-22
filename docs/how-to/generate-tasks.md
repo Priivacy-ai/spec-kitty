@@ -6,6 +6,8 @@ Use this guide to turn a plan into work packages with `/spec-kitty.tasks`.
 
 - `kitty-specs/<feature>/plan.md` exists
 - All `[NEEDS CLARIFICATION]` items are resolved
+- You are in the repository root checkout
+- Task artifacts are committed to the mission's target branch
 
 ## The Command
 
@@ -52,7 +54,8 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 
 - **Missing plan**: Run `/spec-kitty.plan` first.
 - **Tasks look incomplete**: Resolve clarifications in `plan.md` and rerun `/spec-kitty.tasks`.
-- **Wrong directory**: Run from the main repository root.
+- **Wrong directory**: Run from the repository root checkout.
+- **Wrong target branch**: Re-check `spec-kitty agent mission branch-context --json` before regenerating tasks.
 
 ---
 
@@ -65,6 +68,7 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 ## See Also
 
 - [Create a Plan](create-plan.md) - Required before task generation
+- [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
 - [Implement a Work Package](implement-work-package.md) - Next step after tasks
 - [Handle Dependencies](handle-dependencies.md) - Managing WP dependencies
 

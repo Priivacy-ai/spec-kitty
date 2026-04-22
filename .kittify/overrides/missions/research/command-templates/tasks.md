@@ -17,15 +17,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-Verify you are in the planning repository (not a worktree). Task generation happens on the target branch for ALL missions.
+Verify you are in the repository root checkout (not a worktree). Task generation happens in the repository root checkout and commits to the mission's target branch for all missions.
 
 ```bash
 spec-kitty agent mission branch-context --json
 ```
 
-Use the returned JSON to confirm you are on the target branch (`planning_base_branch`).
+Use the returned JSON to confirm the intended planning branch (`planning_base_branch`) and stop if it does not match the user's intended landing branch.
 
-**Note**: Task generation in the target branch is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
+**Note**: Task generation uses the mission's target branch for all spec-kitty missions. Implementation happens later in per-WP worktrees.
 
 ---
 

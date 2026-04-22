@@ -630,12 +630,12 @@ spec-kitty merge --mission <slug>
 ## Step 6: Merge All Lanes
 
 After all WPs are approved, merge the lanes into the mission branch, then
-merge the mission branch into the target branch (usually `main`).
+merge the mission branch into the mission's target branch.
 
 ### Run the Merge Command
 
 ```bash
-# From the main repository root (NOT from a worktree)
+# From the repository root checkout (NOT from a worktree)
 spec-kitty merge --mission <mission-slug>
 ```
 
@@ -672,8 +672,8 @@ git merge kitty/mission-<mission-slug> --no-edit
 # 4. Commit the resolution
 git add -A && git commit -m "merge: resolve lane-<X> conflicts"
 
-# 5. Return to main repo and retry
-cd /path/to/main/repo
+# 5. Return to the repository root checkout and retry
+cd /path/to/repository-root
 spec-kitty merge --mission <mission-slug>
 ```
 
@@ -699,7 +699,7 @@ git log --oneline -3
 git show --stat HEAD
 ```
 
-Run the full test suite on main after merge to catch cross-lane integration issues:
+Run the full test suite on the mission's target branch after merge to catch cross-lane integration issues:
 
 ```bash
 # Run the validation command declared by this project or mission.
@@ -716,7 +716,7 @@ After merge completes, WPs move to `done` automatically. If they remain in
 ```bash
 for wp in WP01 WP02 WP03 WP04 WP05 WP06; do
   spec-kitty agent tasks move-task $wp --to done --force \
-    --done-override-reason "Feature merged to main" \
+    --done-override-reason "Feature merged to target branch" \
     --mission <mission-slug>
 done
 ```
@@ -741,7 +741,7 @@ done
 ## Troubleshooting
 
 **Agent cannot find spec-kitty CLI**: Ensure the dispatched agent has access
-to the main repo where spec-kitty is on PATH. For codex, use `--add-dir "$(pwd)"`.
+to the repository root checkout where spec-kitty is on PATH. For codex, use `--add-dir "$(pwd)"`.
 For others, verify the working directory.
 
 **move-task fails with "Illegal transition"**: The reviewer may need `--force`.
@@ -754,7 +754,7 @@ re-dispatch to a different agent.
 
 **Auto-commit warnings from sandboxed agents**: Some agents (codex) run in
 sandboxes that cannot write to `.git/index.lock`. The lane change is written
-to status files but needs manual commit from main:
+to status files but needs manual commit from the repository root checkout:
 `git add kitty-specs/ && git commit -m "chore: status update"`
 
 **Stale WP (in_progress but no agent activity)**: Force back to planned and

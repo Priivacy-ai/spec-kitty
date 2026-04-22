@@ -14,7 +14,7 @@ In your agent:
 /spec-kitty.specify <description>
 ```
 
-Run it from the main repository root. In v0.11.0+, planning artifacts live in `kitty-specs/` on `main`, and no worktrees are created during specify.
+Run it from the repository root checkout. Planning artifacts are created in `kitty-specs/` on the mission's target branch, and no worktrees are created during specify. If you do not pass `--target-branch`, Spec Kitty uses the current branch.
 
 ## The Discovery Interview
 
@@ -32,12 +32,13 @@ After the command, the CLI interviews you for missing details. You must answer e
 /spec-kitty.specify Build a photo organizer that groups albums by date and supports drag-and-drop reordering.
 ```
 
-During discovery, answer follow-up questions (roles, constraints, success criteria). Once complete, the spec is written to `kitty-specs/<feature>/spec.md` on `main`.
+During discovery, answer follow-up questions (roles, constraints, success criteria). Once complete, the spec is written to `kitty-specs/<feature>/spec.md` on the mission's target branch.
 
 ## Troubleshooting
 
 - **Stuck on discovery**: Answer the remaining interview questions. The spec will not be created until the interview is complete.
-- **Wrong directory**: Run from the main repository root, not from a worktree.
+- **Wrong directory**: Run from the repository root checkout, not from a worktree.
+- **Wrong landing branch**: Check `spec-kitty agent mission branch-context --json` before creating the mission, or pass `--target-branch <branch>` explicitly.
 - **Need to revise the spec**: Re-run `/spec-kitty.specify` with the updated description and follow the interview again.
 
 ---
@@ -50,6 +51,7 @@ During discovery, answer follow-up questions (roles, constraints, success criter
 ## See Also
 
 - [Create a Plan](create-plan.md) - Next step after specification
+- [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
 - [Switch Missions](switch-missions.md) - Choose different mission types
 
 ## Background

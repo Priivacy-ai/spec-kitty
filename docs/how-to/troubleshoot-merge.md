@@ -273,7 +273,7 @@ spec-kitty implement WP02
 | `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
 | `Uncommitted changes in <worktree-name>` | Worktree has uncommitted changes (pre-flight) | Commit or stash changes in that worktree |
 | `Error: Working directory has uncommitted changes.` | Legacy merge run from a dirty worktree | Commit or stash changes, then retry merge |
-| `Target repository at <path> has uncommitted changes.` | Main repo has uncommitted work | Commit or stash in main repo |
+| `Target repository at <path> has uncommitted changes.` | Repository root checkout has uncommitted work | Commit or stash in the repository root checkout |
 | `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Target branch diverged from origin | Run the suggested git checkout and pull commands |

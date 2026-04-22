@@ -36,7 +36,7 @@ Expected results:
 
 ## Step 2: Create the Technical Plan
 
-Stay in the main repository (planning happens in `main` in v0.11.0+).
+Stay in the repository root checkout. Planning happens there, but the mission target branch can be the current branch or an explicit branch you chose before creation.
 
 In your agent:
 
@@ -49,7 +49,7 @@ Answer the planning questions and confirm the Engineering Alignment summary.
 Expected results:
 
 - `kitty-specs/###-task-list/plan.md`
-- Updated planning artifacts in the main repository checkout
+- Updated planning artifacts in the repository root checkout
 
 ## Step 3: Generate Work Packages
 
@@ -131,11 +131,12 @@ Or via CLI:
 spec-kitty merge
 ```
 
-You should see the feature merged into `main` and the worktrees cleaned up.
+You should see the feature merged into the mission's target branch and the worktrees cleaned up.
 
 ## Troubleshooting
 
-- **"Planning created a worktree"**: Planning stays in the main checkout in `3.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
+- **"Planning created a worktree"**: Planning stays in the repository root checkout in `3.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
+- **"I want to plan from here but not land on `main`"**: Stay in the repository root checkout and choose the right target branch first. See [How to Keep Main Clean](../how-to/keep-main-clean.md).
 - **"WP has dependencies"**: Keep following the `spec-kitty next` decisions; the runtime will only issue implementation work when its dependencies are satisfied.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 
@@ -146,6 +147,7 @@ Continue with [Multi-Agent Workflow](multi-agent-workflow.md) to learn parallel 
 ### Related How-To Guides
 
 - [Create a Plan](../how-to/create-plan.md) - Detailed planning guidance
+- [Keep Main Clean](../how-to/keep-main-clean.md) - Choose a target branch without changing planning location
 - [Generate Tasks](../how-to/generate-tasks.md) - Work package generation
 - [Implement a Work Package](../how-to/implement-work-package.md) - Implementation details
 - [Review a Work Package](../how-to/review-work-package.md) - Review process

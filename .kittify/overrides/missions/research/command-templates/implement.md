@@ -133,8 +133,8 @@ Planning artifacts in `kitty-specs/{{mission_slug}}/research/` are:
 
 **If you need to update these** (rare during implementation):
 
-- They're in the planning repo (sparse-excluded from worktrees)
-- Edit them directly in the planning repository
+- They're in the repository root checkout (sparse-excluded from worktrees)
+- Edit them directly in the repository root checkout
 - Commit to the target branch before moving status
 
 **Most research WPs only produce deliverables, not planning updates.**
@@ -210,8 +210,8 @@ echo 'S001,"Smith (2024). AI Tools.",https://example.com,2025-01-25,high,reviewe
 |--------|--------------|----------|
 | **Primary output** | Source code in worktree | Research docs in `deliverables_path` |
 | **Commit location** | Worktree branch | Worktree branch (same!) |
-| **Merges to main** | Yes, via spec-kitty merge | Yes, via spec-kitty merge |
-| **Planning artifacts** | N/A | `kitty-specs/.../research/` (in main) |
+| **Merges to target branch** | Yes, via spec-kitty merge | Yes, via spec-kitty merge |
+| **Planning artifacts** | N/A | `kitty-specs/.../research/` (in the repository root checkout) |
 
 ### Why This Changed
 
@@ -223,7 +223,7 @@ Previously, research artifacts went in `kitty-specs/` which is sparse-excluded f
 Now, research deliverables go in `{{deliverables_path}}` which:
 
 - EXISTS in worktrees (not sparse-excluded)
-- MERGES to main when WPs complete
+- MERGES to the mission's target branch when WPs complete
 - Works just like code in software-dev missions
 
 ---
@@ -268,7 +268,7 @@ spec-kitty agent tasks move-task {{wp_id}} --to for_review  # GOOD!
 ### Mistake 3: Editing Planning Artifacts in Worktree
 
 Planning artifacts (`evidence-log.csv`, `source-register.csv`) are NOT in worktrees.
-If you need to update them, do so in the main repository.
+If you need to update them, do so in the repository root checkout.
 
 ---
 

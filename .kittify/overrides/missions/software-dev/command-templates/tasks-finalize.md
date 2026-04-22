@@ -13,9 +13,9 @@ them, update WP frontmatter, and commit all task artifacts to the target branch.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: This step works in the planning repository. NO worktrees created.
+**IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
 
 ## User Input
 

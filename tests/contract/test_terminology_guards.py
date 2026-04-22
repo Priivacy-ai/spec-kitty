@@ -312,6 +312,38 @@ def test_reference_examples_match_runtime_requirements():
         assert re.search(pattern, agent_reference, flags=re.MULTILINE) is None
 
 
+def test_no_main_branch_workflow_language_in_live_docs_and_skills():
+    """Live docs and doctrine skills must not teach generic main-branch workflow rules.
+
+    Authority: charter branch-intent terminology governance and spec.md FR-022.
+    """
+
+    forbidden_patterns = (
+        r"planning happens in `main`",
+        r"planning happens in main\b",
+        r"task generation happens in main\b",
+        r"merge to `main`",
+        r"merge to main\b",
+        r"run from the main repository root",
+        r"from the main repository root",
+    )
+
+    scan_targets = _live_doc_scan_targets()
+    for path_pattern in DOCTRINE_SKILL_GLOBS:
+        for path in _glob(path_pattern):
+            scan_targets.append((path, _read(path)))
+
+    for path, content in scan_targets:
+        relative = path.relative_to(REPO_ROOT)
+        for pattern in forbidden_patterns:
+            for match in re.finditer(pattern, content, flags=re.IGNORECASE):
+                line = _line_number(content, match.start())
+                pytest.fail(
+                    f"{relative}:{line}: teaches deprecated main-centric workflow wording. "
+                    "Fix: distinguish repository root checkout from explicit branch intent."
+                )
+
+
 def test_orchestrator_api_envelope_width_unchanged():
     """The orchestrator-api envelope must remain the canonical 7-key shape.
 

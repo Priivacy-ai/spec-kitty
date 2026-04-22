@@ -184,16 +184,16 @@ Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), lane met
 
 Always use `spec-kitty implement`.
 
-### Committing in the Main Repo During Implementation
+### Committing in the Repository Root Checkout During Implementation
 
 ```bash
-# WRONG: Committing code in the main repo
+# WRONG: Committing code in the repository root checkout
 cd my-repo/
 git add src/new-feature.py
 git commit -m "feat: new feature"
 ```
 
-The main repository is for planning artifacts only. Implementation commits belong in the worktree. Committing code in the main repo will create merge conflicts when the worktree branches are merged back.
+The repository root checkout is for planning artifacts only. Implementation commits belong in the worktree. Committing code in the repository root checkout will create merge conflicts when the worktree branches are merged back.
 
 ### Pushing Without Being Asked
 

@@ -473,7 +473,7 @@ spec-kitty dashboard         # Restart
 | `/spec-kitty.implement` | Ready to code | Auto-pick task → implement → move lanes |
 | `/spec-kitty.review` | Code review time | Review completed work → approve or reject |
 | `/spec-kitty.accept` | Feature complete | Validate all tasks done → ready to merge |
-| `/spec-kitty.merge` | Ready to ship | Merge to main → cleanup worktree |
+| `/spec-kitty.merge` | Ready to ship | Merge to mission target branch → cleanup worktree |
 
 ### CLI Commands (Outside Claude)
 

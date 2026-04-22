@@ -46,6 +46,23 @@ See the [mission identity migration runbook](../migration/mission-id-canonical-i
 5. `repository_label` is a mutable display name -- never use it as a primary key.
 6. `repo_slug` means `owner/repo` from the Git provider -- do not repurpose it for display names.
 7. `repository_uuid` is the required namespace key for local operations -- not `project_uuid`.
+8. `repository root checkout` is a location, not a branch name.
+9. Use `current branch`, `target branch`, `planning_base_branch`, and `merge_target_branch` when you mean branch intent.
+10. Do not use `main repository`, `main repo`, or `main repository root` in new docs or prompts.
+
+---
+
+## Checkout and Branch Terms
+
+| Term | Meaning | Do Not Use It To Mean |
+|------|---------|------------------------|
+| **repository root checkout** | The non-worktree checkout where planning commands run | The branch name |
+| **current branch** | The branch checked out when planning starts | The mission's intended landing branch if it was explicitly overridden |
+| **target branch** | The branch the mission records planning and merge intent against | "Whatever branch happens to be checked out later" |
+| **planning_base_branch** | Canonical helper alias for the intended planning branch | A second repository or a worktree |
+| **merge_target_branch** | Canonical helper alias for the intended final merge branch | Proof that the branch must be `main` |
+
+When location and branch both matter, name both explicitly. Example: "Run `/spec-kitty.plan` from the repository root checkout on `develop`."
 
 ---
 

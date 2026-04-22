@@ -4,14 +4,14 @@ description: Perform structured research review with citation validation.
 
 ## Research Review Overview
 
-Research WPs produce deliverables in a **worktree**, which merge to main like code.
+Research WPs produce deliverables in a **worktree**, which merge to the mission's target branch like code.
 
 ### Two Types of Artifacts
 
 | Type | Location | Review Focus |
 |------|----------|--------------|
 | **Research Deliverables** | `{{deliverables_path}}` (in worktree) | PRIMARY - Your main review target |
-| **Planning Artifacts** | `kitty-specs/{{mission_slug}}/research/` (in main) | SECONDARY - Citation validation only |
+| **Planning Artifacts** | `kitty-specs/{{mission_slug}}/research/` (in the repository root checkout) | SECONDARY - Citation validation only |
 
 ### Review Checklist
 
@@ -70,7 +70,7 @@ Before proceeding with review, verify you are in the correct working directory b
 **What this validates**:
 
 - Current branch follows the mission pattern like `001-mission-name`
-- You're not attempting to run from `main` or any release branch
+- You're not attempting to run from the wrong target branch or any release branch that does not match the mission's branch contract
 - The validator prints clear navigation instructions if you're outside the mission worktree
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.

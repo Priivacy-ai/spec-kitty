@@ -15,9 +15,9 @@ This step assumes `wps.yaml` already exists with complete WP definitions.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in the project root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: This step works in the project root checkout. NO worktrees created.
+**IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
 
 **In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 

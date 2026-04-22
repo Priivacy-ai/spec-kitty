@@ -1,6 +1,6 @@
 # How to Merge a Mission
 
-Use this guide to merge completed work packages from a Spec Kitty mission into main.
+Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ Use this guide to merge completed work packages from a Spec Kitty mission into m
 
 ## Quick Start
 
-From any execution workspace or from main with the `--mission` flag:
+From any execution workspace or from the repository root checkout with the `--mission` flag:
 
 In your agent:
 
@@ -24,7 +24,7 @@ Or in your terminal:
 spec-kitty merge
 ```
 
-Or from main branch:
+Or from the repository root checkout:
 
 ```bash
 spec-kitty merge --mission 015-user-authentication
@@ -36,7 +36,7 @@ Before merging, spec-kitty runs automatic pre-flight checks:
 
 1. **Workspace cleanliness**: All resolved execution workspaces must have no uncommitted changes
 2. **Missing workspaces**: All WPs defined in tasks must have execution workspaces created if they are expected to merge
-3. **Target divergence**: Target branch (main) should not be behind origin
+3. **Target divergence**: The mission's target branch should not be behind origin
 
 Example pre-flight output when validation passes:
 
@@ -84,7 +84,7 @@ Pre-flight failed. Fix these issues before merging:
 |-------|-----|
 | Uncommitted changes in a workspace | `cd <workspace path printed by spec-kitty implement>` then commit or stash |
 | Missing workspace for WP## | `spec-kitty implement WP##` |
-| Target is behind origin | `git checkout main && git pull` |
+| Target is behind origin | `git checkout <target-branch> && git pull` |
 
 ## Preview with Dry-Run
 
@@ -108,7 +108,7 @@ Validating all execution workspaces...
 Mission Merge
 
 Dry run - would execute:
-  1. git checkout main
+  1. git checkout <target-branch>
   2. git pull --ff-only
   3. git merge --no-ff kitty/mission-018-merge-preflight-documentation
   4. git worktree remove /.../.worktrees/018-merge-preflight-documentation-lane-a
@@ -216,9 +216,9 @@ Push to origin immediately after merge:
 spec-kitty merge --push
 ```
 
-## Merge from Main Branch
+## Merge from the Repository Root Checkout
 
-If you're on main and want to merge a mission:
+If you're in the repository root checkout and want to merge a mission:
 
 ```bash
 spec-kitty merge --mission 015-user-authentication
@@ -228,7 +228,7 @@ This detects all WP worktrees for that mission and merges them in dependency ord
 
 ## Target Branch
 
-Merge into a branch other than main:
+By default, Spec Kitty merges into the mission's recorded target branch. Override it only when you intentionally need a different destination:
 
 ```bash
 spec-kitty merge --target develop
@@ -257,6 +257,11 @@ If a merge is interrupted (crash, conflict, network issue), use `--resume` to co
 ```bash
 spec-kitty merge --resume
 ```
+
+## See Also
+
+- [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
+- [Accept and Merge](accept-and-merge.md) - Shorter end-to-end merge flow
 
 This picks up where the merge left off, using the saved state in `.kittify/merge-state.json`.
 
