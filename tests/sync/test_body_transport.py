@@ -13,6 +13,7 @@ from specify_cli.sync.body_transport import (
     _build_request_body,
     _classify_response,
     _dispatch_404,
+    _format_bad_request_reason,
     _safe_json,
     push_content,
 )
@@ -124,6 +125,14 @@ class TestClassifyResponse:
         assert outcome.status == UploadStatus.FAILED
         assert outcome.retryable is False
 
+    def test_400_drf_field_errors(self) -> None:
+        task = FakeTask()
+        resp = _mock_response(400, {"content_body": ["This field may not be blank."]})
+        outcome = _classify_response(task, resp)
+        assert outcome.status == UploadStatus.FAILED
+        assert outcome.reason == "bad_request: content_body: This field may not be blank."
+        assert outcome.retryable is False
+
     def test_401_unauthorized(self) -> None:
         task = FakeTask()
         resp = _mock_response(401, {"error": "authentication_required"})
@@ -177,6 +186,22 @@ class TestDispatch404:
         assert outcome.status == UploadStatus.FAILED
         assert "index_entry_not_found" in outcome.reason
         assert outcome.retryable is True
+
+
+class TestFormatBadRequestReason:
+    def test_prefers_detail_string(self) -> None:
+        assert _format_bad_request_reason({"detail": "payload invalid"}) == "payload invalid"
+
+    def test_renders_field_errors(self) -> None:
+        assert (
+            _format_bad_request_reason({"content_body": ["This field may not be blank."]})
+            == "content_body: This field may not be blank."
+        )
+
+    def test_renders_multiple_fields(self) -> None:
+        assert _format_bad_request_reason(
+            {"artifact_path": ["Missing"], "content_body": ["Blank"]}
+        ) == "artifact_path: Missing | content_body: Blank"
 
     def test_namespace_not_found_not_retryable(self) -> None:
         task = FakeTask()

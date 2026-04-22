@@ -205,6 +205,18 @@ def diagnose_body_queue(body_queue: OfflineBodyUploadQueue) -> dict[str, Any]:
                 else None
             ),
             "retry_distribution": stats.retry_histogram,
+            "recorded_failure_count": body_queue.failure_count(),
+            "recent_failures": [
+                {
+                    "artifact_path": failure.artifact_path,
+                    "failure_reason": failure.failure_reason,
+                    "failure_count": failure.failure_count,
+                    "mission_slug": failure.mission_slug,
+                    "target_branch": failure.target_branch,
+                    "last_failed_at": failure.last_failed_at,
+                }
+                for failure in body_queue.get_recent_failures()
+            ],
         }
     }
 

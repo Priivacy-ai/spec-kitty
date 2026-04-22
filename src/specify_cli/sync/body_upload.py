@@ -203,6 +203,16 @@ def prepare_body_uploads(
             continue
 
         content, actual_hash = result
+        if content == "":
+            outcomes.append(
+                UploadOutcome(
+                    artifact_path=artifact.relative_path,
+                    status=UploadStatus.SKIPPED,
+                    reason="empty_content",
+                    content_hash=actual_hash,
+                )
+            )
+            continue
 
         # Enqueue
         enqueue_result = body_queue.enqueue(

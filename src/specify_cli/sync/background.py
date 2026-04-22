@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import contextlib
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
-from typing import TYPE_CHECKING, Optional
+from datetime import datetime, UTC
+from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
@@ -76,10 +77,8 @@ def _fetch_access_token_sync() -> str | None:
                 asyncio.set_event_loop(new_loop)
                 return new_loop.run_until_complete(tm.get_access_token())
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     asyncio.set_event_loop(None)
-                except Exception:
-                    pass
                 new_loop.close()
     except AuthenticationError as exc:
         logger.debug("Background sync token fetch failed: %s", exc)
@@ -178,10 +177,8 @@ class BackgroundSyncService:
 
     def _guarded_final_sync(self) -> None:
         """Run a single sync batch; swallows all exceptions."""
-        try:
+        with contextlib.suppress(Exception):
             self._perform_sync()
-        except Exception:
-            pass
 
     @property
     def last_sync(self) -> datetime | None:
@@ -414,8 +411,9 @@ class BackgroundSyncService:
             self._body_queue.mark_failed_retryable(task.row_id, outcome.reason)
             logger.debug("Body upload retryable failure: %s", outcome)
         elif outcome.status == UploadStatus.FAILED and not outcome.retryable:
+            self._body_queue.record_permanent_failure(task, outcome.reason)
             self._body_queue.mark_failed_permanent(task.row_id, outcome.reason)
-            logger.warning("Body upload permanent failure: %s", outcome)
+            logger.debug("Body upload permanent failure recorded: %s", outcome)
         else:
             logger.warning("Unexpected body outcome: %s", outcome)
 

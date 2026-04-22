@@ -199,3 +199,9 @@ required for the MVP:
 4. a versioned upgrade migration exists to roll that normalization forward
 5. targeted CLI lifecycle and migration pytest slices passed locally before the
    current SaaS work resumed
+6. dossier body upload now skips zero-byte placeholder artifacts before enqueue
+7. queue scoping now follows the canonical encrypted auth session store and
+   automatically rehomes legacy `queue.db` data into the active scoped queue
+8. permanent body-upload failures are recorded in structured diagnostics, and
+   400 responses now preserve DRF field errors instead of collapsing to
+   `bad_request: unknown`

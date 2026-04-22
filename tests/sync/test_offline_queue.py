@@ -4,7 +4,9 @@ import sqlite3
 import pytest
 
 pytestmark = pytest.mark.fast
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 from io import StringIO
 from pathlib import Path
 import tempfile
@@ -253,6 +255,37 @@ class TestOfflineQueueRetry:
 class TestOfflineQueueDefaultPath:
     """Test default path behavior"""
 
+    @staticmethod
+    def _write_session(tmp_path: Path, *, team_id: str = "team-red") -> None:
+        storage = FileFallbackStorage(base_dir=tmp_path / ".spec-kitty" / "auth")
+        issued_at = datetime.now(UTC)
+        storage.write(
+            StoredSession(
+                user_id="user-1",
+                email="test@example.com",
+                name="Test User",
+                teams=[
+                    Team(
+                        id=team_id,
+                        name="Private Teamspace",
+                        role="owner",
+                        is_private_teamspace=True,
+                    )
+                ],
+                default_team_id=team_id,
+                access_token="access-token",
+                refresh_token="refresh-token",
+                session_id="session-1",
+                issued_at=issued_at,
+                access_token_expires_at=issued_at + timedelta(hours=1),
+                refresh_token_expires_at=issued_at + timedelta(days=30),
+                scope="openid profile email offline_access",
+                storage_backend="file",
+                last_used_at=issued_at,
+                auth_method="authorization_code",
+            )
+        )
+
     def test_default_path_uses_home_directory(self, monkeypatch, tmp_path):
         """Test that default path is ~/.spec-kitty/queue.db"""
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -268,23 +301,13 @@ class TestOfflineQueueDefaultPath:
     def test_default_path_uses_scoped_queue_when_authenticated(self, monkeypatch, tmp_path):
         """Authenticated users should default to a scope-isolated queue file."""
         monkeypatch.setenv("HOME", str(tmp_path))
+        self._write_session(tmp_path)
         spec_kitty_dir = tmp_path / ".spec-kitty"
         spec_kitty_dir.mkdir(parents=True, exist_ok=True)
-        credentials_path = spec_kitty_dir / "credentials"
-        credentials_path.write_text(
+        (spec_kitty_dir / "config.toml").write_text(
             """
-[tokens]
-access = "test"
-refresh = "test"
-access_expires_at = "2099-01-01T00:00:00"
-refresh_expires_at = "2099-01-01T00:00:00"
-
-[user]
-username = "test@example.com"
-team_slug = "team-red"
-
-[server]
-url = "https://test.example.com"
+[sync]
+server_url = "https://test.example.com"
 """.strip()
         )
 
@@ -298,6 +321,65 @@ url = "https://test.example.com"
         assert default_queue_db_path() == expected_path
         default_queue = OfflineQueue()
         assert default_queue.db_path == expected_path
+
+    def test_session_scope_wins_over_legacy_credentials(self, monkeypatch, tmp_path):
+        """The encrypted auth session should override stale legacy credentials."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        self._write_session(tmp_path, team_id="private-team")
+
+        spec_kitty_dir = tmp_path / ".spec-kitty"
+        spec_kitty_dir.mkdir(parents=True, exist_ok=True)
+        (spec_kitty_dir / "config.toml").write_text(
+            """
+[sync]
+server_url = "https://test.example.com"
+""".strip()
+        )
+        (spec_kitty_dir / "credentials").write_text(
+            """
+[user]
+username = "legacy@example.com"
+team_slug = "legacy-team"
+
+[server]
+url = "https://legacy.example.com"
+""".strip()
+        )
+
+        expected_path = scope_db_path(
+            build_queue_scope(
+                server_url="https://test.example.com",
+                username="test@example.com",
+                team_slug="private-team",
+            )
+        )
+
+        assert default_queue_db_path() == expected_path
+
+    def test_legacy_queue_migrates_into_scoped_queue(self, monkeypatch, tmp_path):
+        """Legacy queue.db contents should be rehomed into the scoped queue."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        self._write_session(tmp_path)
+
+        spec_kitty_dir = tmp_path / ".spec-kitty"
+        spec_kitty_dir.mkdir(parents=True, exist_ok=True)
+        (spec_kitty_dir / "config.toml").write_text(
+            """
+[sync]
+server_url = "https://test.example.com"
+""".strip()
+        )
+
+        legacy_queue = OfflineQueue(spec_kitty_dir / "queue.db")
+        legacy_queue.queue_event(
+            {"event_id": "evt-legacy", "event_type": "TestEvent", "payload": {"migrated": True}}
+        )
+
+        scoped_queue = OfflineQueue()
+
+        assert scoped_queue.db_path != legacy_queue.db_path
+        assert scoped_queue.size() == 1
+        assert scoped_queue.drain_queue()[0]["event_id"] == "evt-legacy"
 
 
 class TestQueueStats:

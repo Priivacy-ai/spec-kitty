@@ -97,6 +97,10 @@ def _credentials_path() -> Path:
     return _spec_kitty_dir() / "credentials"
 
 
+def _auth_session_store_dir() -> Path:
+    return _spec_kitty_dir() / "auth"
+
+
 def _legacy_queue_db_path() -> Path:
     return _spec_kitty_dir() / "queue.db"
 
@@ -149,10 +153,110 @@ def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> s
     return build_queue_scope(str(server_url), str(username), str(team_slug))
 
 
+def _read_server_url_for_scope() -> str:
+    config_file = _spec_kitty_dir() / "config.toml"
+    if not config_file.exists():
+        return "https://spec-kitty-dev.fly.dev"
+    try:
+        data = toml.load(config_file)
+    except (toml.TomlDecodeError, OSError):
+        return "https://spec-kitty-dev.fly.dev"
+    value = data.get("sync", {}).get("server_url", "https://spec-kitty-dev.fly.dev")
+    return str(value)
+
+
+def read_queue_scope_from_session() -> str | None:
+    """Read queue scope from the real encrypted auth session store.
+
+    Returns None when the session is missing, unreadable, or incomplete.
+    """
+    try:
+        from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
+    except Exception:
+        return None
+
+    try:
+        session = FileFallbackStorage(base_dir=_auth_session_store_dir()).read()
+    except Exception:
+        return None
+
+    if session is None or not session.email:
+        return None
+
+    team_id = session.default_team_id
+    if not team_id and session.teams:
+        for team in session.teams:
+            if team.is_private_teamspace:
+                team_id = team.id
+                break
+        if not team_id:
+            team_id = session.teams[0].id
+
+    return build_queue_scope(
+        server_url=_read_server_url_for_scope(),
+        username=session.email,
+        team_slug=team_id or "no-team",
+    )
+
+
 def scope_db_path(scope: str) -> Path:
     """Resolve a deterministic queue DB path for a given scope."""
     digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:16]
     return _scoped_queue_dir() / f"queue-{digest}.db"
+
+
+def _table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
+    allowed_tables = {
+        "queue",
+        "body_upload_queue",
+        "body_upload_failure_log",
+    }
+    if table_name not in allowed_tables:
+        raise ValueError(f"Unexpected table name {table_name!r}")
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+        (table_name,),
+    )
+    if cursor.fetchone() is None:
+        return 0
+    query = {
+        "queue": "SELECT COUNT(*) FROM queue",
+        "body_upload_queue": "SELECT COUNT(*) FROM body_upload_queue",
+        "body_upload_failure_log": "SELECT COUNT(*) FROM body_upload_failure_log",
+    }[table_name]
+    row = conn.execute(query).fetchone()
+    return int(row[0]) if row else 0
+
+
+def _queue_db_has_content(db_path: Path) -> bool:
+    if not db_path.exists():
+        return False
+    conn = sqlite3.connect(db_path)
+    try:
+        return any(
+            _table_row_count(conn, table_name) > 0
+            for table_name in ("queue", "body_upload_queue", "body_upload_failure_log")
+        )
+    finally:
+        conn.close()
+
+
+def _migrate_legacy_queue_to_scope(scoped_db_path: Path) -> None:
+    """Copy legacy queue data into the scoped DB when the scoped DB is empty."""
+    legacy_db = _legacy_queue_db_path()
+    if not legacy_db.exists():
+        return
+    if _queue_db_has_content(scoped_db_path):
+        return
+
+    scoped_db_path.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(legacy_db)
+    dst = sqlite3.connect(scoped_db_path)
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
 
 
 def default_queue_db_path(credentials_path: Path | None = None) -> Path:
@@ -161,9 +265,13 @@ def default_queue_db_path(credentials_path: Path | None = None) -> Path:
     Unauthenticated sessions use legacy ~/.spec-kitty/queue.db.
     Authenticated sessions use scoped queues under ~/.spec-kitty/queues/.
     """
-    scope = read_queue_scope_from_credentials(credentials_path=credentials_path)
+    scope = read_queue_scope_from_session()
+    if scope is None:
+        scope = read_queue_scope_from_credentials(credentials_path=credentials_path)
     if scope:
-        return scope_db_path(scope)
+        scoped_path = scope_db_path(scope)
+        _migrate_legacy_queue_to_scope(scoped_path)
+        return scoped_path
     return _legacy_queue_db_path()
 
 
@@ -216,6 +324,25 @@ CREATE TABLE IF NOT EXISTS body_upload_queue (
 );
 CREATE INDEX IF NOT EXISTS idx_body_queue_next_attempt ON body_upload_queue(next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, mission_slug, target_branch);
+
+CREATE TABLE IF NOT EXISTS body_upload_failure_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_uuid TEXT NOT NULL,
+    mission_slug TEXT NOT NULL,
+    target_branch TEXT NOT NULL,
+    mission_type TEXT NOT NULL,
+    manifest_version TEXT NOT NULL,
+    artifact_path TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    hash_algorithm TEXT NOT NULL DEFAULT 'sha256',
+    size_bytes INTEGER NOT NULL,
+    failure_reason TEXT NOT NULL,
+    failure_count INTEGER NOT NULL DEFAULT 1,
+    first_failed_at REAL NOT NULL,
+    last_failed_at REAL NOT NULL,
+    UNIQUE(project_uuid, mission_slug, target_branch, mission_type, manifest_version, artifact_path, content_hash, failure_reason)
+);
+CREATE INDEX IF NOT EXISTS idx_body_failure_last_failed_at ON body_upload_failure_log(last_failed_at DESC);
 """
 
 

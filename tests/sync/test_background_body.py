@@ -263,8 +263,10 @@ class TestBodyOutcomeHandling:
         mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         from specify_cli.sync.batch import BatchSyncResult
+        import logging
 
         mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
@@ -278,10 +280,16 @@ class TestBodyOutcomeHandling:
             retryable=False,
         )
 
-        service._sync_once()
+        with caplog.at_level(logging.WARNING):
+            service._sync_once()
 
         stats = service._body_queue.get_stats()
         assert stats.total_count == 0
+        failures = service._body_queue.get_recent_failures()
+        assert len(failures) == 1
+        assert failures[0].artifact_path == "spec.md"
+        assert failures[0].failure_reason == "bad_request: invalid payload"
+        assert "Body upload permanent failure" not in caplog.text
 
 
 # --- Edge cases ---

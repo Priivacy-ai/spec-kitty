@@ -123,6 +123,29 @@ def _safe_json(response: Any) -> dict[str, Any]:
         return {}
 
 
+def _format_bad_request_reason(body: dict[str, Any]) -> str:
+    """Render DRF-style 400 payloads into a useful reason string."""
+    detail = body.get("detail")
+    if isinstance(detail, str) and detail.strip():
+        return detail
+
+    field_errors: list[str] = []
+    for field, value in body.items():
+        if field == "detail":
+            continue
+        if isinstance(value, list) and value:
+            joined = "; ".join(str(item) for item in value if str(item).strip())
+            if joined:
+                field_errors.append(f"{field}: {joined}")
+        elif isinstance(value, str) and value.strip():
+            field_errors.append(f"{field}: {value}")
+
+    if field_errors:
+        return " | ".join(field_errors)
+
+    return "unknown"
+
+
 def _classify_response(
     task: BodyUploadTask, response: Any,
 ) -> UploadOutcome:
@@ -150,7 +173,7 @@ def _classify_response(
         return UploadOutcome(
             artifact_path=task.artifact_path,
             status=UploadStatus.FAILED,
-            reason=f"bad_request: {body.get('detail', 'unknown')}",
+            reason=f"bad_request: {_format_bad_request_reason(body)}",
             content_hash=task.content_hash,
             retryable=False,
         )

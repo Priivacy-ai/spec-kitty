@@ -36,8 +36,8 @@ from specify_cli.sync.feature_flags import (
 
 console = Console()
 
-_STATUS_ACCESS_TOKEN_LABEL = "Access token"
-_STATUS_REFRESH_TOKEN_LABEL = "Refresh token"
+_STATUS_ACCESS_TOKEN_LABEL = "Access token"  # noqa: S105
+_STATUS_REFRESH_TOKEN_LABEL = "Refresh token"  # noqa: S105
 _STATUS_LAST_SYNC_LABEL = "Last Sync"
 
 
@@ -645,7 +645,7 @@ def _git_repair(workspace_path: Path) -> bool:
 
 
 @app.command(name="workspace")
-def sync_workspace(
+def sync_workspace(  # noqa: C901
     repair: bool = typer.Option(
         False,
         "--repair",
@@ -1215,7 +1215,7 @@ def diagnose(
 
 
 @app.command()
-def doctor() -> None:
+def doctor() -> None:  # noqa: C901
     """Diagnose sync health: queue, auth, and server connectivity.
 
     Runs a comprehensive check of offline queue state, authentication
@@ -1228,7 +1228,9 @@ def doctor() -> None:
     from datetime import datetime
 
     from specify_cli.auth import get_token_manager
+    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.diagnose import diagnose_body_queue
     from specify_cli.sync.queue import OfflineQueue
 
     console.print()
@@ -1240,6 +1242,8 @@ def doctor() -> None:
     # --- 1. Queue health ---
     queue = OfflineQueue()
     stats = queue.get_queue_stats()
+    body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
+    body_diagnostics = diagnose_body_queue(body_queue)["body_queue"]
     queue_size = stats.total_queued
     max_size = stats.max_queue_size
     pct = (queue_size / max_size * 100) if max_size > 0 else 0
@@ -1258,6 +1262,11 @@ def doctor() -> None:
         table.add_row("Oldest event", "[dim]n/a (empty)[/dim]")
 
     table.add_row("Queue DB", str(queue.db_path))
+    table.add_row(
+        "Body uploads",
+        f"{body_diagnostics['total_tasks']} queued, "
+        f"{body_diagnostics['recorded_failure_count']} recorded failure(s)",
+    )
 
     if pct >= 100:
         issues.append(
@@ -1267,6 +1276,11 @@ def doctor() -> None:
     elif pct >= 80:
         issues.append(
             f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`."
+        )
+    if body_diagnostics["recorded_failure_count"] > 0:
+        issues.append(
+            "Body upload failures were recorded. Review the recent body upload failures below "
+            "and fix the underlying artifact or contract mismatch."
         )
 
     # --- 2. Auth status ---
@@ -1374,6 +1388,29 @@ def doctor() -> None:
         for event_type, count in stats.top_event_types:
             type_table.add_row(event_type, f"{count:,}")
         console.print(type_table)
+        console.print()
+
+    recent_failures = body_diagnostics["recent_failures"]
+    if recent_failures:
+        failure_table = Table(
+            title="Recent Body Upload Failures",
+            show_header=True,
+            header_style="bold",
+            show_lines=False,
+            expand=False,
+        )
+        failure_table.add_column("Artifact", style="cyan")
+        failure_table.add_column("Mission", style="dim")
+        failure_table.add_column("Count", justify="right")
+        failure_table.add_column("Reason")
+        for failure in recent_failures:
+            failure_table.add_row(
+                str(failure["artifact_path"]),
+                str(failure["mission_slug"]),
+                str(failure["failure_count"]),
+                str(failure["failure_reason"]),
+            )
+        console.print(failure_table)
         console.print()
 
     # --- 5. Summary ---

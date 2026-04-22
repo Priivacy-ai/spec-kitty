@@ -431,6 +431,24 @@ class TestPrepareBodyUploads:
         assert outcomes[0].status == UploadStatus.SKIPPED
         assert "content_hash_mismatch" in outcomes[0].reason
 
+    def test_zero_byte_artifact_skipped(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "research.md"
+        file_path.write_text("", encoding="utf-8")
+        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+        artifact = _artifact(
+            relative_path="research.md",
+            content_hash=content_hash,
+            size_bytes=0,
+        )
+
+        queue = OfflineBodyUploadQueue(db_path=tmp_path / "queue.db")
+        outcomes = prepare_body_uploads([artifact], _ns(), queue, tmp_path)
+
+        assert outcomes[0].status == UploadStatus.SKIPPED
+        assert outcomes[0].reason == "empty_content"
+        assert queue.size() == 0
+
     def test_wp_task_file_accepted_in_pipeline(self, tmp_path: Path) -> None:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()

@@ -63,6 +63,25 @@ class BodyQueueStats:
     retry_histogram: dict[int, int]
 
 
+@dataclass
+class BodyUploadFailureRecord:
+    """A persisted non-retryable body upload failure for later diagnosis."""
+
+    project_uuid: str
+    mission_slug: str
+    target_branch: str
+    mission_type: str
+    manifest_version: str
+    artifact_path: str
+    content_hash: str
+    hash_algorithm: str
+    size_bytes: int
+    failure_reason: str
+    failure_count: int
+    first_failed_at: float
+    last_failed_at: float
+
+
 class BodyEnqueueResult(StrEnum):
     """Classification of a body queue enqueue attempt."""
 
@@ -241,6 +260,97 @@ class OfflineBodyUploadQueue:
         try:
             conn.execute("DELETE FROM body_upload_queue WHERE id = ?", (row_id,))
             conn.commit()
+        finally:
+            conn.close()
+
+    def record_permanent_failure(self, task: BodyUploadTask, error: str) -> None:
+        """Persist a non-retryable failure record for later diagnosis."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            now = time.time()
+            conn.execute(
+                """
+                INSERT INTO body_upload_failure_log (
+                    project_uuid, mission_slug, target_branch, mission_type,
+                    manifest_version, artifact_path, content_hash, hash_algorithm,
+                    size_bytes, failure_reason, failure_count, first_failed_at,
+                    last_failed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                ON CONFLICT(
+                    project_uuid, mission_slug, target_branch, mission_type,
+                    manifest_version, artifact_path, content_hash, failure_reason
+                )
+                DO UPDATE SET
+                    failure_count = failure_count + 1,
+                    last_failed_at = excluded.last_failed_at,
+                    size_bytes = excluded.size_bytes,
+                    hash_algorithm = excluded.hash_algorithm
+                """,
+                (
+                    task.project_uuid,
+                    task.mission_slug,
+                    task.target_branch,
+                    task.mission_type,
+                    task.manifest_version,
+                    task.artifact_path,
+                    task.content_hash,
+                    task.hash_algorithm,
+                    task.size_bytes,
+                    error,
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_recent_failures(self, limit: int = 10) -> list[BodyUploadFailureRecord]:
+        """Return the most recent persisted non-retryable failures."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                """
+                SELECT project_uuid, mission_slug, target_branch, mission_type,
+                       manifest_version, artifact_path, content_hash, hash_algorithm,
+                       size_bytes, failure_reason, failure_count, first_failed_at,
+                       last_failed_at
+                FROM body_upload_failure_log
+                ORDER BY last_failed_at DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            return [
+                BodyUploadFailureRecord(
+                    project_uuid=row[0],
+                    mission_slug=row[1],
+                    target_branch=row[2],
+                    mission_type=row[3],
+                    manifest_version=row[4],
+                    artifact_path=row[5],
+                    content_hash=row[6],
+                    hash_algorithm=row[7],
+                    size_bytes=row[8],
+                    failure_reason=row[9],
+                    failure_count=row[10],
+                    first_failed_at=row[11],
+                    last_failed_at=row[12],
+                )
+                for row in cursor
+            ]
+        finally:
+            conn.close()
+
+    def failure_count(self) -> int:
+        """Return the number of persisted non-retryable failure records."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM body_upload_failure_log"
+            ).fetchone()
+            return int(row[0]) if row else 0
         finally:
             conn.close()
 

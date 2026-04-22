@@ -48,6 +48,8 @@ class TestDiagnoseBodyQueue:
         assert result["body_queue"]["max_retry_count"] == 0
         assert result["body_queue"]["oldest_task_age_seconds"] is None
         assert result["body_queue"]["retry_distribution"] == {}
+        assert result["body_queue"]["recorded_failure_count"] == 0
+        assert result["body_queue"]["recent_failures"] == []
 
     def test_populated_queue(self, tmp_path: Path) -> None:
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
@@ -85,9 +87,23 @@ class TestDiagnoseBodyQueue:
         expected_keys = {
             "total_tasks", "ready_to_send", "in_backoff",
             "max_retry_count", "oldest_task_age_seconds",
-            "retry_distribution",
+            "retry_distribution", "recorded_failure_count",
+            "recent_failures",
         }
         assert set(result["body_queue"].keys()) == expected_keys
+
+    def test_recent_failures_included(self, tmp_path: Path) -> None:
+        queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")
+        _enqueue(queue, "spec.md")
+        task = queue.drain(limit=1)[0]
+        queue.record_permanent_failure(task, "bad_request: content_body: This field may not be blank.")
+        queue.mark_failed_permanent(task.row_id, "bad_request: content_body: This field may not be blank.")
+
+        result = diagnose_body_queue(queue)
+
+        assert result["body_queue"]["recorded_failure_count"] == 1
+        assert len(result["body_queue"]["recent_failures"]) == 1
+        assert result["body_queue"]["recent_failures"][0]["artifact_path"] == "spec.md"
 
 
 # --- print_body_queue_summary ---

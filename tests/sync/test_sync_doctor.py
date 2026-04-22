@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
@@ -74,16 +74,40 @@ class TestFormatQueueHealthCapacity:
 class TestDoctorCommand:
     """Smoke tests for the doctor subcommand output."""
 
+    @patch("specify_cli.sync.diagnose.diagnose_body_queue")
+    @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
     @patch("specify_cli.sync.queue.OfflineQueue")
     @patch("specify_cli.cli.commands.sync._check_server_connection")
     @patch("specify_cli.auth.get_token_manager")
     @patch("specify_cli.sync.config.SyncConfig")
-    def test_doctor_healthy(self, mock_config_cls, mock_get_tm, mock_check, mock_queue_cls, capsys):
+    def test_doctor_healthy(
+        self,
+        mock_config_cls,
+        mock_get_tm,
+        mock_check,
+        mock_queue_cls,
+        mock_body_queue_cls,
+        mock_body_diag,
+        capsys,
+    ):
         """Doctor reports no issues when queue is empty, auth is valid, server reachable."""
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(total_queued=0)
         mock_queue.db_path = "/tmp/test.db"
         mock_queue_cls.return_value = mock_queue
+        mock_body_queue_cls.return_value = MagicMock()
+        mock_body_diag.return_value = {
+            "body_queue": {
+                "total_tasks": 0,
+                "ready_to_send": 0,
+                "in_backoff": 0,
+                "max_retry_count": 0,
+                "oldest_task_age_seconds": None,
+                "retry_distribution": {},
+                "recorded_failure_count": 0,
+                "recent_failures": [],
+            }
+        }
 
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://test.example.com"
@@ -106,11 +130,22 @@ class TestDoctorCommand:
         captured = capsys.readouterr()
         assert "No issues detected" in captured.out
 
+    @patch("specify_cli.sync.diagnose.diagnose_body_queue")
+    @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
     @patch("specify_cli.sync.queue.OfflineQueue")
     @patch("specify_cli.cli.commands.sync._check_server_connection")
     @patch("specify_cli.auth.get_token_manager")
     @patch("specify_cli.sync.config.SyncConfig")
-    def test_doctor_full_queue_expired_auth(self, mock_config_cls, mock_get_tm, mock_check, mock_queue_cls, capsys):
+    def test_doctor_full_queue_expired_auth(
+        self,
+        mock_config_cls,
+        mock_get_tm,
+        mock_check,
+        mock_queue_cls,
+        mock_body_queue_cls,
+        mock_body_diag,
+        capsys,
+    ):
         """Doctor reports issues when queue is full and auth is expired."""
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(
@@ -120,6 +155,28 @@ class TestDoctorCommand:
         )
         mock_queue.db_path = "/tmp/test.db"
         mock_queue_cls.return_value = mock_queue
+        mock_body_queue_cls.return_value = MagicMock()
+        mock_body_diag.return_value = {
+            "body_queue": {
+                "total_tasks": 1,
+                "ready_to_send": 0,
+                "in_backoff": 1,
+                "max_retry_count": 0,
+                "oldest_task_age_seconds": None,
+                "retry_distribution": {},
+                "recorded_failure_count": 1,
+                "recent_failures": [
+                    {
+                        "artifact_path": "research/evidence-log.csv",
+                        "failure_reason": "bad_request: content_body: This field may not be blank.",
+                        "failure_count": 3,
+                        "mission_slug": "047-feat",
+                        "target_branch": "main",
+                        "last_failed_at": 0.0,
+                    }
+                ],
+            }
+        }
 
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://test.example.com"
@@ -143,3 +200,5 @@ class TestDoctorCommand:
         assert "Issues found" in captured.out
         assert "FULL" in captured.out or "evicted" in captured.out.lower()
         assert "spec-kitty auth login" in captured.out
+        assert "Recent Body Upload Failures" in captured.out
+        assert "research/evidence-log.csv" in captured.out
