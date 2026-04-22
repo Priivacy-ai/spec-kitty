@@ -186,22 +186,29 @@ Validation completed for the shipped slice:
 
 ## Current Progress (2026-04-22)
 
-Status: additional CLI lifecycle and migration work is implemented locally and
-pending final commit/push in the current monorepo session.
+Status: validated on `main`; the CLI lifecycle/migration lane is no longer the
+active blocker for the MVP critical path.
 
-The local workspace now extends this ADR with the stale/abandoned mission lane
-required for the MVP:
+The current monorepo implementation now extends this ADR with the
+stale/abandoned mission lane required for the MVP:
 
 1. canonical mission lifecycle derivation exists in `specify_cli.status.lifecycle`
 2. `lifecycle.json` is generated alongside other derived mission views
 3. `spec-kitty migrate normalize-lifecycle` can repair historical
    `kitty-specs` missions into the current lifecycle-compatible shape
 4. a versioned upgrade migration exists to roll that normalization forward
-5. targeted CLI lifecycle and migration pytest slices passed locally before the
-   current SaaS work resumed
-6. dossier body upload now skips zero-byte placeholder artifacts before enqueue
-7. queue scoping now follows the canonical encrypted auth session store and
-   automatically rehomes legacy `queue.db` data into the active scoped queue
-8. permanent body-upload failures are recorded in structured diagnostics, and
-   400 responses now preserve DRF field errors instead of collapsing to
-   `bad_request: unknown`
+5. `spec-kitty agent status lifecycle` exposes the product-facing lifecycle
+   state directly in the CLI
+6. targeted CLI lifecycle and migration pytest slices passed on 2026-04-22
+   (`16 passed`)
+7. the CLI reference docs now include both `migrate normalize-lifecycle` and
+   `agent status lifecycle`, so the upgrade/inspection path is discoverable to
+   users
+8. the sync hardening needed to trust this lifecycle lane in SaaS is already on
+   `main`:
+   zero-byte dossier placeholders are skipped, queue scoping follows the
+   encrypted auth session, and permanent upload failures persist structured
+   diagnostics instead of collapsing to `bad_request: unknown`
+
+With this slice validated, the active MVP lane moves back to SaaS Teamspace
+projection/backfill completion under `Priivacy-ai/spec-kitty-saas#101`.

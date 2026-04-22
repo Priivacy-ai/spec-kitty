@@ -1261,6 +1261,28 @@ spec-kitty migrate --force
 spec-kitty migrate --verbose
 ```
 
+### spec-kitty migrate normalize-lifecycle
+
+**Synopsis**: `spec-kitty migrate normalize-lifecycle [OPTIONS]`
+
+**Description**: Normalize legacy `kitty-specs` mission state for the MVP lifecycle model. This command repairs enough historical mission state to make active/recent/stale/abandoned classification reliable across older repositories. It backfills missing identity, rebuilds missing event logs from legacy state, and regenerates derived `status`, `progress`, and `lifecycle` views used by the CLI and Teamspace. The command is safe to run more than once.
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--json` | Emit a structured per-mission normalization report |
+| `--dry-run` | Preview lifecycle normalization without modifying the filesystem |
+| `--mission SLUG` | Scope to a single mission slug instead of scanning all missions |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty migrate normalize-lifecycle --dry-run
+spec-kitty migrate normalize-lifecycle --json
+spec-kitty migrate normalize-lifecycle --mission 083-private-teamspace
+```
+
 ---
 
 ## spec-kitty auth

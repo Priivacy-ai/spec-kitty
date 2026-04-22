@@ -730,6 +730,26 @@ spec-kitty agent status reconcile --mission 034-feature-name --json
 spec-kitty agent status reconcile --mission 034-feature-name --apply --target-repo /path/to/repo
 ```
 
+### spec-kitty agent status lifecycle
+
+**Synopsis**: `spec-kitty agent status lifecycle [OPTIONS]`
+
+**Description**: Show the canonical mission lifecycle state above raw WP lanes. This is the MVP stale/abandoned surface for local work and the shared language Teamspace uses when deciding whether a mission is active, recently completed, stale, abandoned, recoverable, or archival history.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--mission TEXT` | Mission slug |
+| `--feature TEXT` | Deprecated alias for `--mission` |
+| `--json` | Machine-readable JSON output |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty agent status lifecycle --mission 083-private-teamspace
+spec-kitty agent status lifecycle --mission 083-private-teamspace --json
+```
+
 ---
 
 ## spec-kitty agent release
