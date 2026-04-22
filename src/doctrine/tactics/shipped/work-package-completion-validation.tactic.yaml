@@ -12,9 +12,9 @@ steps:
       green before advancing status. A failing check is a hard stop — do not
       rationalise partial compliance.
     examples:
-      - "cd src && pytest --tb=short -q"
-      - "mypy src/ && ruff check ."
-      - "mvn verify"
+      - "run the project's test suite with its standard test runner"
+      - "run the project's lint and type-check commands"
+      - "run the project's build verification command"
 
   - title: Confirm acceptance criteria are addressed
     description: >

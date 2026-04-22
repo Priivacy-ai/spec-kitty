@@ -1,6 +1,7 @@
 schema_version: "1.0"
 id: dependency-hygiene
 name: Dependency Hygiene
+applies_to_languages: [java, python]
 purpose: >
   Keep a project's dependency tree free of known vulnerabilities and non-compliant
   licenses. Apply at project creation, when adding any dependency, and as part of
