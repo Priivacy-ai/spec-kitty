@@ -1,0 +1,118 @@
+schema_version: "1.0"
+id: testing-principles
+title: Testing Principles Styleguide
+scope: testing
+applies_to_languages: []
+
+principles:
+  - "Fast: tests execute quickly enough that running them after every small change is not a burden."
+  - "Isolated: each test sets up its own preconditions and does not depend on test order or shared mutable state."
+  - "Repeatable: a test produces the same result every time it runs, on any machine, in any order."
+  - "Self-validating: a test either passes or fails — no human inspection of logs required."
+  - "Timely: tests are written at the same time as (or before) the production code they validate."
+  - "Thorough: the test suite covers edge cases, failure paths, and boundary conditions — not only the happy path."
+  - "Truthful: a passing test proves the behavior it describes is actually present in production code."
+  - "Inspiring: reading the test suite gives a new contributor a clear model of how the system behaves."
+  - "Exemplary: tests are the best usage examples of the production code they exercise."
+  - "Specific: a failing test clearly identifies which behavior is broken, not just that something is wrong."
+  - "Predictive: the test suite reliably catches regressions before they reach production."
+  - "Minimal: each test contains only the code necessary to validate one behavior increment."
+
+patterns:
+  - name: Testing Pyramid
+    description: >
+      Distribute tests across three layers in pyramid proportion: many fast unit tests at the
+      base, fewer integration tests in the middle, and a small number of end-to-end tests at the
+      top. Higher layers are slower and more brittle; keep them thin.
+    good_example: |
+      # Representative distribution for a backend service:
+      # Unit tests  (~70%): domain logic, validators, pure functions — milliseconds each
+      # Integration (~20%): repository queries, HTTP adapter contracts — seconds each
+      # End-to-end  (~10%): key user journeys through the running system — tens of seconds each
+
+  - name: Clear Test Boundaries
+    description: >
+      Each test is responsible for exactly one behavioral boundary. Tests that cross multiple
+      boundaries are harder to name, harder to diagnose, and harder to maintain.
+    bad_example: |
+      @Test
+      void testEverything() {
+          // Creates entity, persists it, loads it back, validates it, sends an event, checks the log
+      }
+    good_example: |
+      @Test void shouldPersistAndReload() { /* repository contract only */ }
+      @Test void shouldEmitCreatedEvent()  { /* event emission only */ }
+      @Test void shouldRejectInvalidName() { /* validation only */ }
+
+  - name: Quad-A Test Structure
+    description: >
+      Structure every test as Arrange → Assumption-check → Act → Assert. The assumption check
+      is a precondition assertion that verifies setup produced the intended scenario; it
+      turns a silent wrong-fixture bug into a visible test failure.
+    bad_example: |
+      @Test
+      void shouldRejectExpiredItem() {
+          Item item = new Item(LocalDate.now().minusDays(1));
+          assertThatThrownBy(() -> service.process(item))
+                  .isInstanceOf(ExpiredException.class);
+      }
+    good_example: |
+      @Test
+      void shouldRejectExpiredItem() {
+          // Arrange
+          Item item = ItemFixtures.expiredYesterday().build();
+          // Assumption check
+          assertThat(item.getExpiryDate()).isBefore(LocalDate.now());
+          // Act + Assert
+          assertThatThrownBy(() -> service.process(item))
+                  .isInstanceOf(ExpiredException.class);
+      }
+
+anti_patterns:
+  - name: Over-Mocking
+    description: >
+      Mocking every collaborator turns integration tests into scripted interaction replays
+      that pass even when the real integration is broken. Mock only at true system boundaries
+      (external HTTP, file system, clocks, randomness).
+    bad_example: |
+      when(repository.findById(1L)).thenReturn(Optional.of(entity));
+      when(eventBus.publish(any())).thenReturn(true);
+      when(validator.validate(entity)).thenReturn(ValidationResult.ok());
+      // All logic mocked — nothing real is tested
+    good_example: |
+      // Use real repository backed by an in-memory or test-database store;
+      // only mock the external event bus at the outbound boundary.
+
+  - name: Shared Mutable State Between Tests
+    description: >
+      Tests that share mutable state (static fields, common database rows without cleanup,
+      module-level variables) fail non-deterministically depending on execution order.
+    bad_example: |
+      private static List<String> log = new ArrayList<>(); // shared across tests
+
+      @Test void testA() { service.run(); assertThat(log).containsExactly("A"); }
+      @Test void testB() { service.run(); assertThat(log).containsExactly("B"); } // fails if testA ran first
+
+    good_example: |
+      @BeforeEach
+      void setUp() { log = new ArrayList<>(); } // fresh state per test
+
+  - name: Asserting Implementation Details
+    description: >
+      Tests that assert method call counts or internal field values break during refactoring
+      even when observable behavior is unchanged. Test outcomes, not mechanisms.
+    bad_example: |
+      verify(repository, times(2)).save(any());  // brittle: couples test to save-call count
+    good_example: |
+      assertThat(repository.findAll()).hasSize(2); // observable outcome
+
+quality_test: "Can a new contributor read one test and understand what behavior it validates, what preconditions are required, and what a failure means — without reading the production code?"
+
+references:
+  - "src/doctrine/tactics/shipped/tdd-red-green-refactor.tactic.yaml"
+  - "src/doctrine/tactics/shipped/acceptance-test-first.tactic.yaml"
+  - "src/doctrine/tactics/shipped/test-minimisation.tactic.yaml"
+  - "src/doctrine/tactics/shipped/test-boundaries-by-responsibility.tactic.yaml"
+  - "src/doctrine/tactics/shipped/test-pyramid-progression.tactic.yaml"
+  - "src/doctrine/directives/shipped/030-test-and-typecheck-quality-gate.directive.yaml"
+  - "src/doctrine/directives/shipped/034-test-first-development.directive.yaml"
