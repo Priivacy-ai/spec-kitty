@@ -36,6 +36,8 @@
 from __future__ import annotations
 
 import atexit
+import asyncio
+import contextlib
 import json
 import logging
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -48,6 +50,13 @@ logger = logging.getLogger(__name__)
 
 PROPAGATION_ERRORS_PATH = ".kittify/events/propagation-errors.jsonl"
 _ATEXIT_TIMEOUT_SECONDS = 5.0
+_PENDING_SEND_TASKS: set[asyncio.Task[Any]] = set()
+
+
+def _track_send_task(task: asyncio.Task[Any]) -> None:
+    """Retain scheduled send tasks until completion to avoid premature GC."""
+    _PENDING_SEND_TASKS.add(task)
+    task.add_done_callback(_PENDING_SEND_TASKS.discard)
 
 
 def _get_saas_client(repo_root: Path) -> Any | None:  # noqa: ARG001
@@ -116,14 +125,11 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
                 "completed_at": record.completed_at,
             }
 
-        # Mirror emitter.py _route_event() asyncio pattern (lines 993-1000):
-        import asyncio  # noqa: PLC0415
-
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Already inside a running loop (rare in CLI threads, but safe)
-                asyncio.ensure_future(client.send_event(event_dict))
+                _track_send_task(asyncio.create_task(client.send_event(event_dict)))
             else:
                 loop.run_until_complete(client.send_event(event_dict))
         except RuntimeError:
@@ -147,7 +153,7 @@ def _log_propagation_error(
             "invocation_id": record.invocation_id,
             "event": record.event,
             "error": error,
-            "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "at": datetime.datetime.now(datetime.UTC).isoformat(),
         }
         with error_log.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
@@ -186,7 +192,5 @@ class InvocationSaaSPropagator:
         Python's process-exit machinery imposes its own timeout, so threads
         that have not finished by then are abandoned (acceptable behaviour).
         """
-        try:
+        with contextlib.suppress(Exception):
             self._executor.shutdown(wait=True, cancel_futures=False)
-        except Exception:  # noqa: BLE001
-            pass  # Shutdown must never raise
