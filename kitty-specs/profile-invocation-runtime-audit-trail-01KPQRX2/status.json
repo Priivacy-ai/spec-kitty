@@ -2,7 +2,7 @@
   "event_count": 56,
   "last_event_id": "01KPR1ND607JBQT4M0HV64WRQY",
   "materialized_at": "2026-04-21T12:53:53.472983+00:00",
-  "mission_number": "",
+  "mission_number": "92",
   "mission_slug": "profile-invocation-runtime-audit-trail-01KPQRX2",
   "mission_type": "software-dev",
   "summary": {

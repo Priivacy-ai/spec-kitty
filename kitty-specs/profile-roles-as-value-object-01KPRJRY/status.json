@@ -1,0 +1,70 @@
+{
+  "event_count": 48,
+  "last_event_id": "01KPT78WX3R4PYCDSX2C5GJ2SV",
+  "materialized_at": "2026-04-22T09:10:23.907398+00:00",
+  "mission_number": "93",
+  "mission_slug": "profile-roles-as-value-object-01KPRJRY",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KPT78PMAW36Y7A316MERBCAK",
+      "last_transition_at": "2026-04-22T09:10:17.482300+00:00"
+    },
+    "WP02": {
+      "actor": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KPT78QW2GQKHWZ8SY3XF2K3H",
+      "last_transition_at": "2026-04-22T09:10:18.754666+00:00"
+    },
+    "WP03": {
+      "actor": "claude",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KPT78S4N0VDQB08QCV2MHWP2",
+      "last_transition_at": "2026-04-22T09:10:20.053158+00:00"
+    },
+    "WP04": {
+      "actor": "claude",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KPT78TCN0HYYGBP7QD54TZJ9",
+      "last_transition_at": "2026-04-22T09:10:21.333106+00:00"
+    },
+    "WP05": {
+      "actor": "claude",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KPT78VMFXMC85EW3WZV3N647",
+      "last_transition_at": "2026-04-22T09:10:22.607535+00:00"
+    },
+    "WP06": {
+      "actor": "claude",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KPT78WX3R4PYCDSX2C5GJ2SV",
+      "last_transition_at": "2026-04-22T09:10:23.907398+00:00"
+    },
+    "WP07": {
+      "actor": "claude",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KPT78GWSVZ6S0XK5EEWVR7HB",
+      "last_transition_at": "2026-04-22T09:10:11.609755+00:00"
+    }
+  }
+}
