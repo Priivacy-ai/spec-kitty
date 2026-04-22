@@ -41,6 +41,21 @@ logger = logging.getLogger(__name__)
 _STOP_SYNC_TIMEOUT_SECONDS = 5
 
 
+def _safe_optional_queue_size(queue_obj: object | None) -> int:
+    """Best-effort queue size lookup that tolerates missing attrs and test doubles."""
+    if queue_obj is None:
+        return 0
+    try:
+        raw = queue_obj.size()
+    except Exception:
+        return 0
+
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _fetch_access_token_sync() -> str | None:
     """Fetch a valid access token from the TokenManager (sync bridge).
 
@@ -158,9 +173,7 @@ class BackgroundSyncService:
         # Best-effort final sync with a bounded timeout so atexit never
         # hangs the process.  Events stay in the durable queue and will
         # be drained on the next daemon tick.
-        body_queue_has_work = (
-            self._body_queue is not None and self._body_queue.size() > 0
-        )
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             sync_thread = threading.Thread(
                 target=self._guarded_final_sync, daemon=True,
@@ -223,9 +236,7 @@ class BackgroundSyncService:
         """Timer callback: sync if queue is non-empty, then reschedule."""
         if not self._running:
             return
-        body_queue_has_work = (
-            self._body_queue is not None and self._body_queue.size() > 0
-        )
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             self._perform_sync()
         self._schedule_next_sync()
