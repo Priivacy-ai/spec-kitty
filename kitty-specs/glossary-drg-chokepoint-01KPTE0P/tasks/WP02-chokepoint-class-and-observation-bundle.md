@@ -29,6 +29,8 @@ subtasks:
 - T012
 - T013
 - T014
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "41704"
 history:
 - date: '2026-04-22'
   event: created
@@ -610,3 +612,7 @@ def test_chokepoint_default_scopes():
 3. Verify `DEFAULT_APPLICABLE_SCOPES` contains `SPEC_KITTY_CORE` and `TEAM_DOMAIN` only.
 4. Review ADR-5 benchmark numbers — if p95 > 50ms, the threshold must be revised with justification.
 5. Confirm no new `pip` dependencies were introduced.
+
+## Activity Log
+
+- 2026-04-22T12:27:37Z – claude:sonnet:implementer:implementer – shell_pid=41704 – Started implementation via action command
