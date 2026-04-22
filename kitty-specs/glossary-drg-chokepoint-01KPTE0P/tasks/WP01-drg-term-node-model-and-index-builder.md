@@ -515,3 +515,4 @@ def test_build_index_empty_store():
 - 2026-04-22T12:18:22Z – claude:sonnet:implementer:implementer – shell_pid=7261 – Assigned agent via action command
 - 2026-04-22T12:25:01Z – claude:sonnet:implementer:implementer – shell_pid=7261 – Ready for review
 - 2026-04-22T12:25:35Z – claude:sonnet:reviewer:reviewer – shell_pid=40116 – Started review via action command
+- 2026-04-22T12:27:09Z – claude:sonnet:reviewer:reviewer – shell_pid=40116 – Review passed: NodeKind.GLOSSARY value confirmed, glossary_urn('lane')=='glossary:d93244e7' verified, _normalize strips 's$' not 'es$' so 'lanes'->'lane' and 'missions'->'mission' work correctly, build_index populates both canonical and lemmatized aliases, backward-compat test passes, 30/30 tests pass, ruff clean, scope confined to owned files.
