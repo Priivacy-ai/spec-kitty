@@ -61,6 +61,24 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
     console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
+    if payload.glossary_observations.high_severity:
+        warning_lines = [
+            "High-severity terminology conflicts detected before this invocation.",
+        ]
+        for conflict in payload.glossary_observations.high_severity:
+            scopes = ", ".join(sorted({sense.scope for sense in conflict.candidate_senses}))
+            detail = f"{conflict.term.surface_text} ({conflict.conflict_type.value})"
+            if scopes:
+                detail += f" — candidate scopes: {scopes}"
+            warning_lines.append(f"- {detail}")
+        console.print(
+            Panel(
+                "\n".join(warning_lines),
+                title="Glossary Warning",
+                border_style="yellow",
+                expand=False,
+            )
+        )
     if payload.governance_context_available and payload.governance_context_text:
         console.print(
             Panel(payload.governance_context_text, title="Governance Context", expand=False)
@@ -106,12 +124,12 @@ def do(
             "suggestion": e.suggestion,
         }
         typer.echo(json.dumps(error_obj), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except InvocationWriteError as e:
         typer.echo(
             json.dumps({"error": "write_failed", "message": str(e)}), err=True
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     if json_output:
         typer.echo(json.dumps(payload.to_dict(), indent=2))

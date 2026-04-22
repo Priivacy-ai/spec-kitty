@@ -5,9 +5,13 @@ from __future__ import annotations
 import datetime
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
 from specify_cli.invocation.record import InvocationRecord
+
+if TYPE_CHECKING:
+    from specify_cli.glossary.chokepoint import GlossaryObservationBundle
 
 EVENTS_DIR = ".kittify/events/profile-invocations"
 INDEX_PATH = ".kittify/events/invocation-index.jsonl"
@@ -134,3 +138,31 @@ class InvocationWriter:
         except OSError as e:
             raise InvocationWriteError(f"Failed to append completed event: {e}") from e
         return completed
+
+    def write_glossary_observation(
+        self, invocation_id: str, bundle: GlossaryObservationBundle
+    ) -> None:
+        """Append glossary_checked event to invocation file. Best-effort only.
+
+        This event is ONLY written when ``all_conflicts`` is non-empty OR
+        ``error_msg`` is set. Clean invocations (no conflicts, no error) produce
+        NO ``glossary_checked`` line in the trail — keeping Tier 1 files minimal.
+
+        Readers that encounter an unknown event type may safely skip this line.
+        """
+        # Skip clean invocations (no conflicts and no error)
+        if not bundle.all_conflicts and bundle.error_msg is None:
+            return
+        try:
+            path = self.invocation_path(invocation_id)
+            if not path.exists():
+                return
+            entry: dict[str, object] = {
+                "event": "glossary_checked",
+                "invocation_id": invocation_id,
+            }
+            entry.update(bundle.to_dict())
+            with path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(entry) + "\n")
+        except OSError:
+            pass

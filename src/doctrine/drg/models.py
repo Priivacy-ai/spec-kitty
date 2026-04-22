@@ -39,6 +39,7 @@ class NodeKind(StrEnum):
     AGENT_PROFILE = "agent_profile"
     ACTION = "action"
     GLOSSARY_SCOPE = "glossary_scope"
+    GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"
 
 
 class Relation(StrEnum):

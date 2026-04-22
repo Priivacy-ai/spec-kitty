@@ -47,6 +47,29 @@ Written unconditionally before the executor returns.
 - **Content**: Two JSONL lines — a `started` event and (after completion) a `completed` event.
 - **When**: All `advise`, `ask`, and `do` invocations.
 
+### Glossary Check Event (conditional, Tier 1)
+
+When the invocation executor's glossary chokepoint scan detects at least one
+conflict — or encounters an error — it appends a `glossary_checked` event to the
+same Tier 1 JSONL file, immediately after the `started` event.
+
+**Written ONLY when:**
+- `all_conflicts` is non-empty (one or more semantic conflicts detected), OR
+- `error_msg` is non-null (the chokepoint scan encountered an unexpected exception).
+
+**Clean invocations produce NO `glossary_checked` line.** This keeps Tier 1
+files minimal when there are no glossary issues to report.
+
+Example `glossary_checked` event line:
+
+```json
+{"event": "glossary_checked", "invocation_id": "01HXYZ...", "matched_urns": ["glossary:d93244e7"], "high_severity": [{"term": "lane", "conflict_type": "ambiguous_scope", "severity": "HIGH", "candidate_senses": ["execution lane (WP routing)", "git branch lane (worktree)"]}], "all_conflicts": [...], "tokens_checked": 8, "duration_ms": 2.7, "error_msg": null}
+```
+
+Readers that encounter `"event": "glossary_checked"` and do not recognise this
+event type may safely skip the line — it is additive metadata and never affects
+the `started`/`completed` pair.
+
 ### Tier 2 — Evidence Artifact (optional, caller-triggered)
 
 Created when the caller explicitly flags that the invocation produced checkable output.

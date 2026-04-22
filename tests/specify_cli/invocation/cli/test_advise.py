@@ -11,6 +11,14 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
+from specify_cli.glossary.chokepoint import GlossaryObservationBundle
+from specify_cli.glossary.models import (
+    ConflictType,
+    SemanticConflict,
+    SenseRef,
+    Severity,
+    TermSurface,
+)
 from specify_cli.invocation.writer import EVENTS_DIR
 
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
@@ -42,6 +50,38 @@ def _setup_project(tmp_path: Path) -> Path:
     for yaml_file in FIXTURES_DIR.glob("*.agent.yaml"):
         shutil.copy(yaml_file, profiles_dir / yaml_file.name)
     return tmp_path
+
+
+def _high_severity_bundle() -> GlossaryObservationBundle:
+    conflict = SemanticConflict(
+        term=TermSurface("lane"),
+        conflict_type=ConflictType.AMBIGUOUS,
+        severity=Severity.HIGH,
+        confidence=1.0,
+        candidate_senses=[
+            SenseRef(
+                surface="lane",
+                scope="spec_kitty_core",
+                definition="Execution lane",
+                confidence=1.0,
+            ),
+            SenseRef(
+                surface="lane",
+                scope="team_domain",
+                definition="Worktree lane",
+                confidence=1.0,
+            ),
+        ],
+        context="request_text",
+    )
+    return GlossaryObservationBundle(
+        matched_urns=("glossary:d93244e7",),
+        high_severity=(conflict,),
+        all_conflicts=(conflict,),
+        tokens_checked=3,
+        duration_ms=1.5,
+        error_msg=None,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +143,29 @@ class TestAdviseWithExplicitProfile:
                 ["advise", "implement the feature", "--profile", "implementer-fixture"],
             )
         assert result.exit_code == 0, result.output
+
+    def test_rich_output_surfaces_high_severity_glossary_warning(self, tmp_path: Path) -> None:
+        """High-severity glossary conflicts should be shown inline before governance context."""
+        project = _setup_project(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.advise.find_repo_root", return_value=project),
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            patch(
+                "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+                return_value=_high_severity_bundle(),
+            ),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["advise", "implement the feature", "--profile", "implementer-fixture"],
+            )
+        assert result.exit_code == 0, result.output
+        assert "High-severity terminology conflicts detected before this invocation." in result.output
+        assert "lane (ambiguous)" in result.output
+        assert result.output.index("lane (ambiguous)") < result.output.index("compact governance context")
 
 
 class TestAdviseMissingProfile:
