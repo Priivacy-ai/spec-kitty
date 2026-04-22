@@ -54,7 +54,7 @@ from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
 # Filename helpers (data-model §E-2 "Filename rule")
 # ---------------------------------------------------------------------------
 
-_DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
+_DIRECTIVE_NUM_RE = re.compile(r"^[A-Z]+_(\d+)$")
 
 
 def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> str:

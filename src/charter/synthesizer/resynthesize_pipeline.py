@@ -121,7 +121,7 @@ def _rewrite_manifest(
     from datetime import UTC, datetime
 
     # Filename helper (mirrors write_pipeline._artifact_filename)
-    _DIRECTIVE_NUM_RE = re.compile(r"[A-Z]+_(\d+)")
+    _DIRECTIVE_NUM_RE = re.compile(r"^[A-Z]+_(\d+)$")
 
     def _filename(kind: str, slug: str, artifact_id: str | None) -> str:
         if kind == "directive":

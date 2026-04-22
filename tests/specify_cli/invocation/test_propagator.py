@@ -19,6 +19,7 @@ import pytest
 
 from specify_cli.invocation.propagator import (
     InvocationSaaSPropagator,
+    _IN_FLIGHT_TASKS,
     _log_propagation_error,
     _propagate_one,
 )
@@ -126,6 +127,37 @@ def test_propagator_sends_invocation_id_in_event_dict(tmp_path: pytest.TempPathF
     assert len(captured) == 1
     assert captured[0]["invocation_id"] == record.invocation_id
     assert captured[0]["event_type"] == "ProfileInvocationStarted"
+
+
+def test_propagator_tracks_fire_and_forget_tasks(tmp_path: pytest.TempPathFactory) -> None:
+    """Tasks scheduled on a running loop stay referenced until completion."""
+    record = make_started_record()
+    captured: list[dict[str, object]] = []
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        async def mock_send(event_dict: dict[str, object]) -> None:
+            captured.append(event_dict)
+
+        class MockClient:
+            send_event = staticmethod(mock_send)
+
+        with patch("specify_cli.invocation.propagator._get_saas_client", return_value=MockClient()):
+            running_loop = MagicMock()
+            running_loop.is_running.return_value = True
+
+            with patch("specify_cli.invocation.propagator.asyncio.get_event_loop", return_value=running_loop):
+                _propagate_one(record, tmp_path)
+                assert len(_IN_FLIGHT_TASKS) == 1
+                loop.run_until_complete(asyncio.gather(*tuple(_IN_FLIGHT_TASKS)))
+                loop.run_until_complete(asyncio.sleep(0))
+
+        assert captured[0]["invocation_id"] == record.invocation_id
+        assert not _IN_FLIGHT_TASKS
+    finally:
+        asyncio.set_event_loop(None)
+        loop.close()
 
 
 def test_propagator_error_log_never_raises_on_disk_full(tmp_path: pytest.TempPathFactory) -> None:
