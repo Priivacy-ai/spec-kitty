@@ -69,7 +69,7 @@ def pick_default_team_id(teams: list[Team]) -> str:
 def get_private_team_id(teams: list[Team]) -> str | None:
     """Return the user's Private Teamspace id when one is present."""
     for team in teams:
-        if team.is_private_teamspace:
+        if bool(getattr(team, "is_private_teamspace", False)):
             return team.id
     return None
 

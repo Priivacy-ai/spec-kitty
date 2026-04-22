@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import yaml
+
 from specify_cli.core.paths import locate_project_root
 
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
@@ -64,11 +66,39 @@ def _auto_start_enabled() -> bool:
     project_root = locate_project_root(Path.cwd())
     if project_root is None:
         return True
+
+    project_setting = _read_project_auto_start(project_root)
+    if project_setting is not None:
+        return project_setting
+
     try:
         return is_sync_enabled_for_checkout(project_root)
     except Exception as e:
         logger.debug(f"Could not resolve sync routing config: {e}")
         return True
+
+
+def _read_project_auto_start(project_root: Path) -> bool | None:
+    """Read the legacy project-local ``sync.auto_start`` flag when present."""
+    config_path = project_root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        return None
+
+    try:
+        raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.debug("Could not read project sync config from %s: %s", config_path, exc)
+        return None
+
+    if not isinstance(raw, dict):
+        return None
+
+    sync_section = raw.get("sync")
+    if not isinstance(sync_section, dict):
+        return None
+
+    auto_start = sync_section.get("auto_start")
+    return auto_start if isinstance(auto_start, bool) else None
 
 
 @dataclass

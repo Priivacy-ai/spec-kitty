@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import contextlib
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
-from typing import TYPE_CHECKING, Optional
+from datetime import datetime, UTC
+from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
@@ -38,6 +39,21 @@ logger = logging.getLogger(__name__)
 # Maximum seconds the stop() best-effort sync may run before being
 # abandoned.  Events stay in the durable queue for the daemon to drain.
 _STOP_SYNC_TIMEOUT_SECONDS = 5
+
+
+def _safe_optional_queue_size(queue_obj: object | None) -> int:
+    """Best-effort queue size lookup that tolerates missing attrs and test doubles."""
+    if queue_obj is None:
+        return 0
+    try:
+        raw = queue_obj.size()
+    except Exception:
+        return 0
+
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _fetch_access_token_sync() -> str | None:
@@ -76,10 +92,8 @@ def _fetch_access_token_sync() -> str | None:
                 asyncio.set_event_loop(new_loop)
                 return new_loop.run_until_complete(tm.get_access_token())
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     asyncio.set_event_loop(None)
-                except Exception:
-                    pass
                 new_loop.close()
     except AuthenticationError as exc:
         logger.debug("Background sync token fetch failed: %s", exc)
@@ -159,9 +173,7 @@ class BackgroundSyncService:
         # Best-effort final sync with a bounded timeout so atexit never
         # hangs the process.  Events stay in the durable queue and will
         # be drained on the next daemon tick.
-        body_queue_has_work = (
-            self._body_queue is not None and self._body_queue.size() > 0
-        )
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             sync_thread = threading.Thread(
                 target=self._guarded_final_sync, daemon=True,
@@ -178,10 +190,8 @@ class BackgroundSyncService:
 
     def _guarded_final_sync(self) -> None:
         """Run a single sync batch; swallows all exceptions."""
-        try:
+        with contextlib.suppress(Exception):
             self._perform_sync()
-        except Exception:
-            pass
 
     @property
     def last_sync(self) -> datetime | None:
@@ -226,9 +236,7 @@ class BackgroundSyncService:
         """Timer callback: sync if queue is non-empty, then reschedule."""
         if not self._running:
             return
-        body_queue_has_work = (
-            self._body_queue is not None and self._body_queue.size() > 0
-        )
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             self._perform_sync()
         self._schedule_next_sync()
