@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from charter.synthesizer.errors import NeutralityGateViolation
+from charter.synthesizer.artifact_naming import artifact_filename, extract_directive_number
 from charter.synthesizer.write_pipeline import _is_generic_scoped
 
 
@@ -61,6 +62,28 @@ def _staged_neutral_generic(tmp_path: Path) -> Path:
         "  Fast tests should run frequently; slow tests in CI.\n"
     )
     return staged_dir
+
+
+# ---------------------------------------------------------------------------
+# artifact_naming tests
+# ---------------------------------------------------------------------------
+
+
+def test_extract_directive_number_returns_padded_digits() -> None:
+    assert extract_directive_number("PROJECT_7") == "007"
+
+
+def test_extract_directive_number_falls_back_for_malformed_ids() -> None:
+    assert extract_directive_number("project_007") == "000"
+    assert extract_directive_number("PROJECT_") == "000"
+    assert extract_directive_number(None) == "000"
+
+
+def test_artifact_filename_builds_directive_filename_without_regex() -> None:
+    assert (
+        artifact_filename("directive", "mission-type-scope-directive", "PROJECT_001")
+        == "001-mission-type-scope-directive.directive.yaml"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -182,15 +205,7 @@ def _make_staging_dir_with_artifact(
     urn = f"{kind}:{effective_artifact_id}"
 
     # Write content to staged location
-    if kind == "directive":
-        import re
-        m = re.search(r"\d+", effective_artifact_id)
-        nnn = m.group(0).zfill(3) if m else "000"
-        filename = f"{nnn}-{slug}.directive.yaml"
-    elif kind == "tactic":
-        filename = f"{slug}.tactic.yaml"
-    else:
-        filename = f"{slug}.styleguide.yaml"
+    filename = artifact_filename(kind, slug, effective_artifact_id)
 
     staged_path = stage.path_for_content(kind, filename)
     staged_path.write_text(content)
