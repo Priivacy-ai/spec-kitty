@@ -67,10 +67,6 @@ failure_modes:
   - "Removing regression tests — regression tests prevent re-introduction of past defects; collapsing them into contract tests loses the explicit defect reference."
 
 references:
-  - name: Formalized Constraint Testing
-    type: tactic
-    id: formalized-constraint-testing
-    when: Contract tests establish the coverage baseline that makes spot-check removal safe
   - name: Test-First Development
     type: directive
     id: DIRECTIVE_034
