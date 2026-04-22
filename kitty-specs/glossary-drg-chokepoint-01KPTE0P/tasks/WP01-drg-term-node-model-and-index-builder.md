@@ -16,6 +16,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-glossary-drg-chokepoint-01KPTE0P
+base_commit: 93b1dcb4b3f68703629670979fda01a1fe8f381c
+created_at: '2026-04-22T12:18:20.647723+00:00'
 subtasks:
 - T001
 - T002
@@ -24,6 +27,7 @@ subtasks:
 - T005
 - T006
 - T007
+shell_pid: '7261'
 history:
 - date: '2026-04-22'
   event: created
