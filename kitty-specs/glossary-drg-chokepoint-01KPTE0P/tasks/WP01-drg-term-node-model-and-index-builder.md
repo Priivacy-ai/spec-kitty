@@ -27,8 +27,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: "7261"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "40116"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - date: '2026-04-22'
   event: created
@@ -514,3 +514,4 @@ def test_build_index_empty_store():
 
 - 2026-04-22T12:18:22Z – claude:sonnet:implementer:implementer – shell_pid=7261 – Assigned agent via action command
 - 2026-04-22T12:25:01Z – claude:sonnet:implementer:implementer – shell_pid=7261 – Ready for review
+- 2026-04-22T12:25:35Z – claude:sonnet:reviewer:reviewer – shell_pid=40116 – Started review via action command
