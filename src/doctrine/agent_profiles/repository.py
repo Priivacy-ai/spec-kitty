@@ -31,15 +31,16 @@ _MAX_MEDIUM_WORKLOAD = 4
 
 
 def _filter_candidates_by_role(candidates: list[AgentProfile], required_role: str | None) -> list[AgentProfile]:
-    """Return candidates matching required_role, or all candidates when role is unset."""
+    """Return candidates matching required_role at any role position, or all candidates when role is unset.
+
+    Normalizes required_role to lowercase before comparison since Role instances are stored lowercased.
+    """
     if not required_role:
         return candidates
-    role_str = required_role.lower() if isinstance(required_role, str) else required_role
+    normalized = str(required_role).lower()
     return [
         p for p in candidates
-        if (isinstance(p.role, Role) and p.role.value == role_str)
-        or (isinstance(p.role, str) and p.role.lower() == role_str)
-        or p.profile_id == role_str
+        if normalized in p.roles or p.profile_id == normalized
     ]
 
 
@@ -82,12 +83,15 @@ def _keyword_signal(context: TaskContext, profile: AgentProfile) -> float:
 
 
 def _exact_id_signal(context: TaskContext, profile: AgentProfile) -> float:
-    """Return 1.0 if required_role exactly matches the profile ID or role value."""
-    if not context.required_role:
+    """Score required_role match: 1.0 for profile_id or primary role, 0.5 for secondary role, 0.0 for none."""
+    req = context.required_role
+    if req is None:
         return 0.0
-    req = context.required_role.lower() if isinstance(context.required_role, str) else context.required_role
-    role_val = profile.role.value if isinstance(profile.role, Role) else str(profile.role).lower()
-    return 1.0 if (req == profile.profile_id or req == role_val) else 0.0
+    if req == profile.profile_id or req == profile.roles[0]:
+        return 1.0
+    if req in profile.roles[1:]:
+        return 0.5
+    return 0.0
 
 
 def _workload_penalty(workload: int) -> float:
@@ -321,24 +325,15 @@ class AgentProfileRepository:
         return self._profiles.get(profile_id)
 
     def find_by_role(self, role: Role | str) -> list[AgentProfile]:
-        """Find all profiles matching the given role.
+        """Find all profiles that list the given role (primary or secondary position).
 
         Args:
-            role: Role enum or string (case-insensitive)
+            role: Role or string to match against each profile's full roles list
 
         Returns:
-            List of profiles with matching role
+            List of all profiles where role appears at any position in profile.roles
         """
-        # Normalize role to string for comparison
-        role_str = role.value if isinstance(role, Role) else role.lower()
-
-        matches = []
-        for profile in self._profiles.values():
-            profile_role = profile.role.value if isinstance(profile.role, Role) else str(profile.role).lower()
-            if profile_role == role_str:
-                matches.append(profile)
-
-        return matches
+        return [p for p in self._profiles.values() if role in p.roles]
 
     def _build_hierarchy_index(self) -> None:
         """Build hierarchy index mapping parent_id -> [child_ids]."""

@@ -1,5 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://spec-kitty.dev/schemas/doctrine/agent-profile.schema.yaml
+$comment: "schema-version: 2 — roles list support added"
 title: Agent Profile
 description: Rich agent profile schema with 6-section structure for spec-kitty doctrine framework
 type: object
@@ -9,6 +10,11 @@ required:
 - name
 - purpose
 - specialization
+anyOf:
+- required:
+  - role
+- required:
+  - roles
 definitions:
   agent_collaboration:
     type: object
@@ -264,8 +270,17 @@ properties:
     description: The agent's primary purpose or mission statement
   role:
     type: string
-    description: Agent role (architect, implementer, reviewer, planner, etc.) - accepts both known roles and custom 
-      roles
+    description: Agent role (architect, implementer, reviewer, planner, etc.) — deprecated scalar form; prefer roles
+      array
+  roles:
+    type: array
+    description: Agent roles list (first entry is primary role)
+    items:
+      type: string
+    minItems: 1
+  avatar-image:
+    type: string
+    description: Path or URL to agent avatar image
   sentinel:
     type: boolean
     default: false

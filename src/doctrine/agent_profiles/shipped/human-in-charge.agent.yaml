@@ -2,6 +2,8 @@ profile-id: "human-in-charge"
 name: "Human in Charge"
 description: "Workflow sentinel indicating this work package requires direct human execution. No agent identity is injected. The HIC remains accountable for the deliverable."
 schema-version: "1.0"
+roles:
+  - human-in-charge
 sentinel: true
 capabilities:
   - "Human judgment"

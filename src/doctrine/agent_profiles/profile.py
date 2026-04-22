@@ -7,47 +7,93 @@ purpose, specialization boundaries, collaboration contracts, reasoning modes,
 and directive adherence.
 """
 
-import warnings
-from enum import StrEnum
-from typing import Annotated, Any
+from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+import warnings
+from typing import Annotated, Any, ClassVar
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_validators import BeforeValidator
 
 
-class Role(StrEnum):
-    """Controlled vocabulary for agent roles with custom role support."""
+class Role(str):
+    """Half-open role value object.
 
-    IMPLEMENTER = "implementer"
-    REVIEWER = "reviewer"
-    ARCHITECT = "architect"
-    DESIGNER = "designer"
-    PLANNER = "planner"
-    RESEARCHER = "researcher"
-    CURATOR = "curator"
-    MANAGER = "manager"
+    Subclasses ``str`` instead of ``StrEnum`` so that custom roles (e.g.
+    ``Role("senior-tech-lead")``) are first-class instances without any code
+    change.  Well-known roles are declared as class-level constants and
+    listed in ``_KNOWN``.
+
+    Why ``str`` and not ``StrEnum``
+    --------------------------------
+    ``StrEnum`` seals the set of valid values at class definition time.
+    Teams introducing project-specific roles (e.g. ``"retrospective-
+    facilitator"`` for Phase 6 WP6.6) would need to fork or monkey-patch
+    the library.  A plain ``str`` subclass carries the same
+    ``role == "implementer"`` ergonomics via ``str.__eq__`` while remaining
+    fully open.
+
+    Distinguishing well-known from custom roles
+    -------------------------------------------
+    ``Role.is_known(role)`` returns ``True`` iff the value belongs to the
+    static constant set shipped with this library.  Use this for
+    informational checks (capabilities lookup, DRG annotations); do **not**
+    use it as a validity gate — custom roles are intentionally valid.
+
+    Future extension points (do not add without a new spec)
+    -------------------------------------------------------
+    - ``description: str`` field in ``__init__`` to document role semantics
+    - YAML-registry loading at import time (``Role.known_roles()``)
+    """
+
+    _KNOWN: ClassVar[frozenset[str]] = frozenset()  # populated after class body
+
+    def __new__(cls, value: str) -> Role:
+        if not value:
+            raise ValueError("Role value must be a non-empty string")
+        return str.__new__(cls, value)
+
+    @classmethod
+    def is_known(cls, role: Role | str) -> bool:
+        """Return True iff *role* is one of the well-known static constants."""
+        return str(role) in cls._KNOWN
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> Any:
+        from pydantic_core import core_schema
+        return core_schema.no_info_after_validator_function(
+            cls,
+            core_schema.str_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(str),
+        )
+
+    # ── Well-known constants ──────────────────────────────────────────────
+    IMPLEMENTER: ClassVar[Role]
+    REVIEWER:    ClassVar[Role]
+    ARCHITECT:   ClassVar[Role]
+    DESIGNER:    ClassVar[Role]
+    PLANNER:     ClassVar[Role]
+    RESEARCHER:  ClassVar[Role]
+    CURATOR:     ClassVar[Role]
+    MANAGER:     ClassVar[Role]
 
 
-def _coerce_role(value: Any) -> Role | str | None:
-    """Coerce known role strings to Role enum, pass custom roles through."""
-    if value is None:
-        return None
-    if isinstance(value, Role):
-        return value
-    if isinstance(value, str):
-        # Try case-insensitive match
-        try:
-            return Role(value.lower())
-        except ValueError:
-            warnings.warn(
-                f"Custom role '{value}' not in controlled vocabulary. "
-                f"Known roles: {', '.join(r.value for r in Role)}",
-                UserWarning,
-                stacklevel=2,
-            )
-            return value
-    # Fallback for unexpected types - return as string
-    return str(value)
+# Assign constants after the class body so __new__ is already defined
+Role.IMPLEMENTER = Role("implementer")
+Role.REVIEWER    = Role("reviewer")
+Role.ARCHITECT   = Role("architect")
+Role.DESIGNER    = Role("designer")
+Role.PLANNER     = Role("planner")
+Role.RESEARCHER  = Role("researcher")
+Role.CURATOR     = Role("curator")
+Role.MANAGER     = Role("manager")
+
+# Populate _KNOWN after constants exist
+Role._KNOWN = frozenset({
+    str(Role.IMPLEMENTER), str(Role.REVIEWER), str(Role.ARCHITECT),
+    str(Role.DESIGNER), str(Role.PLANNER), str(Role.RESEARCHER),
+    str(Role.CURATOR), str(Role.MANAGER),
+})
 
 
 # Value Objects (Section components)
@@ -143,7 +189,8 @@ class AgentProfile(BaseModel):
     name: str
     description: str = ""
     schema_version: str = Field(default="1.0", alias="schema-version")
-    role: Annotated[Role | str, BeforeValidator(_coerce_role)] = Role.IMPLEMENTER
+    roles: list[Role] = Field(min_length=1)
+    avatar_image: str | None = Field(default=None, alias="avatar-image")
     capabilities: list[str] = Field(default_factory=list)
     specializes_from: str | None = Field(default=None, alias="specializes-from")
     routing_priority: int = Field(default=50, ge=0, le=100, alias="routing-priority")
@@ -168,6 +215,34 @@ class AgentProfile(BaseModel):
     #   excluding: [field_name]            → removes entire field from resolved result
     #   excluding: {field_name: [value]}   → removes specific values from list field
     excluding: list[str] | dict[str, list[str]] | None = Field(default=None, alias="excluding")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_scalar_role(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        has_role = "role" in data
+        has_roles = "roles" in data
+        if has_role and not has_roles:
+            value = data["role"]
+            norm = value.lower() if isinstance(value, str) else value
+            profile_id = data.get("profile-id", "<unknown>")
+            warnings.warn(
+                f"Profile '{profile_id}': the scalar 'role:' field is deprecated. "
+                f"Replace with: roles: [{norm}]",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            data = {k: v for k, v in data.items() if k != "role"}
+            data["roles"] = [norm]
+        # if has_roles (with or without stale "role" key), pass through unchanged
+        # if neither: Pydantic raises ValidationError via min_length=1 on roles
+        return data
+
+    @property
+    def role(self) -> Role:
+        """Primary role — first entry in ``roles``."""
+        return self.roles[0]
 
     @field_validator("routing_priority")
     @classmethod
@@ -197,7 +272,10 @@ class TaskContext(BaseModel):
     file_paths: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
     complexity: str = "medium"
-    required_role: Annotated[Role | str | None, BeforeValidator(_coerce_role)] = None
+    required_role: Annotated[
+        Role | None,
+        BeforeValidator(lambda v: Role(v.lower()) if isinstance(v, str) else v),
+    ] = None
     active_tasks: dict[str, int] = Field(default_factory=dict)
     current_workload: int | None = None
 

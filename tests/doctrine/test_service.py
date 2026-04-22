@@ -60,7 +60,7 @@ def test_service_loads_all_repositories_from_shipped_defaults(tmp_path: Path) ->
     )
     _write_yaml(
         shipped_root / "agent_profiles" / "shipped" / "test.agent.yaml",
-        {"profile-id": "test-agent", "name": "Test Agent", "role": "implementer",
+        {"profile-id": "test-agent", "name": "Test Agent", "roles": ["implementer"],
          "personality-traits": ["diligent"], "directive-references": [],
          "purpose": "Test agent for unit tests.",
          "specialization": {
@@ -192,9 +192,9 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
     _write_yaml(
         shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
         {
-            "profile-id": "python-implementer",
-            "name": "Python Implementer",
-            "role": "implementer",
+            "profile-id": "python-pedro",
+            "name": "Python Pedro",
+            "roles": ["implementer"],
             "purpose": "Python specialist",
             "applies_to_languages": ["python"],
             "specialization": {
@@ -210,7 +210,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         {
             "profile-id": "generic-implementer",
             "name": "Generic Implementer",
-            "role": "implementer",
+            "roles": ["implementer"],
             "purpose": "General specialist",
             "specialization": {
                 "primary-focus": "general implementation",
@@ -228,7 +228,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
     assert service.toolguides.get("generic-tool") is not None
     assert service.toolguides.get("python-tool") is None
     assert service.agent_profiles.get("generic-implementer") is not None
-    assert service.agent_profiles.get("python-implementer") is None
+    assert service.agent_profiles.get("python-pedro") is None
 
 
 def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset(
@@ -262,9 +262,9 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
     _write_yaml(
         shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
         {
-            "profile-id": "python-implementer",
-            "name": "Python Implementer",
-            "role": "implementer",
+            "profile-id": "python-pedro",
+            "name": "Python Pedro",
+            "roles": ["implementer"],
             "purpose": "Python specialist",
             "applies_to_languages": ["python"],
             "specialization": {
@@ -280,7 +280,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
 
     assert service.styleguides.get("python-style") is not None
     assert service.toolguides.get("python-tool") is not None
-    assert service.agent_profiles.get("python-implementer") is not None
+    assert service.agent_profiles.get("python-pedro") is not None
 
 
 def test_service_exposes_specification_by_example_artifacts() -> None:

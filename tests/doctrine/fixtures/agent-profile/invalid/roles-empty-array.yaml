@@ -1,0 +1,6 @@
+profile-id: empty-roles-agent
+name: Empty Roles Agent
+purpose: Agent with empty roles array — should fail minItems
+roles: []
+specialization:
+  primary-focus: Nothing in particular

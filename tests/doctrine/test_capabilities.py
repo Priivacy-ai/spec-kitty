@@ -13,8 +13,8 @@ class TestRoleCapabilities:
     """Test RoleCapabilities model and defaults."""
 
     def test_all_roles_have_default_capabilities(self):
-        """Each Role enum value has a default RoleCapabilities entry."""
-        for role in Role:
+        """Each well-known Role value has a default RoleCapabilities entry."""
+        for role in [Role(r) for r in sorted(Role._KNOWN)]:
             assert role in DEFAULT_ROLE_CAPABILITIES, f"Missing capabilities for {role}"
             caps = DEFAULT_ROLE_CAPABILITIES[role]
             assert isinstance(caps, RoleCapabilities)

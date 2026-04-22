@@ -1,8 +1,9 @@
-profile-id: planner
-name: Planner Petra
+profile-id: planner-priti
+name: Planner Priti
 description: Work decomposition and delivery sequencing specialist
 schema-version: "1.0"
-role: planner
+roles:
+  - planner
 capabilities:
   - work-decomposition
   - dependency-mapping

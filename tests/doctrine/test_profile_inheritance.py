@@ -20,6 +20,8 @@ def inheritance_repo(tmp_path: Path) -> AgentProfileRepository:
     (shipped / "implementer.agent.yaml").write_text(
         """profile-id: implementer
 name: Implementer
+roles:
+  - implementer
 purpose: Build missions
 routing-priority: 70
 specialization:
@@ -42,6 +44,8 @@ initialization-declaration: hello
     (shipped / "python-pedro.agent.yaml").write_text(
         """profile-id: python-pedro
 name: Python Pedro
+roles:
+  - implementer
 purpose: Python specialist
 specializes-from: implementer
 specialization:
@@ -59,6 +63,8 @@ mode-defaults:
     (shipped / "backend-pedro.agent.yaml").write_text(
         """profile-id: backend-pedro
 name: Backend Pedro
+roles:
+  - implementer
 purpose: Backend specialist
 specializes-from: python-pedro
 specialization:
@@ -94,6 +100,8 @@ def test_resolve_profile_missing_parent_raises_key_error(tmp_path: Path) -> None
     (shipped / "orphan.agent.yaml").write_text(
         """profile-id: orphan
 name: Orphan
+roles:
+  - implementer
 purpose: orphan
 specializes-from: missing-parent
 specialization:
@@ -114,6 +122,8 @@ def test_resolve_profile_cycle_raises(tmp_path: Path) -> None:
     (shipped / "a.agent.yaml").write_text(
         """profile-id: a
 name: A
+roles:
+  - implementer
 purpose: a
 specializes-from: b
 specialization:
@@ -124,6 +134,8 @@ specialization:
     (shipped / "b.agent.yaml").write_text(
         """profile-id: b
 name: B
+roles:
+  - implementer
 purpose: b
 specializes-from: a
 specialization:
@@ -159,6 +171,8 @@ def us6_repo(tmp_path: Path) -> AgentProfileRepository:
     (shipped / "base.agent.yaml").write_text(
         """profile-id: base
 name: Base
+roles:
+  - implementer
 purpose: Base profile
 routing-priority: 50
 specialization:
@@ -185,6 +199,8 @@ initialization-declaration: hello
     (shipped / "child.agent.yaml").write_text(
         """profile-id: child
 name: Child
+roles:
+  - implementer
 purpose: Child profile
 specializes-from: base
 specialization:
@@ -206,6 +222,8 @@ mode-defaults:
     (shipped / "grandchild.agent.yaml").write_text(
         """profile-id: grandchild
 name: Grandchild
+roles:
+  - implementer
 purpose: Grandchild profile
 specializes-from: child
 specialization:
@@ -217,6 +235,8 @@ specialization:
     (shipped / "child-excluding.agent.yaml").write_text(
         """profile-id: child-excluding
 name: Child Excluding
+roles:
+  - implementer
 purpose: Child that excludes a directive value
 specializes-from: base
 specialization:
@@ -304,6 +324,8 @@ def test_missing_parent_raises_key_error(tmp_path: Path) -> None:
     (shipped / "orphan.agent.yaml").write_text(
         """profile-id: orphan
 name: Orphan
+roles:
+  - implementer
 purpose: orphan
 specializes-from: nonexistent-parent
 specialization:

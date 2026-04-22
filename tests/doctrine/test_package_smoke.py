@@ -33,7 +33,7 @@ def test_doctrine_import_and_profile_repo_smoke() -> None:
             (
                 "from doctrine.agent_profiles import AgentProfileRepository; "
                 "repo = AgentProfileRepository(project_dir=None); "
-                "assert repo.get('implementer') is not None"
+                "assert repo.get('implementer-ivan') is not None"
             ),
         ],
         capture_output=True,

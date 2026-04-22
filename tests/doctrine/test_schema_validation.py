@@ -68,3 +68,84 @@ def test_invalid_fixtures_fail(schema_name: str) -> None:
         instance = _load_yaml(fixture_path)
         errors = sorted(validator.iter_errors(instance), key=str)
         assert errors, f"schema={schema_name} fixture={fixture_path.name} expected validation errors but got none"
+
+
+class TestRolesArraySchema:
+    """Validate schema behaviour for the new 'roles' array property."""
+
+    @pytest.fixture(autouse=True)
+    def _validator(self) -> None:
+        self.v = _schema_validator("agent-profile")
+
+    def _base(self) -> dict:
+        return {
+            "profile-id": "test-roles",
+            "name": "Test",
+            "purpose": "Validation test",
+            "specialization": {"primary-focus": "Testing"},
+        }
+
+    def test_roles_array_accepted(self) -> None:
+        """Profile with roles array passes schema validation."""
+        data = {**self._base(), "roles": ["implementer"]}
+        errors = list(self.v.iter_errors(data))
+        assert not errors, [e.message for e in errors]
+
+    def test_roles_multi_accepted(self) -> None:
+        """Profile with multiple roles passes schema validation."""
+        data = {**self._base(), "roles": ["implementer", "reviewer"]}
+        errors = list(self.v.iter_errors(data))
+        assert not errors, [e.message for e in errors]
+
+    def test_roles_empty_array_rejected(self) -> None:
+        """roles: [] fails because minItems: 1."""
+        data = {**self._base(), "roles": []}
+        errors = list(self.v.iter_errors(data))
+        assert errors
+
+    def test_legacy_role_scalar_accepted(self) -> None:
+        """Legacy scalar role: still accepted for backward compat."""
+        data = {**self._base(), "role": "architect"}
+        errors = list(self.v.iter_errors(data))
+        assert not errors, [e.message for e in errors]
+
+    def test_neither_role_nor_roles_rejected(self) -> None:
+        """Profile without role or roles fails the anyOf constraint."""
+        data = self._base()  # no role, no roles
+        errors = list(self.v.iter_errors(data))
+        assert errors
+
+
+class TestAvatarImageSchema:
+    """Validate schema behaviour for the new 'avatar-image' property."""
+
+    @pytest.fixture(autouse=True)
+    def _validator(self) -> None:
+        self.v = _schema_validator("agent-profile")
+
+    def _base(self) -> dict:
+        return {
+            "profile-id": "test-avatar",
+            "name": "Test",
+            "purpose": "Avatar validation",
+            "roles": ["designer"],
+            "specialization": {"primary-focus": "Design"},
+        }
+
+    def test_avatar_image_string_accepted(self) -> None:
+        """avatar-image: string passes validation."""
+        data = {**self._base(), "avatar-image": "assets/agents/me.png"}
+        errors = list(self.v.iter_errors(data))
+        assert not errors, [e.message for e in errors]
+
+    def test_avatar_image_url_accepted(self) -> None:
+        """avatar-image: URL passes validation."""
+        data = {**self._base(), "avatar-image": "https://example.com/avatar.png"}
+        errors = list(self.v.iter_errors(data))
+        assert not errors, [e.message for e in errors]
+
+    def test_avatar_image_absent_is_fine(self) -> None:
+        """avatar-image is optional — its absence is valid."""
+        data = self._base()
+        errors = list(self.v.iter_errors(data))
+        assert not errors, [e.message for e in errors]

@@ -350,6 +350,91 @@ nodes:
 - urn: toolguide:typescript-mutation-tools
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
+- urn: agent_profile:implementer-ivan
+  kind: agent_profile
+  label: Implementer Ivan
+- urn: agent_profile:java-jenny
+  kind: agent_profile
+  label: Java Jenny
+- urn: agent_profile:python-pedro
+  kind: agent_profile
+  label: Python Pedro
+- urn: styleguide:java-conventions
+  kind: styleguide
+  label: Java Conventions Styleguide
+- urn: styleguide:testing-principles
+  kind: styleguide
+  label: Testing Principles Styleguide
+- urn: toolguide:maven-review-checks
+  kind: toolguide
+  label: Maven Review Checks
+- urn: tactic:test-minimisation
+  kind: tactic
+  label: Test Minimisation
+- urn: tactic:formalized-constraint-testing
+  kind: tactic
+  label: Formalized Constraint Testing
+# reviewer tactics
+- urn: tactic:test-to-system-reconstruction
+  kind: tactic
+  label: Test-to-System Reconstruction
+- urn: tactic:work-package-completion-validation
+  kind: tactic
+  label: Work Package Completion Validation
+- urn: tactic:secure-design-checklist
+  kind: tactic
+  label: Secure Design Checklist
+- urn: tactic:code-documentation-analysis
+  kind: tactic
+  label: Code and Documentation Analysis
+# analyst/architect tactics
+- urn: tactic:dependency-hygiene
+  kind: tactic
+  label: Dependency Hygiene
+- urn: tactic:context-boundary-inference
+  kind: tactic
+  label: Context Boundary Inference
+- urn: tactic:analysis-extract-before-interpret
+  kind: tactic
+  label: Extract Before Interpret
+- urn: tactic:behavior-driven-development
+  kind: tactic
+  label: Behavior-Driven Development
+# approach-derived tactics
+- urn: tactic:locality-of-change
+  kind: tactic
+  label: Locality of Change Assessment
+- urn: tactic:traceable-decisions
+  kind: tactic
+  label: Traceable Decisions
+- urn: tactic:function-over-form-testing
+  kind: tactic
+  label: Function Over Form Testing
+# reviewer profile node
+- urn: agent_profile:reviewer-renata
+  kind: agent_profile
+  label: Reviewer Renata
+- urn: agent_profile:architect-alphonso
+  kind: agent_profile
+  label: Architect Alphonso
+- urn: agent_profile:curator-carla
+  kind: agent_profile
+  label: Curator Carla
+- urn: agent_profile:designer-dagmar
+  kind: agent_profile
+  label: Designer Dagmar
+- urn: agent_profile:generic-agent
+  kind: agent_profile
+  label: Generic Agent
+- urn: agent_profile:human-in-charge
+  kind: agent_profile
+  label: Human In Charge
+- urn: agent_profile:planner-priti
+  kind: agent_profile
+  label: Planner Priti
+- urn: agent_profile:researcher-robbie
+  kind: agent_profile
+  label: Researcher Robbie
 edges:
 - source: action:software-dev/implement
   target: directive:DIRECTIVE_024
@@ -1126,3 +1211,344 @@ edges:
 - source: toolguide:python-mutation-tools
   target: styleguide:mutation-aware-test-design
   relation: requires
+# ---------------------------------------------------------------------------
+# Agent profile nodes — specialisation hierarchy and doctrine context wiring
+# ---------------------------------------------------------------------------
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: agent_profile:implementer-ivan
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: agent_profile:implementer-ivan
+  target: procedure:test-first-bug-fixing
+  relation: suggests
+# python-pedro specialises from implementer
+- source: agent_profile:python-pedro
+  target: agent_profile:implementer-ivan
+  relation: delegates_to
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:python-pedro
+  target: styleguide:python-conventions
+  relation: requires
+- source: agent_profile:python-pedro
+  target: toolguide:python-review-checks
+  relation: requires
+- source: agent_profile:python-pedro
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+- source: agent_profile:python-pedro
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: agent_profile:python-pedro
+  target: procedure:test-first-bug-fixing
+  relation: requires
+- source: agent_profile:python-pedro
+  target: styleguide:testing-principles
+  relation: suggests
+- source: agent_profile:python-pedro
+  target: tactic:mutation-testing-workflow
+  relation: suggests
+# java-jenny specialises from implementer
+- source: agent_profile:java-jenny
+  target: agent_profile:implementer-ivan
+  relation: delegates_to
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:java-jenny
+  target: styleguide:java-conventions
+  relation: requires
+- source: agent_profile:java-jenny
+  target: toolguide:maven-review-checks
+  relation: requires
+- source: agent_profile:java-jenny
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+- source: agent_profile:java-jenny
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: agent_profile:java-jenny
+  target: procedure:test-first-bug-fixing
+  relation: requires
+- source: agent_profile:java-jenny
+  target: styleguide:testing-principles
+  relation: suggests
+- source: agent_profile:java-jenny
+  target: tactic:formalized-constraint-testing
+  relation: suggests
+# ---------------------------------------------------------------------------
+# New testing tactics
+# ---------------------------------------------------------------------------
+- source: tactic:formalized-constraint-testing
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: tactic:formalized-constraint-testing
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: tactic:formalized-constraint-testing
+  target: tactic:black-box-integration-testing
+  relation: suggests
+  when: Contract tests complement black-box integration tests — apply both at system boundaries
+- source: tactic:formalized-constraint-testing
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Define acceptance criteria first, then formalise constraints as contract tests
+- source: tactic:formalized-constraint-testing
+  target: tactic:test-minimisation
+  relation: suggests
+  when: Once contract tests cover a behavior class, minimise redundant spot-checks
+- source: tactic:test-minimisation
+  target: tactic:formalized-constraint-testing
+  relation: suggests
+  when: Contract tests establish the coverage baseline that makes spot-check removal safe
+- source: tactic:test-minimisation
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: tactic:test-minimisation
+  target: directive:DIRECTIVE_030
+  relation: requires
+# maven-review-checks toolguide
+- source: toolguide:maven-review-checks
+  target: tactic:mutation-testing-workflow
+  relation: suggests
+  when: PIT mutation testing is the optional high-cost gate in the Maven quality stack
+
+# reviewer agent profile
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: tactic:code-review-incremental
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: tactic:reverse-speccing
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: tactic:secure-design-checklist
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: tactic:test-to-system-reconstruction
+  relation: suggests
+  when: Validates test suite documentation quality during review
+- source: agent_profile:reviewer-renata
+  target: tactic:work-package-completion-validation
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: tactic:code-documentation-analysis
+  relation: suggests
+  when: Boundary ambiguity or ubiquitous-language drift detected in a diff
+- source: agent_profile:reviewer-renata
+  target: tactic:analysis-extract-before-interpret
+  relation: requires
+  when: Separating observations from judgments in review feedback
+
+# review action scope edges for new reviewer tactics
+- source: action:software-dev/review
+  target: tactic:secure-design-checklist
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:test-to-system-reconstruction
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:work-package-completion-validation
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:analysis-extract-before-interpret
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:code-documentation-analysis
+  relation: scope
+
+# inter-tactic edges for reviewer tactics
+- source: tactic:test-to-system-reconstruction
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: tactic:test-to-system-reconstruction
+  target: styleguide:testing-principles
+  relation: suggests
+- source: tactic:test-to-system-reconstruction
+  target: tactic:reverse-speccing
+  relation: suggests
+  when: reverse-speccing provides the evaluative philosophy; test-to-system-reconstruction is the execution procedure
+- source: tactic:secure-design-checklist
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: tactic:secure-design-checklist
+  target: tactic:code-review-incremental
+  relation: suggests
+- source: tactic:work-package-completion-validation
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: tactic:work-package-completion-validation
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: tactic:code-documentation-analysis
+  target: tactic:language-driven-design
+  relation: requires
+- source: tactic:code-documentation-analysis
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: tactic:code-documentation-analysis
+  target: directive:DIRECTIVE_032
+  relation: requires
+
+# architect agent profile edges
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: tactic:context-boundary-inference
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: tactic:code-documentation-analysis
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: tactic:traceable-decisions
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: tactic:dependency-hygiene
+  relation: suggests
+- source: agent_profile:architect-alphonso
+  target: tactic:locality-of-change
+  relation: suggests
+- source: agent_profile:architect-alphonso
+  target: tactic:analysis-extract-before-interpret
+  relation: suggests
+- source: agent_profile:architect-alphonso
+  target: tactic:secure-design-checklist
+  relation: suggests
+
+# inter-tactic edges for architect tactics
+- source: tactic:context-boundary-inference
+  target: tactic:language-driven-design
+  relation: requires
+- source: tactic:context-boundary-inference
+  target: tactic:code-documentation-analysis
+  relation: requires
+  when: Code and documentation analysis provides the terminology extraction input
+- source: tactic:context-boundary-inference
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: tactic:context-boundary-inference
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: tactic:dependency-hygiene
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: tactic:dependency-hygiene
+  target: tactic:secure-design-checklist
+  relation: suggests
+- source: tactic:locality-of-change
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: tactic:locality-of-change
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: tactic:locality-of-change
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: tactic:traceable-decisions
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: tactic:traceable-decisions
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: tactic:analysis-extract-before-interpret
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+
+# implementer profile edges for new approach-derived tactics
+- source: agent_profile:implementer-ivan
+  target: tactic:behavior-driven-development
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: tactic:function-over-form-testing
+  relation: requires
+- source: agent_profile:java-jenny
+  target: tactic:behavior-driven-development
+  relation: requires
+- source: agent_profile:java-jenny
+  target: tactic:function-over-form-testing
+  relation: requires
+- source: agent_profile:python-pedro
+  target: tactic:behavior-driven-development
+  relation: requires
+- source: agent_profile:python-pedro
+  target: tactic:function-over-form-testing
+  relation: requires
+
+# inter-tactic edges for approach-derived tactics
+- source: tactic:behavior-driven-development
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: tactic:behavior-driven-development
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: tactic:behavior-driven-development
+  target: styleguide:testing-principles
+  relation: suggests
+- source: tactic:function-over-form-testing
+  target: styleguide:testing-principles
+  relation: requires
+- source: tactic:function-over-form-testing
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: tactic:function-over-form-testing
+  target: tactic:behavior-driven-development
+  relation: suggests
+
+# implement action scope edges for new implementer tactics
+- source: action:software-dev/implement
+  target: tactic:behavior-driven-development
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:function-over-form-testing
+  relation: scope
