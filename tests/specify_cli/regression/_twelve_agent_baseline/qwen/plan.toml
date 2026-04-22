@@ -103,11 +103,20 @@ Before executing any scripts or generating artifacts you must interrogate the sp
   - **Complex Features** (new subsystems, multi-component features): Ask 3-5 questions covering architecture, NFRs, integrations
   - **Platform/Critical Features** (core infrastructure, security, payments): Full interrogation with 5+ questions
 
+- **Scenario-to-design handoff**: For non-trivial features, anchor planning
+  questions in the concrete user flows from the spec rather than generic
+  architecture preferences.
+
+- **Domain rule follow-through**: When the spec implies approvals, lifecycle
+  states, irreversible operations, or business-critical validations, ask 1-2
+  targeted questions about invariants, transitions, atomicity, and externally
+  visible events or integrations. Skip this for trivial features.
+
 - **User signals to reduce questioning**: If the user says "use defaults", "just make it simple", "skip to implementation", "vanilla HTML/CSS/JS" - recognize these as signals to minimize planning questions and use standard approaches.
 
 - **First response rule**:
   - For TRIVIAL features: Ask ONE tech stack question, then if answer is simple (e.g., "vanilla HTML"), proceed directly to plan generation
-  - For other features: Ask a single architecture question and end with `WAITING_FOR_PLANNING_INPUT`
+  - For other features: Ask a single architecture question tied to the riskiest scenario, rule, or lifecycle constraint and end with `WAITING_FOR_PLANNING_INPUT`
 
 - If the user has not provided plan context, keep interrogating with one question at a time.
 
@@ -117,7 +126,7 @@ Planning requirements (scale to complexity):
 
 1. Maintain a **Planning Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
 2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
-3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm.
+3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm. Include invariant, state-transition, or event assumptions when they materially affect the design.
 4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that feature type.
 
 ## Bulk-Edit Check (if applicable)
@@ -180,8 +189,8 @@ If the mission is not a bulk edit, skip this step.
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - If a charter exists, fill Charter Check section from it and challenge any conflicts directly with the user. If no charter exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
+   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification, prioritizing unresolved domain rules, lifecycle questions, and event/integration behavior before generic tech comparisons)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent; when applicable, capture entities/value objects, invariants, state transitions, and externally visible events in the design artifacts
    - Re-evaluate Charter Check post-design, asking the user to resolve new gaps before proceeding
 
 6. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
@@ -194,6 +203,7 @@ If the mission is not a bulk edit, skip this step.
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task
+   - For each unresolved rule, invariant, lifecycle edge, or event/integration ambiguity → domain research task
    - For each dependency → best practices task
    - For each integration → patterns task
 
@@ -201,6 +211,8 @@ If the mission is not a bulk edit, skip this step.
    ```
    For each unknown in Technical Context:
      Task: "Research {unknown} for {feature context}"
+   For each unresolved domain rule:
+     Task: "Clarify invariant, state transition, or event behavior for {feature context}"
    For each technology choice:
      Task: "Find best practices for {tech} in {domain}"
    ```
@@ -219,10 +231,12 @@ If the mission is not a bulk edit, skip this step.
 1. **Extract entities from feature spec** → `data-model.md`:
    - Entity name, fields, relationships
    - Validation rules from requirements
+   - Invariants or atomicity boundaries if applicable
    - State transitions if applicable
 
 2. **Generate API contracts** from functional requirements:
    - For each user action → endpoint
+   - For each externally visible event, webhook, or integration callback → contract or payload shape when applicable
    - Use standard REST/GraphQL patterns
    - Output OpenAPI/GraphQL schema to `/contracts/`
 

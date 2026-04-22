@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -47,7 +48,7 @@ def test_help_flag() -> None:
     result = runner.invoke(migrate_app, ["normalize-lifecycle", "--help"])
 
     assert result.exit_code == 0
-    plain = result.output
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     assert "normalize-lifecycle" in plain
     assert "--dry-run" in plain
     assert "--json" in plain

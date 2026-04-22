@@ -130,6 +130,14 @@ Use this for normal `/spec-kitty.charter` runs.
    - The LLM is responsible for structuring and normalizing the user's answers
      into the interview schema later. The user should only have to answer the
      substance of the question.
+   - If the project uses dense business or domain language, ask one lightweight
+     terminology question: which terms must stay precise across docs, specs,
+     and code, and which overloaded terms or synonyms should be avoided. Fold
+     that signal into existing documentation/review/risk answers rather than
+     inventing new interview schema fields.
+   - If failure modes differ materially, ask which kind of failure would be
+     most costly (for example wrong behavior, privacy breach, downtime, data
+     loss) and use that answer to sharpen risk boundaries and review policy.
    - If examples are needed, keep them conceptual and brief; do not imply that
      the user must mirror the example format.
    - Match interview depth to project complexity and the user's stated
