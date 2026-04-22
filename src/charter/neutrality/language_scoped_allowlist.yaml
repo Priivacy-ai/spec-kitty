@@ -9,10 +9,10 @@
 #   4. Run `pytest tests/charter/test_neutrality_lint.py` to confirm lint passes.
 schema_version: "1"
 paths:
-  - path: "src/doctrine/agent_profiles/shipped/python-implementer.agent.yaml"
+  - path: "src/doctrine/agent_profiles/shipped/python-pedro.agent.yaml"
     scope: python
     owner: "charter team"
-    reason: "Shipped Python implementer agent profile; pytest/pip references are intentional."
+    reason: "Shipped Python specialist agent profile (python-pedro); pytest/pip references are intentional."
     added_in: "3.2.0"
   - path: "src/doctrine/styleguides/shipped/python-conventions.styleguide.yaml"
     scope: python
@@ -64,3 +64,18 @@ paths:
     owner: "charter team"
     reason: "Python mutation-tools toolguide; pytest is the subject matter."
     added_in: "3.3.0"
+  - path: "src/doctrine/agent_profiles/shipped/java-jenny.agent.yaml"
+    scope: java
+    owner: "charter team"
+    reason: "Shipped Java specialist agent profile (java-jenny); JUnit references are intentional."
+    added_in: "3.2.4"
+  - path: "src/doctrine/toolguides/shipped/MAVEN_REVIEW_CHECKS.md"
+    scope: java
+    owner: "charter team"
+    reason: "Maven review-checks toolguide companion; Maven/Java tool names are the subject matter."
+    added_in: "3.2.4"
+  - path: "src/doctrine/toolguides/shipped/maven-review-checks.toolguide.yaml"
+    scope: java
+    owner: "charter team"
+    reason: "Maven review-checks toolguide; Maven/Java tool names (pytest reference is cross-check example) are the subject matter."
+    added_in: "3.2.4"
