@@ -69,7 +69,7 @@ On filesystems where symlinks are not supported, the installer falls back to cop
 
 ### Known Current Limitation
 
-The feature 076 implementation installs per-project skill wiring during `spec-kitty init` (a known gap from the intended architecture). This means skill files continue to be present in project agent directories for now. This ADR documents the intended architecture — global install is canonical, per-project is derived — and the per-project wiring will be moved to a dedicated per-project setup flow in a future feature. The double-prompt problem caused by this gap is addressed by migration 3.2.2 (see ADR-F).
+The feature 076 implementation installs per-project skill wiring during `spec-kitty init` (a known gap from the intended architecture). This means skill files continue to be present in project agent directories for now. This ADR documents the intended architecture — global install is canonical, per-project is derived — and the per-project wiring will be moved to a dedicated per-project setup flow in a future feature. The double-prompt problem caused by this gap is addressed by the hardened command-globalization path that ships in `3.2.0a4` (see ADR-F).
 
 ### Consequences
 

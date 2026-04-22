@@ -26,17 +26,22 @@ After the global runtime was introduced, spec-kitty also began installing these 
 
 Projects that upgraded now have both local (per-project) and global command files. AI tools that index multiple command directories — including Claude Code, Codex, and GitHub Copilot — present all discovered commands to the user. A developer sees `spec-kitty.implement` twice in their slash command list. This is the **double-prompt problem**.
 
-### Migration 3.1.2 (Existing — Insufficient)
+### Migration 3.1.2 (Original Behavior — Unsafe)
 
 `m_3_1_2_globalize_commands.py` was introduced to address the double-prompt problem. It removes local per-project command files by deleting `.claude/commands/spec-kitty.*.md`, `.codex/prompts/spec-kitty.*.md`, and so on.
 
 **Critical flaw:** Migration 3.1.2 deletes local command files unconditionally — it performs no check for the presence of global equivalents. On a developer's machine where `~/.kittify/` was never created, the migration deletes local command files and leaves the developer with no slash commands at all. There is no recourse; the migration does not leave the local files as a fallback.
 
-**Why 3.1.2 cannot be patched in place:** The migration runner tracks applied migrations by `migration_id`. If `m_3_1_2` is edited and already appears in a project's migration log as applied, the edited version will never execute for that project. In-place edits to applied migrations are silently ignored.
+That original `3.1.2` behavior was correct enough to identify the desired cleanup, but unsafe for upgrade paths where the global runtime had not been bootstrapped yet.
 
-### Migration 3.2.2 (This Feature — Safe)
+### Main-Branch Correction for 3.2.0a4 (This Feature — Safe)
 
-Feature 076 introduces `m_3_2_2_safe_globalize_commands.py` as a new migration with a new `migration_id`. It implements four safety invariants before any deletion:
+On `main`, before the `3.2.0a4` pre-release ships, the command-globalization flow is corrected in two places:
+
+1. `m_3_1_2_globalize_commands.py` is hardened in place so upgrades from versions *before* `3.1.2` get the safe behavior immediately.
+2. `m_3_2_0a4_safe_globalize_commands.py` adds the same safety rules under a new migration ID for projects that already recorded `3.1.2_globalize_commands` on `main`.
+
+Together, these migrations implement four safety invariants before any deletion:
 
 1. **Global runtime present:** Checks that `~/.kittify/` exists and is a valid runtime directory. If absent, the migration logs a warning and skips all deletions.
 
@@ -50,30 +55,28 @@ Feature 076 introduces `m_3_2_2_safe_globalize_commands.py` as a new migration w
 
 4. **Per-agent skip on failure:** If any check fails for a given agent, that agent's local files are left intact. The migration does not fail globally; it reports which agents were processed and which were skipped.
 
-### Why a New Migration ID
+### Why Both 3.1.2 and 3.2.0a4 Exist
 
-The migration runner applies migrations in order by ID and records which IDs have been applied to each project. `m_3_1_2` has already been applied to many projects. Creating `m_3_2_2` with a new ID ensures:
+The next actual release line is `3.2.0a4`, so `main` can still harden `m_3_1_2` before that release ships. That covers upgrade chains coming from versions older than `3.1.2`.
 
-* Projects that ran `m_3_1_2` (and already had their local files deleted) are not double-processed.
-* Projects that have `m_3_1_2` recorded but had global files missing at the time will now get a safe second attempt.
-* New projects that have never run either migration get the safe version directly.
+However, some projects already recorded `3.1.2_globalize_commands` on `main`. Those projects would never re-run the hardened `3.1.2` body, because the migration runner tracks applied migrations by `migration_id`. `m_3_2_0a4_safe_globalize_commands.py` exists to give that population a safe second pass without mutating migration history.
 
 ## Decision Drivers
 
 * **Safety first:** No user should lose all slash commands because a migration ran before the global runtime was bootstrapped.
-* **Correctness over migration IDs:** The right behavior cannot be patched into an already-applied migration. A new ID is required.
+* **Release-graph correctness:** Projects upgrading from pre-`3.1.2` versions and projects that already recorded `3.1.2` on `main` both need a safe path.
 * **Version marker as fingerprint:** User-authored command files must never be touched. Only spec-kitty-generated files can be removed.
 * **Per-agent granularity:** A failure or missing global state for one agent must not block processing of other agents.
 
 ## Considered Options
 
-* **Option A: New migration `m_3_2_2` with four safety invariants (chosen)**
-* **Option B: Edit `m_3_1_2` in place**
+* **Option A: Harden `m_3_1_2` on `main` and add `m_3_2_0a4_safe_globalize_commands` for already-upgraded projects (chosen)**
+* **Option B: Only add a later safe migration**
 * **Option C: Force re-run of `m_3_1_2` via a flag or migration log reset**
 
 ## Decision Outcome
 
-**Chosen option: Option A — A new migration `m_3_2_2_safe_globalize_commands.py` implements safe local command removal with four invariants.**
+**Chosen option: Option A — Harden `m_3_1_2_globalize_commands.py` on `main` and add `m_3_2_0a4_safe_globalize_commands.py` for projects that already recorded `3.1.2_globalize_commands`.**
 
 ### Safety Invariants in Detail
 
@@ -127,8 +130,8 @@ def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
 
 #### Negative
 
-* The existence of two globalizing migrations (`m_3_1_2` and `m_3_2_2`) may confuse developers reading the migration log. The relationship between them should be documented in the migration module.
-* Projects that already had local files deleted by `m_3_1_2` do not benefit from `m_3_2_2` (the local files are already gone). These users must rely on the global runtime for commands — which is the intended state.
+* The existence of two safe command-globalization paths (`m_3_1_2` and `m_3_2_0a4`) may confuse developers reading the migration log. The relationship between them must be documented in the migration modules.
+* Projects that already had local files deleted by the original unsafe `m_3_1_2` behavior do not regain those files automatically. These users must rely on the global runtime for commands — which is the intended steady state.
 
 #### Neutral
 
@@ -140,9 +143,9 @@ Correct behavior is confirmed when: running `spec-kitty upgrade` on a project wi
 
 ## Pros and Cons of the Options
 
-### Option A: New migration `m_3_2_2` with safety invariants (chosen)
+### Option A: Harden `m_3_1_2` on `main` and add `m_3_2_0a4` for already-upgraded projects (chosen)
 
-New migration ID, new safety logic. Operates safely on all projects regardless of migration history.
+Main-branch hardening plus a follow-up pre-release migration. Operates safely across both upgrade populations that matter for `3.2.0a4`.
 
 **Pros:**
 * Runs on all projects (new ID not in migration log).
@@ -152,19 +155,19 @@ New migration ID, new safety logic. Operates safely on all projects regardless o
 **Cons:**
 * Two migrations addressing the same concern appear in the migration log; requires documentation.
 
-### Option B: Edit `m_3_1_2` in place
+### Option B: Only add a later safe migration
 
-Modify the existing migration to add safety checks.
+Leave `m_3_1_2` untouched and rely solely on a later migration ID.
 
 **Pros:**
-* Single migration for the globalizing behavior.
-* No "two migrations for one thing" confusion.
+* Keeps `m_3_1_2` immutable.
+* Still provides a second pass for projects that already recorded `3.1.2_globalize_commands`.
 
 **Cons:**
-* `m_3_1_2` is already recorded as applied in every project that has run it. Editing the migration body has no effect on those projects — the migration runner uses the recorded ID to skip re-execution.
-* Editing an applied migration is functionally a no-op for existing projects, silently leaving them with the unsafe behavior.
+* Projects upgrading from versions older than `3.1.2` would still encounter the original unsafe behavior on the way to `3.2.0a4`.
+* The active upgrade path would remain wrong until a later migration repairs it.
 
-**Why Rejected:** The migration runner's ID-based deduplication makes in-place edits to applied migrations ineffective. This is by design — migrations are meant to be immutable records of state transitions. Editing them violates that contract.
+**Why Rejected:** The next actual release is `3.2.0a4`, so leaving the active `3.1.2` path unsafe would ship known-bad behavior to users upgrading from older versions.
 
 ### Option C: Force re-run via a flag or migration log reset
 
@@ -187,7 +190,7 @@ Add a mechanism to force `m_3_1_2` to re-run, or clear it from the migration log
 * **Related ADR:** ADR-C (2026-04-08-3) — Global skill installation with per-project symlinks (root cause of why per-project copies exist)
 * **Related ADR:** ADR-6 (2026-01-23-6) — Config-driven agent management (the `get_agent_dirs_for_project()` helper used by the migration)
 * **Code locations:**
-  - `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` — existing unsafe migration
-  - `src/specify_cli/upgrade/migrations/m_3_2_2_safe_globalize_commands.py` — new safe migration
+  - `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` — hardened active migration
+  - `src/specify_cli/upgrade/migrations/m_3_2_0a4_safe_globalize_commands.py` — follow-up safe migration for projects already past `3.1.2`
   - `src/specify_cli/shims/generator.py:101` — version marker generation (referenced in invariant 4)
   - Spec: Scenario F and Scenario G in `kitty-specs/076-init-command-overhaul/spec.md`

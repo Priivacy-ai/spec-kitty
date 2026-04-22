@@ -74,6 +74,7 @@ def _project_skill_file(
     project_path: Path,
     *,
     backup_root: Path | None = None,
+    archived_paths: list[Path] | None = None,
 ) -> tuple[str, Path | None]:
     """Project a global canonical skill file into the project.
 
@@ -92,8 +93,14 @@ def _project_skill_file(
             if dest.is_file() and compute_content_hash(dest) == compute_content_hash(source_file):
                 dest.unlink()
             else:
+                backup_root = _ensure_backup_root(project_path, backup_root)
+                if archived_paths is not None:
+                    archived_paths.append(backup_root / dest.relative_to(project_path))
                 backup_root = _archive_existing_path(dest, project_path, backup_root)
         except OSError:
+            backup_root = _ensure_backup_root(project_path, backup_root)
+            if archived_paths is not None:
+                archived_paths.append(backup_root / dest.relative_to(project_path))
             backup_root = _archive_existing_path(dest, project_path, backup_root)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -112,6 +119,7 @@ def _project_skill_files(
     project_path: Path,
     installation_class: str,
     agent_key: str,
+    archived_paths: list[Path] | None = None,
 ) -> list[ManagedFileEntry]:
     """Project all files for one skill into the project and return manifest entries."""
     entries: list[ManagedFileEntry] = []
@@ -127,6 +135,7 @@ def _project_skill_files(
             dest,
             project_path,
             backup_root=backup_root,
+            archived_paths=archived_paths,
         )
         entries.append(
             ManagedFileEntry(
@@ -181,6 +190,7 @@ def install_skills_for_agent(
     skills: list[CanonicalSkill],
     *,
     shared_root_installed: set[str] | None = None,
+    archived_paths: list[Path] | None = None,
 ) -> list[ManagedFileEntry]:
     """Install skills for one agent. Returns manifest entries created."""
     config = AGENT_SKILL_CONFIG.get(agent_key)
@@ -215,6 +225,7 @@ def install_skills_for_agent(
                     project_path,
                     installation_class,
                     agent_key,
+                    archived_paths=archived_paths,
                 )
                 if shared_root_installed is not None:
                     shared_root_installed.add(skill.name)
@@ -226,6 +237,7 @@ def install_skills_for_agent(
                 project_path,
                 installation_class,
                 agent_key,
+                archived_paths=archived_paths,
             )
 
         all_entries.extend(entries)
@@ -237,6 +249,8 @@ def install_all_skills(
     project_path: Path,
     agent_keys: list[str],
     registry: SkillRegistry,
+    *,
+    archived_paths: list[Path] | None = None,
 ) -> ManagedSkillManifest:
     """Install skills for all agents. Returns populated manifest."""
     skills = registry.discover_skills()
@@ -256,6 +270,7 @@ def install_all_skills(
             agent_key,
             skills,
             shared_root_installed=shared_root_installed,
+            archived_paths=archived_paths,
         )
         manifest.entries.extend(entries)
 
