@@ -99,8 +99,9 @@ def test_generate_progress_json_creates_file(tmp_path):
 
 
 def test_materialize_all_features_via_function(tmp_path):
-    """Direct call to write_derived_views + generate_progress_json for two features."""
+    """Direct call to write_derived_views + progress/lifecycle for two features."""
     from specify_cli.status.views import write_derived_views
+    from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
 
     mission_slugs = ["003-alpha", "003-beta"]
@@ -113,11 +114,13 @@ def test_materialize_all_features_via_function(tmp_path):
         feature_dir = tmp_path / "kitty-specs" / slug
         write_derived_views(feature_dir, derived_dir)
         generate_progress_json(feature_dir, derived_dir)
+        generate_lifecycle_json(feature_dir, derived_dir)
 
     for slug in mission_slugs:
         assert (derived_dir / slug / "status.json").exists()
         assert (derived_dir / slug / "board-summary.json").exists()
         assert (derived_dir / slug / "progress.json").exists()
+        assert (derived_dir / slug / "lifecycle.json").exists()
 
 
 def test_materialize_output_json_structure(tmp_path):
@@ -202,7 +205,6 @@ def test_materialize_command_feature_not_found(tmp_path):
 def test_materialize_command_json_output(tmp_path):
     """materialize --json outputs a machine-readable summary."""
     from specify_cli.cli.commands.materialize import materialize
-    from typer.testing import CliRunner
     import typer
 
     _setup_feature(tmp_path, "007-json", {"WP01": "done"})
@@ -229,13 +231,14 @@ def test_materialize_if_stale_creates_on_missing(tmp_path):
     assert snapshot is not None
     assert (tmp_path / ".kittify" / "derived" / "008-stale" / "status.json").exists()
     assert (tmp_path / ".kittify" / "derived" / "008-stale" / "progress.json").exists()
+    assert (tmp_path / ".kittify" / "derived" / "008-stale" / "lifecycle.json").exists()
 
 
 def test_materialize_if_stale_skips_when_fresh(tmp_path):
     """materialize_if_stale does not regenerate when derived files are up-to-date."""
     from specify_cli.status.views import materialize_if_stale, write_derived_views
+    from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
-    import time
 
     feature_dir = _setup_feature(tmp_path, "009-fresh", {"WP01": "done"})
     derived_dir = tmp_path / ".kittify" / "derived"
@@ -243,10 +246,12 @@ def test_materialize_if_stale_skips_when_fresh(tmp_path):
     # Write derived files
     write_derived_views(feature_dir, derived_dir)
     generate_progress_json(feature_dir, derived_dir)
+    generate_lifecycle_json(feature_dir, derived_dir)
 
     # Touch derived file to make it newer than event log
     status_path = derived_dir / "009-fresh" / "status.json"
     progress_path = derived_dir / "009-fresh" / "progress.json"
+    lifecycle_path = derived_dir / "009-fresh" / "lifecycle.json"
     events_path = feature_dir / "status.events.jsonl"
 
     # Set event log mtime to past, derived files to future
@@ -256,6 +261,7 @@ def test_materialize_if_stale_skips_when_fresh(tmp_path):
     os.utime(events_path, (past_time, past_time))
     os.utime(status_path, (future_time, future_time))
     os.utime(progress_path, (future_time, future_time))
+    os.utime(lifecycle_path, (future_time, future_time))
 
     original_mtime = status_path.stat().st_mtime
 
@@ -269,6 +275,7 @@ def test_materialize_if_stale_skips_when_fresh(tmp_path):
 def test_materialize_if_stale_regenerates_when_stale(tmp_path):
     """materialize_if_stale regenerates when event log is newer than derived files."""
     from specify_cli.status.views import materialize_if_stale, write_derived_views
+    from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
     import os
 
@@ -278,6 +285,7 @@ def test_materialize_if_stale_regenerates_when_stale(tmp_path):
     # Write derived files first
     write_derived_views(feature_dir, derived_dir)
     generate_progress_json(feature_dir, derived_dir)
+    generate_lifecycle_json(feature_dir, derived_dir)
 
     status_path = derived_dir / "010-regen" / "status.json"
     events_path = feature_dir / "status.events.jsonl"

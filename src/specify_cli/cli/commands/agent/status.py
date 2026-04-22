@@ -10,12 +10,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
@@ -142,17 +141,44 @@ def _resolve_feature_dir(
 @app.command()
 def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
+    to: Annotated[
+        str,
+        typer.Option(
+            "--to",
+            help="Target lane (e.g., claimed, in_progress, for_review, approved, done)",
+        ),
+    ] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
+    ] = None,
     feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[str | None, typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
     review_ref: Annotated[str | None, typer.Option("--review-ref", help="Review feedback reference")] = None,
-    workspace_context: Annotated[str | None, typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")] = None,
-    subtasks_complete: Annotated[bool | None, typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review")] = None,
-    implementation_evidence_present: Annotated[bool | None, typer.Option("--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review")] = None,
+    workspace_context: Annotated[
+        str | None,
+        typer.Option(
+            "--workspace-context",
+            help="Workspace context identifier for claimed->in_progress",
+        ),
+    ] = None,
+    subtasks_complete: Annotated[
+        bool | None,
+        typer.Option(
+            "--subtasks-complete",
+            help="Whether required subtasks are complete for in_progress->for_review",
+        ),
+    ] = None,
+    implementation_evidence_present: Annotated[
+        bool | None,
+        typer.Option(
+            "--implementation-evidence-present",
+            help="Whether implementation evidence exists for in_progress->for_review",
+        ),
+    ] = None,
     execution_mode: Annotated[str, typer.Option("--execution-mode", help="Execution mode (worktree or direct_repo)")] = "worktree",
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
@@ -475,6 +501,66 @@ def doctor(
 
 
 # ---------------------------------------------------------------------------
+# Lifecycle command (MVP stale/abandoned surface)
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def lifecycle(
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Mission slug"),
+    ] = None,
+    feature: Annotated[
+        str | None,
+        typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Show the canonical lifecycle state for one mission.
+
+    This is the product-facing state layer above raw WP lanes. It answers
+    whether a mission is active, recently completed, stale, abandoned, or
+    now just recoverable/archive history.
+    """
+    from specify_cli.status.lifecycle import derive_mission_lifecycle
+
+    feature_dir, mission_slug, _repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)
+    result = derive_mission_lifecycle(feature_dir)
+
+    if json_output:
+        print(json.dumps(result.to_dict()))
+        raise typer.Exit(0)
+
+    table = Table(show_header=False, box=None)
+    table.add_column("Key", style="dim")
+    table.add_column("Value")
+    table.add_row("Mission", result.mission_slug)
+    table.add_row("State", result.state)
+    table.add_row("Default Surface", result.surface_state or "off")
+    table.add_row("Reason", result.reason)
+    table.add_row("Completion", f"{result.completion_pct:.1f}%")
+    table.add_row("Work Packages", str(result.total_wps))
+    table.add_row("Active WPs", str(result.active_wp_count))
+    table.add_row("Review WPs", str(result.review_wp_count))
+    table.add_row("Blocked WPs", str(result.blocked_wp_count))
+    table.add_row("Terminal WPs", str(result.terminal_wp_count))
+    table.add_row("Event Log", "present" if result.has_event_log else "missing")
+    table.add_row("Age", f"{result.age_days}d" if result.age_days is not None else "unknown")
+    table.add_row(
+        "Last Activity",
+        result.last_activity_at.isoformat() if result.last_activity_at is not None else "unknown",
+    )
+    console.print()
+    console.print(f"[bold]Mission Lifecycle: {mission_slug}[/bold]")
+    console.print(table)
+    raise typer.Exit(0)
+
+
+# ---------------------------------------------------------------------------
 # Migration command (WP14)
 # ---------------------------------------------------------------------------
 
@@ -560,11 +646,11 @@ def migrate(
         str | None,
         typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
     ] = None,
-    all_features: Annotated[
+    _all_features: Annotated[
         bool,
         typer.Option("--all", help="Migrate all features in kitty-specs/"),
     ] = False,
-    dry_run: Annotated[
+    _dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Preview migration without writing events"),
     ] = False,
@@ -572,7 +658,7 @@ def migrate(
         bool,
         typer.Option("--json", help="Output results as JSON"),
     ] = False,
-    actor: Annotated[
+    _actor: Annotated[
         str,
         typer.Option("--actor", help="Actor name for bootstrap events"),
     ] = "migration",
@@ -758,11 +844,11 @@ def reconcile(
         str | None,
         typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
     ] = None,
-    dry_run: Annotated[
+    _dry_run: Annotated[
         bool,
         typer.Option("--dry-run/--apply", help="Preview vs persist reconciliation events"),
     ] = True,
-    target_repo: Annotated[
+    _target_repo: Annotated[
         list[Path] | None,
         typer.Option("--target-repo", "-t", help="Target repo path(s) to scan"),
     ] = None,

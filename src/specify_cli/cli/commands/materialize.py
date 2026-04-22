@@ -1,7 +1,7 @@
 """Materialize command — regenerate all derived views from the event log.
 
-Derived views (status.json, board-summary.json, progress.json) are
-output-only artefacts stored under ``.kittify/derived/<mission_slug>/``.
+Derived views (status.json, board-summary.json, progress.json, lifecycle.json)
+are output-only artefacts stored under ``.kittify/derived/<mission_slug>/``.
 This command forces full regeneration for one or all features, which is
 useful for CI pipelines, debugging, and external SaaS consumers.
 """
@@ -43,6 +43,7 @@ def materialize(
     - ``status.json`` — full StatusSnapshot
     - ``board-summary.json`` — lane counts and WP lists
     - ``progress.json`` — lane-weighted progress percentage
+    - ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state
 
     Examples::
 
@@ -51,6 +52,7 @@ def materialize(
         spec-kitty materialize --json
     """
     from specify_cli.status.views import write_derived_views
+    from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
 
     repo_root = locate_project_root()
@@ -98,6 +100,8 @@ def materialize(
             files_written += ["status.json", "board-summary.json"]
             generate_progress_json(feature_dir, derived_dir)
             files_written.append("progress.json")
+            generate_lifecycle_json(feature_dir, derived_dir)
+            files_written.append("lifecycle.json")
             processed.append({
                 "mission_slug": slug,
                 "files_written": files_written,

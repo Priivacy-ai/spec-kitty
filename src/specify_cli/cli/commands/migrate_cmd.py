@@ -82,7 +82,7 @@ def migrate(  # noqa: C901
             outcomes = migrate_windows_state(dry_run=dry_run)
         except TimeoutError as exc:
             console.print(f"[red]{exc}[/red]")
-            raise typer.Exit(69)
+            raise typer.Exit(69) from exc
         _render_windows_migration_summary(console, outcomes, dry_run=dry_run)
 
     project_dir = locate_project_root()
@@ -292,6 +292,59 @@ def backfill_identity(
         raise typer.Exit(1)
 
 
+@app.command(name="normalize-lifecycle")
+def normalize_lifecycle(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a structured per-mission normalization report"),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Preview lifecycle normalization without modifying the filesystem",
+        ),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            "--mission",
+            help="Scope to a single mission slug (e.g. 083-foo-bar). Omit to process all.",
+            metavar="SLUG",
+        ),
+    ] = None,
+) -> None:
+    """Normalize legacy ``kitty-specs`` missions for the MVP lifecycle model.
+
+    This command repairs enough historical mission state to make the canonical
+    lifecycle model reliable across old repositories. It backfills identity
+    where needed, rebuilds missing event logs from legacy state, and regenerates
+    status/progress/lifecycle projections used by the CLI and Teamspace.
+
+    Exit codes:
+
+    - ``0`` — all targeted missions normalized or skipped cleanly
+    - ``1`` — one or more missions hit an unrecoverable error
+    """
+    from specify_cli.migration.normalize_mission_lifecycle import normalize_repo
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        raise typer.Exit(1)
+
+    results = normalize_repo(repo_root, dry_run=dry_run, mission_slug=mission)
+    payload = _normalize_lifecycle_payload(results, dry_run=dry_run)
+
+    if json_output:
+        print(json.dumps(payload, indent=2))
+    else:
+        _print_normalize_lifecycle_summary(results, dry_run=dry_run)
+
+    if payload["summary"]["error"]:
+        raise typer.Exit(1)
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -301,6 +354,77 @@ def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
     err_console = Console(stderr=True)
     err_console.print(f"[red]Error:[/red] {message}")
+
+
+def _normalize_lifecycle_payload(results: list, *, dry_run: bool) -> dict[str, object]:
+    normalized = [r for r in results if r.status == "normalized"]
+    skipped = [r for r in results if r.status == "skipped"]
+    errored = [r for r in results if r.status == "error"]
+    warned = [r for r in results if r.warnings]
+    return {
+        "dry_run": dry_run,
+        "summary": {
+            "total": len(results),
+            "normalized": len(normalized),
+            "skipped": len(skipped),
+            "error": len(errored),
+            "warnings": len(warned),
+        },
+        "results": [
+            {
+                "slug": r.slug,
+                "status": r.status,
+                "lifecycle_state": r.lifecycle_state,
+                "actions": r.actions,
+                "warnings": r.warnings,
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+
+
+def _print_normalize_lifecycle_summary(results: list, *, dry_run: bool) -> None:
+    normalized = [r for r in results if r.status == "normalized"]
+    skipped = [r for r in results if r.status == "skipped"]
+    errored = [r for r in results if r.status == "error"]
+    warned = [r for r in results if r.warnings]
+
+    prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+    console.print(f"\n{prefix}[bold]normalize-lifecycle summary[/bold]")
+    console.print(f"  Total missions scanned : {len(results)}")
+    console.print(f"  Normalized             : {len(normalized)}")
+    console.print(f"  Skipped                : {len(skipped)}")
+    console.print(f"  Errors                 : {len(errored)}")
+    if warned:
+        console.print(f"  [yellow]Warnings               : {len(warned)}[/yellow]")
+
+    for entry in normalized:
+        lifecycle = f" ({entry.lifecycle_state})" if entry.lifecycle_state else ""
+        console.print(f"  [green]{entry.slug}[/green]{lifecycle}")
+        for action in entry.actions:
+            console.print(f"    - {action}")
+        for warning in entry.warnings:
+            console.print(f"    [yellow]- {warning}[/yellow]")
+
+    if skipped:
+        console.print("\n[dim]Skipped:[/dim]")
+        for entry in skipped:
+            console.print(f"  {entry.slug}")
+            for warning in entry.warnings:
+                console.print(f"    [yellow]- {warning}[/yellow]")
+
+    if errored:
+        console.print("\n[red]Errors:[/red]")
+        for entry in errored:
+            console.print(f"  [red]{entry.slug}:[/red] {entry.error}")
+            for warning in entry.warnings:
+                console.print(f"    [yellow]- {warning}[/yellow]")
+
+    if dry_run:
+        console.print("\n[dim]Dry run — no files were modified.[/dim]")
+    elif not errored:
+        console.print("\n[green]Done.[/green] Lifecycle normalization is current.")
 
 
 def _render_windows_migration_summary(

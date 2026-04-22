@@ -17,7 +17,6 @@ from specify_cli.status.reducer import materialize
 from specify_cli.status.views import (
     BOARD_SUMMARY_FILENAME,
     generate_status_view,
-    materialize_if_stale,
     write_derived_views,
 )
 
@@ -189,13 +188,21 @@ def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(
     def _record_progress(fd: Path, dd: Path) -> None:
         calls.append(("progress", dd))
 
+    def _record_lifecycle(fd: Path, dd: Path) -> None:
+        calls.append(("lifecycle", dd))
+
     snapshot = materialize(feature_dir)
     monkeypatch.setattr(views_module, "write_derived_views", _record_write)
     monkeypatch.setattr(progress_module, "generate_progress_json", _record_progress)
+    monkeypatch.setattr(views_module, "generate_lifecycle_json", _record_lifecycle)
     monkeypatch.setattr(views_module, "materialize", lambda _: snapshot)
 
     result = views_module.materialize_if_stale(feature_dir, tmp_path)
 
     expected_derived = tmp_path / ".kittify" / "derived"
-    assert calls == [("write", expected_derived), ("progress", expected_derived)]
+    assert calls == [
+        ("write", expected_derived),
+        ("progress", expected_derived),
+        ("lifecycle", expected_derived),
+    ]
     assert result.mission_slug == snapshot.mission_slug

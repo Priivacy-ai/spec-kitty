@@ -22,6 +22,10 @@ from .backfill_identity import (
     backfill_wp_ids,
 )
 from .backfill_ownership import backfill_ownership
+from .normalize_mission_lifecycle import (
+    NormalizeMissionLifecycleResult,
+    normalize_repo as normalize_mission_lifecycle_repo,
+)
 from .strip_frontmatter import StripResult, strip_mutable_fields
 from .rewrite_shims import RewriteResult, rewrite_agent_shims
 
@@ -44,6 +48,9 @@ __all__ = [
     "backfill_wp_ids",
     # ownership backfill (WP12)
     "backfill_ownership",
+    # lifecycle normalization
+    "NormalizeMissionLifecycleResult",
+    "normalize_mission_lifecycle_repo",
     # frontmatter strip (WP12)
     "StripResult",
     "strip_mutable_fields",

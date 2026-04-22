@@ -183,3 +183,19 @@ Validation completed for the shipped slice:
 2. targeted Ruff checks passed on the changed CLI/sync surface
 3. the corresponding SaaS deployment and smoke checks passed on
    `https://spec-kitty-dev.fly.dev/`
+
+## Current Progress (2026-04-22)
+
+Status: additional CLI lifecycle and migration work is implemented locally and
+pending final commit/push in the current monorepo session.
+
+The local workspace now extends this ADR with the stale/abandoned mission lane
+required for the MVP:
+
+1. canonical mission lifecycle derivation exists in `specify_cli.status.lifecycle`
+2. `lifecycle.json` is generated alongside other derived mission views
+3. `spec-kitty migrate normalize-lifecycle` can repair historical
+   `kitty-specs` missions into the current lifecycle-compatible shape
+4. a versioned upgrade migration exists to roll that normalization forward
+5. targeted CLI lifecycle and migration pytest slices passed locally before the
+   current SaaS work resumed

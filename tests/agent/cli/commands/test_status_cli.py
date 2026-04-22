@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import builtins
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -624,3 +625,71 @@ class TestEmitThenMaterialize:
         assert snapshot["event_count"] >= 1
         assert "WP01" in snapshot["work_packages"]
         assert snapshot["work_packages"]["WP01"]["lane"] == "claimed"
+
+
+class TestLifecycleCommand:
+    """Tests for ``spec-kitty agent status lifecycle``."""
+
+    def _recent_feature(self, feature_dir: Path) -> None:
+        event = {
+            "event_id": "01HXYZ0000000000000000LIVE",
+            "mission_slug": "034-test-feature",
+            "wp_id": "WP01",
+            "from_lane": "planned",
+            "to_lane": "claimed",
+            "at": datetime.now(UTC).isoformat(),
+            "actor": "test-agent",
+            "force": False,
+            "execution_mode": "worktree",
+            "reason": None,
+            "review_ref": None,
+            "evidence": None,
+        }
+        (feature_dir / "status.events.jsonl").write_text(
+            json.dumps(event, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    def test_lifecycle_command_human_output(self, tmp_path: Path, feature_dir: Path):
+        self._recent_feature(feature_dir)
+        patches = _patch_detection(tmp_path)
+        with (
+            patches["locate_project_root"],
+            patches["get_main_repo_root"],
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "lifecycle",
+                    "--mission",
+                    "034-test-feature",
+                ],
+            )
+
+        assert result.exit_code == 0, f"stdout: {result.output}"
+        assert "Mission" in result.output
+        assert "034-test-feature" in result.output
+        assert "active" in result.output
+
+    def test_lifecycle_command_json_output(self, tmp_path: Path, feature_dir: Path):
+        self._recent_feature(feature_dir)
+        patches = _patch_detection(tmp_path)
+        with (
+            patches["locate_project_root"],
+            patches["get_main_repo_root"],
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "lifecycle",
+                    "--mission",
+                    "034-test-feature",
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 0, f"stdout: {result.output}"
+        data = _extract_json(result.output)
+        assert data["mission_slug"] == "034-test-feature"
+        assert data["state"] == "active"
+        assert data["surface_state"] == "active"

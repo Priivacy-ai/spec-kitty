@@ -17,6 +17,7 @@ from typing import Any
 
 from specify_cli.mission_metadata import resolve_mission_identity
 
+from .lifecycle import DERIVED_LIFECYCLE_FILENAME, generate_lifecycle_json
 from .models import Lane, StatusSnapshot
 from .reducer import materialize, reduce
 from .store import EVENTS_FILENAME, read_events
@@ -120,7 +121,7 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
 def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     """Regenerate derived views when the event log is newer than the derived files.
 
-    Checks whether ``status.json`` and ``progress.json`` exist in
+    Checks whether ``status.json``, ``progress.json``, and ``lifecycle.json`` exist in
     ``.kittify/derived/<mission_slug>/`` and whether the event log
     (``status.events.jsonl``) has a newer mtime than either derived file.
     If stale (or derived files are missing), regenerates all derived views.
@@ -142,20 +143,23 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     events_path = feature_dir / EVENTS_FILENAME
     status_path = feature_derived / DERIVED_STATUS_FILENAME
     progress_path = feature_derived / DERIVED_PROGRESS_FILENAME
+    lifecycle_path = feature_derived / DERIVED_LIFECYCLE_FILENAME
 
     def _is_stale() -> bool:
-        if not status_path.exists() or not progress_path.exists():
+        if not status_path.exists() or not progress_path.exists() or not lifecycle_path.exists():
             return True
         if not events_path.exists():
             return False
         events_mtime = events_path.stat().st_mtime
         status_mtime = status_path.stat().st_mtime
         progress_mtime = progress_path.stat().st_mtime
-        return events_mtime > status_mtime or events_mtime > progress_mtime
+        lifecycle_mtime = lifecycle_path.stat().st_mtime
+        return events_mtime > status_mtime or events_mtime > progress_mtime or events_mtime > lifecycle_mtime
 
     if _is_stale():
         write_derived_views(feature_dir, derived_dir)
         generate_progress_json(feature_dir, derived_dir)
+        generate_lifecycle_json(feature_dir, derived_dir)
 
     # Return snapshot without writing (T002 covers any write needed by derived views)
     snapshot = reduce(read_events(feature_dir))
