@@ -59,6 +59,18 @@ Parse frontmatter for:
 - `subtasks` -- ordered list of subtask IDs
 - `dependencies` -- WPs that must be done first
 
+### 2a. Load Agent Profile
+
+Before proceeding with the review, load the agent profile from the WP frontmatter
+using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
+available profiles). Apply the profile's reviewer guidance and self-review gates for
+the rest of this review session.
+
+The WP frontmatter should already have `agent_profile` set to a reviewer profile
+(e.g., `reviewer-renata`) by the implementing agent before it moved the WP to
+`for_review`. If `agent_profile` is still set to an implementer profile, load the
+implementer profile anyway and note the oversight in your review comments.
+
 ### 3. Verify Implementation
 
 For each subtask:
@@ -100,5 +112,36 @@ After completing review:
 - Approve or reject each subtask with clear reasoning
 - If rejecting, provide specific feedback on what needs to change
 - Commit any review notes or annotations
+
+### On Approval
+
+Move the WP forward:
+```bash
+spec-kitty agent status emit WPxx --to approved --actor <name> --mission <handle>
+```
+
+### On Rejection
+
+Before rejecting, update `agent_profile` in the WP frontmatter back to the
+implementer profile so the next implementation cycle starts with the right context:
+
+1. Identify the implementer profile that worked on this WP (check the history field
+   or `status.events.jsonl` to find the last `in_progress` actor).
+   Alternatively, use the default: `implementer-ivan` (or `python-pedro`/`java-jenny`
+   for language-specific work).
+
+2. Update the WP frontmatter:
+   ```yaml
+   agent_profile: "implementer-ivan"
+   role: "implementer"
+   ```
+
+3. Commit the updated frontmatter together with your review notes **before** running:
+   ```bash
+   spec-kitty agent status emit WPxx --to in_progress --actor <name> --mission <handle>
+   ```
+
+The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
+and resume work with the proper persona and self-review gates.
 
 **Next step**: `spec-kitty next --agent <name>` will advance to the next phase.
