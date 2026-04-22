@@ -249,8 +249,8 @@ Spec-kitty does NOT use git hooks. Feature 043 replaced the pre-commit hook
    Use `spec-kitty implement`. Manual worktrees won't have workspace context,
    canonical workspace context, or proper branch naming.
 
-2. **Agent commits in main repo during implementation** — Implementation
-   commits belong in the worktree, not in the main repo. The main repo is
+2. **Agent commits in the repository root checkout during implementation** — Implementation
+   commits belong in the worktree, not in the repository root checkout. The repository root checkout is
    for planning artifacts only.
 
 3. **Agent pushes without being asked** — Never auto-push. Only push when

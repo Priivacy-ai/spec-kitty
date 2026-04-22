@@ -1,7 +1,7 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.1.1
+> Version: 1.1.2
 
 ## Purpose
 
@@ -198,6 +198,14 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 - **Public APIs:** Docstrings with parameter types and return values
 - **Breaking changes:** Update migration guide in docs/
 - **Architecture decisions:** Capture in ADRs (architecture/decisions/)
+
+### Branch-Intent Terminology Governance
+
+- Use **`repository root checkout`** for the non-worktree checkout where planning commands run.
+- Use **`current branch`**, **`target branch`**, **`planning_base_branch`**, and **`merge_target_branch`** for branch semantics.
+- Do **not** use **`main repository`**, **`main repo`**, or **`main repository root`** in user-facing docs or prompts.
+- Do **not** use **`main`** as a generic default branch name. Only use `main` when the actual branch is `main`.
+- When a document needs to talk about location and branch in the same sentence, name both explicitly instead of implying one from the other.
 
 ---
 

@@ -53,17 +53,52 @@ terms:
     status: active
 
   - surface: project root checkout
-    definition: "DEPRECATED (mission 081): Use 'repository root checkout' instead. The root directory of the current git repository on the target branch."
+    definition: "DEPRECATED (mission 081): Use 'repository root checkout' instead. The non-worktree checkout at the root of the current repository."
     confidence: 1.0
     status: deprecated
 
   - surface: repository root checkout
-    definition: The root directory of the current git repository on the target branch — not a worktree, not an external repository. Planning commands (specify, plan, tasks) run here.
+    definition: The non-worktree checkout at the root of the current repository. Planning commands (specify, plan, tasks) run here. It is a location, not a branch name.
     confidence: 1.0
     status: active
 
   - surface: planning repository
     definition: "DEPRECATED alias for 'repository root checkout'. Do not use — agents interpret this as a separate repository. Use 'repository root checkout' instead."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: current branch
+    definition: The branch checked out in the active checkout when a planning-stage command starts.
+    confidence: 1.0
+    status: active
+
+  - surface: target branch
+    definition: The branch the mission's planning artifacts and merge intent are recorded against. Defaults to the current branch unless the user or command explicitly overrides it.
+    confidence: 1.0
+    status: active
+
+  - surface: planning_base_branch
+    definition: Canonical branch-context alias for the branch planning should treat as the mission's intended landing branch.
+    confidence: 1.0
+    status: active
+
+  - surface: merge_target_branch
+    definition: Canonical branch-context alias for the branch completed work should merge into unless explicitly overridden at merge time.
+    confidence: 1.0
+    status: active
+
+  - surface: main repository
+    definition: "DEPRECATED ambiguous phrase. It conflates checkout location with branch choice. Use 'repository root checkout' for location or the explicit branch term you mean."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: main repo
+    definition: "DEPRECATED ambiguous phrase. It conflates checkout location with branch choice. Use 'repository root checkout' for location or the explicit branch term you mean."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: main repository root
+    definition: "DEPRECATED ambiguous phrase. It conflates checkout location with branch choice. Use 'repository root checkout' for location or the explicit branch term you mean."
     confidence: 1.0
     status: deprecated
 

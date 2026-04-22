@@ -5,7 +5,8 @@ Use this guide to turn a finished spec into a technical plan with `/spec-kitty.p
 ## Prerequisites
 
 - `kitty-specs/<feature>/spec.md` exists
-- You are in the main repository root (v0.11.0+ keeps planning artifacts in `main`)
+- You are in the repository root checkout
+- Planning artifacts stay on the mission's target branch (current branch by default, or an explicit `--target-branch`)
 
 ## The Command
 
@@ -37,8 +38,9 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 
 ## Troubleshooting
 
-- **No plan generated**: Make sure the spec exists and you are running in the main repository root.
+- **No plan generated**: Make sure the spec exists and you are running in the repository root checkout.
 - **Planner keeps asking questions**: Provide the missing architectural details; the plan will not generate until the interview is complete.
+- **Planner is targeting the wrong branch**: Resolve branch intent first with `spec-kitty agent mission branch-context --json` or recreate the mission with the right `--target-branch`.
 - **Need to update the plan**: Re-run `/spec-kitty.plan` with the new constraints.
 
 ---
@@ -52,6 +54,7 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 ## See Also
 
 - [Create a Specification](create-specification.md) - Required before planning
+- [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
 - [Generate Tasks](generate-tasks.md) - Next step after planning
 
 ## Background

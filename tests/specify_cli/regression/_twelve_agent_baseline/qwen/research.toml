@@ -16,7 +16,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the project root checkout.
+**BEFORE PROCEEDING:** Verify you are working in the repository root checkout.
 
 ```bash
 pwd
@@ -31,10 +31,10 @@ git branch --show-current
 
 ⛔ **STOP - You are in the wrong location!**
 
-This command creates research artifacts in your feature directory. You must be in the project root checkout.
+This command creates research artifacts in your feature directory. You must be in the repository root checkout.
 
 **Correct the issue:**
-1. Navigate to your project root checkout: `cd /path/to/project/root`
+1. Navigate to your repository root checkout: `cd /path/to/project/root`
 2. Verify you're on the correct feature branch: `git branch --show-current`
 3. Then run this research command again
 
@@ -75,7 +75,7 @@ Create `research.md`, `data-model.md`, and supporting CSV stubs based on the act
 
 ## What to do
 
-1. You should already be in the correct project root checkout (verified above with pre-flight check).
+1. You should already be in the correct repository root checkout (verified above with pre-flight check).
 2. Run `spec-kitty research` to generate the mission-specific research artifacts. (Add `--force` only when it is acceptable to overwrite existing drafts.)
 3. Open the generated files and fill in the required content:
    - `research.md` – capture decisions, rationale, and supporting evidence.

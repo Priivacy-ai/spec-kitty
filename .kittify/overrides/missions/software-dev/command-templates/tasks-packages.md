@@ -1,21 +1,25 @@
 ---
-description: Generate individual WP prompt files (tasks/WP*.md) from the task outline in tasks.md.
+description: Materialize work package files
 ---
-
 # /spec-kitty.tasks-packages - Generate Work Package Files
 
-**Version**: 0.12.0+
+**Version**: 3.2.0
 
 ## Purpose
 
-Generate individual `tasks/WP*.md` prompt files from the outline in `tasks.md`.
-This step assumes `tasks.md` already exists with complete WP definitions.
+Generate individual `tasks/WP*.md` prompt files from the manifest in `wps.yaml`.
+This step reads `wps.yaml` (written in tasks-outline), updates it with per-WP
+details, then generates the WP prompt files.
+
+This step assumes `wps.yaml` already exists with complete WP definitions.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: This step works in the planning repository. NO worktrees created.
+**IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
+
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -27,24 +31,44 @@ $ARGUMENTS
 
 ### 1. Setup
 
-Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `mission_dir`. All paths must be absolute.
+Run:
 
-### 2. Load tasks.md
+```bash
+spec-kitty agent context resolve --action tasks_packages --mission <mission-slug> --json
+```
 
-Read `mission_dir/tasks.md` — this must already exist from the previous step.
-Parse the work package definitions, subtask lists, and dependencies.
+Then execute the returned `check_prerequisites` command and capture
+`feature_dir`. All paths must be absolute.
+
+### 2. Load `wps.yaml`
+
+Read `feature_dir/wps.yaml`. This is the manifest written in the previous step.
+Each entry defines a WP with its `id`, `title`, `dependencies`, and partial metadata.
+
+Parse all work package entries. The YAML structure is:
+
+```yaml
+work_packages:
+  - id: WP01
+    title: "..."
+    dependencies: [...]   # may be present (authoritative) or absent
+    owned_files: [...]    # may be absent — fill in this step
+    requirement_refs: [...] # may be absent — fill in this step
+    subtasks: [...]
+    prompt_file: null     # fill in this step
+```
 
 ### 3. Generate Prompt Files in Parallel
 
-Parse all WP definitions from `tasks.md`. Each WP prompt file is independent —
+Parse all WP definitions from `wps.yaml`. Each WP prompt file is independent —
 dispatch one sub-agent per WP in a **single message** so they run concurrently
 rather than generating all WP content in one serial response.
 
-**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `mission_dir/tasks/`
+**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/`
 directory, NOT in subdirectories!
 
-- Correct: `mission_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
-- WRONG: `mission_dir/tasks/planned/`, `mission_dir/tasks/doing/`, or ANY lane subdirectories
+- Correct: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
+- WRONG: `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
 
 **Batching for large missions**: If there are more than 6 WPs, dispatch in groups
 of 4. Send all agents in a group in one message, wait for all to complete, then
@@ -57,18 +81,19 @@ start the next group.
 You are writing a single Work Package prompt file for the spec-kitty planning
 pipeline. Write exactly one file and return the filename and final line count.
 
-**Mission directory**: `{mission_dir}` (absolute path)
-**Write to**: `{mission_dir}/tasks/{wp_id}-{slug}.md`
+**Feature directory**: `{feature_dir}` (absolute path)
+**Write to**: `{feature_dir}/tasks/{wp_id}-{slug}.md`
 
-**Work Package** (from tasks.md):
+**Work Package** (from wps.yaml):
 - id: `{wp_id}`
 - title: `{title}`
-- dependencies: `{dependencies}` (from tasks.md "Depends on" line)
-- requirement_refs: `{requirement_refs}` (from tasks.md "Requirement Refs" line)
-- subtasks: `{subtask_list}` (T-ids listed under this WP)
+- dependencies: `{dependencies}`
+- owned_files: `{owned_files}`
+- execution_mode: derive from `owned_files` (`planning_artifact` for kitty-specs/docs-only WPs, otherwise `code_change`)
+- requirement_refs: `{requirement_refs}`
+- subtasks: `{subtasks}`
 
-**Read for context** (all from `mission_dir`):
-- `tasks.md` (required — full WP definition, subtask list, dependencies)
+**Read for context** (all from `feature_dir`):
 - `plan.md` (required — tech architecture, stack)
 - `spec.md` (required — user stories, acceptance criteria)
 - `data-model.md`, `research.md` (read if present)
@@ -80,10 +105,12 @@ Frontmatter:
 ---
 work_package_id: "{wp_id}"
 title: "{title}"
-lane: "planned"
 dependencies: {dependencies}
 requirement_refs: {requirement_refs}
-subtasks: {subtask_list}
+subtasks: {subtasks}
+owned_files: {owned_files}
+authoritative_surface: "{longest common path prefix of owned_files}"
+execution_mode: "{execution_mode}"
 ---
 ```
 
@@ -99,9 +126,7 @@ Body sections (in order):
 5. `## Risks` — known risks and mitigations
 6. `## Reviewer Guidance` — what reviewers should focus on
 
-Include the implementation command (pick one):
-- No dependencies: `spec-kitty implement {wp_id}`
-- With dependencies: `spec-kitty implement {wp_id} --base {first_dep}`
+Include the implementation command: `spec-kitty agent action implement {wp_id} --agent <name>`
 
 Sizing: target 200–500 lines (3–7 subtasks), maximum 700 lines (10 subtasks).
 If >700 lines would be needed: write the file anyway but add a `> NOTE: This WP
@@ -109,57 +134,90 @@ should be split` callout at the top.
 
 ---
 
-**After all sub-agents confirm completion**, update `tasks.md` once to reference
-each generated prompt file, then proceed to Step 4.
+**After all sub-agents confirm completion**, proceed to Step 4.
 
 **Fallback — if your host does not support sub-agents**: Generate all WP files
 sequentially and issue all Write tool calls in a single batched response.
 
-Do NOT update `tasks.md` during sub-agent dispatch — collect prompt filenames
-from sub-agent results, then update `tasks.md` once after all complete.
+Do NOT update `wps.yaml` during sub-agent dispatch — collect all confirmations,
+then update once in Step 4.
 
-### 4. Include Dependencies in Frontmatter
+### 4. Update `wps.yaml` With Per-WP Details
 
-Each WP prompt file MUST include a `dependencies` field:
+After all sub-agents have confirmed completion, update `wps.yaml` once with all
+per-WP details collected from sub-agent results: `owned_files`, `requirement_refs`,
+`subtasks`, and `prompt_file` for every WP. Write the updated `wps.yaml` in a
+single write.
+
+**Critical rule**: Do NOT modify a `dependencies` field that is already present in
+`wps.yaml` — even if it is empty (`[]`). It is authoritative. Only populate
+`dependencies` for entries where the key is **absent** from `wps.yaml`.
+
+Example of a fully-populated entry after this step:
+
+```yaml
+- id: WP02
+  title: "Build API"
+  dependencies:
+    - WP01
+  owned_files:
+    - "src/api/**"
+  requirement_refs:
+    - FR-001
+    - NFR-001
+  subtasks:
+    - T001
+    - T002
+  prompt_file: "tasks/WP02-build-api.md"
+```
+
+The frontmatter in each WP prompt file MUST include a `dependencies` field:
 
 ```yaml
 ---
 work_package_id: "WP02"
 title: "Build API"
-lane: "planned"
-dependencies: ["WP01"]  # From tasks.md
-requirement_refs: ["FR-001", "NFR-001"]  # From tasks.md Requirement Refs
+dependencies: ["WP01"]  # From wps.yaml
+requirement_refs: ["FR-001", "NFR-001"]  # From wps.yaml requirement_refs
 subtasks: ["T001", "T002"]
+owned_files: ["src/api/**"]
+authoritative_surface: "src/api/"
+execution_mode: "code_change"
 ---
 ```
 
 Include the correct implementation command:
+- `spec-kitty agent action implement WP01 --agent <name>`
+- `spec-kitty agent action implement WP02 --agent <name>`
 
-- No dependencies: `spec-kitty implement WP01`
-- With dependencies: `spec-kitty implement WP02 --base WP01`
+`finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch manually.
+
+**Ownership rules**:
+- `owned_files`: List of glob patterns for files this WP touches — no two WPs may overlap.
+- `authoritative_surface`: Path prefix that must be a prefix of at least one `owned_files` entry.
+- `execution_mode`: `"code_change"` for source code changes, `"planning_artifact"` for kitty-specs docs.
+- Agents working on a WP must not modify files outside their `owned_files` list.
 
 ### 5. Self-Check
 
 After all sub-agents complete, verify each generated prompt:
-
 - Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ needs splitting
 - Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ needs splitting
+- owned_files glob patterns non-overlapping across all WPs? ✓
 - Can implement in one session? ✓ | Multiple sessions needed? ❌ needs splitting
 
 ## Output
 
 After completing this step:
-
-- `mission_dir/tasks/WP*.md` prompt files exist for all work packages
-- Each has proper frontmatter with `work_package_id`, `lane`, `dependencies`
-- `tasks.md` references all prompt filenames
+- `feature_dir/tasks/WP*.md` prompt files exist for all work packages
+- Each has proper frontmatter with `work_package_id`, `dependencies`, `owned_files`, `authoritative_surface`, `execution_mode`
+- `feature_dir/wps.yaml` is fully populated: all `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` fields are set
 
 **Next step**: `spec-kitty next --agent <name>` will advance to finalization.
 
 ## Prompt Quality Guidelines
 
 **Good prompt** (~60 lines per subtask):
-
 ```markdown
 ### Subtask T001: Implement User Login Endpoint
 
@@ -181,10 +239,9 @@ After completing this step:
 ```
 
 **Bad prompt** (~20 lines per subtask):
-
 ```markdown
 ### T001: Add auth
 Steps: Create endpoint. Add validation. Test it.
 ```
 
-Context for work-package planning: {ARGS}
+Context for work-package planning: (refer to the User Input section above)

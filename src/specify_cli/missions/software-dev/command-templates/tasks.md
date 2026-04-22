@@ -23,23 +23,23 @@ description: Break a plan into work packages
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in the project root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: Tasks works in the project root checkout. NO worktrees created.
+**IMPORTANT**: Tasks works in the repository root checkout. NO worktrees created.
 
 ```bash
 # Run from project root (same directory as /spec-kitty.plan):
 # You should already be here if you just ran /spec-kitty.plan
 
 # Creates:
-# - kitty-specs/<mission_slug>/tasks/WP01-*.md → In project root checkout
-# - kitty-specs/<mission_slug>/tasks/WP02-*.md → In project root checkout
+# - kitty-specs/<mission_slug>/tasks/WP01-*.md → In repository root checkout
+# - kitty-specs/<mission_slug>/tasks/WP02-*.md → In repository root checkout
 #   (the NNN- prefix in directory listings is display-only metadata)
 # - Commits ALL to target branch
 # - NO worktrees created
 ```
 
-**Do NOT cd anywhere**. Stay in the project root checkout root.
+**Do NOT cd anywhere**. Stay in the repository root checkout.
 
 **Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission <handle>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
 

@@ -54,7 +54,7 @@ This becomes critical in parallel development where multiple AI agents implement
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     PLANNING PHASE                              │
-│                  (in main repository)                           │
+│             (in the repository root checkout)                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  /spec-kitty.specify     →    Creates spec.md                   │
@@ -88,6 +88,8 @@ This becomes critical in parallel development where multiple AI agents implement
 ```
 
 Each phase produces artifacts that feed into the next phase.
+
+Planning location and branch intent are separate. The planning phase runs in the repository root checkout, while the mission target branch can be the current branch or an explicit branch chosen during mission creation.
 
 ## How It Differs from Traditional Development
 

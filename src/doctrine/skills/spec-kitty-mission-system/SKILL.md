@@ -71,7 +71,7 @@ Every mission has a `meta.json` that records which mission type it uses:
   "feature_number": "042",
   "slug": "042-auth-system",
   "mission": "software-dev",
-  "target_branch": "main",
+  "target_branch": "<target-branch>",
   "created_at": "2026-03-22T10:00:00Z",
   "vcs": "git"
 }

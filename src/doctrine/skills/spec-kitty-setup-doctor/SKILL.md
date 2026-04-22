@@ -26,7 +26,7 @@ Determine the active agent, repository state, and working directory.
 - Which AI agent is running (Claude Code, Codex, Gemini CLI, etc.)
 - Whether the current directory is inside a git repository
 - Whether a `.kittify/` directory exists (indicates prior initialization)
-- Whether this is a worktree or the main repository
+- Whether this is a worktree or the repository root checkout
 
 **Commands:**
 

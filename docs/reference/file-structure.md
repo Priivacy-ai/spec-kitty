@@ -112,15 +112,15 @@ Contains Git worktrees for implementation. Features create one shared workspace 
 
 - Features create **one worktree per execution lane**
 - Each lane worktree has its own branch: `<feature-slug>-lane-<id>`
-- Worktrees share the `.git` database with the main repository
+- Worktrees share the `.git` database with the repository root checkout
 - Created by `spec-kitty implement WP##`
 - Removed after merge with `git worktree remove`
 
-### Worktree vs Main
+### Worktree vs Repository Root Checkout
 
 | Location | When to Use |
 |----------|-------------|
-| Main repo (`my-project/`) | Planning: `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` |
+| Repository root checkout (`my-project/`) | Planning: `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` |
 | Worktree (`.worktrees/...`) | Implementation: `/spec-kitty.implement`, coding, testing in the resolved execution workspace |
 
 ---

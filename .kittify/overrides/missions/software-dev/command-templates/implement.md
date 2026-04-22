@@ -82,12 +82,12 @@ never by reading YAML files directly.**
 
 1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-mission-WP##/`
 2. **ALL file operations happen in this directory** - Read, Write, Edit tools must target files in the workspace
-3. **NEVER write deliverable files to the main repository** - This is a critical workflow error
+3. **NEVER write deliverable files to the repository root checkout** - This is a critical workflow error
 
 **Why this matters:**
 
 - Each WP has an isolated worktree with its own branch
-- Changes in main repository will NOT be seen by reviewers looking at the WP worktree
+- Changes in the repository root checkout will NOT be seen by reviewers looking at the WP worktree
 - Writing to main instead of the workspace causes review failures and merge conflicts
 
 ## Deterministic Pre-Read Checks (required)

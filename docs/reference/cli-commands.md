@@ -644,7 +644,7 @@ spec-kitty ops log --verbose
 
 **Synopsis**: `spec-kitty repair worktree [OPTIONS] [WORKTREE_PATH]`
 
-**Description**: Diagnose worktree kitty-specs/ status. Checks if worktrees have kitty-specs/ directories and explains how WP operations work: WP lane changes (move-task) always use main repo's kitty-specs/, research artifacts can be added to worktree's kitty-specs/, and stale WP files in worktrees don't affect lane operations.
+**Description**: Diagnose worktree kitty-specs/ status. Checks if worktrees have kitty-specs/ directories and explains how WP operations work: WP lane changes (move-task) always use the repository root checkout's `kitty-specs/`, research artifacts can be added to a worktree's `kitty-specs/`, and stale WP files in worktrees do not affect lane operations.
 
 **Arguments**:
 - `WORKTREE_PATH`: Specific worktree path to check (defaults to current directory if in a worktree) [optional]

@@ -384,7 +384,7 @@ Type `/spec-kitty` and you should see autocomplete with all 13 commands.
 
 ### Phase 3: Establish Project Principles (In Agent)
 
-**Still in main repo** - Start with your project's governing principles:
+**Still in the repository root checkout** - Start with your project's governing principles:
 
 ```text
 /spec-kitty.charter
@@ -419,13 +419,14 @@ register, login, logout, and recover forgotten passwords.
 **What this does:**
 - Creates `kitty-specs/auth-system/spec.md` with user stories and mints a canonical `mission_id` (ULID) in `meta.json`
 - **Enters discovery interview** - Answer questions before continuing!
-- All planning happens in the main repo (worktrees created later during implementation)
+- All planning happens in the repository root checkout (worktrees created later during implementation)
+- The mission target branch defaults to your current branch unless you explicitly choose another one
 
 > **Note:** Mission identity is a ULID (`mission_id` in `meta.json`). The three-digit numeric prefix (e.g. `001-auth-system`) is display-only and is only assigned at merge time. Branches and worktrees use the mission's `mid8` (first 8 chars of the ULID) for collision-free naming. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
 
 **⚠️ Important:** Continue in the same session - no need to change directories!
 
-#### 4b. Define HOW to Build (In Main Repo)
+#### 4b. Define HOW to Build (In the Repository Root Checkout)
 
 ```text
 /spec-kitty.plan
@@ -509,20 +510,20 @@ spec-kitty next --agent <agent> --mission <slug>
 - Confirms no `NEEDS CLARIFICATION` markers remain
 - Records acceptance timestamp
 
-#### 6b. Merge to Main
+#### 6b. Merge to the Target Branch
 
 ```text
 /spec-kitty.merge --push
 ```
 
 **What this does:**
-- Switches to main branch
+- Switches to the mission's target branch
 - Merges feature branch
 - Pushes to remote (if `--push` specified)
 - Cleans up worktree
 - Deletes feature branch
 
-**🎉 Feature complete!** Return to main repo and start your next feature with `/spec-kitty.specify`
+**🎉 Feature complete!** Return to the repository root checkout and start your next feature with `/spec-kitty.specify`
 
 ---
 
@@ -531,20 +532,20 @@ spec-kitty next --agent <agent> --mission <slug>
 ### Required Workflow (Once per project)
 
 ```
-1️⃣  /spec-kitty.charter     → In main repo (sets project principles)
+1️⃣  /spec-kitty.charter     → In repository root checkout (sets project principles)
 ```
 
 ### Required Workflow (Each feature)
 
 ```
-2️⃣  /spec-kitty.specify          → Create spec (in main repo)
-3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
-4️⃣  /spec-kitty.tasks            → Generate work packages (in main repo)
+2️⃣  /spec-kitty.specify          → Create spec (in repository root checkout)
+3️⃣  /spec-kitty.plan             → Define technical approach (in repository root checkout)
+4️⃣  /spec-kitty.tasks            → Generate work packages (in repository root checkout)
 5️⃣  spec-kitty next --agent <agent> --mission <slug>  → Agent loop: implement & review each WP
     spec-kitty agent action implement <WP> --agent <name>  → (per-WP: build the work package)
 6️⃣  /spec-kitty.review           → Review completed work
 7️⃣  /spec-kitty.accept           → Validate feature ready
-8️⃣  /spec-kitty.merge            → Merge to main + cleanup
+8️⃣  /spec-kitty.merge            → Merge to the mission target branch + cleanup
 ```
 
 ### Optional Enhancement Commands
@@ -1063,8 +1064,8 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 | # | Command                  | Description                                                           |
 |---|--------------------------|-----------------------------------------------------------------------|
-| 1 | `/spec-kitty.charter`  | (**First in main repo**) Create or update project governing principles and development guidelines |
-| 2 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories; creates worktree) |
+| 1 | `/spec-kitty.charter`  | (**First in repository root checkout**) Create or update project governing principles and development guidelines |
+| 2 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories; creates planning artifacts in the repository root checkout) |
 | 3 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
 | 4 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
 | 5 | `/spec-kitty.tasks`         | Generate actionable task lists and work package prompts in flat tasks/ directory |
@@ -1166,9 +1167,9 @@ spec-kitty next --agent <agent> --mission <slug>  # Step 7: Start the agent loop
 # spec-kitty next handles dispatch to agent action implement/review for each WP
 /spec-kitty.review           # Step 9: Review and refine completed work
 /spec-kitty.accept           # Step 10: Acceptance checks & final metadata
-/spec-kitty.merge --push     # Step 11: Merge to main + cleanup swim-lane worktrees
+/spec-kitty.merge --push     # Step 11: Merge to the mission target branch + cleanup swim-lane worktrees
 
-# ========== BACK IN MAIN REPO ==========
+# ========== BACK IN REPOSITORY ROOT CHECKOUT ==========
 # Ready for next feature!
 ```
 

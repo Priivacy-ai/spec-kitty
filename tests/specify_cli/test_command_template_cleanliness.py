@@ -9,7 +9,7 @@ are free of dev-specific content that would break consumer projects:
   - All templates >=50 non-empty lines
   - YAML frontmatter present and declares a non-empty ``description``
     (slash-command pickers like Claude Code read this for their UI)
-  - Planning-workflow templates use "project root checkout" terminology
+  - Planning-workflow templates use "repository root checkout" terminology
   - tasks.md contains WP ownership metadata guidance fields
   - All templates include --mission guidance
 
@@ -40,7 +40,7 @@ PROMPT_DRIVEN: list[str] = [
     "charter",
 ]
 
-# Planning-workflow templates that MUST use "project root checkout" terminology.
+# Planning-workflow templates that MUST use "repository root checkout" terminology.
 # These are commands that explicitly direct agents on where to perform work.
 # The utility/analysis commands (analyze, checklist, charter) don't
 # describe a checkout location, so they are excluded from this assertion.
@@ -218,44 +218,52 @@ def test_no_kittify_missions_read_instruction(command: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T026-e: No deprecated "planning repository" terminology
+# T026-e: No deprecated planning-location terminology
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
 def test_no_planning_repository_terminology(command: str) -> None:
-    """Templates must not use the deprecated 'planning repository' terminology.
+    """Templates must not use deprecated planning-location terminology.
 
-    The correct phrase is 'project root checkout'. The old term caused agents
-    to create features in a separate repository instead of the current project.
+    The correct phrase is 'repository root checkout'. Older variants caused
+    agents to confuse planning location with branch choice.
     """
     content = _template_content(command)
     assert "planning repository" not in content.lower(), (
         f"{command}.md uses deprecated 'planning repository' terminology - "
-        f"use 'project root checkout' instead"
+        f"use 'repository root checkout' instead"
     )
     assert "planning repo" not in content.lower(), (
         f"{command}.md uses deprecated 'planning repo' terminology - "
-        f"use 'project root' instead"
+        f"use 'repository root checkout' instead"
+    )
+    assert "project root checkout" not in content.lower(), (
+        f"{command}.md uses deprecated 'project root checkout' terminology - "
+        f"use 'repository root checkout' instead"
+    )
+    assert "main repository root" not in content.lower(), (
+        f"{command}.md uses ambiguous 'main repository root' terminology - "
+        f"use 'repository root checkout' instead"
     )
 
 
 # ---------------------------------------------------------------------------
-# T026-f: Planning-workflow templates use "project root checkout"
+# T026-f: Planning-workflow templates use "repository root checkout"
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("command", PLANNING_WORKFLOW_TEMPLATES)
-def test_uses_project_root_checkout_in_planning_templates(command: str) -> None:
-    """Planning-workflow templates must use 'project root checkout' terminology.
+def test_uses_repository_root_checkout_in_planning_templates(command: str) -> None:
+    """Planning-workflow templates must use 'repository root checkout' terminology.
 
     These templates direct agents on where to perform planning work.
-    They must explicitly state 'project root checkout' so agents work in the
+    They must explicitly state 'repository root checkout' so agents work in the
     correct location and do not create a worktree for planning.
     """
     content = _template_content(command)
-    assert "project root checkout" in content.lower(), (
-        f"{command}.md missing 'project root checkout' terminology - "
+    assert "repository root checkout" in content.lower(), (
+        f"{command}.md missing 'repository root checkout' terminology - "
         f"add explicit location guidance for agents"
     )
 

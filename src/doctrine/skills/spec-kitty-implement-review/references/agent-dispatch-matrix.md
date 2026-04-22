@@ -10,7 +10,7 @@ including `spec-kitty agent tasks move-task`.
 | Agent | Config Key | CLI Template | Notes |
 |-------|-----------|--------------|-------|
 | Claude Code | `claude` | `claude -p "<prompt>" --output-format json -C <dir>` | Gold standard. Supports `--allowedTools`. |
-| GitHub Codex | `codex` | `cat prompt.md \| codex exec --full-auto -C <dir> -` | Stdin only (no positional prompt with `-C`). Use `--add-dir` for read access to main repo. |
+| GitHub Codex | `codex` | `cat prompt.md \| codex exec --full-auto -C <dir> -` | Stdin only (no positional prompt with `-C`). Use `--add-dir` for read access to the repository root checkout. |
 | Google Gemini | `gemini` | `gemini -p "<prompt>" --yolo --output-format json -C <dir>` | Large context window (1M tokens). |
 | GitHub Copilot | `copilot` | `copilot -p "<prompt>" --yolo --silent` | Requires GitHub Copilot subscription. |
 | OpenCode | `opencode` | `opencode run "<prompt>" --format json -C <dir>` | Multi-provider support. |

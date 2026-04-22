@@ -6,16 +6,16 @@ description: Create or update the research specification from a natural language
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: Specify works in the planning repository. NO worktrees are created.
+**IMPORTANT**: Specify works in the repository root checkout. NO worktrees are created.
 
 ```bash
-# Run from project root:
-cd /path/to/project/root  # Your planning repository
+# Run from the repository root checkout:
+cd /path/to/project/root  # Your repository root checkout
 
-# All planning artifacts are created in the planning repo and committed:
-# - kitty-specs/###-feature/spec.md → Created in planning repo
+# All planning artifacts are created in the repository root checkout and committed:
+# - kitty-specs/###-feature/spec.md → Created in repository root checkout
 # - Committed to target branch (meta.json → target_branch)
 # - NO worktrees created
 ```
@@ -39,6 +39,14 @@ spec-kitty agent mission branch-context --json
 ```
 
 Use the returned `planning_base_branch` and `merge_target_branch` values when populating `meta.json` and work package frontmatter. Do NOT probe git directly for branch names — always use the CLI helper.
+
+In your next reply, explicitly restate:
+- current branch
+- `planning_base_branch`
+- `merge_target_branch`
+- whether that matches the user's intended landing branch
+
+If it does not match, stop and ask which branch should receive this research mission before creating artifacts.
 
 ## Discovery Gate (mandatory)
 
@@ -99,9 +107,9 @@ During discovery, you MUST ask:
 
 ## Workflow (0.11.0+)
 
-**Planning happens in the planning repository - NO worktree created!**
+**Planning happens in the repository root checkout - NO worktree created!**
 
-1. Creates `kitty-specs/###-feature/spec.md` directly in planning repo
+1. Creates `kitty-specs/###-feature/spec.md` directly in the repository root checkout
 2. Creates `kitty-specs/###-feature/meta.json` with `deliverables_path`
 3. Automatically commits to target branch
 4. No worktree created during specify
@@ -110,7 +118,7 @@ During discovery, you MUST ask:
 
 ## Location
 
-- Work in: **Planning repository** (not a worktree)
+- Work in: **Repository root checkout** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
 - Commits to: target branch (`meta.json` → `target_branch`)
 

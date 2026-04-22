@@ -59,7 +59,7 @@ spec-kitty agent mission branch-context --target-branch develop --json
 
 **Synopsis**: `spec-kitty agent mission create [OPTIONS] MISSION_SLUG`
 
-**Description**: Create new mission directory structure in the project root checkout.
+**Description**: Create new mission directory structure in the repository root checkout.
 
 **Arguments**:
 - `MISSION_SLUG`: Mission slug (e.g., `user-auth`) [required]
@@ -103,7 +103,7 @@ spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-on
 
 **Synopsis**: `spec-kitty agent mission setup-plan [OPTIONS]`
 
-**Description**: Scaffold implementation plan template in the project root checkout for a mission.
+**Description**: Scaffold implementation plan template in the repository root checkout for a mission.
 
 **Options**:
 | Flag | Description |
@@ -740,7 +740,6 @@ spec-kitty agent status reconcile --mission 034-feature-name --apply --target-re
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug |
-| `--feature TEXT` | Deprecated alias for `--mission` |
 | `--json` | Machine-readable JSON output |
 | `--help` | Show this message and exit |
 
@@ -749,6 +748,8 @@ spec-kitty agent status reconcile --mission 034-feature-name --apply --target-re
 spec-kitty agent status lifecycle --mission 083-private-teamspace
 spec-kitty agent status lifecycle --mission 083-private-teamspace --json
 ```
+
+`--feature` remains available as a deprecated alias for `--mission` for compatibility with older scripts.
 
 ---
 

@@ -43,7 +43,7 @@ command agents are expected to run.
 | Anti-Pattern | Why Not |
 |---|---|
 | `git worktree add` (manual) | No workspace context, wrong lane assignment, wrong branch naming |
-| `git commit` in main repo during implementation | Implementation belongs in worktree |
+| `git commit` in repository root checkout during implementation | Implementation belongs in worktree |
 | `git push` without user request | Never auto-push |
 | `git checkout` in worktree to another branch | Breaks worktree isolation |
 | Edit `.git/hooks/` | Spec-kitty doesn't use hooks (codec layer instead) |

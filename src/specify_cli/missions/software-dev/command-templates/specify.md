@@ -5,13 +5,13 @@ description: Create a mission specification
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in the project root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: Specify works in the project root checkout. NO worktrees are created.
+**IMPORTANT**: Specify works in the repository root checkout. NO worktrees are created.
 
 ```bash
-# Run from project root:
-cd /path/to/project/root  # Your project root checkout
+# Run from the repository root checkout:
+cd /path/to/project/root  # Your repository root checkout
 
 # All planning artifacts are created in the project root and committed:
 # - kitty-specs/<mission_slug>/spec.md → Created in project root
@@ -249,7 +249,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 ## Workflow (0.11.0+)
 
-**Planning happens in the project root checkout - NO worktree created!**
+**Planning happens in the repository root checkout - NO worktree created!**
 
 1. Creates `kitty-specs/<mission_slug>/spec.md` directly in project root (the optional `NNN-` prefix is display-only metadata assigned at merge time)
 2. Automatically commits to target branch
@@ -259,7 +259,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 ## Location
 
-- Work in: **Project root checkout** (not a worktree)
+- Work in: **Repository root checkout** (not a worktree)
 - Creates: `kitty-specs/<mission_slug>/spec.md` (the `NNN-` prefix is display-only and assigned at merge time)
 - Commits to: target branch (from `create --json` → `target_branch`)
 
@@ -298,7 +298,7 @@ Given that feature description, do this:
    - `mission_number`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
    - `mission_type`: Mission type key (for example `software-dev`)
    - `slug`: Unnumbered mission slug (e.g., `checkout-upsell-flow`)
-   - `feature_dir`: Absolute path to the feature directory inside the main repo
+   - `feature_dir`: Absolute path to the feature directory inside the repository root checkout
    - `current_branch`: the branch you started from
    - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
    - `planning_base_branch` / `merge_target_branch`: explicit landing-branch aliases
@@ -312,7 +312,7 @@ Given that feature description, do this:
    - Intended planning/base branch
    - Final merge target for later changes
    - Whether that matches the user's intended landing branch
-3. **Stay in the main repository**: No worktree is created during specify.
+3. **Stay in the repository root checkout**: No worktree is created during specify.
 
 4. Read the files created by `create`:
    - `<feature_dir>/spec.md` (already created, may be empty/template-filled)
@@ -337,7 +337,7 @@ Given that feature description, do this:
      "mission_slug": "my-feature",
      "friendly_name": "My Mission",
      "mission_type": "software-dev",
-     "target_branch": "main",
+     "target_branch": "<target-branch>",
      "vcs": "git",
      "created_at": "2026-01-01T00:00:00+00:00"
    }
