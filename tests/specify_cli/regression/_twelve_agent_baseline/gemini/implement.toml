@@ -57,6 +57,15 @@ Parse frontmatter for:
 - `execution_mode` -- `code_change` or `planning_artifact`
 - `subtasks` -- ordered list of subtask IDs
 - `dependencies` -- WPs that must be done first
+- `profile` -- agent profile identifier to load
+- `role` -- human-readable role for this WP
+- `tool` -- primary tool or skill focus
+
+### 2a. Load Agent Profile
+
+Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
+
+If `profile` is empty, select the best available profile for the WP's `task_type`.
 
 ### 3. Verify Dependencies
 

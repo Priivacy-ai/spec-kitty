@@ -1,5 +1,7 @@
 profile-id: minimal-test
 name: Minimal Test Profile
 purpose: Minimal valid profile for testing
+roles:
+  - implementer
 specialization:
   primary-focus: Testing minimal requirements

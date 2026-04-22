@@ -1,0 +1,8 @@
+profile-id: multi-role-agent
+name: Multi Role Agent
+purpose: Handles multiple responsibilities
+roles:
+  - implementer
+  - reviewer
+specialization:
+  primary-focus: Full stack implementation

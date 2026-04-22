@@ -1,8 +1,9 @@
-profile-id: architect
+profile-id: architect-alphonso
 name: Architect Alphonso
 description: System architecture and technical design specialist
 schema-version: "1.0"
-role: architect
+roles:
+  - architect
 capabilities:
   - system-design
   - architecture-review

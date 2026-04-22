@@ -181,7 +181,8 @@ Prompts do not rediscover feature context. Commands do.
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
      - Follow the WP prompt template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**) to capture:
-     - Frontmatter with `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, and history entry
+     - Frontmatter with `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, `agent_profile`, `role`, `agent`, `model` (optional), and history entry
+       - **`## ⚡ Do This First: Load Agent Profile`** — REQUIRED, must be the first body section (before Objective). Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. See `task-prompt-template.md` for the exact block.
        - Objective, context, detailed guidance per subtask
        - A Branch Strategy section that repeats the planning branch, final merge target, and explains that execution worktrees are allocated per computed lane from `lanes.json`
        - Test strategy (only if requested)
@@ -236,7 +237,7 @@ Prompts do not rediscover feature context. Commands do.
    - Path to `tasks.md`
    - Work package count and per-package subtask tallies
    - **Average prompt size** (estimate lines per WP)
-   - **Validation**: Flag if any WP has >10 subtasks or >700 estimated lines
+   - **Validation**: Flag if any WP has >10 subtasks or >700 estimated lines, or is missing the `## ⚡ Do This First` section
    - Parallelization highlights
    - MVP scope recommendation (usually Work Package 1)
    - Prompt generation stats (files written, directory structure, any skipped items with rationale)
@@ -510,6 +511,28 @@ Run the resolver-returned `finalize_tasks` command to:
 
 **DO NOT run git commit after this** - finalize-tasks commits automatically.
 Check JSON output for "commit_created": true and "commit_hash" to verify.
+
+### Step 8a: Assign Agent Profiles
+
+After `finalize-tasks` completes, review all available doctrine-provided and user-created agent profiles and assign the most relevant profile to each work package.
+
+List available profiles:
+```bash
+spec-kitty agent profile list --json
+```
+
+> If this command is unavailable, look for profiles under `src/doctrine/agent_profiles/shipped/` and any user-defined profiles in `.kittify/agent_profiles/` or equivalent.
+
+For each work package, select the best-matching profile based on:
+- `task_type` (implement / review / plan / specify / research)
+- `authoritative_surface` and `owned_files` (what domain the WP touches)
+- Subtask content (what skills are required)
+
+Update each WP prompt file's frontmatter **directly** (do NOT re-run `finalize-tasks`) with:
+- `agent_profile`: the profile identifier (e.g., `"implementer-ivan"`, `"architect-alphonso"`, `"curator-carla"`)
+- `role`: the role within the profile (e.g., `"implementer"`, `"reviewer"`)
+- `agent`: the CLI agent/tool identifier (e.g., `"claude"`, `"codex"`, `"copilot"`)
+- `model`: the model identifier (optional, e.g., `"claude-sonnet-4-6"`)
 
 ### Step 9: Report
 

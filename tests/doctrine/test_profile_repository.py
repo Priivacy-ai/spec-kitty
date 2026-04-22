@@ -27,7 +27,8 @@ def minimal_profile_yaml() -> str:
     return """profile-id: test-profile
 name: Test Profile
 purpose: Testing purpose
-role: implementer
+roles:
+  - implementer
 specialization:
   primary-focus: Testing
 """
@@ -43,7 +44,8 @@ def shipped_profiles_dir(tmp_path: Path) -> Path:
     (shipped / "architect-alphonso.agent.yaml").write_text("""profile-id: architect-alphonso
 name: Architect Alphonso
 purpose: System design and architecture
-role: architect
+roles:
+  - architect
 routing-priority: 80
 specialization:
   primary-focus: Architecture and design
@@ -64,11 +66,12 @@ specialization-context:
     - system architecture
 """)
 
-    # Child profile: python-implementer (specializes from generic implementer)
+    # Child profile: python-pedro (specializes from generic implementer)
     (shipped / "python-pedro.agent.yaml").write_text("""profile-id: python-pedro
 name: Python Pedro
 purpose: Python implementation specialist
-role: implementer
+roles:
+  - implementer
 routing-priority: 90
 specializes-from: generic-implementer
 specialization:
@@ -94,7 +97,8 @@ specialization-context:
     (shipped / "generic-implementer.agent.yaml").write_text("""profile-id: generic-implementer
 name: Generic Implementer
 purpose: General-purpose implementation
-role: implementer
+roles:
+  - implementer
 routing-priority: 50
 specialization:
   primary-focus: General implementation
@@ -120,7 +124,8 @@ specialization:
     (project / "custom-reviewer.agent.yaml").write_text("""profile-id: custom-reviewer
 name: Custom Reviewer
 purpose: Code review specialist
-role: reviewer
+roles:
+  - reviewer
 routing-priority: 70
 specialization:
   primary-focus: Code review
@@ -206,7 +211,8 @@ class TestAgentProfileRepositoryMany:
             """profile-id: python-only
 name: Python Only
 purpose: Python specialist
-role: implementer
+roles:
+  - implementer
 applies_to_languages:
   - python
 specialization:
@@ -218,7 +224,8 @@ specialization:
             """profile-id: generic
 name: Generic
 purpose: Generic specialist
-role: implementer
+roles:
+  - implementer
 specialization:
   primary-focus: General implementation
 """,
@@ -241,7 +248,8 @@ specialization:
             """profile-id: python-only
 name: Python Only
 purpose: Python specialist
-role: implementer
+roles:
+  - implementer
 applies_to_languages:
   - python
 specialization:
@@ -253,7 +261,8 @@ specialization:
             """profile-id: generic
 name: Generic
 purpose: Generic specialist
-role: implementer
+roles:
+  - implementer
 specialization:
   primary-focus: General implementation
 """,
@@ -283,7 +292,8 @@ routing-priority: 99
             """profile-id: typescript-reviewer
 name: TypeScript Reviewer
 purpose: Review TypeScript changes
-role: reviewer
+roles:
+  - reviewer
 applies_to_languages:
   - typescript
 specialization:
@@ -313,7 +323,8 @@ class TestAgentProfileRepositoryBoundaries:
         (shipped / "min-priority.agent.yaml").write_text("""profile-id: min-priority
 name: Min Priority
 purpose: Test
-role: planner
+roles:
+  - planner
 routing-priority: 0
 specialization:
   primary-focus: Testing
@@ -321,7 +332,8 @@ specialization:
         (shipped / "max-priority.agent.yaml").write_text("""profile-id: max-priority
 name: Max Priority
 purpose: Test
-role: planner
+roles:
+  - planner
 routing-priority: 100
 specialization:
   primary-focus: Testing
@@ -390,7 +402,8 @@ class TestAgentProfileRepositoryExceptions:
         (shipped / "a.agent.yaml").write_text("""profile-id: profile-a
 name: Profile A
 purpose: Test
-role: implementer
+roles:
+  - implementer
 specializes-from: profile-c
 specialization:
   primary-focus: Testing
@@ -398,7 +411,8 @@ specialization:
         (shipped / "b.agent.yaml").write_text("""profile-id: profile-b
 name: Profile B
 purpose: Test
-role: implementer
+roles:
+  - implementer
 specializes-from: profile-a
 specialization:
   primary-focus: Testing
@@ -406,7 +420,8 @@ specialization:
         (shipped / "c.agent.yaml").write_text("""profile-id: profile-c
 name: Profile C
 purpose: Test
-role: implementer
+roles:
+  - implementer
 specializes-from: profile-b
 specialization:
   primary-focus: Testing
@@ -425,7 +440,8 @@ specialization:
         (shipped / "orphan.agent.yaml").write_text("""profile-id: orphan-child
 name: Orphan Child
 purpose: Test
-role: implementer
+roles:
+  - implementer
 specializes-from: nonexistent-parent
 specialization:
   primary-focus: Testing
@@ -563,7 +579,7 @@ class TestAgentProfileRepositorySaveDelete:
             profile_id="new-tester",
             name="New Tester",
             purpose="Testing",
-            role=Role.REVIEWER,
+            roles=[Role.REVIEWER],
             specialization={"primary_focus": "Test review"},
         )
 
@@ -583,7 +599,7 @@ class TestAgentProfileRepositorySaveDelete:
             profile_id="test",
             name="Test",
             purpose="Test",
-            role=Role.PLANNER,
+            roles=[Role.PLANNER],
             specialization={"primary_focus": "Testing"},
         )
 
@@ -659,7 +675,7 @@ class TestAgentProfileRepositoryLoader:
         sub.mkdir()
         (sub / "nested.agent.yaml").write_text(
             "profile-id: nested\nname: Nested\npurpose: Test\n"
-            "role: implementer\nspecialization:\n  primary-focus: Testing\n"
+            "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
         )
         repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
         assert repo.get("nested") is not None
@@ -673,7 +689,7 @@ class TestAgentProfileRepositoryLoader:
         sub.mkdir(parents=True)
         (sub / "deep.agent.yaml").write_text(
             "profile-id: deep\nname: Deep\npurpose: Test\n"
-            "role: implementer\nspecialization:\n  primary-focus: Testing\n"
+            "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
         )
         repo = AgentProfileRepository(
             shipped_dir=shipped_profiles_dir, project_dir=project
@@ -704,7 +720,7 @@ class TestAgentProfileRepositoryLoader:
         project = tmp_path / "project"
         project.mkdir()
         (project / "no-id.agent.yaml").write_text(
-            "name: No ID Profile\npurpose: Test\nrole: implementer\n"
+            "name: No ID Profile\npurpose: Test\nroles:\n  - implementer\n"
             "specialization:\n  primary-focus: Testing\n"
         )
         with pytest.warns(UserWarning, match="no profile-id"):
@@ -720,7 +736,7 @@ class TestAgentProfileRepositoryLoader:
         shipped.mkdir()
         (shipped / "good.agent.yaml").write_text(
             "profile-id: good\nname: Good\npurpose: Test\n"
-            "role: implementer\nspecialization:\n  primary-focus: Testing\n"
+            "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
         )
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
         with pytest.warns(UserWarning):
@@ -762,13 +778,13 @@ class TestResolveProfileWithExcluding:
         shipped.mkdir()
         (shipped / "base.agent.yaml").write_text(
             "profile-id: base\nname: Base\npurpose: Base profile\n"
-            "role: implementer\nrouting-priority: 50\n"
+            "roles:\n  - implementer\nrouting-priority: 50\n"
             "capabilities:\n  - read\n  - write\n  - edit\n"
             "specialization:\n  primary-focus: Base implementation\n"
         )
         (shipped / "child.agent.yaml").write_text(
             "profile-id: child\nname: Child\npurpose: Child profile\n"
-            "role: implementer\nrouting-priority: 60\n"
+            "roles:\n  - implementer\nrouting-priority: 60\n"
             "specializes-from: base\n"
             "specialization:\n  primary-focus: Child implementation\n"
             "excluding:\n  capabilities:\n    - edit\n"
@@ -790,13 +806,13 @@ class TestResolveProfileWithExcluding:
         shipped.mkdir()
         (shipped / "base2.agent.yaml").write_text(
             "profile-id: base2\nname: Base2\npurpose: Base2 profile\n"
-            "role: implementer\nrouting-priority: 50\n"
+            "roles:\n  - implementer\nrouting-priority: 50\n"
             "capabilities:\n  - read\n  - write\n"
             "specialization:\n  primary-focus: Base2 implementation\n"
         )
         (shipped / "child2.agent.yaml").write_text(
             "profile-id: child2\nname: Child2\npurpose: Child2 profile\n"
-            "role: implementer\nspecializes-from: base2\n"
+            "roles:\n  - implementer\nspecializes-from: base2\n"
             "specialization:\n  primary-focus: Child2 implementation\n"
             "excluding:\n  - capabilities\n"
         )
@@ -837,7 +853,7 @@ class TestFieldLevelMergeComplete:
         project.mkdir()
         (project / "standalone.agent.yaml").write_text(
             "profile-id: standalone\nname: Standalone\npurpose: Custom purpose\n"
-            "role: curator\nrouting-priority: 42\n"
+            "roles:\n  - curator\nrouting-priority: 42\n"
             "specialization:\n  primary-focus: Standalone work\n"
         )
         repo = AgentProfileRepository(
@@ -860,15 +876,15 @@ class TestMultiLevelHierarchy:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
         (shipped / "root.agent.yaml").write_text(
-            "profile-id: root\nname: Root\npurpose: Root\nrole: implementer\n"
+            "profile-id: root\nname: Root\npurpose: Root\nroles:\n  - implementer\n"
             "specialization:\n  primary-focus: Root\n"
         )
         (shipped / "mid.agent.yaml").write_text(
-            "profile-id: mid\nname: Mid\npurpose: Mid\nrole: implementer\n"
+            "profile-id: mid\nname: Mid\npurpose: Mid\nroles:\n  - implementer\n"
             "specializes-from: root\nspecialization:\n  primary-focus: Mid\n"
         )
         (shipped / "leaf.agent.yaml").write_text(
-            "profile-id: leaf\nname: Leaf\npurpose: Leaf\nrole: implementer\n"
+            "profile-id: leaf\nname: Leaf\npurpose: Leaf\nroles:\n  - implementer\n"
             "specializes-from: mid\nspecialization:\n  primary-focus: Leaf\n"
         )
         return shipped
@@ -891,17 +907,17 @@ class TestMultiLevelHierarchy:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
         (shipped / "root.agent.yaml").write_text(
-            "profile-id: root\nname: Root\npurpose: Root\nrole: implementer\n"
+            "profile-id: root\nname: Root\npurpose: Root\nroles:\n  - implementer\n"
             "routing-priority: 10\ncapabilities:\n  - read\n"
             "specialization:\n  primary-focus: Root\n"
         )
         (shipped / "mid.agent.yaml").write_text(
-            "profile-id: mid\nname: Mid\npurpose: Mid\nrole: implementer\n"
+            "profile-id: mid\nname: Mid\npurpose: Mid\nroles:\n  - implementer\n"
             "specializes-from: root\ncapabilities:\n  - write\n"
             "specialization:\n  primary-focus: Mid\n"
         )
         (shipped / "leaf.agent.yaml").write_text(
-            "profile-id: leaf\nname: Leaf\npurpose: Leaf\nrole: implementer\n"
+            "profile-id: leaf\nname: Leaf\npurpose: Leaf\nroles:\n  - implementer\n"
             "specializes-from: mid\ncapabilities:\n  - search\n"
             "routing-priority: 90\n"
             "specialization:\n  primary-focus: Leaf\n"
@@ -914,3 +930,122 @@ class TestMultiLevelHierarchy:
         assert "read" in resolved.capabilities
         assert "write" in resolved.capabilities
         assert "search" in resolved.capabilities
+
+
+# ── Multi-role routing ─────────────────────────────────────────────────────
+
+
+from doctrine.agent_profiles.repository import _filter_candidates_by_role, _exact_id_signal  # noqa: E402
+
+
+def _make_profile(profile_id: str, roles: list[str]) -> AgentProfile:
+    return AgentProfile(**{
+        "profile-id": profile_id,
+        "name": f"Test {profile_id}",
+        "purpose": "Test purpose",
+        "roles": roles,
+        "specialization": {"primary-focus": "Testing"},
+    })
+
+
+class TestMultiRoleRouting:
+    """Profiles with multiple roles — filter and signal behaviour."""
+
+    def test_secondary_role_included_in_filter(self):
+        """A profile with a secondary role passes the role filter for that role."""
+        p = _make_profile("arch-alex", ["architect", "researcher"])
+        assert p in _filter_candidates_by_role([p], "researcher")
+
+    def test_primary_role_included_in_filter(self):
+        p = _make_profile("arch-alex", ["architect", "researcher"])
+        assert p in _filter_candidates_by_role([p], "architect")
+
+    def test_unrelated_role_excluded_from_filter(self):
+        p = _make_profile("arch-alex", ["architect", "researcher"])
+        assert p not in _filter_candidates_by_role([p], "implementer")
+
+    def test_primary_role_signal_is_1_0(self):
+        p = _make_profile("arch-alex", ["architect", "researcher"])
+        ctx = TaskContext(required_role=Role("architect"))
+        assert _exact_id_signal(ctx, p) == 1.0
+
+    def test_secondary_role_signal_is_0_5(self):
+        p = _make_profile("arch-alex", ["architect", "researcher"])
+        ctx = TaskContext(required_role=Role("researcher"))
+        assert _exact_id_signal(ctx, p) == 0.5
+
+    def test_no_match_signal_is_0_0(self):
+        p = _make_profile("arch-alex", ["architect", "researcher"])
+        ctx = TaskContext(required_role=Role("implementer"))
+        assert _exact_id_signal(ctx, p) == 0.0
+
+    def test_profile_id_match_signal_is_1_0(self):
+        p = _make_profile("arch-alex", ["architect"])
+        ctx = TaskContext(required_role=Role("arch-alex"))
+        assert _exact_id_signal(ctx, p) == 1.0
+
+    def test_no_required_role_signal_is_0_0(self):
+        p = _make_profile("arch-alex", ["architect"])
+        ctx = TaskContext(required_role=None)
+        assert _exact_id_signal(ctx, p) == 0.0
+
+
+class TestRoleLookup:
+    """find_by_role checks all role positions; get() is keyed by profile_id."""
+
+    def _repo_with(self, *profiles: AgentProfile) -> AgentProfileRepository:
+        repo = AgentProfileRepository.__new__(AgentProfileRepository)
+        repo._profiles = {p.profile_id: p for p in profiles}
+        repo._hierarchy_index = None
+        return repo
+
+    def test_find_by_role_returns_primary_role_profile(self):
+        p = _make_profile("arch-alex", ["architect"])
+        repo = self._repo_with(p)
+        assert p in repo.find_by_role("architect")
+
+    def test_find_by_role_returns_secondary_role_profile(self):
+        """find_by_role checks all roles, not just primary."""
+        p = _make_profile("arch-bob", ["implementer", "architect"])
+        repo = self._repo_with(p)
+        assert p in repo.find_by_role("architect")
+
+    def test_find_by_role_returns_multiple_profiles_sharing_a_role(self):
+        """When several profiles list the same role, all are returned."""
+        primary = _make_profile("arch-alex", ["architect"])
+        secondary = _make_profile("arch-bob", ["implementer", "architect"])
+        repo = self._repo_with(primary, secondary)
+
+        result = repo.find_by_role("architect")
+        assert len(result) == 2
+        assert primary in result
+        assert secondary in result
+
+    def test_find_by_role_returns_empty_when_no_match(self):
+        p = _make_profile("arch-alex", ["architect"])
+        repo = self._repo_with(p)
+        assert repo.find_by_role("implementer") == []
+
+    def test_find_by_role_with_role_instance(self):
+        """find_by_role accepts a Role instance."""
+        p = _make_profile("impl-ivan", ["implementer"])
+        repo = self._repo_with(p)
+        assert p in repo.find_by_role(Role.IMPLEMENTER)
+
+    def test_get_returns_profile_for_known_id(self):
+        p = _make_profile("arch-alex", ["architect"])
+        repo = self._repo_with(p)
+        assert repo.get("arch-alex") is p
+
+    def test_get_returns_none_for_unknown_id(self):
+        repo = self._repo_with()
+        assert repo.get("nonexistent") is None
+
+    def test_get_is_unique_two_profiles_with_different_ids(self):
+        """Different profile_ids never collide."""
+        p1 = _make_profile("arch-alex", ["architect"])
+        p2 = _make_profile("arch-bob", ["architect"])
+        repo = self._repo_with(p1, p2)
+        assert repo.get("arch-alex") is p1
+        assert repo.get("arch-bob") is p2
+        assert repo.get("arch-alex") is not p2

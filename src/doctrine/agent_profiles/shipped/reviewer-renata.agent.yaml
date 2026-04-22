@@ -1,8 +1,9 @@
-profile-id: reviewer
+profile-id: reviewer-renata
 name: Reviewer Renata
 description: Code and design quality assurance specialist
 schema-version: "1.0"
-role: reviewer
+roles:
+  - reviewer
 capabilities:
   - code-review
   - design-review

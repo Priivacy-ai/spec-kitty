@@ -106,7 +106,7 @@ class TestValidateAgentProfileYaml:
 class TestGetCapabilities:
     """get_capabilities covers all Role enum variants and unknown strings."""
 
-    @pytest.mark.parametrize("role", list(Role))
+    @pytest.mark.parametrize("role", [Role(r) for r in sorted(Role._KNOWN)])
     def test_known_role_enum_returns_capabilities(self, role: Role):
         result = get_capabilities(role)
         assert result is not None

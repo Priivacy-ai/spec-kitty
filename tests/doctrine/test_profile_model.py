@@ -39,13 +39,14 @@ class TestAgentProfileZero:
             name="Minimal Agent",
             purpose="Test minimal creation",
             specialization=Specialization(primary_focus="Testing"),
+            roles=["implementer"],
         )
 
         assert profile.profile_id == "test-minimal"
         assert profile.name == "Minimal Agent"
         assert profile.purpose == "Test minimal creation"
         assert profile.specialization.primary_focus == "Testing"
-        assert profile.role == Role.IMPLEMENTER  # default
+        assert profile.role == Role.IMPLEMENTER
         assert profile.routing_priority == 50  # default
         assert profile.max_concurrent_tasks == 5  # default
 
@@ -140,16 +141,16 @@ class TestAgentProfileMany:
         for role, profile_id in roles_data:
             profile = AgentProfile(
                 profile_id=profile_id,
-                name=role.value.title(),
-                purpose=f"{role.value} purpose",
-                specialization=Specialization(primary_focus=f"{role.value} focus"),
-                role=role,
+                name=str(role).title(),
+                purpose=f"{role} purpose",
+                specialization=Specialization(primary_focus=f"{role} focus"),
+                roles=[role],
             )
             profiles.append(profile)
 
         assert len(profiles) == 8
         assert all(isinstance(p.role, Role) for p in profiles)
-        assert {p.role for p in profiles} == set(Role)
+        assert {p.role for p in profiles} == {Role(r) for r in Role._KNOWN}
 
 
 class TestAgentProfileBoundaries:
@@ -163,6 +164,7 @@ class TestAgentProfileBoundaries:
             name="Test",
             purpose="Test",
             specialization=Specialization(primary_focus="Test"),
+            roles=["implementer"],
             routing_priority=priority,
         )
         assert profile.routing_priority == priority
@@ -187,6 +189,7 @@ class TestAgentProfileBoundaries:
             name="Test",
             purpose="Test",
             specialization=Specialization(primary_focus="Test"),
+            roles=["implementer"],
             max_concurrent_tasks=tasks,
         )
         assert profile.max_concurrent_tasks == tasks
@@ -214,6 +217,7 @@ class TestAgentProfileInterface:
             name="Roundtrip Test",
             description="Testing YAML round-trip",
             purpose="Validate serialization",
+            roles=["implementer"],
             specialization=Specialization(
                 primary_focus="Serialization testing",
                 secondary_awareness="Data fidelity",
@@ -250,6 +254,7 @@ class TestAgentProfileInterface:
             "name": "Kebab Test",
             "purpose": "Test kebab-case",
             "specialization": {"primary-focus": "Testing"},  # kebab-case
+            "roles": ["implementer"],
             "routing-priority": 75,  # kebab-case
             "max-concurrent-tasks": 3,  # kebab-case
         }
@@ -332,7 +337,7 @@ class TestAgentProfileSimple:
         assert isinstance(profile.role, Role)
 
     def test_custom_role_passes_through_with_warning(self):
-        """Custom role string passes through with warning."""
+        """Custom role string passes through via scalar coercion with deprecation warning."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             profile = AgentProfile(
@@ -344,10 +349,12 @@ class TestAgentProfileSimple:
             )
             assert profile.role == "devops-engineer"
             assert isinstance(profile.role, str)
-            assert not isinstance(profile.role, Role)
-            # Verify warning was issued
+            assert isinstance(profile.role, Role)  # Role is a str subclass; custom roles are valid Role instances
+            assert not Role.is_known(profile.role)  # but not a well-known constant
+            # Verify deprecation warning was issued for scalar role: syntax
             assert len(w) > 0
-            assert "custom role" in str(w[0].message).lower() or "unknown role" in str(w[0].message).lower()
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
 
 
 class TestTaskContext:

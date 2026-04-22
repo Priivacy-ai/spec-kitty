@@ -165,6 +165,8 @@ class AgentProfileSchema(BaseModel):
     )
     purpose: str
     role: str | None = None
+    roles: list[str] | None = Field(default=None, min_length=1)
+    avatar_image: str | None = Field(default=None, alias="avatar-image")
     sentinel: bool = Field(default=False)
     tags: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)

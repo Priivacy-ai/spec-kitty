@@ -23,16 +23,17 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 SHIPPED_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "shipped"
 
 EXPECTED_PROFILE_IDS = {
-    "architect",
-    "designer",
+    "architect-alphonso",
+    "curator-carla",
+    "designer-dagmar",
     "generic-agent",
     "human-in-charge",
-    "implementer",
-    "planner",
-    "python-implementer",
-    "researcher",
-    "reviewer",
-    "curator",
+    "implementer-ivan",
+    "java-jenny",
+    "planner-priti",
+    "python-pedro",
+    "researcher-robbie",
+    "reviewer-renata",
 }
 
 # Sentinel profiles are workflow markers, not real agents.  They intentionally
@@ -94,15 +95,15 @@ class TestShippedProfilesRoles:
     @pytest.mark.parametrize(
         "profile_id,expected_role",
         [
-            ("architect", Role.ARCHITECT),
-            ("designer", Role.DESIGNER),
+            ("architect-alphonso", Role.ARCHITECT),
+            ("designer-dagmar", Role.DESIGNER),
             ("generic-agent", Role.IMPLEMENTER),
-            ("implementer", Role.IMPLEMENTER),
-            ("python-implementer", Role.IMPLEMENTER),
-            ("reviewer", Role.REVIEWER),
-            ("planner", Role.PLANNER),
-            ("researcher", Role.RESEARCHER),
-            ("curator", Role.CURATOR),
+            ("implementer-ivan", Role.IMPLEMENTER),
+            ("python-pedro", Role.IMPLEMENTER),
+            ("reviewer-renata", Role.REVIEWER),
+            ("planner-priti", Role.PLANNER),
+            ("researcher-robbie", Role.RESEARCHER),
+            ("curator-carla", Role.CURATOR),
         ],
     )
     def test_profile_has_correct_role(
@@ -111,11 +112,38 @@ class TestShippedProfilesRoles:
         profile_id: str,
         expected_role: Role,
     ):
-        """Each profile has the correct role enum value."""
+        """Each profile has the correct primary role."""
         profile = repo.get(profile_id)
         assert profile is not None
         assert profile.role == expected_role, (
             f"Profile '{profile_id}' has role={profile.role!r}, expected {expected_role!r}"
+        )
+
+    def test_all_shipped_profiles_have_roles(self, all_profiles: list[AgentProfile]):
+        """Every shipped profile has at least one role in the roles list."""
+        for profile in all_profiles:
+            assert len(profile.roles) >= 1, (
+                f"Profile '{profile.profile_id}' has empty roles list"
+            )
+
+    @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
+    def test_no_deprecation_warnings_on_load(self, profile_id: str):
+        """Loading shipped profiles must not emit DeprecationWarning (no scalar role: field)."""
+        import warnings
+        from ruamel.yaml import YAML as _YAML
+
+        yaml = _YAML(typ="safe")
+        yaml_file = SHIPPED_DIR / f"{profile_id}.agent.yaml"
+        with yaml_file.open() as f:
+            data = yaml.load(f)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            AgentProfile(**data)
+        deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+        assert len(deprecation_warnings) == 0, (
+            f"Profile '{profile_id}' emits DeprecationWarning on load: "
+            + str([str(x.message) for x in deprecation_warnings])
         )
 
 
@@ -148,15 +176,15 @@ class TestShippedProfilesContent:
     @pytest.mark.parametrize(
         "profile_id,expected_priority",
         [
-            ("architect", 50),
-            ("designer", 50),
+            ("architect-alphonso", 50),
+            ("designer-dagmar", 50),
             ("generic-agent", 10),
-            ("implementer", 50),
-            ("python-implementer", 80),
-            ("reviewer", 50),
-            ("planner", 50),
-            ("researcher", 40),
-            ("curator", 40),
+            ("implementer-ivan", 50),
+            ("python-pedro", 80),
+            ("reviewer-renata", 50),
+            ("planner-priti", 50),
+            ("researcher-robbie", 40),
+            ("curator-carla", 40),
         ],
     )
     def test_routing_priority(
@@ -175,15 +203,15 @@ class TestShippedProfilesContent:
     @pytest.mark.parametrize(
         "profile_id,expected_max",
         [
-            ("architect", 3),
-            ("designer", 4),
+            ("architect-alphonso", 3),
+            ("designer-dagmar", 4),
             ("generic-agent", 5),
-            ("implementer", 5),
-            ("python-implementer", 5),
-            ("reviewer", 8),
-            ("planner", 3),
-            ("researcher", 4),
-            ("curator", 6),
+            ("implementer-ivan", 5),
+            ("python-pedro", 5),
+            ("reviewer-renata", 8),
+            ("planner-priti", 3),
+            ("researcher-robbie", 4),
+            ("curator-carla", 6),
         ],
     )
     def test_max_concurrent_tasks(
@@ -287,3 +315,23 @@ class TestShippedProfilesContextSources:
         profile = repo.get(profile_id)
         assert profile is not None
         assert len(profile.directive_references) > 0, f"Profile '{profile_id}' has no directive references"
+
+
+class TestShippedProfilesPerformance:
+    """Performance gate: loading all shipped profiles must complete quickly."""
+
+    def test_shipped_profile_load_time(self) -> None:
+        """Loading all 11 shipped profiles must complete in under 2 seconds."""
+        import time
+
+        start = time.perf_counter()
+        repo = AgentProfileRepository(shipped_dir=SHIPPED_DIR, project_dir=None)
+        profiles = repo.list_all()
+        elapsed = time.perf_counter() - start
+
+        assert len(profiles) == len(EXPECTED_PROFILE_IDS), (
+            f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
+        )
+        assert elapsed < 2.0, (
+            f"Loading all shipped profiles took {elapsed:.3f}s, expected < 2.0s"
+        )

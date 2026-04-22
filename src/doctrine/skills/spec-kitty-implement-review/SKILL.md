@@ -133,15 +133,15 @@ OUTPUT=$(spec-kitty agent action implement WP## --mission <slug> --agent <tool>:
 ```
 
 Examples:
-- `--agent opencode:o3:python-implementer:implementer`
+- `--agent opencode:o3:python-pedro:implementer`
 - `--agent claude:sonnet:implementer:implementer`
-- `--agent codex:gpt-4o:python-implementer:implementer`
+- `--agent codex:gpt-4o:python-pedro:implementer`
 
 Partial compact strings are accepted (missing fields default to `unknown`).
 You may also use explicit flags instead:
 - `--tool <tool>` — agent key (e.g. `opencode`, `claude`)
 - `--model <model>` — AI model identifier (e.g. `o3`, `gpt-4o`)
-- `--profile <profile-id>` — doctrine profile (e.g. `python-implementer`)
+- `--profile <profile-id>` — doctrine profile (e.g. `python-pedro`)
 - `--role <role>` — role label (e.g. `implementer`, `reviewer`)
 
 This command:

@@ -1,8 +1,9 @@
-profile-id: researcher
-name: Researcher Rosa
+profile-id: researcher-robbie
+name: Researcher Robbie
 description: Domain knowledge acquisition and synthesis specialist
 schema-version: "1.0"
-role: researcher
+roles:
+  - researcher
 capabilities:
   - literature-review
   - domain-analysis

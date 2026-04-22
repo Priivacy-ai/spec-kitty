@@ -1,0 +1,5 @@
+profile-id: no-role-agent
+name: No Role Agent
+purpose: Agent with neither role nor roles — should fail anyOf constraint
+specialization:
+  primary-focus: Testing constraint enforcement

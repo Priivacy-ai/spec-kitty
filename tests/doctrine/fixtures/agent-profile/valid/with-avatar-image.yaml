@@ -1,0 +1,8 @@
+profile-id: avatar-agent
+name: Avatar Agent
+purpose: Agent with an avatar image
+roles:
+  - designer
+avatar-image: assets/agents/avatar-agent.png
+specialization:
+  primary-focus: Visual design work
