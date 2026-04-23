@@ -45,12 +45,12 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T017 | Ship parity content for surface group 2 (opencode, windsurf, kilocode) | WP04 | [D] |
 | T018 | Ship parity content for surface group 3 (auggie, roo, q, kiro, agent) | WP04 | [D] |
 | T019 | Update inventory matrix to reflect post-rollout parity status | WP04 |  | [D] |
-| T020 | Promote inventory to `docs/host-surface-parity.md` with preamble | WP05 |  |
-| T021 | Add link from `docs/trail-model.md` to the promoted matrix | WP05 |  |
-| T022 | Verify link from README governance section to promoted matrix | WP05 |  |
-| T023 | Add parity-coverage test `tests/specify_cli/docs/test_host_surface_inventory.py` | WP05 |  |
-| T024 | Mark `#496` as delivered in the tracker-hygiene checklist for WP09 | WP05 |  |
-| T025 | Wire merge-ready signal: all Tranche A tests green | WP05 |  |
+| T020 | Promote inventory to `docs/host-surface-parity.md` with preamble | WP05 |  | [D] |
+| T021 | Add link from `docs/trail-model.md` to the promoted matrix | WP05 |  | [D] |
+| T022 | Verify link from README governance section to promoted matrix | WP05 |  | [D] |
+| T023 | Add parity-coverage test `tests/specify_cli/docs/test_host_surface_inventory.py` | WP05 |  | [D] |
+| T024 | Mark `#496` as delivered in the tracker-hygiene checklist for WP09 | WP05 |  | [D] |
+| T025 | Wire merge-ready signal: all Tranche A tests green | WP05 |  | [D] |
 | T026 | Create `modes.py` with `ModeOfWork` + `derive_mode()` + unit tests | WP06 |  |
 | T027 | Extend `InvocationRecord` with optional `mode_of_work`; executor threads kwarg | WP06 |  |
 | T028 | Add `append_correlation_link()` + shared `normalise_ref()` to `writer.py` | WP06 |  |
@@ -181,12 +181,12 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T020 Promote inventory to `docs/host-surface-parity.md` with preamble
-- [ ] T021 Add link from `docs/trail-model.md` to the promoted matrix
-- [ ] T022 Verify link from README governance section to promoted matrix
-- [ ] T023 Add parity-coverage test `tests/specify_cli/docs/test_host_surface_inventory.py`
-- [ ] T024 Mark `#496` as delivered in the tracker-hygiene checklist for WP09
-- [ ] T025 Wire merge-ready signal: all Tranche A tests green
+- [x] T020 Promote inventory to `docs/host-surface-parity.md` with preamble
+- [x] T021 Add link from `docs/trail-model.md` to the promoted matrix
+- [x] T022 Verify link from README governance section to promoted matrix
+- [x] T023 Add parity-coverage test `tests/specify_cli/docs/test_host_surface_inventory.py`
+- [x] T024 Mark `#496` as delivered in the tracker-hygiene checklist for WP09
+- [x] T025 Wire merge-ready signal: all Tranche A tests green
 
 **Dependencies**: WP02, WP03, WP04.
 **Execution mode**: `code_change`.
