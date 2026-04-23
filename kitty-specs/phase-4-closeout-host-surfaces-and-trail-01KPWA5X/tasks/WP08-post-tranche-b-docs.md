@@ -9,7 +9,7 @@ requirement_refs:
 - FR-013
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Current planning base is main; completed work merges into main. Execution worktree is resolved from lanes.json at implement time.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T039
 - T040
