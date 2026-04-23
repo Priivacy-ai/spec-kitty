@@ -17,6 +17,49 @@ _GLOSSARY_HTML_PATH = Path(__file__).resolve().parents[1] / "templates" / "gloss
 _GLOSSARY_HTML_BYTES: bytes = _GLOSSARY_HTML_PATH.read_bytes()
 
 
+def _count_orphaned_terms(project_dir: Path) -> int:
+    """Count glossary terms with no incoming vocabulary edge in the merged DRG.
+
+    Returns 0 when the DRG is unavailable or has no glossary nodes (e.g. before
+    WP5.1 lands). Once WP5.1 adds ``glossary:<id>`` URN nodes and ``vocabulary``
+    edges this will return the true orphan count.
+    """
+    try:
+        import yaml  # ruamel.yaml or pyyaml
+
+        drg_path = project_dir / ".kittify" / "doctrine" / "graph.yaml"
+        if not drg_path.exists():
+            return 0
+        with drg_path.open(encoding="utf-8") as fh:
+            drg_data = yaml.safe_load(fh)
+        if not isinstance(drg_data, dict):
+            return 0
+        nodes = drg_data.get("nodes", [])
+        edges = drg_data.get("edges", [])
+        # Collect all glossary URNs
+        glossary_urns = {
+            n.get("urn") or n.get("id", "")
+            for n in nodes
+            if isinstance(n, dict) and str(n.get("urn") or n.get("id", "")).startswith("glossary:")
+        }
+        if not glossary_urns:
+            return 0  # WP5.1 not yet merged
+        # Collect all URNs that have at least one incoming vocabulary edge
+        covered: set[str] = set()
+        for edge in edges:
+            if not isinstance(edge, dict):
+                continue
+            rel = edge.get("relation") or edge.get("type") or edge.get("rel", "")
+            if str(rel).lower() == "vocabulary":
+                target = edge.get("target", "")
+                covered.add(target)
+        orphans = glossary_urns - covered
+        return len(orphans)
+    except Exception as exc:
+        logger.debug("orphaned term count unavailable: %s", exc)
+        return 0
+
+
 def _collect_all_senses(repo_root: Path) -> list:
     """Load all TermSense objects from seed files across all scopes.
 
@@ -81,7 +124,7 @@ class GlossaryHandler(DashboardHandler):
                 "draft_count": draft_count,
                 "deprecated_count": deprecated_count,
                 "high_severity_drift_count": high_count,
-                "orphaned_term_count": 0,
+                "orphaned_term_count": _count_orphaned_terms(project_dir),
                 "entity_pages_generated": entity_pages_generated,
                 "entity_pages_path": str(entity_pages_dir) if entity_pages_dir.exists() else None,
                 "last_conflict_at": last_at,

@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import io
 import json
+import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 from rich.console import Console
 
 from specify_cli.glossary.observation import InlineNotice, ObservationSurface
@@ -282,3 +282,48 @@ def test_collect_notices_never_raises_on_read_error(tmp_path: Path) -> None:
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
     assert notices == []
+
+
+# ---------------------------------------------------------------------------
+# NFR-001: p95 overhead target (ADR-5 proposed threshold: 50ms)
+# ---------------------------------------------------------------------------
+
+
+def test_collect_notices_completes_within_50ms(tmp_path: Path) -> None:
+    """NFR-001: collect_notices() must add ≤50ms p95 overhead.
+
+    Uses a realistic-size event log (1000 events) and verifies the call
+    returns well within the ADR-5 proposed threshold. This does not replace
+    a production p95 measurement but catches obvious regressions.
+    """
+    events = []
+    for i in range(1000):
+        severity = "high" if i % 10 == 0 else "low"
+        events.append({
+            "event_type": "semantic_check_evaluated",
+            "invocation_id": f"inv-{i % 5}",
+            "term": f"term-{i}",
+            "term_id": f"glossary:term-{i}",
+            "severity": severity,
+            "conflict_type": "scope_mismatch",
+            "conflicting_senses": ["a", "b"],
+            "checked_at": "2026-04-23T05:00:00Z",
+        })
+    _write_event_log(tmp_path, events)
+
+    surface = ObservationSurface()
+    # Warm-up call to avoid import-time overhead skewing the measurement
+    surface.collect_notices(tmp_path)
+
+    ITERATIONS = 5
+    total = 0.0
+    for _ in range(ITERATIONS):
+        t0 = time.monotonic()
+        surface.collect_notices(tmp_path)
+        total += time.monotonic() - t0
+    avg_ms = (total / ITERATIONS) * 1000
+
+    assert avg_ms < 50.0, (
+        f"collect_notices() averaged {avg_ms:.1f}ms over {ITERATIONS} runs "
+        f"on a 1000-event log — exceeds the 50ms NFR-001 target"
+    )
