@@ -294,6 +294,109 @@ class TestGlossaryPage:
         assert handler1.wfile.read() == handler2.wfile.read()
 
 
+class TestGlossaryHelpers:
+    """Exercise helper paths that feed the glossary dashboard endpoints."""
+
+    def test_count_orphaned_terms_counts_uncovered_glossary_nodes(self, tmp_path):
+        """Glossary nodes without an incoming vocabulary edge count as orphans."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text(
+            """
+nodes:
+  - urn: glossary:alpha
+  - urn: glossary:beta
+  - urn: feature:mission-1
+edges:
+  - relation: vocabulary
+    target: glossary:alpha
+  - relation: ownership
+    target: glossary:beta
+""".strip(),
+            encoding="utf-8",
+        )
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 1
+
+    def test_count_orphaned_terms_returns_zero_for_non_mapping_graph(self, tmp_path):
+        """Non-dict graph payloads are treated as unavailable."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text("- not-a-dict\n", encoding="utf-8")
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 0
+
+    def test_count_orphaned_terms_returns_zero_when_no_glossary_nodes_exist(self, tmp_path):
+        """A DRG without glossary nodes reports no orphans."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text(
+            """
+nodes:
+  - urn: feature:mission-1
+edges:
+  - relation: ownership
+    target: feature:mission-1
+""".strip(),
+            encoding="utf-8",
+        )
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 0
+
+    def test_count_orphaned_terms_returns_zero_on_yaml_error(self, tmp_path):
+        """Unreadable YAML does not break the dashboard helper."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text("nodes: [\n", encoding="utf-8")
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 0
+
+    def test_collect_all_senses_skips_scopes_that_fail(self, monkeypatch, tmp_path):
+        """A single broken seed file does not prevent collecting other scopes."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+        from specify_cli.glossary.scope import GlossaryScope
+
+        first_scope = list(GlossaryScope)[0]
+        expected = _make_term("alpha", "definition", "active", 0.9)
+
+        def fake_load_seed_file(scope, repo_root):
+            assert repo_root == tmp_path
+            if scope is first_scope:
+                return [expected]
+            raise RuntimeError(f"missing seed for {scope.value}")
+
+        monkeypatch.setattr("specify_cli.glossary.scope.load_seed_file", fake_load_seed_file)
+
+        assert gloss_module._collect_all_senses(tmp_path) == [expected]
+
+    def test_collect_all_senses_returns_empty_list_when_scope_module_fails(
+        self, monkeypatch, tmp_path
+    ):
+        """Import failures degrade to an empty response payload."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "specify_cli.glossary.scope":
+                raise ImportError("boom")
+            return real_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        assert gloss_module._collect_all_senses(tmp_path) == []
+
+
 class TestRouterRegistration:
     """Verify the routes are wired in DashboardRouter."""
 
