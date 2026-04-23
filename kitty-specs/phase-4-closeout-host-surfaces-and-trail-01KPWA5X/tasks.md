@@ -30,11 +30,11 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T002 | Audit slash-command surfaces (13) for advise/ask/do parity | WP01 | [D] |
 | T003 | Audit Agent Skills surfaces (Codex, Vibe) | WP01 | [D] |
 | T004 | Populate inventory rows + parity_status + notes | WP01 |  | [D] |
-| T005 | Replace user-visible `Feature` strings in `dashboard/templates/index.html` | WP02 |  |
-| T006 | Replace user-visible `Feature` strings in `dashboard/static/dashboard/dashboard.js` | WP02 |  |
-| T007 | Replace `"no feature context"` in `dashboard/diagnostics.py` | WP02 |  |
-| T008 | Write wording + backend-preservation snapshot test | WP02 |  |
-| T009 | Live dashboard visual verification | WP02 |  |
+| T005 | Replace user-visible `Feature` strings in `dashboard/templates/index.html` | WP02 |  | [D] |
+| T006 | Replace user-visible `Feature` strings in `dashboard/static/dashboard/dashboard.js` | WP02 |  | [D] |
+| T007 | Replace `"no feature context"` in `dashboard/diagnostics.py` | WP02 |  | [D] |
+| T008 | Write wording + backend-preservation snapshot test | WP02 |  | [D] |
+| T009 | Live dashboard visual verification | WP02 |  | [D] |
 | T010 | Audit + update `README.md` governance layer subsection | WP03 |  |
 | T011 | Terminology consistency pass on `.agents/skills/spec-kitty.advise/SKILL.md` | WP03 | [P] |
 | T012 | Terminology consistency pass on `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` | WP03 | [P] |
@@ -115,11 +115,11 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T005 Replace user-visible `Feature` strings in `dashboard/templates/index.html`
-- [ ] T006 Replace user-visible `Feature` strings in `dashboard/static/dashboard/dashboard.js`
-- [ ] T007 Replace `"no feature context"` in `dashboard/diagnostics.py`
-- [ ] T008 Write wording + backend-preservation snapshot test
-- [ ] T009 Live dashboard visual verification
+- [x] T005 Replace user-visible `Feature` strings in `dashboard/templates/index.html`
+- [x] T006 Replace user-visible `Feature` strings in `dashboard/static/dashboard/dashboard.js`
+- [x] T007 Replace `"no feature context"` in `dashboard/diagnostics.py`
+- [x] T008 Write wording + backend-preservation snapshot test
+- [x] T009 Live dashboard visual verification
 
 **Dependencies**: WP01 (inventory captures this surface).
 **Execution mode**: `code_change`.
