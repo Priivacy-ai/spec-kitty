@@ -40,11 +40,11 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T012 | Terminology consistency pass on `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` | WP03 | [D] |
 | T013 | Snapshot test asserting README governance subsection structure | WP03 |  | [D] |
 | T014 | Link-target regression test for canonical skill-pack pointers | WP03 |  | [D] |
-| T015 | Establish the parity-file pattern (inline vs pointer) for each non-parity surface | WP04 |  |
-| T016 | Ship parity content for surface group 1 (copilot, gemini, cursor, qwen) | WP04 | [P] |
-| T017 | Ship parity content for surface group 2 (opencode, windsurf, kilocode) | WP04 | [P] |
-| T018 | Ship parity content for surface group 3 (auggie, roo, q, kiro, agent) | WP04 | [P] |
-| T019 | Update inventory matrix to reflect post-rollout parity status | WP04 |  |
+| T015 | Establish the parity-file pattern (inline vs pointer) for each non-parity surface | WP04 |  | [D] |
+| T016 | Ship parity content for surface group 1 (copilot, gemini, cursor, qwen) | WP04 | [D] |
+| T017 | Ship parity content for surface group 2 (opencode, windsurf, kilocode) | WP04 | [D] |
+| T018 | Ship parity content for surface group 3 (auggie, roo, q, kiro, agent) | WP04 | [D] |
+| T019 | Update inventory matrix to reflect post-rollout parity status | WP04 |  | [D] |
 | T020 | Promote inventory to `docs/host-surface-parity.md` with preamble | WP05 |  |
 | T021 | Add link from `docs/trail-model.md` to the promoted matrix | WP05 |  |
 | T022 | Verify link from README governance section to promoted matrix | WP05 |  |
@@ -159,11 +159,11 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T015 Establish the parity-file pattern (inline vs pointer) for each non-parity surface
-- [ ] T016 Ship parity content for surface group 1 (copilot, gemini, cursor, qwen)
-- [ ] T017 Ship parity content for surface group 2 (opencode, windsurf, kilocode)
-- [ ] T018 Ship parity content for surface group 3 (auggie, roo, q, kiro, agent)
-- [ ] T019 Update inventory matrix to reflect post-rollout parity status
+- [x] T015 Establish the parity-file pattern (inline vs pointer) for each non-parity surface
+- [x] T016 Ship parity content for surface group 1 (copilot, gemini, cursor, qwen)
+- [x] T017 Ship parity content for surface group 2 (opencode, windsurf, kilocode)
+- [x] T018 Ship parity content for surface group 3 (auggie, roo, q, kiro, agent)
+- [x] T019 Update inventory matrix to reflect post-rollout parity status
 
 **Dependencies**: WP01 (inventory scope drives the rollout).
 **Execution mode**: `code_change`.
