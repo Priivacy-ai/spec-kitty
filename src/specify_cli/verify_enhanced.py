@@ -120,7 +120,7 @@ def run_enhanced_verify(
         "project_root": str(project_root),
         "in_worktree": in_worktree,
         "current_branch": current_branch,
-        "active_mission": mission_type or "no feature context"
+        "active_mission": mission_type or "no mission context"
     }
 
     if not json_output:
@@ -154,7 +154,7 @@ def run_enhanced_verify(
         total_missing = len(file_check["missing"])
 
         output_data["file_integrity"] = {
-            "active_mission": mission_type or "no feature context",
+            "active_mission": mission_type or "no mission context",
             "total_expected": total_expected,
             "total_present": total_present,
             "total_missing": total_missing,
@@ -173,7 +173,7 @@ def run_enhanced_verify(
 
         if not json_output:
             console.print("\n[cyan]2. Mission File Integrity[/cyan]")
-            console.print(f"   Active mission: {mission_type or 'no feature context'}")
+            console.print(f"   Active mission: {mission_type or 'no mission context'}")
 
             if total_missing == 0:
                 console.print(f"   [green]✓[/green] All {total_expected} expected files present")

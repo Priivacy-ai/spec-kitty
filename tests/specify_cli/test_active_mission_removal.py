@@ -65,7 +65,7 @@ def test_verify_with_research_feature(tmp_path: Path) -> None:
 
 
 def test_verify_without_feature_dir_shows_no_context(tmp_path: Path) -> None:
-    """Without feature_dir, active_mission should say 'no feature context'."""
+    """Without feature_dir, active_mission should say 'no mission context'."""
     from rich.console import Console
 
     from specify_cli.verify_enhanced import run_enhanced_verify
@@ -90,7 +90,7 @@ def test_verify_without_feature_dir_shows_no_context(tmp_path: Path) -> None:
             console=console,
         )
 
-    assert result["environment"]["active_mission"] == "no feature context"
+    assert result["environment"]["active_mission"] == "no mission context"
 
 
 def test_verify_resolves_mission_from_mission_slug(tmp_path: Path) -> None:
@@ -273,7 +273,7 @@ def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
         captured_path["feature_dir"] = feature_dir
         return {
             "project_path": str(project_path),
-            "active_mission": "research" if feature_dir else "no feature context",
+            "active_mission": "research" if feature_dir else "no mission context",
         }
 
     mock_ctx = MagicMock()
@@ -349,7 +349,7 @@ def test_diagnostics_mode_passes_feature_dir_to_run_diagnostics(tmp_path: Path) 
         captured_kwargs["feature_dir"] = feature_dir
         return {
             "project_path": str(project_path),
-            "active_mission": "research" if feature_dir else "no feature context",
+            "active_mission": "research" if feature_dir else "no mission context",
         }
 
     with (
@@ -382,7 +382,7 @@ def test_api_handle_diagnostics_runs_without_feature_dir(tmp_path: Path) -> None
 
     def fake_run_diagnostics(project_path, *, feature_dir=None):
         captured_kwargs["feature_dir"] = feature_dir
-        return {"active_mission": "no feature context"}
+        return {"active_mission": "no mission context"}
 
     with (
         patch("specify_cli.dashboard.handlers.api.run_diagnostics", side_effect=fake_run_diagnostics),
