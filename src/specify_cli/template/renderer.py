@@ -73,9 +73,100 @@ def render_template(
     replacements = _resolve_variables(variables, metadata)
     rendered = _apply_variables(body, replacements)
     rendered = rewrite_paths(rendered)
+    # Annotate glossary term references with invisible HTML comment anchors.
+    # This is best-effort: any error is silently swallowed so it never
+    # breaks existing rendering or changes visible output (only adds comments).
+    try:
+        rendered = _annotate_glossary_refs_from_store(rendered, template_path)
+    except Exception:  # noqa: BLE001
+        import logging as _logging
+        _logging.getLogger(__name__).debug(
+            "glossary annotation skipped for %s", template_path, exc_info=True
+        )
     if not rendered.endswith("\n"):
         rendered += "\n"
     return metadata, rendered, raw_frontmatter
+
+
+def _annotate_glossary_refs(content: str, term_surfaces: dict[str, str]) -> str:
+    """Inject ``<!-- glossary:<term-id> -->`` after the first occurrence of each
+    known term surface in *content*.
+
+    Args:
+        content: The rendered Markdown text to annotate.
+        term_surfaces: Mapping of lower-case surface text to glossary URN, e.g.
+            ``{"deployment target": "glossary:deployment-target"}``.
+
+    Returns:
+        Annotated content string.  Visible output is unchanged; only invisible
+        HTML comments are inserted.  Never raises — callers must wrap in
+        ``try/except`` for additional safety.
+    """
+    # Process longest surfaces first so "deployment target" wins over "target"
+    for surface_lower, term_id in sorted(term_surfaces.items(), key=lambda x: -len(x[0])):
+        pattern = re.compile(r"\b" + re.escape(surface_lower) + r"\b", re.IGNORECASE)
+        # Capture term_id in the default arg to avoid the late-binding closure bug (B023)
+        content = pattern.sub(
+            lambda m, _tid=term_id: m.group(0) + f"<!-- glossary:{_tid} -->",
+            content,
+            count=1,
+        )
+    return content
+
+
+def _annotate_glossary_refs_from_store(content: str, template_path: Path | None = None) -> str:
+    """Load term surfaces from ``GlossaryStore`` and call ``_annotate_glossary_refs``.
+
+    This is the integration point called by ``render_template``.  It is
+    intentionally isolated so that any import error, missing glossary, or
+    slow I/O raises an exception that the caller can swallow without
+    affecting the primary render pipeline.
+
+    If the glossary package is unavailable or the store is empty the original
+    *content* is returned unchanged.
+    """
+    # Resolve repo root: walk upward from template_path (or cwd as fallback)
+    from pathlib import Path as _Path
+
+    candidates = list(template_path.parents) if template_path is not None else list(_Path.cwd().parents)
+
+    repo_root: _Path | None = None
+    for candidate in candidates:
+        if (candidate / ".kittify").is_dir():
+            repo_root = candidate
+            break
+    if repo_root is None:
+        return content
+
+    # Import lazily to avoid hard dependency at module load time
+    from specify_cli.glossary.store import GlossaryStore  # type: ignore[import]
+    from specify_cli.glossary.scope import GlossaryScope, load_seed_file  # type: ignore[import]
+
+    event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_renderer.events.jsonl"
+    store = GlossaryStore(event_log_path)
+
+    for scope in GlossaryScope:
+        for sense in load_seed_file(scope, repo_root):
+            store.add_sense(sense)
+
+    # Build surface -> term_id mapping
+    term_surfaces: dict[str, str] = {}
+    for _scope_key, surface_map in store._cache.items():
+        for _surface_text, senses in surface_map.items():
+            if senses:
+                # The URN is inferred: glossary:<surface-slug>
+                # Use the first active sense's surface_text for precision
+                first = senses[0]
+                surface_lower = first.surface.surface_text.lower()
+                # Build a slug-based URN (mirrors entity_pages._write_page slug logic)
+                slug = surface_lower.replace(" ", "-")
+                term_id = f"glossary:{slug}"
+                term_surfaces[surface_lower] = term_id
+
+    if not term_surfaces:
+        return content
+
+    return _annotate_glossary_refs(content, term_surfaces)
 
 
 def _resolve_variables(variables: VariablesResolver | None, metadata: dict[str, Any]) -> Mapping[str, str]:
@@ -94,6 +185,7 @@ def _apply_variables(content: str, variables: Mapping[str, str]) -> str:
 
 __all__ = [
     "DEFAULT_PATH_PATTERNS",
+    "_annotate_glossary_refs",
     "parse_frontmatter",
     "render_template",
     "rewrite_paths",

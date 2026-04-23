@@ -255,6 +255,54 @@ class FeaturesListErrorResponse(TypedDict):
 
 
 # ---------------------------------------------------------------------------
+# Glossary endpoints (WP02)
+# ---------------------------------------------------------------------------
+
+
+class GlossaryTermRecord(TypedDict):
+    """Single glossary term returned by ``GET /api/glossary-terms``."""
+
+    surface: str
+    definition: str
+    status: str  # "active" | "draft" | "deprecated"
+    confidence: float  # 0.0–1.0
+
+
+class GlossaryHealthResponse(TypedDict, total=False):
+    """Response from ``GET /api/glossary-health``."""
+
+    total_terms: int
+    active_count: int
+    draft_count: int
+    deprecated_count: int
+    high_severity_drift_count: int
+    orphaned_term_count: int
+    entity_pages_generated: bool
+    entity_pages_path: str | None
+    last_conflict_at: str | None
+
+
+# ---------------------------------------------------------------------------
+# Decay watch tile (WP05)
+# ---------------------------------------------------------------------------
+
+
+class DecayWatchTileResponse(TypedDict, total=False):
+    """Response from ``GET /api/charter-lint``."""
+
+    has_data: bool
+    scanned_at: str | None
+    orphan_count: int
+    contradiction_count: int
+    staleness_count: int
+    reference_integrity_count: int
+    high_severity_count: int
+    total_count: int
+    feature_scope: str | None
+    duration_seconds: float | None
+
+
+# ---------------------------------------------------------------------------
 # Sync-trigger endpoint
 # ---------------------------------------------------------------------------
 
@@ -366,6 +414,7 @@ __all__ = [
     "CurrentFeatureDetected",
     "CurrentFeatureNotDetected",
     "DashboardHealthInfo",
+    "DecayWatchTileResponse",
     "DiagnosticsErrorResponse",
     "DiagnosticsFeatureStatus",
     "DiagnosticsResponse",
@@ -374,6 +423,8 @@ __all__ = [
     "FeaturesListErrorResponse",
     "FeaturesListResponse",
     "FileIntegrity",
+    "GlossaryHealthResponse",
+    "GlossaryTermRecord",
     "HealthResponse",
     "KanbanResponse",
     "KanbanStats",

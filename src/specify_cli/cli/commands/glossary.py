@@ -202,10 +202,7 @@ def _extract_conflicts_from_events(  # noqa: C901
                 check_event_index[step_id] = event
                 for finding in event.get("findings", []):
                     term_data = finding.get("term", {})
-                    if isinstance(term_data, dict):
-                        term_text = term_data.get("surface_text", "unknown")
-                    else:
-                        term_text = str(term_data)
+                    term_text = term_data.get("surface_text", "unknown") if isinstance(term_data, dict) else str(term_data)
                     finding_index[(step_id, term_text)] = finding
 
         elif event_type == "GlossaryClarificationRequested":
@@ -698,3 +695,47 @@ def resolve(  # noqa: C901
         _local_append_event(sense_event, event_log_path)
 
     console.print("[green]Conflict resolved successfully[/green]")
+
+
+@app.command()
+def show(
+    term: str = typer.Argument(
+        ...,
+        help="Term surface name or glossary URN (e.g. 'deployment-target' or 'glossary:deployment-target')",
+    ),
+) -> None:
+    """Render the entity page for a glossary term."""
+    # Lazy imports to avoid circular imports
+    from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer, TermNotFoundError
+    from rich.markdown import Markdown
+
+    repo_root = Path.cwd()
+
+    # Normalize: if not already a URN, prepend "glossary:" and try that first
+    if term.startswith("glossary:"):
+        primary_id = term
+        fallback_id: str | None = None
+    else:
+        primary_id = f"glossary:{term}"
+        fallback_id = term
+
+    renderer = GlossaryEntityPageRenderer(repo_root)
+
+    try:
+        page_path = renderer.generate_one(primary_id)
+    except TermNotFoundError:
+        if fallback_id is not None:
+            # Try the bare term as a fallback
+            try:
+                page_path = renderer.generate_one(fallback_id)
+            except TermNotFoundError:
+                console.print(f"[red]Term not found:[/red] {term}")
+                console.print("[dim]Run `spec-kitty glossary list` to see available terms.[/dim]")
+                raise typer.Exit(1) from None
+        else:
+            console.print(f"[red]Term not found:[/red] {term}")
+            console.print("[dim]Run `spec-kitty glossary list` to see available terms.[/dim]")
+            raise typer.Exit(1) from None
+
+    content = page_path.read_text(encoding="utf-8")
+    console.print(Markdown(content))

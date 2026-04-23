@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-22T15:50:44.958382+00:00",
+  "friendly_name": "Glossary DRG Surfaces and Charter Lint",
+  "mission_id": "01KPTY5YAVPZKFDFTG197XZAHG",
+  "mission_number": 94,
+  "mission_slug": "glossary-drg-surfaces-and-charter-lint-01KPTY5Y",
+  "mission_type": "software-dev",
+  "slug": "glossary-drg-surfaces-and-charter-lint-01KPTY5Y",
+  "source_description": "Phase 5 WP5.3-WP5.6 from https://github.com/Priivacy-ai/spec-kitty/issues/467",
+  "target_branch": "main",
+  "vcs": "git"
+}

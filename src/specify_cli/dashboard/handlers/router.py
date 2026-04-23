@@ -6,12 +6,14 @@ import urllib.parse
 
 from .api import APIHandler
 from .features import FeatureHandler
+from .glossary import GlossaryHandler
+from .lint import LintTileHandler
 from .static import STATIC_URL_PREFIX, StaticHandler
 
 __all__ = ["DashboardRouter"]
 
 
-class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
+class DashboardRouter(APIHandler, FeatureHandler, GlossaryHandler, LintTileHandler, StaticHandler):
     """Dispatch GET/POST requests to API, feature, or static handlers."""
 
     def do_POST(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler signature)
@@ -29,7 +31,7 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
         self.send_response(404)
         self.end_headers()
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:  # noqa: N802, C901
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
@@ -83,6 +85,22 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
 
         if path == '/api/charter':
             self.handle_charter()
+            return
+
+        if path == '/glossary':
+            self.handle_glossary_page()
+            return
+
+        if path == '/api/glossary-health':
+            self.handle_glossary_health()
+            return
+
+        if path == '/api/glossary-terms':
+            self.handle_glossary_terms()
+            return
+
+        if path == '/api/charter-lint':
+            self.handle_charter_lint()
             return
 
         if path.startswith(STATIC_URL_PREFIX):

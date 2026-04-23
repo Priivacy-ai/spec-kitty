@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,8 @@ from charter.sync import ensure_charter_bundle_fresh, sync as sync_charter
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.tasks_support import TaskCliError, find_repo_root
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="charter",
@@ -81,6 +84,12 @@ def _display_path(path: Path, repo_root: Path) -> str:
 def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
     try:
         sync_result = ensure_charter_bundle_fresh(repo_root)
+        # Generate glossary entity pages (non-blocking; silent on failure)
+        try:
+            from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer
+            GlossaryEntityPageRenderer(repo_root).generate_all()
+        except Exception as _ep_exc:  # noqa: BLE001
+            logger.debug("entity page generation failed (non-fatal): %s", _ep_exc)
         canonical_root = (
             sync_result.canonical_root
             if sync_result and sync_result.canonical_root
@@ -1449,3 +1458,67 @@ def charter_resynthesize(  # noqa: C901
     except Exception as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(code=1) from e
+
+
+@app.command("lint")
+def charter_lint(
+    feature: str | None = typer.Option(None, "--feature", help="Scope lint to a specific feature slug"),
+    orphans: bool = typer.Option(False, "--orphans", help="Run only orphan checks"),
+    contradictions: bool = typer.Option(False, "--contradictions", help="Run only contradiction checks"),
+    stale: bool = typer.Option(False, "--stale", help="Run only staleness checks"),
+    output_json: bool = typer.Option(False, "--json", help="Output findings as JSON"),
+    severity: str = typer.Option("low", "--severity", help="Minimum severity (low/medium/high/critical)"),
+) -> None:
+    """Detect decay in charter artifacts via graph-native checks."""
+    import sys
+
+    from specify_cli.charter_lint import LintEngine
+
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+    # Resolve which checks to run
+    explicit = {k for k, v in [("orphans", orphans), ("contradictions", contradictions), ("staleness", stale)] if v}
+    active_checks: set[str] | None = explicit if explicit else None  # None = all
+
+    engine = LintEngine(repo_root)
+    report = engine.run(
+        feature_scope=feature,
+        checks=active_checks,
+        min_severity=severity,
+    )
+
+    if output_json:
+        sys.stdout.write(report.to_json())
+        sys.stdout.write("\n")
+        return
+
+    # Human-readable output
+    if not report.findings:
+        console.print("[green]No decay detected[/green]")
+        console.print(
+            f"[dim]Scanned {report.drg_node_count} nodes in {report.duration_seconds:.2f}s[/dim]"
+        )
+        return
+
+    console.print(
+        f"\n[bold]Charter Lint[/bold] — {len(report.findings)} finding(s)"
+        f" in {report.duration_seconds:.2f}s\n"
+    )
+    for finding in report.findings:
+        severity_color = {
+            "low": "dim",
+            "medium": "yellow",
+            "high": "red",
+            "critical": "bold red",
+        }.get(finding.severity, "white")
+        console.print(
+            f"  [{severity_color}][{finding.severity.upper()}][/{severity_color}]"
+            f" [{finding.category}] {finding.type}: {finding.id}"
+        )
+        console.print(f"    {finding.message}")
+        if finding.remediation_hint:
+            console.print(f"    [dim]→ {finding.remediation_hint}[/dim]")
