@@ -58,12 +58,12 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T030 | CLI wiring for advise/ask/do/complete (`advise.py`, `do_cmd.py`) — mode + correlation flags | WP06 |  | [D] |
 | T031 | CLI wiring for query + mission-step paths (`profiles_cmd.py`, `invocations_cmd.py`, `next_cmd.py`) | WP06 |  | [D] |
 | T032 | Integration tests: e2e + correlation + enforcement + backwards compat | WP06 |  | [D] |
-| T033 | Create `projection_policy.py` with `EventKind`, `ProjectionRule`, `POLICY_TABLE`, `resolve_projection()` | WP07 |  |
-| T034 | Modify `_propagate_one` to consult `resolve_projection`; gate envelope field inclusion | WP07 |  |
-| T035 | Unit tests for all 16 policy rows + null-mode fallback | WP07 |  |
-| T036 | Integration tests: propagator under mocked client; each (mode, event) pair | WP07 |  |
-| T037 | NFR-007 / SC-008 assertion: propagation-errors.jsonl empty under sync-disabled | WP07 |  |
-| T038 | Golden-path regression: existing task_execution / mission_step timeline behaviour preserved | WP07 |  |
+| T033 | Create `projection_policy.py` with `EventKind`, `ProjectionRule`, `POLICY_TABLE`, `resolve_projection()` | WP07 |  | [D] |
+| T034 | Modify `_propagate_one` to consult `resolve_projection`; gate envelope field inclusion | WP07 |  | [D] |
+| T035 | Unit tests for all 16 policy rows + null-mode fallback | WP07 |  | [D] |
+| T036 | Integration tests: propagator under mocked client; each (mode, event) pair | WP07 |  | [D] |
+| T037 | NFR-007 / SC-008 assertion: propagation-errors.jsonl empty under sync-disabled | WP07 |  | [D] |
+| T038 | Golden-path regression: existing task_execution / mission_step timeline behaviour preserved | WP07 |  | [D] |
 | T039 | Add "Mode of Work (runtime-enforced)" subsection to `docs/trail-model.md` | WP08 |  |
 | T040 | Add "Correlation Links" subsection to `docs/trail-model.md` | WP08 |  |
 | T041 | Add "SaaS Read-Model Policy" subsection + full table to `docs/trail-model.md` | WP08 |  |
@@ -232,12 +232,12 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T033 Create `projection_policy.py` with `EventKind`, `ProjectionRule`, `POLICY_TABLE`, `resolve_projection()`
-- [ ] T034 Modify `_propagate_one` to consult `resolve_projection`; gate envelope field inclusion
-- [ ] T035 Unit tests for all 16 policy rows + null-mode fallback
-- [ ] T036 Integration tests: propagator under mocked client; each (mode, event) pair
-- [ ] T037 NFR-007 / SC-008 assertion: propagation-errors.jsonl empty under sync-disabled
-- [ ] T038 Golden-path regression: existing task_execution / mission_step timeline behaviour preserved
+- [x] T033 Create `projection_policy.py` with `EventKind`, `ProjectionRule`, `POLICY_TABLE`, `resolve_projection()`
+- [x] T034 Modify `_propagate_one` to consult `resolve_projection`; gate envelope field inclusion
+- [x] T035 Unit tests for all 16 policy rows + null-mode fallback
+- [x] T036 Integration tests: propagator under mocked client; each (mode, event) pair
+- [x] T037 NFR-007 / SC-008 assertion: propagation-errors.jsonl empty under sync-disabled
+- [x] T038 Golden-path regression: existing task_execution / mission_step timeline behaviour preserved
 
 **Dependencies**: WP06.
 **Execution mode**: `code_change`.
