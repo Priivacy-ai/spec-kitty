@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from specify_cli.invocation.modes import ModeOfWork
+
 
 class InvocationError(Exception):
     """Base for all invocation errors."""
@@ -40,3 +45,17 @@ class RouterAmbiguityError(InvocationError):
 class AlreadyClosedError(InvocationError):
     def __init__(self, invocation_id: str) -> None:
         super().__init__(f"Invocation {invocation_id} is already closed.")
+
+
+class InvalidModeForEvidenceError(InvocationError):
+    """--evidence supplied on an invocation whose mode_of_work disallows
+    Tier 2 promotion (advisory or query). See FR-009 / ADR-001."""
+
+    def __init__(self, invocation_id: str, mode: "ModeOfWork") -> None:
+        self.invocation_id = invocation_id
+        self.mode = mode
+        super().__init__(
+            f"Cannot promote evidence on invocation {invocation_id}: "
+            f"mode is {mode.value}; Tier 2 evidence is only allowed on "
+            f"task_execution or mission_step invocations."
+        )

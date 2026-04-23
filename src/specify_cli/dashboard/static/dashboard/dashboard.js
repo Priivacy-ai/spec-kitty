@@ -319,8 +319,8 @@ return `
     const completionRate = stats.weighted_percentage != null
         ? Math.round(stats.weighted_percentage)
         : (total > 0 ? Math.round((completed / total) * 100) : 0);
-    const purposeTldr = (feature.purpose_tldr || meta.purpose_tldr || '').trim();
-    const purposeContext = (feature.purpose_context || meta.purpose_context || '').trim();
+    const purposeTldr = (meta.purpose_tldr || '').trim();
+    const purposeContext = (meta.purpose_context || '').trim();
     const overviewIntro = purposeTldr
         ? `<p style="color: #374151; font-weight: 600; margin-top: 12px;">${escapeHtml(purposeTldr)}</p>`
         : '<p style="color: #6b7280;">View and track all artifacts for this feature</p>';
@@ -351,7 +351,7 @@ return `
 
     document.getElementById('overview-content').innerHTML = `
 <div style="margin-bottom: 30px;">
-    <h3>Feature: ${feature.name} ${mergeBadge}</h3>
+    <h3>Mission Run: ${feature.name} ${mergeBadge}</h3>
     ${overviewIntro}
     ${overviewContext}
 </div>
@@ -1089,10 +1089,10 @@ function updateWorkflowIcons(workflow) {
 
 function getFeatureDisplayName(feature) {
     if (!feature) {
-        return 'Unknown feature';
+        return 'Unknown mission';
     }
 
-    return feature.display_name || feature.name || feature.id || 'Unknown feature';
+    return feature.display_name || feature.name || feature.id || 'Unknown mission';
 }
 
 function updateFeatureList(features, activeFeatureId = null) {
@@ -1149,7 +1149,7 @@ function updateFeatureList(features, activeFeatureId = null) {
     if (features.length === 1) {
         selectContainer.style.display = 'none';
         singleFeatureName.style.display = 'block';
-        singleFeatureName.textContent = `Feature: ${getFeatureDisplayName(features[0])}`;
+        singleFeatureName.textContent = `Mission Run: ${getFeatureDisplayName(features[0])}`;
         currentFeature = activeFeatureId || features[0].id;
         setFeatureSelectActive(false);
     } else {
@@ -1394,7 +1394,7 @@ function displayDiagnostics(data) {
         };
         const currentHtml = `
             <h3>Current Feature</h3>
-            <div><strong>Feature:</strong> ${data.current_feature.name}</div>
+            <div><strong>Mission Run:</strong> ${data.current_feature.name}</div>
             <div><strong>State:</strong> ${stateMap[data.current_feature.state] || data.current_feature.state}</div>
             <div><strong>Branch Exists:</strong> ${data.current_feature.branch_exists ? '✅' : '❌'}</div>
             <div><strong>Worktree Exists:</strong> ${data.current_feature.worktree_exists ? '✅' : '❌'}</div>
@@ -1417,7 +1417,7 @@ function displayDiagnostics(data) {
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead>
                     <tr style="background: #f0f0f0;">
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Feature</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Mission Run</th>
                         <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">State</th>
                         <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Branch</th>
                         <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Worktree</th>

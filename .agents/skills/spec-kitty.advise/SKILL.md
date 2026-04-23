@@ -84,8 +84,8 @@ spec-kitty invocations list --limit 10 --json
 
 | Situation | Command |
 |-----------|---------|
-| Before implementing — profile known | `spec-kitty ask <profile> "implement <feature>"` |
-| Before implementing — profile unknown | `spec-kitty do "implement <feature>"` |
+| Before implementing — profile known | `spec-kitty ask <profile> "implement <mission>"` |
+| Before implementing — profile unknown | `spec-kitty do "implement <mission>"` |
 | After completing work | `spec-kitty profile-invocation complete --invocation-id <id> --outcome done` |
 | Audit what ran recently | `spec-kitty invocations list --json` |
 | Filter by profile | `spec-kitty invocations list --profile <id> --json` |

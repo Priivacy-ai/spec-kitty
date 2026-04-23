@@ -174,7 +174,7 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
         "git_branch": None,
         "in_worktree": ".worktrees" in str(Path.cwd()),
         "worktrees_exist": (project_dir / ".worktrees").exists(),
-        "active_mission": mission_type or "no feature context",
+        "active_mission": mission_type or "no mission context",
         "file_integrity": {},
         "worktree_overview": {},
         "current_feature": {},

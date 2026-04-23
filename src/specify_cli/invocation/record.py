@@ -34,6 +34,11 @@ class InvocationRecord(BaseModel):
     outcome: Literal["done", "failed", "abandoned"] | None = None
     evidence_ref: str | None = None
 
+    # Additive optional field (FR-008): derived from CLI entry command via derive_mode().
+    # None for pre-mission records (legacy invocations that predate WP06).
+    # Serialised as the enum value string (e.g. "advisory"); excluded when None.
+    mode_of_work: str | None = None
+
     model_config = {"frozen": True}
 
 

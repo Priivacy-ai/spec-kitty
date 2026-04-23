@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "mission_slug": "phase-4-closeout-host-surfaces-and-trail-01KPWA5X",
+  "mission_id": "01KPWA5X6617T5TVX4C7S6TMYB",
+  "mission_branch": "kitty/mission-phase-4-closeout-host-surfaces-and-trail-01KPWA5X",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".agent/workflows/spec-kitty-standalone.md",
+        ".agents/skills/spec-kitty.advise/SKILL.md",
+        ".amazonq/prompts/spec-kitty-standalone.md",
+        ".augment/commands/spec-kitty-standalone.md",
+        ".cursor/commands/spec-kitty-standalone.md",
+        ".gemini/commands/spec-kitty-standalone.md",
+        ".github/prompts/spec-kitty-standalone.md",
+        ".kilocode/workflows/spec-kitty-standalone.md",
+        ".kiro/prompts/spec-kitty-standalone.md",
+        ".opencode/command/spec-kitty-standalone.md",
+        ".qwen/commands/spec-kitty-standalone.md",
+        ".roo/commands/spec-kitty-standalone.md",
+        ".windsurf/workflows/spec-kitty-standalone.md",
+        "CHANGELOG.md",
+        "README.md",
+        "docs/host-surface-parity.md",
+        "docs/trail-model.md",
+        "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md",
+        "src/specify_cli/cli/commands/advise.py",
+        "src/specify_cli/cli/commands/do_cmd.py",
+        "src/specify_cli/cli/commands/invocations_cmd.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/cli/commands/profiles_cmd.py",
+        "src/specify_cli/dashboard/diagnostics.py",
+        "src/specify_cli/dashboard/static/dashboard/dashboard.js",
+        "src/specify_cli/dashboard/templates/index.html",
+        "src/specify_cli/invocation/errors.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/modes.py",
+        "src/specify_cli/invocation/projection_policy.py",
+        "src/specify_cli/invocation/propagator.py",
+        "src/specify_cli/invocation/record.py",
+        "src/specify_cli/invocation/writer.py",
+        "tests/specify_cli/dashboard/test_dashboard_wording.py",
+        "tests/specify_cli/docs/test_host_surface_inventory.py",
+        "tests/specify_cli/docs/test_readme_governance.py",
+        "tests/specify_cli/docs/test_trail_model_doc.py",
+        "tests/specify_cli/invocation/test_correlation.py",
+        "tests/specify_cli/invocation/test_invocation_e2e.py",
+        "tests/specify_cli/invocation/test_modes.py",
+        "tests/specify_cli/invocation/test_projection_policy.py",
+        "tests/specify_cli/invocation/test_propagator_policy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP09"
+      ],
+      "write_scope": [
+        "kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/artifacts/host-surface-inventory.md",
+        "kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/artifacts/tracker-hygiene.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-23T05:22:06.264988+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP09"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP03"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

@@ -35,7 +35,13 @@ Every invocation belongs to one of four work modes. The mode determines which op
 | `mission_step` | One step in a governed mission workflow | `specify`, `plan`, `tasks`, `merge`, `accept` | Yes (caller-triggered) | Yes |
 | `query` | Read-only, no execution | `profiles list`, `invocations list` | No | No |
 
-Mode-of-work is a documentation-level taxonomy in 3.2. Runtime enforcement and automatic mode detection are deferred to Phase 5.
+Mode-of-work is derived deterministically at runtime from the CLI entry command and recorded on the `started` event as the `mode_of_work` field. Runtime enforcement is active: `profile-invocation complete --evidence` is rejected for invocations in `advisory` or `query` mode (see "Mode Enforcement at Tier 2 Promotion" below).
+
+### Mode Enforcement at Tier 2 Promotion
+
+`spec-kitty profile-invocation complete --evidence <path>` is rejected with `InvalidModeForEvidenceError` when the target invocation's `mode_of_work` is `advisory` or `query`. The enforcement runs **before** any write, so the invocation remains open and uncommitted — rerun `complete` without `--evidence` to close cleanly.
+
+Pre-mission records (invocations opened before this enforcement landed) have no `mode_of_work` field and are accepted by enforcement — legacy behaviour is preserved. See ADR-002-mode-derivation.md for the full derivation table and rationale.
 
 ## Trail Tiers
 
@@ -70,6 +76,19 @@ Readers that encounter `"event": "glossary_checked"` and do not recognise this
 event type may safely skip the line — it is additive metadata and never affects
 the `started`/`completed` pair.
 
+### Correlation Links (Tier 1 extension)
+
+`spec-kitty profile-invocation complete` accepts two additional flags that append correlation events to the invocation JSONL:
+
+- `--artifact <path>` — repeatable. Each value appends one `{event: "artifact_link", invocation_id, kind, ref, at}` line to `.kittify/events/profile-invocations/<id>.jsonl`. Refs are stored repo-relative when the resolved path is under the checkout, absolute otherwise.
+- `--commit <sha>` — singular. Appends one `{event: "commit_link", invocation_id, sha, at}` line.
+
+Both events are append-only (never mutate existing lines) and readable by a single-file scan. Readers that do not recognise these event types may safely skip the line — the same additive-reader invariant that protects `glossary_checked`.
+
+**SaaS projection status (3.2.x)**: Correlation events are **local-only** in the 3.2.x line. The projection policy (`POLICY_TABLE` in `src/specify_cli/invocation/projection_policy.py`) assigns `project=True` for `task_execution` / `mission_step` correlation events, but the dict-record submission path in `_propagate_one` is not yet wired. SaaS projection of correlation events will land in a future release consistent with the ADR-004 local-only stance for Tier 2 content.
+
+See ADR-001-correlation-contract.md for the design; contracts/profile-invocation-complete.md for the CLI shape.
+
 ### Tier 2 — Evidence Artifact (optional, caller-triggered)
 
 Created when the caller explicitly flags that the invocation produced checkable output.
@@ -96,18 +115,42 @@ Tier 1 always written
   +-- If action in TIER_3_ACTIONS --> Tier 3 artifacts produced by workflow
 ```
 
-## SaaS Projection
+## SaaS Read-Model Policy
 
-Projection is conditional on `CheckoutSyncRouting.effective_sync_enabled`. When sync is disabled for a checkout, no events are emitted to SaaS — even if the user is authenticated.
+Projection is conditional on `CheckoutSyncRouting.effective_sync_enabled`. When sync is disabled for a checkout, no events are emitted — even if the user is authenticated. When sync is enabled and the user is authenticated, Spec Kitty consults `src/specify_cli/invocation/projection_policy.py::POLICY_TABLE` to decide per `(mode_of_work, event)` what to project.
 
-| Item | Projection behaviour |
-|------|---------------------|
-| Tier 1 started/completed pairs | Projected to SaaS timeline view |
-| Advisory-only (`mode=advisory`) | Minimal timeline entry, no body upload |
-| Tier 2 evidence artifacts | Local only in 3.2. Not uploaded to SaaS. |
-| Tier 3 `kitty-specs/` artifacts | Referenced in SaaS dossier via mission linkage; bodies not bulk-uploaded in 3.2 |
+| mode_of_work | event | project | include_request_text | include_evidence_ref |
+|--------------|-------|---------|----------------------|----------------------|
+| advisory | started | yes | no | no |
+| advisory | completed | yes | no | no |
+| advisory | artifact_link | no | — | — |
+| advisory | commit_link | no | — | — |
+| task_execution | started | yes | yes | no |
+| task_execution | completed | yes | yes | yes |
+| task_execution | artifact_link | yes | no | no |
+| task_execution | commit_link | yes | no | no |
+| mission_step | started | yes | yes | no |
+| mission_step | completed | yes | yes | yes |
+| mission_step | artifact_link | yes | no | no |
+| mission_step | commit_link | yes | no | no |
+| query | any | no | — | — |
+
+Pre-mission records (no `mode_of_work`) project under the `task_execution` rules — the legacy 3.2.0a5 behaviour is preserved for them.
+
+Policy is additive and resolvable from code/config alone. See ADR-003-projection-policy.md for the rationale.
 
 Projection is additive. Events accumulate; there is no deletion, replay-based overwrite, or idempotency-key gating in 3.2.
+
+## Tier 2 SaaS Projection — Deferred
+
+**Status**: Tier 2 evidence artifacts (`.kittify/evidence/<invocation_id>/evidence.md` and `record.json`) are **local-only** in the 3.2.x release line. They are not uploaded to SaaS. This decision was finalised by the Phase 4 closeout mission (ADR-004-tier2-saas-deferral.md).
+
+**Reasoning**:
+1. The shipped 3.2.0a5 baseline already behaves this way; operators observing the product today see local-only evidence.
+2. SaaS projection of evidence bodies requires privacy, redaction, and size-limit design that lies outside the Phase 4 closeout scope.
+3. Future projection remains possible without contract change — a later epic can read the existing local artifact and emit its own envelope.
+
+**Revisit trigger**: any of (a) a named future epic accepts SaaS evidence projection as scope, (b) operators actively request the feature with a concrete use case, (c) a regulatory or audit requirement mandates centralised retention.
 
 ## Retention and Redaction
 
@@ -123,6 +166,10 @@ Propagation failures are written to `.kittify/events/propagation-errors.jsonl` a
 ## `spec-kitty intake` — Not a Profile Invocation
 
 `spec-kitty intake` ingests a plan document into `.kittify/mission-brief.md` for use by `/spec-kitty.specify` brief-intake mode. It is **not** a profile invocation and produces no `InvocationRecord`. The governed trail begins when the host calls `spec-kitty advise`, `ask`, or `do` — not when the user stages a brief.
+
+## Host surfaces that teach the trail
+
+The advise/ask/do surface is taught to host LLMs through per-host skill packs. See [`docs/host-surface-parity.md`](host-surface-parity.md) for the authoritative matrix of supported hosts and each host's parity status.
 
 ## `spec-kitty explain` — Deferred to Phase 5
 

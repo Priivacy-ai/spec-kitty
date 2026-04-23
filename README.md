@@ -201,6 +201,15 @@ sequenceDiagram
 
 ---
 
+## Governance layer
+
+Spec Kitty routes, records, and projects every profile-governed invocation. Host LLMs call `spec-kitty advise`, `spec-kitty ask <profile>`, or `spec-kitty do` to open a governed invocation; Spec Kitty assembles governance context, writes a local JSONL audit trail, and additively projects to SaaS when sync is enabled. See:
+
+- [docs/trail-model.md](docs/trail-model.md) — the shipped trail contract (modes of work, trail tiers, correlation links, SaaS read-model policy).
+- [docs/host-surface-parity.md](docs/host-surface-parity.md) — parity matrix for the 15 supported host surfaces.
+
+---
+
 ## 📊 Real-Time Dashboard
 
 Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.

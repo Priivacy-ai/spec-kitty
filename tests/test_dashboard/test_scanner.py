@@ -123,6 +123,27 @@ def test_scan_all_features_display_name_avoids_duplicate_prefix(tmp_path):
     assert features[0]["display_name"] == "001 - Demo Feature"
 
 
+def test_scan_all_features_keeps_purpose_summary_in_meta_only(tmp_path):
+    feature_dir = _create_feature(tmp_path)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "friendly_name": "Demo Feature",
+                "purpose_tldr": "  Build   dashboard copy  ",
+                "purpose_context": " Ship\nconsistent mission wording. ",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert "purpose_tldr" not in features[0]
+    assert "purpose_context" not in features[0]
+    assert features[0]["meta"]["purpose_tldr"] == "Build dashboard copy"
+    assert features[0]["meta"]["purpose_context"] == "Ship consistent mission wording."
+
+
 def test_scan_feature_kanban_returns_prompt(tmp_path):
     feature_dir = _create_feature(tmp_path)
     lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)

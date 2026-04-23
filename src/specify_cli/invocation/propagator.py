@@ -44,6 +44,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
 from specify_cli.invocation.record import InvocationRecord
 from specify_cli.sync.routing import resolve_checkout_sync_routing
 
@@ -100,14 +101,47 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
     The real SaaS client uses ``async def send_event(self, event: dict)``.
     It is NOT synchronous and does NOT accept an idempotency_key kwarg.
     Call pattern mirrors src/specify_cli/sync/emitter.py lines 993-1000.
+
+    Check ordering (invariant — do not reorder):
+      1. Sync-gate (routing.effective_sync_enabled=False → early return)
+      2. Auth/client lookup (_get_saas_client returns None → early return)
+      3. Policy lookup (resolve_projection → project=False → early return)
+      4. Envelope build + send
     """
+    # 1. Sync-gate: LOCAL-FIRST invariant (C-002, FR-012). Must remain first.
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is not None and not routing.effective_sync_enabled:
         return  # Sync explicitly disabled for this checkout → no-op
 
+    # 2. Auth/client lookup. Must remain second.
     client = _get_saas_client(repo_root)
     if client is None:
         return  # No SaaS token / client not connected → no-op, no log
+
+    # 3. Policy lookup (read-only, never raises, never blocks).
+    raw_event = record.event
+    try:
+        event_kind = EventKind(raw_event)
+    except ValueError:
+        # Unknown event kind (e.g., future EventKind added before table extended).
+        # Use STARTED as the conservative fallback so resolve_projection returns
+        # _DEFAULT_RULE (project=True), which preserves existing behaviour.
+        event_kind = EventKind.STARTED
+
+    raw_mode = getattr(record, "mode_of_work", None)
+    mode: ModeOfWork | None
+    if raw_mode:
+        try:
+            mode = ModeOfWork(raw_mode)
+        except ValueError:
+            # Malformed mode_of_work on the record. Treat as None (legacy) rather than
+            # crashing the background propagation thread silently.
+            mode = None
+    else:
+        mode = None
+    rule = resolve_projection(mode, event_kind)
+    if not rule.project:
+        return  # Policy says no projection for this (mode, event) pair.
 
     try:
         if record.event == "started":
@@ -116,19 +150,26 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
                 "invocation_id": record.invocation_id,
                 "profile_id": record.profile_id,
                 "action": record.action,
-                "request_text": record.request_text,
                 "governance_context_hash": record.governance_context_hash,
                 "actor": record.actor,
                 "started_at": record.started_at,
             }
+            # Gate request_text inclusion on policy (advisory mode omits body).
+            if rule.include_request_text:
+                event_dict["request_text"] = record.request_text
+            # Additively include mode_of_work when present (WP06 additive field).
+            if mode is not None:
+                event_dict["mode_of_work"] = mode.value
         else:  # completed
             event_dict = {
                 "event_type": "ProfileInvocationCompleted",
                 "invocation_id": record.invocation_id,
                 "outcome": record.outcome,
-                "evidence_ref": record.evidence_ref,
                 "completed_at": record.completed_at,
             }
+            # Gate evidence_ref inclusion on policy (advisory/query modes omit it).
+            if rule.include_evidence_ref:
+                event_dict["evidence_ref"] = record.evidence_ref
 
         try:
             loop = asyncio.get_event_loop()
@@ -143,6 +184,18 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
 
     except Exception as exc:  # noqa: BLE001
         _log_propagation_error(repo_root, record, str(exc))
+
+    # NOTE: Correlation events (artifact_link / commit_link) are written locally by
+    # InvocationWriter.append_correlation_link() in executor.py but are NOT currently
+    # submitted to the propagator (executor.py:290 comment: "WP07 will add the policy
+    # gate").  WP06 only submits the `completed` InvocationRecord to propagator.submit().
+    # The dict-record branch for correlation events is therefore deferred to a follow-on
+    # WP once the executor wires correlation-event propagation.  When that wiring lands,
+    # add a branch here:
+    #   if isinstance(record, dict):
+    #       event_type_map = {"artifact_link": "ProfileInvocationArtifactLink",
+    #                         "commit_link": "ProfileInvocationCommitLink"}
+    #       ...and consult rule.project before calling client.send_event.
 
 
 def _log_propagation_error(

@@ -17,6 +17,31 @@ EVENTS_DIR = ".kittify/events/profile-invocations"
 INDEX_PATH = ".kittify/events/invocation-index.jsonl"
 
 
+def normalise_ref(ref: str, repo_root: Path) -> str:
+    """Repo-relative when resolved path is under repo_root; absolute fallback.
+
+    Note: ``Path(ref).resolve()`` follows symlinks. If the caller supplies a
+    symlink that points outside the repository, the resolved target will be
+    recorded as an absolute path. Operators supplying ``--artifact`` flags are
+    responsible for knowing what their links resolve to; the invocation trail
+    faithfully records the resolved target.
+
+    See data-model.md §6.
+    """
+    try:
+        path = Path(ref)
+        candidate = path if path.is_absolute() else repo_root / path
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError, ValueError):
+        # ValueError can occur on paths with embedded null bytes (Python 3.14+)
+        return ref
+    root = repo_root.resolve()
+    try:
+        return str(resolved.relative_to(root))
+    except ValueError:
+        return str(resolved)
+
+
 class InvocationWriter:
     """Append-only JSONL writer for per-invocation audit trail files.
 
@@ -82,8 +107,10 @@ class InvocationWriter:
         path = self.invocation_path(record.invocation_id)
         try:
             # Use "x" mode (exclusive create) to detect ULID collision (extremely rare).
+            # exclude_none=True omits optional fields not set on the started event
+            # (e.g. mode_of_work=None for legacy callers, completed_at, outcome, etc.)
             with path.open("x", encoding="utf-8") as f:
-                f.write(json.dumps(record.model_dump()) + "\n")
+                f.write(json.dumps(record.model_dump(exclude_none=True)) + "\n")
         except FileExistsError:
             raise InvocationWriteError(
                 f"ULID collision on {path} — retry with a new invocation_id"
@@ -138,6 +165,50 @@ class InvocationWriter:
         except OSError as e:
             raise InvocationWriteError(f"Failed to append completed event: {e}") from e
         return completed
+
+    def append_correlation_link(
+        self,
+        invocation_id: str,
+        *,
+        kind: str = "artifact",
+        ref: str | None = None,
+        sha: str | None = None,
+        at: str | None = None,
+    ) -> None:
+        """Append an artifact_link or commit_link event to the invocation JSONL.
+
+        Exactly one of ``ref`` or ``sha`` must be provided:
+        - ``ref`` → ``{"event": "artifact_link", "kind": <kind>, "ref": <ref>, ...}``
+        - ``sha`` → ``{"event": "commit_link", "sha": <sha>, ...}``
+
+        Raises:
+            InvocationError: if the invocation JSONL does not exist.
+            ValueError: if neither or both of ref/sha are supplied.
+            InvocationWriteError: on filesystem write failure.
+        """
+        if (ref is None) == (sha is None):
+            raise ValueError("Exactly one of ref or sha must be provided")
+        path = self.invocation_path(invocation_id)
+        if not path.exists():
+            raise InvocationError(f"Invocation record not found: {invocation_id}")
+        at_ts = at or datetime.datetime.now(datetime.UTC).isoformat()
+        entry: dict[str, object] = {
+            "event": "artifact_link" if ref is not None else "commit_link",
+            "invocation_id": invocation_id,
+            "at": at_ts,
+        }
+        if ref is not None:
+            entry["kind"] = kind
+            entry["ref"] = ref
+        else:
+            entry["sha"] = sha
+        try:
+            with path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(entry) + "\n")
+        except OSError as e:
+            raise InvocationWriteError(
+                f"Failed to append correlation event: {e}"
+            ) from e
 
     def write_glossary_observation(
         self, invocation_id: str, bundle: GlossaryObservationBundle

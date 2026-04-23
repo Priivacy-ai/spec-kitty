@@ -18,6 +18,7 @@ from rich.panel import Panel
 
 from specify_cli.invocation.errors import InvocationWriteError, RouterAmbiguityError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
+from specify_cli.invocation.modes import derive_mode
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
 from specify_cli.tasks_support import find_repo_root
@@ -113,8 +114,9 @@ def do(
     """
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
+    mode = derive_mode("do")
     try:
-        payload = executor.invoke(request, profile_hint=None, actor=_detect_actor())
+        payload = executor.invoke(request, profile_hint=None, actor=_detect_actor(), mode_of_work=mode)
     except RouterAmbiguityError as e:
         error_obj = {
             "error": "routing_failed",

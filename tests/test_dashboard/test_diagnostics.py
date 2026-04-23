@@ -125,7 +125,7 @@ def test_run_diagnostics_reports_manifest_and_worktree_state(monkeypatch, tmp_pa
 
 
 def test_run_diagnostics_without_feature_dir_shows_no_context(monkeypatch, tmp_path: Path) -> None:
-    """When no feature_dir is passed, active_mission should be 'no feature context'."""
+    """When no feature_dir is passed, active_mission should be 'no mission context'."""
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     (project_dir / ".kittify").mkdir()
@@ -142,7 +142,7 @@ def test_run_diagnostics_without_feature_dir_shows_no_context(monkeypatch, tmp_p
 
     result = diagnostics.run_diagnostics(project_dir)
 
-    assert result["active_mission"] == "no feature context"
+    assert result["active_mission"] == "no mission context"
 
 
 def test_run_diagnostics_with_feature_dir_resolves_mission(monkeypatch, tmp_path: Path) -> None:

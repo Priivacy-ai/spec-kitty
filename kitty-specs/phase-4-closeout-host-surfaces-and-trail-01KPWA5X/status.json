@@ -1,0 +1,84 @@
+{
+  "event_count": 67,
+  "last_event_id": "01KPWFS8RPFEAT4YTQR7QZ6N3Z",
+  "materialized_at": "2026-04-23T06:17:37.814640+00:00",
+  "mission_number": "",
+  "mission_slug": "phase-4-closeout-host-surfaces-and-trail-01KPWA5X",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 8,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWD23VDS73PTYBVRCSNW90D",
+      "last_transition_at": "2026-04-23T05:30:01.965356+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWDD33WKM2WB14G8DTGT0EF",
+      "last_transition_at": "2026-04-23T05:36:01.660491+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWDP028TKGXEC39XNHJDBWK",
+      "last_transition_at": "2026-04-23T05:40:53.448620+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWE4H5R0TH653ED36EDPTX6",
+      "last_transition_at": "2026-04-23T05:48:49.720664+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWEEFGX1C2303VSNY5TY3XH",
+      "last_transition_at": "2026-04-23T05:54:15.709416+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWF2TA269QTS4F12FT1SV5H",
+      "last_transition_at": "2026-04-23T06:05:22.114901+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWFEP96DX1MRREJ4CEB30MS",
+      "last_transition_at": "2026-04-23T06:11:51.206746+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPWFRK9YTAHBZEZBT8VYW6J5",
+      "last_transition_at": "2026-04-23T06:17:15.838956+00:00"
+    },
+    "WP09": {
+      "actor": "claude:sonnet-4-6:implementer:implementer",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KPWFS8RPFEAT4YTQR7QZ6N3Z",
+      "last_transition_at": "2026-04-23T06:17:37.814640+00:00"
+    }
+  }
+}
