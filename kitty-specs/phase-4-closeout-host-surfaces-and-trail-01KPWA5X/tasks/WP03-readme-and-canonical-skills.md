@@ -14,8 +14,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "14904"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "15771"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -217,3 +217,4 @@ Reviewer should:
 
 - 2026-04-23T05:36:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14904 – Started implementation via action command
 - 2026-04-23T05:39:34Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14904 – README governance section added; canonical skills audit complete (2 changes in advise SKILL.md, 1 change in runtime-next SKILL.md); 6 tests pass
+- 2026-04-23T05:39:53Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=15771 – Started review via action command
