@@ -70,13 +70,13 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T042 | Add "Tier 2 SaaS Projection — Deferred" subsection to `docs/trail-model.md` | WP08 |  | [D] |
 | T043 | Update `CHANGELOG.md` unreleased section with Tranche A + Tranche B summaries + migration note | WP08 |  | [D] |
 | T044 | Add doc-presence test `tests/specify_cli/docs/test_trail_model_doc.py` | WP08 |  | [D] |
-| T045 | Prepare `#496` close comment + close on Tranche A delivery | WP09 |  |
-| T046 | Prepare `#701` close comment + close on mission merge | WP09 |  |
-| T047 | Update `#466` (Phase 4 tracker) — Phase 4 follow-on shipped | WP09 |  |
-| T048 | Cross-link `#534` to `#499` / `#759` as Phase 5 glossary-foundation unblocker | WP09 |  |
-| T049 | Verify `#461` umbrella roadmap left open | WP09 |  |
-| T050 | Retitle `#496` to reflect delivered scope if needed | WP09 |  |
-| T051 | Document completed hygiene actions in the PR description | WP09 |  |
+| T045 | Prepare `#496` close comment + close on Tranche A delivery | WP09 |  | [D] |
+| T046 | Prepare `#701` close comment + close on mission merge | WP09 |  | [D] |
+| T047 | Update `#466` (Phase 4 tracker) — Phase 4 follow-on shipped | WP09 |  | [D] |
+| T048 | Cross-link `#534` to `#499` / `#759` as Phase 5 glossary-foundation unblocker | WP09 |  | [D] |
+| T049 | Verify `#461` umbrella roadmap left open | WP09 |  | [D] |
+| T050 | Retitle `#496` to reflect delivered scope if needed | WP09 |  | [D] |
+| T051 | Document completed hygiene actions in the PR description | WP09 |  | [D] |
 
 Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP exceeds 7 subtasks.
 
@@ -278,13 +278,13 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T045 Prepare `#496` close comment + close on Tranche A delivery
-- [ ] T046 Prepare `#701` close comment + close on mission merge
-- [ ] T047 Update `#466` (Phase 4 tracker) — Phase 4 follow-on shipped
-- [ ] T048 Cross-link `#534` to `#499` / `#759` as Phase 5 glossary-foundation unblocker
-- [ ] T049 Verify `#461` umbrella roadmap left open
-- [ ] T050 Retitle `#496` to reflect delivered scope if needed
-- [ ] T051 Document completed hygiene actions in the PR description
+- [x] T045 Prepare `#496` close comment + close on Tranche A delivery
+- [x] T046 Prepare `#701` close comment + close on mission merge
+- [x] T047 Update `#466` (Phase 4 tracker) — Phase 4 follow-on shipped
+- [x] T048 Cross-link `#534` to `#499` / `#759` as Phase 5 glossary-foundation unblocker
+- [x] T049 Verify `#461` umbrella roadmap left open
+- [x] T050 Retitle `#496` to reflect delivered scope if needed
+- [x] T051 Document completed hygiene actions in the PR description
 
 **Dependencies**: WP08.
 **Execution mode**: `planning_artifact` (GitHub tracker work only — no code changes).
