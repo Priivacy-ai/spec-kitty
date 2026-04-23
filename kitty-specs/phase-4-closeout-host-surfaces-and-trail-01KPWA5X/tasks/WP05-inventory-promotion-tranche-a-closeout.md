@@ -17,6 +17,8 @@ subtasks:
 - T023
 - T024
 - T025
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "18311"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -263,3 +265,7 @@ Reviewer should:
 - Confirm the commit message has `Closes #496`.
 - Confirm WP05 did NOT touch `docs/trail-model.md`.
 - Confirm Tranche A is fully closed: every Tranche A WP (WP01–WP05) is in `done` / `approved` state and all tests pass.
+
+## Activity Log
+
+- 2026-04-23T05:49:10Z – claude:sonnet-4-6:implementer:implementer – shell_pid=18311 – Started implementation via action command
