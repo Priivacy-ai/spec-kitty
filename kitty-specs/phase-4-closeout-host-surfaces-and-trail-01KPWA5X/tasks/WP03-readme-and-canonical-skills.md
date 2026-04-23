@@ -216,3 +216,4 @@ Reviewer should:
 ## Activity Log
 
 - 2026-04-23T05:36:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14904 – Started implementation via action command
+- 2026-04-23T05:39:34Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14904 – README governance section added; canonical skills audit complete (2 changes in advise SKILL.md, 1 change in runtime-next SKILL.md); 6 tests pass
