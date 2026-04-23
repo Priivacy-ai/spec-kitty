@@ -317,6 +317,13 @@ def list_invocations(
 ) -> None:
     """List recent invocation records from the local audit log.
 
+    # FR-008 / T031: This command does not open an InvocationRecord at baseline.
+    # If a future version of `invocations list` opens an invocation, it should use:
+    #   derive_mode("invocations.list")  -> ModeOfWork.QUERY
+    # The mapping is reserved in _ENTRY_COMMAND_MODE (modes.py) for enforcement
+    # consistency (QUERY mode disallows Tier 2 evidence promotion per FR-009).
+    # TODO(future): wire derive_mode("invocations.list") when InvocationRecord is opened here.
+
     Records are returned newest-first, sorted by ``started_at`` from file
     content.  Use ``--profile`` to narrow to one agent profile.  Use
     ``--json`` for machine-readable output.

@@ -20,6 +20,12 @@ def list_profiles(
     json_output: bool = typer.Option(False, "--json", help="Output JSON array."),
 ) -> None:
     """List all available agent profiles."""
+    # FR-008 / T031: This command does not open an InvocationRecord at baseline.
+    # If a future version of `profiles list` opens an invocation, it should use:
+    #   derive_mode("profiles.list")  -> ModeOfWork.QUERY
+    # The mapping is reserved in _ENTRY_COMMAND_MODE (modes.py) for enforcement
+    # consistency (QUERY mode disallows Tier 2 evidence promotion per FR-009).
+    # TODO(future): wire derive_mode("profiles.list") when InvocationRecord is opened here.
     repo_root = find_repo_root()
     registry = ProfileRegistry(repo_root)
     profiles = registry.list_all()

@@ -200,7 +200,7 @@ Runtime state is persisted between calls:
 
 When `--mission` is omitted, the runtime detects the mission via (in order):
 1. `SPECIFY_MISSION` environment variable
-2. Git branch name (mission and lane branches both encode the feature slug)
+2. Git branch name (mission and lane branches both encode the mission slug)
 3. Current directory path (walks up looking for `###-mission-name`)
 4. Single mission auto-detect (only if exactly one mission exists)
 5. Error with guidance if ambiguous

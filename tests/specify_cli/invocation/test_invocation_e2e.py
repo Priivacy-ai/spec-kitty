@@ -1,4 +1,4 @@
-"""End-to-end invocation tests (WP05 T018–T021).
+"""End-to-end invocation tests (WP05 T018–T021, WP06 T032).
 
 Tests exercise the advise/execute loop at the executor level (bypassing the CLI
 layer for reliability) to verify:
@@ -8,6 +8,13 @@ layer for reliability) to verify:
 - T020: `invocations list` reads from local JSONL without SaaS connectivity.
 - T021: When `effective_sync_enabled=False`, `_get_saas_client` is never called
          but the local JSONL is still written.
+
+WP06 additions (T032):
+- mode_of_work is recorded on the started event (FR-008).
+- artifact_link / commit_link events appended by complete_invocation (FR-007).
+- InvalidModeForEvidenceError raised pre-write for advisory/query (FR-009).
+- Legacy records with null mode_of_work allow evidence (backward compat).
+- Sync-disabled: all events written locally, no propagation errors.
 
 Implementation note: Tests use the executor/writer/propagator directly rather
 than CliRunner to avoid CLI routing complexity (ActionRouter requires profiles).
@@ -24,9 +31,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.invocation.errors import InvalidModeForEvidenceError
 from specify_cli.invocation.executor import ProfileInvocationExecutor
+from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.record import InvocationRecord
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter
 from specify_cli.sync.routing import CheckoutSyncRouting
 
 
@@ -279,3 +288,447 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     import json as _json
     lines = [ln for ln in expected_file.read_text().splitlines() if ln.strip()]
     assert len(lines) >= 1 and _json.loads(lines[0])["event"] == "started"
+
+
+# ===========================================================================
+# WP06 T032 — Mode derivation + correlation + enforcement e2e tests
+# ===========================================================================
+
+
+def _invoke_with_mode(
+    project: Path,
+    mode: ModeOfWork,
+    profile_hint: str = "implementer-fixture",
+) -> str:
+    """Helper: invoke executor with explicit mode_of_work, return invocation_id."""
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        payload = executor.invoke(
+            "test request",
+            profile_hint=profile_hint,
+            mode_of_work=mode,
+        )
+    return payload.invocation_id
+
+
+def _write_legacy_started(project: Path, invocation_id: str) -> None:
+    """Write a legacy started event WITHOUT mode_of_work (pre-WP06 format)."""
+    writer = InvocationWriter(project)
+    record = InvocationRecord(
+        event="started",
+        invocation_id=invocation_id,
+        profile_id="implementer-fixture",
+        action="implement",
+        request_text="legacy test request",
+        started_at="2026-04-22T06:00:00Z",
+        # Intentionally no mode_of_work
+    )
+    writer.write_started(record)
+
+
+# ---------------------------------------------------------------------------
+# test_started_event_records_mode_advisory
+# ---------------------------------------------------------------------------
+
+
+def test_started_event_records_mode_advisory(tmp_path: Path) -> None:
+    """Invoking with ADVISORY mode records mode_of_work='advisory' on the started event (FR-008)."""
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.ADVISORY)
+
+    events_dir = project / EVENTS_DIR
+    started_raw = json.loads((events_dir / f"{inv_id}.jsonl").read_text().splitlines()[0])
+    assert started_raw.get("mode_of_work") == "advisory", (
+        f"Expected mode_of_work='advisory', got {started_raw.get('mode_of_work')!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# test_started_event_records_mode_task_execution
+# ---------------------------------------------------------------------------
+
+
+def test_started_event_records_mode_task_execution(tmp_path: Path) -> None:
+    """ask and do entry commands both record mode_of_work='task_execution' (FR-008).
+
+    Simulated programmatically since ActionRouter setup would require full profiles.
+    """
+    project = _setup_minimal_project(tmp_path)
+
+    # ask maps to task_execution
+    inv_id_ask = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+    events_dir = project / EVENTS_DIR
+    started_ask = json.loads((events_dir / f"{inv_id_ask}.jsonl").read_text().splitlines()[0])
+    assert started_ask.get("mode_of_work") == "task_execution"
+
+    # do also maps to task_execution
+    inv_id_do = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+    started_do = json.loads((events_dir / f"{inv_id_do}.jsonl").read_text().splitlines()[0])
+    assert started_do.get("mode_of_work") == "task_execution"
+
+
+# ---------------------------------------------------------------------------
+# test_complete_with_two_artifacts_and_commit
+# ---------------------------------------------------------------------------
+
+
+def test_complete_with_two_artifacts_and_commit(tmp_path: Path) -> None:
+    """complete_invocation with two --artifact and one --commit appends 3 correlation events (FR-007)."""
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            artifact_refs=["src/foo.py", "src/bar.py"],
+            commit_sha="deadbeef1234",
+        )
+
+    events_dir = project / EVENTS_DIR
+    lines = [ln for ln in (events_dir / f"{inv_id}.jsonl").read_text().splitlines() if ln.strip()]
+    # started (1) + completed (1) + artifact_link (1) + artifact_link (1) + commit_link (1) = 5
+    assert len(lines) == 5, f"Expected 5 lines, got {len(lines)}: {[json.loads(l)['event'] for l in lines]}"
+    events = [json.loads(l)["event"] for l in lines]
+    assert events[0] == "started"
+    assert events[1] == "completed"
+    assert events[2] == "artifact_link"
+    assert events[3] == "artifact_link"
+    assert events[4] == "commit_link"
+
+    sha_event = json.loads(lines[4])
+    assert sha_event["sha"] == "deadbeef1234"
+
+
+# ---------------------------------------------------------------------------
+# test_complete_artifact_ref_normalisation_in_checkout
+# ---------------------------------------------------------------------------
+
+
+def test_complete_artifact_ref_normalisation_in_checkout(tmp_path: Path) -> None:
+    """An artifact path inside the repo checkout is stored repo-relative (FR-007 / data-model §6)."""
+    project = _setup_minimal_project(tmp_path)
+    # Create a file inside the project
+    (project / "src").mkdir(exist_ok=True)
+    artifact_file = project / "src" / "output.py"
+    artifact_file.write_text("# generated")
+
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            artifact_refs=[str(artifact_file)],
+        )
+
+    events_dir = project / EVENTS_DIR
+    lines = [ln for ln in (events_dir / f"{inv_id}.jsonl").read_text().splitlines() if ln.strip()]
+    artifact_event = json.loads(lines[2])
+    assert artifact_event["event"] == "artifact_link"
+    # Should be repo-relative: src/output.py
+    stored_ref = artifact_event["ref"]
+    assert not Path(stored_ref).is_absolute(), f"Expected repo-relative ref, got: {stored_ref!r}"
+    assert "output.py" in stored_ref
+
+
+# ---------------------------------------------------------------------------
+# test_complete_artifact_ref_outside_checkout
+# ---------------------------------------------------------------------------
+
+
+def test_complete_artifact_ref_outside_checkout(
+    tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """An artifact path outside the repo checkout is stored absolute (FR-007 / data-model §6)."""
+    project = _setup_minimal_project(tmp_path)
+    outside = tmp_path_factory.mktemp("outside_repo") / "external.log"
+    outside.write_text("log data")
+
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            artifact_refs=[str(outside)],
+        )
+
+    events_dir = project / EVENTS_DIR
+    lines = [ln for ln in (events_dir / f"{inv_id}.jsonl").read_text().splitlines() if ln.strip()]
+    artifact_event = json.loads(lines[2])
+    assert artifact_event["event"] == "artifact_link"
+    stored_ref = artifact_event["ref"]
+    assert Path(stored_ref).is_absolute(), f"Expected absolute ref for external path, got: {stored_ref!r}"
+
+
+# ---------------------------------------------------------------------------
+# test_complete_rejects_evidence_on_advisory
+# ---------------------------------------------------------------------------
+
+
+def test_complete_rejects_evidence_on_advisory(tmp_path: Path) -> None:
+    """complete_invocation with --evidence on ADVISORY mode raises InvalidModeForEvidenceError (FR-009).
+
+    The rejection must be pre-write: no `completed` event is appended to the JSONL.
+    The evidence artifact must NOT be created.
+    """
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.ADVISORY)
+
+    # Create a dummy evidence file
+    evidence_file = tmp_path / "evidence.md"
+    evidence_file.write_text("# Evidence")
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        with pytest.raises(InvalidModeForEvidenceError) as exc_info:
+            executor.complete_invocation(
+                invocation_id=inv_id,
+                outcome="done",
+                evidence_ref=str(evidence_file),
+            )
+
+    assert exc_info.value.mode == ModeOfWork.ADVISORY
+    assert exc_info.value.invocation_id == inv_id
+
+    # Verify: no `completed` event appended (rejection is pre-write)
+    events_dir = project / EVENTS_DIR
+    lines = [ln for ln in (events_dir / f"{inv_id}.jsonl").read_text().splitlines() if ln.strip()]
+    assert len(lines) == 1, f"Expected only the started event, but got {len(lines)} lines: {lines}"
+    assert json.loads(lines[0])["event"] == "started"
+
+    # Verify: evidence artifact NOT created
+    evidence_base = project / ".kittify" / "evidence" / inv_id
+    assert not evidence_base.exists(), f"Evidence artifact was created at {evidence_base} despite rejection"
+
+
+# ---------------------------------------------------------------------------
+# test_complete_rejects_evidence_on_query
+# ---------------------------------------------------------------------------
+
+
+def test_complete_rejects_evidence_on_query(tmp_path: Path) -> None:
+    """complete_invocation with --evidence on QUERY mode raises InvalidModeForEvidenceError (FR-009).
+
+    Note: Query invocations are not opened at the baseline CLI layer (profiles.list,
+    invocations.list don't open InvocationRecords). This test simulates query mode
+    programmatically via invoke(mode_of_work=ModeOfWork.QUERY).
+    """
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.QUERY)
+
+    evidence_file = tmp_path / "evidence.md"
+    evidence_file.write_text("# Query Evidence")
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        with pytest.raises(InvalidModeForEvidenceError) as exc_info:
+            executor.complete_invocation(
+                invocation_id=inv_id,
+                outcome="done",
+                evidence_ref=str(evidence_file),
+            )
+
+    assert exc_info.value.mode == ModeOfWork.QUERY
+
+    # Verify pre-write rejection: no completed event
+    events_dir = project / EVENTS_DIR
+    lines = [ln for ln in (events_dir / f"{inv_id}.jsonl").read_text().splitlines() if ln.strip()]
+    assert len(lines) == 1, f"Expected only started event, got {len(lines)} lines"
+
+
+# ---------------------------------------------------------------------------
+# test_complete_allows_evidence_on_task_execution
+# ---------------------------------------------------------------------------
+
+
+def test_complete_allows_evidence_on_task_execution(tmp_path: Path) -> None:
+    """complete_invocation with --evidence on TASK_EXECUTION mode succeeds (FR-009)."""
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    # Create an evidence file for promotion
+    evidence_file = tmp_path / "evidence.md"
+    evidence_file.write_text("# Implementation Evidence\n\nWe did the thing.")
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        completed = executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            evidence_ref=str(evidence_file),
+        )
+
+    assert completed.event == "completed"
+    assert completed.evidence_ref == str(evidence_file)
+
+    # Verify evidence artifact was created
+    evidence_base = project / ".kittify" / "evidence" / inv_id
+    assert evidence_base.exists(), f"Evidence artifact not found at {evidence_base}"
+    assert (evidence_base / "evidence.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# test_complete_allows_evidence_on_mission_step
+# ---------------------------------------------------------------------------
+
+
+def test_complete_allows_evidence_on_mission_step(tmp_path: Path) -> None:
+    """complete_invocation with --evidence on MISSION_STEP mode succeeds (FR-009).
+
+    Note: Mission-step invocations are opened out-of-process by agents in the 3.2.x
+    baseline. This test simulates mission_step mode programmatically.
+    """
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.MISSION_STEP)
+
+    evidence_file = tmp_path / "spec_evidence.md"
+    evidence_file.write_text("# Spec Evidence")
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        completed = executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            evidence_ref=str(evidence_file),
+        )
+
+    assert completed.event == "completed"
+    # Evidence artifact created
+    evidence_base = project / ".kittify" / "evidence" / inv_id
+    assert evidence_base.exists()
+
+
+# ---------------------------------------------------------------------------
+# test_complete_on_pre_mission_record_allows_evidence
+# ---------------------------------------------------------------------------
+
+
+def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
+    """A legacy started event with no mode_of_work field allows evidence (backward compat).
+
+    Pre-WP06 InvocationRecords have no mode_of_work. The enforcement gate treats
+    None mode as permissive — no enforcement (FR-009 null-tolerant clause).
+    """
+    project = _setup_minimal_project(tmp_path)
+    inv_id = "01KPWA5XLEGACY0000000000WP"
+    _write_legacy_started(project, inv_id)
+
+    evidence_file = tmp_path / "legacy_evidence.md"
+    evidence_file.write_text("# Legacy Evidence")
+
+    # Ensure events dir exists (legacy records may predate directory creation)
+    (project / EVENTS_DIR).mkdir(parents=True, exist_ok=True)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        completed = executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            evidence_ref=str(evidence_file),
+        )
+
+    assert completed.event == "completed"
+    # Evidence artifact created without enforcement rejection
+    evidence_base = project / ".kittify" / "evidence" / inv_id
+    assert evidence_base.exists(), "Legacy record should allow evidence promotion"
+
+
+# ---------------------------------------------------------------------------
+# test_sync_disabled_no_propagation_errors (T032 #11)
+# ---------------------------------------------------------------------------
+
+
+def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
+    """With sync disabled, all events are written locally; no propagation-errors file is created.
+
+    Verifies NFR-007 / SC-008: local-first invariant holds even with correlation events.
+    """
+    project = _setup_minimal_project(tmp_path)
+
+    disabled_routing = CheckoutSyncRouting(
+        repo_root=project,
+        project_uuid="test-uuid",
+        project_slug="test-slug",
+        build_id=None,
+        repo_slug="test-repo",
+        local_sync_enabled=False,
+        repo_default_sync_enabled=None,
+        effective_sync_enabled=False,
+    )
+
+    with patch(
+        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+        return_value=disabled_routing,
+    ):
+        with patch("specify_cli.invocation.propagator._get_saas_client") as mock_client:
+            with patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ):
+                executor = ProfileInvocationExecutor(project)
+                payload = executor.invoke(
+                    "implement with mode",
+                    profile_hint="implementer-fixture",
+                    mode_of_work=ModeOfWork.TASK_EXECUTION,
+                )
+                inv_id = payload.invocation_id
+
+                # Complete with artifact and commit links
+                executor.complete_invocation(
+                    invocation_id=inv_id,
+                    outcome="done",
+                    artifact_refs=["src/example.py"],
+                    commit_sha="cafebabe1234",
+                )
+
+            # SaaS client never called (sync gate fires)
+            mock_client.assert_not_called()
+
+    # All events written locally
+    events_dir = project / EVENTS_DIR
+    jsonl_file = events_dir / f"{inv_id}.jsonl"
+    assert jsonl_file.exists()
+    lines = [ln for ln in jsonl_file.read_text().splitlines() if ln.strip()]
+    # started + completed + artifact_link + commit_link = 4 lines
+    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(l)['event'] for l in lines]}"
+
+    events = [json.loads(l)["event"] for l in lines]
+    assert events == ["started", "completed", "artifact_link", "commit_link"]
+
+    # No propagation-errors file created
+    prop_errors = project / ".kittify" / "events" / "propagation-errors.jsonl"
+    if prop_errors.exists():
+        content = prop_errors.read_text()
+        assert not content.strip(), f"Expected empty propagation-errors but got: {content}"

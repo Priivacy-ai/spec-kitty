@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+import json as _json_mod
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -20,11 +21,13 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
+from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
+from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import InvocationRecord, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
-from specify_cli.invocation.writer import InvocationWriter
+from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 
 
 def _new_ulid() -> str:
@@ -112,6 +115,7 @@ class ProfileInvocationExecutor:
         request_text: str,
         profile_hint: str | None = None,
         actor: str = "unknown",
+        mode_of_work: ModeOfWork | None = None,
     ) -> InvocationPayload:
         """Route the request, load governance context, write started record, return payload.
 
@@ -185,6 +189,7 @@ class ProfileInvocationExecutor:
             actor=actor,
             router_confidence=router_confidence,
             started_at=started_at,
+            mode_of_work=mode_of_work.value if mode_of_work else None,
         )
         self._writer.write_started(record)  # raises InvocationWriteError → non-zero exit
 
@@ -215,6 +220,8 @@ class ProfileInvocationExecutor:
         invocation_id: str,
         outcome: str | None = None,
         evidence_ref: str | None = None,
+        artifact_refs: list[str] | None = None,
+        commit_sha: str | None = None,
     ) -> InvocationRecord:
         """Close an open invocation record and propagate the completed event.
 
@@ -224,14 +231,26 @@ class ProfileInvocationExecutor:
         Raises ``AlreadyClosedError`` if already closed (idempotent guard).
         Raises ``InvocationError`` if invocation_id is not found.
         Raises ``InvocationWriteError`` on filesystem failure.
+        Raises ``InvalidModeForEvidenceError`` if evidence_ref is supplied on an
+            advisory or query invocation (FR-009). This is a pre-write check —
+            no JSONL lines are written if this error is raised.
         """
+        # Step 1: Read started event for mode enforcement (FR-009).
+        started_mode = self._read_started_mode(invocation_id)
+
+        # Step 2: Enforce mode gate on evidence promotion BEFORE any write.
+        if evidence_ref is not None and started_mode in {ModeOfWork.ADVISORY, ModeOfWork.QUERY}:
+            raise InvalidModeForEvidenceError(invocation_id, started_mode)
+
+        # Step 3: Append completed event (existing behaviour).
         completed = self._writer.write_completed(
             invocation_id,
             self._repo_root,
             outcome=outcome,
             evidence_ref=evidence_ref,
         )
-        # Promote to Tier 2 evidence artifact if --evidence was supplied
+
+        # Step 4: Promote to Tier 2 evidence artifact if --evidence was supplied (existing behaviour).
         if evidence_ref is not None:
             evidence_path = Path(evidence_ref)
             candidate_path: Path | None = None
@@ -253,10 +272,38 @@ class ProfileInvocationExecutor:
                 content = evidence_ref  # fallback: treat the value as inline content
             evidence_base_dir = self._repo_root / ".kittify" / "evidence"
             promote_to_evidence(completed, evidence_base_dir, content)
-        # Propagate completed event (non-blocking, best-effort)
+
+        # Step 5 (NEW): Append artifact_link events (FR-007).
+        for raw_ref in artifact_refs or []:
+            normalised = normalise_ref(raw_ref, self._repo_root)
+            self._writer.append_correlation_link(
+                invocation_id, kind="artifact", ref=normalised,
+            )
+
+        # Step 6 (NEW): Append commit_link event (FR-007).
+        if commit_sha is not None:
+            self._writer.append_correlation_link(
+                invocation_id, sha=commit_sha,
+            )
+
+        # Step 7: Propagate completed event (non-blocking, best-effort; existing behaviour).
+        # Correlation events are also submitted here. WP07 will add the policy gate.
+        # Transient over-projection noted in ADR-001: without WP07's gate, correlation
+        # events project unconditionally for authenticated+sync-enabled checkouts.
         if self._propagator is not None:
             self._propagator.submit(completed)
+
         return completed
+
+    def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None:
+        """Read mode_of_work from the started event. Returns None for pre-mission records."""
+        path = self._writer.invocation_path(invocation_id)
+        if not path.exists():
+            raise InvocationError(f"Invocation record not found: {invocation_id}")
+        first_line = path.read_text(encoding="utf-8").splitlines()[0]
+        first = _json_mod.loads(first_line)
+        raw = first.get("mode_of_work")
+        return ModeOfWork(raw) if raw else None
 
     def _derive_action_from_request(self, request_text: str, role: object) -> str:  # noqa: ARG002
         """Derive canonical action token from role when profile_hint is explicit."""

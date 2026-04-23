@@ -22,7 +22,7 @@
                 <pre class="tree-view" id="tree-info">Loading…</pre>
             </div>
             <div class="feature-selector" id="feature-selector-container">
-                <label>Feature:</label>
+                <label>Mission Run:</label>
                 <select id="feature-select" onchange="switchFeature(this.value)">
                     <option value="">Loading...</option>
                 </select>
@@ -90,7 +90,7 @@
         <div class="main-content">
             <div id="page-overview" class="page active">
                 <div class="content-card">
-                    <h2>Feature Overview</h2>
+                    <h2>Mission Run Overview</h2>
                     <div id="overview-content"></div>
                 </div>
             </div>
@@ -192,7 +192,7 @@
 
                         <!-- Feature Analysis -->
                         <div style="margin-bottom: 30px;">
-                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Feature Analysis</h3>
+                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Mission Run Analysis</h3>
                             <div id="diagnostics-features" style="display: flex; flex-direction: column; gap: 15px;"></div>
                         </div>
 
@@ -220,7 +220,7 @@
                         <div style="background: var(--baby-blue); padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
                             <h3 style="color: var(--grassy-green); margin-bottom: 20px;">Get Started</h3>
                             <ol style="text-align: left; line-height: 2; color: var(--dark-text);">
-                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first feature</li>
+                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first mission</li>
                                 <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.plan</code> to create the implementation plan</li>
                                 <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.tasks</code> to generate the task breakdown</li>
                                 <li>Watch the dashboard update in real-time as you work!</li>
@@ -232,7 +232,7 @@
 
             <div id="no-features-message" class="no-features" style="display: none;">
                 <h2>No Features Found</h2>
-                <p>Create your first feature using <code>/spec-kitty.specify</code></p>
+                <p>Create your first mission using <code>/spec-kitty.specify</code></p>
             </div>
         </div>
     </div>

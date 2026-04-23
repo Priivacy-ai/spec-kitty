@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased - 3.2.0]
 
+### Added
+
+- **Host-surface parity matrix** at `docs/host-surface-parity.md` — authoritative record of how each of the 15 supported host surfaces teaches the advise/ask/do governance-injection contract. Closes the remaining `#496` host-surface breadth rollout.
+- **Mode of work runtime derivation** — every `advise`, `ask`, `do` invocation now records its `mode_of_work` (`advisory`, `task_execution`, `mission_step`, `query`) on the `started` event. Derivation is from the CLI entry command.
+- **Correlation links** — `spec-kitty profile-invocation complete` accepts `--artifact <path>` (repeatable) and `--commit <sha>` (singular); each appends an additive event to the invocation JSONL for single-file request→artifact/commit correlation.
+- **SaaS read-model policy** at `src/specify_cli/invocation/projection_policy.py` — typed module mapping `(mode, event)` to projection rules. Documented in `docs/trail-model.md`.
+- **Tier 2 SaaS projection decision** — decisively documented as deferred in `docs/trail-model.md`. Tier 2 evidence stays local-only in 3.2.x.
+- **README Governance layer subsection** — entry point for operators discovering the advise/ask/do surface.
+
+### Changed
+
+- `spec-kitty profile-invocation complete --evidence` is now mode-gated: rejected on `advisory` / `query` invocations with `InvalidModeForEvidenceError`. Rejection occurs before any write; the invocation stays open.
+- `_propagate_one` consults the new projection policy after the sync-gate and authentication lookup. Existing `task_execution` / `mission_step` projection behaviour is preserved exactly.
+- Dashboard user-visible wording: the mission selector, current-mission header, overview heading, analysis heading, and empty-state prompt now read "Mission Run" / "mission" instead of "Feature". Backend identifiers (CSS classes, HTML IDs, cookie keys, API route segments, JSON field names) are unchanged.
+
+### Deferred
+
+- `spec-kitty explain` (issue #534) remains deferred to Phase 5 pending DRG glossary addressability (#499, #759).
+
+### Migration notes
+
+**No operator action required for routine upgrade.** The trail model is additive:
+
+- Pre-mission invocation records (no `mode_of_work`) continue to accept `--evidence` and project under legacy `task_execution` rules.
+- Existing SaaS dashboards see no change for `task_execution` / `mission_step` traffic.
+- New advisory events now appear in the SaaS timeline as minimal entries without body — this is a deliberate behaviour change documented in the SaaS Read-Model Policy table.
+
 ## [3.2.0a5] - 2026-04-22
 
 ### Added

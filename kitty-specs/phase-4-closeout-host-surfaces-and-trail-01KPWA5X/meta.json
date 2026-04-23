@@ -2,11 +2,11 @@
   "created_at": "2026-04-23T04:39:40.600140+00:00",
   "friendly_name": "Phase 4 Closeout: Host-Surface Breadth and Trail Follow-On",
   "mission_id": "01KPWA5X6617T5TVX4C7S6TMYB",
-  "mission_number": null,
+  "mission_number": 95,
   "mission_slug": "phase-4-closeout-host-surfaces-and-trail-01KPWA5X",
   "mission_type": "software-dev",
   "slug": "phase-4-closeout-host-surfaces-and-trail-01KPWA5X",
+  "source_description": "Close out the remaining Phase 4 follow-on scope from the live 2026-04-23 main baseline at commit eb32cf0a. Tranche A finishes the #496 host-surface breadth rollout on top of the landed advise/ask/do priority slice, including the dashboard 'Feature' -> 'Mission Run' wording alignment. Tranche B executes the narrow post-3.2 #701 trail follow-on (correlation, runtime mode enforcement, SaaS read-model policy for small actions, Tier 2 SaaS projection policy). #534 remains explicitly deferred. Phase 4 core runtime (ProfileInvocationExecutor, router, JSONL trail, additive SaaS propagation), the trail contract in docs/trail-model.md, sync-boundary suppression, and Tier 2 local promotion are already landed and out of scope as construction work.",
   "target_branch": "main",
-  "vcs": "git",
-  "source_description": "Close out the remaining Phase 4 follow-on scope from the live 2026-04-23 main baseline at commit eb32cf0a. Tranche A finishes the #496 host-surface breadth rollout on top of the landed advise/ask/do priority slice, including the dashboard 'Feature' -> 'Mission Run' wording alignment. Tranche B executes the narrow post-3.2 #701 trail follow-on (correlation, runtime mode enforcement, SaaS read-model policy for small actions, Tier 2 SaaS projection policy). #534 remains explicitly deferred. Phase 4 core runtime (ProfileInvocationExecutor, router, JSONL trail, additive SaaS propagation), the trail contract in docs/trail-model.md, sync-boundary suppression, and Tier 2 local promotion are already landed and out of scope as construction work."
+  "vcs": "git"
 }

@@ -25,14 +25,17 @@ from rich.panel import Panel
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
     ContextUnavailableError,  # noqa: F401 — re-exported for callers/tests
+    InvalidModeForEvidenceError,
     InvocationWriteError,
     ProfileNotFoundError,
     RouterAmbiguityError,
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
+from specify_cli.invocation.modes import derive_mode
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
+from specify_cli.invocation.writer import normalise_ref
 from specify_cli.tasks_support import find_repo_root
 
 # ---------------------------------------------------------------------------
@@ -110,12 +113,15 @@ def _run_invoke(
     request: str,
     profile: str | None,
     json_output: bool,
+    entry_command: str = "advise",
 ) -> None:
     """Shared implementation for advise and ask commands."""
+    from specify_cli.invocation.modes import ModeOfWork
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
+    mode = derive_mode(entry_command)
     try:
-        payload = executor.invoke(request, profile_hint=profile, actor=_detect_actor())
+        payload = executor.invoke(request, profile_hint=profile, actor=_detect_actor(), mode_of_work=mode)
     except RouterAmbiguityError as e:
         error_obj = {
             "error": "routing_failed",
@@ -156,7 +162,7 @@ def advise(
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
     """Get governance context for a request. Opens an invocation record. Does NOT spawn an LLM."""
-    _run_invoke(request, profile, json_output)
+    _run_invoke(request, profile, json_output, entry_command="advise")
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +176,7 @@ def ask(
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
     """Invoke a named profile. Equivalent to 'advise --profile <profile> <request>'."""
-    _run_invoke(request, profile, json_output)
+    _run_invoke(request, profile, json_output, entry_command="ask")
 
 
 # ---------------------------------------------------------------------------
@@ -194,9 +200,25 @@ def complete_invocation(
     evidence: str | None = typer.Option(
         None, "--evidence", help="Path to evidence file (Tier 2 promotion)"
     ),
+    artifact: list[str] = typer.Option(
+        None,
+        "--artifact",
+        help="Path (repo-relative or absolute) of an artifact produced by this invocation. Repeatable.",
+    ),
+    commit: str | None = typer.Option(
+        None,
+        "--commit",
+        help="Git commit SHA most directly produced by this invocation. Singular.",
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
-    """Close an open invocation record. Only --invocation-id is required."""
+    """Close an open invocation record. Only --invocation-id is required.
+
+    Use --artifact (repeatable) to link output artifacts to this invocation.
+    Use --commit (singular) to link the primary git commit produced.
+    Use --evidence to promote a file to a Tier 2 evidence artifact.
+    Note: --evidence is not allowed on advisory or query invocations (FR-009).
+    """
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
     try:
@@ -204,7 +226,14 @@ def complete_invocation(
             invocation_id=invocation_id,
             outcome=outcome,
             evidence_ref=evidence,
+            artifact_refs=artifact or [],
+            commit_sha=commit,
         )
+    except InvalidModeForEvidenceError as e:
+        console.print(
+            f"[red]Error:[/red] {e}"
+        )
+        raise typer.Exit(2) from e
     except AlreadyClosedError:
         msg: dict[str, str] = {"warning": "already_closed", "invocation_id": invocation_id}
         if json_output:
@@ -221,8 +250,21 @@ def complete_invocation(
         raise typer.Exit(1) from e
 
     if json_output:
-        typer.echo(json.dumps(completed.model_dump(), indent=2))
+        response = {
+            "result": "success",
+            "invocation_id": invocation_id,
+            "outcome": outcome,
+            "evidence_ref": completed.evidence_ref,
+            "artifact_links": [normalise_ref(a, repo_root) for a in (artifact or [])],
+            "commit_link": commit,
+        }
+        typer.echo(json.dumps(response, indent=2))
     else:
         console.print(f"[green]✓[/green] Invocation [bold]{invocation_id}[/bold] closed.")
         if outcome:
             console.print(f"  Outcome: {outcome}")
+        if artifact:
+            for a in artifact:
+                console.print(f"  Artifact: {normalise_ref(a, repo_root)}")
+        if commit:
+            console.print(f"  Commit: {commit}")

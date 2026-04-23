@@ -1,4 +1,22 @@
-"""CLI command for ``spec-kitty next``."""
+"""CLI command for ``spec-kitty next``.
+
+FR-008 / T031 note: The `next` command dispatches mission-step actions via
+``decide_next()``. In the 3.2.x baseline, mission-step invocations (specify,
+plan, tasks, implement, review, merge, accept) are opened OUT-OF-PROCESS by
+the agent that reads the decision — not by this command directly.
+
+Therefore, this command does NOT open InvocationRecord objects itself.
+
+When a future integration has `next` open an InvocationRecord directly (e.g.
+for agent-mode automation), it should use:
+    derive_mode(f"next.{action}")  -> ModeOfWork.MISSION_STEP
+for any of: next.specify, next.plan, next.tasks, next.implement,
+            next.review, next.merge, next.accept
+
+The mapping is registered in _ENTRY_COMMAND_MODE (modes.py).
+TODO(future): wire derive_mode(f"next.{action}") when InvocationRecord is
+opened directly from the next command.
+"""
 
 from __future__ import annotations
 
