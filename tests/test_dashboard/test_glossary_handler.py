@@ -111,17 +111,46 @@ class TestGlossaryHealth:
         assert data["last_conflict_at"] is None
 
     def test_health_counts_high_severity_events(self, tmp_path):
-        """Reads _cli.events.jsonl and counts high/critical severity events."""
+        """Reads canonical glossary event logs and counts high/critical findings."""
         from specify_cli.dashboard.handlers import glossary as gloss_module
 
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
         events_dir.mkdir(parents=True)
-        event_log = events_dir / "_cli.events.jsonl"
+        event_log = events_dir / "mission-001.events.jsonl"
         events = [
-            {"event_type": "semantic_check_evaluated", "severity": "high", "checked_at": "2026-01-01T00:00:00Z"},
-            {"event_type": "semantic_check_evaluated", "severity": "critical", "checked_at": "2026-01-02T00:00:00Z"},
-            {"event_type": "semantic_check_evaluated", "severity": "low", "checked_at": "2026-01-03T00:00:00Z"},
-            {"event_type": "other_event", "severity": "high", "checked_at": "2026-01-04T00:00:00Z"},
+            {
+                "event_type": "SemanticCheckEvaluated",
+                "step_id": "step-1",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "findings": [
+                    {
+                        "term": {"surface_text": "alpha"},
+                        "term_id": "glossary:alpha",
+                        "severity": "high",
+                        "conflict_type": "ambiguous",
+                    }
+                ],
+            },
+            {
+                "event_type": "SemanticCheckEvaluated",
+                "step_id": "step-2",
+                "timestamp": "2026-01-02T00:00:00Z",
+                "findings": [
+                    {
+                        "term": {"surface_text": "beta"},
+                        "term_id": "glossary:beta",
+                        "severity": "critical",
+                        "conflict_type": "inconsistent",
+                    },
+                    {
+                        "term": {"surface_text": "gamma"},
+                        "term_id": "glossary:gamma",
+                        "severity": "low",
+                        "conflict_type": "unknown",
+                    },
+                ],
+            },
+            {"event_type": "other_event", "severity": "high", "timestamp": "2026-01-04T00:00:00Z"},
         ]
         event_log.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
 

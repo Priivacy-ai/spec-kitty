@@ -297,12 +297,18 @@ def test_conflict_history_rendered_from_events(repo_root, three_term_drg):
     events_dir.mkdir(parents=True, exist_ok=True)
     log_path = events_dir / "glossary.events.jsonl"
     event = {
-        "event_type": "semantic_check_evaluated",
-        "term_id": "glossary:workspace",
-        "checked_at": "2026-01-15T10:00:00Z",
-        "severity": "high",
-        "conflict_type": "ambiguous",
-        "resolution": "unresolved",
+        "event_type": "SemanticCheckEvaluated",
+        "step_id": "step-1",
+        "timestamp": "2026-01-15T10:00:00Z",
+        "findings": [
+            {
+                "term": {"surface_text": "workspace"},
+                "term_id": "glossary:workspace",
+                "severity": "high",
+                "conflict_type": "ambiguous",
+                "resolution": "unresolved",
+            }
+        ],
     }
     log_path.write_text(json.dumps(event) + "\n", encoding="utf-8")
 

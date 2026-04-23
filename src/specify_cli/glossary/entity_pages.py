@@ -17,6 +17,8 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.glossary.semantic_events import iter_semantic_conflicts
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -310,28 +312,18 @@ class GlossaryEntityPageRenderer:
         return "\n".join(lines)
 
     def _load_conflict_history(self, term_urn: str) -> list[dict]:
-        """Scan glossary event logs for ``semantic_check_evaluated`` events for this term."""
-        events_dir = self._repo_root / ".kittify" / "events" / "glossary"
         result: list[dict] = []
-        if not events_dir.exists():
-            return result
-        for log_file in events_dir.glob("*.events.jsonl"):
-            try:
-                for line in log_file.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        ev = json.loads(line)
-                        if (
-                            ev.get("event_type") == "semantic_check_evaluated"
-                            and ev.get("term_id") == term_urn
-                        ):
-                            result.append(ev)
-                    except json.JSONDecodeError:
-                        pass
-            except OSError:
-                pass
+        for conflict in iter_semantic_conflicts(self._repo_root):
+            if conflict.term_id != term_urn:
+                continue
+            result.append(
+                {
+                    "checked_at": conflict.timestamp or "",
+                    "severity": conflict.severity,
+                    "conflict_type": conflict.conflict_type,
+                    "resolution": conflict.resolution or "unresolved",
+                }
+            )
         return result
 
     # ------------------------------------------------------------------

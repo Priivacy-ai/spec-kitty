@@ -27,7 +27,7 @@ from specify_cli.glossary.observation import InlineNotice, ObservationSurface
 # Helpers
 # ---------------------------------------------------------------------------
 
-_EVENT_LOG_RELPATH = Path(".kittify") / "events" / "glossary" / "_cli.events.jsonl"
+_EVENT_LOG_RELPATH = Path(".kittify") / "events" / "glossary" / "mission-001.events.jsonl"
 
 
 def _write_event_log(repo_root: Path, events: list[dict]) -> None:
@@ -48,14 +48,28 @@ def _make_event(
     invocation_id: str = "01JINVOCATION",
 ) -> dict:
     return {
-        "event_type": "semantic_check_evaluated",
-        "invocation_id": invocation_id,
-        "term": term,
-        "term_id": term_id,
-        "severity": severity,
-        "conflict_type": conflict_type,
-        "conflicting_senses": conflicting_senses or ["sense A", "sense B"],
-        "checked_at": "2026-04-23T05:00:00Z",
+        "event_type": "SemanticCheckEvaluated",
+        "step_id": invocation_id,
+        "run_id": f"run-{invocation_id}",
+        "timestamp": "2026-04-23T05:00:00Z",
+        "overall_severity": severity,
+        "findings": [
+            {
+                "term": {"surface_text": term},
+                "term_id": term_id,
+                "severity": severity,
+                "conflict_type": conflict_type,
+                "candidate_senses": [
+                    {
+                        "surface": term,
+                        "scope": "team_domain",
+                        "definition": sense,
+                        "confidence": 0.9,
+                    }
+                    for sense in (conflicting_senses or ["sense A", "sense B"])
+                ],
+            }
+        ],
     }
 
 
@@ -76,7 +90,7 @@ def test_high_severity_returns_notice(tmp_path: Path) -> None:
     assert notice.severity == "high"
     assert notice.conflict_type == "scope_mismatch"
     assert notice.conflicting_senses == ["sense A", "sense B"]
-    assert notice.suggested_action == "run `spec-kitty glossary resolve deployment-target`"
+    assert notice.suggested_action == "run `spec-kitty glossary conflicts --unresolved`"
 
 
 def test_critical_severity_returns_notice(tmp_path: Path) -> None:
@@ -257,7 +271,7 @@ def test_render_notices_formats_notice() -> None:
         severity="high",
         conflict_type="scope_mismatch",
         conflicting_senses=["sense A", "sense B"],
-        suggested_action="run `spec-kitty glossary resolve my-term`",
+        suggested_action="run `spec-kitty glossary conflicts --unresolved`",
     )
     surface = ObservationSurface()
     surface.render_notices([notice], console)
@@ -265,7 +279,7 @@ def test_render_notices_formats_notice() -> None:
     assert "my-term" in output
     assert "high" in output
     assert "scope_mismatch" in output
-    assert "spec-kitty glossary resolve my-term" in output
+    assert "spec-kitty glossary conflicts --unresolved" in output
 
 
 # ---------------------------------------------------------------------------
@@ -300,14 +314,22 @@ def test_collect_notices_completes_within_50ms(tmp_path: Path) -> None:
     for i in range(1000):
         severity = "high" if i % 10 == 0 else "low"
         events.append({
-            "event_type": "semantic_check_evaluated",
-            "invocation_id": f"inv-{i % 5}",
-            "term": f"term-{i}",
-            "term_id": f"glossary:term-{i}",
-            "severity": severity,
-            "conflict_type": "scope_mismatch",
-            "conflicting_senses": ["a", "b"],
-            "checked_at": "2026-04-23T05:00:00Z",
+            "event_type": "SemanticCheckEvaluated",
+            "step_id": f"inv-{i % 5}",
+            "timestamp": "2026-04-23T05:00:00Z",
+            "overall_severity": severity,
+            "findings": [
+                {
+                    "term": {"surface_text": f"term-{i}"},
+                    "term_id": f"glossary:term-{i}",
+                    "severity": severity,
+                    "conflict_type": "scope_mismatch",
+                    "candidate_senses": [
+                        {"surface": f"term-{i}", "scope": "team_domain", "definition": "a", "confidence": 0.9},
+                        {"surface": f"term-{i}", "scope": "spec_kitty_core", "definition": "b", "confidence": 0.8},
+                    ],
+                }
+            ],
         })
     _write_event_log(tmp_path, events)
 

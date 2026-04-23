@@ -1,8 +1,8 @@
 """Inline drift observation surface for glossary semantic-check events.
 
-After a CLI invocation (do / advise / ask), this module reads events written
-by the glossary chokepoint (WP5.2) and renders compact inline notices for
-high/critical severity drift detected in the current invocation window.
+After a CLI invocation (do / advise / ask), this module reads glossary
+semantic-check events and renders compact inline notices for high/critical
+severity drift detected in the current invocation window.
 
 Key invariants:
 - collect_notices() NEVER raises — returns [] on any exception.
@@ -12,12 +12,13 @@ Key invariants:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from rich.console import Console
 from rich.text import Text
+
+from .semantic_events import iter_semantic_conflicts
 
 # ---------------------------------------------------------------------------
 # Value object
@@ -46,9 +47,6 @@ class InlineNotice:
 class ObservationSurface:
     """Reads glossary drift events and renders inline notices."""
 
-    _EVENT_LOG_RELPATH = Path(".kittify") / "events" / "glossary" / "_cli.events.jsonl"
-    _TARGET_EVENT_TYPE = "semantic_check_evaluated"
-
     def collect_notices(
         self,
         repo_root: Path,
@@ -68,45 +66,24 @@ class ObservationSurface:
             term_id), filtered to high/critical severity.
         """
         try:
-            log_path = repo_root / self._EVENT_LOG_RELPATH
-            if not log_path.exists():
-                return []
-
             # term_id -> last matching event dict
-            seen: dict[str, dict] = {}
-
-            for line in log_path.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if not line:
+            seen: dict[str, InlineNotice] = {}
+            for conflict in iter_semantic_conflicts(repo_root, invocation_id=invocation_id):
+                if conflict.severity not in _HIGH_SEVERITY:
                     continue
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue  # skip malformed lines silently
-
-                if event.get("event_type") != self._TARGET_EVENT_TYPE:
+                if not conflict.term_id:
                     continue
-                if event.get("severity") not in _HIGH_SEVERITY:
-                    continue
-                if invocation_id is not None and event.get("invocation_id") != invocation_id:
-                    continue
-
-                term_id = event.get("term_id", "")
-                seen[term_id] = event
+                seen[conflict.term_id] = InlineNotice(
+                    term=conflict.term,
+                    term_id=conflict.term_id,
+                    severity=conflict.severity,
+                    conflict_type=conflict.conflict_type,
+                    conflicting_senses=conflict.conflicting_senses,
+                    suggested_action="run `spec-kitty glossary conflicts --unresolved`",
+                )
 
             notices: list[InlineNotice] = []
-            for event in seen.values():
-                term = event.get("term", "")
-                notices.append(
-                    InlineNotice(
-                        term=term,
-                        term_id=event.get("term_id", ""),
-                        severity=event.get("severity", ""),
-                        conflict_type=event.get("conflict_type", ""),
-                        conflicting_senses=list(event.get("conflicting_senses", [])),
-                        suggested_action=f"run `spec-kitty glossary resolve {term}`",
-                    )
-                )
+            notices.extend(seen.values())
             return notices
         except Exception:  # noqa: BLE001
             return []

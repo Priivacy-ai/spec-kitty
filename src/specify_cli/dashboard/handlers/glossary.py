@@ -6,6 +6,8 @@ import json
 import logging
 from pathlib import Path
 
+from specify_cli.glossary.semantic_events import iter_semantic_conflicts
+
 from ..api_types import GlossaryHealthResponse, GlossaryTermRecord
 from .base import DashboardHandler
 
@@ -98,22 +100,14 @@ class GlossaryHandler(DashboardHandler):
             draft_count = sum(1 for t in senses if t.status.value == "draft")
             deprecated_count = sum(1 for t in senses if t.status.value == "deprecated")
 
-            # High-severity drift count: scan _cli.events.jsonl
-            event_log = project_dir / ".kittify" / "events" / "glossary" / "_cli.events.jsonl"
             high_count = 0
             last_at: str | None = None
-            if event_log.exists():
-                for line in event_log.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        ev = json.loads(line)
-                        if ev.get("event_type") == "semantic_check_evaluated" and ev.get("severity") in {"high", "critical"}:
-                            high_count += 1
-                            last_at = ev.get("checked_at")
-                    except json.JSONDecodeError:
-                        pass
+            for conflict in iter_semantic_conflicts(project_dir):
+                if conflict.severity not in {"high", "critical"}:
+                    continue
+                high_count += 1
+                if conflict.timestamp:
+                    last_at = max(last_at, conflict.timestamp) if last_at else conflict.timestamp
 
             entity_pages_dir = project_dir / ".kittify" / "charter" / "compiled" / "glossary"
             entity_pages_generated = entity_pages_dir.exists() and any(entity_pages_dir.iterdir())
