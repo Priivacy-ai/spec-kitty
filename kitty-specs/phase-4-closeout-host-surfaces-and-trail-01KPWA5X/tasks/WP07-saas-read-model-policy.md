@@ -16,6 +16,8 @@ subtasks:
 - T036
 - T037
 - T038
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "22491"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -458,3 +460,7 @@ Reviewer should:
 - Run both new test files + extensions; confirm all pass.
 - Confirm `mypy --strict` is clean.
 - Spot-check the parametrised sync-disabled tests run against ALL four modes + ALL four event kinds.
+
+## Activity Log
+
+- 2026-04-23T06:05:49Z – claude:sonnet-4-6:implementer:implementer – shell_pid=22491 – Started implementation via action command
