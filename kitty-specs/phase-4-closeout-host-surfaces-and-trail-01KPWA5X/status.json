@@ -1,7 +1,7 @@
 {
-  "event_count": 33,
-  "last_event_id": "01KPWE0DBTWKGXJ4EFF43K3PQ9",
-  "materialized_at": "2026-04-23T05:46:34.746908+00:00",
+  "event_count": 34,
+  "last_event_id": "01KPWE19BAQZE05N2S0Q98H024",
+  "materialized_at": "2026-04-23T05:47:03.402474+00:00",
   "mission_number": "",
   "mission_slug": "phase-4-closeout-host-surfaces-and-trail-01KPWA5X",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 0,
+    "for_review": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 5
   },
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-04-23T05:40:53.448620+00:00"
     },
     "WP04": {
-      "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KPWE0DBTWKGXJ4EFF43K3PQ9",
-      "last_transition_at": "2026-04-23T05:46:34.746908+00:00"
+      "actor": "claude:sonnet-4-6:reviewer:reviewer",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KPWE19BAQZE05N2S0Q98H024",
+      "last_transition_at": "2026-04-23T05:47:03.402474+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
