@@ -18,8 +18,8 @@ subtasks:
 - T007
 - T008
 - T009
-shell_pid: "13252"
-agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "14299"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -276,3 +276,4 @@ Reviewer should:
 
 - 2026-04-23T05:30:29Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13252 – Assigned agent via action command
 - 2026-04-23T05:33:36Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13252 – Dashboard wording fix complete: 11 user-visible strings updated; backend identifiers preserved; 17/17 tests pass
+- 2026-04-23T05:33:52Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=14299 – Started review via action command
