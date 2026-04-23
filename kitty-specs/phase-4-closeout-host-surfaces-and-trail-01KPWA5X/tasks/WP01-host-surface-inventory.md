@@ -12,8 +12,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "11864"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "12701"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -171,3 +171,4 @@ Reviewer should:
 
 - 2026-04-23T05:24:13Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11864 – Started implementation via action command
 - 2026-04-23T05:27:27Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11864 – Host-surface inventory matrix complete: 15/15 surfaces audited and scoped for WP04 rollout
+- 2026-04-23T05:28:03Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=12701 – Started review via action command
