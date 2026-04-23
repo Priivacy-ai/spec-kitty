@@ -51,13 +51,13 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T023 | Add parity-coverage test `tests/specify_cli/docs/test_host_surface_inventory.py` | WP05 |  | [D] |
 | T024 | Mark `#496` as delivered in the tracker-hygiene checklist for WP09 | WP05 |  | [D] |
 | T025 | Wire merge-ready signal: all Tranche A tests green | WP05 |  | [D] |
-| T026 | Create `modes.py` with `ModeOfWork` + `derive_mode()` + unit tests | WP06 |  |
-| T027 | Extend `InvocationRecord` with optional `mode_of_work`; executor threads kwarg | WP06 |  |
-| T028 | Add `append_correlation_link()` + shared `normalise_ref()` to `writer.py` | WP06 |  |
-| T029 | Add `InvalidModeForEvidenceError`; enforce in `complete_invocation` | WP06 |  |
-| T030 | CLI wiring for advise/ask/do/complete (`advise.py`, `do_cmd.py`) — mode + correlation flags | WP06 |  |
-| T031 | CLI wiring for query + mission-step paths (`profiles_cmd.py`, `invocations_cmd.py`, `next_cmd.py`) | WP06 |  |
-| T032 | Integration tests: e2e + correlation + enforcement + backwards compat | WP06 |  |
+| T026 | Create `modes.py` with `ModeOfWork` + `derive_mode()` + unit tests | WP06 |  | [D] |
+| T027 | Extend `InvocationRecord` with optional `mode_of_work`; executor threads kwarg | WP06 |  | [D] |
+| T028 | Add `append_correlation_link()` + shared `normalise_ref()` to `writer.py` | WP06 |  | [D] |
+| T029 | Add `InvalidModeForEvidenceError`; enforce in `complete_invocation` | WP06 |  | [D] |
+| T030 | CLI wiring for advise/ask/do/complete (`advise.py`, `do_cmd.py`) — mode + correlation flags | WP06 |  | [D] |
+| T031 | CLI wiring for query + mission-step paths (`profiles_cmd.py`, `invocations_cmd.py`, `next_cmd.py`) | WP06 |  | [D] |
+| T032 | Integration tests: e2e + correlation + enforcement + backwards compat | WP06 |  | [D] |
 | T033 | Create `projection_policy.py` with `EventKind`, `ProjectionRule`, `POLICY_TABLE`, `resolve_projection()` | WP07 |  |
 | T034 | Modify `_propagate_one` to consult `resolve_projection`; gate envelope field inclusion | WP07 |  |
 | T035 | Unit tests for all 16 policy rows + null-mode fallback | WP07 |  |
@@ -208,13 +208,13 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T026 Create `modes.py` with `ModeOfWork` + `derive_mode()` + unit tests
-- [ ] T027 Extend `InvocationRecord` with optional `mode_of_work`; executor threads kwarg
-- [ ] T028 Add `append_correlation_link()` + shared `normalise_ref()` to `writer.py`
-- [ ] T029 Add `InvalidModeForEvidenceError`; enforce in `complete_invocation`
-- [ ] T030 CLI wiring for advise/ask/do/complete (`advise.py`, `do_cmd.py`) — mode + correlation flags
-- [ ] T031 CLI wiring for query + mission-step paths (`profiles_cmd.py`, `invocations_cmd.py`, `next_cmd.py`)
-- [ ] T032 Integration tests: e2e + correlation + enforcement + backwards compat
+- [x] T026 Create `modes.py` with `ModeOfWork` + `derive_mode()` + unit tests
+- [x] T027 Extend `InvocationRecord` with optional `mode_of_work`; executor threads kwarg
+- [x] T028 Add `append_correlation_link()` + shared `normalise_ref()` to `writer.py`
+- [x] T029 Add `InvalidModeForEvidenceError`; enforce in `complete_invocation`
+- [x] T030 CLI wiring for advise/ask/do/complete (`advise.py`, `do_cmd.py`) — mode + correlation flags
+- [x] T031 CLI wiring for query + mission-step paths (`profiles_cmd.py`, `invocations_cmd.py`, `next_cmd.py`)
+- [x] T032 Integration tests: e2e + correlation + enforcement + backwards compat
 
 **Dependencies**: WP05 (Tranche A must close before Tranche B begins).
 **Execution mode**: `code_change`.
