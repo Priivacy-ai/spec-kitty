@@ -2,7 +2,6 @@
 import re
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 README = REPO_ROOT / "README.md"
@@ -61,11 +60,6 @@ def test_advise_skill_references_resolve() -> None:
         assert target.exists(), f"Broken link in spec-kitty.advise/SKILL.md: {link}"
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="docs/host-surface-parity.md is created by WP05 (forward reference); "
-    "link will resolve once WP05 merges",
-)
 def test_runtime_next_skill_references_resolve() -> None:
     skill = REPO_ROOT / "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md"
     content = skill.read_text()

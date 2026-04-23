@@ -129,7 +129,16 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
         event_kind = EventKind.STARTED
 
     raw_mode = getattr(record, "mode_of_work", None)
-    mode: ModeOfWork | None = ModeOfWork(raw_mode) if raw_mode else None
+    mode: ModeOfWork | None
+    if raw_mode:
+        try:
+            mode = ModeOfWork(raw_mode)
+        except ValueError:
+            # Malformed mode_of_work on the record. Treat as None (legacy) rather than
+            # crashing the background propagation thread silently.
+            mode = None
+    else:
+        mode = None
     rule = resolve_projection(mode, event_kind)
     if not rule.project:
         return  # Policy says no projection for this (mode, event) pair.

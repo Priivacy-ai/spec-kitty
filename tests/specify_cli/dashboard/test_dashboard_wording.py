@@ -41,6 +41,13 @@ class TestUserVisibleMissionRunWording:
         assert "create your first mission" in content
         assert "create your first feature" not in content
 
+    def test_index_html_empty_state_heading_uses_missions(self) -> None:
+        """The empty-state <h2> heading shown when the mission selector has
+        no missions must use Mission vocabulary (FR-003 / SC-002)."""
+        content = INDEX_HTML.read_text()
+        assert ">No Missions Found<" in content
+        assert ">No Features Found<" not in content
+
     def test_dashboard_js_feature_heading_renamed(self) -> None:
         content = DASHBOARD_JS.read_text()
         assert "<h3>Mission Run: ${feature.name}" in content

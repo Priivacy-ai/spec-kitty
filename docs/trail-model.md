@@ -85,6 +85,8 @@ the `started`/`completed` pair.
 
 Both events are append-only (never mutate existing lines) and readable by a single-file scan. Readers that do not recognise these event types may safely skip the line — the same additive-reader invariant that protects `glossary_checked`.
 
+**SaaS projection status (3.2.x)**: Correlation events are **local-only** in the 3.2.x line. The projection policy (`POLICY_TABLE` in `src/specify_cli/invocation/projection_policy.py`) assigns `project=True` for `task_execution` / `mission_step` correlation events, but the dict-record submission path in `_propagate_one` is not yet wired. SaaS projection of correlation events will land in a future release consistent with the ADR-004 local-only stance for Tier 2 content.
+
 See ADR-001-correlation-contract.md for the design; contracts/profile-invocation-complete.md for the CLI shape.
 
 ### Tier 2 — Evidence Artifact (optional, caller-triggered)

@@ -20,6 +20,12 @@ INDEX_PATH = ".kittify/events/invocation-index.jsonl"
 def normalise_ref(ref: str, repo_root: Path) -> str:
     """Repo-relative when resolved path is under repo_root; absolute fallback.
 
+    Note: ``Path(ref).resolve()`` follows symlinks. If the caller supplies a
+    symlink that points outside the repository, the resolved target will be
+    recorded as an absolute path. Operators supplying ``--artifact`` flags are
+    responsible for knowing what their links resolve to; the invocation trail
+    faithfully records the resolved target.
+
     See data-model.md §6.
     """
     try:

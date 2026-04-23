@@ -287,23 +287,34 @@ class ProfileInvocationExecutor:
             )
 
         # Step 7: Propagate completed event (non-blocking, best-effort; existing behaviour).
-        # Correlation events are also submitted here. WP07 will add the policy gate.
-        # Transient over-projection noted in ADR-001: without WP07's gate, correlation
-        # events project unconditionally for authenticated+sync-enabled checkouts.
+        # Correlation events (artifact_link, commit_link) are locally written by
+        # append_correlation_link() above but are NOT submitted to the propagator in
+        # this release. The policy gate in projection_policy.py is implemented (and
+        # POLICY_TABLE assigns project=True for task_execution/mission_step correlation
+        # events), but the dict-record submission path in _propagate_one is not yet
+        # wired. SaaS projection of correlation events is deferred consistent with the
+        # ADR-004 local-only stance for Tier 2 content in the 3.2.x line. See
+        # propagator.py NOTE and docs/trail-model.md "Correlation Links" section.
         if self._propagator is not None:
             self._propagator.submit(completed)
 
         return completed
 
     def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None:
-        """Read mode_of_work from the started event. Returns None for pre-mission records."""
+        """Read mode_of_work from the started event. Returns None for pre-mission records
+        or when the stored value is not a recognised ModeOfWork (malformed trail)."""
         path = self._writer.invocation_path(invocation_id)
         if not path.exists():
             raise InvocationError(f"Invocation record not found: {invocation_id}")
         first_line = path.read_text(encoding="utf-8").splitlines()[0]
         first = _json_mod.loads(first_line)
         raw = first.get("mode_of_work")
-        return ModeOfWork(raw) if raw else None
+        if not raw:
+            return None
+        try:
+            return ModeOfWork(raw)
+        except ValueError:
+            return None  # unknown/invalid mode_of_work → treat as legacy, skip enforcement
 
     def _derive_action_from_request(self, request_text: str, role: object) -> str:  # noqa: ARG002
         """Derive canonical action token from role when profile_hint is explicit."""
