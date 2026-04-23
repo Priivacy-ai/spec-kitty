@@ -12,6 +12,8 @@ subtasks:
 - T002
 - T003
 - T004
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "11864"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -164,3 +166,7 @@ Reviewer should:
 - Spot-check 3 randomly selected rows for accuracy (read the actual surface file and verify the audit claim).
 - Confirm `parity_status=at_parity` is reserved for surfaces that genuinely cover all three guidance dimensions.
 - Confirm every `pointer` row names the exact file path WP04 will create, and the rationale is specific (not boilerplate).
+
+## Activity Log
+
+- 2026-04-23T05:24:13Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11864 – Started implementation via action command
