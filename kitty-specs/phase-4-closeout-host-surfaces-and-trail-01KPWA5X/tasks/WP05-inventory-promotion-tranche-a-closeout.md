@@ -269,3 +269,4 @@ Reviewer should:
 ## Activity Log
 
 - 2026-04-23T05:49:10Z – claude:sonnet-4-6:implementer:implementer – shell_pid=18311 – Started implementation via action command
+- 2026-04-23T05:52:57Z – claude:sonnet-4-6:implementer:implementer – shell_pid=18311 – Tranche A closeout: parity matrix promoted to docs/host-surface-parity.md; coverage test green; Tranche A test suite green (17+6+5=28 total, 27 passed + 1 xpassed). T021 deferred to WP08. kitty-specs inventory left unchanged (validator constraint).
