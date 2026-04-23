@@ -26,10 +26,10 @@ Reference table only — status is tracked via per-WP checkboxes below.
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Scaffold host-surface inventory matrix file | WP01 |  |
-| T002 | Audit slash-command surfaces (13) for advise/ask/do parity | WP01 | [P] |
-| T003 | Audit Agent Skills surfaces (Codex, Vibe) | WP01 | [P] |
-| T004 | Populate inventory rows + parity_status + notes | WP01 |  |
+| T001 | Scaffold host-surface inventory matrix file | WP01 |  | [D] |
+| T002 | Audit slash-command surfaces (13) for advise/ask/do parity | WP01 | [D] |
+| T003 | Audit Agent Skills surfaces (Codex, Vibe) | WP01 | [D] |
+| T004 | Populate inventory rows + parity_status + notes | WP01 |  | [D] |
 | T005 | Replace user-visible `Feature` strings in `dashboard/templates/index.html` | WP02 |  |
 | T006 | Replace user-visible `Feature` strings in `dashboard/static/dashboard/dashboard.js` | WP02 |  |
 | T007 | Replace `"no feature context"` in `dashboard/diagnostics.py` | WP02 |  |
@@ -94,10 +94,10 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T001 Scaffold host-surface inventory matrix file
-- [ ] T002 Audit slash-command surfaces (13) for advise/ask/do parity
-- [ ] T003 Audit Agent Skills surfaces (Codex, Vibe)
-- [ ] T004 Populate inventory rows + parity_status + notes
+- [x] T001 Scaffold host-surface inventory matrix file
+- [x] T002 Audit slash-command surfaces (13) for advise/ask/do parity
+- [x] T003 Audit Agent Skills surfaces (Codex, Vibe)
+- [x] T004 Populate inventory rows + parity_status + notes
 
 **Dependencies**: none.
 **Execution mode**: `planning_artifact`.
