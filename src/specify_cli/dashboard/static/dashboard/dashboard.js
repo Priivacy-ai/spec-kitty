@@ -319,8 +319,8 @@ return `
     const completionRate = stats.weighted_percentage != null
         ? Math.round(stats.weighted_percentage)
         : (total > 0 ? Math.round((completed / total) * 100) : 0);
-    const purposeTldr = (feature.purpose_tldr || meta.purpose_tldr || '').trim();
-    const purposeContext = (feature.purpose_context || meta.purpose_context || '').trim();
+    const purposeTldr = (meta.purpose_tldr || '').trim();
+    const purposeContext = (meta.purpose_context || '').trim();
     const overviewIntro = purposeTldr
         ? `<p style="color: #374151; font-weight: 600; margin-top: 12px;">${escapeHtml(purposeTldr)}</p>`
         : '<p style="color: #6b7280;">View and track all artifacts for this feature</p>';

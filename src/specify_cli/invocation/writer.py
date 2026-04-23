@@ -29,7 +29,9 @@ def normalise_ref(ref: str, repo_root: Path) -> str:
     See data-model.md §6.
     """
     try:
-        resolved = Path(ref).resolve()
+        path = Path(ref)
+        candidate = path if path.is_absolute() else repo_root / path
+        resolved = candidate.resolve()
     except (OSError, RuntimeError, ValueError):
         # ValueError can occur on paths with embedded null bytes (Python 3.14+)
         return ref

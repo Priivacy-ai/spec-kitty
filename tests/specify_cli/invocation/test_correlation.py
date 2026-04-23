@@ -41,6 +41,24 @@ def test_normalise_ref_verbatim_fallback(tmp_path: Path) -> None:
     assert result == weird
 
 
+def test_normalise_ref_repo_relative_path_uses_repo_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Repo-relative refs must resolve from repo_root, not the caller's cwd."""
+    repo_root = tmp_path / "repo"
+    artifact = repo_root / "docs" / "output.md"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("x")
+    nested_cwd = repo_root / "nested" / "child"
+    nested_cwd.mkdir(parents=True)
+
+    monkeypatch.chdir(nested_cwd)
+
+    result = normalise_ref("docs/output.md", repo_root)
+
+    assert result == str(Path("docs") / "output.md")
+
+
 # ---------------------------------------------------------------------------
 # append_correlation_link full fixture test
 # ---------------------------------------------------------------------------

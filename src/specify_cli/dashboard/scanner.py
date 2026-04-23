@@ -455,22 +455,23 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
             continue
 
         friendly_name = feature_dir.name
-        purpose_tldr = ""
-        purpose_context = ""
         meta_data: dict[str, Any] | None = None
         meta_path = feature_dir / "meta.json"
         if meta_path.exists():
             try:
-                meta_data = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-                potential_name = meta_data.get("friendly_name")
-                if isinstance(potential_name, str) and potential_name.strip():
-                    friendly_name = potential_name.strip()
-                potential_tldr = meta_data.get("purpose_tldr")
-                if isinstance(potential_tldr, str) and potential_tldr.strip():
-                    purpose_tldr = " ".join(potential_tldr.split())
-                potential_context = meta_data.get("purpose_context")
-                if isinstance(potential_context, str) and potential_context.strip():
-                    purpose_context = " ".join(potential_context.split())
+                loaded_meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
+                if isinstance(loaded_meta, dict):
+                    meta_data = loaded_meta
+                    potential_name = meta_data.get("friendly_name")
+                    if isinstance(potential_name, str) and potential_name.strip():
+                        friendly_name = potential_name.strip()
+
+                    # Keep purpose summary data inside meta so the dashboard can
+                    # render it without widening the typed feature payload.
+                    for key in ("purpose_tldr", "purpose_context"):
+                        value = meta_data.get(key)
+                        if isinstance(value, str) and value.strip():
+                            meta_data[key] = " ".join(value.split())
             except json.JSONDecodeError:
                 meta_data = None
 
@@ -538,8 +539,6 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
                 "name": friendly_name,
                 "display_name": display_name,
                 "path": str(feature_dir.relative_to(project_dir)),
-                "purpose_tldr": purpose_tldr,
-                "purpose_context": purpose_context,
                 "artifacts": artifacts,
                 "workflow": workflow,
                 "kanban_stats": kanban_stats,
