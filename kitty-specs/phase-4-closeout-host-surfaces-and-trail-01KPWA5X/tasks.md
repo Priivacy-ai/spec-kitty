@@ -64,12 +64,12 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T036 | Integration tests: propagator under mocked client; each (mode, event) pair | WP07 |  | [D] |
 | T037 | NFR-007 / SC-008 assertion: propagation-errors.jsonl empty under sync-disabled | WP07 |  | [D] |
 | T038 | Golden-path regression: existing task_execution / mission_step timeline behaviour preserved | WP07 |  | [D] |
-| T039 | Add "Mode of Work (runtime-enforced)" subsection to `docs/trail-model.md` | WP08 |  |
-| T040 | Add "Correlation Links" subsection to `docs/trail-model.md` | WP08 |  |
-| T041 | Add "SaaS Read-Model Policy" subsection + full table to `docs/trail-model.md` | WP08 |  |
-| T042 | Add "Tier 2 SaaS Projection — Deferred" subsection to `docs/trail-model.md` | WP08 |  |
-| T043 | Update `CHANGELOG.md` unreleased section with Tranche A + Tranche B summaries + migration note | WP08 |  |
-| T044 | Add doc-presence test `tests/specify_cli/docs/test_trail_model_doc.py` | WP08 |  |
+| T039 | Add "Mode of Work (runtime-enforced)" subsection to `docs/trail-model.md` | WP08 |  | [D] |
+| T040 | Add "Correlation Links" subsection to `docs/trail-model.md` | WP08 |  | [D] |
+| T041 | Add "SaaS Read-Model Policy" subsection + full table to `docs/trail-model.md` | WP08 |  | [D] |
+| T042 | Add "Tier 2 SaaS Projection — Deferred" subsection to `docs/trail-model.md` | WP08 |  | [D] |
+| T043 | Update `CHANGELOG.md` unreleased section with Tranche A + Tranche B summaries + migration note | WP08 |  | [D] |
+| T044 | Add doc-presence test `tests/specify_cli/docs/test_trail_model_doc.py` | WP08 |  | [D] |
 | T045 | Prepare `#496` close comment + close on Tranche A delivery | WP09 |  |
 | T046 | Prepare `#701` close comment + close on mission merge | WP09 |  |
 | T047 | Update `#466` (Phase 4 tracker) — Phase 4 follow-on shipped | WP09 |  |
@@ -255,12 +255,12 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T039 Add "Mode of Work (runtime-enforced)" subsection to `docs/trail-model.md`
-- [ ] T040 Add "Correlation Links" subsection to `docs/trail-model.md`
-- [ ] T041 Add "SaaS Read-Model Policy" subsection + full table to `docs/trail-model.md`
-- [ ] T042 Add "Tier 2 SaaS Projection — Deferred" subsection to `docs/trail-model.md`
-- [ ] T043 Update `CHANGELOG.md` unreleased section with Tranche A + Tranche B summaries + migration note
-- [ ] T044 Add doc-presence test `tests/specify_cli/docs/test_trail_model_doc.py`
+- [x] T039 Add "Mode of Work (runtime-enforced)" subsection to `docs/trail-model.md`
+- [x] T040 Add "Correlation Links" subsection to `docs/trail-model.md`
+- [x] T041 Add "SaaS Read-Model Policy" subsection + full table to `docs/trail-model.md`
+- [x] T042 Add "Tier 2 SaaS Projection — Deferred" subsection to `docs/trail-model.md`
+- [x] T043 Update `CHANGELOG.md` unreleased section with Tranche A + Tranche B summaries + migration note
+- [x] T044 Add doc-presence test `tests/specify_cli/docs/test_trail_model_doc.py`
 
 **Dependencies**: WP06, WP07.
 **Execution mode**: `code_change`.
