@@ -275,3 +275,4 @@ Reviewer should:
 ## Activity Log
 
 - 2026-04-23T05:30:29Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13252 – Assigned agent via action command
+- 2026-04-23T05:33:36Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13252 – Dashboard wording fix complete: 11 user-visible strings updated; backend identifiers preserved; 17/17 tests pass
