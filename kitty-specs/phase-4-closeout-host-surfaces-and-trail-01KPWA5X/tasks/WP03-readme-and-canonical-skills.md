@@ -14,6 +14,8 @@ subtasks:
 - T012
 - T013
 - T014
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "14904"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -210,3 +212,7 @@ Reviewer should:
 - Run `git diff .agents/skills/spec-kitty.advise/SKILL.md src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and confirm any renames are user-facing prose only.
 - Run the test file and confirm the four README assertions pass plus both link-resolution tests.
 - Confirm no backend identifiers were renamed in either skill-pack file.
+
+## Activity Log
+
+- 2026-04-23T05:36:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=14904 – Started implementation via action command
