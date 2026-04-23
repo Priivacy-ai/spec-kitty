@@ -17,8 +17,8 @@ subtasks:
 - T023
 - T024
 - T025
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "18311"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "19329"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -270,3 +270,4 @@ Reviewer should:
 
 - 2026-04-23T05:49:10Z – claude:sonnet-4-6:implementer:implementer – shell_pid=18311 – Started implementation via action command
 - 2026-04-23T05:52:57Z – claude:sonnet-4-6:implementer:implementer – shell_pid=18311 – Tranche A closeout: parity matrix promoted to docs/host-surface-parity.md; coverage test green; Tranche A test suite green (17+6+5=28 total, 27 passed + 1 xpassed). T021 deferred to WP08. kitty-specs inventory left unchanged (validator constraint).
+- 2026-04-23T05:53:15Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=19329 – Started review via action command
