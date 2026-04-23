@@ -299,3 +299,4 @@ Reviewer should:
 ## Activity Log
 
 - 2026-04-23T06:12:11Z – claude:sonnet-4-6:implementer:implementer – shell_pid=25080 – Started implementation via action command
+- 2026-04-23T06:15:46Z – claude:sonnet-4-6:implementer:implementer – shell_pid=25080 – Post-Tranche-B docs complete: 6 trail-model.md subsections + CHANGELOG + 9 doc-presence tests
