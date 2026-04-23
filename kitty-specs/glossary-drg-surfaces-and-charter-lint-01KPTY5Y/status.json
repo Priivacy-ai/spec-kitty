@@ -1,0 +1,70 @@
+{
+  "event_count": 7,
+  "last_event_id": "01KPWCX0D48DH6JNKXMZRHD852",
+  "materialized_at": "2026-04-23T05:27:14.596476+00:00",
+  "mission_number": "",
+  "mission_slug": "glossary-drg-surfaces-and-charter-lint-01KPTY5Y",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 7
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX06J4W4KDCY63KEEZQPJ",
+      "last_transition_at": "2026-04-23T05:27:14.386624+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX0CCXAX4PGMKA4N3PFS4",
+      "last_transition_at": "2026-04-23T05:27:14.572507+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX0CJSC8TSQEJM4A889YJ",
+      "last_transition_at": "2026-04-23T05:27:14.579020+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX0CQT5S9BB10YXY1XVKB",
+      "last_transition_at": "2026-04-23T05:27:14.583784+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX0CWGBRSE6RZXHMPPPQJ",
+      "last_transition_at": "2026-04-23T05:27:14.588256+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX0D0AQ2VN909KWMCDEZD",
+      "last_transition_at": "2026-04-23T05:27:14.592433+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KPWCX0D48DH6JNKXMZRHD852",
+      "last_transition_at": "2026-04-23T05:27:14.596476+00:00"
+    }
+  }
+}

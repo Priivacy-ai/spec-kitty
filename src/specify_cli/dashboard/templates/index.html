@@ -85,6 +85,9 @@
             <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')" title="Diagnostics">
                 🔍 <span class="sidebar-label">Diagnostics</span>
             </div>
+            <div class="sidebar-item" onclick="window.location='/glossary'" title="Glossary">
+                📖 <span class="sidebar-label">Glossary</span>
+            </div>
         </div>
 
         <div class="main-content">
@@ -92,6 +95,18 @@
                 <div class="content-card">
                     <h2>Mission Run Overview</h2>
                     <div id="overview-content"></div>
+                </div>
+                <div class="content-card" id="glossary-tile" onclick="window.location='/glossary'" style="cursor:pointer; margin-top: 16px;">
+                    <h2>📖 Glossary</h2>
+                    <div id="glossary-tile-body" class="status-summary" style="margin-top: 12px;">
+                        <div class="status-card total" style="font-size: 0.9em;">Loading…</div>
+                    </div>
+                </div>
+                <div class="content-card" id="lint-tile" style="margin-top: 16px;">
+                    <h2>🔍 Decay Watch</h2>
+                    <div id="lint-tile-body" class="status-summary" style="margin-top: 12px;">
+                        <div class="status-card total" style="font-size: 0.9em;">Loading…</div>
+                    </div>
                 </div>
             </div>
 
@@ -255,5 +270,67 @@
     </div>
 
     <script src="/static/dashboard/dashboard.js"></script>
+    <script>
+        (function loadGlossaryTile() {
+            fetch('/api/glossary-health')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var body = document.getElementById('glossary-tile-body');
+                    if (!body) return;
+                    body.innerHTML =
+                        '<div class="status-card total">' +
+                            '<div class="status-label">Total</div>' +
+                            '<div class="status-value">' + (d.total_terms || 0) + '</div>' +
+                        '</div>' +
+                        '<div class="status-card progress">' +
+                            '<div class="status-label">Active</div>' +
+                            '<div class="status-value">' + (d.active_count || 0) + '</div>' +
+                        '</div>' +
+                        '<div class="status-card review">' +
+                            '<div class="status-label">Draft</div>' +
+                            '<div class="status-value">' + (d.draft_count || 0) + '</div>' +
+                        '</div>' +
+                        '<div class="status-card approved">' +
+                            '<div class="status-label">Deprecated</div>' +
+                            '<div class="status-value">' + (d.deprecated_count || 0) + '</div>' +
+                        '</div>' +
+                        '<div class="status-card completed">' +
+                            '<div class="status-label">Drift</div>' +
+                            '<div class="status-value">' + (d.high_severity_drift_count || 0) + '</div>' +
+                            '<div class="status-detail">high severity</div>' +
+                        '</div>';
+                })
+                .catch(function() {
+                    var body = document.getElementById('glossary-tile-body');
+                    if (body) body.textContent = 'unavailable';
+                });
+        })();
+        (function loadLintTile() {
+            fetch('/api/charter-lint')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var body = document.getElementById('lint-tile-body');
+                    if (!body) return;
+                    if (!d.has_data) {
+                        body.textContent = 'No lint data — run `spec-kitty charter lint`';
+                        return;
+                    }
+                    body.innerHTML =
+                        '<div>' +
+                            (d.orphan_count || 0) + ' orphans · ' +
+                            (d.contradiction_count || 0) + ' contradictions · ' +
+                            (d.staleness_count || 0) + ' stale · ' +
+                            (d.reference_integrity_count || 0) + ' broken refs' +
+                        '</div>' +
+                        '<div style="color:var(--text-dim);font-size:0.8em">' +
+                            (d.total_count || 0) + ' total findings' +
+                        '</div>';
+                })
+                .catch(function() {
+                    var body = document.getElementById('lint-tile-body');
+                    if (body) body.textContent = 'unavailable';
+                });
+        })();
+    </script>
 </body>
 </html>

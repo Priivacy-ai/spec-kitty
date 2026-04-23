@@ -66,6 +66,9 @@ kitty-specs/**/.kittify/dossiers/
 .kittify/charter/synthesis-manifest.yaml
 .kittify/doctrine/
 
+# Generated glossary entity pages — never commit
+.kittify/charter/compiled/glossary/
+
 # Local-only working notes / mission drafts (already-tracked files remain tracked)
 /work/
 .kittify/charter/governance.yaml

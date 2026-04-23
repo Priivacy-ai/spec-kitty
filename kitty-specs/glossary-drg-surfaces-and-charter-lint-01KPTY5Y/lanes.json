@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "mission_slug": "glossary-drg-surfaces-and-charter-lint-01KPTY5Y",
+  "mission_id": "01KPTY5YAVPZKFDFTG197XZAHG",
+  "mission_branch": "kitty/mission-glossary-drg-surfaces-and-charter-lint-01KPTY5Y",
+  "target_branch": "feat/glossary-save-seed-file-and-core-terms",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/advise.py",
+        "src/specify_cli/cli/commands/do_cmd.py",
+        "src/specify_cli/glossary/observation.py",
+        "tests/specify_cli/glossary/test_observation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP06",
+        "WP07",
+        "WP05"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "src/specify_cli/charter_lint/__init__.py",
+        "src/specify_cli/charter_lint/checks/__init__.py",
+        "src/specify_cli/charter_lint/checks/contradiction.py",
+        "src/specify_cli/charter_lint/checks/orphan.py",
+        "src/specify_cli/charter_lint/checks/reference_integrity.py",
+        "src/specify_cli/charter_lint/checks/staleness.py",
+        "src/specify_cli/charter_lint/engine.py",
+        "src/specify_cli/charter_lint/findings.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/glossary.py",
+        "src/specify_cli/dashboard/api_types.py",
+        "src/specify_cli/dashboard/handlers/glossary.py",
+        "src/specify_cli/dashboard/handlers/lint.py",
+        "src/specify_cli/dashboard/handlers/router.py",
+        "src/specify_cli/dashboard/templates/glossary.html",
+        "src/specify_cli/dashboard/templates/index.html",
+        "src/specify_cli/glossary/entity_pages.py",
+        "src/specify_cli/template/renderer.py",
+        "tests/specify_cli/charter_lint/checks/test_contradiction.py",
+        "tests/specify_cli/charter_lint/checks/test_orphan.py",
+        "tests/specify_cli/charter_lint/checks/test_reference_integrity.py",
+        "tests/specify_cli/charter_lint/checks/test_staleness.py",
+        "tests/specify_cli/charter_lint/test_engine.py",
+        "tests/specify_cli/cli/commands/test_charter_lint.py",
+        "tests/specify_cli/cli/commands/test_glossary_show.py",
+        "tests/specify_cli/dashboard/test_glossary_handler.py",
+        "tests/specify_cli/dashboard/test_lint_tile_handler.py",
+        "tests/specify_cli/glossary/test_entity_pages.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-23T05:27:14.605871+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP07"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP03"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP03"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}
