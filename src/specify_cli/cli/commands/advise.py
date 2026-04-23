@@ -116,7 +116,6 @@ def _run_invoke(
     entry_command: str = "advise",
 ) -> None:
     """Shared implementation for advise and ask commands."""
-    from specify_cli.invocation.modes import ModeOfWork
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
     mode = derive_mode(entry_command)
@@ -189,6 +188,53 @@ profile_invocation_app = typer.Typer(
 )
 
 
+def _handle_complete_already_closed(
+    invocation_id: str,
+    *,
+    json_output: bool,
+) -> None:
+    msg: dict[str, str] = {"warning": "already_closed", "invocation_id": invocation_id}
+    if json_output:
+        typer.echo(json.dumps(msg))
+    else:
+        console.print(
+            f"[yellow]Warning:[/yellow] Invocation {invocation_id} is already closed."
+        )
+    raise typer.Exit(0) from None
+
+
+def _render_complete_response(
+    *,
+    invocation_id: str,
+    outcome: str | None,
+    evidence_ref: str | None,
+    artifact: list[str] | None,
+    commit: str | None,
+    repo_root: Path,
+    json_output: bool,
+) -> None:
+    if json_output:
+        response = {
+            "result": "success",
+            "invocation_id": invocation_id,
+            "outcome": outcome,
+            "evidence_ref": evidence_ref,
+            "artifact_links": [normalise_ref(a, repo_root) for a in (artifact or [])],
+            "commit_link": commit,
+        }
+        typer.echo(json.dumps(response, indent=2))
+        return
+
+    console.print(f"[green]✓[/green] Invocation [bold]{invocation_id}[/bold] closed.")
+    if outcome:
+        console.print(f"  Outcome: {outcome}")
+    if artifact:
+        for item in artifact:
+            console.print(f"  Artifact: {normalise_ref(item, repo_root)}")
+    if commit:
+        console.print(f"  Commit: {commit}")
+
+
 @profile_invocation_app.command("complete")
 def complete_invocation(
     invocation_id: str = typer.Option(
@@ -230,41 +276,22 @@ def complete_invocation(
             commit_sha=commit,
         )
     except InvalidModeForEvidenceError as e:
-        console.print(
-            f"[red]Error:[/red] {e}"
-        )
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(2) from e
     except AlreadyClosedError:
-        msg: dict[str, str] = {"warning": "already_closed", "invocation_id": invocation_id}
-        if json_output:
-            typer.echo(json.dumps(msg))
-        else:
-            console.print(
-                f"[yellow]Warning:[/yellow] Invocation {invocation_id} is already closed."
-            )
-        raise typer.Exit(0) from None
+        _handle_complete_already_closed(invocation_id, json_output=json_output)
     except Exception as e:
         typer.echo(
             json.dumps({"error": "complete_failed", "message": str(e)}), err=True
         )
         raise typer.Exit(1) from e
 
-    if json_output:
-        response = {
-            "result": "success",
-            "invocation_id": invocation_id,
-            "outcome": outcome,
-            "evidence_ref": completed.evidence_ref,
-            "artifact_links": [normalise_ref(a, repo_root) for a in (artifact or [])],
-            "commit_link": commit,
-        }
-        typer.echo(json.dumps(response, indent=2))
-    else:
-        console.print(f"[green]✓[/green] Invocation [bold]{invocation_id}[/bold] closed.")
-        if outcome:
-            console.print(f"  Outcome: {outcome}")
-        if artifact:
-            for a in artifact:
-                console.print(f"  Artifact: {normalise_ref(a, repo_root)}")
-        if commit:
-            console.print(f"  Commit: {commit}")
+    _render_complete_response(
+        invocation_id=invocation_id,
+        outcome=outcome,
+        evidence_ref=completed.evidence_ref,
+        artifact=artifact,
+        commit=commit,
+        repo_root=repo_root,
+        json_output=json_output,
+    )

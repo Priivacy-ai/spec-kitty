@@ -119,68 +119,15 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
         return  # No SaaS token / client not connected → no-op, no log
 
     # 3. Policy lookup (read-only, never raises, never blocks).
-    raw_event = record.event
-    try:
-        event_kind = EventKind(raw_event)
-    except ValueError:
-        # Unknown event kind (e.g., future EventKind added before table extended).
-        # Use STARTED as the conservative fallback so resolve_projection returns
-        # _DEFAULT_RULE (project=True), which preserves existing behaviour.
-        event_kind = EventKind.STARTED
-
-    raw_mode = getattr(record, "mode_of_work", None)
-    mode: ModeOfWork | None
-    if raw_mode:
-        try:
-            mode = ModeOfWork(raw_mode)
-        except ValueError:
-            # Malformed mode_of_work on the record. Treat as None (legacy) rather than
-            # crashing the background propagation thread silently.
-            mode = None
-    else:
-        mode = None
+    event_kind = _coerce_event_kind(record.event)
+    mode = _coerce_mode(getattr(record, "mode_of_work", None))
     rule = resolve_projection(mode, event_kind)
     if not rule.project:
         return  # Policy says no projection for this (mode, event) pair.
 
     try:
-        if record.event == "started":
-            event_dict: dict[str, object] = {
-                "event_type": "ProfileInvocationStarted",
-                "invocation_id": record.invocation_id,
-                "profile_id": record.profile_id,
-                "action": record.action,
-                "governance_context_hash": record.governance_context_hash,
-                "actor": record.actor,
-                "started_at": record.started_at,
-            }
-            # Gate request_text inclusion on policy (advisory mode omits body).
-            if rule.include_request_text:
-                event_dict["request_text"] = record.request_text
-            # Additively include mode_of_work when present (WP06 additive field).
-            if mode is not None:
-                event_dict["mode_of_work"] = mode.value
-        else:  # completed
-            event_dict = {
-                "event_type": "ProfileInvocationCompleted",
-                "invocation_id": record.invocation_id,
-                "outcome": record.outcome,
-                "completed_at": record.completed_at,
-            }
-            # Gate evidence_ref inclusion on policy (advisory/query modes omit it).
-            if rule.include_evidence_ref:
-                event_dict["evidence_ref"] = record.evidence_ref
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already inside a running loop (rare in CLI threads, but safe)
-                _track_send_task(asyncio.create_task(client.send_event(event_dict)))
-            else:
-                loop.run_until_complete(client.send_event(event_dict))
-        except RuntimeError:
-            # No current event loop (background thread with no loop) → create one
-            asyncio.run(client.send_event(event_dict))
+        event_dict = _build_event_dict(record, rule, mode)
+        _send_event(client, event_dict)
 
     except Exception as exc:  # noqa: BLE001
         _log_propagation_error(repo_root, record, str(exc))
@@ -196,6 +143,83 @@ def _propagate_one(record: InvocationRecord, repo_root: Path) -> None:
     #       event_type_map = {"artifact_link": "ProfileInvocationArtifactLink",
     #                         "commit_link": "ProfileInvocationCommitLink"}
     #       ...and consult rule.project before calling client.send_event.
+
+
+def _coerce_event_kind(raw_event: str) -> EventKind:
+    try:
+        return EventKind(raw_event)
+    except ValueError:
+        # Unknown event kind (e.g., future EventKind added before table extended).
+        # Use STARTED as the conservative fallback so resolve_projection returns
+        # _DEFAULT_RULE (project=True), which preserves existing behaviour.
+        return EventKind.STARTED
+
+
+def _coerce_mode(raw_mode: str | None) -> ModeOfWork | None:
+    if not raw_mode:
+        return None
+    try:
+        return ModeOfWork(raw_mode)
+    except ValueError:
+        # Malformed mode_of_work on the record. Treat as None (legacy) rather than
+        # crashing the background propagation thread silently.
+        return None
+
+
+def _build_event_dict(
+    record: InvocationRecord,
+    rule: Any,
+    mode: ModeOfWork | None,
+) -> dict[str, object]:
+    if record.event == "started":
+        return _build_started_event_dict(record, rule, mode)
+    return _build_completed_event_dict(record, rule)
+
+
+def _build_started_event_dict(
+    record: InvocationRecord,
+    rule: Any,
+    mode: ModeOfWork | None,
+) -> dict[str, object]:
+    event_dict: dict[str, object] = {
+        "event_type": "ProfileInvocationStarted",
+        "invocation_id": record.invocation_id,
+        "profile_id": record.profile_id,
+        "action": record.action,
+        "governance_context_hash": record.governance_context_hash,
+        "actor": record.actor,
+        "started_at": record.started_at,
+    }
+    if rule.include_request_text:
+        event_dict["request_text"] = record.request_text
+    if mode is not None:
+        event_dict["mode_of_work"] = mode.value
+    return event_dict
+
+
+def _build_completed_event_dict(record: InvocationRecord, rule: Any) -> dict[str, object]:
+    event_dict: dict[str, object] = {
+        "event_type": "ProfileInvocationCompleted",
+        "invocation_id": record.invocation_id,
+        "outcome": record.outcome,
+        "completed_at": record.completed_at,
+    }
+    if rule.include_evidence_ref:
+        event_dict["evidence_ref"] = record.evidence_ref
+    return event_dict
+
+
+def _send_event(client: Any, event_dict: dict[str, object]) -> None:
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Already inside a running loop (rare in CLI threads, but safe)
+            _track_send_task(asyncio.create_task(client.send_event(event_dict)))
+            return
+        loop.run_until_complete(client.send_event(event_dict))
+    except RuntimeError:
+        # No current event loop (background thread with no loop) → create one
+        asyncio.run(client.send_event(event_dict))
 
 
 def _log_propagation_error(
