@@ -111,19 +111,20 @@ unset GITHUB_TOKEN && gh issue edit 496 --title "[Phase 4] Host-surface breadth 
 
 Skip if the operator prefers to preserve the original issue title for historical clarity.
 
-## Completion Record (fill at execution time)
+## Completion Record
 
 | # | Issue | Action | Executed at (ISO-8601) | Verified |
 |---|-------|--------|------------------------|----------|
-| 1 | #496 | Closed with delivery comment | | [ ] |
-| 2 | #701 | Closed with delivery comment | | [ ] |
-| 3 | #466 | Commented: Phase 4 follow-on shipped | | [ ] |
-| 4 | #534 | Cross-linked to #499 / #759 (state=OPEN) | | [ ] |
-| 5 | #461 | Verified OPEN | | [ ] |
-| 6 | #496 | (optional) Retitled | | [ ] |
+| 1 | #496 | Closed with delivery comment | 2026-04-23T05:45:00Z | [x] `gh issue view 496 --json state` → CLOSED |
+| 2 | #701 | Closed with delivery comment | 2026-04-23T05:45:00Z | [x] `gh issue view 701 --json state` → CLOSED |
+| 3 | #466 | Commented: Phase 4 follow-on shipped | 2026-04-23T05:45:00Z | [x] Comment live at /issues/466#issuecomment-4302218609 |
+| 4 | #534 | Cross-linked to #499 / #759 (state=OPEN) | 2026-04-23T05:45:00Z | [x] Comment live at /issues/534#issuecomment-4302218918; `state=OPEN` confirmed |
+| 5 | #461 | Verified OPEN | 2026-04-23T05:45:00Z | [x] `gh issue view 461 --json state` → OPEN |
+| 6 | #496 | (optional) Retitled | — | [ ] Skipped — original title preserved for historical clarity |
 
-**Executed by**: `<operator GitHub handle>`
-**Merge commit SHA**: `<fill in>`
+**Executed by**: `robertDouglass` (keyring gh auth, scopes: `repo`, `read:org`)
+**Merge commit SHA**: `9d37a13b` (squash-merge of mission branch to main)
+**Post-merge fix commits**: `08ff251c` (regression fix — verify_enhanced.py + stale tests), `8bcb7193` (mission-review follow-ups — `No Missions Found` heading, executor comment, ValueError guards, symlink docstring, stale xfail removed)
 
 ## Post-Execution PR Description Line
 
