@@ -236,7 +236,7 @@ class StagingDir:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> bool:
+    ) -> bool | None:
         if exc_type is not None:
             # Unhandled exception — preserve staging as .failed/
             cause = f"{exc_type.__name__}: {exc_val}"
@@ -244,7 +244,7 @@ class StagingDir:
             # Re-raise the original exception (return False suppresses nothing)
             return False
         # Success path — caller must call wipe() explicitly after promote.
-        return False
+        return None
 
 
 __all__ = ["StagingDir"]
