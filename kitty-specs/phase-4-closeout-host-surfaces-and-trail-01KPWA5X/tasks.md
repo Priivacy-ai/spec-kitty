@@ -35,11 +35,11 @@ Reference table only — status is tracked via per-WP checkboxes below.
 | T007 | Replace `"no feature context"` in `dashboard/diagnostics.py` | WP02 |  | [D] |
 | T008 | Write wording + backend-preservation snapshot test | WP02 |  | [D] |
 | T009 | Live dashboard visual verification | WP02 |  | [D] |
-| T010 | Audit + update `README.md` governance layer subsection | WP03 |  |
-| T011 | Terminology consistency pass on `.agents/skills/spec-kitty.advise/SKILL.md` | WP03 | [P] |
-| T012 | Terminology consistency pass on `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` | WP03 | [P] |
-| T013 | Snapshot test asserting README governance subsection structure | WP03 |  |
-| T014 | Link-target regression test for canonical skill-pack pointers | WP03 |  |
+| T010 | Audit + update `README.md` governance layer subsection | WP03 |  | [D] |
+| T011 | Terminology consistency pass on `.agents/skills/spec-kitty.advise/SKILL.md` | WP03 | [D] |
+| T012 | Terminology consistency pass on `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` | WP03 | [D] |
+| T013 | Snapshot test asserting README governance subsection structure | WP03 |  | [D] |
+| T014 | Link-target regression test for canonical skill-pack pointers | WP03 |  | [D] |
 | T015 | Establish the parity-file pattern (inline vs pointer) for each non-parity surface | WP04 |  |
 | T016 | Ship parity content for surface group 1 (copilot, gemini, cursor, qwen) | WP04 | [P] |
 | T017 | Ship parity content for surface group 2 (opencode, windsurf, kilocode) | WP04 | [P] |
@@ -137,11 +137,11 @@ Totals: **9 work packages, 51 subtasks.** Average size ~5.7 subtasks / WP. No WP
 
 **Included subtasks**:
 
-- [ ] T010 Audit + update `README.md` governance layer subsection
-- [ ] T011 Terminology consistency pass on `.agents/skills/spec-kitty.advise/SKILL.md`
-- [ ] T012 Terminology consistency pass on `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`
-- [ ] T013 Snapshot test asserting README governance subsection structure
-- [ ] T014 Link-target regression test for canonical skill-pack pointers
+- [x] T010 Audit + update `README.md` governance layer subsection
+- [x] T011 Terminology consistency pass on `.agents/skills/spec-kitty.advise/SKILL.md`
+- [x] T012 Terminology consistency pass on `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`
+- [x] T013 Snapshot test asserting README governance subsection structure
+- [x] T014 Link-target regression test for canonical skill-pack pointers
 
 **Dependencies**: WP01 (inventory identifies terminology gaps).
 **Execution mode**: `code_change`.
