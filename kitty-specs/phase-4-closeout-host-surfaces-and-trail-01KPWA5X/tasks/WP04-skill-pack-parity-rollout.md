@@ -15,6 +15,8 @@ subtasks:
 - T017
 - T018
 - T019
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "16292"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -179,3 +181,7 @@ Reviewer should:
 - Click each relative `docs/trail-model.md` link from the rendered markdown — all must resolve.
 - Confirm no file under `.claude/`, `.agents/skills/spec-kitty.advise/`, or `src/doctrine/skills/spec-kitty-runtime-next/` was modified (the canonicals stay untouched).
 - Confirm the inventory matrix reads `at_parity` for every touched row.
+
+## Activity Log
+
+- 2026-04-23T05:41:41Z – claude:sonnet-4-6:implementer:implementer – shell_pid=16292 – Started implementation via action command
