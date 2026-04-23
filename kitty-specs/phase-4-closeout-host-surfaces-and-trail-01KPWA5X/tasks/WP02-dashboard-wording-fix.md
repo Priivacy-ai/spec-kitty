@@ -18,7 +18,8 @@ subtasks:
 - T007
 - T008
 - T009
-shell_pid: '13252'
+shell_pid: "13252"
+agent: "claude:sonnet-4-6:implementer:implementer"
 history:
 - event: created
   at: '2026-04-23T05:10:00Z'
@@ -270,3 +271,7 @@ Reviewer should:
 - Run `grep -n "feature-selector\|feature-select\|lastFeature\|currentFeature\|switchFeature\|getFeatureDisplayName\|/api/kanban/\|active_mission" src/specify_cli/dashboard/` — expect non-zero hits (backend preserved).
 - Run the test file and confirm 20+ assertions pass.
 - Verify T009 evidence in the PR description.
+
+## Activity Log
+
+- 2026-04-23T05:30:29Z – claude:sonnet-4-6:implementer:implementer – shell_pid=13252 – Assigned agent via action command
