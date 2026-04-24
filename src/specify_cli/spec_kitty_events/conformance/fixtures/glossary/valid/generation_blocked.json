@@ -1,0 +1,11 @@
+{
+  "mission_id": "mission-fixture-001",
+  "step_id": "step-002",
+  "conflict_event_ids": [
+    "01HTESTCHECK00000000000001"
+  ],
+  "blocking_strictness": "max",
+  "step_metadata": {
+    "primitive": "generate"
+  }
+}

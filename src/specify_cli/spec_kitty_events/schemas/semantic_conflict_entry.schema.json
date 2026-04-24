@@ -1,0 +1,46 @@
+{
+  "$id": "spec-kitty-events/semantic_conflict_entry",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Single conflict finding within a semantic check evaluation.",
+  "properties": {
+    "description": {
+      "description": "Human-readable explanation of the conflict",
+      "title": "Description",
+      "type": "string"
+    },
+    "nature": {
+      "description": "Classification of the conflict",
+      "enum": [
+        "overloaded",
+        "drift",
+        "ambiguous"
+      ],
+      "title": "Nature",
+      "type": "string"
+    },
+    "severity": {
+      "description": "Severity level of this conflict",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "term": {
+      "description": "The conflicting term surface text",
+      "minLength": 1,
+      "title": "Term",
+      "type": "string"
+    }
+  },
+  "required": [
+    "term",
+    "nature",
+    "severity",
+    "description"
+  ],
+  "title": "SemanticConflictEntry",
+  "type": "object"
+}

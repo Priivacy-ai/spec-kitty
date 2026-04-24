@@ -1,0 +1,24 @@
+{
+  "origin_surface": "adr",
+  "decision_point_id": "01J10000000000000000000001",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "phase": "P1",
+  "actor_id": "01J10000000000000000000011",
+  "actor_type": "human",
+  "authority_role": "mission_owner",
+  "mission_owner_authority_flag": true,
+  "mission_owner_authority_path": "/missions/01KPWA0N4DX047S3NX734YRFVW/owner",
+  "rationale": "Legacy ADR: session vs token-based auth decision required for new API gateway",
+  "alternatives_considered": [
+    "session-based auth (existing)",
+    "oauth2 token-based auth"
+  ],
+  "evidence_refs": [
+    "adr-001-security-review"
+  ],
+  "state_entered_at": "2026-04-23T10:00:00+00:00",
+  "recorded_at": "2026-04-23T10:00:01+00:00"
+}

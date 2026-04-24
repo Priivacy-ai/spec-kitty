@@ -1,0 +1,53 @@
+{
+  "$id": "spec-kitty-events/sync_ingest_accepted_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for SyncIngestAccepted events.",
+  "properties": {
+    "connector_id": {
+      "minLength": 1,
+      "title": "Connector Id",
+      "type": "string"
+    },
+    "delivery_id": {
+      "minLength": 1,
+      "title": "Delivery Id",
+      "type": "string"
+    },
+    "ingest_batch_id": {
+      "minLength": 1,
+      "title": "Ingest Batch Id",
+      "type": "string"
+    },
+    "ingested_count": {
+      "exclusiveMinimum": 0,
+      "title": "Ingested Count",
+      "type": "integer"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "source_event_fingerprint": {
+      "minLength": 1,
+      "title": "Source Event Fingerprint",
+      "type": "string"
+    }
+  },
+  "required": [
+    "delivery_id",
+    "source_event_fingerprint",
+    "connector_id",
+    "mission_id",
+    "recorded_at",
+    "ingest_batch_id",
+    "ingested_count"
+  ],
+  "title": "SyncIngestAcceptedPayload",
+  "type": "object"
+}

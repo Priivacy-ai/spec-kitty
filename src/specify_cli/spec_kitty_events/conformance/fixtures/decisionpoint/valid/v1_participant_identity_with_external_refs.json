@@ -1,0 +1,39 @@
+{
+  "origin_surface": "planning_interview",
+  "decision_point_id": "01J10000000000000000000007",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "channel": "slack",
+  "teamspace_ref": {
+    "teamspace_id": "ts-01J10000000000000000000020",
+    "name": "Acme Engineering"
+  },
+  "default_channel_ref": {
+    "channel_id": "C01J10000000000000000000030",
+    "name": "spec-kitty-decisions"
+  },
+  "thread_ref": {
+    "slack_team_id": "T01J10000000000000000000040",
+    "channel_id": "C01J10000000000000000000030",
+    "thread_ts": "1745395900.000500",
+    "url": "https://acme.slack.com/archives/C01J10000000000000000000030/p1745395900000500"
+  },
+  "invited_participants": [
+    {
+      "participant_id": "01J10000000000000000000060",
+      "participant_type": "human",
+      "display_name": "Carol Danvers",
+      "session_id": "sess-01J10000000000000000000070",
+      "external_refs": {
+        "slack_user_id": "U01J10000000000000000000080",
+        "slack_team_id": "T01J10000000000000000000040",
+        "teamspace_member_id": "tm-01J10000000000000000000090"
+      }
+    }
+  ],
+  "widened_by": "01J10000000000000000000011",
+  "widened_at": "2026-04-23T10:09:00+00:00",
+  "recorded_at": "2026-04-23T10:09:01+00:00"
+}

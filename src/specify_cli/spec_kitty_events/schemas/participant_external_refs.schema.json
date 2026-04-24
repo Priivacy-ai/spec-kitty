@@ -1,0 +1,49 @@
+{
+  "$id": "spec-kitty-events/participant_external_refs",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Optional cross-channel identity references for a ParticipantIdentity.",
+  "properties": {
+    "slack_team_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Slack Team Id"
+    },
+    "slack_user_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Slack User Id"
+    },
+    "teamspace_member_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Teamspace Member Id"
+    }
+  },
+  "title": "ParticipantExternalRefs",
+  "type": "object"
+}

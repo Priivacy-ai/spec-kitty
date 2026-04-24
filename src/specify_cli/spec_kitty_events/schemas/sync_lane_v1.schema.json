@@ -1,0 +1,13 @@
+{
+  "$id": "spec-kitty-events/sync_lane_v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "V1 compatibility sync lanes for downstream consumers.",
+  "enum": [
+    "planned",
+    "doing",
+    "for_review",
+    "done"
+  ],
+  "title": "SyncLaneV1",
+  "type": "string"
+}

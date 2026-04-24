@@ -1,0 +1,29 @@
+{
+  "origin_surface": "adr",
+  "decision_point_id": "dp-008",
+  "mission_id": "m-007",
+  "run_id": "run-007",
+  "phase": "P2",
+  "actor_id": "human-5",
+  "actor_type": "human",
+  "authority_role": "mission_owner",
+  "mission_owner_authority_flag": true,
+  "mission_owner_authority_path": "/missions/m-007/owner",
+  "rationale": "Resolved with comprehensive evidence from multiple sources",
+  "alternatives_considered": [
+    "Design A",
+    "Design B",
+    "Design C",
+    "Design D"
+  ],
+  "evidence_refs": [
+    "ref-007",
+    "ref-008",
+    "ref-009",
+    "ref-010"
+  ],
+  "state_entered_at": "2026-02-27T19:00:00+00:00",
+  "recorded_at": "2026-02-27T19:00:01+00:00",
+  "mission_slug": "mission-x",
+  "mission_type": "software-dev"
+}

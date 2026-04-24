@@ -1,0 +1,9 @@
+{
+  "participant_id": "agent-001",
+  "mission_id": "M001",
+  "focus_target": {
+    "target_type": "wp",
+    "target_id": "WP03"
+  },
+  "previous_focus_target": null
+}

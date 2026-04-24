@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "FocusTarget": {
+      "description": "Structured focus reference. Hashable for use as dict key.",
+      "properties": {
+        "target_id": {
+          "description": "Identifier within the target type",
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "description": "Category of focus target",
+          "enum": [
+            "wp",
+            "step",
+            "file"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_type",
+        "target_id"
+      ],
+      "title": "FocusTarget",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/concurrent_driver_warning_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for ConcurrentDriverWarning events.",
+  "properties": {
+    "focus_target": {
+      "$ref": "#/$defs/FocusTarget",
+      "description": "Shared focus target triggering warning"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_ids": {
+      "description": "All concurrent active drivers on overlapping target",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "title": "Participant Ids",
+      "type": "array"
+    },
+    "severity": {
+      "description": "Warning severity level",
+      "enum": [
+        "info",
+        "warning"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "warning_id": {
+      "description": "Unique warning identifier",
+      "minLength": 1,
+      "title": "Warning Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "warning_id",
+    "mission_id",
+    "participant_ids",
+    "focus_target",
+    "severity"
+  ],
+  "title": "ConcurrentDriverWarningPayload",
+  "type": "object"
+}

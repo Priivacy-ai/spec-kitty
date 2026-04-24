@@ -1,0 +1,13 @@
+{
+  "warning_id": "warn-001",
+  "mission_id": "M001",
+  "participant_ids": [
+    "agent-001",
+    "agent-002"
+  ],
+  "focus_target": {
+    "target_type": "wp",
+    "target_id": "WP03"
+  },
+  "severity": "warning"
+}

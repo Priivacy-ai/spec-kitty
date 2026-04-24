@@ -1,0 +1,145 @@
+{
+  "$defs": {
+    "DecisionAuthorityRole": {
+      "enum": [
+        "mission_owner",
+        "advisory",
+        "informed"
+      ],
+      "title": "DecisionAuthorityRole",
+      "type": "string"
+    },
+    "OriginSurface": {
+      "description": "Surface that originated the decision point.",
+      "enum": [
+        "adr",
+        "planning_interview"
+      ],
+      "title": "OriginSurface",
+      "type": "string"
+    }
+  },
+  "$id": "spec-kitty-events/decision_point_overridden_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Payload for DecisionPointOverridden events.",
+  "properties": {
+    "actor_id": {
+      "minLength": 1,
+      "title": "Actor Id",
+      "type": "string"
+    },
+    "actor_type": {
+      "enum": [
+        "human",
+        "llm",
+        "service"
+      ],
+      "title": "Actor Type",
+      "type": "string"
+    },
+    "alternatives_considered": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Alternatives Considered",
+      "type": "array"
+    },
+    "authority_role": {
+      "$ref": "#/$defs/DecisionAuthorityRole"
+    },
+    "decision_point_id": {
+      "minLength": 1,
+      "title": "Decision Point Id",
+      "type": "string"
+    },
+    "evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "mission_owner_authority_flag": {
+      "title": "Mission Owner Authority Flag",
+      "type": "boolean"
+    },
+    "mission_owner_authority_path": {
+      "title": "Mission Owner Authority Path",
+      "type": "string"
+    },
+    "mission_slug": {
+      "minLength": 1,
+      "title": "Mission Slug",
+      "type": "string"
+    },
+    "mission_type": {
+      "minLength": 1,
+      "title": "Mission Type",
+      "type": "string"
+    },
+    "origin_surface": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OriginSurface"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "phase": {
+      "minLength": 1,
+      "title": "Phase",
+      "type": "string"
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "run_id": {
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "state_entered_at": {
+      "format": "date-time",
+      "title": "State Entered At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "decision_point_id",
+    "mission_id",
+    "run_id",
+    "mission_slug",
+    "mission_type",
+    "phase",
+    "actor_id",
+    "actor_type",
+    "authority_role",
+    "mission_owner_authority_flag",
+    "mission_owner_authority_path",
+    "rationale",
+    "alternatives_considered",
+    "evidence_refs",
+    "state_entered_at",
+    "recorded_at"
+  ],
+  "title": "DecisionPointOverriddenPayload",
+  "type": "object"
+}

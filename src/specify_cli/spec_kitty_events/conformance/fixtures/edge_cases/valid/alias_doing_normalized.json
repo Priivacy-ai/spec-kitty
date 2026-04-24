@@ -1,0 +1,8 @@
+{
+  "wp_id": "WP01",
+  "from_lane": "planned",
+  "to_lane": "doing",
+  "actor": "test-agent",
+  "execution_mode": "worktree",
+  "mission_slug": "mission-001"
+}

@@ -1,0 +1,40 @@
+{
+  "$id": "spec-kitty-events/mission_cancelled_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for MissionCancelled events.",
+  "properties": {
+    "actor": {
+      "description": "Actor who cancelled the mission",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "cancelled_wp_ids": {
+      "description": "WP IDs affected by cancellation",
+      "items": {
+        "type": "string"
+      },
+      "title": "Cancelled Wp Ids",
+      "type": "array"
+    },
+    "mission_id": {
+      "description": "Mission identifier",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "reason": {
+      "description": "Reason for cancellation (required)",
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "reason",
+    "actor"
+  ],
+  "title": "MissionCancelledPayload",
+  "type": "object"
+}

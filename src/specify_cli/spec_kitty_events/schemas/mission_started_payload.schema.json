@@ -1,0 +1,39 @@
+{
+  "$id": "spec-kitty-events/mission_started_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for MissionStarted events.",
+  "properties": {
+    "actor": {
+      "description": "Actor who started the mission",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "initial_phase": {
+      "description": "First phase of the mission",
+      "minLength": 1,
+      "title": "Initial Phase",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission identifier",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "mission_type": {
+      "description": "Mission type (e.g., 'software-dev', 'research', 'plan')",
+      "minLength": 1,
+      "title": "Mission Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "mission_type",
+    "initial_phase",
+    "actor"
+  ],
+  "title": "MissionStartedPayload",
+  "type": "object"
+}

@@ -1,0 +1,31 @@
+{
+  "mission_id": "mission-010",
+  "run_id": "run-003",
+  "actor": "agent-claude",
+  "verdict": "fail",
+  "severity": "error",
+  "findings_count": 3,
+  "artifact_ref": {
+    "report_path": "audits/mission-010/run-003/report.json",
+    "content_hash": {
+      "hash": "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe04294e576d4ccc20c8bc39f1e",
+      "algorithm": "sha256",
+      "size_bytes": 8192,
+      "encoding": "utf-8"
+    },
+    "provenance": {
+      "source_event_ids": [
+        "01JAUDIT000000000000000010"
+      ],
+      "git_sha": "def456abc123789",
+      "git_ref": "refs/heads/010-mission-audit-lifecycle-contracts",
+      "actor_id": "agent-claude",
+      "actor_kind": "llm",
+      "revised_at": "2026-02-25T17:00:00Z"
+    }
+  },
+  "summary": "3 blocking findings: missing test coverage, undefined acceptance criteria, incomplete data model.",
+  "mission_slug": "mission-010",
+  "mission_number": 10,
+  "mission_type": "software-dev"
+}

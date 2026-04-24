@@ -1,0 +1,38 @@
+{
+  "$id": "spec-kitty-events/participant_left_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for ParticipantLeft events.",
+  "properties": {
+    "mission_id": {
+      "description": "Mission being left",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Departing participant",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Departure reason (e.g., 'disconnect', 'explicit')",
+      "title": "Reason"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id"
+  ],
+  "title": "ParticipantLeftPayload",
+  "type": "object"
+}

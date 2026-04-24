@@ -1,0 +1,8 @@
+{
+  "participant_identity": {
+    "participant_id": "agent-001",
+    "participant_type": "llm_context",
+    "display_name": "Claude"
+  },
+  "mission_id": "M001"
+}

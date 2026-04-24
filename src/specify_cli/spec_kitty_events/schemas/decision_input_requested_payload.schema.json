@@ -1,0 +1,135 @@
+{
+  "$defs": {
+    "RuntimeActorIdentity": {
+      "description": "Identity of a runtime actor (human, LLM, or service).",
+      "properties": {
+        "actor_id": {
+          "description": "Unique actor identifier",
+          "minLength": 1,
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "actor_type": {
+          "description": "Actor category",
+          "pattern": "^(human|llm|service)$",
+          "title": "Actor Type",
+          "type": "string"
+        },
+        "display_name": {
+          "default": "",
+          "description": "Human-readable display name",
+          "title": "Display Name",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Model identifier (e.g., 'claude-opus-4-6')",
+          "title": "Model"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider (e.g., 'anthropic', 'openai')",
+          "title": "Provider"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool identifier",
+          "title": "Tool"
+        }
+      },
+      "required": [
+        "actor_id",
+        "actor_type"
+      ],
+      "title": "RuntimeActorIdentity",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/decision_input_requested_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for DecisionInputRequested event.",
+  "properties": {
+    "actor": {
+      "$ref": "#/$defs/RuntimeActorIdentity",
+      "description": "Actor who requested the decision"
+    },
+    "decision_id": {
+      "description": "Unique decision identifier",
+      "minLength": 1,
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "input_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Input key for input-keyed decisions",
+      "title": "Input Key"
+    },
+    "options": {
+      "description": "Suggested answer options",
+      "items": {
+        "type": "string"
+      },
+      "title": "Options",
+      "type": "array"
+    },
+    "question": {
+      "description": "Question posed to the decision maker",
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+    },
+    "run_id": {
+      "description": "Run identifier",
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Step requiring the decision",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "decision_id",
+    "step_id",
+    "question",
+    "actor"
+  ],
+  "title": "DecisionInputRequestedPayload",
+  "type": "object"
+}

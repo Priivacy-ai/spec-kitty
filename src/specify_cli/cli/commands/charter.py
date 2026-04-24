@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
+import subprocess
+import threading
 from pathlib import Path
 from typing import Any
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 from charter.compiler import compile_charter, write_compiled_charter
@@ -26,6 +30,9 @@ from charter.interview import (
 from charter.sync import ensure_charter_bundle_fresh, sync as sync_charter
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.decisions import service as _dm_service
+from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
+from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 logger = logging.getLogger(__name__)
@@ -60,6 +67,23 @@ def _resolve_charter_path(repo_root: Path) -> Path:
         "  Run 'spec-kitty charter interview' to create one,\n"
         "  or 'spec-kitty upgrade' if migrating from an older version."
     )
+
+
+def _resolve_actor() -> str:
+    """Return the git user email or ``"cli"`` as fallback."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        email = result.stdout.strip()
+        if email:
+            return email
+    except Exception:  # noqa: BLE001
+        pass
+    return "cli"
 
 
 def _parse_csv_option(raw: str | None) -> list[str] | None:
@@ -397,8 +421,461 @@ def _collect_synthesis_status(
     }
 
 
+# ---------------------------------------------------------------------------
+# Widen Mode helpers (WP06)
+# ---------------------------------------------------------------------------
+
+#: Sentinel PrereqState used when widen prereqs are unavailable.
+#: Defined lazily as a module-level constant after first import of PrereqState.
+_WIDEN_PREREQS_ABSENT_CACHE: Any = None
+
+
+def _get_widen_prereqs_absent() -> Any:
+    """Return a fully-absent PrereqState (lazy singleton)."""
+    global _WIDEN_PREREQS_ABSENT_CACHE  # noqa: PLW0603
+    if _WIDEN_PREREQS_ABSENT_CACHE is None:
+        try:
+            from specify_cli.widen.models import PrereqState
+
+            _WIDEN_PREREQS_ABSENT_CACHE = PrereqState(
+                teamspace_ok=False,
+                slack_ok=False,
+                saas_reachable=False,
+            )
+        except ImportError:
+            return None
+    return _WIDEN_PREREQS_ABSENT_CACHE
+
+
+def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
+    """Read mission_id (ULID) from kitty-specs/<slug>/meta.json.
+
+    Returns ``None`` if the file is absent or malformed.
+    """
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    with contextlib.suppress(Exception):
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+        return data.get("mission_id") or None
+    return None
+
+
+def _is_already_widened(widen_store: Any, decision_id: str) -> bool:
+    """Return True if *decision_id* already has a pending widen entry."""
+    with contextlib.suppress(Exception):
+        return any(e.decision_id == decision_id for e in widen_store.list_pending())
+    return False
+
+
+def _schedule_inactivity_reminder(
+    console: Console,
+    delay_seconds: int = 3600,
+) -> threading.Timer:
+    """Schedule an inactivity reminder for the blocked widen prompt (NFR-004).
+
+    The timer fires once after *delay_seconds* (default 60 min).  It is a
+    daemon thread so it will not prevent process exit.
+    """
+
+    def _remind() -> None:
+        console.print(
+            "\n[yellow]Still waiting on widened discussion.[/yellow] "
+            "Check Slack, type a local answer, or press d to defer.\n"
+            "Waiting > ",
+            end="",
+        )
+
+    timer = threading.Timer(delay_seconds, _remind)
+    timer.daemon = True
+    timer.start()
+    return timer
+
+
+def _render_waiting_panel(
+    console: Console,
+    question_text: str,
+    invited: list[str] | None,
+    slack_thread_url: str | None = None,
+) -> None:
+    """Render the §4 Waiting-for-discussion panel (contracts/cli-contracts.md §4)."""
+    participants_line = ", ".join(invited) if invited else "(none)"
+    thread_line = f"Slack thread: {slack_thread_url}" if slack_thread_url else "Slack thread: (pending)"
+    console.print(
+        Panel(
+            f"Question: {question_text}\n"
+            f"Participants: {participants_line}\n"
+            f"{thread_line}",
+            title="Waiting for widened discussion",
+        )
+    )
+    console.print(
+        "\nOptions:\n"
+        "  [f]etch & review   — fetch current discussion and produce candidate\n"
+        "  <type an answer>   — resolve locally right now (closes Slack thread)\n"
+        "  [d]efer            — defer this question for later\n"
+    )
+
+
+def _resolve_locally(
+    decision_id: str,
+    mission_slug: str,
+    repo_root: Path,
+    final_answer: str,
+    actor: str,
+    console: Console,
+) -> None:
+    """FR-018: resolve with source=manual at the blocked widen prompt."""
+    with contextlib.suppress(_DecisionError):
+        _dm_service.resolve_decision(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            decision_id=decision_id,
+            final_answer=final_answer,
+            actor=actor,
+        )
+    console.print("[green]Resolved locally.[/green] SaaS will close the Slack thread shortly.")
+
+
+def _defer_from_blocked_prompt(
+    decision_id: str,
+    mission_slug: str,
+    repo_root: Path,
+    actor: str,
+    console: Console,
+) -> None:
+    """T032: defer the widened decision from the blocked prompt."""
+    try:
+        rationale = console.input("Rationale for deferral (press Enter to skip): ").strip()
+    except (KeyboardInterrupt, EOFError):
+        rationale = ""
+
+    with contextlib.suppress(_DecisionError):
+        _dm_service.defer_decision(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            decision_id=decision_id,
+            rationale=rationale or "deferred from blocked widen prompt",
+            actor=actor,
+        )
+    console.print("[yellow]Decision deferred.[/yellow]")
+
+
+def _fetch_and_review_from_blocked(
+    decision_id: str,
+    mission_slug: str,
+    question_text: str,
+    repo_root: Path,
+    saas_client: Any,
+    actor: str,
+    console: Console,
+) -> bool:
+    """T031: fetch discussion + run candidate review from the blocked prompt.
+
+    Returns True if the decision was resolved or deferred (loop should exit).
+    """
+    from specify_cli.saas_client import SaasClientError
+
+    console.print("Fetching discussion...")
+    try:
+        discussion_raw = saas_client.fetch_discussion(decision_id)
+    except SaasClientError as exc:
+        console.print(f"[yellow]Discussion fetch failed:[/yellow] {exc}")
+        console.print("You can type a local answer or press d to defer.")
+        return False
+
+    # WP07 review stub — run_candidate_review not yet implemented.
+    # Fall back to informational display and return False so the user
+    # can still type a local answer or defer.
+    try:
+        from specify_cli.widen.review import run_candidate_review
+
+        result = run_candidate_review(
+            discussion_data=discussion_raw,
+            decision_id=decision_id,
+            question_text=question_text,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            console=console,
+            dm_service=_dm_service,
+            actor=actor,
+        )
+        return result is not None
+    except (ImportError, AttributeError):
+        # WP07 stub not yet implemented — display raw data.
+        console.print(
+            f"[dim]Participants: {', '.join(discussion_raw.participants)}[/dim]\n"
+            f"[dim]Messages: {discussion_raw.message_count}[/dim]\n"
+            "[dim]Candidate review not yet available (WP07). "
+            "Type a local answer or press d to defer.[/dim]"
+        )
+        return False
+
+
+def _resolve_dm_terminal(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    decision_id: str,
+    actual_answer: str,
+    actor: str,
+) -> None:
+    """Apply the correct Decision Moment terminal transition after a question answer.
+
+    Rules (FR-012):
+    - ``!cancel`` → cancel (question not applicable)
+    - non-empty → resolve
+    - empty → defer
+    """
+    if actual_answer.strip().lower() == "!cancel":
+        with contextlib.suppress(_DecisionError):
+            _dm_service.cancel_decision(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                decision_id=decision_id,
+                rationale="owner canceled during charter interview (question not applicable)",
+                actor=actor,
+            )
+    elif actual_answer.strip():
+        with contextlib.suppress(_DecisionError):
+            _dm_service.resolve_decision(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                decision_id=decision_id,
+                final_answer=actual_answer,
+                actor=actor,
+            )
+    else:
+        with contextlib.suppress(_DecisionError):
+            _dm_service.defer_decision(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                decision_id=decision_id,
+                rationale="owner deferred during charter interview",
+                actor=actor,
+            )
+
+
+def _prompt_one_question(
+    *,
+    question_id: str,
+    prompt_text: str,
+    default_value: str,
+    hint_line: str,
+    widen_flow: Any,
+    widen_store: Any,
+    current_decision_id: str | None,
+    mission_id: str | None,
+    mission_slug: str | None,
+    repo_root: Path,
+    console: Console,
+    saas_client: Any,
+    actor: str,
+    answers_override: dict[str, str],
+) -> str:
+    """Prompt the user for a single interview question, handling widen dispatch.
+
+    Returns the final answer string (may be empty for widen-pending / defer paths).
+    """
+    console.print(f"[dim]{hint_line}[/dim]")
+
+    user_answer = ""
+    while True:
+        user_answer = typer.prompt(prompt_text, default=default_value)
+
+        if (
+            user_answer.strip().lower() == "w"
+            and widen_flow is not None
+            and current_decision_id is not None
+            and mission_id is not None
+            and mission_slug is not None
+        ):
+            _answer, _should_break = _dispatch_widen_input(
+                widen_flow=widen_flow,
+                current_decision_id=current_decision_id,
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                question_id=question_id,
+                prompt_text=prompt_text,
+                hint_line=hint_line,
+                widen_store=widen_store,
+                answers_override=answers_override,
+                repo_root=repo_root,
+                console=console,
+                saas_client=saas_client,
+                actor=actor,
+            )
+            if _answer is None and not _should_break:
+                continue  # CANCEL — re-prompt
+            if _answer is not None:
+                user_answer = _answer
+            break
+
+        else:
+            break
+
+    if question_id not in answers_override:
+        answers_override[question_id] = user_answer
+
+    return answers_override[question_id]
+
+
+def _dispatch_widen_input(  # noqa: C901
+    *,
+    widen_flow: Any,
+    current_decision_id: str,
+    mission_id: str,
+    mission_slug: str,
+    question_id: str,
+    prompt_text: str,
+    hint_line: str,
+    widen_store: Any,
+    answers_override: dict[str, str],
+    repo_root: Any,
+    console: Console,
+    saas_client: Any,
+    actor: str,
+) -> tuple[str | None, bool]:
+    """T028 — Dispatch ``w`` input to WidenFlow; return (user_answer, break_loop).
+
+    Returns:
+        (user_answer, should_break):
+          - user_answer: None → continue inner loop (re-prompt); else the value to use.
+          - should_break: True if the outer question loop should advance to next question.
+    """
+    from datetime import UTC, datetime
+
+    from specify_cli.widen.models import WidenAction, WidenPendingEntry
+
+    result = widen_flow.run_widen_mode(
+        decision_id=current_decision_id,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        question_text=prompt_text,
+        actor=actor,
+    )
+
+    if result.action == WidenAction.CANCEL:
+        # Re-show hint and re-prompt the same question
+        console.print(f"[dim]{hint_line}[/dim]")
+        return None, False  # continue inner loop
+
+    if result.action == WidenAction.BLOCK:
+        # Enter the blocked-prompt loop (T029)
+        _run_blocked_prompt_loop(
+            decision_id=result.decision_id or current_decision_id,
+            question_text=prompt_text,
+            invited=result.invited,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            console=console,
+            saas_client=saas_client,
+            actor=actor,
+        )
+        answers_override[question_id] = ""
+        return "", True  # advance to next question
+
+    if result.action == WidenAction.CONTINUE:
+        # Write WidenPendingEntry (T024 pattern — caller does persistence)
+        if widen_store is not None:
+            with contextlib.suppress(Exception):
+                widen_store.add_pending(WidenPendingEntry(
+                    decision_id=result.decision_id or current_decision_id,
+                    mission_slug=mission_slug,
+                    question_id=f"charter.{question_id}",
+                    question_text=prompt_text,
+                    entered_pending_at=datetime.now(tz=UTC),
+                    widen_endpoint_response={},
+                ))
+        answers_override[question_id] = ""
+        return "", True  # advance to next question
+
+    # Unknown action — fall through to normal answer
+    return None, True
+
+
+def _run_blocked_prompt_loop(
+    decision_id: str,
+    question_text: str,
+    invited: list[str] | None,
+    mission_slug: str,
+    repo_root: Path,
+    console: Console,
+    saas_client: Any,
+    actor: str,
+    slack_thread_url: str | None = None,
+) -> None:
+    """T029: block the interview at the widened question until resolved.
+
+    Renders the waiting panel and loops on input until the decision is
+    resolved via one of:
+    - [f]etch & review → run_candidate_review()
+    - plain text answer → decision.resolve(manual)
+    - [d]efer → decision.defer()
+    """
+    _render_waiting_panel(console, question_text, invited, slack_thread_url)
+
+    # NFR-004: inactivity reminder after 60 minutes
+    _inactivity_timer = _schedule_inactivity_reminder(console)
+
+    while True:
+        try:
+            raw = console.input("Waiting > ")
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[dim]Type d to defer or a local answer to resolve.[/dim]")
+            continue
+
+        cmd = raw.strip()
+
+        if not cmd:
+            # Blank line — re-show options summary
+            console.print(
+                "[dim][f]etch & review | <local answer> | [d]efer | [!cancel][/dim]"
+            )
+            continue
+        elif cmd.lower() == "f":
+            _inactivity_timer.cancel()
+            resolved = _fetch_and_review_from_blocked(
+                decision_id=decision_id,
+                mission_slug=mission_slug,
+                question_text=question_text,
+                repo_root=repo_root,
+                saas_client=saas_client,
+                actor=actor,
+                console=console,
+            )
+            if resolved:
+                break
+            # Not resolved — reschedule inactivity timer and loop
+            _inactivity_timer = _schedule_inactivity_reminder(console)
+        elif cmd.lower() == "d":
+            _inactivity_timer.cancel()
+            _defer_from_blocked_prompt(
+                decision_id=decision_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                actor=actor,
+                console=console,
+            )
+            break
+        elif cmd.lower() == "!cancel":
+            _inactivity_timer.cancel()
+            console.print("[dim]Interview canceled.[/dim]")
+            raise typer.Exit()
+        else:
+            # Plain text → local answer (FR-018)
+            _inactivity_timer.cancel()
+            _resolve_locally(
+                decision_id=decision_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                final_answer=cmd,
+                actor=actor,
+                console=console,
+            )
+            break
+
+
 @app.command()
-def interview(
+def interview(  # noqa: C901
     mission_type: str | None = typer.Option(
         None,
         "--mission-type",
@@ -423,6 +900,11 @@ def interview(
         help="Comma-separated tool IDs override",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+    mission_slug: str | None = typer.Option(
+        None,
+        "--mission-slug",
+        help="Mission slug for Decision Moment paper trail (optional)",
+    ),
 ) -> None:
     """Capture charter interview answers for later generation."""
     try:
@@ -445,13 +927,137 @@ def interview(
 
         interview_data = default_interview(mission=resolved_mission_type, profile=normalized_profile)
 
+        # Resolve actor for Decision Moment events (non-fatal fallback)
+        actor = _resolve_actor()
+
+        # ------------------------------------------------------------------
+        # T026 — Widen Mode prereq check at startup (non-fatal, ≤300ms)
+        # ------------------------------------------------------------------
+        prereq_state: Any = _get_widen_prereqs_absent()
+        widen_flow: Any = None
+        widen_store: Any = None
+        _saas_client: Any = None
+
+        if mission_slug is not None:
+            try:
+                from specify_cli.saas_client import SaasClient
+                from specify_cli.widen import check_prereqs
+                from specify_cli.widen.flow import WidenFlow
+                from specify_cli.widen.state import WidenPendingStore
+
+                _saas_client = SaasClient.from_env(repo_root)
+                # Resolve team_slug from the auth context
+                _team_slug: str = ""
+                with contextlib.suppress(Exception):
+                    from specify_cli.saas_client.auth import load_auth_context
+                    _auth_ctx = load_auth_context(repo_root)
+                    _team_slug = _auth_ctx.team_slug or ""
+
+                prereq_state = check_prereqs(_saas_client, team_slug=_team_slug)
+                if prereq_state.all_satisfied:
+                    widen_flow = WidenFlow(_saas_client, repo_root, console)
+                    widen_store = WidenPendingStore(repo_root, mission_slug)
+            except Exception:  # noqa: BLE001
+                pass  # non-fatal; prereq_state stays ABSENT
+
+        # Resolve mission_id for widen endpoint (ULID from meta.json)
+        _mission_id: str | None = None
+        if mission_slug is not None:
+            _mission_id = _get_mission_id(repo_root, mission_slug)
+
         if not use_defaults:
             question_order = MINIMAL_QUESTION_ORDER if normalized_profile == "minimal" else QUESTION_ORDER
             answers_override: dict[str, str] = {}
             for question_id in question_order:
-                prompt = QUESTION_PROMPTS.get(question_id, question_id.replace("_", " ").title())
+                prompt_text = QUESTION_PROMPTS.get(question_id, question_id.replace("_", " ").title())
                 default_value = interview_data.answers.get(question_id, "")
-                answers_override[question_id] = typer.prompt(prompt, default=default_value)
+
+                # Open a Decision Moment before presenting the question (non-fatal)
+                current_decision_id: str | None = None
+                if mission_slug is not None:
+                    with contextlib.suppress(_DecisionError):
+                        dm_response = _dm_service.open_decision(
+                            repo_root=repo_root,
+                            mission_slug=mission_slug,
+                            origin_flow=_DmOriginFlow.CHARTER,
+                            step_id=f"charter.{question_id}",
+                            input_key=question_id,
+                            question=prompt_text,
+                            options=(),
+                            actor=actor,
+                        )
+                        current_decision_id = dm_response.decision_id
+
+                # T045 — Already-widened question prompt (§1.3 contract)
+                _already_widened = (
+                    widen_store is not None
+                    and current_decision_id is not None
+                    and _is_already_widened(widen_store, current_decision_id)
+                )
+                if (
+                    _already_widened
+                    and _saas_client is not None
+                    and mission_slug is not None
+                    and current_decision_id is not None
+                ):
+                    from specify_cli.widen.interview_helpers import render_already_widened_prompt
+
+                    render_already_widened_prompt(
+                        question_text=prompt_text,
+                        decision_id=current_decision_id,
+                        mission_slug=mission_slug,
+                        repo_root=repo_root,
+                        saas_client=_saas_client,
+                        widen_store=widen_store,
+                        dm_service=_dm_service,
+                        actor=actor,
+                        console=console,
+                    )
+                    answers_override[question_id] = ""
+                    continue  # next question — decision already handled
+
+                # T027 — Build hint line; append [w]iden when prereqs met
+                widen_suffix = ""
+                if (
+                    prereq_state is not None
+                    and prereq_state.all_satisfied
+                    and widen_store is not None
+                    and current_decision_id is not None
+                    and not _already_widened
+                ):
+                    widen_suffix = " | [w]iden"
+                hint_line = (
+                    f"[enter]=accept default | [text]=type answer{widen_suffix}"
+                    " | [d]efer | [!cancel]"
+                )
+
+                # Prompt the question (handles widen dispatch internally)
+                actual_answer = _prompt_one_question(
+                    question_id=question_id,
+                    prompt_text=prompt_text,
+                    default_value=default_value,
+                    hint_line=hint_line,
+                    widen_flow=widen_flow,
+                    widen_store=widen_store,
+                    current_decision_id=current_decision_id,
+                    mission_id=_mission_id,
+                    mission_slug=mission_slug,
+                    repo_root=repo_root,
+                    console=console,
+                    saas_client=_saas_client,
+                    actor=actor,
+                    answers_override=answers_override,
+                )
+
+                # Terminal DM event (non-fatal)
+                if current_decision_id is not None and mission_slug is not None:
+                    _resolve_dm_terminal(
+                        repo_root=repo_root,
+                        mission_slug=mission_slug,
+                        decision_id=current_decision_id,
+                        actual_answer=actual_answer,
+                        actor=actor,
+                    )
 
             paradigms_default = ", ".join(interview_data.selected_paradigms)
             directives_default = ", ".join(interview_data.selected_directives)
@@ -483,6 +1089,22 @@ def interview(
                 selected_paradigms=_parse_csv_option(selected_paradigms),
                 selected_directives=_parse_csv_option(selected_directives),
                 available_tools=_parse_csv_option(available_tools),
+            )
+
+        # ------------------------------------------------------------------
+        # T040 — End-of-interview pending pass (FR-010)
+        # ------------------------------------------------------------------
+        if widen_store is not None and _saas_client is not None and mission_slug is not None:
+            from specify_cli.widen.interview_helpers import run_end_of_interview_pending_pass
+
+            run_end_of_interview_pending_pass(
+                widen_store=widen_store,
+                saas_client=_saas_client,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                console=console,
+                dm_service=_dm_service,
+                actor=actor,
             )
 
         answers_path = _interview_path(repo_root)

@@ -1,0 +1,20 @@
+{
+  "mission_id": "mission-fixture-001",
+  "scope_id": "scope-team-domain",
+  "step_id": "step-002",
+  "conflicts": [
+    {
+      "term": "dashboard",
+      "nature": "overloaded",
+      "severity": "high",
+      "description": "Term used with multiple conflicting meanings"
+    }
+  ],
+  "severity": "high",
+  "confidence": 0.92,
+  "recommended_action": "block",
+  "effective_strictness": "max",
+  "step_metadata": {
+    "primitive": "generate"
+  }
+}

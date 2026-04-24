@@ -6,13 +6,32 @@ agent lifecycle implementations.
 
 from __future__ import annotations
 
+import contextlib
 import re
-from typing import Optional
 
 import typer
+from rich.console import Console
 
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.agent import mission as agent_feature
+from specify_cli.core.paths import locate_project_root
+
+#: Canonical question sets for the specify/plan widen-enabled interview loops.
+#: Each entry is a ``(question_id, question_text)`` pair consumed by
+#: ``run_specify_interview`` / ``run_plan_interview``.
+SPECIFY_WIDEN_QUESTIONS: list[tuple[str, str]] = [
+    ("problem_statement", "What problem does this feature solve?"),
+    ("success_criteria", "How will we know this feature is successful?"),
+    ("scope_boundaries", "What is explicitly out of scope for this feature?"),
+]
+
+PLAN_WIDEN_QUESTIONS: list[tuple[str, str]] = [
+    ("approach", "What is the high-level implementation approach?"),
+    ("risks", "What are the main risks or unknowns?"),
+    ("dependencies", "What upstream dependencies does this plan rely on?"),
+]
+
+_console = Console()
 
 
 def _slugify_feature_input(value: str) -> str:
@@ -44,6 +63,21 @@ def specify(
         resolved_mission_type = resolved.canonical_value
     agent_feature.create_mission(mission_slug=slug, mission_type=resolved_mission_type, json_output=json_output)
 
+    # FR-002: Wire widen-enabled interview for the specify flow.
+    # Only run in interactive (non-JSON) mode so agent/script callers are unaffected.
+    if not json_output:
+        from specify_cli.missions.plan.specify_interview import run_specify_interview
+
+        repo_root = locate_project_root()
+        if repo_root is not None:
+            with contextlib.suppress(Exception):
+                run_specify_interview(
+                    questions=SPECIFY_WIDEN_QUESTIONS,
+                    repo_root=repo_root,
+                    mission_slug=slug,
+                    console=_console,
+                )
+
 
 def plan(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
@@ -63,6 +97,37 @@ def plan(
         )
         resolved_mission = resolved.canonical_value
     agent_feature.setup_plan(feature=resolved_mission, json_output=json_output)
+
+    # FR-002: Wire widen-enabled interview for the plan flow.
+    # Only run in interactive (non-JSON) mode so agent/script callers are unaffected.
+    if not json_output:
+        import pathlib
+
+        from specify_cli.missions.plan.plan_interview import run_plan_interview
+
+        repo_root = locate_project_root()
+        if repo_root is not None:
+            # Resolve the mission slug from the plan context.
+            # When the caller supplies --mission, that slug is already resolved;
+            # otherwise we fall back to detecting the slug from the working tree.
+            _mission_slug = resolved_mission
+            if _mission_slug is None:
+                with contextlib.suppress(Exception):
+                    from specify_cli.cli.commands.agent.mission import (
+                        _find_feature_directory,
+                    )
+
+                    _fd = _find_feature_directory(repo_root, pathlib.Path.cwd())
+                    _mission_slug = _fd.name
+
+            if _mission_slug is not None:
+                with contextlib.suppress(Exception):
+                    run_plan_interview(
+                        questions=PLAN_WIDEN_QUESTIONS,
+                        repo_root=repo_root,
+                        mission_slug=_mission_slug,
+                        console=_console,
+                    )
 
 
 def tasks(

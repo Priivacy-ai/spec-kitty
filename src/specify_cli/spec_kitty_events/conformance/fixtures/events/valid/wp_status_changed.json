@@ -1,0 +1,12 @@
+{
+  "wp_id": "WP01",
+  "from_lane": "planned",
+  "to_lane": "claimed",
+  "actor": "test-agent",
+  "force": false,
+  "reason": null,
+  "execution_mode": "worktree",
+  "review_ref": null,
+  "evidence": null,
+  "mission_slug": "mission-001"
+}

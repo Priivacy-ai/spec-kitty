@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "SemanticConflictEntry": {
+      "description": "Single conflict finding within a semantic check evaluation.",
+      "properties": {
+        "description": {
+          "description": "Human-readable explanation of the conflict",
+          "title": "Description",
+          "type": "string"
+        },
+        "nature": {
+          "description": "Classification of the conflict",
+          "enum": [
+            "overloaded",
+            "drift",
+            "ambiguous"
+          ],
+          "title": "Nature",
+          "type": "string"
+        },
+        "severity": {
+          "description": "Severity level of this conflict",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "term": {
+          "description": "The conflicting term surface text",
+          "minLength": 1,
+          "title": "Term",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "nature",
+        "severity",
+        "description"
+      ],
+      "title": "SemanticConflictEntry",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/semantic_check_evaluated_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for SemanticCheckEvaluated event (step-level semantic check).",
+  "properties": {
+    "confidence": {
+      "description": "Overall confidence score",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "conflicts": {
+      "description": "List of detected conflicts",
+      "items": {
+        "$ref": "#/$defs/SemanticConflictEntry"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "effective_strictness": {
+      "description": "Strictness mode used for this evaluation",
+      "enum": [
+        "off",
+        "medium",
+        "max"
+      ],
+      "title": "Effective Strictness",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "recommended_action": {
+      "description": "Action recommendation based on severity and strictness",
+      "enum": [
+        "block",
+        "warn",
+        "pass"
+      ],
+      "title": "Recommended Action",
+      "type": "string"
+    },
+    "scope_id": {
+      "description": "Scope checked against",
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "severity": {
+      "description": "Overall check severity (max of conflicts)",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Step being evaluated",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "step_metadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Mission primitive metadata (no hardcoded step names)",
+      "title": "Step Metadata",
+      "type": "object"
+    }
+  },
+  "required": [
+    "mission_id",
+    "scope_id",
+    "step_id",
+    "conflicts",
+    "severity",
+    "confidence",
+    "recommended_action",
+    "effective_strictness"
+  ],
+  "title": "SemanticCheckEvaluatedPayload",
+  "type": "object"
+}

@@ -1,0 +1,6 @@
+{
+  "mission_id": "mission-fixture-001",
+  "new_strictness": "max",
+  "previous_strictness": "medium",
+  "actor": "admin-001"
+}

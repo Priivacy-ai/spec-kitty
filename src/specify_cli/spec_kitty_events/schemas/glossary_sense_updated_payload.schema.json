@@ -1,0 +1,65 @@
+{
+  "$id": "spec-kitty-events/glossary_sense_updated_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for GlossarySenseUpdated event.",
+  "properties": {
+    "actor": {
+      "description": "Actor who made the change",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "after_sense": {
+      "description": "New sense value",
+      "minLength": 1,
+      "title": "After Sense",
+      "type": "string"
+    },
+    "before_sense": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Previous sense value (None if first definition)",
+      "title": "Before Sense"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "reason": {
+      "description": "Why the sense was changed",
+      "title": "Reason",
+      "type": "string"
+    },
+    "scope_id": {
+      "description": "Scope of the term",
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "term_surface": {
+      "description": "Term being updated",
+      "minLength": 1,
+      "title": "Term Surface",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "scope_id",
+    "term_surface",
+    "after_sense",
+    "reason",
+    "actor"
+  ],
+  "title": "GlossarySenseUpdatedPayload",
+  "type": "object"
+}

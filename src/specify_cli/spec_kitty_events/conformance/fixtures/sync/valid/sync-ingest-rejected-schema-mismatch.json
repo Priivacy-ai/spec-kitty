@@ -1,0 +1,9 @@
+{
+  "delivery_id": "del-003",
+  "source_event_fingerprint": "fp-rejected-001",
+  "connector_id": "conn-github-001",
+  "mission_id": "m-001",
+  "recorded_at": "2026-02-27T13:02:00+00:00",
+  "rejection_reason": "payload_schema_mismatch",
+  "rejected_payload_ref": "s3://rejected/del-003-payload.json"
+}

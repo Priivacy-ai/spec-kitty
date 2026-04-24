@@ -1,0 +1,9 @@
+{
+  "mission_id": "mission-010",
+  "run_id": "run-001",
+  "actor": "agent-claude",
+  "audit_scope_hash": "sha256:a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
+  "mission_slug": "mission-010",
+  "mission_number": 10,
+  "mission_type": "software-dev"
+}

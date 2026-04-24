@@ -1,0 +1,11 @@
+{
+  "mission_id": "01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM",
+  "run_id": "run-analytics-001",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "input_tokens": 1200,
+  "output_tokens": 300,
+  "total_tokens": 1499,
+  "estimated_cost_usd": 0.036,
+  "source": "runtime-usage"
+}

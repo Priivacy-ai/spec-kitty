@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "FocusTarget": {
+      "description": "Structured focus reference. Hashable for use as dict key.",
+      "properties": {
+        "target_id": {
+          "description": "Identifier within the target type",
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "description": "Category of focus target",
+          "enum": [
+            "wp",
+            "step",
+            "file"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_type",
+        "target_id"
+      ],
+      "title": "FocusTarget",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/focus_changed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for FocusChanged events.",
+  "properties": {
+    "focus_target": {
+      "$ref": "#/$defs/FocusTarget",
+      "description": "New focus target"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Participant changing focus",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "previous_focus_target": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FocusTarget"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Previous focus (if any)"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "focus_target"
+  ],
+  "title": "FocusChangedPayload",
+  "type": "object"
+}

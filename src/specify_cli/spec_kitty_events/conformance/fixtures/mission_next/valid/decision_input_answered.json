@@ -1,0 +1,13 @@
+{
+  "run_id": "run-001",
+  "decision_id": "input:db-password",
+  "answer": "use-env-var",
+  "actor": {
+    "actor_id": "user-robert",
+    "actor_type": "human",
+    "display_name": "Robert",
+    "provider": null,
+    "model": null,
+    "tool": null
+  }
+}

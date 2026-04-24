@@ -1,0 +1,15 @@
+{
+  "origin_surface": "planning_interview",
+  "decision_point_id": "01J10000000000000000000004",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "terminal_outcome": "deferred",
+  "rationale": "need security review before committing to an auth mechanism",
+  "actual_participants": [],
+  "resolved_by": "01J10000000000000000000011",
+  "closed_locally_while_widened": false,
+  "state_entered_at": "2026-04-23T10:06:00+00:00",
+  "recorded_at": "2026-04-23T10:06:01+00:00"
+}

@@ -1,0 +1,59 @@
+{
+  "$id": "spec-kitty-events/sync_dead_lettered_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for SyncDeadLettered events.",
+  "properties": {
+    "connector_id": {
+      "minLength": 1,
+      "title": "Connector Id",
+      "type": "string"
+    },
+    "dead_letter_ref": {
+      "minLength": 1,
+      "title": "Dead Letter Ref",
+      "type": "string"
+    },
+    "delivery_id": {
+      "minLength": 1,
+      "title": "Delivery Id",
+      "type": "string"
+    },
+    "failure_reason": {
+      "minLength": 1,
+      "title": "Failure Reason",
+      "type": "string"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "source_event_fingerprint": {
+      "minLength": 1,
+      "title": "Source Event Fingerprint",
+      "type": "string"
+    },
+    "total_attempts": {
+      "minimum": 1,
+      "title": "Total Attempts",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "delivery_id",
+    "source_event_fingerprint",
+    "connector_id",
+    "mission_id",
+    "recorded_at",
+    "failure_reason",
+    "total_attempts",
+    "dead_letter_ref"
+  ],
+  "title": "SyncDeadLetteredPayload",
+  "type": "object"
+}

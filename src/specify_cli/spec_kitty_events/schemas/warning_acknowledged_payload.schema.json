@@ -1,0 +1,44 @@
+{
+  "$id": "spec-kitty-events/warning_acknowledged_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for WarningAcknowledged events.",
+  "properties": {
+    "acknowledgement": {
+      "description": "Response action",
+      "enum": [
+        "continue",
+        "hold",
+        "reassign",
+        "defer"
+      ],
+      "title": "Acknowledgement",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Acknowledging participant",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "warning_id": {
+      "description": "Warning being acknowledged",
+      "minLength": 1,
+      "title": "Warning Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "warning_id",
+    "acknowledgement"
+  ],
+  "title": "WarningAcknowledgedPayload",
+  "type": "object"
+}

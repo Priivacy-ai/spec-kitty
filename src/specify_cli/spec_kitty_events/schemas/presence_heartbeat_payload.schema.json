@@ -1,0 +1,38 @@
+{
+  "$id": "spec-kitty-events/presence_heartbeat_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for PresenceHeartbeat events.",
+  "properties": {
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Heartbeat source",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "session_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Specific session sending heartbeat",
+      "title": "Session Id"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id"
+  ],
+  "title": "PresenceHeartbeatPayload",
+  "type": "object"
+}

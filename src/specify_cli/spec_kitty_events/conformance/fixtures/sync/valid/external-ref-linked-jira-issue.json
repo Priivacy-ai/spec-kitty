@@ -1,0 +1,13 @@
+{
+  "link_id": "link-jira-issue-001",
+  "connector_id": "conn-jira-001",
+  "external_provider": "atlassian",
+  "external_ref_type": "issue",
+  "external_ref_id": "PROJ-123",
+  "external_ref_url": "https://myorg.atlassian.net/browse/PROJ-123",
+  "internal_aggregate_type": "mission",
+  "internal_aggregate_id": "m-001",
+  "mission_id": "m-001",
+  "linked_by": "service-linker",
+  "recorded_at": "2026-02-27T14:01:00+00:00"
+}

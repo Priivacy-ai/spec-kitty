@@ -1,0 +1,11 @@
+{
+  "connector_id": "conn-github-001",
+  "connector_type": "github",
+  "provider": "github",
+  "mission_id": "m-001",
+  "project_uuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "actor_id": "service-revoker",
+  "actor_type": "service",
+  "endpoint_url": "https://api.github.com",
+  "recorded_at": "2026-02-27T12:30:00+00:00"
+}

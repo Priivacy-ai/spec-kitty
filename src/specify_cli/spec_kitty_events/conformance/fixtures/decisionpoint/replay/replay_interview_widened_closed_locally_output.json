@@ -1,0 +1,66 @@
+{
+  "actual_participants": [],
+  "anomalies": [],
+  "closed_locally_while_widened": true,
+  "closure_message": {
+    "channel_id": "C9876543210",
+    "message_ts": "1714464200.000300",
+    "thread_ts": "1714464100.000100",
+    "url": "https://acme.slack.com/archives/C9876543210/p1714464200000300"
+  },
+  "decision_point_id": "dp-iv-003",
+  "event_count": 3,
+  "final_answer": "kubernetes",
+  "input_key": "orchestration_platform",
+  "last_actor_id": "human-owner-3",
+  "last_actor_type": "human",
+  "last_alternatives_considered": null,
+  "last_authority_role": null,
+  "last_evidence_refs": null,
+  "last_rationale": null,
+  "last_state_entered_at": "2026-04-23T10:00:02Z",
+  "mission_id": "m-interview-003",
+  "mission_slug": "infra-redesign",
+  "mission_type": "software-dev",
+  "options": [
+    "kubernetes",
+    "ecs",
+    "nomad"
+  ],
+  "origin_flow": "charter",
+  "origin_surface": "planning_interview",
+  "other_answer": false,
+  "phase": "P3",
+  "question": "Should we use Kubernetes or ECS for container orchestration?",
+  "resolved_by": "human-owner-3",
+  "run_id": "run-iv-003",
+  "state": "resolved",
+  "step_id": "step-orch-001",
+  "summary": {
+    "candidate_answer": null,
+    "extracted_at": null,
+    "source": "mission_owner_override",
+    "text": "Mission owner overrode: Kubernetes is the approved platform per infrastructure policy."
+  },
+  "terminal_outcome": "resolved",
+  "widening": {
+    "channel": "slack",
+    "default_channel_ref": {
+      "channel_id": "C9876543210",
+      "name": "infra-decisions"
+    },
+    "invited_participants": [],
+    "teamspace_ref": {
+      "name": "Acme Infrastructure",
+      "teamspace_id": "ts-acme-002"
+    },
+    "thread_ref": {
+      "channel_id": "C9876543210",
+      "slack_team_id": "T0123456789",
+      "thread_ts": "1714464100.000100",
+      "url": "https://acme.slack.com/archives/C9876543210/p1714464100000100"
+    },
+    "widened_at": "2026-04-23T10:00:01Z",
+    "widened_by": "human-owner-3"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$id": "spec-kitty-events/glossary_clarification_requested_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for GlossaryClarificationRequested event.",
+  "properties": {
+    "actor": {
+      "description": "Actor who triggered the request",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "options": {
+      "description": "Available answer options",
+      "items": {
+        "type": "string"
+      },
+      "title": "Options",
+      "type": "array"
+    },
+    "question": {
+      "description": "Clarification question text",
+      "title": "Question",
+      "type": "string"
+    },
+    "scope_id": {
+      "description": "Scope context",
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "semantic_check_event_id": {
+      "description": "Event ID of triggering SemanticCheckEvaluated (burst-window key)",
+      "minLength": 1,
+      "title": "Semantic Check Event Id",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Step that triggered clarification",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "term": {
+      "description": "The ambiguous term",
+      "minLength": 1,
+      "title": "Term",
+      "type": "string"
+    },
+    "urgency": {
+      "description": "Urgency level",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Urgency",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "scope_id",
+    "step_id",
+    "semantic_check_event_id",
+    "term",
+    "question",
+    "options",
+    "urgency",
+    "actor"
+  ],
+  "title": "GlossaryClarificationRequestedPayload",
+  "type": "object"
+}

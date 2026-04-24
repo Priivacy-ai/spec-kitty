@@ -1,0 +1,10 @@
+{
+  "gate_name": "ci/build",
+  "gate_type": "ci",
+  "conclusion": "success",
+  "external_provider": "github",
+  "check_run_id": 12345,
+  "check_run_url": "https://github.com/owner/repo/runs/12345",
+  "delivery_id": "delivery-abc123",
+  "pr_number": null
+}

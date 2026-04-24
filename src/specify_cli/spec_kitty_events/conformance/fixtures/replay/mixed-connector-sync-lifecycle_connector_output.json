@@ -1,0 +1,30 @@
+{
+  "anomalies": [],
+  "connector_id": "conn-github-002",
+  "current_state": "healthy",
+  "event_count": 10,
+  "last_health_check": "2026-02-27T15:08:00Z",
+  "provider": "github",
+  "transition_log": [
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM1",
+      "provisioned"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM3",
+      "healthy"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM5",
+      "degraded"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM7",
+      "reconnected"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM9",
+      "healthy"
+    ]
+  ]
+}

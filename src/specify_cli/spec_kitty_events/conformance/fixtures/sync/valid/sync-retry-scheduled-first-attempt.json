@@ -1,0 +1,10 @@
+{
+  "delivery_id": "del-004",
+  "source_event_fingerprint": "fp-retry-001",
+  "connector_id": "conn-github-001",
+  "mission_id": "m-001",
+  "recorded_at": "2026-02-27T13:03:00+00:00",
+  "retry_attempt": 1,
+  "max_retries": 3,
+  "next_retry_at": "2026-02-27T13:08:00+00:00"
+}

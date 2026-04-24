@@ -1,0 +1,7 @@
+{
+  "mission_id": "mission-001",
+  "review_ref": "PR-42",
+  "target_phase": "implementation",
+  "affected_wp_ids": [],
+  "actor": "test-agent"
+}

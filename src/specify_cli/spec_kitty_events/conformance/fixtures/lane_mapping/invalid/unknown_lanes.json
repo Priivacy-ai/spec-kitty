@@ -1,0 +1,14 @@
+[
+  {
+    "canonical": "in_review",
+    "expected_error": "not a valid Lane"
+  },
+  {
+    "canonical": "paused",
+    "expected_error": "not a valid Lane"
+  },
+  {
+    "canonical": "",
+    "expected_error": "not a valid Lane"
+  }
+]
