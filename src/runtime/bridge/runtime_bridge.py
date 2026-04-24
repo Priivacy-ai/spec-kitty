@@ -20,18 +20,9 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
-
-# ---------------------------------------------------------------------------
-# Module-level string constants (S1192)
-# ---------------------------------------------------------------------------
-
-_KITTIFY_DIR = ".kittify"
-_WP_GLOB = "WP*.md"
-_MISSION_RUNTIME_YAML = "mission-runtime.yaml"
-_MISSION_YAML = "mission.yaml"
 
 import yaml
 from spec_kitty_runtime import (
@@ -59,6 +50,15 @@ from runtime.decisioning.decision import (
     _state_to_action,
 )
 from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+
+# ---------------------------------------------------------------------------
+# Module-level string constants (S1192)
+# ---------------------------------------------------------------------------
+
+_KITTIFY_DIR = ".kittify"
+_WP_GLOB = "WP*.md"
+_MISSION_RUNTIME_YAML = "mission-runtime.yaml"
+_MISSION_YAML = "mission.yaml"
 
 logger = logging.getLogger(__name__)
 
@@ -175,9 +175,9 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
             # not-yet-handed-off, so this WP blocks advancement.
             return False
         lane = state.lane
-        if step_id == "implement" and _wp_blocks_implement(state, lane):
-            return False
-        elif step_id == "review" and lane not in (Lane.DONE, Lane.APPROVED):
+        implement_blocks = step_id == "implement" and _wp_blocks_implement(state, lane)
+        review_blocks = step_id == "review" and lane not in (Lane.DONE, Lane.APPROVED)
+        if implement_blocks or review_blocks:
             return False
 
     return True
@@ -235,12 +235,10 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
         return _guard_tasks_packages(feature_dir)
     if step_id == "tasks_finalize":
         return _guard_tasks_finalize(feature_dir)
-    if step_id == "implement":
-        if not _should_advance_wp_step("implement", feature_dir):
-            return ["Not all work packages have required status (for_review, approved, or done)"]
-    elif step_id == "review":
-        if not _should_advance_wp_step("review", feature_dir):
-            return ["Not all work packages are approved or done"]
+    if step_id == "implement" and not _should_advance_wp_step("implement", feature_dir):
+        return ["Not all work packages have required status (for_review, approved, or done)"]
+    if step_id == "review" and not _should_advance_wp_step("review", feature_dir):
+        return ["Not all work packages are approved or done"]
     return []
 
 
