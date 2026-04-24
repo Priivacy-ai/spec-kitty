@@ -310,7 +310,7 @@ class Mission:
 
         # When a project directory is supplied, use the 4-tier resolver
         if project_dir is not None:
-            from specify_cli.runtime.resolver import resolve_command
+            from runtime.discovery.resolver import resolve_command
 
             mission_type = self.path.name  # e.g. "software-dev"
             result = resolve_command(command_name, project_dir, mission=mission_type)

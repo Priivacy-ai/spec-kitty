@@ -44,7 +44,7 @@ class RewriteResult:
 
 def _get_command_templates_dir() -> Path | None:
     """Return the package-bundled command-templates directory, or ``None``."""
-    from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+    from runtime.discovery.home import get_kittify_home, get_package_asset_root
 
     # 1. Package-bundled assets (highest priority, always matches CLI version)
     try:

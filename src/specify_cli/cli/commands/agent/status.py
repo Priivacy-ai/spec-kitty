@@ -404,7 +404,7 @@ def doctor(
         spec-kitty agent status doctor --mission 034-my-feature
         spec-kitty agent status doctor --stale-claimed-days 3 --json
     """
-    from specify_cli.runtime.doctor import run_global_checks
+    from runtime.orchestration.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
     feature_dir, mission_slug, repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)

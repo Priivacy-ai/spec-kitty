@@ -129,7 +129,7 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
             relative = surface.path_pattern[2:]  # Strip ~/
             path = Path.home() / relative
         else:
-            from specify_cli.runtime.home import get_kittify_home
+            from runtime.discovery.home import get_kittify_home
 
             path = get_kittify_home() / surface.path_pattern
     elif surface.root == StateRoot.GLOBAL_SYNC:
@@ -243,7 +243,7 @@ def check_state_roots(repo_root: Path) -> StateRootsReport:
     Returns:
         A StateRootsReport with roots, surfaces, and any warnings.
     """
-    from specify_cli.runtime.home import get_kittify_home
+    from runtime.discovery.home import get_kittify_home
 
     report = StateRootsReport()
 

@@ -26,8 +26,8 @@ from rich.console import Console
 from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
 from specify_cli.paths.windows_migrate import MigrationOutcome
-from specify_cli.runtime.bootstrap import ensure_runtime
-from specify_cli.runtime.migrate import execute_migration
+from runtime.orchestration.bootstrap import ensure_runtime
+from runtime.orchestration.migrate import execute_migration
 
 app = typer.Typer(
     name="migrate",

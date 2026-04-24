@@ -40,7 +40,7 @@ def resolve_template_path(project_root: Path, mission_type: str, template_subpat
     Returns:
         Path to the resolved template, or None if not found at any tier.
     """
-    from specify_cli.runtime.home import get_kittify_home
+    from runtime.discovery.home import get_kittify_home
 
     subpath = Path(template_subpath)
     candidates = [
