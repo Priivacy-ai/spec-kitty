@@ -14,14 +14,14 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-_AGENTS_MD = "AGENTS.md"
-
 from runtime.discovery.home import get_package_asset_root
 from runtime.discovery.resolver import (
     resolve_command,
     resolve_mission,
     resolve_template,
 )
+
+_AGENTS_MD = "AGENTS.md"
 
 logger = logging.getLogger(__name__)
 
@@ -116,34 +116,34 @@ def _discover_template_names(mission: str) -> list[str]:
     return sorted(names)
 
 
+def _scan_script_root(root: Path, tier: str, skip_names: set[str]) -> list[OriginEntry]:
+    """Collect script OriginEntry entries under `root`, skipping names in `skip_names`."""
+    if not root.is_dir():
+        return []
+    collected: list[OriginEntry] = []
+    for script_file in sorted(root.rglob("*")):
+        if not script_file.is_file():
+            continue
+        rel = str(script_file.relative_to(root))
+        if rel in skip_names:
+            continue
+        collected.append(OriginEntry("script", rel, script_file, tier, None))
+    return collected
+
+
 def _discover_scripts(project_dir: Path) -> list[OriginEntry]:
     """Discover scripts from .kittify/scripts/ and package defaults.
 
     Scripts don't use the 4-tier resolver (they are project-local or
     package-bundled), so we report them with a simplified tier label.
     """
-    entries: list[OriginEntry] = []
+    entries = _scan_script_root(project_dir / ".kittify" / "scripts", "project", set())
 
-    # Project-local scripts
-    project_scripts = project_dir / ".kittify" / "scripts"
-    if project_scripts.is_dir():
-        for script_file in sorted(project_scripts.rglob("*")):
-            if script_file.is_file():
-                rel = script_file.relative_to(project_scripts)
-                entries.append(OriginEntry("script", str(rel), script_file, "project", None))
-
-    # Package-bundled scripts (discover from src/specify_cli/scripts/)
     try:
         import specify_cli
 
         pkg_scripts = Path(specify_cli.__file__).parent / "scripts"
-        if pkg_scripts.is_dir():
-            for script_file in sorted(pkg_scripts.rglob("*")):
-                if script_file.is_file():
-                    rel = script_file.relative_to(pkg_scripts)
-                    # Skip if already found at project level (project takes precedence)
-                    if not any(e.name == str(rel) for e in entries):
-                        entries.append(OriginEntry("script", str(rel), script_file, "package_default", None))
+        entries.extend(_scan_script_root(pkg_scripts, "package_default", {e.name for e in entries}))
     except (ImportError, OSError):
         pass
 
