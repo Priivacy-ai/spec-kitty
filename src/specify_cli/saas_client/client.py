@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, cast
 import httpx
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
-from specify_cli.saas_client.endpoints import DiscussionData, DiscussionMessage, WidenResponse
+from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
     SaasClientError,
@@ -69,11 +69,13 @@ class SaasClient:
         self,
         base_url: str,
         token: str,
+        team_slug: str | None = None,
         timeout: float = _TIMEOUT_DEFAULT,
         _http: httpx.Client | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
+        self._team_slug = team_slug
         self._timeout = timeout
         self._http = _http or httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
@@ -115,7 +117,7 @@ class SaasClient:
 
         root: Path | None = Path(str(repo_root)) if repo_root is not None else None
         ctx: AuthContext = load_auth_context(repo_root=root)
-        return cls(base_url=ctx.saas_url, token=ctx.token)
+        return cls(base_url=ctx.saas_url, token=ctx.token, team_slug=ctx.team_slug)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -160,17 +162,27 @@ class SaasClient:
             raise _map_http_error(resp, f"POST {url}")
         return resp
 
+    def _resolve_team_slug(self, team_slug: str | None = None) -> str:
+        slug = (team_slug or self._team_slug or "").strip()
+        if not slug:
+            raise SaasAuthError("SaaS team_slug is required for Teamspace-scoped Decision Moment endpoints")
+        return slug
+
+    def _team_path(self, team_slug: str | None, path: str) -> str:
+        return f"/a/{self._resolve_team_slug(team_slug)}/collaboration{path}"
+
     # ------------------------------------------------------------------
     # Public endpoint methods
     # ------------------------------------------------------------------
 
-    def get_audience_default(self, mission_id: str) -> list[str]:
+    def get_audience_default(self, mission_id: str, *, team_slug: str | None = None) -> list[AudienceMember]:
         """Fetch the default audience for a mission.
 
-        ``GET /api/v1/missions/{id}/audience-default``
+        ``GET /a/{team_slug}/collaboration/missions/{id}/audience-default``
 
-        Returns a list of member display names, e.g.
-        ``["Alice Johnson", "Bob Smith"]``.
+        Returns Teamspace member dicts containing at least ``user_id`` and
+        ``display_name``. Legacy bare-string responses are tolerated for older
+        test stubs by returning display-name-only member dicts.
 
         Args:
             mission_id: ULID or slug identifying the mission.
@@ -184,23 +196,33 @@ class SaasClient:
             SaasAuthError: On auth failure (HTTP 401/403).
             SaasTimeoutError: If the request exceeds the default timeout.
         """
-        path = f"/api/v1/missions/{mission_id}/audience-default"
+        path = self._team_path(team_slug, f"/missions/{mission_id}/audience-default")
         resp = self._get(path)
         data = resp.json()
         # Accept either {"members": [...]} or a bare list
-        if isinstance(data, list):
-            return [str(m) for m in data]
-        members = data.get("members", [])
-        return [str(m) for m in members]
+        members = data if isinstance(data, list) else data.get("members", [])
+        normalized: list[AudienceMember] = []
+        for member in members:
+            if isinstance(member, dict):
+                normalized.append(cast(AudienceMember, dict(member)))
+            else:
+                normalized.append({"display_name": str(member)})
+        return normalized
 
-    def post_widen(self, decision_id: str, invited: list[str]) -> WidenResponse:
+    def post_widen(
+        self,
+        decision_id: str,
+        invited: list[int],
+        *,
+        team_slug: str | None = None,
+    ) -> WidenResponse:
         """Widen a decision point by inviting external participants.
 
-        ``POST /api/v1/decision-points/{id}/widen``
+        ``POST /a/{team_slug}/collaboration/decision-points/{id}/widen``
 
         Args:
             decision_id: ULID of the decision point to widen.
-            invited: List of display names (or IDs) to invite.
+            invited: List of Teamspace user IDs to invite.
 
         Returns:
             :class:`~specify_cli.saas_client.endpoints.WidenResponse` with
@@ -212,8 +234,8 @@ class SaasClient:
             SaasAuthError: On auth failure (HTTP 401/403).
             SaasTimeoutError: If the request exceeds the default timeout.
         """
-        path = f"/api/v1/decision-points/{decision_id}/widen"
-        resp = self._post(path, json={"invited": invited})
+        path = self._team_path(team_slug, f"/decision-points/{decision_id}/widen")
+        resp = self._post(path, json={"invited_user_ids": invited})
         data: dict[str, Any] = resp.json()
         return WidenResponse(
             decision_id=str(data.get("decision_id", decision_id)),
@@ -225,7 +247,7 @@ class SaasClient:
     def get_team_integrations(self, team_slug: str) -> list[str]:
         """Fetch the list of active integrations for a team.
 
-        ``GET /api/v1/teams/{slug}/integrations``
+        ``GET /a/{team_slug}/collaboration/integrations/``
 
         Used by the prereq checker (500ms timeout — it is a fast probe).
 
@@ -239,7 +261,7 @@ class SaasClient:
             SaasClientError: On any HTTP or network failure.
             SaasTimeoutError: If the request exceeds the 500ms probe timeout.
         """
-        path = f"/api/v1/teams/{team_slug}/integrations"
+        path = self._team_path(team_slug, "/integrations/")
         resp = self._get(path, timeout=_TIMEOUT_PREREQ_PROBE)
         data = resp.json()
         if isinstance(data, list):
@@ -264,10 +286,10 @@ class SaasClient:
         except SaasClientError:
             return False
 
-    def fetch_discussion(self, decision_id: str) -> DiscussionData:
+    def fetch_discussion(self, decision_id: str, *, team_slug: str | None = None) -> DiscussionData:
         """Fetch the discussion thread for a widened decision point.
 
-        ``GET /api/v1/decision-points/{id}/discussion``
+        ``GET /a/{team_slug}/collaboration/decision-points/{id}/discussion/``
 
         Uses a longer 10-second timeout (per NFR-002) because discussion
         payloads may be large.
@@ -284,7 +306,7 @@ class SaasClient:
             SaasAuthError: On auth failure (HTTP 401/403).
             SaasTimeoutError: If the request exceeds the 10-second timeout.
         """
-        path = f"/api/v1/decision-points/{decision_id}/discussion"
+        path = self._team_path(team_slug, f"/decision-points/{decision_id}/discussion/")
         resp = self._get(path, timeout=_TIMEOUT_DISCUSSION)
         data: dict[str, Any] = resp.json()
 
@@ -293,9 +315,9 @@ class SaasClient:
             list[DiscussionMessage],
             [
                 {
-                    "author": str(m.get("author", "")),
+                    "author": str(m.get("author") or m.get("author_display_name") or ""),
                     "text": str(m.get("text", "")),
-                    "timestamp": m.get("timestamp") or None,
+                    "timestamp": m.get("timestamp") or m.get("ts") or None,
                 }
                 for m in raw_messages
                 if isinstance(m, dict)
@@ -303,7 +325,12 @@ class SaasClient:
         )
 
         raw_participants = data.get("participants", []) or []
-        participants = [str(p) for p in raw_participants]
+        participants = [
+            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id"))
+            if isinstance(p, dict)
+            else str(p)
+            for p in raw_participants
+        ]
 
         return DiscussionData(
             decision_id=str(data.get("decision_id", decision_id)),

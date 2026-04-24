@@ -16,11 +16,13 @@ from specify_cli.saas_client import (
     SaasClientError,
     SaasTimeoutError,
 )
+from specify_cli.saas_client.endpoints import AudienceMember
 from specify_cli.widen.audience import (
     _parse_audience_input,
     _prompt_audience,
     run_audience_review,
 )
+from specify_cli.widen.models import AudienceSelection
 
 
 # ---------------------------------------------------------------------------
@@ -28,7 +30,16 @@ from specify_cli.widen.audience import (
 # ---------------------------------------------------------------------------
 
 
-def _make_client(members: list[str] | None = None, side_effect: Exception | None = None) -> MagicMock:
+def _member(user_id: int, display_name: str) -> AudienceMember:
+    return {
+        "user_id": user_id,
+        "display_name": display_name,
+        "email": f"user-{user_id}@example.com",
+        "roles": ["member"],
+    }
+
+
+def _make_client(members: list[AudienceMember] | None = None, side_effect: Exception | None = None) -> MagicMock:
     """Return a mock SaasClient."""
     client = MagicMock()
     if side_effect is not None:
@@ -158,14 +169,15 @@ class TestPromptAudience:
 
 
 class TestRunAudienceReview:
-    MEMBERS = ["Alice Johnson", "Bob Smith", "Carol Lee"]
+    MEMBERS = [_member(101, "Alice Johnson"), _member(102, "Bob Smith"), _member(103, "Carol Lee")]
+    MEMBER_NAMES = ["Alice Johnson", "Bob Smith", "Carol Lee"]
 
     def _run(
         self,
         input_text: str,
-        members: list[str] | None = None,
+        members: list[AudienceMember] | None = None,
         side_effect: Exception | None = None,
-    ) -> tuple[list[str] | None, str]:
+    ) -> tuple[AudienceSelection | None, str]:
         """Run audience review with patched console.input, return (result, output)."""
         client = _make_client(
             members=members if members is not None else self.MEMBERS,
@@ -178,19 +190,22 @@ class TestRunAudienceReview:
 
     def test_empty_input_returns_full_default(self) -> None:
         result, _ = self._run("")
-        assert result == self.MEMBERS
+        assert result is not None
+        assert result.display_names == self.MEMBER_NAMES
+        assert result.user_ids == [101, 102, 103]
 
     def test_csv_trim_returns_subset(self) -> None:
         result, _ = self._run("Alice Johnson, Carol Lee")
-        assert result == ["Alice Johnson", "Carol Lee"]
-
-    def test_csv_with_unknown_name_includes_it(self) -> None:
-        result, output = self._run("Alice Johnson, Eve Newcomer")
         assert result is not None
-        assert "Alice Johnson" in result
-        assert "Eve Newcomer" in result
+        assert result.display_names == ["Alice Johnson", "Carol Lee"]
+        assert result.user_ids == [101, 103]
+
+    def test_csv_with_unknown_name_returns_none(self) -> None:
+        result, output = self._run("Alice Johnson, Eve Newcomer")
+        assert result is None
         assert "Note:" in output
         assert "Eve Newcomer" in output
+        assert "missing Teamspace user IDs" in output
 
     def test_cancel_keyword_returns_none(self) -> None:
         result, _ = self._run("cancel")
@@ -261,7 +276,8 @@ class TestRunAudienceReview:
 
     def test_widen_key_audience_included_in_output(self) -> None:
         result, output = self._run("")
-        assert result == self.MEMBERS
+        assert result is not None
+        assert result.display_names == self.MEMBER_NAMES
         # Names should appear in the panel body
         assert "Alice Johnson" in output
         assert "Bob Smith" in output

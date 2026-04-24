@@ -27,6 +27,15 @@ class WidenResponse(TypedDict):
     invited_count: int | None
 
 
+class AudienceMember(TypedDict, total=False):
+    """A Teamspace member returned by the audience-default endpoint."""
+
+    user_id: int
+    display_name: str
+    email: str
+    roles: list[str]
+
+
 class DiscussionMessage(TypedDict):
     """A single message within a discussion thread."""
 

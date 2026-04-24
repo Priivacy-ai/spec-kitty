@@ -136,7 +136,8 @@ Before asking **any** clarifying question during plan elaboration, you MUST:
   appears only in artifact filenames, not in CLI arguments.
 - The verifier cross-checks `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->`
   sentinels in `plan.md` against the decisions index and exits non-zero on drift.
-- Do NOT emit `DecisionPointWidened` — that is out of scope for V1.
+- Widening is represented by the CLI/SaaS widen flow; if that flow returns
+  canonical thread metadata, it must be recorded as `DecisionPointWidened`.
 - Local-only; no SaaS calls needed.
 
 ## Planning Interrogation (mandatory)

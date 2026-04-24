@@ -3,10 +3,10 @@
 Provides a thin, mockable HTTP client (``SaasClient``) for calling
 spec-kitty-saas endpoints used by the widen flow and prereq checker:
 
-- ``GET /api/v1/missions/{id}/audience-default``
-- ``POST /api/v1/decision-points/{id}/widen``
-- ``GET /api/v1/decision-points/{id}/discussion``
-- ``GET /api/v1/teams/{slug}/integrations``
+- ``GET /a/{team_slug}/collaboration/missions/{id}/audience-default``
+- ``POST /a/{team_slug}/collaboration/decision-points/{id}/widen``
+- ``GET /a/{team_slug}/collaboration/decision-points/{id}/discussion/``
+- ``GET /a/{team_slug}/collaboration/integrations/``
 - ``GET /api/v1/health``
 
 All failures surface as ``SaasClientError`` or a typed subclass.  Callers
@@ -19,7 +19,7 @@ Example::
     from specify_cli.saas_client import SaasClient, SaasClientError
 
     client = SaasClient.from_env()
-    members: list[str] = []
+    members = []
     with contextlib.suppress(SaasClientError):
         members = client.get_audience_default(mission_id)
 """
@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.client import SaasClient
-from specify_cli.saas_client.endpoints import DiscussionData, DiscussionMessage, WidenResponse
+from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
     SaasClientError,
@@ -49,6 +49,7 @@ __all__ = [
     "SaasNotFoundError",
     # Response shapes
     "WidenResponse",
+    "AudienceMember",
     "DiscussionData",
     "DiscussionMessage",
 ]

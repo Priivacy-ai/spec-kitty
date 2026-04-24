@@ -105,9 +105,11 @@ def test_has_token_false_when_token_empty() -> None:
 def test_load_auth_context_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "test-token")
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://example.com")
+    monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", "my-team")
     ctx = load_auth_context()
     assert ctx.token == "test-token"
     assert ctx.saas_url == "https://example.com"
+    assert ctx.team_slug == "my-team"
 
 
 def test_load_auth_context_default_url(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,19 +159,19 @@ def _make_client(response_data: object, status_code: int = 200) -> SaasClient:
     mock_http = MagicMock(spec=httpx.Client)
     mock_http.get.return_value = mock_resp
     mock_http.post.return_value = mock_resp
-    return SaasClient("http://test", "tok", _http=mock_http)
+    return SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
 
 
 def test_get_audience_default_returns_list() -> None:
-    client = _make_client({"members": ["Alice", "Bob"]})
+    client = _make_client({"members": [{"user_id": 1, "display_name": "Alice"}]})
     result = client.get_audience_default("mission-123")
-    assert result == ["Alice", "Bob"]
+    assert result == [{"user_id": 1, "display_name": "Alice"}]
 
 
 def test_get_audience_default_accepts_bare_list() -> None:
     client = _make_client(["Alice", "Bob"])
     result = client.get_audience_default("mission-123")
-    assert result == ["Alice", "Bob"]
+    assert result == [{"display_name": "Alice"}, {"display_name": "Bob"}]
 
 
 def test_post_widen_returns_widen_response() -> None:
@@ -179,7 +181,7 @@ def test_post_widen_returns_widen_response() -> None:
         "slack_thread_url": "https://slack.com/x",
         "invited_count": 2,
     })
-    result = client.post_widen("dec-1", ["Alice", "Bob"])
+    result = client.post_widen("dec-1", [1, 2])
     assert result["decision_id"] == "dec-1"
     assert result["invited_count"] == 2
 
@@ -199,7 +201,7 @@ def test_health_probe_returns_false_on_error() -> None:
     """health_probe never raises — returns False on any error."""
     mock_http = MagicMock(spec=httpx.Client)
     mock_http.get.side_effect = httpx.TimeoutException("timeout")
-    client = SaasClient("http://test", "tok", _http=mock_http)
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     assert client.health_probe() is False
 
 
@@ -225,7 +227,7 @@ def test_fetch_discussion_returns_discussion_data() -> None:
 def test_timeout_exception_maps_to_saas_timeout_error() -> None:
     mock_http = MagicMock(spec=httpx.Client)
     mock_http.get.side_effect = httpx.TimeoutException("timed out")
-    client = SaasClient("http://test", "tok", _http=mock_http)
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasTimeoutError):
         client.get_audience_default("m-1")
 
@@ -237,7 +239,7 @@ def test_401_maps_to_saas_auth_error() -> None:
     mock_resp.text = "Unauthorized"
     mock_http = MagicMock(spec=httpx.Client)
     mock_http.get.return_value = mock_resp
-    client = SaasClient("http://test", "tok", _http=mock_http)
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasAuthError) as exc_info:
         client.get_audience_default("m-1")
     assert exc_info.value.status_code == 401
@@ -250,7 +252,7 @@ def test_404_maps_to_saas_not_found_error() -> None:
     mock_resp.text = "Not Found"
     mock_http = MagicMock(spec=httpx.Client)
     mock_http.get.return_value = mock_resp
-    client = SaasClient("http://test", "tok", _http=mock_http)
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasNotFoundError) as exc_info:
         client.get_audience_default("m-1")
     assert exc_info.value.status_code == 404
@@ -267,38 +269,38 @@ class TestRespxIntegration:
     BASE = "http://saas-test"
 
     def _client(self, http_client: httpx.Client) -> SaasClient:
-        return SaasClient(self.BASE, "test-token", _http=http_client)
+        return SaasClient(self.BASE, "test-token", team_slug="my-team", _http=http_client)
 
     def test_get_audience_default_success_respx(self) -> None:
         """respx: GET /audience-default returns list from {'members': [...]}."""
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/missions/M1/audience-default").respond(
-                200, json={"members": ["Alice", "Bob"]}
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M1/audience-default").respond(
+                200, json={"members": [{"user_id": 1, "display_name": "Alice"}]}
             )
             client = self._client(httpx.Client())
             result = client.get_audience_default("M1")
-        assert result == ["Alice", "Bob"]
+        assert result == [{"user_id": 1, "display_name": "Alice"}]
 
     def test_get_audience_default_bare_list_respx(self) -> None:
         """respx: GET /audience-default also accepts a bare JSON list."""
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/missions/M2/audience-default").respond(
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M2/audience-default").respond(
                 200, json=["Carol", "Dana"]
             )
             client = self._client(httpx.Client())
             result = client.get_audience_default("M2")
-        assert result == ["Carol", "Dana"]
+        assert result == [{"display_name": "Carol"}, {"display_name": "Dana"}]
 
     def test_post_widen_returns_widen_response_respx(self) -> None:
         """respx: POST /widen parses WidenResponse fields (TypedDict)."""
         import respx
 
         with respx.mock:
-            respx.post(f"{self.BASE}/api/v1/decision-points/D1/widen").respond(
+            respx.post(f"{self.BASE}/a/my-team/collaboration/decision-points/D1/widen").respond(
                 200,
                 json={
                     "decision_id": "D1",
@@ -308,7 +310,7 @@ class TestRespxIntegration:
                 },
             )
             client = self._client(httpx.Client())
-            result = client.post_widen("D1", ["Alice", "Bob"])
+            result = client.post_widen("D1", [1, 2])
         # WidenResponse is a TypedDict — use dict-style access
         assert result["decision_id"] == "D1"
         assert result["invited_count"] == 2
@@ -320,7 +322,7 @@ class TestRespxIntegration:
 
         route = None
         with respx.mock as mock:
-            route = mock.post(f"{self.BASE}/api/v1/decision-points/D2/widen").respond(
+            route = mock.post(f"{self.BASE}/a/my-team/collaboration/decision-points/D2/widen").respond(
                 200,
                 json={
                     "decision_id": "D2",
@@ -330,11 +332,11 @@ class TestRespxIntegration:
                 },
             )
             client = self._client(httpx.Client())
-            client.post_widen("D2", ["Carol Lee"])
+            client.post_widen("D2", [3])
 
         assert route.called
         req_body = json.loads(route.calls[0].request.content)
-        assert req_body["invited"] == ["Carol Lee"]
+        assert req_body["invited_user_ids"] == [3]
 
     def test_health_probe_true_on_200_respx(self) -> None:
         """respx: health_probe() returns True when GET /health returns 200."""
@@ -361,7 +363,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/teams/my-team/integrations").respond(
+            respx.get(f"{self.BASE}/a/my-team/collaboration/integrations/").respond(
                 200, json={"integrations": ["slack", "github"]}
             )
             client = self._client(httpx.Client())
@@ -374,7 +376,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/missions/M3/audience-default").respond(
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M3/audience-default").respond(
                 401, text="Unauthorized"
             )
             client = self._client(httpx.Client())
@@ -387,14 +389,14 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/decision-points/D3/discussion").respond(
+            respx.get(f"{self.BASE}/a/my-team/collaboration/decision-points/D3/discussion/").respond(
                 200,
                 json={
                     "decision_id": "D3",
-                    "participants": ["Alice", "Bob"],
+                    "participants": [{"display_name": "Alice"}, {"display_name": "Bob"}],
                     "messages": [
-                        {"author": "Alice", "text": "Use Postgres", "timestamp": None},
-                        {"author": "Bob", "text": "Agreed", "timestamp": None},
+                        {"author_display_name": "Alice", "text": "Use Postgres", "ts": "1.0"},
+                        {"author_display_name": "Bob", "text": "Agreed", "ts": "2.0"},
                     ],
                     "thread_url": "https://slack.com/t3",
                     "message_count": 2,

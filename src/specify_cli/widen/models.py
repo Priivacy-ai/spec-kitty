@@ -78,6 +78,18 @@ class WidenAction(StrEnum):
 
 
 @dataclass(frozen=True)
+class AudienceSelection:
+    """Mission-owner-confirmed audience after review/trim.
+
+    ``display_names`` are used for CLI rendering and paper trail text.
+    ``user_ids`` are the SaaS wire payload for POST /widen.
+    """
+
+    display_names: list[str]
+    user_ids: list[int]
+
+
+@dataclass(frozen=True)
 class WidenFlowResult:
     """Return type for ``WidenFlow.run_widen_mode()``.
 

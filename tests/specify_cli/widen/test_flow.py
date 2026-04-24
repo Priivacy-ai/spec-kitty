@@ -29,7 +29,7 @@ from rich.console import Console
 
 from specify_cli.saas_client import SaasAuthError, SaasClientError, SaasTimeoutError
 from specify_cli.widen.flow import WidenFlow
-from specify_cli.widen.models import WidenAction, WidenFlowResult
+from specify_cli.widen.models import AudienceSelection, WidenAction, WidenFlowResult
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +42,7 @@ _MISSION_SLUG = "test-mission-01KPX"
 _QUESTION = "Which database should we use?"
 _ACTOR = "owner"
 _DEFAULT_AUDIENCE = ["Alice Johnson", "Carol Lee"]
+_DEFAULT_SELECTION = AudienceSelection(display_names=_DEFAULT_AUDIENCE, user_ids=[101, 102])
 
 _DEFAULT_WIDEN_RESPONSE: dict[str, object] = {
     "decision_id": _DECISION_ID,
@@ -98,7 +99,12 @@ def _run_with_bc_input(
     console, buf = _make_console()
     flow = WidenFlow(saas_client=client, repo_root=Path("/tmp/test-repo"), console=console)
 
-    audience_rv: list[str] | None = None if audience_returns_none else (audience or _DEFAULT_AUDIENCE)
+    audience_rv: AudienceSelection | None
+    if audience_returns_none:
+        audience_rv = None
+    else:
+        names = audience or _DEFAULT_AUDIENCE
+        audience_rv = AudienceSelection(display_names=names, user_ids=list(range(101, 101 + len(names))))
 
     with (
         patch("specify_cli.widen.flow.run_audience_review", return_value=audience_rv),
@@ -214,7 +220,7 @@ class TestBlockPath:
         console, _ = _make_console()
         flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
         with (
-            patch("specify_cli.widen.flow.run_audience_review", return_value=_DEFAULT_AUDIENCE),
+            patch("specify_cli.widen.flow.run_audience_review", return_value=_DEFAULT_SELECTION),
             patch.object(console, "input", side_effect=EOFError),
         ):
             result = flow.run_widen_mode(
@@ -285,7 +291,7 @@ class TestSuccessPanel:
 
         flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
         with (
-            patch("specify_cli.widen.flow.run_audience_review", return_value=_DEFAULT_AUDIENCE),
+            patch("specify_cli.widen.flow.run_audience_review", return_value=_DEFAULT_SELECTION),
             patch.object(console, "input", side_effect=fake_input),
         ):
             flow.run_widen_mode(
@@ -336,7 +342,10 @@ class TestSuccessPanel:
         console, buf = _make_console()
         flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
         with (
-            patch("specify_cli.widen.flow.run_audience_review", return_value=["Alice"]),
+            patch(
+                "specify_cli.widen.flow.run_audience_review",
+                return_value=AudienceSelection(display_names=["Alice"], user_ids=[101]),
+            ),
             patch.object(console, "input", return_value=""),
         ):
             flow.run_widen_mode(

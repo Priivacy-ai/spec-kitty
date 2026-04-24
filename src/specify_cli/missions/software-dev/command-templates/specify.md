@@ -190,7 +190,8 @@ Before asking **any** interview question during this command, you MUST:
 - `--input-key` is the snake_case programmatic key (e.g., `auth_strategy`).
 - The `decision_id` on the wire is a plain ULID (26 chars). The `DM-` prefix
   appears only in artifact filenames, not in CLI arguments.
-- Do NOT emit `DecisionPointWidened` — that is out of scope for V1.
+- Widening is represented by the CLI/SaaS widen flow; if that flow returns
+  canonical thread metadata, it must be recorded as `DecisionPointWidened`.
 - SaaS sync is not required; all operations are local-only.
 
 ## Discovery Gate (mandatory)

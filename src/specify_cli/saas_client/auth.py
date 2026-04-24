@@ -1,6 +1,7 @@
 """Auth context loading for the SaaS client.
 
-Reads ``SPEC_KITTY_SAAS_URL`` and ``SPEC_KITTY_SAAS_TOKEN`` from the
+Reads ``SPEC_KITTY_SAAS_URL``, ``SPEC_KITTY_SAAS_TOKEN``, and optional
+``SPEC_KITTY_TEAM_SLUG`` from the
 environment, falling back to ``.kittify/saas-auth.json`` when env vars are
 absent.  Raises ``SaasAuthError`` if no token can be resolved.
 """
@@ -46,7 +47,7 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     """
     url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
     token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
-    team_slug: str | None = None
+    team_slug = os.environ.get("SPEC_KITTY_TEAM_SLUG", "").strip() or None
 
     if not token and repo_root is not None:
         auth_file = repo_root / ".kittify" / "saas-auth.json"
@@ -59,7 +60,7 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
                 ) from exc
             token = data.get("token", "").strip()
             url = url or data.get("saas_url", "").strip()
-            team_slug = data.get("team_slug") or None
+            team_slug = team_slug or data.get("team_slug") or None
 
     if not token:
         raise SaasAuthError(

@@ -18,6 +18,26 @@ from specify_cli.saas_client import (
     SaasClientError,
     SaasTimeoutError,
 )
+from specify_cli.saas_client.endpoints import AudienceMember
+from specify_cli.widen.models import AudienceSelection
+
+
+def _member_display_name(member: AudienceMember) -> str:
+    if not isinstance(member, dict):
+        return str(member)
+    return str(member.get("display_name") or member.get("email") or member.get("user_id") or "")
+
+
+def _member_user_id(member: AudienceMember) -> int | None:
+    if not isinstance(member, dict):
+        return None
+    value = member.get("user_id")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_audience_input(raw: str, default_audience: list[str]) -> tuple[list[str], list[str]]:
@@ -83,7 +103,7 @@ def run_audience_review(
     mission_id: str,
     question_text: str,
     console: Console,
-) -> list[str] | None:
+) -> AudienceSelection | None:
     """Fetch default audience, render review Panel, accept trim input.
 
     Returns trimmed list on confirm, None on cancel (FR-006).
@@ -95,7 +115,7 @@ def run_audience_review(
         console: Rich Console for rendering output and prompting.
 
     Returns:
-        List of audience display names to pass to the widen endpoint, or
+        Confirmed display names and Teamspace user IDs to pass to SaaS, or
         ``None`` if the user canceled or a SaaS error occurred.
     """
     # --- T020: Fetch audience from SaaS with typed error handling ---
@@ -119,9 +139,20 @@ def run_audience_review(
         console.print("[yellow]Warning:[/yellow] No default audience configured for this mission.")
         return None
 
+    display_names = [_member_display_name(member) for member in default_audience]
+    display_names = [name for name in display_names if name]
+    user_id_by_display = {
+        _member_display_name(member).lower(): _member_user_id(member)
+        for member in default_audience
+        if _member_display_name(member)
+    }
+    if not display_names:
+        console.print("[yellow]Warning:[/yellow] No usable default audience configured for this mission.")
+        return None
+
     # --- T016: Render audience review Panel ---
     title = f"Widen: {question_text[:60]}"
-    audience_names = ", ".join(default_audience)
+    audience_names = ", ".join(display_names)
     panel_body = (
         "Default audience for this decision:\n"
         f"  {audience_names}\n"
@@ -137,11 +168,28 @@ def run_audience_review(
         return None
 
     # --- T017: Parse trim input ---
-    trimmed, unknown = _parse_audience_input(raw, default_audience)
+    trimmed, unknown = _parse_audience_input(raw, display_names)
     _warn_unknown(unknown, console)
+
+    user_ids: list[int] = []
+    missing_ids: list[str] = []
+    for name in trimmed:
+        user_id = user_id_by_display.get(name.lower())
+        if user_id is None:
+            missing_ids.append(name)
+        else:
+            user_ids.append(user_id)
+
+    if missing_ids:
+        console.print(
+            "[red]Widen failed:[/red] SaaS audience entries are missing Teamspace user IDs for "
+            f"{', '.join(missing_ids)}."
+        )
+        console.print("Returning to interview prompt.")
+        return None
 
     # --- T019: Confirmation display ---
     console.print(f"Audience confirmed: {', '.join(trimmed)} ({len(trimmed)} members)")
     console.print("Calling widen endpoint...")
 
-    return trimmed
+    return AudienceSelection(display_names=trimmed, user_ids=user_ids)

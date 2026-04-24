@@ -21,7 +21,7 @@ from rich.panel import Panel
 
 from specify_cli.saas_client import SaasClient, SaasClientError
 from specify_cli.widen.audience import run_audience_review
-from specify_cli.widen.models import WidenAction, WidenFlowResult
+from specify_cli.widen.models import AudienceSelection, WidenAction, WidenFlowResult
 
 
 class WidenFlow:
@@ -74,31 +74,31 @@ class WidenFlow:
             ``action = CANCEL | BLOCK | CONTINUE``.
         """
         # Step 1 — Audience review (WP04).
-        invited = run_audience_review(
+        selection = run_audience_review(
             saas_client=self._client,
             mission_id=mission_id,
             question_text=question_text,
             console=self._console,
         )
-        if invited is None:
+        if selection is None:
             # User canceled or SaaS error during audience fetch.
             return WidenFlowResult(action=WidenAction.CANCEL)
 
         # Step 2 — POST /api/v1/decision-points/{id}/widen (T022).
-        widen_response = self._post_widen(decision_id, invited)
+        widen_response = self._post_widen(decision_id, selection.user_ids)
         if widen_response is None:
             # SaaS error during widen POST — messages already printed.
             return WidenFlowResult(action=WidenAction.CANCEL)
 
         # Step 3 — Render success panel with Slack thread URL (T025).
-        self._render_widen_success(invited, question_text, widen_response)
+        self._render_widen_success(selection, question_text, widen_response)
 
         # Step 4 — [b/c] pause-semantics prompt (T023).
         action = self._prompt_pause_semantics(question_text, widen_response)
         return WidenFlowResult(
             action=action,
             decision_id=decision_id,
-            invited=invited,
+            invited=selection.display_names,
         )
 
     # ------------------------------------------------------------------
@@ -108,7 +108,7 @@ class WidenFlow:
     def _post_widen(
         self,
         decision_id: str,
-        invited: list[str],
+        invited: list[int],
     ) -> dict[str, object] | None:
         """Call ``POST /api/v1/decision-points/{id}/widen``.
 
@@ -140,7 +140,7 @@ class WidenFlow:
 
     def _render_widen_success(
         self,
-        invited: list[str],
+        selection: AudienceSelection,
         question_text: str,
         response: dict[str, object],
     ) -> None:
@@ -150,10 +150,11 @@ class WidenFlow:
         thread URL (if available).
 
         Args:
-            invited: Confirmed invite list.
+            selection: Confirmed invite list with display names and user IDs.
             question_text: Full question text (truncated to 50 chars in panel).
             response: Raw response dict from :meth:`_post_widen`.
         """
+        invited = selection.display_names
         if len(invited) == 0:
             invited_str = "(no participants)"
         elif len(invited) == 1:

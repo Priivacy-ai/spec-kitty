@@ -12,7 +12,7 @@ Coverage:
   T049: _render_widen_hint_if_present is exported from interview_helpers
   misc: widen not shown in ``decision --help`` (hidden=True)
   misc: widen --help is accessible when called directly
-  misc: --invited with whitespace-only entries filtered correctly
+  misc: --invited user IDs with whitespace-only entries filtered correctly
   misc: missing --invited argument → exit non-zero
   misc: --mission-slug is optional (None is valid)
   misc: dry_run payload includes endpoint field
@@ -26,7 +26,6 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
@@ -78,7 +77,7 @@ class TestDryRun:
     def test_dry_run_exits_zero(self, tmp_path: Path) -> None:
         """--dry-run exits 0."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice,Bob", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101,102", "--dry-run"],
             cwd=tmp_path,
         )
         assert result.exit_code == 0, f"expected exit 0, got {result.exit_code}\n{result.output}"
@@ -86,7 +85,7 @@ class TestDryRun:
     def test_dry_run_prints_valid_json(self, tmp_path: Path) -> None:
         """--dry-run output is valid JSON."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice,Bob", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101,102", "--dry-run"],
             cwd=tmp_path,
         )
         payload = json.loads(result.output)
@@ -95,7 +94,7 @@ class TestDryRun:
     def test_dry_run_includes_decision_id(self, tmp_path: Path) -> None:
         """--dry-run output includes the decision_id."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice,Bob", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101,102", "--dry-run"],
             cwd=tmp_path,
         )
         payload = json.loads(result.output)
@@ -104,16 +103,16 @@ class TestDryRun:
     def test_dry_run_includes_invited_list(self, tmp_path: Path) -> None:
         """--dry-run output includes parsed invited list."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice, Bob", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101, 102", "--dry-run"],
             cwd=tmp_path,
         )
         payload = json.loads(result.output)
-        assert payload["invited"] == ["Alice", "Bob"]
+        assert payload["invited"] == [101, 102]
 
     def test_dry_run_includes_endpoint(self, tmp_path: Path) -> None:
         """--dry-run output includes the endpoint field."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101", "--dry-run"],
             cwd=tmp_path,
         )
         payload = json.loads(result.output)
@@ -123,17 +122,17 @@ class TestDryRun:
     def test_dry_run_includes_payload(self, tmp_path: Path) -> None:
         """--dry-run output includes the payload sub-object."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice,Bob", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101,102", "--dry-run"],
             cwd=tmp_path,
         )
         payload = json.loads(result.output)
         assert "payload" in payload
-        assert payload["payload"]["invited"] == ["Alice", "Bob"]
+        assert payload["payload"]["invited_user_ids"] == [101, 102]
 
     def test_dry_run_includes_mission_slug_none(self, tmp_path: Path) -> None:
         """--dry-run includes mission_slug=None when not provided."""
         result = _invoke(
-            ["decision", "widen", DECISION_ID, "--invited", "Alice", "--dry-run"],
+            ["decision", "widen", DECISION_ID, "--invited", "101", "--dry-run"],
             cwd=tmp_path,
         )
         payload = json.loads(result.output)
@@ -147,7 +146,7 @@ class TestDryRun:
                 "widen",
                 DECISION_ID,
                 "--invited",
-                "Alice",
+                "101",
                 "--mission-slug",
                 MISSION_SLUG,
                 "--dry-run",
@@ -161,7 +160,7 @@ class TestDryRun:
         """--dry-run makes no HTTP calls (SaasClient is never constructed)."""
         with patch("specify_cli.saas_client.client.SaasClient.from_env") as mock_from_env:
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice", "--dry-run"],
+                ["decision", "widen", DECISION_ID, "--invited", "101", "--dry-run"],
                 cwd=tmp_path,
             )
         mock_from_env.assert_not_called()
@@ -180,7 +179,7 @@ class TestLivePath:
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice,Bob"],
+                ["decision", "widen", DECISION_ID, "--invited", "101,102"],
                 cwd=tmp_path,
             )
         assert result.exit_code == 0, f"exit {result.exit_code}\n{result.output}"
@@ -191,7 +190,7 @@ class TestLivePath:
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice,Bob"],
+                ["decision", "widen", DECISION_ID, "--invited", "101,102"],
                 cwd=tmp_path,
             )
         payload = json.loads(result.output)
@@ -203,7 +202,7 @@ class TestLivePath:
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice"],
+                ["decision", "widen", DECISION_ID, "--invited", "101"],
                 cwd=tmp_path,
             )
         payload = json.loads(result.output)
@@ -215,11 +214,11 @@ class TestLivePath:
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice, Bob"],
+                ["decision", "widen", DECISION_ID, "--invited", "101, 102"],
                 cwd=tmp_path,
             )
         mock_client.post_widen.assert_called_once_with(
-            decision_id=DECISION_ID, invited=["Alice", "Bob"]
+            decision_id=DECISION_ID, invited=[101, 102]
         )
 
     def test_live_saas_error_exits_one(self, tmp_path: Path) -> None:
@@ -228,7 +227,7 @@ class TestLivePath:
         mock_client.post_widen.side_effect = SaasClientError("server error", status_code=500)
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice"],
+                ["decision", "widen", DECISION_ID, "--invited", "101"],
                 cwd=tmp_path,
             )
         assert result.exit_code == 1
@@ -239,7 +238,7 @@ class TestLivePath:
         mock_client.post_widen.side_effect = SaasClientError("server error", status_code=500)
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", "Alice"],
+                ["decision", "widen", DECISION_ID, "--invited", "101"],
                 cwd=tmp_path,
             )
         assert result.exit_code == 1
@@ -266,12 +265,12 @@ class TestErrorPaths:
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
             result = _invoke(
-                ["decision", "widen", DECISION_ID, "--invited", " Alice , , Bob "],
+                ["decision", "widen", DECISION_ID, "--invited", " 101 , , 102 "],
                 cwd=tmp_path,
             )
         assert result.exit_code == 0
         mock_client.post_widen.assert_called_once_with(
-            decision_id=DECISION_ID, invited=["Alice", "Bob"]
+            decision_id=DECISION_ID, invited=[101, 102]
         )
 
     def test_missing_invited_flag_exits_nonzero(self, tmp_path: Path) -> None:
