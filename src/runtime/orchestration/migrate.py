@@ -99,35 +99,55 @@ def classify_asset(
     if top_level in SHARED_ASSET_DIRS or rel.name in SHARED_ASSET_FILES:
         if not local_path.is_file():
             return AssetDisposition.UNKNOWN
-
-        # When package_root is provided, compare against immutable package defaults
-        # to correctly distinguish old defaults from user customizations.
-        if package_root is not None:
-            pkg_counterpart = _find_package_counterpart(rel, package_root, mission)
-            if pkg_counterpart is not None:
-                if filecmp.cmp(str(local_path), str(pkg_counterpart), shallow=False):
-                    return AssetDisposition.IDENTICAL
-                # File has a package counterpart but differs — it's an outdated
-                # default from a previous version, NOT a user customization.
-                return AssetDisposition.SUPERSEDED
-            # No package counterpart = genuinely user-created
-            return AssetDisposition.CUSTOMIZED
-
-        # Legacy path: compare against global home (mutable ~/.kittify/).
-        # This preserves backwards compatibility for callers that don't pass package_root.
-        global_path = global_home / "missions" / mission / str(rel)
-        if not global_path.exists():
-            global_path = global_home / str(rel)
-
-        if global_path.exists() and global_path.is_file():
-            if filecmp.cmp(str(local_path), str(global_path), shallow=False):
-                return AssetDisposition.IDENTICAL
-            return AssetDisposition.CUSTOMIZED
-
-        # No global counterpart found = treat as customized (user-created)
-        return AssetDisposition.CUSTOMIZED
+        return _classify_shared_asset(local_path, rel, global_home, mission, package_root)
 
     return AssetDisposition.UNKNOWN
+
+
+def _classify_shared_asset(
+    local_path: Path,
+    rel: Path,
+    global_home: Path,
+    mission: str,
+    package_root: Path | None,
+) -> AssetDisposition:
+    """Classify a shared asset against its canonical reference (package or global home)."""
+    if package_root is not None:
+        return _classify_against_package(local_path, rel, package_root, mission)
+    return _classify_against_global_home(local_path, rel, global_home, mission)
+
+
+def _classify_against_package(
+    local_path: Path,
+    rel: Path,
+    package_root: Path,
+    mission: str,
+) -> AssetDisposition:
+    """Compare a shared asset against immutable package-bundled defaults."""
+    pkg_counterpart = _find_package_counterpart(rel, package_root, mission)
+    if pkg_counterpart is None:
+        return AssetDisposition.CUSTOMIZED  # No package counterpart = user-created
+    if filecmp.cmp(str(local_path), str(pkg_counterpart), shallow=False):
+        return AssetDisposition.IDENTICAL
+    # Differs from package default — outdated, not a user customisation.
+    return AssetDisposition.SUPERSEDED
+
+
+def _classify_against_global_home(
+    local_path: Path,
+    rel: Path,
+    global_home: Path,
+    mission: str,
+) -> AssetDisposition:
+    """Compare a shared asset against the mutable global ~/.kittify/ (legacy path)."""
+    global_path = global_home / "missions" / mission / str(rel)
+    if not global_path.exists():
+        global_path = global_home / str(rel)
+    if global_path.exists() and global_path.is_file():
+        if filecmp.cmp(str(local_path), str(global_path), shallow=False):
+            return AssetDisposition.IDENTICAL
+        return AssetDisposition.CUSTOMIZED
+    return AssetDisposition.CUSTOMIZED
 
 
 @dataclass
@@ -185,31 +205,41 @@ def execute_migration(
             path, global_home, kittify_dir,
             mission=mission, package_root=package_root,
         )
-
-        if disposition in (AssetDisposition.IDENTICAL, AssetDisposition.SUPERSEDED):
-            if disposition == AssetDisposition.SUPERSEDED:
-                report.superseded.append(path)
-            else:
-                report.removed.append(path)
-            if not dry_run:
-                path.unlink()
-        elif disposition == AssetDisposition.CUSTOMIZED:
-            rel = path.relative_to(kittify_dir)
-            dest = kittify_dir / "overrides" / rel
-            report.moved.append((path, dest))
-            if not dry_run:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                path.rename(dest)
-        elif disposition == AssetDisposition.PROJECT_SPECIFIC:
-            report.kept.append(path)
-        else:
-            report.unknown.append(path)
+        _apply_asset_disposition(path, disposition, kittify_dir, dry_run, report)
 
     # Clean up empty directories after removal/move
     if not dry_run:
         _cleanup_empty_dirs(kittify_dir)
 
     return report
+
+
+def _apply_asset_disposition(
+    path: Path,
+    disposition: AssetDisposition,
+    kittify_dir: Path,
+    dry_run: bool,
+    report: MigrationReport,
+) -> None:
+    """Apply a single asset's computed disposition to the filesystem and report."""
+    if disposition in (AssetDisposition.IDENTICAL, AssetDisposition.SUPERSEDED):
+        if disposition == AssetDisposition.SUPERSEDED:
+            report.superseded.append(path)
+        else:
+            report.removed.append(path)
+        if not dry_run:
+            path.unlink()
+    elif disposition == AssetDisposition.CUSTOMIZED:
+        rel = path.relative_to(kittify_dir)
+        dest = kittify_dir / "overrides" / rel
+        report.moved.append((path, dest))
+        if not dry_run:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            path.rename(dest)
+    elif disposition == AssetDisposition.PROJECT_SPECIFIC:
+        report.kept.append(path)
+    else:
+        report.unknown.append(path)
 
 
 def _cleanup_empty_dirs(kittify_dir: Path) -> None:
