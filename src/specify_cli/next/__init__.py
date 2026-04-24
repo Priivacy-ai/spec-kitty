@@ -1,17 +1,24 @@
-"""spec-kitty next -- canonical agent loop command.
+"""DEPRECATED — specify_cli.next is a compatibility shim.
 
-Provides a single ``spec-kitty next --agent <name>`` entry point that agents
-call repeatedly.  The system decides what to do next based on mission state,
-feature artifacts, and WP lane states, returning a deterministic JSON decision
-plus a prompt file.
+Import from runtime instead:
+    from runtime import PresentationSink, StepContractExecutor, ProfileInvocationExecutor
+
+Or for specific sub-modules:
+    from runtime.decisioning.decision import Decision, DecisionKind, decide_next
 """
-
 from __future__ import annotations
 
-from specify_cli.next.decision import Decision, DecisionKind, decide_next
+__deprecated__ = True
+__canonical_import__ = "runtime"
+__removal_release__ = "3.4.0"
+__deprecation_message__ = (
+    "specify_cli.next is deprecated; "
+    "use 'from runtime import ...' instead. "
+    "Scheduled for removal in 3.4.0."
+)
 
-__all__ = [
-    "Decision",
-    "DecisionKind",
-    "decide_next",
-]
+import warnings
+
+warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
+
+from runtime import *  # noqa: F401, F403

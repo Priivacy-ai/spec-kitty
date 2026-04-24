@@ -1,40 +1,21 @@
-"""Global runtime management for spec-kitty.
+"""DEPRECATED — specify_cli.runtime is a compatibility shim.
 
-This subpackage manages the user-global ~/.kittify/ directory,
-including path resolution, asset discovery, and runtime bootstrapping.
+Import from runtime instead:
+    from runtime import PresentationSink, StepContractExecutor, ProfileInvocationExecutor
 """
+from __future__ import annotations
 
-from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
-from specify_cli.runtime.resolver import (
-    ResolutionResult,
-    ResolutionTier,
-    resolve_command,
-    resolve_mission,
-    resolve_template,
+__deprecated__ = True
+__canonical_import__ = "runtime"
+__removal_release__ = "3.4.0"
+__deprecation_message__ = (
+    "specify_cli.runtime is deprecated; "
+    "use 'from runtime import ...' instead. "
+    "Scheduled for removal in 3.4.0."
 )
-from specify_cli.runtime.migrate import (
-    AssetDisposition,
-    MigrationReport,
-    classify_asset,
-    execute_migration,
-)
-from specify_cli.runtime.show_origin import OriginEntry, collect_origins
 
-__all__ = [
-    "AssetDisposition",
-    "MigrationReport",
-    "OriginEntry",
-    "ResolutionResult",
-    "ResolutionTier",
-    "check_version_pin",
-    "classify_asset",
-    "collect_origins",
-    "ensure_runtime",
-    "execute_migration",
-    "get_kittify_home",
-    "get_package_asset_root",
-    "resolve_command",
-    "resolve_mission",
-    "resolve_template",
-]
+import warnings
+
+warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
+
+from runtime import *  # noqa: F401, F403
