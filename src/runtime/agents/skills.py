@@ -9,7 +9,7 @@ from pathlib import Path
 from runtime.orchestration.bootstrap import _get_cli_version, _lock_exclusive
 from runtime.discovery.home import get_kittify_home
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
-from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.template import get_local_repo_root
 
 logger = logging.getLogger(__name__)
@@ -50,31 +50,49 @@ def _unique_global_roots() -> list[Path]:
     return roots
 
 
+def _remove_entry(entry: Path) -> None:
+    """Delete `entry` whether it is a symlink, file, or directory."""
+    if entry.is_symlink() or entry.is_file():
+        entry.unlink()
+    elif entry.is_dir():
+        shutil.rmtree(entry)
+
+
+def _remove_stale_skills(root: Path, canonical_names: set[str]) -> None:
+    """Delete any `spec-kitty-*` entry under `root` not in `canonical_names`."""
+    for existing in root.iterdir():
+        if not existing.name.startswith("spec-kitty-"):
+            continue
+        if existing.name in canonical_names:
+            continue
+        _remove_entry(existing)
+
+
+def _mark_readonly_recursive(dest: Path) -> None:
+    """Remove write bits from every file under `dest`."""
+    for file_path in dest.rglob("*"):
+        if not file_path.is_file():
+            continue
+        mode = file_path.stat().st_mode
+        file_path.chmod(mode & ~0o222)
+
+
+def _install_skill(skill: CanonicalSkill, root: Path) -> None:
+    """Copy `skill` into `root`, overwriting any existing entry and making files read-only."""
+    dest = root / skill.name
+    if dest.exists() or dest.is_symlink():
+        _remove_entry(dest)
+    shutil.copytree(skill.skill_dir, dest)
+    _mark_readonly_recursive(dest)
+
+
 def _sync_skill_root(root: Path, registry: SkillRegistry) -> None:
     root.mkdir(parents=True, exist_ok=True)
     skills = registry.discover_skills()
     canonical_names = {skill.name for skill in skills}
-
-    for existing in root.iterdir():
-        if existing.name.startswith("spec-kitty-") and existing.name not in canonical_names:
-            if existing.is_symlink() or existing.is_file():
-                existing.unlink()
-            elif existing.is_dir():
-                shutil.rmtree(existing)
-
+    _remove_stale_skills(root, canonical_names)
     for skill in skills:
-        dest = root / skill.name
-        if dest.exists() or dest.is_symlink():
-            if dest.is_symlink() or dest.is_file():
-                dest.unlink()
-            else:
-                shutil.rmtree(dest)
-        shutil.copytree(skill.skill_dir, dest)
-        for file_path in dest.rglob("*"):
-            if not file_path.is_file():
-                continue
-            mode = file_path.stat().st_mode
-            file_path.chmod(mode & ~0o222)
+        _install_skill(skill, root)
 
 
 def ensure_global_agent_skills() -> None:
