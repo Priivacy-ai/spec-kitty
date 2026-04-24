@@ -102,6 +102,85 @@ def _compute_output_filename(command: str, agent_key: str) -> str:
     return f"spec-kitty.{stem}"
 
 
+def _write_command_file(out_path: Path, content: str) -> None:
+    """Write content, flipping the write bit around the write to bypass read-only markers."""
+    if out_path.exists():
+        out_path.chmod(out_path.stat().st_mode | 0o222)
+    out_path.write_text(content, encoding="utf-8")
+    out_path.chmod(out_path.stat().st_mode & ~0o222)
+
+
+def _install_prompt_commands(
+    templates_dir: Path,
+    output_dir: Path,
+    agent_key: str,
+    config: dict,
+    script_type: str,
+) -> set[str]:
+    """Render prompt-driven commands for agent_key; return filenames written."""
+    from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+    from specify_cli.template.asset_generator import render_command_template
+
+    filenames: set[str] = set()
+    for template_path in sorted(templates_dir.glob("*.md")):
+        command = template_path.stem
+        if command not in PROMPT_DRIVEN_COMMANDS:
+            continue
+        filename = _compute_output_filename(command, agent_key)
+        filenames.add(filename)
+        try:
+            content = render_command_template(
+                template_path=template_path,
+                script_type=script_type,
+                agent_key=agent_key,
+                arg_format=config["arg_format"],
+                extension=config["ext"],
+            )
+        except Exception:
+            logger.warning(
+                "Failed to render prompt command %r for agent %r",
+                command, agent_key, exc_info=True,
+            )
+            continue
+        _write_command_file(output_dir / filename, content)
+    return filenames
+
+
+def _install_shim_commands(output_dir: Path, agent_key: str) -> set[str]:
+    """Generate CLI-driven shim files for agent_key; return filenames written."""
+    from specify_cli.shims.generator import generate_shim_content_for_agent
+    from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
+
+    filenames: set[str] = set()
+    for command in sorted(CLI_DRIVEN_COMMANDS):
+        filename = _compute_output_filename(command, agent_key)
+        filenames.add(filename)
+        try:
+            content = generate_shim_content_for_agent(command, agent_key)
+        except Exception:
+            logger.warning(
+                "Failed to generate shim %r for agent %r",
+                command, agent_key, exc_info=True,
+            )
+            continue
+        _write_command_file(output_dir / filename, content)
+    return filenames
+
+
+def _remove_stale_command_files(output_dir: Path, canonical: set[str]) -> None:
+    """Remove `spec-kitty.*` files in output_dir not in the canonical filename set."""
+    for existing in output_dir.iterdir():
+        if not existing.name.startswith("spec-kitty."):
+            continue
+        if existing.name in canonical:
+            continue
+        try:
+            existing.chmod(existing.stat().st_mode | 0o222)
+            existing.unlink()
+        except OSError:
+            logger.debug("Could not remove stale command file %s", existing)
+
+
 def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) -> None:
     """Install all 16 command files for *agent_key* into its global root.
 
@@ -117,9 +196,6 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
     skill packages under ``.agents/skills/``.
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
-    from specify_cli.shims.generator import generate_shim_content_for_agent
-    from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
-    from specify_cli.template.asset_generator import render_command_template
 
     config = AGENT_COMMAND_CONFIG.get(agent_key)
     if config is None:
@@ -129,65 +205,11 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
     output_dir = get_global_command_dir(agent_key)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    canonical_filenames: set[str] = set()
-
-    # --- Prompt-driven commands ---
-    for template_path in sorted(templates_dir.glob("*.md")):
-        command = template_path.stem
-        if command not in PROMPT_DRIVEN_COMMANDS:
-            continue
-        filename = _compute_output_filename(command, agent_key)
-        canonical_filenames.add(filename)
-        try:
-            content = render_command_template(
-                template_path=template_path,
-                script_type=script_type,
-                agent_key=agent_key,
-                arg_format=config["arg_format"],
-                extension=config["ext"],
-            )
-        except Exception:
-            logger.warning(
-                "Failed to render prompt command %r for agent %r",
-                command,
-                agent_key,
-                exc_info=True,
-            )
-            continue
-        out_path = output_dir / filename
-        if out_path.exists():
-            out_path.chmod(out_path.stat().st_mode | 0o222)
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode & ~0o222)
-
-    # --- CLI-driven shims ---
-    for command in sorted(CLI_DRIVEN_COMMANDS):
-        filename = _compute_output_filename(command, agent_key)
-        canonical_filenames.add(filename)
-        try:
-            content = generate_shim_content_for_agent(command, agent_key)
-        except Exception:
-            logger.warning(
-                "Failed to generate shim %r for agent %r",
-                command,
-                agent_key,
-                exc_info=True,
-            )
-            continue
-        out_path = output_dir / filename
-        if out_path.exists():
-            out_path.chmod(out_path.stat().st_mode | 0o222)
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode & ~0o222)
-
-    # --- Remove stale spec-kitty.* files no longer in canonical set ---
-    for existing in output_dir.iterdir():
-        if existing.name.startswith("spec-kitty.") and existing.name not in canonical_filenames:
-            try:
-                existing.chmod(existing.stat().st_mode | 0o222)
-                existing.unlink()
-            except OSError:
-                logger.debug("Could not remove stale command file %s", existing)
+    canonical_filenames = _install_prompt_commands(
+        templates_dir, output_dir, agent_key, config, script_type,
+    )
+    canonical_filenames |= _install_shim_commands(output_dir, agent_key)
+    _remove_stale_command_files(output_dir, canonical_filenames)
 
 
 # ---------------------------------------------------------------------------
