@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.runtime.doctor import DoctorCheck
+from runtime.orchestration.doctor import DoctorCheck
 from specify_cli.status.doctor import (
     Category,
     DoctorResult,

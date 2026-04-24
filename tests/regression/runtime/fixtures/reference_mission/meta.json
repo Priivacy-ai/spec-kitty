@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-22T00:00:00+00:00",
+  "friendly_name": "runtime regression reference",
+  "mission_id": "01KPDYGW000000000REGRTEST1",
+  "mission_number": null,
+  "mission_slug": "runtime-regression-reference-01KPDYGW",
+  "mission_type": "software-dev",
+  "slug": "runtime-regression-reference-01KPDYGW",
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW"
+}

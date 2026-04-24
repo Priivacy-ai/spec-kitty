@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from runtime.discovery.home import get_kittify_home, get_package_asset_root
 
 
 # ---------------------------------------------------------------------------
@@ -25,21 +25,21 @@ class TestGetKittifyHomeUnix:
     def test_unix_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """On Unix, default is ~/.kittify/ (1A-08)."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("runtime.discovery.home._is_windows", lambda: False)
         result = get_kittify_home()
         assert result == Path.home() / ".kittify"
 
     def test_returns_path_object(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return type is Path, not str."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("runtime.discovery.home._is_windows", lambda: False)
         result = get_kittify_home()
         assert isinstance(result, Path)
 
     def test_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Path is always absolute."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("runtime.discovery.home._is_windows", lambda: False)
         result = get_kittify_home()
         assert result.is_absolute()
 
@@ -62,7 +62,7 @@ class TestGetKittifyHomeWindows:
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
+        monkeypatch.setattr("runtime.discovery.home._is_windows", lambda: True)
         monkeypatch.setattr(platformdirs, "user_data_dir", lambda *_args, **_kwargs: (
             r"C:\Users\test\AppData\Local\kittify"
         ))
@@ -93,7 +93,7 @@ class TestSpecKittyHomeEnvOverride:
         """SPEC_KITTY_HOME takes precedence even on Windows (1A-09)."""
         custom_path = str(tmp_path / "custom-kittify")
         monkeypatch.setenv("SPEC_KITTY_HOME", custom_path)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
+        monkeypatch.setattr("runtime.discovery.home._is_windows", lambda: True)
         result = get_kittify_home()
         assert result == Path(custom_path)  # env var wins over platformdirs
 
@@ -110,7 +110,7 @@ class TestSpecKittyHomeEnvOverride:
     ) -> None:
         """Empty SPEC_KITTY_HOME falls through to platform default."""
         monkeypatch.setenv("SPEC_KITTY_HOME", "")
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("runtime.discovery.home._is_windows", lambda: False)
         result = get_kittify_home()
         # Empty string is falsy, so should fall through
         assert result == Path.home() / ".kittify"
@@ -171,7 +171,7 @@ class TestGetPackageAssetRoot:
         monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
         # Block importlib path so it falls through to dev layout
         monkeypatch.setattr(
-            "specify_cli.runtime.home.importlib.resources.files",
+            "runtime.discovery.home.importlib.resources.files",
             lambda _pkg: type("Fake", (), {"__truediv__": lambda s, n: Path("/nonexistent")})(),
         )
         result = get_package_asset_root()

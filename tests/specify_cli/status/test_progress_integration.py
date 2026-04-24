@@ -249,7 +249,7 @@ class TestAllSurfacesAgree:
             ],
         )
 
-        from specify_cli.next.decision import _compute_wp_progress
+        from runtime.decisioning.decision import _compute_wp_progress
 
         progress = _compute_wp_progress(feature_dir)
         assert progress is not None
@@ -281,7 +281,7 @@ class TestAllSurfacesAgree:
         expected_pct = round(direct_result.percentage, 1)
 
         # 2. decision engine
-        from specify_cli.next.decision import _compute_wp_progress
+        from runtime.decisioning.decision import _compute_wp_progress
 
         decision_progress = _compute_wp_progress(feature_dir)
         assert decision_progress is not None
@@ -342,7 +342,7 @@ class TestBackwardCompatWithoutWeighted:
     def test_missing_weighted_percentage_returns_none(self):
         """When weighted_percentage is not in data, JS fallback would use done/total."""
         # This test verifies the Python side: _compute_wp_progress with no event log
-        from specify_cli.next.decision import _compute_wp_progress
+        from runtime.decisioning.decision import _compute_wp_progress
 
         # Empty directory -- no tasks
         import tempfile

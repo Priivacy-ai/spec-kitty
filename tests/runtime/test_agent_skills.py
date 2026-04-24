@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.runtime.agent_skills import ensure_global_agent_skills
+from runtime.agents.skills import ensure_global_agent_skills
 from specify_cli.skills.registry import SkillRegistry
 
 
@@ -31,7 +31,7 @@ def test_global_bootstrap_preserves_non_spec_kitty_user_skills(tmp_path: Path, m
     custom_skill.write_text("# custom\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "specify_cli.runtime.agent_skills._discover_registry",
+        "runtime.agents.skills._discover_registry",
         lambda: registry,
     )
 

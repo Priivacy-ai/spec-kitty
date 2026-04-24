@@ -1,0 +1,5 @@
+{
+  "error": "Error: lanes.json is required for kitty-specs/runtime-regression-reference-01KPDYGW. Run the task-finalization step to compute execution lanes.",
+  "command": "spec-kitty merge --feature runtime-regression-reference-01KPDYGW",
+  "note": "merge command has no --json flag; this wraps the plain-text error output. Captured 2026-04-22 against spec-kitty-cli 3.2.0a4. Mission fixture is minimal and lacks lanes.json, which merge requires."
+}

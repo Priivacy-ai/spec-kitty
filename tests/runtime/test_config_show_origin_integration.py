@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from specify_cli.runtime.show_origin import collect_origins
+from runtime.orchestration.show_origin import collect_origins
 
 import pytest
 
@@ -51,7 +51,7 @@ class TestShowOriginLabelsMatchResolution:
         )
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
+            "runtime.discovery.resolver.get_package_asset_root",
             side_effect=FileNotFoundError("no pkg"),
         ):
             entries = collect_origins(project)
@@ -77,7 +77,7 @@ class TestShowOriginLabelsMatchResolution:
         )
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
+            "runtime.discovery.resolver.get_package_asset_root",
             return_value=pkg_root,
         ):
             entries = collect_origins(project)
@@ -95,11 +95,11 @@ class TestShowOriginLabelsMatchResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -137,7 +137,7 @@ class TestShowOriginExtendedAssets:
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "global"))
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
+            "runtime.discovery.resolver.get_package_asset_root",
             side_effect=FileNotFoundError("no pkg"),
         ):
             entries = collect_origins(project)
@@ -158,7 +158,7 @@ class TestShowOriginExtendedAssets:
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "global"))
 
         with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
+            "runtime.discovery.resolver.get_package_asset_root",
             side_effect=FileNotFoundError("no pkg"),
         ):
             entries = collect_origins(project)
@@ -192,11 +192,11 @@ class TestShowOriginExtendedAssets:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -224,11 +224,11 @@ class TestShowOriginExtendedAssets:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -248,11 +248,11 @@ class TestShowOriginExtendedAssets:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):

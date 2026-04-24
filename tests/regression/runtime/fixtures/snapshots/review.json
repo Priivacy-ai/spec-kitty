@@ -1,0 +1,5 @@
+{
+  "error": "Error: No mission found for handle \"runtime-regression-reference-01KPDYGW\". Check that the handle is correct and that the mission exists in kitty-specs/.",
+  "command": "spec-kitty agent action review WP01 --agent claude --mission runtime-regression-reference-01KPDYGW",
+  "note": "review command has no --json flag; this wraps the plain-text error output. Captured 2026-04-22 against spec-kitty-cli 3.2.0a4. Mission fixture lives in tests/regression/runtime/fixtures/reference_mission/ and is not registered in the main kitty-specs/ index."
+}

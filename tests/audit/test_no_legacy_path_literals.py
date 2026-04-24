@@ -100,7 +100,7 @@ def test_runtime_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Path
     $HOME so we get the absolute form).
     """
     fake_home = tmp_path / "runtime-home"
-    output = _capture_nudge("specify_cli.runtime.resolver", fake_home)
+    output = _capture_nudge("runtime.discovery.resolver", fake_home)
     assert str(fake_home) in output, (
         f"Resolver nudge did not render the real runtime path.\n"
         f"Expected substring: {fake_home}\n"

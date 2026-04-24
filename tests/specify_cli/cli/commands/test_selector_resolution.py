@@ -487,13 +487,13 @@ def test_next_step_canonical_selector_passes_mission_slug(
             run_id=None,
         )
 
-    fake_runtime_bridge = ModuleType("specify_cli.next.runtime_bridge")
+    fake_runtime_bridge = ModuleType("runtime.bridge.runtime_bridge")
     fake_runtime_bridge.query_current_state = _fake_query
     fake_runtime_bridge.QueryModeValidationError = RuntimeError
 
     with (
         patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch.dict(sys.modules, {"specify_cli.next.runtime_bridge": fake_runtime_bridge}),
+        patch.dict(sys.modules, {"runtime.bridge.runtime_bridge": fake_runtime_bridge}),
     ):
         next_step.__wrapped__(
             agent="codex",
@@ -527,13 +527,13 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
             run_id=None,
         )
 
-    fake_runtime_bridge = ModuleType("specify_cli.next.runtime_bridge")
+    fake_runtime_bridge = ModuleType("runtime.bridge.runtime_bridge")
     fake_runtime_bridge.query_current_state = _fake_query
     fake_runtime_bridge.QueryModeValidationError = RuntimeError
 
     with (
         patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch.dict(sys.modules, {"specify_cli.next.runtime_bridge": fake_runtime_bridge}),
+        patch.dict(sys.modules, {"runtime.bridge.runtime_bridge": fake_runtime_bridge}),
     ):
         next_step.__wrapped__(
             agent="codex",

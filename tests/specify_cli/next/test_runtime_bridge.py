@@ -148,7 +148,7 @@ def test_should_advance_implement_all_for_review(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.FOR_REVIEW})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is True
 
 
@@ -158,7 +158,7 @@ def test_should_advance_implement_all_approved(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP01")
     _write_status_events(feature_dir, {"WP01": Lane.APPROVED})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is True
 
 
@@ -169,7 +169,7 @@ def test_should_advance_implement_all_done(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.DONE, "WP02": Lane.DONE})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is True
 
 
@@ -180,7 +180,7 @@ def test_should_not_advance_implement_one_in_progress(feature_dir: Path) -> None
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.IN_PROGRESS})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
@@ -191,7 +191,7 @@ def test_should_not_advance_implement_one_planned(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.PLANNED})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
@@ -201,7 +201,7 @@ def test_should_not_advance_implement_one_claimed(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP01")
     _write_status_events(feature_dir, {"WP01": Lane.CLAIMED})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
@@ -211,7 +211,7 @@ def test_should_not_advance_implement_one_in_review(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP01")
     _write_status_events(feature_dir, {"WP01": Lane.IN_REVIEW})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
@@ -222,7 +222,7 @@ def test_should_not_advance_implement_one_blocked(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.BLOCKED})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is False
 
 
@@ -233,7 +233,7 @@ def test_should_advance_implement_one_canceled(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW, "WP02": Lane.CANCELED})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is True
 
 
@@ -243,7 +243,7 @@ def test_should_advance_review_all_approved(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP01")
     _write_status_events(feature_dir, {"WP01": Lane.APPROVED})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("review", feature_dir) is True
 
 
@@ -253,7 +253,7 @@ def test_should_advance_review_all_done(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP01")
     _write_status_events(feature_dir, {"WP01": Lane.DONE})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("review", feature_dir) is True
 
 
@@ -263,7 +263,7 @@ def test_should_not_advance_review_one_for_review(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP01")
     _write_status_events(feature_dir, {"WP01": Lane.FOR_REVIEW})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("review", feature_dir) is False
 
 
@@ -274,13 +274,13 @@ def test_should_not_advance_review_one_in_review(feature_dir: Path) -> None:
     _write_wp_file(tasks, "WP02")
     _write_status_events(feature_dir, {"WP01": Lane.APPROVED, "WP02": Lane.IN_REVIEW})
 
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("review", feature_dir) is False
 
 
 def test_should_advance_no_wps(feature_dir: Path) -> None:
     """Both steps advance when there are no WP files (no work to iterate)."""
-    from specify_cli.next.runtime_bridge import _should_advance_wp_step
+    from runtime.bridge.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("implement", feature_dir) is True
     assert _should_advance_wp_step("review", feature_dir) is True
 

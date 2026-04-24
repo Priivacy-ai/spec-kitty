@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.runtime.migrate import (
+from runtime.orchestration.migrate import (
 
     AssetDisposition,
     MigrationReport,

@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.runtime.resolver import (
+from runtime.discovery.resolver import (
     ResolutionTier,
     _is_global_runtime_configured,
     _reset_migrate_nudge,
@@ -77,11 +77,11 @@ class TestGlobalTierResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -112,11 +112,11 @@ class TestGlobalTierResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -146,11 +146,11 @@ class TestGlobalTierResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -172,11 +172,11 @@ class TestGlobalTierResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -208,11 +208,11 @@ class TestLegacyWarningSuppression:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             warnings.catch_warnings(record=True) as w,
@@ -241,11 +241,11 @@ class TestLegacyWarningSuppression:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             warnings.catch_warnings(record=True) as w,
@@ -284,11 +284,11 @@ class TestMigrateNudge:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -317,11 +317,11 @@ class TestMigrateNudge:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -345,7 +345,7 @@ class TestIsGlobalRuntimeConfigured:
         _create_file(global_home / "cache" / "version.lock", "1.0.0")
 
         with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
+            "runtime.discovery.resolver.get_kittify_home",
             return_value=global_home,
         ):
             assert _is_global_runtime_configured() is True
@@ -356,7 +356,7 @@ class TestIsGlobalRuntimeConfigured:
         global_home.mkdir(parents=True)
 
         with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
+            "runtime.discovery.resolver.get_kittify_home",
             return_value=global_home,
         ):
             assert _is_global_runtime_configured() is False
@@ -364,7 +364,7 @@ class TestIsGlobalRuntimeConfigured:
     def test_false_when_home_missing(self, tmp_path: Path) -> None:
         """Returns False when ~/.kittify/ doesn't exist at all."""
         with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
+            "runtime.discovery.resolver.get_kittify_home",
             return_value=tmp_path / "nonexistent",
         ):
             assert _is_global_runtime_configured() is False
@@ -372,7 +372,7 @@ class TestIsGlobalRuntimeConfigured:
     def test_false_when_get_kittify_home_raises(self) -> None:
         """Returns False when get_kittify_home() raises RuntimeError."""
         with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
+            "runtime.discovery.resolver.get_kittify_home",
             side_effect=RuntimeError("no home"),
         ):
             assert _is_global_runtime_configured() is False
@@ -403,8 +403,8 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.discovery.resolver.get_kittify_home", return_value=global_home),
+            patch("runtime.discovery.resolver.get_package_asset_root", return_value=pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -427,8 +427,8 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.discovery.resolver.get_kittify_home", return_value=global_home),
+            patch("runtime.discovery.resolver.get_package_asset_root", return_value=pkg_root),
             warnings.catch_warnings(record=True),
         ):
             warnings.simplefilter("always")
@@ -454,8 +454,8 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.discovery.resolver.get_kittify_home", return_value=global_home),
+            patch("runtime.discovery.resolver.get_package_asset_root", return_value=pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -476,8 +476,8 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.discovery.resolver.get_kittify_home", return_value=global_home),
+            patch("runtime.discovery.resolver.get_package_asset_root", return_value=pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -496,10 +496,10 @@ class TestFullResolutionChainOrder:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "empty_home",
             ),
-            patch("specify_cli.runtime.resolver.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.discovery.resolver.get_package_asset_root", return_value=pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -529,7 +529,7 @@ class TestProjectResolverGlobalPaths:
         )
 
         with patch(
-            "specify_cli.runtime.home.get_kittify_home",
+            "runtime.discovery.home.get_kittify_home",
             return_value=global_home,
         ):
             result = resolve_template_path(project, "software-dev", "spec-template.md")
@@ -550,7 +550,7 @@ class TestProjectResolverGlobalPaths:
         )
 
         with patch(
-            "specify_cli.runtime.home.get_kittify_home",
+            "runtime.discovery.home.get_kittify_home",
             return_value=global_home,
         ):
             result = resolve_template_path(project, "software-dev", "spec-template.md")
@@ -574,7 +574,7 @@ class TestProjectResolverGlobalPaths:
         )
 
         with patch(
-            "specify_cli.runtime.home.get_kittify_home",
+            "runtime.discovery.home.get_kittify_home",
             return_value=global_home,
         ):
             result = resolve_template_path(project, "software-dev", "spec-template.md")
@@ -592,7 +592,7 @@ class TestProjectResolverGlobalPaths:
         global_home.mkdir(parents=True)
 
         with patch(
-            "specify_cli.runtime.home.get_kittify_home",
+            "runtime.discovery.home.get_kittify_home",
             return_value=global_home,
         ):
             result = resolve_template_path(project, "software-dev", "nonexistent.md")
@@ -619,7 +619,7 @@ class TestProjectResolverGlobalPaths:
         )
 
         with patch(
-            "specify_cli.runtime.home.get_kittify_home",
+            "runtime.discovery.home.get_kittify_home",
             return_value=global_home,
         ):
             result = resolve_template_path(project, "software-dev", "spec-template.md")
@@ -650,12 +650,12 @@ class TestMigrateIdempotency:
         )
 
         with (
-            patch("specify_cli.runtime.home.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.bootstrap.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.bootstrap.get_package_asset_root", return_value=pkg_root),
-            patch("specify_cli.runtime.bootstrap._get_cli_version", return_value="99.0.0"),
+            patch("runtime.discovery.home.get_kittify_home", return_value=global_home),
+            patch("runtime.orchestration.bootstrap.get_kittify_home", return_value=global_home),
+            patch("runtime.orchestration.bootstrap.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.orchestration.bootstrap._get_cli_version", return_value="99.0.0"),
         ):
-            from specify_cli.runtime.bootstrap import ensure_runtime
+            from runtime.orchestration.bootstrap import ensure_runtime
             ensure_runtime()
 
         assert (global_home / "cache" / "version.lock").exists()
@@ -675,12 +675,12 @@ class TestMigrateIdempotency:
         )
 
         with (
-            patch("specify_cli.runtime.home.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.bootstrap.get_kittify_home", return_value=global_home),
-            patch("specify_cli.runtime.bootstrap.get_package_asset_root", return_value=pkg_root),
-            patch("specify_cli.runtime.bootstrap._get_cli_version", return_value="99.0.0"),
+            patch("runtime.discovery.home.get_kittify_home", return_value=global_home),
+            patch("runtime.orchestration.bootstrap.get_kittify_home", return_value=global_home),
+            patch("runtime.orchestration.bootstrap.get_package_asset_root", return_value=pkg_root),
+            patch("runtime.orchestration.bootstrap._get_cli_version", return_value="99.0.0"),
         ):
-            from specify_cli.runtime.bootstrap import ensure_runtime
+            from runtime.orchestration.bootstrap import ensure_runtime
             ensure_runtime()
 
             # Capture state after first run
@@ -743,7 +743,7 @@ class TestCredentialPathDecision:
         This is a design decision test -- credentials have a different
         security model (tighter permissions, never synced, never in git).
         """
-        from specify_cli.runtime.home import get_kittify_home
+        from runtime.discovery.home import get_kittify_home
 
         home = get_kittify_home()
         # The credential path should NOT be under ~/.kittify/
