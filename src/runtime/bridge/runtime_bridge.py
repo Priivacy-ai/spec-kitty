@@ -566,6 +566,61 @@ def _build_non_wp_guard_decision(
     )
 
 
+def _check_advance_gates(
+    step_id: str,
+    feature_dir: Path,
+    agent: str,
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+    now: str,
+    progress: dict | None,
+    origin: dict,
+    run_ref: MissionRunRef,
+) -> Decision | None:
+    """Return an early Decision if WP iteration or guards block advance; else None."""
+    if _is_wp_iteration_step(step_id):
+        try:
+            should_advance = _should_advance_wp_step(step_id, feature_dir)
+        except CanonicalStatusNotFoundError as exc:
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=now,
+                reason=str(exc),
+                guard_failures=[str(exc)],
+                progress=progress,
+                origin=origin,
+                run_id=run_ref.run_id,
+                step_id=step_id,
+            )
+        if not should_advance:
+            return _build_wp_iteration_decision(
+                step_id, agent, mission_slug, mission_type,
+                feature_dir, repo_root, now, progress, origin, run_ref,
+            )
+        # All WPs done — guards must still pass before advancing.
+        guard_failures = _check_cli_guards(step_id, feature_dir)
+        if guard_failures:
+            return _build_wp_iteration_decision(
+                step_id, agent, mission_slug, mission_type,
+                feature_dir, repo_root, now, progress, origin, run_ref,
+                guard_failures=guard_failures,
+            )
+        return None
+
+    guard_failures = _check_cli_guards(step_id, feature_dir)
+    if guard_failures:
+        return _build_non_wp_guard_decision(
+            step_id, guard_failures, agent, mission_slug, mission_type,
+            feature_dir, repo_root, now, progress, origin, run_ref,
+        )
+    return None
+
+
 def decide_next_via_runtime(
     agent: str,
     mission_slug: str,
@@ -639,73 +694,14 @@ def decide_next_via_runtime(
     except Exception:
         current_step_id = None
 
-    # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
-    if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
-        try:
-            should_advance = _should_advance_wp_step(current_step_id, feature_dir)
-        except CanonicalStatusNotFoundError as exc:
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id,
-                timestamp=now,
-                reason=str(exc),
-                guard_failures=[str(exc)],
-                progress=progress,
-                origin=origin,
-                run_id=run_ref.run_id,
-                step_id=current_step_id,
-            )
-        if not should_advance:
-            # Stay in current step, return WP-level action
-            return _build_wp_iteration_decision(
-                current_step_id,
-                agent,
-                mission_slug,
-                mission_type,
-                feature_dir,
-                repo_root,
-                now,
-                progress,
-                origin,
-                run_ref,
-            )
-        # All WPs done for this step — check guards before advancing
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
-        if guard_failures:
-            return _build_wp_iteration_decision(
-                current_step_id,
-                agent,
-                mission_slug,
-                mission_type,
-                feature_dir,
-                repo_root,
-                now,
-                progress,
-                origin,
-                run_ref,
-                guard_failures=guard_failures,
-            )
-
-    # Check guards for non-WP steps before advancing
-    if result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
-        if guard_failures:
-            return _build_non_wp_guard_decision(
-                current_step_id,
-                guard_failures,
-                agent,
-                mission_slug,
-                mission_type,
-                feature_dir,
-                repo_root,
-                now,
-                progress,
-                origin,
-                run_ref,
-            )
+    # WP iteration and guard checks before advancing the runtime DAG.
+    if result == "success" and current_step_id:
+        early = _check_advance_gates(
+            current_step_id, feature_dir, agent, mission_slug, mission_type,
+            repo_root, now, progress, origin, run_ref,
+        )
+        if early is not None:
+            return early
 
     # Advance via runtime
     try:
