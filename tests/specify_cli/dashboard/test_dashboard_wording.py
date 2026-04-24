@@ -7,7 +7,6 @@ Asserts:
    JS function names, Python diagnostic keys) stay unchanged — FR-004 / C-007.
 """
 from pathlib import Path
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DASHBOARD = REPO_ROOT / "src/specify_cli/dashboard"
@@ -119,3 +118,14 @@ class TestBackendIdentifiersPreserved:
     def test_diagnostics_py_field_name_preserved(self) -> None:
         content = DIAGNOSTICS_PY.read_text()
         assert '"active_mission":' in content
+
+
+class TestDashboardAccessibilityRegression:
+    """Dashboard click targets keep keyboard activation support."""
+
+    def test_index_html_clickable_divs_are_keyboard_accessible(self) -> None:
+        content = INDEX_HTML.read_text()
+        assert "function handleKeyboardActivate(event, callback)" in content
+        assert content.count('role="button"') >= 12
+        assert content.count('tabindex="0"') >= 12
+        assert "onkeydown=\"handleKeyboardActivate(event, function() { window.location='/glossary'; })\"" in content
