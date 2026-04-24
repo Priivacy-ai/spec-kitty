@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-extraction-remediation-01KPX9DT",
+  "mission_id": "01KPX9DTTAADZW59PV51PQN658",
+  "mission_branch": "kitty/mission-runtime-extraction-remediation-01KPX9DT",
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/migration/rewrite_shims.py",
+        "src/specify_cli/mission.py",
+        "src/specify_cli/state/doctor.py",
+        "src/specify_cli/upgrade/compat.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_7_fix_stale_overrides.py",
+        "src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py",
+        "src/specify_cli/upgrade/migrations/m_2_1_4_enforce_command_file_state.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-23T14:02:08.683894+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-mission-execution-extraction-01KPDYGW",
+  "mission_id": "01KPDYGWKZ3ZMBPRX9RYMWPR1A",
+  "mission_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        "architecture/2.x/shim-registry.yaml",
+        "kitty-specs/runtime-mission-execution-extraction-01KPDYGW/occurrence_map.yaml",
+        "kitty-specs/runtime-mission-execution-extraction-01KPDYGW/research.md",
+        "src/doctrine/resolver.py",
+        "src/kernel/__init__.py",
+        "src/runtime/__init__.py",
+        "src/runtime/agents/__init__.py",
+        "src/runtime/agents/commands.py",
+        "src/runtime/agents/skills.py",
+        "src/runtime/bridge/__init__.py",
+        "src/runtime/bridge/runtime_bridge.py",
+        "src/runtime/decisioning/__init__.py",
+        "src/runtime/decisioning/decision.py",
+        "src/runtime/discovery/__init__.py",
+        "src/runtime/discovery/home.py",
+        "src/runtime/discovery/resolver.py",
+        "src/runtime/orchestration/__init__.py",
+        "src/runtime/orchestration/bootstrap.py",
+        "src/runtime/orchestration/doctor.py",
+        "src/runtime/orchestration/merge.py",
+        "src/runtime/orchestration/migrate.py",
+        "src/runtime/orchestration/show_origin.py",
+        "src/runtime/prompts/__init__.py",
+        "src/runtime/prompts/builder.py",
+        "src/runtime/seams/**",
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/config_cmd.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/core/project_resolver.py",
+        "src/specify_cli/migration/rewrite_shims.py",
+        "src/specify_cli/mission.py",
+        "src/specify_cli/next/**",
+        "src/specify_cli/runtime/**",
+        "src/specify_cli/state/doctor.py",
+        "src/specify_cli/upgrade/compat.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_7_fix_stale_overrides.py",
+        "src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py",
+        "src/specify_cli/upgrade/migrations/m_2_1_4_enforce_command_file_state.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py",
+        "tests/agent/test_workflow_charter_context.py",
+        "tests/architectural/conftest.py",
+        "tests/architectural/test_layer_rules.py",
+        "tests/audit/test_no_legacy_path_literals.py",
+        "tests/concurrency/test_ensure_runtime_concurrent.py",
+        "tests/contract/test_handoff_fixtures.py",
+        "tests/contract/test_machine_facing_canonical_fields.py",
+        "tests/init/test_init_minimal_integration.py",
+        "tests/kernel/test_paths.py",
+        "tests/merge/test_merge_unit.py",
+        "tests/next/**",
+        "tests/regression/runtime/__init__.py",
+        "tests/regression/runtime/fixtures/**",
+        "tests/regression/runtime/test_runtime_regression.py",
+        "tests/runtime/**",
+        "tests/specify_cli/cli/commands/test_init_hybrid.py",
+        "tests/specify_cli/cli/commands/test_init_integration.py",
+        "tests/specify_cli/cli/commands/test_selector_resolution.py",
+        "tests/specify_cli/next/**",
+        "tests/specify_cli/runtime/**",
+        "tests/specify_cli/status/test_progress_integration.py",
+        "tests/status/test_doctor.py",
+        "tests/upgrade/test_migrate_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/migration/runtime-extraction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-22T20:18:59.151007+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP11"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP03"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP03"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP06"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP06"
+      }
+    ],
+    "total_merges": 9,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 9
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-23T13:45:46.579060+00:00",
+  "friendly_name": "runtime extraction remediation",
+  "mission_id": "01KPX9DTTAADZW59PV51PQN658",
+  "mission_number": 95,
+  "mission_slug": "runtime-extraction-remediation-01KPX9DT",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances runtime extraction remediation on kitty/mission-runtime-mission-execution-extraction-01KPDYGW so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "runtime extraction remediation",
+  "slug": "runtime-extraction-remediation-01KPX9DT",
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-23T14:29:13.281836+00:00"
+}

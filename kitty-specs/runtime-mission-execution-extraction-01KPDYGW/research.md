@@ -300,6 +300,80 @@ At 1,087 lines, `runtime_bridge.py` is the largest file being moved. Plan keeps 
 
 ---
 
+## Addendum — 2026-04-22: sync import audit
+
+**Purpose**: Verify Spec Assumption A3 ("runtime has limited Rich/Typer usage") after PR #761 added `sync/runtime_event_emitter` imports to `runtime_bridge.py`.
+
+### Audit Steps
+
+**Step 1 — Identify sync imports in runtime_bridge.py:**
+
+```
+$ rg "from specify_cli.sync|import specify_cli.sync" src/specify_cli/next/runtime_bridge.py
+from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+```
+
+One sync import: `SyncRuntimeEventEmitter` from `specify_cli.sync.runtime_event_emitter`.
+
+**Step 2 — Check sync modules for top-level Rich/Typer imports:**
+
+```
+$ rg "^from rich|^import rich|^from typer|^import typer" \
+  src/specify_cli/sync/runtime_event_emitter.py \
+  src/specify_cli/sync/emitter.py \
+  src/specify_cli/sync/events.py
+
+src/specify_cli/sync/emitter.py:from rich.console import Console
+```
+
+- `runtime_event_emitter.py`: NO top-level Rich/Typer imports
+- `emitter.py`: `from rich.console import Console` (top-level)
+- `events.py`: NO top-level Rich/Typer imports
+
+**Step 3 — Check runtime_bridge.py itself for direct Rich imports:**
+
+```
+$ rg "^from rich|^import rich" src/specify_cli/next/runtime_bridge.py
+(no matches)
+```
+
+**Step 4 — Trace the transitive import chain:**
+
+```
+runtime_bridge.py
+  → from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+      runtime_event_emitter.py
+        → from .events import get_emitter
+            events.py (NO top-level Rich imports)
+              get_emitter() [lazy function body]
+                → from .emitter import EventEmitter   ← LAZY IMPORT
+                    emitter.py
+                      → from rich.console import Console   ← RICH FOUND
+```
+
+`runtime_event_emitter.py` imports `from .events import get_emitter`. `events.py` itself has no top-level Rich imports — it uses `if TYPE_CHECKING: from .emitter import EventEmitter`. However, `get_emitter()` (line 180 of events.py) contains a **lazy runtime import**: `from .emitter import EventEmitter`, and `emitter.py` has a **top-level** `from rich.console import Console`.
+
+### Verdict
+
+**TAINTED: `rich.console.Console`**
+
+The taint is **lazy/runtime-only** (triggered when `get_emitter()` is first called), not at module load time. This means:
+
+- `import specify_cli.next.runtime_bridge` does NOT immediately pull in `rich.console.Console`
+- The first call to `SyncRuntimeEventEmitter.__init__()` → `get_emitter()` DOES pull in `rich.console.Console`
+
+### Implication for WP02 PresentationSink Design
+
+The `PresentationSink` Protocol (FR-013) must account for this taint. Recommendation:
+
+1. The `SyncRuntimeEventEmitter` class itself does not directly use Rich — it delegates all output to `EventEmitter` (in `emitter.py`). The Rich usage is entirely within `emitter.py`'s `Console` for SaaS sync output, not for user-facing presentation.
+2. The lazy nature of the import means the runtime package `src/runtime/` can be extracted WITHOUT pulling in `rich.*` at module level, as long as `SyncRuntimeEventEmitter` is injected via the `PresentationSink` Protocol (FR-013) rather than directly imported.
+3. **PresentationSink can remain minimal** (one `emit()` or `write_line()` method) — Rich is not used by the runtime path itself. The injection seam prevents the taint from crossing the package boundary.
+
+In summary: the taint is real but safely contained by the existing lazy-import and future injection boundaries. PresentationSink design remains minimal as originally planned in Q3.
+
+---
+
 ## Summary
 
 All five plan-phase open questions resolved. No NEEDS CLARIFICATION markers remain. Phase 1 (data model, contracts, quickstart) proceeds on the basis of these decisions.

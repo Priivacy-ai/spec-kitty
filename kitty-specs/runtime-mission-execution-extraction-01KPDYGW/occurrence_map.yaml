@@ -1,0 +1,314 @@
+# occurrence_map.yaml
+# Mission: runtime-mission-execution-extraction-01KPDYGW
+# Generated: 2026-04-22
+# Schema: DIRECTIVE_035 bulk-edit occurrence map
+#
+# Categories:
+#   cli_adapter  - src/specify_cli/cli/commands/ files being rewritten to thin adapters (WP05)
+#   shim_source  - src/specify_cli/next/ and src/specify_cli/runtime/ files being shimmed (WP06)
+#   source_caller - other src/ files importing from specify_cli.next or specify_cli.runtime (WP09)
+#   test_caller  - tests/ files importing from specify_cli.next or specify_cli.runtime (WP10)
+
+change_mode: bulk_edit
+canonical_import_prefix: "runtime"
+
+occurrences:
+  cli_adapter:
+    - file: "src/specify_cli/cli/commands/next_cmd.py"
+      imports:
+        - from: "from specify_cli.next.decision import DecisionKind, decide_next"
+          to: "from runtime.decisioning.decision import DecisionKind, decide_next"
+
+    - file: "src/specify_cli/cli/commands/doctor.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home"
+          to: "from runtime.discovery.home import get_kittify_home"
+
+    - file: "src/specify_cli/cli/commands/migrate_cmd.py"
+      imports:
+        - from: "from specify_cli.runtime.bootstrap import ensure_runtime"
+          to: "from runtime.orchestration.bootstrap import ensure_runtime"
+        - from: "from specify_cli.runtime.migrate import execute_migration"
+          to: "from runtime.orchestration.migrate import execute_migration"
+
+    - file: "src/specify_cli/cli/commands/config_cmd.py"
+      imports:
+        - from: "from specify_cli.runtime.show_origin import collect_origins"
+          to: "from runtime.orchestration.show_origin import collect_origins"
+      note: "lazy import inside config() function body"
+
+    - file: "src/specify_cli/cli/commands/init.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home, get_package_asset_root"
+          to: "from runtime.discovery.home import get_kittify_home, get_package_asset_root"
+
+  shim_source:
+    - file: "src/specify_cli/next/__init__.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.decisioning"
+      note: "Re-exports Decision, DecisionKind, decide_next from specify_cli.next.decision"
+
+    - file: "src/specify_cli/next/decision.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.decisioning.decision"
+      note: "Core decision engine — 472 lines — becomes shim re-exporting from runtime.decisioning.decision"
+
+    - file: "src/specify_cli/next/prompt_builder.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.prompts.builder"
+      note: "Also imports from specify_cli.runtime.resolver (see source_caller below)"
+
+    - file: "src/specify_cli/next/runtime_bridge.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.bridge.runtime_bridge"
+      note: "1087 lines — becomes shim re-exporting from runtime.bridge.runtime_bridge"
+
+    - file: "src/specify_cli/runtime/__init__.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime"
+      note: "Re-exports bootstrap, home, resolver, migrate, show_origin symbols"
+
+    - file: "src/specify_cli/runtime/agent_commands.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.agents.commands"
+
+    - file: "src/specify_cli/runtime/agent_skills.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.agents.skills"
+
+    - file: "src/specify_cli/runtime/bootstrap.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.orchestration.bootstrap"
+
+    - file: "src/specify_cli/runtime/doctor.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.orchestration.doctor"
+
+    - file: "src/specify_cli/runtime/home.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.discovery.home"
+
+    - file: "src/specify_cli/runtime/merge.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.orchestration.merge"
+
+    - file: "src/specify_cli/runtime/migrate.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.orchestration.migrate"
+
+    - file: "src/specify_cli/runtime/resolver.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.discovery.resolver"
+
+    - file: "src/specify_cli/runtime/show_origin.py"
+      action: "convert_to_shim"
+      canonical_target: "runtime.orchestration.show_origin"
+
+  source_caller:
+    - file: "src/specify_cli/__init__.py"
+      imports:
+        - from: "from specify_cli.runtime.agent_commands import ensure_global_agent_commands"
+          to: "from runtime.agents.commands import ensure_global_agent_commands"
+        - from: "from specify_cli.runtime.agent_skills import ensure_global_agent_skills"
+          to: "from runtime.agents.skills import ensure_global_agent_skills"
+        - from: "from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime"
+          to: "from runtime.orchestration.bootstrap import check_version_pin, ensure_runtime"
+      note: "all three imports are lazy (inside main_callback function body)"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/next/prompt_builder.py"
+      imports:
+        - from: "from specify_cli.runtime.resolver import resolve_command"
+          to: "from runtime.discovery.resolver import resolve_command"
+      note: "This file is also a shim_source — was already converted to a shim by WP06 before WP09; no further action needed"
+      wp09_status: "already_shimmed_by_WP06"
+
+    # Additional source callers discovered during WP09 scan (not in original occurrence_map):
+    - file: "src/specify_cli/upgrade/compat.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home"
+          to: "from runtime.discovery.home import get_kittify_home"
+      note: "Found during WP09 scan; not in original occurrence_map (source_caller_count was underestimated)"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py"
+      imports:
+        - from: "from specify_cli.runtime.doctor import check_stale_legacy_assets"
+          to: "from runtime.orchestration.doctor import check_stale_legacy_assets"
+      note: "Found during WP09 scan; not in original occurrence_map"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/upgrade/migrations/m_2_0_7_fix_stale_overrides.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_package_asset_root"
+          to: "from runtime.discovery.home import get_package_asset_root"
+        - from: "from specify_cli.runtime.migrate import SHARED_ASSET_DIRS, SHARED_ASSET_FILES"
+          to: "from runtime.orchestration.migrate import SHARED_ASSET_DIRS, SHARED_ASSET_FILES"
+      note: "Found during WP09 scan; not in original occurrence_map"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home, get_package_asset_root"
+          to: "from runtime.discovery.home import get_kittify_home, get_package_asset_root"
+      note: "Lazy import inside _get_runtime_command_templates_dir(); found during WP09 scan"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/upgrade/migrations/m_2_1_4_enforce_command_file_state.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home, get_package_asset_root"
+          to: "from runtime.discovery.home import get_kittify_home, get_package_asset_root"
+      note: "Lazy import inside _get_runtime_command_templates_dir(); found during WP09 scan"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home"
+          to: "from runtime.discovery.home import get_kittify_home"
+      note: "Found during WP09 scan; not in original occurrence_map"
+      wp09_status: "migrated"
+
+    # CLI adapter files (cli_adapter category) that WP05 left incomplete — migrated in WP09 per T034:
+    - file: "src/specify_cli/cli/commands/doctor.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home"
+          to: "from runtime.discovery.home import get_kittify_home"
+      note: "Listed in cli_adapter but not migrated by WP05; migrated in WP09 per T034"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/cli/commands/init.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home, get_package_asset_root"
+          to: "from runtime.discovery.home import get_kittify_home, get_package_asset_root"
+      note: "Listed in cli_adapter but not migrated by WP05; migrated in WP09 per T034"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/cli/commands/config_cmd.py"
+      imports:
+        - from: "from specify_cli.runtime.show_origin import collect_origins"
+          to: "from runtime.orchestration.show_origin import collect_origins"
+      note: "Listed in cli_adapter (lazy import inside config() body) but not migrated by WP05; migrated in WP09 per T034"
+      wp09_status: "migrated"
+
+    - file: "src/specify_cli/cli/commands/migrate_cmd.py"
+      imports:
+        - from: "from specify_cli.runtime.bootstrap import ensure_runtime"
+          to: "from runtime.orchestration.bootstrap import ensure_runtime"
+        - from: "from specify_cli.runtime.migrate import execute_migration"
+          to: "from runtime.orchestration.migrate import execute_migration"
+      note: "Listed in cli_adapter but not migrated by WP05; migrated in WP09 per T034"
+      wp09_status: "migrated"
+
+  exceptions:
+    - file: "src/doctrine/resolver.py"
+      reason: "No specify_cli.runtime or specify_cli.next imports found — uses kernel.paths directly (correct pattern)"
+      wp09_status: "no_action_needed"
+
+    - file: "src/kernel/__init__.py"
+      reason: "No specify_cli.runtime or specify_cli.next imports found — kernel has zero upward dependencies by design"
+      wp09_status: "no_action_needed"
+
+    - file: "src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py"
+      reason: "Migration uses lazy import inside helper function; function signature of get_kittify_home and get_package_asset_root verified identical in runtime.discovery.home — safe to migrate"
+      wp09_status: "migrated"
+
+  test_caller:
+    - file: "tests/next/test_decision_unit.py"
+      imports:
+        - from: "from specify_cli.next.decision import Decision, DecisionKind, _compute_wp_progress, _find_first_wp_by_lane, _state_to_action, decide_next"
+          to: "from runtime.decisioning.decision import Decision, DecisionKind, _compute_wp_progress, _find_first_wp_by_lane, _state_to_action, decide_next"
+
+    - file: "tests/next/test_next_command_integration.py"
+      imports:
+        - from: "from specify_cli.next.decision import DecisionKind"
+          to: "from runtime.decisioning.decision import DecisionKind"
+
+    - file: "tests/next/test_prompt_builder_unit.py"
+      imports:
+        - from: "from specify_cli.next.prompt_builder import _mission_context_header, build_decision_prompt, _governance_context, _read_wp_content, _write_to_temp, build_prompt"
+          to: "from runtime.prompts.builder import _mission_context_header, build_decision_prompt, _governance_context, _read_wp_content, _write_to_temp, build_prompt"
+
+    - file: "tests/next/test_runtime_bridge_unit.py"
+      imports:
+        - from: "from specify_cli.next.decision import DecisionKind"
+          to: "from runtime.decisioning.decision import DecisionKind"
+
+    - file: "tests/runtime/test_agent_skills.py"
+      imports:
+        - from: "from specify_cli.runtime.agent_skills import ensure_global_agent_skills"
+          to: "from runtime.agents.skills import ensure_global_agent_skills"
+
+    - file: "tests/runtime/test_bootstrap_unit.py"
+      imports:
+        - from: "from specify_cli.runtime.bootstrap import _cleanup_orphaned_update_dirs, _get_cli_version, _lock_exclusive, check_version_pin, ensure_runtime, populate_from_package"
+          to: "from runtime.orchestration.bootstrap import _cleanup_orphaned_update_dirs, _get_cli_version, _lock_exclusive, check_version_pin, ensure_runtime, populate_from_package"
+
+    - file: "tests/runtime/test_config_show_origin_integration.py"
+      imports:
+        - from: "from specify_cli.runtime.show_origin import collect_origins"
+          to: "from runtime.orchestration.show_origin import collect_origins"
+
+    - file: "tests/runtime/test_doctor_command_file_health.py"
+      imports:
+        - from: "from specify_cli.runtime.doctor import check_command_file_health"
+          to: "from runtime.orchestration.doctor import check_command_file_health"
+
+    - file: "tests/runtime/test_doctor_unit.py"
+      imports:
+        - from: "from specify_cli.runtime.doctor import DoctorCheck, check_global_runtime_exists, check_mission_integrity, check_stale_legacy_assets, check_version_lock, run_global_checks, MANAGED_MISSION_DIRS"
+          to: "from runtime.orchestration.doctor import DoctorCheck, check_global_runtime_exists, check_mission_integrity, check_stale_legacy_assets, check_version_lock, run_global_checks, MANAGED_MISSION_DIRS"
+
+    - file: "tests/runtime/test_e2e_runtime_integration.py"
+      imports:
+        - from: "from specify_cli.runtime.bootstrap import ensure_runtime, check_version_pin"
+          to: "from runtime.orchestration.bootstrap import ensure_runtime, check_version_pin"
+        - from: "from specify_cli.runtime.resolver import ResolutionTier, resolve_template, resolve_command, resolve_mission"
+          to: "from runtime.discovery.resolver import ResolutionTier, resolve_template, resolve_command, resolve_mission"
+        - from: "from specify_cli.runtime.migrate import execute_migration"
+          to: "from runtime.orchestration.migrate import execute_migration"
+
+    - file: "tests/runtime/test_global_runtime_convergence_unit.py"
+      imports:
+        - from: "from specify_cli.runtime.resolver import ResolutionTier, _is_global_runtime_configured, _reset_migrate_nudge, resolve_command, resolve_template"
+          to: "from runtime.discovery.resolver import ResolutionTier, _is_global_runtime_configured, _reset_migrate_nudge, resolve_command, resolve_template"
+
+    - file: "tests/runtime/test_home_unit.py"
+      imports:
+        - from: "from specify_cli.runtime.home import get_kittify_home, get_package_asset_root"
+          to: "from runtime.discovery.home import get_kittify_home, get_package_asset_root"
+
+    - file: "tests/runtime/test_resolver_unit.py"
+      imports:
+        - from: "from specify_cli.runtime.resolver import ResolutionResult, ResolutionTier, resolve_command, resolve_mission, resolve_template"
+          to: "from runtime.discovery.resolver import ResolutionResult, ResolutionTier, resolve_command, resolve_mission, resolve_template"
+
+    - file: "tests/runtime/test_show_origin_unit.py"
+      imports:
+        - from: "from specify_cli.runtime.show_origin import OriginEntry, collect_origins"
+          to: "from runtime.orchestration.show_origin import OriginEntry, collect_origins"
+
+summary:
+  cli_adapter_count: 5
+  shim_source_count: 14
+  source_caller_count: 13
+  test_caller_count: 13
+  total_files: 45
+  total_import_lines: 57
+  notes: >
+    shim_source_count=14 (4 from specify_cli.next/ + 10 from specify_cli.runtime/).
+    src/specify_cli/next/prompt_builder.py appears in both shim_source (it becomes a shim)
+    and source_caller (its body imports from specify_cli.runtime.resolver and must be rewritten
+    before the shim body is replaced). However WP06 converted it to a shim before WP09 ran,
+    so the body no longer imports from specify_cli.runtime — it re-exports from runtime.* directly.
+    WP09 discovered 11 additional source_callers beyond the original 2 in the map:
+    6 in src/specify_cli/upgrade/ (compat.py + 5 migration files) and
+    4 CLI adapter files that WP05 left unmigrated (doctor.py, init.py, config_cmd.py, migrate_cmd.py).
+    All were migrated to canonical runtime.* imports.
+    src/doctrine/resolver.py and src/kernel/__init__.py have NO specify_cli.runtime imports —
+    they use kernel.paths directly (correct architectural pattern; no boundary violations).
+    tests/next/test_plan_mission_runtime.py and tests/next/test_next_replay_parity_integration.py
+    and tests/next/test_query_mode_unit.py do NOT import from specify_cli.next or specify_cli.runtime
+    directly — they use spec_kitty_events or specify_cli app and are not in scope.
+    tests/runtime/test_banner_visibility.py, test_config.py, test_paths_unit.py,
+    test_tool_checker.py, test_utils.py, test_workspace_context_unit.py, test_project_resolver.py
+    do NOT import from specify_cli.runtime directly — they use other modules.

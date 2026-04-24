@@ -1,0 +1,42 @@
+{
+  "event_count": 21,
+  "last_event_id": "01KPYT58DAM6SE6CCRZE1QEETD",
+  "materialized_at": "2026-04-24T03:57:25.290880+00:00",
+  "mission_number": "95",
+  "mission_slug": "runtime-extraction-remediation-01KPX9DT",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KPYT58AK946194BYMR8G6DMC",
+      "last_transition_at": "2026-04-24T03:57:25.203296+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KPYT58CM3MFNWVZBZR7W0ACE",
+      "last_transition_at": "2026-04-24T03:57:25.268568+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KPYT58DAM6SE6CCRZE1QEETD",
+      "last_transition_at": "2026-04-24T03:57:25.290880+00:00"
+    }
+  }
+}

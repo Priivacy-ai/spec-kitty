@@ -6,5 +6,7 @@
   "mission_slug": "runtime-mission-execution-extraction-01KPDYGW",
   "mission_type": "software-dev",
   "slug": "runtime-mission-execution-extraction-01KPDYGW",
-  "target_branch": "main"
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-22T20:40:46.129521+00:00"
 }

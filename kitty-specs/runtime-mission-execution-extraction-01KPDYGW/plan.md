@@ -1,6 +1,6 @@
 # Implementation Plan: Runtime Mission Execution Extraction
 
-**Branch contract**: planning/base `main` → merge target `main` (single branch; no divergence)
+**Branch contract**: planning branch `kitty/mission-runtime-mission-execution-extraction-01KPDYGW` → merge target `main`
 **Date**: 2026-04-17
 **Spec**: [./spec.md](./spec.md)
 **Mission ID**: `01KPDYGWKZ3ZMBPRX9RYMWPR1A` · **mid8**: `01KPDYGW`
@@ -15,8 +15,10 @@
 
 Spec Kitty's runtime execution core — mission discovery, state sequencing, state-transition decisioning, execution-layer interaction, profile/action invocation, active-mode handling, and charter-artefact retrieval — currently lives scattered across two sibling subtrees under `specify_cli`:
 
-- `src/specify_cli/next/` — 4 modules, ~1,918 lines. Owns decisioning (`decision.py`, 472 lines), runtime bridging (`runtime_bridge.py`, 1,087 lines), prompt composition (`prompt_builder.py`, 342 lines), public API (`__init__.py`, 17 lines).
-- `src/specify_cli/runtime/` — 10 modules, ~1,842 lines. Owns agent command dispatch (`agent_commands.py`), agent skill resolution (`agent_skills.py`), status bootstrap (`bootstrap.py`), doctor diagnostics (`doctor.py`), home resolution (`home.py`), merge orchestration (`merge.py`), migration orchestration (`migrate.py`), mission resolution (`resolver.py`), origin display (`show_origin.py`).
+- `src/specify_cli/next/` — 4 modules, 1,944 lines (audited 2026-04-22). Owns decisioning (`decision.py`, 472 lines), runtime bridging (`runtime_bridge.py`, 1,113 lines — grew by 26 lines since plan; PR #761 added analytics scorecard event emission via `sync/runtime_event_emitter`), prompt composition (`prompt_builder.py`, 342 lines), public API (`__init__.py`, 17 lines).
+- `src/specify_cli/runtime/` — 10 modules, 1,837 lines (audited 2026-04-22). Owns agent command dispatch (`agent_commands.py`), agent skill resolution (`agent_skills.py`), status bootstrap (`bootstrap.py`), doctor diagnostics (`doctor.py`), home resolution (`home.py`), merge orchestration (`merge.py`), migration orchestration (`migrate.py`), mission resolution (`resolver.py`), origin display (`show_origin.py`).
+
+**Post-plan boundary note (2026-04-22)**: `src/specify_cli/invocation/` was introduced by mission `profile-invocation-runtime-audit-trail-01KPQRX2` (merged 2026-04-21) and contains the fully-implemented `ProfileInvocationExecutor`. This package is **not** in the extraction surface. It is a separate functional slice that runtime may call as a service. The `runtime_bridge.py` analytics import via `sync/` must be audited for transitive Rich/Typer exposure before the dependency-rules test is written.
 
 Combined, ~3,760 lines constitute the runtime extraction surface. This mission consolidates both subtrees into a **single canonical top-level package** at `src/runtime/` (per FR-001 and the upstream #610 ownership map). The CLI modules under `src/specify_cli/cli/commands/` become thin adapters: argument parsing, runtime service calls, Rich/JSON rendering, exit-code mapping — no inline state-machine decisioning (FR-004).
 
@@ -195,7 +197,7 @@ All five plan-phase open questions from `spec.md` Open Questions are resolved. S
 - **Q2 Full shim enumeration**: Two shim packages — `src/specify_cli/next/` (4 files) and `src/specify_cli/runtime/` (10 files). CLI command modules at `src/specify_cli/cli/commands/` do **not** become shims; they remain in place as thin adapters (FR-004) and rewrite their imports to target the new `runtime.*` package.
 - **Q3 PresentationSink protocol + seam shapes**: See `contracts/presentation_sink.md`, `contracts/profile_invocation_executor.md`, `contracts/step_contract_executor.md`. All three live in `src/runtime/seams/`. Runtime never imports Rich or Typer; CLI adapters inject a `RichPresentationSink` implementation.
 - **Q4 Dependency-rules enforcement**: Implemented via `tests/architectural/test_layer_rules.py` (pytestarch). The plan extends the `landscape` fixture to add a `runtime` layer and asserts forbidden edges (no `specify_cli.cli.*`, no `rich.*`, no `typer.*` imports into runtime). No new dependency, no new test file. The closed issue #395 (fragile architectural layer matching) is the historical predecessor; its concern is fully addressed by the pytestarch infra already present.
-- **Q5 Regression-snapshot command enumeration**: Four commands confirmed: `spec-kitty next`, `spec-kitty implement <WP>`, `spec-kitty agent action review <WP>`, `spec-kitty merge`. Additional CLI commands audited (`agent mission`, `agent tasks status`, `agent context`, `dashboard`, `doctor`, `sync`) — none directly invoke the state-transition decisioning function `decide_next`, so they do not need regression snapshots. Coverage for those commands stays under their existing test modules.
+- **Q5 Regression-snapshot command enumeration**: Four commands confirmed: `spec-kitty next`, `spec-kitty agent action implement <WP>`, `spec-kitty agent action review <WP>`, `spec-kitty merge`. Additional CLI commands audited (`agent mission`, `agent tasks status`, `agent context`, `dashboard`, `doctor`, `sync`) — none directly invoke the state-transition decisioning function `decide_next`, so they do not need regression snapshots. Coverage for those commands stays under their existing test modules.
 
 ## Phase 1: Design & Contracts
 
@@ -211,18 +213,15 @@ All five plan-phase open questions from `spec.md` Open Questions are resolved. S
 
 **Upstream (must land before implementation starts):**
 
-1. `functional-ownership-map-01KPDY72` (#610) — pins the canonical runtime path and publishes the runtime-slice dependency-rules entry this mission's pytestarch test references.
-2. `migration-shim-ownership-rules-01KPDYDW` (#615) — provides the shim rulebook (`__deprecated__`, `__canonical_import__`, `__removal_release__`, `__deprecation_message__`, `DeprecationWarning` stacklevel=2) and the `architecture/2.x/shim-registry.yaml` registry + `spec-kitty doctor shim-registry` CI check that this mission's shims register against.
+1. `functional-ownership-map-01KPDY72` (#610) — **MERGED ✓** (PR #683, 2026-04-18). Canonical runtime path `src/runtime/` is authoritative; dependency-rules seam published in `architecture/2.x/05_ownership_manifest.yaml`.
+2. `migration-shim-ownership-rules-01KPDYDW` (#615) — **MERGED ✓** (PR #712, 2026-04-19). Shim rulebook is ratified; `architecture/2.x/shim-registry.yaml` exists with a confirmed-empty baseline; `spec-kitty doctor shim-registry` CI check is operational.
 
-This mission's plan phase can be authored in parallel with the two upstream plans. The **implementation** phase of this mission waits for both upstream missions to merge, because:
-
-- Without #610 merged, the canonical runtime path is not authoritative; picking a path prematurely risks a re-rename.
-- Without #615 merged, the shim attribute contract is not ratified and the registry file does not exist.
+Both upstream prerequisites are satisfied as of 2026-04-22. **Implementation phase is unblocked.**
 
 **Downstream (blocked on this mission merging):**
 
-- **#461 Phase 4** (ProfileInvocationExecutor) — implements against the `ProfileInvocationExecutor` Protocol in `src/runtime/seams/`.
-- **#461 Phase 6** (StepContractExecutor) — implements against the `StepContractExecutor` Protocol in `src/runtime/seams/`.
+- **#461 Phase 4** (ProfileInvocationExecutor) — **shipped ✓** (merged 2026-04-21). Accessible via `src/runtime/seams/profile_invocation_executor.py` boundary alias.
+- **#461 Phase 6** (StepContractExecutor) — implements against the `StepContractExecutor` Protocol in `src/runtime/seams/step_contract_executor.py`.
 - **#613 glossary extraction** — benefits from the stable runtime interface but is not strictly blocked; it can proceed in parallel with this mission's implementation phase if its scope is limited to the `glossary` package.
 
 **Critical path within this mission** (enforced by task ordering in `/spec-kitty.tasks`):
@@ -256,10 +255,10 @@ Steps 1 and 2 gate everything else. Steps 3 and 4 can execute in parallel after 
 
 ## Branch Strategy (restated per protocol)
 
-- **Planning base**: `main`
+- **Planning branch**: `kitty/mission-runtime-mission-execution-extraction-01KPDYGW` (created 2026-04-22)
 - **Merge target**: `main`
-- **Current branch**: `main` (this mission is being planned directly on main, with implementation landing on a lane-based execution workspace created by `spec-kitty implement WP##` per the 2.x/3.x lane strategy).
-- **Branch divergence**: none.
+- **Implementation**: lane-based execution workspaces created by `spec-kitty implement WP##` per the 2.x/3.x lane strategy; lanes branch from the planning branch.
+- **Branch divergence**: none from `main` at branch creation.
 
 ---
 
