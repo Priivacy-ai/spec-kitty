@@ -227,73 +227,65 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
         agent_dir = project_path / agent_root / subdir
         if not agent_dir.is_dir():
             continue
-
         agent_key = AGENT_DIR_TO_KEY.get(agent_root)
         if agent_key is None:
             continue
-
         for command in sorted(PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS):
             filename = _compute_filename(command, agent_key)
             file_path = agent_dir / filename
             rel_path = str(file_path.relative_to(project_path))
-            is_prompt_driven = command in PROMPT_DRIVEN_COMMANDS
+            issues.extend(
+                _check_single_command_file(
+                    agent_key, command, file_path, rel_path,
+                    expected_marker, command in PROMPT_DRIVEN_COMMANDS,
+                )
+            )
 
-            if not file_path.exists():
-                issues.append({
-                    "agent": agent_key,
-                    "command": command,
-                    "file": rel_path,
-                    "issue": "missing",
-                    "severity": "error",
-                })
-                continue
+    return issues
 
-            try:
-                content = file_path.read_text(encoding="utf-8")
-            except OSError as exc:
-                issues.append({
-                    "agent": agent_key,
-                    "command": command,
-                    "file": rel_path,
-                    "issue": f"unreadable: {exc}",
-                    "severity": "error",
-                })
-                continue
 
-            # Version marker check — scan the file head, not just line 1, so
-            # the post-fix layout (frontmatter on line 1, marker after the
-            # closing ``---``) is recognized as healthy.
-            head_lines = content.splitlines()[:_VERSION_MARKER_HEAD_LINES]
-            marker_present = any(line.strip() == expected_marker for line in head_lines)
-            if not marker_present:
-                issues.append({
-                    "agent": agent_key,
-                    "command": command,
-                    "file": rel_path,
-                    "issue": f"stale or missing version marker (expected: {expected_marker})",
-                    "severity": "warning",
-                })
+def _check_single_command_file(
+    agent_key: str,
+    command: str,
+    file_path: Path,
+    rel_path: str,
+    expected_marker: str,
+    is_prompt_driven: bool,
+) -> list[dict[str, str]]:
+    """Check a single command file and return any issues found."""
+    if not file_path.exists():
+        return [{"agent": agent_key, "command": command, "file": rel_path, "issue": "missing", "severity": "error"}]
 
-            # Type check: prompt-driven should be long, CLI-driven should be short.
-            # Threshold accounts for the new YAML frontmatter (~3 extra lines).
-            non_empty_lines = [line for line in content.splitlines() if line.strip()]
-            line_count = len(non_empty_lines)
-            if is_prompt_driven and line_count < 50:
-                issues.append({
-                    "agent": agent_key,
-                    "command": command,
-                    "file": rel_path,
-                    "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
-                    "severity": "warning",
-                })
-            elif not is_prompt_driven and line_count >= 15:
-                issues.append({
-                    "agent": agent_key,
-                    "command": command,
-                    "file": rel_path,
-                    "issue": f"CLI-driven command has {line_count} non-empty lines (expected <15 for thin shim)",
-                    "severity": "warning",
-                })
+    try:
+        content = file_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return [{"agent": agent_key, "command": command, "file": rel_path, "issue": f"unreadable: {exc}", "severity": "error"}]
+
+    issues: list[dict[str, str]] = []
+
+    # Version marker check — scan file head (covers post-fix frontmatter layout).
+    head_lines = content.splitlines()[:_VERSION_MARKER_HEAD_LINES]
+    if not any(line.strip() == expected_marker for line in head_lines):
+        issues.append({
+            "agent": agent_key, "command": command, "file": rel_path,
+            "issue": f"stale or missing version marker (expected: {expected_marker})",
+            "severity": "warning",
+        })
+
+    # Type check: prompt-driven should be long, CLI-driven should be short.
+    line_count = sum(1 for line in content.splitlines() if line.strip())
+    if is_prompt_driven and line_count < 50:
+        issues.append({
+            "agent": agent_key, "command": command, "file": rel_path,
+            "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
+            "severity": "warning",
+        })
+    elif not is_prompt_driven and line_count >= 15:
+        issues.append({
+            "agent": agent_key, "command": command, "file": rel_path,
+            "issue": f"CLI-driven command has {line_count} non-empty lines (expected <15 for thin shim)",
+            "severity": "warning",
+        })
 
     return issues
 
