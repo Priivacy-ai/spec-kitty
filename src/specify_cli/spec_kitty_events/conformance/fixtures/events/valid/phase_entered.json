@@ -1,0 +1,6 @@
+{
+  "mission_id": "mission-001",
+  "phase_name": "implementation",
+  "previous_phase": null,
+  "actor": "test-agent"
+}

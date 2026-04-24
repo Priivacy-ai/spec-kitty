@@ -1,0 +1,9 @@
+{
+  "delivery_id": "del-005",
+  "source_event_fingerprint": "fp-dead-001",
+  "connector_id": "conn-github-001",
+  "mission_id": "m-001",
+  "recorded_at": "2026-02-27T13:04:00+00:00",
+  "total_attempts": 3,
+  "dead_letter_ref": "s3://dead-letter/del-005.json"
+}

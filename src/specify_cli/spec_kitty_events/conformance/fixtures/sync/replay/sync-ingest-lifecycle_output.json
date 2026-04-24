@@ -1,0 +1,79 @@
+{
+  "anomalies": [],
+  "connector_id": "conn-github-001",
+  "event_count": 7,
+  "outcome_counts": {
+    "accepted_count": 2,
+    "dead_letter_count": 1,
+    "rejected_count": 1,
+    "replay_count": 1,
+    "retry_count": 2
+  },
+  "outcome_log": [
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB1",
+      "accepted",
+      "del-101"
+    ],
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB2",
+      "accepted",
+      "del-102"
+    ],
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB3",
+      "rejected",
+      "del-103"
+    ],
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB4",
+      "retry_scheduled",
+      "del-104"
+    ],
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB5",
+      "retry_scheduled",
+      "del-104"
+    ],
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB6",
+      "dead_lettered",
+      "del-104"
+    ],
+    [
+      "01KJFD8KY6ABA9ZNKAPDA9DCB7",
+      "replay_completed",
+      "del-replay-001"
+    ]
+  ],
+  "seen_delivery_pairs": [
+    [
+      "del-101",
+      "fp-lifecycle-001"
+    ],
+    [
+      "del-102",
+      "fp-lifecycle-002"
+    ],
+    [
+      "del-103",
+      "fp-lifecycle-003"
+    ],
+    [
+      "del-104",
+      "fp-lifecycle-004"
+    ],
+    [
+      "del-104",
+      "fp-lifecycle-004b"
+    ],
+    [
+      "del-104",
+      "fp-lifecycle-004c"
+    ],
+    [
+      "del-replay-001",
+      "fp-lifecycle-replay-001"
+    ]
+  ]
+}

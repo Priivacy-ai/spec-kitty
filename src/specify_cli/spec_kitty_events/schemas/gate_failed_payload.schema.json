@@ -1,0 +1,80 @@
+{
+  "$id": "spec-kitty-events/gate_failed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for a CI gate that concluded with a failure condition.\n\nCovers conclusions: failure, timed_out, cancelled, action_required.\nAttached to a generic Event with event_type='GateFailed'.",
+  "properties": {
+    "check_run_id": {
+      "description": "GitHub check run ID",
+      "exclusiveMinimum": 0,
+      "title": "Check Run Id",
+      "type": "integer"
+    },
+    "check_run_url": {
+      "description": "URL of the GitHub check run",
+      "format": "uri",
+      "minLength": 1,
+      "title": "Check Run Url",
+      "type": "string"
+    },
+    "conclusion": {
+      "description": "Allowed GitHub check_run conclusions for failed gates.",
+      "enum": [
+        "failure",
+        "timed_out",
+        "cancelled",
+        "action_required"
+      ],
+      "title": "Conclusion",
+      "type": "string"
+    },
+    "delivery_id": {
+      "description": "Webhook delivery ID used as idempotency key",
+      "minLength": 1,
+      "title": "Delivery Id",
+      "type": "string"
+    },
+    "external_provider": {
+      "const": "github",
+      "description": "External CI provider. Currently only 'github' is supported.",
+      "title": "External Provider",
+      "type": "string"
+    },
+    "gate_name": {
+      "description": "Name of the CI gate (e.g., 'ci/build', 'ci/lint')",
+      "minLength": 1,
+      "title": "Gate Name",
+      "type": "string"
+    },
+    "gate_type": {
+      "const": "ci",
+      "description": "Type of gate. Currently only 'ci' is supported.",
+      "title": "Gate Type",
+      "type": "string"
+    },
+    "pr_number": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Pull request number, if the gate is associated with a PR",
+      "title": "Pr Number"
+    }
+  },
+  "required": [
+    "gate_name",
+    "gate_type",
+    "conclusion",
+    "external_provider",
+    "check_run_id",
+    "check_run_url",
+    "delivery_id"
+  ],
+  "title": "GateFailedPayload",
+  "type": "object"
+}

@@ -1,0 +1,237 @@
+{
+  "$defs": {
+    "AuditArtifactRef": {
+      "additionalProperties": false,
+      "description": "Links an audit report to its content hash and provenance.",
+      "properties": {
+        "content_hash": {
+          "$ref": "#/$defs/ContentHashRef"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ProvenanceRef"
+        },
+        "report_path": {
+          "minLength": 1,
+          "title": "Report Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_path",
+        "content_hash",
+        "provenance"
+      ],
+      "title": "AuditArtifactRef",
+      "type": "object"
+    },
+    "ContentHashRef": {
+      "additionalProperties": false,
+      "description": "Content fingerprint with optional size and encoding metadata.",
+      "properties": {
+        "algorithm": {
+          "enum": [
+            "sha256",
+            "sha512",
+            "md5"
+          ],
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "encoding": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encoding"
+        },
+        "hash": {
+          "description": "Hex-encoded content hash",
+          "minLength": 1,
+          "title": "Hash",
+          "type": "string"
+        },
+        "size_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Bytes"
+        }
+      },
+      "required": [
+        "hash",
+        "algorithm"
+      ],
+      "title": "ContentHashRef",
+      "type": "object"
+    },
+    "ProvenanceRef": {
+      "additionalProperties": false,
+      "description": "Source trace connecting an artifact or event to its authoritative origin.",
+      "properties": {
+        "actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Id"
+        },
+        "actor_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "human",
+                "llm",
+                "system"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Kind"
+        },
+        "git_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Ref"
+        },
+        "git_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Sha"
+        },
+        "revised_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601",
+          "title": "Revised At"
+        },
+        "source_event_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Event Ids"
+        }
+      },
+      "title": "ProvenanceRef",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/mission_audit_failed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Payload for MissionAuditFailed events (FR-007).",
+  "properties": {
+    "actor": {
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "error_code": {
+      "minLength": 1,
+      "title": "Error Code",
+      "type": "string"
+    },
+    "error_message": {
+      "title": "Error Message",
+      "type": "string"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "mission_number": {
+      "minimum": 1,
+      "title": "Mission Number",
+      "type": "integer"
+    },
+    "mission_slug": {
+      "minLength": 1,
+      "title": "Mission Slug",
+      "type": "string"
+    },
+    "mission_type": {
+      "minLength": 1,
+      "title": "Mission Type",
+      "type": "string"
+    },
+    "partial_artifact_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuditArtifactRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "run_id": {
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "run_id",
+    "mission_slug",
+    "mission_number",
+    "mission_type",
+    "actor",
+    "error_code",
+    "error_message"
+  ],
+  "title": "MissionAuditFailedPayload",
+  "type": "object"
+}

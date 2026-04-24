@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DecisionIndexEntry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision_id", "origin_flow", "input_key", "question", "status", "created_at", "mission_id", "mission_slug"],
+  "properties": {
+    "decision_id": {"type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"},
+    "origin_flow": {"enum": ["charter", "specify", "plan"]},
+    "step_id": {"type": ["string", "null"]},
+    "slot_key": {"type": ["string", "null"]},
+    "input_key": {"type": "string", "minLength": 1},
+    "question": {"type": "string", "minLength": 1},
+    "options": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["open", "resolved", "deferred", "canceled"]},
+    "final_answer": {"type": ["string", "null"]},
+    "rationale": {"type": ["string", "null"]},
+    "other_answer": {"type": "boolean"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "resolved_at": {"type": ["string", "null"], "format": "date-time"},
+    "resolved_by": {"type": ["string", "null"]},
+    "mission_id": {"type": "string"},
+    "mission_slug": {"type": "string"}
+  },
+  "anyOf": [
+    {"required": ["step_id"], "not": {"properties": {"step_id": {"type": "null"}}}},
+    {"required": ["slot_key"], "not": {"properties": {"slot_key": {"type": "null"}}}}
+  ]
+}

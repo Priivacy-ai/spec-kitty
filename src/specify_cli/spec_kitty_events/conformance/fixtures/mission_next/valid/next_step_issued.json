@@ -1,0 +1,13 @@
+{
+  "run_id": "run-001",
+  "step_id": "step-setup-env",
+  "agent_id": "agent-claude",
+  "actor": {
+    "actor_id": "agent-claude",
+    "actor_type": "llm",
+    "display_name": "Claude",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tool": null
+  }
+}

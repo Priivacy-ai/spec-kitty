@@ -1,0 +1,11 @@
+{
+  "mission_id": "01TESTMISSION000000000001",
+  "run_id": "01TESTRUN0000000000000001",
+  "step_id": "implement",
+  "action": "implement WP03",
+  "profile_slug": "architect-v2",
+  "actor": {
+    "actor_id": "claude-opus",
+    "actor_type": "llm"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "gate_name": "ci/lint",
+  "gate_type": "ci",
+  "conclusion": "failure",
+  "external_provider": "github",
+  "check_run_id": 67890,
+  "check_run_url": "https://github.com/owner/repo/runs/67890",
+  "delivery_id": "delivery-def456",
+  "pr_number": null
+}

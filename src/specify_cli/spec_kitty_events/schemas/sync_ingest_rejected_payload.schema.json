@@ -1,0 +1,53 @@
+{
+  "$id": "spec-kitty-events/sync_ingest_rejected_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for SyncIngestRejected events.",
+  "properties": {
+    "connector_id": {
+      "minLength": 1,
+      "title": "Connector Id",
+      "type": "string"
+    },
+    "delivery_id": {
+      "minLength": 1,
+      "title": "Delivery Id",
+      "type": "string"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "rejected_payload_ref": {
+      "minLength": 1,
+      "title": "Rejected Payload Ref",
+      "type": "string"
+    },
+    "rejection_reason": {
+      "minLength": 1,
+      "title": "Rejection Reason",
+      "type": "string"
+    },
+    "source_event_fingerprint": {
+      "minLength": 1,
+      "title": "Source Event Fingerprint",
+      "type": "string"
+    }
+  },
+  "required": [
+    "delivery_id",
+    "source_event_fingerprint",
+    "connector_id",
+    "mission_id",
+    "recorded_at",
+    "rejection_reason",
+    "rejected_payload_ref"
+  ],
+  "title": "SyncIngestRejectedPayload",
+  "type": "object"
+}

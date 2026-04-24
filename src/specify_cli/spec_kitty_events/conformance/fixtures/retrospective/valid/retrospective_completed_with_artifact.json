@@ -1,0 +1,12 @@
+{
+  "mission_id": "01TESTMISSION000000000001",
+  "actor": "runtime-agent",
+  "trigger_source": "runtime",
+  "artifact_ref": {
+    "git_sha": "abc123def456",
+    "git_ref": "main",
+    "actor_id": "runtime-agent",
+    "actor_kind": "llm"
+  },
+  "completed_at": "2026-04-13T10:00:00Z"
+}

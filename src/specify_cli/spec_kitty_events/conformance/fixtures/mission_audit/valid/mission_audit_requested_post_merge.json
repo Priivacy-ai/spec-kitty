@@ -1,0 +1,17 @@
+{
+  "mission_id": "mission-010",
+  "run_id": "run-002",
+  "actor": "ci-bot",
+  "trigger_mode": "post_merge",
+  "audit_scope": [
+    "spec.md",
+    "plan.md",
+    "data-model.md",
+    "tasks.md",
+    "quickstart.md"
+  ],
+  "enforcement_mode": "blocking",
+  "mission_slug": "mission-010",
+  "mission_number": 10,
+  "mission_type": "software-dev"
+}

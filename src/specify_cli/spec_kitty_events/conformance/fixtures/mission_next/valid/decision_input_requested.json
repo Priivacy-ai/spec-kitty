@@ -1,0 +1,19 @@
+{
+  "run_id": "run-001",
+  "decision_id": "input:db-password",
+  "step_id": "step-configure-db",
+  "question": "What database password should be used?",
+  "options": [
+    "generate-random",
+    "use-env-var"
+  ],
+  "input_key": "db-password",
+  "actor": {
+    "actor_id": "agent-claude",
+    "actor_type": "llm",
+    "display_name": "Claude",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tool": null
+  }
+}

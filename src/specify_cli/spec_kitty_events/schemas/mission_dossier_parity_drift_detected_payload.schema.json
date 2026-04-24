@@ -1,0 +1,203 @@
+{
+  "$defs": {
+    "ArtifactIdentity": {
+      "additionalProperties": false,
+      "description": "Canonical identity for one artifact instance.\n\nartifact_class is the SINGLE source of truth for artifact taxonomy.\nEvent payloads MUST NOT duplicate this field at the top level.",
+      "properties": {
+        "artifact_class": {
+          "enum": [
+            "input",
+            "workflow",
+            "output",
+            "evidence",
+            "policy",
+            "runtime"
+          ],
+          "title": "Artifact Class",
+          "type": "string"
+        },
+        "mission_type": {
+          "minLength": 1,
+          "title": "Mission Type",
+          "type": "string"
+        },
+        "path": {
+          "description": "Repository-relative path",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "wp_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wp Id"
+        }
+      },
+      "required": [
+        "mission_type",
+        "path",
+        "artifact_class"
+      ],
+      "title": "ArtifactIdentity",
+      "type": "object"
+    },
+    "LocalNamespaceTuple": {
+      "additionalProperties": false,
+      "description": "Minimum collision-safe key for parity baseline scoping.\n\nmanifest_version is defined HERE ONLY \u2014 event payloads must NOT duplicate it.",
+      "properties": {
+        "manifest_version": {
+          "minLength": 1,
+          "title": "Manifest Version",
+          "type": "string"
+        },
+        "mission_slug": {
+          "minLength": 1,
+          "title": "Mission Slug",
+          "type": "string"
+        },
+        "mission_type": {
+          "minLength": 1,
+          "title": "Mission Type",
+          "type": "string"
+        },
+        "project_uuid": {
+          "minLength": 1,
+          "title": "Project Uuid",
+          "type": "string"
+        },
+        "step_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Id"
+        },
+        "target_branch": {
+          "minLength": 1,
+          "title": "Target Branch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_uuid",
+        "mission_slug",
+        "target_branch",
+        "mission_type",
+        "manifest_version"
+      ],
+      "title": "LocalNamespaceTuple",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/mission_dossier_parity_drift_detected_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Payload for MissionDossierParityDriftDetected events.",
+  "properties": {
+    "actual_hash": {
+      "minLength": 1,
+      "title": "Actual Hash",
+      "type": "string"
+    },
+    "artifact_ids_changed": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Artifact Ids Changed"
+    },
+    "context_diagnostics": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Context Diagnostics"
+    },
+    "detected_at": {
+      "description": "ISO 8601",
+      "title": "Detected At",
+      "type": "string"
+    },
+    "drift_kind": {
+      "enum": [
+        "artifact_added",
+        "artifact_removed",
+        "artifact_mutated",
+        "anomaly_introduced",
+        "anomaly_resolved",
+        "manifest_version_changed"
+      ],
+      "title": "Drift Kind",
+      "type": "string"
+    },
+    "expected_hash": {
+      "minLength": 1,
+      "title": "Expected Hash",
+      "type": "string"
+    },
+    "namespace": {
+      "$ref": "#/$defs/LocalNamespaceTuple"
+    },
+    "rebuild_hint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rebuild Hint"
+    }
+  },
+  "required": [
+    "namespace",
+    "expected_hash",
+    "actual_hash",
+    "drift_kind",
+    "detected_at"
+  ],
+  "title": "MissionDossierParityDriftDetectedPayload",
+  "type": "object"
+}

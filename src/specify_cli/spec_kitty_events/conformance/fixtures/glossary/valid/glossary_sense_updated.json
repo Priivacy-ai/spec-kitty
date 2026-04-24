@@ -1,0 +1,9 @@
+{
+  "mission_id": "mission-fixture-001",
+  "scope_id": "scope-team-domain",
+  "term_surface": "dashboard",
+  "before_sense": "Generic display panel",
+  "after_sense": "Analytics overview panel showing key metrics",
+  "reason": "Clarified after team discussion",
+  "actor": "human-reviewer-001"
+}

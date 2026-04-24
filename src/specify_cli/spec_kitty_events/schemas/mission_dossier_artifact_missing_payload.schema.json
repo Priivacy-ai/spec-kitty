@@ -1,0 +1,275 @@
+{
+  "$defs": {
+    "ArtifactIdentity": {
+      "additionalProperties": false,
+      "description": "Canonical identity for one artifact instance.\n\nartifact_class is the SINGLE source of truth for artifact taxonomy.\nEvent payloads MUST NOT duplicate this field at the top level.",
+      "properties": {
+        "artifact_class": {
+          "enum": [
+            "input",
+            "workflow",
+            "output",
+            "evidence",
+            "policy",
+            "runtime"
+          ],
+          "title": "Artifact Class",
+          "type": "string"
+        },
+        "mission_type": {
+          "minLength": 1,
+          "title": "Mission Type",
+          "type": "string"
+        },
+        "path": {
+          "description": "Repository-relative path",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "wp_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wp Id"
+        }
+      },
+      "required": [
+        "mission_type",
+        "path",
+        "artifact_class"
+      ],
+      "title": "ArtifactIdentity",
+      "type": "object"
+    },
+    "LocalNamespaceTuple": {
+      "additionalProperties": false,
+      "description": "Minimum collision-safe key for parity baseline scoping.\n\nmanifest_version is defined HERE ONLY \u2014 event payloads must NOT duplicate it.",
+      "properties": {
+        "manifest_version": {
+          "minLength": 1,
+          "title": "Manifest Version",
+          "type": "string"
+        },
+        "mission_slug": {
+          "minLength": 1,
+          "title": "Mission Slug",
+          "type": "string"
+        },
+        "mission_type": {
+          "minLength": 1,
+          "title": "Mission Type",
+          "type": "string"
+        },
+        "project_uuid": {
+          "minLength": 1,
+          "title": "Project Uuid",
+          "type": "string"
+        },
+        "step_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Id"
+        },
+        "target_branch": {
+          "minLength": 1,
+          "title": "Target Branch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_uuid",
+        "mission_slug",
+        "target_branch",
+        "mission_type",
+        "manifest_version"
+      ],
+      "title": "LocalNamespaceTuple",
+      "type": "object"
+    },
+    "ProvenanceRef": {
+      "additionalProperties": false,
+      "description": "Source trace connecting an artifact or event to its authoritative origin.",
+      "properties": {
+        "actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Id"
+        },
+        "actor_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "human",
+                "llm",
+                "system"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Kind"
+        },
+        "git_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Ref"
+        },
+        "git_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Sha"
+        },
+        "revised_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601",
+          "title": "Revised At"
+        },
+        "source_event_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Event Ids"
+        }
+      },
+      "title": "ProvenanceRef",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/mission_dossier_artifact_missing_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Payload for MissionDossierArtifactMissing events.",
+  "properties": {
+    "checked_at": {
+      "description": "ISO 8601",
+      "title": "Checked At",
+      "type": "string"
+    },
+    "context_diagnostics": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Context Diagnostics"
+    },
+    "expected_identity": {
+      "$ref": "#/$defs/ArtifactIdentity",
+      "description": "Carries path and artifact_class of missing artifact"
+    },
+    "last_known_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProvenanceRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "manifest_step": {
+      "description": "\"required_always\" or step_id",
+      "minLength": 1,
+      "title": "Manifest Step",
+      "type": "string"
+    },
+    "namespace": {
+      "$ref": "#/$defs/LocalNamespaceTuple"
+    },
+    "remediation_hint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Remediation Hint"
+    }
+  },
+  "required": [
+    "namespace",
+    "expected_identity",
+    "manifest_step",
+    "checked_at"
+  ],
+  "title": "MissionDossierArtifactMissingPayload",
+  "type": "object"
+}

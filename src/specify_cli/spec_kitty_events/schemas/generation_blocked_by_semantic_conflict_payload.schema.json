@@ -1,0 +1,53 @@
+{
+  "$id": "spec-kitty-events/generation_blocked_by_semantic_conflict_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for GenerationBlockedBySemanticConflict event.",
+  "properties": {
+    "blocking_strictness": {
+      "description": "Policy mode that triggered the block (never 'off')",
+      "enum": [
+        "medium",
+        "max"
+      ],
+      "title": "Blocking Strictness",
+      "type": "string"
+    },
+    "conflict_event_ids": {
+      "description": "Event IDs of unresolved SemanticCheckEvaluated events",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Conflict Event Ids",
+      "type": "array"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Step that was blocked",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "step_metadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Mission primitive metadata",
+      "title": "Step Metadata",
+      "type": "object"
+    }
+  },
+  "required": [
+    "mission_id",
+    "step_id",
+    "conflict_event_ids",
+    "blocking_strictness"
+  ],
+  "title": "GenerationBlockedBySemanticConflictPayload",
+  "type": "object"
+}

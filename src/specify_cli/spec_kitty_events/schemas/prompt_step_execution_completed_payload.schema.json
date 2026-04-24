@@ -1,0 +1,56 @@
+{
+  "$id": "spec-kitty-events/prompt_step_execution_completed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for PromptStepExecutionCompleted events.",
+  "properties": {
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "outcome": {
+      "description": "Step outcome",
+      "enum": [
+        "success",
+        "failure",
+        "skipped"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Completing participant",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Step identifier",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "wp_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Work package targeted",
+      "title": "Wp Id"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "step_id",
+    "outcome"
+  ],
+  "title": "PromptStepExecutionCompletedPayload",
+  "type": "object"
+}

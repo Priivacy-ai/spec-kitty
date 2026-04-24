@@ -1,0 +1,78 @@
+{
+  "$id": "spec-kitty-events/external_reference_linked_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for ExternalReferenceLinked events.",
+  "properties": {
+    "connector_id": {
+      "minLength": 1,
+      "title": "Connector Id",
+      "type": "string"
+    },
+    "external_provider": {
+      "minLength": 1,
+      "title": "External Provider",
+      "type": "string"
+    },
+    "external_ref_id": {
+      "minLength": 1,
+      "title": "External Ref Id",
+      "type": "string"
+    },
+    "external_ref_type": {
+      "minLength": 1,
+      "title": "External Ref Type",
+      "type": "string"
+    },
+    "external_ref_url": {
+      "format": "uri",
+      "minLength": 1,
+      "title": "External Ref Url",
+      "type": "string"
+    },
+    "internal_aggregate_id": {
+      "minLength": 1,
+      "title": "Internal Aggregate Id",
+      "type": "string"
+    },
+    "internal_aggregate_type": {
+      "minLength": 1,
+      "title": "Internal Aggregate Type",
+      "type": "string"
+    },
+    "link_id": {
+      "minLength": 1,
+      "title": "Link Id",
+      "type": "string"
+    },
+    "linked_by": {
+      "minLength": 1,
+      "title": "Linked By",
+      "type": "string"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "link_id",
+    "connector_id",
+    "external_provider",
+    "external_ref_type",
+    "external_ref_id",
+    "external_ref_url",
+    "internal_aggregate_type",
+    "internal_aggregate_id",
+    "mission_id",
+    "linked_by",
+    "recorded_at"
+  ],
+  "title": "ExternalReferenceLinkedPayload",
+  "type": "object"
+}

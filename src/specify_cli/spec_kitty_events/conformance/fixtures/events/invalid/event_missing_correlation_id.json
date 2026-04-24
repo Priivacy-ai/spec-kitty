@@ -1,0 +1,10 @@
+{
+  "event_id": "01JMXXXXXXXXXXXXXXXXXXXXXX",
+  "event_type": "TestEvent",
+  "aggregate_id": "test-aggregate",
+  "timestamp": "2026-01-15T10:00:00Z",
+  "node_id": "test-node",
+  "lamport_clock": 1,
+  "project_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "schema_version": "1.0.0"
+}

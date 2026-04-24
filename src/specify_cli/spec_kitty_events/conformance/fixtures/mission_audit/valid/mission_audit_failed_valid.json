@@ -1,0 +1,11 @@
+{
+  "mission_id": "mission-010",
+  "run_id": "run-004",
+  "actor": "agent-claude",
+  "error_code": "TIMEOUT",
+  "error_message": "Audit execution timed out after 300 seconds.",
+  "partial_artifact_ref": null,
+  "mission_slug": "mission-010",
+  "mission_number": 10,
+  "mission_type": "software-dev"
+}

@@ -1,0 +1,15 @@
+{
+  "event_id": "01JMZZZZZZZZZZZZZZZZZZZZ03",
+  "event_type": "TestEvent",
+  "aggregate_id": "mission/test-aggregate",
+  "timestamp": "2026-01-15T10:00:00Z",
+  "build_id": "test-build",
+  "node_id": "test-node",
+  "lamport_clock": 1,
+  "project_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "correlation_id": "01JMYYYYYYYYYYYYYYYYYYYY03",
+  "schema_version": "3.0.0",
+  "payload": {
+    "feature_slug": "legacy-feature"
+  }
+}

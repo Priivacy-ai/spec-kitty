@@ -1,0 +1,39 @@
+{
+  "$id": "spec-kitty-events/glossary_clarification_resolved_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for GlossaryClarificationResolved event.",
+  "properties": {
+    "actor": {
+      "description": "Identity of the resolving actor",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "clarification_event_id": {
+      "description": "Event ID of the originating clarification request",
+      "minLength": 1,
+      "title": "Clarification Event Id",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "selected_meaning": {
+      "description": "The chosen or entered meaning",
+      "minLength": 1,
+      "title": "Selected Meaning",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "clarification_event_id",
+    "selected_meaning",
+    "actor"
+  ],
+  "title": "GlossaryClarificationResolvedPayload",
+  "type": "object"
+}

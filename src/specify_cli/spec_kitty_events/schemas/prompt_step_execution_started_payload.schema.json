@@ -1,0 +1,58 @@
+{
+  "$id": "spec-kitty-events/prompt_step_execution_started_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for PromptStepExecutionStarted events.",
+  "properties": {
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Executing participant",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "step_description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable step description",
+      "title": "Step Description"
+    },
+    "step_id": {
+      "description": "Step identifier",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "wp_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Work package being targeted",
+      "title": "Wp Id"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "step_id"
+  ],
+  "title": "PromptStepExecutionStartedPayload",
+  "type": "object"
+}

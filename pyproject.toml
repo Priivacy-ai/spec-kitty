@@ -61,8 +61,13 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    "spec-kitty-events==3.3.0",
-    "spec-kitty-runtime==0.4.5",
+    "spec-kitty-events==4.0.0",
+    # spec-kitty-runtime is intentionally not listed here: all 0.4.x releases
+    # transitively require spec-kitty-events<4.0, which conflicts with the ==4.0.0
+    # pin above.  The vendored src/specify_cli/spec_kitty_events/ tree is the
+    # actual events runtime surface.  spec-kitty-runtime must be pre-installed
+    # separately (>=0.4.3 is known-good).  See constraints.txt and DRIFT-1 in
+    # mission review 01KPWT8P.
     "spec-kitty-tracker==0.4.2",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
@@ -116,6 +121,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv.sources]
+spec-kitty-events = { path = "../spec-kitty-events", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]

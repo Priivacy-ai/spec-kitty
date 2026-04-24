@@ -1,0 +1,84 @@
+{
+  "$id": "spec-kitty-events/cutover_artifact",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Machine-readable cutover policy shipped with the package.",
+  "properties": {
+    "accepted_major": {
+      "minimum": 0,
+      "title": "Accepted Major",
+      "type": "integer"
+    },
+    "artifact_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Artifact Version",
+      "type": "string"
+    },
+    "cutover_contract_version": {
+      "minLength": 1,
+      "title": "Cutover Contract Version",
+      "type": "string"
+    },
+    "forbidden_legacy_aggregate_names": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden Legacy Aggregate Names",
+      "type": "array"
+    },
+    "forbidden_legacy_contract_surfaces": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden Legacy Contract Surfaces",
+      "type": "array"
+    },
+    "forbidden_legacy_event_names": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden Legacy Event Names",
+      "type": "array"
+    },
+    "forbidden_legacy_keys": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden Legacy Keys",
+      "type": "array"
+    },
+    "release_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Release Version",
+      "type": "string"
+    },
+    "signal_field_name": {
+      "minLength": 1,
+      "title": "Signal Field Name",
+      "type": "string"
+    },
+    "signal_location": {
+      "enum": [
+        "event_envelope",
+        "payload",
+        "artifact_only"
+      ],
+      "title": "Signal Location",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_version",
+    "release_version",
+    "signal_field_name",
+    "signal_location",
+    "cutover_contract_version",
+    "accepted_major",
+    "forbidden_legacy_keys",
+    "forbidden_legacy_event_names",
+    "forbidden_legacy_aggregate_names"
+  ],
+  "title": "CutoverArtifact",
+  "type": "object"
+}

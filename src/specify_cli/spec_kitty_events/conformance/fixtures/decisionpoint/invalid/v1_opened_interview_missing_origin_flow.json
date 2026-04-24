@@ -1,0 +1,18 @@
+{
+  "__comment": "Invalid: origin_flow is absent — required field on DecisionPointOpenedInterviewPayload when origin_surface=planning_interview; Pydantic must reject",
+  "origin_surface": "planning_interview",
+  "decision_point_id": "01J10000000000000000000102",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "phase": "P1",
+  "question": "Which authentication mechanism should we use?",
+  "options": ["session", "oauth2", "oidc", "Other"],
+  "input_key": "auth_mechanism",
+  "step_id": "specify-step-auth-001",
+  "actor_id": "01J10000000000000000000011",
+  "actor_type": "human",
+  "state_entered_at": "2026-04-23T10:12:00+00:00",
+  "recorded_at": "2026-04-23T10:12:01+00:00"
+}

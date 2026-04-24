@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "ConnectorState": {
+      "enum": [
+        "provisioned",
+        "healthy",
+        "degraded",
+        "revoked",
+        "reconnected"
+      ],
+      "title": "ConnectorState",
+      "type": "string"
+    }
+  },
+  "$id": "spec-kitty-events/user_connection_status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Per-user connection state entry in ReducedConnectorState roster.",
+  "properties": {
+    "last_event_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Event At"
+    },
+    "state": {
+      "$ref": "#/$defs/ConnectorState"
+    },
+    "user_id": {
+      "title": "User Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "state"
+  ],
+  "title": "UserConnectionStatus",
+  "type": "object"
+}

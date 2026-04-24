@@ -1,0 +1,23 @@
+{
+  "origin_surface": "planning_interview",
+  "origin_flow": "specify",
+  "decision_point_id": "01J10000000000000000000002",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "phase": "P1",
+  "question": "Which authentication mechanism should we use for the new API gateway?",
+  "options": [
+    "session",
+    "oauth2",
+    "oidc",
+    "Other"
+  ],
+  "input_key": "auth_mechanism",
+  "step_id": "specify-step-auth-001",
+  "actor_id": "01J10000000000000000000011",
+  "actor_type": "human",
+  "state_entered_at": "2026-04-23T10:01:00+00:00",
+  "recorded_at": "2026-04-23T10:01:01+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "$id": "spec-kitty-events/phase_entered_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for PhaseEntered events.",
+  "properties": {
+    "actor": {
+      "description": "Actor triggering phase transition",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission identifier",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "phase_name": {
+      "description": "Phase being entered",
+      "minLength": 1,
+      "title": "Phase Name",
+      "type": "string"
+    },
+    "previous_phase": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase being exited (None for initial)",
+      "title": "Previous Phase"
+    }
+  },
+  "required": [
+    "mission_id",
+    "phase_name",
+    "actor"
+  ],
+  "title": "PhaseEnteredPayload",
+  "type": "object"
+}

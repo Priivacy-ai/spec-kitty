@@ -1,0 +1,72 @@
+{
+  "$id": "spec-kitty-events/decision_captured_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for DecisionCaptured events.",
+  "properties": {
+    "chosen_option": {
+      "description": "Selected option",
+      "minLength": 1,
+      "title": "Chosen Option",
+      "type": "string"
+    },
+    "decision_id": {
+      "description": "Unique decision identifier",
+      "minLength": 1,
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Decision author",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "rationale": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reasoning for the decision",
+      "title": "Rationale"
+    },
+    "referenced_warning_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Warning that prompted this decision",
+      "title": "Referenced Warning Id"
+    },
+    "topic": {
+      "description": "Decision topic/question",
+      "minLength": 1,
+      "title": "Topic",
+      "type": "string"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "decision_id",
+    "topic",
+    "chosen_option"
+  ],
+  "title": "DecisionCapturedPayload",
+  "type": "object"
+}

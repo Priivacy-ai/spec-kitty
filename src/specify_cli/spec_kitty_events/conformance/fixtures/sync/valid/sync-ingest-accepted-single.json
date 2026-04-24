@@ -1,0 +1,9 @@
+{
+  "delivery_id": "del-002",
+  "source_event_fingerprint": "fp-single-001",
+  "connector_id": "conn-github-001",
+  "mission_id": "m-001",
+  "recorded_at": "2026-02-27T13:01:00+00:00",
+  "ingest_batch_id": "batch-002",
+  "ingested_count": 1
+}

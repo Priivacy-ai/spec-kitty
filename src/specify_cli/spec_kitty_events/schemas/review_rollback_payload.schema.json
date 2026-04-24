@@ -1,0 +1,47 @@
+{
+  "$id": "spec-kitty-events/review_rollback_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for ReviewRollback events.",
+  "properties": {
+    "actor": {
+      "description": "Actor triggering rollback",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "affected_wp_ids": {
+      "description": "WP IDs affected by rollback",
+      "items": {
+        "type": "string"
+      },
+      "title": "Affected Wp Ids",
+      "type": "array"
+    },
+    "mission_id": {
+      "description": "Mission identifier",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "review_ref": {
+      "description": "Reference to the review that triggered rollback",
+      "minLength": 1,
+      "title": "Review Ref",
+      "type": "string"
+    },
+    "target_phase": {
+      "description": "Phase to roll back to",
+      "minLength": 1,
+      "title": "Target Phase",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "review_ref",
+    "target_phase",
+    "actor"
+  ],
+  "title": "ReviewRollbackPayload",
+  "type": "object"
+}

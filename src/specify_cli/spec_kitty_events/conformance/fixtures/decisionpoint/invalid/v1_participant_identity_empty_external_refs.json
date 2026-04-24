@@ -1,0 +1,35 @@
+{
+  "__comment": "Invalid: external_refs is an empty object {} — ParticipantExternalRefs requires at least one of slack_user_id, slack_team_id, or teamspace_member_id to be set; Pydantic model_validator must reject",
+  "origin_surface": "planning_interview",
+  "decision_point_id": "01J10000000000000000000103",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "channel": "slack",
+  "teamspace_ref": {
+    "teamspace_id": "ts-01J10000000000000000000020",
+    "name": "Acme Engineering"
+  },
+  "default_channel_ref": {
+    "channel_id": "C01J10000000000000000000030",
+    "name": "spec-kitty-decisions"
+  },
+  "thread_ref": {
+    "slack_team_id": "T01J10000000000000000000040",
+    "channel_id": "C01J10000000000000000000030",
+    "thread_ts": "1745396100.000600",
+    "url": "https://acme.slack.com/archives/C01J10000000000000000000030/p1745396100000600"
+  },
+  "invited_participants": [
+    {
+      "participant_id": "01J10000000000000000000060",
+      "participant_type": "human",
+      "display_name": "Carol Danvers",
+      "external_refs": {}
+    }
+  ],
+  "widened_by": "01J10000000000000000000011",
+  "widened_at": "2026-04-23T10:13:00+00:00",
+  "recorded_at": "2026-04-23T10:13:01+00:00"
+}

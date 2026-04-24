@@ -1,0 +1,10 @@
+{
+  "delivery_id": "del-006",
+  "source_event_fingerprint": "fp-replay-001",
+  "connector_id": "conn-github-001",
+  "mission_id": "m-001",
+  "recorded_at": "2026-02-27T13:05:00+00:00",
+  "replay_id": "replay-001",
+  "replayed_count": 42,
+  "replay_source": "dead_letter_queue"
+}

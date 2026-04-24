@@ -1,0 +1,7 @@
+{
+  "mission_id": "01TESTMISSION000000000001",
+  "actor": "operator-1",
+  "trigger_source": "operator",
+  "skip_reason": "trivial mission, retrospective not warranted",
+  "skipped_at": "2026-04-13T10:00:00Z"
+}

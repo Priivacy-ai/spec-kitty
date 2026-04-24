@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "SummarySource": {
+      "description": "Provenance of a SummaryBlock.",
+      "enum": [
+        "slack_extraction",
+        "manual",
+        "mission_owner_override"
+      ],
+      "title": "SummarySource",
+      "type": "string"
+    }
+  },
+  "$id": "spec-kitty-events/summary_block",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Structured summary of a resolved decision with provenance.",
+  "properties": {
+    "candidate_answer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Candidate answer extracted from the summary",
+      "title": "Candidate Answer"
+    },
+    "extracted_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When the summary was extracted (if from Slack)",
+      "title": "Extracted At"
+    },
+    "source": {
+      "$ref": "#/$defs/SummarySource",
+      "description": "Provenance of this summary"
+    },
+    "text": {
+      "description": "Summary text (non-empty)",
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "text",
+    "source"
+  ],
+  "title": "SummaryBlock",
+  "type": "object"
+}

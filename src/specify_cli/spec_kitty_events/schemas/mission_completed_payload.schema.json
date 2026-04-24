@@ -1,0 +1,39 @@
+{
+  "$id": "spec-kitty-events/mission_completed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for MissionCompleted events.",
+  "properties": {
+    "actor": {
+      "description": "Actor who completed the mission",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "final_phase": {
+      "description": "Last phase before completion",
+      "minLength": 1,
+      "title": "Final Phase",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission identifier",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "mission_type": {
+      "description": "Mission type",
+      "minLength": 1,
+      "title": "Mission Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "mission_type",
+    "final_phase",
+    "actor"
+  ],
+  "title": "MissionCompletedPayload",
+  "type": "object"
+}

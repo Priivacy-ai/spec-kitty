@@ -1,0 +1,61 @@
+{
+  "anomalies": [],
+  "connector_id": "conn-github-002",
+  "event_count": 10,
+  "outcome_counts": {
+    "accepted_count": 1,
+    "dead_letter_count": 1,
+    "rejected_count": 1,
+    "replay_count": 1,
+    "retry_count": 1
+  },
+  "outcome_log": [
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM2",
+      "accepted",
+      "del-m201"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM4",
+      "rejected",
+      "del-m202"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM6",
+      "retry_scheduled",
+      "del-m203"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCM8",
+      "dead_lettered",
+      "del-m204"
+    ],
+    [
+      "01KJFD9KY6ABA9ZNKAPDA9DCMA",
+      "replay_completed",
+      "del-m-replay-001"
+    ]
+  ],
+  "seen_delivery_pairs": [
+    [
+      "del-m-replay-001",
+      "fp-mixed-replay-001"
+    ],
+    [
+      "del-m201",
+      "fp-mixed-001"
+    ],
+    [
+      "del-m202",
+      "fp-mixed-002"
+    ],
+    [
+      "del-m203",
+      "fp-mixed-003"
+    ],
+    [
+      "del-m204",
+      "fp-mixed-004"
+    ]
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "$id": "spec-kitty-events/session_linked_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for SessionLinked events.",
+  "properties": {
+    "link_type": {
+      "description": "Direction of link",
+      "enum": [
+        "cli_to_saas",
+        "saas_to_cli"
+      ],
+      "title": "Link Type",
+      "type": "string"
+    },
+    "linked_session_id": {
+      "description": "Session being linked",
+      "minLength": 1,
+      "title": "Linked Session Id",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Participant linking sessions",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "primary_session_id": {
+      "description": "Primary session",
+      "minLength": 1,
+      "title": "Primary Session Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "primary_session_id",
+    "linked_session_id",
+    "link_type"
+  ],
+  "title": "SessionLinkedPayload",
+  "type": "object"
+}

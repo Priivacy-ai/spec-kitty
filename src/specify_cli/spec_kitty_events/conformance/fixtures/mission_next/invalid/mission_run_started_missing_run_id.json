@@ -1,0 +1,7 @@
+{
+  "actor": {
+    "actor_id": "agent-claude",
+    "actor_type": "llm"
+  },
+  "mission_type": "software-dev"
+}
