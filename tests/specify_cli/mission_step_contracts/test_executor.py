@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -22,7 +23,7 @@ from specify_cli.mission_step_contracts.executor import (
 pytestmark = pytest.mark.fast
 
 
-def _write_yaml(path: Path, data: dict) -> None:
+def _write_yaml(path: Path, data: Mapping[str, object]) -> None:
     yaml = YAML()
     yaml.default_flow_style = False
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from charter._drg_helpers import load_validated_graph
 from doctrine.artifact_kinds import ArtifactKind
@@ -87,7 +88,7 @@ class StepContractStepResult:
         """Return the underlying invocation ID when this step was invoked."""
         if self.invocation_payload is None:
             return None
-        return self.invocation_payload.invocation_id
+        return cast(str, self.invocation_payload.invocation_id)
 
 
 @dataclass(frozen=True)
