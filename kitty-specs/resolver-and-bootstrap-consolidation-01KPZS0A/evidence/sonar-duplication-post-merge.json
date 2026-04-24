@@ -1,0 +1,53 @@
+{
+  "_note": "WP04 evidence envelope. Captured pre-merge-of-this-mission as a baseline. Post-merge SonarCloud scan will update this file once CI completes its analysis of the merged runtime-extraction branch. The `pre_merge_baseline` block is the Sonar response at the mission's approval point; the `post_merge_actual` block is populated by the post-merge CI step.",
+  "mission_slug": "resolver-and-bootstrap-consolidation-01KPZS0A",
+  "scanned_at_pre_merge": "2026-04-24T14:56:00Z",
+  "api_endpoint": "https://sonarcloud.io/api/measures/component?component=stijn-dejongh_spec-kitty&branch=kitty/mission-runtime-mission-execution-extraction-01KPDYGW&metricKeys=duplicated_lines,duplicated_lines_density,duplicated_blocks,duplicated_files",
+  "pre_merge_baseline": {
+    "component_key": "stijn-dejongh_spec-kitty",
+    "branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+    "duplicated_lines": 1674,
+    "duplicated_lines_density": "1.1%",
+    "duplicated_blocks": 52,
+    "duplicated_files": 26,
+    "hotspot_files": [
+      {"path": "src/runtime/discovery/resolver.py", "duplicated_lines": 231, "duplicated_blocks": 3, "partner": "src/doctrine/resolver.py"},
+      {"path": "src/runtime/agents/commands.py", "duplicated_lines": 19, "duplicated_blocks": 1, "partner": "src/runtime/agents/skills.py"},
+      {"path": "src/runtime/agents/skills.py", "duplicated_lines": 18, "duplicated_blocks": 1, "partner": "src/runtime/agents/commands.py"}
+    ]
+  },
+  "expected_post_merge": {
+    "comment": "Targets from spec.md §Success Criteria SC-001 through SC-005. Applies once the merged mission branch is re-scanned by Sonar.",
+    "SC_001_runtime_resolver_duplicated_lines_max": 30,
+    "SC_002_commands_and_skills_duplicated_blocks_max": 0,
+    "SC_003_tests_pass_unchanged": "Confirmed pre-merge: 155 focused tests green; no test-side edits (see WP02 status.events.jsonl)",
+    "SC_004_project_duplicated_lines_density_max": "0.3%",
+    "SC_005_pytestarch_layer_rules_pass": "Gateway imports from doctrine only; no runtime -> doctrine import introduced"
+  },
+  "wp_commits": [
+    {"wp": "WP01", "commit": "fa01f65ea", "branch": "kitty/mission-resolver-and-bootstrap-consolidation-01KPZS0A-lane-a", "files": ["src/charter/asset_resolver.py", "tests/charter/test_asset_resolver.py"]},
+    {"wp": "WP02", "commit": "28013c2e1", "branch": "kitty/mission-resolver-and-bootstrap-consolidation-01KPZS0A-lane-a", "files": ["src/runtime/discovery/resolver.py", "tests/runtime/test_resolver_monkeypatch_seam.py"]},
+    {"wp": "WP05", "commit": "9550cd294", "branch": "kitty/mission-resolver-and-bootstrap-consolidation-01KPZS0A-lane-b", "files": ["src/runtime/orchestration/bootstrap.py", "src/runtime/agents/commands.py", "src/runtime/agents/skills.py"]},
+    {"wp": "WP03", "status": "canceled", "reason": "Trigger check: home.py was never in Sonar's hotlist; duplicated_lines < 100 threshold"}
+  ],
+  "local_verification_pre_merge": {
+    "runtime_resolver_line_count": 128,
+    "runtime_resolver_expected_after_merge": "<= 60 (target), 128 actual — 180 lines saved vs pre-refactor 308; deviation kept to preserve LEGACY-tier deprecation warning behaviour via legacy_warn_hook",
+    "ensure_global_agent_commands_body_lines": 15,
+    "ensure_global_agent_skills_body_lines": 8,
+    "charter_asset_resolver_lines": 175,
+    "ruff_status": "all_clean",
+    "focused_tests_green": 155
+  },
+  "post_merge_actual": {
+    "_pending": "Populate after merge + CI SonarCloud scan completes.",
+    "instructions": [
+      "1. After `spec-kitty merge --mission resolver-and-bootstrap-consolidation-01KPZS0A` completes",
+      "2. Wait for CI to re-scan the runtime-extraction branch (or trigger a manual scan)",
+      "3. Re-run the curl command in `api_endpoint` above",
+      "4. Populate `post_merge_actual.metrics` with the response",
+      "5. Check each `expected_post_merge.*` threshold and update spec.md Status columns"
+    ],
+    "metrics": null
+  }
+}

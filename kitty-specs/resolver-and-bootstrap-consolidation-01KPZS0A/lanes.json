@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "mission_slug": "resolver-and-bootstrap-consolidation-01KPZS0A",
+  "mission_id": "01KPZS0A9VTQP87S63MJ64DTG0",
+  "mission_branch": "kitty/mission-resolver-and-bootstrap-consolidation-01KPZS0A",
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/asset_resolver.py",
+        "src/runtime/discovery/home.py",
+        "src/runtime/discovery/resolver.py",
+        "tests/charter/test_asset_resolver.py",
+        "tests/runtime/test_home_windows_simulation.py",
+        "tests/runtime/test_resolver_monkeypatch_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/runtime/agents/commands.py",
+        "src/runtime/agents/skills.py",
+        "src/runtime/orchestration/bootstrap.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "kitty-specs/resolver-and-bootstrap-consolidation-01KPZS0A/evidence/sonar-duplication-post-merge.json",
+        "kitty-specs/resolver-and-bootstrap-consolidation-01KPZS0A/spec.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-24T13:46:30.336847+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

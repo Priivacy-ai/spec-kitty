@@ -22,7 +22,7 @@ import logging
 import os
 from pathlib import Path
 
-from runtime.orchestration.bootstrap import _get_cli_version, _lock_exclusive
+from runtime.orchestration.bootstrap import _run_version_locked_bootstrap
 from runtime.discovery.home import get_kittify_home, get_package_asset_root
 
 logger = logging.getLogger(__name__)
@@ -230,24 +230,7 @@ def ensure_global_agent_commands() -> None:
         logger.debug("Command templates not found; skipping global command installation")
         return
 
-    kittify_home = get_kittify_home()
-    kittify_home.mkdir(parents=True, exist_ok=True)
-    cache_dir = kittify_home / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-
-    version_file = cache_dir / _VERSION_FILENAME
-    cli_version = _get_cli_version()
-    if version_file.exists() and version_file.read_text().strip() == cli_version:
-        return
-
-    lock_path = cache_dir / _LOCK_FILENAME
-    lock_fd = open(lock_path, "w")  # noqa: SIM115
-    try:
-        _lock_exclusive(lock_fd)
-        # Re-check after acquiring lock (another process may have finished).
-        if version_file.exists() and version_file.read_text().strip() == cli_version:
-            return
-
+    def _sync_all_agents() -> None:
         from specify_cli.core.config import AGENT_COMMAND_CONFIG
 
         script_type = _resolve_script_type()
@@ -261,8 +244,4 @@ def ensure_global_agent_commands() -> None:
                     exc_info=True,
                 )
 
-        # Write version last — an incomplete run leaves no version file,
-        # so the next invocation will retry the full sync.
-        version_file.write_text(cli_version)
-    finally:
-        lock_fd.close()
+    _run_version_locked_bootstrap(_VERSION_FILENAME, _LOCK_FILENAME, _sync_all_agents)

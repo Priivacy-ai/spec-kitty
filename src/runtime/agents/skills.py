@@ -6,8 +6,7 @@ import logging
 import shutil
 from pathlib import Path
 
-from runtime.orchestration.bootstrap import _get_cli_version, _lock_exclusive
-from runtime.discovery.home import get_kittify_home
+from runtime.orchestration.bootstrap import _run_version_locked_bootstrap
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.template import get_local_repo_root
@@ -101,25 +100,8 @@ def ensure_global_agent_skills() -> None:
     if registry is None:
         return
 
-    kittify_home = get_kittify_home()
-    kittify_home.mkdir(parents=True, exist_ok=True)
-    cache_dir = kittify_home / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-
-    version_file = cache_dir / _VERSION_FILENAME
-    cli_version = _get_cli_version()
-    if version_file.exists() and version_file.read_text().strip() == cli_version:
-        return
-
-    lock_path = cache_dir / _LOCK_FILENAME
-    lock_fd = open(lock_path, "w")  # noqa: SIM115
-    try:
-        _lock_exclusive(lock_fd)
-        if version_file.exists() and version_file.read_text().strip() == cli_version:
-            return
-
+    def _sync_all_roots() -> None:
         for root in _unique_global_roots():
             _sync_skill_root(root, registry)
-        version_file.write_text(cli_version)
-    finally:
-        lock_fd.close()
+
+    _run_version_locked_bootstrap(_VERSION_FILENAME, _LOCK_FILENAME, _sync_all_roots)

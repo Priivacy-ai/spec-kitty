@@ -16,6 +16,7 @@ import shutil
 import sys
 import tempfile
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 from typing import IO
 
@@ -57,6 +58,49 @@ def _lock_exclusive(fd: IO[str]) -> None:
         except BlockingIOError:
             # Another process is updating -- wait for it
             fcntl.flock(fd, fcntl.LOCK_EX)
+
+
+def _run_version_locked_bootstrap(
+    version_filename: str,
+    lock_filename: str,
+    work: Callable[[], None],
+) -> None:
+    """Idempotent user-global bootstrap: fast-path, exclusive lock, re-check, work, write-version.
+
+    Shared scaffolding for ``ensure_global_agent_commands`` and
+    ``ensure_global_agent_skills``. The helper:
+
+    - Ensures ``~/.kittify/`` and ``~/.kittify/cache/`` exist.
+    - Fast-path: returns immediately if ``cache/{version_filename}`` already
+      matches the current CLI version.
+    - Slow-path: acquires an exclusive lock on ``cache/{lock_filename}``,
+      re-checks the version (another process may have finished while we
+      waited), invokes ``work()`` to perform the bootstrap, then writes the
+      version file LAST so partial runs leave no version marker and the
+      next invocation retries.
+    - The lock is released in a ``finally`` block whether or not ``work``
+      raises.
+    """
+    home = get_kittify_home()
+    home.mkdir(parents=True, exist_ok=True)
+    cache_dir = home / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    version_file = cache_dir / version_filename
+    cli_version = _get_cli_version()
+    if version_file.exists() and version_file.read_text().strip() == cli_version:
+        return
+
+    lock_path = cache_dir / lock_filename
+    lock_fd = open(lock_path, "w")  # noqa: SIM115 -- need fd for flock
+    try:
+        _lock_exclusive(lock_fd)
+        if version_file.exists() and version_file.read_text().strip() == cli_version:
+            return
+        work()
+        version_file.write_text(cli_version)
+    finally:
+        lock_fd.close()
 
 
 def populate_from_package(target: Path) -> None:

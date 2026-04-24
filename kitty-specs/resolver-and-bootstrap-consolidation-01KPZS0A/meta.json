@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-24T12:56:30.537261+00:00",
+  "friendly_name": "resolver and bootstrap consolidation",
+  "mission_id": "01KPZS0A9VTQP87S63MJ64DTG0",
+  "mission_number": 96,
+  "mission_slug": "resolver-and-bootstrap-consolidation-01KPZS0A",
+  "mission_type": "software-dev",
+  "purpose_context": "Pay down SonarCloud duplication debt on the runtime-extraction branch by routing runtime.discovery.resolver through a new charter asset-resolver gateway and extracting a shared version-locked bootstrap helper for ensure_global_agent_commands/skills. Scope increase on the parent mission branch; no new branch, no new worktree.",
+  "purpose_tldr": "Consolidate duplicated resolver/bootstrap logic behind charter and a shared helper; land on the runtime-extraction branch.",
+  "slug": "resolver-and-bootstrap-consolidation-01KPZS0A",
+  "target_branch": "kitty/mission-runtime-mission-execution-extraction-01KPDYGW",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-24T13:51:17.066952+00:00"
+}
