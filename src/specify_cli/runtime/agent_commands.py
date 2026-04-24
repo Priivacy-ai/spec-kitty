@@ -19,5 +19,6 @@ import warnings
 warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
 
 from runtime.agents.commands import *  # noqa: F401, F403  # NOSONAR
-from runtime.agents.commands import _sync_agent_commands  # noqa: F401  # private symbol not exported by *
+# Re-export a private symbol that `*` does not expose (underscore-prefixed).
+from runtime.agents.commands import _sync_agent_commands  # noqa: F401  # NOSONAR
 
