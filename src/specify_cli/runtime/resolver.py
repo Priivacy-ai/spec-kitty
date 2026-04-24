@@ -18,4 +18,4 @@ import warnings
 
 warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
 
-from runtime.discovery.resolver import *  # noqa: F401, F403
+from runtime.discovery.resolver import *  # noqa: F401, F403  # NOSONAR

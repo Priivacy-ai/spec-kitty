@@ -10,6 +10,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+_EMPTY_LIST_PLACEHOLDER = "(none)"
+
 from charter.context import build_charter_context
 from charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.core.paths import get_feature_target_branch
@@ -289,9 +291,9 @@ def _legacy_governance_context(repo_root: Path) -> str:
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
 
-    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
-    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
-    tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else _EMPTY_LIST_PLACEHOLDER
+    directives = ", ".join(resolution.directives) if resolution.directives else _EMPTY_LIST_PLACEHOLDER
+    tools = ", ".join(resolution.tools) if resolution.tools else _EMPTY_LIST_PLACEHOLDER
 
     lines = [
         "Governance:",
