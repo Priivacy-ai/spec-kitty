@@ -170,29 +170,28 @@ def evaluate_guards(
 
     failures: list[str] = []
 
-    # Check conditions (all must pass)
     for cond in advance_transition.get("conditions", []):
-        if callable(cond):
-            try:
-                if not cond(event_data):
-                    failures.append(_describe_guard(cond, negate=False))
-            except Exception as exc:
-                failures.append(f"Guard error: {exc}")
-        elif isinstance(cond, str):
-            failures.append(f"Uncompiled guard: {cond}")
+        failures.extend(_evaluate_single_guard(cond, event_data, negate=False))
 
-    # Check unless (all must be False; if any is True, guard fails)
     for cond in advance_transition.get("unless", []):
-        if callable(cond):
-            try:
-                if cond(event_data):
-                    failures.append(_describe_guard(cond, negate=True))
-            except Exception as exc:
-                failures.append(f"Guard error: {exc}")
-        elif isinstance(cond, str):
-            failures.append(f"Uncompiled unless-guard: {cond}")
+        failures.extend(_evaluate_single_guard(cond, event_data, negate=True))
 
     return len(failures) == 0, failures
+
+
+def _evaluate_single_guard(cond: Any, event_data: Any, *, negate: bool) -> list[str]:
+    """Evaluate one guard callable or string; return a list of failure messages."""
+    if callable(cond):
+        try:
+            triggered = cond(event_data)
+            if (not negate and not triggered) or (negate and triggered):
+                return [_describe_guard(cond, negate=negate)]
+        except Exception as exc:
+            return [f"Guard error: {exc}"]
+    elif isinstance(cond, str):
+        label = "Uncompiled unless-guard" if negate else "Uncompiled guard"
+        return [f"{label}: {cond}"]
+    return []
 
 
 def _describe_guard(guard_callable: Any, *, negate: bool = False) -> str:
@@ -347,6 +346,22 @@ def decide_next(
 # ---------------------------------------------------------------------------
 
 
+_STATE_ALIASES: dict[str, str] = {
+    "discovery": "research",
+    "scoping": "specify",
+    "methodology": "plan",
+    "tasks_outline": "tasks-outline",
+    "tasks_packages": "tasks-packages",
+    "tasks_finalize": "tasks-finalize",
+    "gathering": "implement",
+    "synthesis": "review",
+    "output": "accept",
+    "goals": "specify",
+    "structure": "plan",
+    "draft": "plan",
+}
+
+
 def _state_to_action(
     state: str,
     mission_slug: str,
@@ -359,51 +374,51 @@ def _state_to_action(
     Returns ``(None, None, None)`` if the state cannot be mapped to a
     command template.
     """
-    # "implement" state: find first planned or in_progress WP
     if state == "implement":
-        wp_id = _find_first_wp_by_lane(feature_dir, "planned")
-        if wp_id is None:
-            wp_id = _find_first_wp_by_lane(feature_dir, "doing")
-        if wp_id is None:
-            wp_id = _find_first_wp_by_lane(feature_dir, "in_progress")
+        return _resolve_implement_state(feature_dir, mission_slug, repo_root)
+    if state == "review":
+        return _resolve_review_state(feature_dir, mission_slug, repo_root)
+    if state == "done":
+        return "accept", None, None
+    return _resolve_generic_state(state, repo_root, mission_name)
 
-        if wp_id is None:
-            # No implementable WPs — check for reviewable ones.
-            # Only for_review WPs are available for pickup; in_review WPs
-            # are already claimed by another reviewer and must NOT be
-            # reassigned (FR-012a).
-            review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
-            if review_wp:
-                workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path)
-                return "review", review_wp, workspace_path
-            # in_review WPs exist but are not actionable by this agent —
-            # review is already in progress, nothing to pick up.
-            in_review_wp = _find_first_wp_by_lane(feature_dir, "in_review")
-            if in_review_wp:
-                return None, None, None
-            return None, None, None
 
+def _resolve_implement_state(
+    feature_dir: Path, mission_slug: str, repo_root: Path
+) -> tuple[str | None, str | None, str | None]:
+    """Find the next WP to implement; fall back to review if all are handed off."""
+    wp_id = (
+        _find_first_wp_by_lane(feature_dir, "planned")
+        or _find_first_wp_by_lane(feature_dir, "doing")
+        or _find_first_wp_by_lane(feature_dir, "in_progress")
+    )
+    if wp_id is not None:
         workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
         return "implement", wp_id, workspace_path
 
-    # "review" state: WP-level if for_review WP exists, else template-level.
-    # in_review WPs are already being reviewed by another agent and must
-    # NOT be reassigned — only for_review WPs are available for pickup.
-    if state == "review":
-        wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
-        if wp_id is not None:
-            workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
-            return "review", wp_id, workspace_path
-        # Explicitly skip in_review WPs — they are claimed by another
-        # reviewer (FR-012a).  Fall through to generic template resolution.
-        # Note: _find_first_wp_by_lane(feature_dir, "in_review") is
-        # intentionally not called here because we don't act on it.
+    # No implementable WPs — try reviewable ones (only for_review, not in_review).
+    review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
+    if review_wp:
+        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path)
+        return "review", review_wp, workspace_path
+    return None, None, None
 
-    # "done" state -- terminal, no action
-    if state == "done":
-        return "accept", None, None
 
-    # Generic: try state name as command template, then known aliases
+def _resolve_review_state(
+    feature_dir: Path, mission_slug: str, repo_root: Path
+) -> tuple[str | None, str | None, str | None]:
+    """Find a for_review WP; skip in_review WPs (already claimed, FR-012a)."""
+    wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
+    if wp_id is not None:
+        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
+        return "review", wp_id, workspace_path
+    return None, None, None  # Fall through to generic template resolution at caller
+
+
+def _resolve_generic_state(
+    state: str, repo_root: Path, mission_name: str
+) -> tuple[str | None, str | None, str | None]:
+    """Try state name as command template, then known aliases."""
     from runtime.discovery.resolver import resolve_command
 
     try:
@@ -412,25 +427,8 @@ def _state_to_action(
     except FileNotFoundError:
         pass
 
-    # Known aliases (maps mission-specific state names to standard templates)
-    _ALIASES: dict[str, str] = {
-        "discovery": "research",
-        "scoping": "specify",
-        "methodology": "plan",
-        "tasks_outline": "tasks-outline",
-        "tasks_packages": "tasks-packages",
-        "tasks_finalize": "tasks-finalize",
-        "gathering": "implement",
-        "synthesis": "review",
-        "output": "accept",
-        "goals": "specify",
-        "structure": "plan",
-        "draft": "plan",
-    }
-    alias = _ALIASES.get(state)
+    alias = _STATE_ALIASES.get(state)
     if alias:
-        # CLI-driven commands (shims) have no command template file — return
-        # the alias directly without verifying template existence.
         from specify_cli.shims.registry import is_cli_driven
 
         if is_cli_driven(alias):
