@@ -507,7 +507,7 @@ function buildAlphaNav() {
 
 // ── Utilities ──────────────────────────────────────────────
 function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
 function highlight(text, q) {
@@ -515,7 +515,7 @@ function highlight(text, q) {
   const escaped = esc(text);
   if (!q) return escaped;
   const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
-  return escaped.replace(re, '<mark class="hl">$1</mark>');
+  return escaped.replaceAll(re, '<mark class="hl">$1</mark>');
 }
 
 function badgeClass(status) {

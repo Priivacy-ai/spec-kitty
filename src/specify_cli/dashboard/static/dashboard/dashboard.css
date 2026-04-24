@@ -229,11 +229,17 @@ body {
     padding: 12px 30px;
     cursor: pointer;
     transition: all 0.2s;
+    width: 100%;
+    background: none;
+    border: none;
     border-left: 4px solid transparent;
     display: flex;
     align-items: center;
     gap: 10px;
     color: var(--dark-text);
+    text-align: left;
+    font: inherit;
+    text-decoration: none;
 }
 
 .sidebar-item:hover {
@@ -279,6 +285,12 @@ body {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     margin-bottom: 20px;
     border-top: 3px solid var(--sunny-yellow);
+}
+
+.content-card-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
 }
 
 .content-card h2 {
