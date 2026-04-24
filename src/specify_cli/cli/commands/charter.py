@@ -1084,6 +1084,34 @@ def interview(  # noqa: C901
                 available_tools=_parse_csv_option(available_tools),
             )
         else:
+            # --defaults path: no interactive prompt, but we still record a
+            # Decision Moment per question so the paper trail matches the
+            # interactive flow.  Each defaulted answer becomes a resolved
+            # decision (or deferred when the default is empty).
+            if mission_slug is not None:
+                question_order = MINIMAL_QUESTION_ORDER if normalized_profile == "minimal" else QUESTION_ORDER
+                for question_id in question_order:
+                    prompt_text = QUESTION_PROMPTS.get(question_id, question_id.replace("_", " ").title())
+                    default_answer = interview_data.answers.get(question_id, "")
+                    with contextlib.suppress(_DecisionError):
+                        dm_response = _dm_service.open_decision(
+                            repo_root=repo_root,
+                            mission_slug=mission_slug,
+                            origin_flow=_DmOriginFlow.CHARTER,
+                            step_id=f"charter.{question_id}",
+                            input_key=question_id,
+                            question=prompt_text,
+                            options=(),
+                            actor=actor,
+                        )
+                        _resolve_dm_terminal(
+                            repo_root=repo_root,
+                            mission_slug=mission_slug,
+                            decision_id=dm_response.decision_id,
+                            actual_answer=default_answer,
+                            actor=actor,
+                        )
+
             interview_data = apply_answer_overrides(
                 interview_data,
                 selected_paradigms=_parse_csv_option(selected_paradigms),
