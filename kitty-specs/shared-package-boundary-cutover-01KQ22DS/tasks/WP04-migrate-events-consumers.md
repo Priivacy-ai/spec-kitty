@@ -272,3 +272,4 @@ spec-kitty agent action implement WP04 --agent <name> --mission shared-package-b
 - 2026-04-25T11:36:38Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=47022 – Implementation committed; subtasks complete
 - 2026-04-25T11:36:47Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=50403 – Started review via action command
 - 2026-04-25T11:37:39Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=50403 – Review passed: production+test imports cut over to public spec_kitty_events PyPI; src/ grep outside vendored tree empty; architectural R2 AST scan green; 193/193 decisions+glossary+charter tests pass; 10 handoff_fixtures failures confirmed pre-existing on base branch.
+- 2026-04-25T12:17:54Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=50403 – Done override: post-merge
