@@ -196,3 +196,4 @@ spec-kitty agent action implement WP05 --agent <name> --mission shared-package-b
 - 2026-04-25T11:41:18Z – claude:opus-4.7:python-implementer:implementer – shell_pid=52882 – Started implementation via action command
 - 2026-04-25T11:52:27Z – claude:opus-4.7:python-implementer:implementer – shell_pid=52882 – Moved to planned
 - 2026-04-25T11:54:56Z – claude:opus-4.7:python-implementer:implementer – shell_pid=66490 – Started implementation via action command
+- 2026-04-25T11:58:30Z – claude:opus-4.7:python-implementer:implementer – shell_pid=66490 – Vendored events tree deleted (311 files, ~23k LOC). pyproject.toml mutate_only glob cleaned. Architectural test docstring updated. Fast suite 1524 passed; 1 unrelated pre-existing failure in tests/audit/test_no_legacy_agent_profiles_path.py (predates mission).
