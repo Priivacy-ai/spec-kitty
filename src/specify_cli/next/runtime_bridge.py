@@ -383,6 +383,16 @@ def _dispatch_via_composition(
     Constraint C-001 is preserved: this function only ever invokes
     ``StepContractExecutor.execute``; it never touches
     ``ProfileInvocationExecutor`` directly.
+
+    .. note::
+       **Architectural follow-up (Priivacy-ai/spec-kitty#786):** today the
+       caller still falls through to ``runtime_next_step`` (the legacy DAG
+       advance) on success, which leaves composition as a side-channel
+       layered atop the legacy executor model rather than the canonical
+       dispatcher mandated by FR-003. Issue #786 (Phase 6 follow-up under
+       #468) tracks the work to make composition the **only** dispatch
+       surface for the five composed ``software-dev`` actions before #505
+       lands. Do not extend the dual-path here — that work belongs in #786.
     """
     # Local import keeps module load lean and avoids circular import risk.
     from specify_cli.mission_step_contracts.executor import (
