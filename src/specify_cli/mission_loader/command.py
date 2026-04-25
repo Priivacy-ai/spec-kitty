@@ -16,6 +16,16 @@ registration once per CLI invocation and never exits. Subsequent
 ``spec-kitty next`` calls in the same process see the shadow. Future
 tranches may revisit the lifetime model; until then, callers (including
 tests) clear the registry manually when they need a clean slate.
+
+Note (F-3, mission ``local-custom-mission-loader-01KQ2VNJ`` review): the
+spec wording reads "registers in-process for the lifetime of the run."
+v1 widens that to "lifetime of the *process*" -- a strict superset that
+is operationally equivalent for the tested 1-shot CLI invocations
+because the only id-collision risk is two sequential runs of the same
+``mission_key`` in the same process, which v1 callers do not exercise.
+A future tranche may tighten the lifetime (e.g., enter/exit
+:func:`registered_runtime_contracts` per run) once a long-lived host
+process is in the picture.
 """
 
 from __future__ import annotations
@@ -29,6 +39,7 @@ from typing import Any
 from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
 from specify_cli.mission_loader.errors import (
     LoaderError,
+    LoaderErrorCode,
     LoaderWarning,
     ValidationReport,
 )
@@ -36,6 +47,7 @@ from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
 from specify_cli.next import runtime_bridge
 from specify_cli.next._internal_runtime.discovery import DiscoveryContext
+from specify_cli.next._internal_runtime.schema import MissionTemplate
 
 # Infrastructure-level error code emitted by this CLI layer when
 # ``runtime_bridge.get_or_start_run`` raises. Not part of the validator's
@@ -85,11 +97,38 @@ def run_custom_mission(
     if not report.ok:
         return _validation_error_result(report)
 
+    assert report.template is not None  # narrowed by report.ok
+    assert report.discovered is not None  # narrowed by report.ok
+
+    # F-2 (mission local-custom-mission-loader-01KQ2VNJ): cross-module
+    # ``contract_ref`` resolution. The validator deliberately skips this
+    # check (it does not load the on-disk repository); it must happen
+    # at run-start before we register synthesized contracts so operators
+    # see the structured ``MISSION_CONTRACT_REF_UNRESOLVED`` envelope
+    # rather than the executor's "No step contract found ..." error
+    # later in the run.
+    unresolved = _resolve_contract_refs(
+        mission_key=mission_key,
+        template=report.template,
+        source_path=report.discovered.path,
+        repo_root=repo_root,
+    )
+    if unresolved is not None:
+        return RunCustomMissionResult(
+            exit_code=2,
+            envelope={
+                "result": "error",
+                "error_code": str(unresolved.code),
+                "message": unresolved.message,
+                "details": dict(unresolved.details),
+                "warnings": [_warning_dict(w) for w in report.warnings],
+            },
+        )
+
     # Register synthesized contracts in the process-singleton shadow. We
     # intentionally do not enter the ``registered_runtime_contracts``
     # context manager because v1 holds the shadow for the rest of the
     # process; tests clear the registry directly between cases.
-    assert report.template is not None  # narrowed by report.ok
     registry = get_runtime_contract_registry()
     registry.register(synthesize_contracts(report.template))
 
@@ -150,6 +189,63 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
         project_dir=repo_root,
         builtin_roots=[package_missions],
     )
+
+
+def _resolve_contract_refs(
+    *,
+    mission_key: str,
+    template: MissionTemplate,
+    source_path: str,
+    repo_root: Path,
+) -> LoaderError | None:
+    """Resolve every step's ``contract_ref`` against the on-disk repository.
+
+    Returns ``None`` if every ``contract_ref`` resolves (or no step sets
+    one). On the first unresolved reference, returns a
+    :class:`LoaderError` with code
+    :attr:`LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED` so the
+    caller can surface a structured exit-code-2 envelope per
+    ``contracts/validation-errors.md``.
+
+    The on-disk repository is loaded with the same ``project_dir``
+    layout the runtime executor uses
+    (``<repo_root>/.kittify/doctrine/mission_step_contracts``); shipped
+    contracts come from the package data. This keeps loader semantics
+    aligned with the runtime so an id that resolves here will resolve
+    at runtime too.
+    """
+    # Local import to avoid load-time coupling on the doctrine package.
+    from doctrine.mission_step_contracts.repository import (
+        MissionStepContractRepository,
+    )
+
+    repository: MissionStepContractRepository | None = None
+    for step in template.steps:
+        if step.contract_ref is None:
+            continue
+        if repository is None:
+            repository = MissionStepContractRepository(
+                project_dir=repo_root
+                / ".kittify"
+                / "doctrine"
+                / "mission_step_contracts"
+            )
+        if repository.get(step.contract_ref) is None:
+            return LoaderError(
+                code=LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED,
+                message=(
+                    f"Step {step.id!r} references contract "
+                    f"{step.contract_ref!r}, which is not present in the "
+                    f"on-disk MissionStepContractRepository."
+                ),
+                details={
+                    "file": source_path,
+                    "mission_key": mission_key,
+                    "step_id": step.id,
+                    "contract_ref": step.contract_ref,
+                },
+            )
+    return None
 
 
 def _validation_error_result(report: ValidationReport) -> RunCustomMissionResult:

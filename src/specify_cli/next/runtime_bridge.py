@@ -499,8 +499,21 @@ def _dispatch_via_composition(
         request_text=request_text,
         mode_of_work=mode_of_work,
     )
+    # F-1 (mission local-custom-mission-loader-01KQ2VNJ): for custom missions,
+    # the synthesized contract lives only in the in-memory
+    # ``RuntimeContractRegistry``; the on-disk repository has no record of it.
+    # Look the contract up by its synthesized id (``custom:<mission>:<action>``)
+    # and pass it explicitly. When the registry has no entry (built-in
+    # software-dev dispatch), ``synthesized`` is ``None`` and the executor
+    # falls through to ``MissionStepContractRepository.get_by_action(...)``
+    # exactly as before -- built-in dispatch stays byte-identical.
+    from specify_cli.mission_loader.registry import get_runtime_contract_registry
+
+    synthesized = get_runtime_contract_registry().lookup(f"custom:{mission}:{action}")
     try:
-        result = StepContractExecutor(repo_root=repo_root).execute(context)
+        result = StepContractExecutor(repo_root=repo_root).execute(
+            context, contract=synthesized
+        )
     except StepContractExecutionError as exc:
         # Structured CLI failure surface (FR-009) — caller turns this into a
         # Decision; no Python traceback escapes.

@@ -56,6 +56,25 @@ steps:
     agent_profile: scribe
 """
 
+# Body with a step that points at a nonexistent contract id. Used to
+# exercise the cross-module ``MISSION_CONTRACT_REF_UNRESOLVED`` check.
+# The ``plan`` step uses ``contract_ref`` (mutually exclusive with
+# ``agent_profile`` per the validator, see test_validator_errors.py),
+# and the retrospective marker keeps structural validation happy.
+_BAD_CONTRACT_REF_BODY = """
+mission:
+  key: {key}
+  name: {name}
+  version: "1.0.0"
+steps:
+  - id: plan
+    title: Plan
+    contract_ref: nonexistent-id
+  - id: retrospective
+    title: Retrospective
+    agent_profile: retro
+"""
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -245,6 +264,59 @@ def test_unknown_key_returns_two_with_MISSION_KEY_UNKNOWN(
     assert result.envelope["error_code"] == "MISSION_KEY_UNKNOWN"
     assert result.envelope["details"]["mission_key"] == "nope"
     assert "tiers_searched" in result.envelope["details"]
+
+
+def test_unresolved_contract_ref_returns_two_with_MISSION_CONTRACT_REF_UNRESOLVED(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F-2 regression: a step's ``contract_ref`` that does not resolve in
+    the on-disk :class:`MissionStepContractRepository` produces a
+    structured ``MISSION_CONTRACT_REF_UNRESOLVED`` envelope (exit 2)
+    BEFORE ``runtime_bridge.get_or_start_run`` is invoked.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    file = _write_mission(
+        repo_root, ".kittify/missions", "bad-ref", _BAD_CONTRACT_REF_BODY
+    )
+
+    # Seed an empty doctrine project_dir so the repository points at a real
+    # location with zero contracts. The shipped (built-in) repository never
+    # carries a contract called "nonexistent-id", so the resolution must fail.
+    (repo_root / ".kittify" / "doctrine" / "mission_step_contracts").mkdir(
+        parents=True
+    )
+
+    # If the bridge is invoked, we want the test to fail loudly: the unresolved
+    # contract_ref check must short-circuit before ``get_or_start_run`` runs.
+    from specify_cli.next import runtime_bridge
+
+    def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
+        raise AssertionError(
+            "get_or_start_run must not be called when contract_ref is unresolved"
+        )
+
+    monkeypatch.setattr(runtime_bridge, "get_or_start_run", _should_not_run)
+
+    ctx = _isolated_context(repo_root)
+    result = run_custom_mission(
+        "bad-ref", "tracked-slug", repo_root, discovery_context=ctx
+    )
+
+    assert result.exit_code == 2
+    env = result.envelope
+    assert env["result"] == "error"
+    assert env["error_code"] == "MISSION_CONTRACT_REF_UNRESOLVED"
+    details = env["details"]
+    assert details["mission_key"] == "bad-ref"
+    assert details["step_id"] == "plan"
+    assert details["contract_ref"] == "nonexistent-id"
+    assert details["file"] == str(file)
+    assert env["warnings"] == []
+
+    # Registry must not have been populated for an unresolved contract_ref --
+    # the check runs BEFORE synthesis is registered.
+    assert not get_runtime_contract_registry()._contracts  # type: ignore[attr-defined]
 
 
 # ---------------------------------------------------------------------------

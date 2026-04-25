@@ -1404,3 +1404,105 @@ class TestCustomMissionComposition:
             f"preserve the executor's _ACTION_PROFILE_DEFAULTS fallback path; "
             f"got {context.profile_hint!r}"
         )
+
+    def test_custom_mission_dispatch_resolves_via_registry(
+        self, composed_software_dev_project
+    ) -> None:
+        """F-1: ``_dispatch_via_composition`` looks up the synthesized
+        contract in :class:`RuntimeContractRegistry` by id
+        ``custom:<mission>:<action>`` and passes it to
+        :meth:`StepContractExecutor.execute` as ``contract=...``.
+
+        This is the regression that the merged mission's tests missed.
+        Custom missions never write step contracts to disk; the only
+        place they exist at runtime is the in-memory registry. Without
+        the registry lookup the executor falls through to
+        ``MissionStepContractRepository.get_by_action(...)`` which has
+        no record and raises :class:`StepContractExecutionError`.
+        """
+        from doctrine.mission_step_contracts.models import (
+            MissionStep,
+            MissionStepContract,
+        )
+
+        from specify_cli.mission_loader.registry import (
+            get_runtime_contract_registry,
+        )
+        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+        repo_root, _feature_dir, mission_slug = composed_software_dev_project
+        _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+        # Pretend the active step is a custom-mission composed step:
+        # widen the gate by setting ``agent_profile`` on the frozen
+        # template's ``specify`` step.
+        from specify_cli.next.runtime_bridge import get_or_start_run
+
+        run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
+        self._patch_frozen_template_agent_profile(
+            Path(run_ref.run_dir), "specify", "implementer-ivan"
+        )
+
+        # Register a synthesized contract under the id the dispatcher
+        # is expected to query.
+        synthesized = MissionStepContract(
+            id="custom:software-dev:specify",
+            schema_version="1.0",
+            action="specify",
+            mission="software-dev",
+            steps=[
+                MissionStep(
+                    id="specify.execute",
+                    description="synthesized for F-1 regression test",
+                ),
+            ],
+        )
+        registry = get_runtime_contract_registry()
+        registry.clear()
+        registry.register([synthesized])
+
+        try:
+            fake_result = MagicMock()
+            fake_result.invocation_ids = ("inv-001",)
+
+            sentinel_decision = Decision(
+                kind=DecisionKind.step,
+                agent="test",
+                mission_slug=mission_slug,
+                mission="software-dev",
+                mission_state="next",
+                timestamp="2026-04-25T00:00:00+00:00",
+                action="next",
+                run_id="run-x",
+                step_id="next",
+            )
+
+            with (
+                patch(
+                    "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+                    return_value=fake_result,
+                ) as mock_execute,
+                patch(
+                    "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+                    return_value=sentinel_decision,
+                ),
+            ):
+                decide_next_via_runtime(
+                    "test", mission_slug, "success", repo_root
+                )
+
+            assert mock_execute.call_count == 1
+            call = mock_execute.call_args
+            # ``contract=`` is the second positional or a kwarg; cover both.
+            passed_contract = (
+                call.kwargs.get("contract")
+                if "contract" in call.kwargs
+                else (call.args[1] if len(call.args) > 1 else None)
+            )
+            assert passed_contract is synthesized, (
+                "dispatcher must resolve the synthesized contract from "
+                "RuntimeContractRegistry and pass it via contract=...; "
+                f"got passed_contract={passed_contract!r}"
+            )
+        finally:
+            registry.clear()
