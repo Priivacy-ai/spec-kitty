@@ -22,8 +22,8 @@ subtasks:
 - T007
 - T008
 - T009
-shell_pid: "29877"
-agent: "claude:opus-4.7:python-implementer:implementer"
+shell_pid: "32142"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -376,3 +376,4 @@ spec-kitty agent action implement WP01 --agent <name> --mission shared-package-b
 
 - 2026-04-25T10:47:41Z – claude:opus-4.7:python-implementer:implementer – shell_pid=29877 – Assigned agent via action command
 - 2026-04-25T10:59:25Z – claude:opus-4.7:python-implementer:implementer – shell_pid=29877 – Ready for review: Internalized runtime surface; 8/8 parity & gate tests passing.
+- 2026-04-25T10:59:53Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=32142 – Started review via action command
