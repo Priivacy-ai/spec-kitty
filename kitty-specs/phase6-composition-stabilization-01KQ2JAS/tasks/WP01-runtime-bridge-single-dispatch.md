@@ -22,8 +22,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: "94442"
-agent: "claude:opus:implementer:implementer"
+shell_pid: "8970"
+agent: "claude:opus:reviewer:reviewer"
 history:
 - at: '2026-04-25T15:09:39Z'
   by: tasks
@@ -229,3 +229,4 @@ Do NOT edit:
 
 - 2026-04-25T15:15:39Z – claude:opus:implementer:implementer – shell_pid=94442 – Assigned agent via action command
 - 2026-04-25T15:26:04Z – claude:opus:implementer:implementer – shell_pid=94442 – Single-dispatch + advancement helper landed; all focused checks green
+- 2026-04-25T15:26:29Z – claude:opus:reviewer:reviewer – shell_pid=8970 – Started review via action command
