@@ -49,9 +49,9 @@
 | T036 | Perf test: ERP fixture full walk < 10 s | WP07 |  | [D] |
 | T037 | Configure `pytest --cov` fail-under 90 on `mission_loader/` package | WP07 |  | [D] |
 | T038 | Update CI quality workflow to run `mypy --strict` on new modules | WP07 | [D] |
-| T039 | Update `docs/reference/missions.md`: author guide for custom missions | WP08 |  |
-| T040 | Update `docs/reference/missions.md`: closed error code table | WP08 |  |
-| T041 | Update `docs/reference/missions.md`: ERP example walkthrough | WP08 |  |
+| T039 | Update `docs/reference/missions.md`: author guide for custom missions | WP08 |  | [D] |
+| T040 | Update `docs/reference/missions.md`: closed error code table | WP08 |  | [D] |
+| T041 | Update `docs/reference/missions.md`: ERP example walkthrough | WP08 |  | [D] |
 
 The Subtask Index is a reference table only. Per-WP progress is tracked via the checkbox lists below.
 
@@ -276,9 +276,9 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T039 Add author guide section (YAML shape, retrospective marker rule, profile rules, requires_inputs) to `docs/reference/missions.md` (WP08)
-- [ ] T040 Add closed error code table (mirror of `contracts/validation-errors.md`) (WP08)
-- [ ] T041 Add ERP example walkthrough (cross-link `quickstart.md`) (WP08)
+- [x] T039 Add author guide section (YAML shape, retrospective marker rule, profile rules, requires_inputs) to `docs/reference/missions.md` (WP08)
+- [x] T040 Add closed error code table (mirror of `contracts/validation-errors.md`) (WP08)
+- [x] T041 Add ERP example walkthrough (cross-link `quickstart.md`) (WP08)
 
 **Implementation sketch**: The author guide subsumes parts of `quickstart.md` but lives in `docs/reference/missions.md` because it's reference material, not a how-to. The error code table is the closed-enum source of truth; tooling can grep it.
 
