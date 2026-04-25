@@ -178,6 +178,7 @@ markers = [
     "requires_symlinks: Tests that need symlink support",
     "no_readiness_stub: Opt out of any autouse readiness-stub fixture so the test exercises its own readiness wiring (mission 082 tracker CLI tests)",
     "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
+    "contract: Consumer-surface contract tests pinning external public APIs (e.g. spec-kitty-events / spec-kitty-tracker) the CLI depends on",
     "windows_ci: Tests that require a native win32 environment — auto-skipped on non-Windows",
     "live_adapter: tests that call the real Anthropic API (deselect with -m 'not live_adapter')",
     "non_sandbox: test is structurally incompatible with mutmut's forked sandbox (subprocess CLI calls, whole-codebase AST walks, wheel builds, or repo-state fixtures outside also_copy). See ADR 2026-04-20-1",

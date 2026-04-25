@@ -31,6 +31,8 @@ import inspect
 
 import pytest
 
+pytestmark = [pytest.mark.contract]
+
 
 # ---------------------------------------------------------------------------
 # Top-level package surface (``import spec_kitty_events as X``)
