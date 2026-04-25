@@ -19,8 +19,9 @@ runs:
       run: pip install -e ".[${{ inputs.extras }}]" -c constraints.txt
     - name: Install spec-kitty-runtime
       shell: bash
-      # --no-deps: spec-kitty-runtime pins spec-kitty-events==3.x but this repo
-      # vendors events at 4.0.0 and pins the public package to ==4.0.0.
-      # All other runtime deps (pydantic, pyyaml, jsonschema) are already
-      # satisfied by the main install above.
+      # --no-deps: all 0.4.x releases declare spec-kitty-events==3.x, which
+      # conflicts with the ==4.0.0 pin this project requires.  The runtime
+      # package's code is API-compatible with 4.0.0; the declared constraint
+      # is overly strict.  All other runtime deps (pydantic, pyyaml, jsonschema)
+      # are already satisfied by the main install above.
       run: pip install --no-deps "spec-kitty-runtime>=0.4.3"
