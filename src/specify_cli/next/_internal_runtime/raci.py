@@ -10,7 +10,7 @@ All operations are local-only, offline, and deterministic.
 # public-API inventory.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, cast
 
 from specify_cli.next._internal_runtime.schema import (
     AuditStep,
@@ -212,7 +212,10 @@ def _resolve_actor(
         escalation = RACIEscalationPayload(
             run_id=inputs.get("run_id", "unknown"),
             step_id=step_id,
-            unresolved_role=role_name if role_name in ("responsible", "accountable") else "responsible",
+            unresolved_role=cast(
+                Literal["responsible", "accountable"],
+                role_name if role_name in ("responsible", "accountable") else "responsible",
+            ),
             actor_type_expected=binding.actor_type,
             reason=f"Cannot resolve {role_name} actor: '{input_key}' not found in inputs",
             resolution_hint=f"Provide '{input_key}' in mission inputs",

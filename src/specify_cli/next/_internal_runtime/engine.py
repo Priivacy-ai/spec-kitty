@@ -11,7 +11,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 import yaml
@@ -78,12 +78,14 @@ def _find_step_by_id(
     template: MissionTemplate, step_id: str
 ) -> PromptStep | AuditStep | None:
     """Look up a step by ID across both steps and audit_steps."""
-    for step in template.steps:
-        if step.id == step_id:
-            return step
-    for step in template.audit_steps:
-        if step.id == step_id:
-            return step
+    prompt_step: PromptStep
+    for prompt_step in template.steps:
+        if prompt_step.id == step_id:
+            return prompt_step
+    audit_step: AuditStep
+    for audit_step in template.audit_steps:
+        if audit_step.id == step_id:
+            return audit_step
     return None
 
 
@@ -212,7 +214,9 @@ def start_mission_run(
         blocked_reason=None,
     )
     _write_snapshot(run_dir, snapshot)
-    actor = RuntimeActorIdentity(actor_id="system", actor_type="service")
+    actor = RuntimeActorIdentity(
+        actor_id="system", actor_type="service", provider=None, model=None, tool=None
+    )
     payload = MissionRunStartedPayload(run_id=run_id, mission_type=template.mission.key, actor=actor)
     _append_event(run_dir, MISSION_RUN_STARTED, payload.model_dump(mode="json"))
     emitter.emit_mission_run_started(payload)
@@ -284,7 +288,9 @@ def next_step(
             pending_decisions=snapshot.pending_decisions,
             blocked_reason=blocked_reason,
         )
-        ac_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm")
+        ac_actor = RuntimeActorIdentity(
+            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+        )
         ac_payload = NextStepAutoCompletedPayload(
             run_id=snapshot.run_id, step_id=completed_step_id,
             agent_id=agent_id, result=result, actor=ac_actor,
@@ -393,7 +399,9 @@ def next_step(
 
     if decision.kind == "step" and decision.step_id:
         issued_step_id = decision.step_id
-        si_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm")
+        si_actor = RuntimeActorIdentity(
+            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+        )
         si_payload = NextStepIssuedPayload(
             run_id=snapshot.run_id, step_id=decision.step_id,
             agent_id=agent_id, actor=si_actor,
@@ -420,7 +428,9 @@ def next_step(
         # Persist input-keyed decisions in pending_decisions so they're answerable.
         # Only emit event + persist on first occurrence to avoid duplicates on re-poll.
         if decision.decision_id not in pending_decisions:
-            dr_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm")
+            dr_actor = RuntimeActorIdentity(
+                actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+            )
             req = DecisionRequest(
                 decision_id=decision.decision_id,
                 step_id=decision.step_id or "",
@@ -445,7 +455,9 @@ def next_step(
     elif decision.kind == "terminal" and did_complete_step:
         # Only emit on the transition into terminal (last step just completed),
         # not on re-polls of an already-terminal run.
-        mc_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm")
+        mc_actor = RuntimeActorIdentity(
+            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+        )
         mc_payload = MissionRunCompletedPayload(
             run_id=snapshot.run_id, mission_type=snapshot.mission_key, actor=mc_actor,
         )
@@ -621,13 +633,23 @@ def provide_decision_answer(
         if _eb_name_handle == "medium":
             # Medium-band: persist SoftGateDecision
             _sig_score_obj = SignificanceScore.model_validate(_sig_data_handle)
+            # `answer` is validated upstream against the SoftGate action set
+            # (`decide_solo` / `open_stand_up` / `defer`); pydantic re-validates
+            # at SoftGateDecision construction so the cast is a typing assist
+            # rather than a trust boundary widening.
+            _soft_gate_action = cast(
+                Literal["decide_solo", "open_stand_up", "defer"], answer
+            )
+            _actor_type_lit = cast(
+                Literal["human", "llm", "service"], actor.actor_type
+            )
             _soft_gate = SoftGateDecision(
                 decision_id=decision_id,
-                action=answer,
-                actor=RACIRoleBinding(actor_type=actor.actor_type, actor_id=actor.actor_id),
+                action=_soft_gate_action,
+                actor=RACIRoleBinding(actor_type=_actor_type_lit, actor_id=actor.actor_id),
                 timestamp=datetime.now(timezone.utc),
                 significance_score=_sig_score_obj,
-                outcome=answer if answer == "decide_solo" else None,
+                outcome=_soft_gate_action if answer == "decide_solo" else None,
             )
             decisions[f"soft_gate:{decision_id}"] = _soft_gate.model_dump(mode="json")
 

@@ -32,6 +32,28 @@ from specify_cli.next._internal_runtime.significance import (
     TimeoutExpiredPayload,
 )
 
+# Explicit re-exports so `from specify_cli.next._internal_runtime.events import X`
+# resolves under `mypy --strict` (otherwise `attr-defined` flags the indirected names).
+__all__ = [
+    "DECISION_INPUT_ANSWERED",
+    "DECISION_INPUT_REQUESTED",
+    "MISSION_RUN_COMPLETED",
+    "MISSION_RUN_STARTED",
+    "NEXT_STEP_AUTO_COMPLETED",
+    "NEXT_STEP_ISSUED",
+    "DecisionInputAnsweredPayload",
+    "DecisionInputRequestedPayload",
+    "MissionRunCompletedPayload",
+    "MissionRunStartedPayload",
+    "NextStepAutoCompletedPayload",
+    "NextStepIssuedPayload",
+    "SignificanceEvaluatedPayload",
+    "TimeoutExpiredPayload",
+    "RuntimeEventEmitter",
+    "NullEmitter",
+    "JsonlEventLog",
+]
+
 
 # ---------------------------------------------------------------------------
 # RuntimeEventEmitter protocol

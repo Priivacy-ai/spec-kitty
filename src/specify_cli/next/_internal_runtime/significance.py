@@ -21,7 +21,7 @@ All registries are fixed in V1 (no custom dimensions or triggers).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -194,7 +194,7 @@ def make_routing_bands(
     bands = []
     for name in ("low", "medium", "high"):
         lo, hi = cutoffs[name]
-        bands.append(RoutingBand(name=name, min_score=lo, max_score=hi))  # type: ignore[arg-type]
+        bands.append(RoutingBand(name=name, min_score=lo, max_score=hi))
 
     return tuple(sorted(bands, key=lambda b: b.min_score))
 
@@ -524,7 +524,7 @@ class SignificanceEvaluatedPayload(BaseModel):
     run_id: str = Field(..., min_length=1)
     decision_id: str = Field(..., min_length=1)
     step_id: str = Field(..., min_length=1)
-    significance_score: dict  # Serialized SignificanceScore
+    significance_score: dict[str, Any]  # Serialized SignificanceScore
     hard_trigger_classes: tuple[str, ...] = Field(default_factory=tuple)
     effective_band: Literal["low", "medium", "high"]
     actor: RACIRoleBinding  # System actor (service/runtime)
@@ -544,11 +544,11 @@ class TimeoutExpiredPayload(BaseModel):
     run_id: str = Field(..., min_length=1)
     decision_id: str = Field(..., min_length=1)
     step_id: str = Field(..., min_length=1)
-    significance_score: dict  # Serialized SignificanceScore
+    significance_score: dict[str, Any]  # Serialized SignificanceScore
     effective_band: Literal["medium", "high"]  # Never "low" — low auto-proceeds
     timeout_configured_seconds: int = Field(..., gt=0)
     escalation_targets: tuple[RACIRoleBinding, ...] = Field(default_factory=tuple)
-    raci_snapshot: dict  # Serialized ResolvedRACIBinding
+    raci_snapshot: dict[str, Any]  # Serialized ResolvedRACIBinding
     actor: RACIRoleBinding  # System actor (service/runtime)
 
 
