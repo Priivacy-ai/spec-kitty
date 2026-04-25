@@ -12,6 +12,8 @@ branch_strategy: Planning artifacts for this feature were generated on main. Dur
 subtasks:
 - T025
 - T026
+agent: "claude:opus-4.7:python-implementer:implementer"
+shell_pid: "69689"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -221,3 +223,7 @@ from T025, not a new file).
 ```bash
 spec-kitty agent action implement WP06 --agent <name> --mission shared-package-boundary-cutover-01KQ22DS
 ```
+
+## Activity Log
+
+- 2026-04-25T11:59:19Z – claude:opus-4.7:python-implementer:implementer – shell_pid=69689 – Started implementation via action command
