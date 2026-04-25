@@ -1,0 +1,227 @@
+work_packages:
+  - id: WP01
+    title: Internalize the Runtime Surface
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/next/_internal_runtime/**"
+      - "tests/fixtures/runtime_parity/**"
+      - tests/next/test_internal_runtime_parity.py
+    authoritative_surface: src/specify_cli/next/_internal_runtime/
+    execution_mode: code_change
+    requirement_refs:
+      - FR-001
+      - NFR-001
+      - NFR-002
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+      - T008
+      - T009
+    prompt_file: tasks/WP01-internalize-runtime-surface.md
+
+  - id: WP02
+    title: Cut Over CLI Runtime Imports
+    dependencies:
+      - WP01
+    owned_files:
+      - src/specify_cli/next/runtime_bridge.py
+      - src/specify_cli/cli/commands/next_cmd.py
+      - tests/next/test_runtime_bridge_unit.py
+      - tests/next/test_decision_unit.py
+      - tests/next/test_next_command_integration.py
+    authoritative_surface: src/specify_cli/next/runtime_bridge.py
+    execution_mode: code_change
+    requirement_refs:
+      - FR-002
+      - FR-016
+      - FR-017
+      - NFR-002
+    subtasks:
+      - T010
+      - T011
+      - T012
+      - T013
+    prompt_file: tasks/WP02-cut-over-cli-runtime-imports.md
+
+  - id: WP03
+    title: Architectural Enforcement of the Runtime Boundary
+    dependencies:
+      - WP02
+    owned_files:
+      - tests/architectural/test_shared_package_boundary.py
+      - tests/architectural/test_pyproject_shape.py
+    authoritative_surface: tests/architectural/test_shared_package_boundary.py
+    execution_mode: code_change
+    requirement_refs:
+      - FR-011
+      - NFR-006
+    subtasks:
+      - T014
+      - T015
+      - T016
+    prompt_file: tasks/WP03-architectural-enforcement.md
+
+  - id: WP04
+    title: Migrate Events Consumers to the Public PyPI Package
+    dependencies: []
+    owned_files:
+      - src/specify_cli/decisions/emit.py
+      - src/specify_cli/glossary/events.py
+      - src/specify_cli/sync/diagnose.py
+      - tests/specify_cli/cli/commands/test_charter_decision_integration.py
+      - tests/specify_cli/decisions/test_emit.py
+      - tests/contract/test_handoff_fixtures.py
+    authoritative_surface: src/specify_cli/decisions/
+    execution_mode: code_change
+    requirement_refs:
+      - FR-004
+      - FR-018
+      - NFR-002
+    subtasks:
+      - T017
+      - T018
+      - T019
+      - T020
+      - T021
+    prompt_file: tasks/WP04-migrate-events-consumers.md
+
+  - id: WP05
+    title: Remove the Vendored Events Tree
+    dependencies:
+      - WP04
+    owned_files:
+      - "src/specify_cli/spec_kitty_events/**"
+    authoritative_surface: src/specify_cli/spec_kitty_events/
+    execution_mode: code_change
+    requirement_refs:
+      - FR-003
+    subtasks:
+      - T022
+      - T023
+      - T024
+    prompt_file: tasks/WP05-remove-vendored-events-tree.md
+
+  - id: WP06
+    title: Lock the Deletion with Packaging Assertions
+    dependencies:
+      - WP05
+    owned_files:
+      - tests/contract/test_packaging_no_vendored_events.py
+    authoritative_surface: tests/contract/test_packaging_no_vendored_events.py
+    execution_mode: code_change
+    requirement_refs:
+      - FR-012
+      - FR-019
+    subtasks:
+      - T025
+      - T026
+    prompt_file: tasks/WP06-lock-deletion-packaging-assertions.md
+
+  - id: WP07
+    title: Pin Events and Tracker Public-Surface Consumer Contracts
+    dependencies:
+      - WP02
+      - WP04
+    owned_files:
+      - "tests/contract/spec_kitty_events_consumer/**"
+      - "tests/contract/spec_kitty_tracker_consumer/**"
+    authoritative_surface: tests/contract/spec_kitty_events_consumer/
+    execution_mode: code_change
+    requirement_refs:
+      - FR-005
+      - FR-009
+      - C-003
+    subtasks:
+      - T027
+      - T028
+      - T029
+    prompt_file: tasks/WP07-consumer-surface-contracts.md
+
+  - id: WP08
+    title: Update Package Metadata and Lockfile
+    dependencies:
+      - WP02
+      - WP05
+      - WP07
+    owned_files:
+      - pyproject.toml
+      - uv.lock
+      - constraints.txt
+    authoritative_surface: pyproject.toml
+    execution_mode: code_change
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-013
+      - NFR-005
+    subtasks:
+      - T030
+      - T031
+      - T032
+      - T033
+    prompt_file: tasks/WP08-update-package-metadata.md
+
+  - id: WP09
+    title: Add Clean-Install CI Verification
+    dependencies:
+      - WP08
+    owned_files:
+      - .github/workflows/ci-quality.yml
+      - .github/workflows/protect-main.yml
+      - "tests/fixtures/clean_install_fixture_mission/**"
+      - tests/integration/test_clean_install_next.py
+    authoritative_surface: tests/integration/test_clean_install_next.py
+    execution_mode: code_change
+    requirement_refs:
+      - FR-010
+      - FR-017
+      - NFR-003
+      - NFR-004
+    subtasks:
+      - T034
+      - T035
+      - T036
+      - T037
+    prompt_file: tasks/WP09-clean-install-ci-verification.md
+
+  - id: WP10
+    title: Documentation Cutover and PR #779 Supersession
+    dependencies:
+      - WP02
+      - WP05
+      - WP07
+      - WP08
+      - WP09
+    owned_files:
+      - CHANGELOG.md
+      - README.md
+      - CLAUDE.md
+      - docs/development/mission-next-compatibility.md
+      - docs/development/mutation-testing-findings.md
+      - docs/development/local-overrides.md
+      - docs/migration/shared-package-boundary-cutover.md
+      - docs/host-surface-parity.md
+      - architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md
+    authoritative_surface: docs/migration/shared-package-boundary-cutover.md
+    execution_mode: code_change
+    requirement_refs:
+      - FR-014
+      - FR-015
+      - FR-020
+      - NFR-007
+    subtasks:
+      - T038
+      - T039
+      - T040
+      - T041
+      - T042
+      - T043
+      - T044
+      - T045
+    prompt_file: tasks/WP10-documentation-cutover.md
