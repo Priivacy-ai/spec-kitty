@@ -55,6 +55,7 @@ _SKIP_MODULE_PREFIXES = frozenset(
         "shutil",
         "tempfile",
         "unittest",
+        "spec_kitty_runtime",
     ]
 )
 

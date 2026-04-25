@@ -20,22 +20,14 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
-from spec_kitty_runtime import (
-    DiscoveryContext,
-    MissionPolicySnapshot,
-    MissionRunRef,
-    NextDecision,
-    NullEmitter,
-    next_step as runtime_next_step,
-    provide_decision_answer as runtime_provide_decision_answer,
-    start_mission_run,
-)
-from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
+
+if TYPE_CHECKING:
+    from spec_kitty_runtime import DiscoveryContext, MissionRunRef, NextDecision
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
@@ -56,6 +48,20 @@ logger = logging.getLogger(__name__)
 
 class QueryModeValidationError(ValueError):
     """Raised when query mode cannot produce a truthful read-only preview."""
+
+
+def start_mission_run(*args: Any, **kwargs: Any) -> Any:
+    """Lazily proxy to the runtime bootstrap entrypoint."""
+    from spec_kitty_runtime import start_mission_run as runtime_start_mission_run
+
+    return runtime_start_mission_run(*args, **kwargs)
+
+
+def load_mission_template_file(*args: Any, **kwargs: Any) -> Any:
+    """Lazily proxy to the runtime schema loader."""
+    from spec_kitty_runtime.schema import load_mission_template_file as runtime_load_mission_template_file
+
+    return runtime_load_mission_template_file(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +104,8 @@ def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
 
 def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
     """Construct MissionRunRef across runtime versions."""
+    from spec_kitty_runtime import MissionRunRef
+
     try:
         return MissionRunRef(
             run_id=run_id,
@@ -253,6 +261,8 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     """Build a DiscoveryContext that finds the runtime mission template."""
+    from spec_kitty_runtime import DiscoveryContext
+
     # Point at the missions directory so the runtime can discover mission-runtime.yaml
     package_root = Path(__file__).resolve().parent.parent / "missions"
     return DiscoveryContext(
@@ -313,6 +323,8 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
 
 def _template_key_for_file(path: Path) -> str | None:
     try:
+        from spec_kitty_runtime.schema import load_mission_template_file
+
         template = load_mission_template_file(path)
         return template.mission.key
     except Exception:
@@ -406,6 +418,8 @@ def _start_ephemeral_query_run(
     """
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
     try:
+        from spec_kitty_runtime import MissionPolicySnapshot, NullEmitter
+
         template_key = _runtime_template_key(mission_type, repo_root)
         context = _build_discovery_context(repo_root)
 
@@ -449,6 +463,8 @@ def get_or_start_run(
             )
 
     # Start a new run
+    from spec_kitty_runtime import MissionPolicySnapshot, NullEmitter
+
     run_store = repo_root / ".kittify" / "runtime" / "runs"
     template_key = _runtime_template_key(mission_type, repo_root)
     context = _build_discovery_context(repo_root)
@@ -659,6 +675,8 @@ def decide_next_via_runtime(
 
     # Advance via runtime
     try:
+        from spec_kitty_runtime import next_step as runtime_next_step
+
         runtime_decision = runtime_next_step(
             run_ref,
             agent_id=agent,
@@ -735,6 +753,7 @@ def query_current_state(
         try:
             from spec_kitty_runtime import engine
             from spec_kitty_runtime.planner import plan_next
+            from spec_kitty_runtime.schema import load_mission_template_file
 
             if run_ref is None:
                 run_ref, ephemeral_run_store = _start_ephemeral_query_run(
@@ -860,6 +879,9 @@ def answer_decision_via_runtime(
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
     except Exception:
         pass
+    from spec_kitty_runtime import provide_decision_answer as runtime_provide_decision_answer
+    from spec_kitty_runtime.schema import ActorIdentity
+
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref,

@@ -782,14 +782,14 @@ does not work. This is the most common post-merge defect. Run
 `grep -r "from.*<new_module>" src/` to verify at least one live caller exists
 for every new module.
 
-**Test-DB collisions across parallel lane worktrees (Django/pytest-django
-projects)**: When multiple implementer agents run tests concurrently in
+**Test-DB collisions across parallel lane worktrees (Django projects with a
+database-backed test runner)**: When multiple implementer agents run tests concurrently in
 separate lane worktrees of the same project, they collide on the shared
 default test database, producing errors like `psycopg2.errors.DuplicateColumn`
 or `must be owner of table <name>`. Workaround that sub-agents commonly
 rediscover:
 ```bash
-DJANGO_TEST_DATABASE_NAME=test_<project>_lane_<letter> uv run pytest ... --create-db
+DJANGO_TEST_DATABASE_NAME=test_<project>_lane_<letter> <repo-test-command> --create-db
 ```
 Include this pattern in your dispatch prompts for Django-backed WPs so each
 implementer knows to use a lane-scoped DB up front. Tracked upstream as
