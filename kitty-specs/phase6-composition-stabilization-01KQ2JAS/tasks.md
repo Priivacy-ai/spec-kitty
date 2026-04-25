@@ -10,12 +10,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Audit runtime_bridge.py flow; lock in single-dispatch design | WP01 | |
-| T002 | Add `_advance_run_state_after_composition(...)` helper | WP01 | |
-| T003 | Make `_dispatch_via_composition(...)` return `Decision` on success | WP01 | |
-| T004 | Update `decide_next_via_runtime(...)` to short-circuit on composition success | WP01 | |
-| T005 | Add negative-condition + advancement + non-composed regression tests | WP01 | |
-| T006 | Verify focused pytest + ruff + mypy --strict for WP01 surface | WP01 | |
+| T001 | Audit runtime_bridge.py flow; lock in single-dispatch design | WP01 | | [D] |
+| T002 | Add `_advance_run_state_after_composition(...)` helper | WP01 | | [D] |
+| T003 | Make `_dispatch_via_composition(...)` return `Decision` on success | WP01 | | [D] |
+| T004 | Update `decide_next_via_runtime(...)` to short-circuit on composition success | WP01 | | [D] |
+| T005 | Add negative-condition + advancement + non-composed regression tests | WP01 | | [D] |
+| T006 | Verify focused pytest + ruff + mypy --strict for WP01 surface | WP01 | | [D] |
 | T007 | Extend `ProfileInvocationExecutor.invoke(...)` signature with keyword-only `action_hint` | WP02 | | [D] |
 | T008 | Apply `action_hint` truthiness inside `profile_hint`-branch; preserve legacy fallback | WP02 | | [D] |
 | T009 | Add direct unit + e2e tests for action_hint behavior in `test_invocation_e2e.py` | WP02 | | [D] |
@@ -50,12 +50,12 @@
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T001 Audit runtime_bridge.py flow; lock in single-dispatch design (WP01)
-- [ ] T002 Add `_advance_run_state_after_composition(...)` helper (WP01)
-- [ ] T003 Make `_dispatch_via_composition(...)` return `Decision` on success (WP01)
-- [ ] T004 Update `decide_next_via_runtime(...)` to short-circuit on composition success (WP01)
-- [ ] T005 Add negative-condition + advancement + non-composed regression tests (WP01)
-- [ ] T006 Verify focused pytest + ruff + mypy --strict for WP01 surface (WP01)
+- [x] T001 Audit runtime_bridge.py flow; lock in single-dispatch design (WP01)
+- [x] T002 Add `_advance_run_state_after_composition(...)` helper (WP01)
+- [x] T003 Make `_dispatch_via_composition(...)` return `Decision` on success (WP01)
+- [x] T004 Update `decide_next_via_runtime(...)` to short-circuit on composition success (WP01)
+- [x] T005 Add negative-condition + advancement + non-composed regression tests (WP01)
+- [x] T006 Verify focused pytest + ruff + mypy --strict for WP01 surface (WP01)
 
 **Implementation sketch**:
 1. Read `runtime_bridge.py` lines 393–486 and 980–991 to confirm the seams (`_dispatch_via_composition(...)`, `_check_composed_action_guard(...)`, `decide_next_via_runtime(...)`, `runtime_next_step(...)`).
