@@ -162,3 +162,4 @@ Success criteria:
 ## Activity Log
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
+- 2026-04-25T18:11:28Z – claude – shell_pid=32550 – Schema fields added; all validation green; built-in templates parse unchanged
