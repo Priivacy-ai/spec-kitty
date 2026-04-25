@@ -32,6 +32,7 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import locate_project_root
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.mission_v1.events import emit_event
+from specify_cli.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 from specify_cli.next.decision import DecisionKind, decide_next
 
 
@@ -71,6 +72,13 @@ def next_step(
         spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --result success --json
         spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
     """
+    # FR-020 of mission shared-package-boundary-cutover-01KQ22DS: emit a
+    # one-time deprecation notice if the retired spec-kitty-runtime package
+    # is still installed in the operator's environment. The check uses
+    # importlib.metadata, which does NOT import spec_kitty_runtime, so it
+    # does not violate FR-002 / C-001.
+    maybe_emit_runtime_pkg_notice()
+
     # Resolve repo root
     repo_root = locate_project_root()
     if repo_root is None:
