@@ -15,8 +15,8 @@ subtasks:
 - T019
 - T020
 - T021
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "43440"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "47022"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -268,3 +268,4 @@ spec-kitty agent action implement WP04 --agent <name> --mission shared-package-b
 
 - 2026-04-25T11:25:08Z – claude:opus-4.7:python-implementer:implementer – shell_pid=43440 – Started implementation via action command
 - 2026-04-25T11:34:15Z – claude:opus-4.7:python-implementer:implementer – shell_pid=43440 – Ready for review: events consumers migrated to public spec_kitty_events PyPI package; no specify_cli.spec_kitty_events imports outside the vendored tree itself; architectural R2 rule converted to AST scan and now passing.
+- 2026-04-25T11:34:29Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=47022 – Started review via action command
