@@ -247,6 +247,173 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Composition dispatch (WP02 / mission software-dev-composition-rewrite-01KQ26CY)
+# ---------------------------------------------------------------------------
+#
+# These helpers route the live runtime path for the built-in ``software-dev``
+# mission's five public actions (``specify``, ``plan``, ``tasks``,
+# ``implement``, ``review``) through ``StepContractExecutor.execute`` instead
+# of the legacy mission-runtime.yaml DAG step handlers. All other missions and
+# step IDs continue to fall through to the legacy DAG path unchanged
+# (constraint C-008).
+#
+# Constraints active here:
+#   - C-001: the composition path MUST go through ``StepContractExecutor``;
+#     never call ``ProfileInvocationExecutor`` directly.
+#   - C-002: composition produces invocation payloads; this bridge does NOT
+#     generate text or call models.
+#   - C-003 / FR-007: any lane-state writes inside composed steps go through
+#     ``emit_status_transition`` -- this bridge writes no raw lane strings.
+#   - C-008: dispatch is hard-guarded on ``mission == "software-dev"``.
+
+_COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
+    "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
+}
+
+# Legacy DAG step IDs that the composition layer collapses into the single
+# ``tasks`` action. The composed ``tasks`` contract holds the substructure
+# (outline / packages / finalize) internally; the runtime DAG still issues the
+# old step IDs until WP03 retires the mission-runtime template.
+_LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset(
+    {"tasks_outline", "tasks_packages", "tasks_finalize"}
+)
+
+
+def _normalize_action_for_composition(step_id: str) -> str:
+    """Map a legacy DAG step ID to its composed action ID.
+
+    The legacy ``mission-runtime.yaml`` splits ``tasks`` into three steps;
+    the composition layer exposes a single ``tasks`` action whose contract
+    holds the substructure internally. All other step IDs pass through
+    unchanged.
+    """
+    if step_id in _LEGACY_TASKS_STEP_IDS:
+        return "tasks"
+    return step_id
+
+
+def _should_dispatch_via_composition(mission: str, step_id: str) -> bool:
+    """Return True iff ``(mission, step_id)`` routes through composition.
+
+    Hard-guarded on ``mission == "software-dev"`` (C-008). For any other
+    mission, returns False unconditionally so the bridge falls through to the
+    legacy DAG handler.
+    """
+    composed = _COMPOSED_ACTIONS_BY_MISSION.get(mission)
+    if composed is None:
+        return False
+    return _normalize_action_for_composition(step_id) in composed
+
+
+def _check_composed_action_guard(action: str, feature_dir: Path) -> list[str]:
+    """CLI-level guards that fire AFTER a composed action completes.
+
+    Mirrors ``_check_cli_guards`` semantics for the five composed actions.
+    For ``tasks``, collapses the three legacy ``tasks_*`` checks into a
+    single guard whose pass condition is the **union** of the three legacy
+    guards (no weakening of assertions).
+
+    Returns a list of failure descriptions; an empty list means all guards
+    pass.
+    """
+    failures: list[str] = []
+
+    if action == "specify":
+        if not (feature_dir / "spec.md").exists():
+            failures.append("Required artifact missing: spec.md")
+
+    elif action == "plan":
+        if not (feature_dir / "plan.md").exists():
+            failures.append("Required artifact missing: plan.md")
+
+    elif action == "tasks":
+        # Collapsed guard: union of legacy tasks_outline + tasks_packages +
+        # tasks_finalize. All three legacy negative cases must still trigger
+        # a failure here; otherwise the collapsed guard would silently weaken
+        # validation (reviewer guidance).
+        if not (feature_dir / "tasks.md").exists():
+            failures.append("Required artifact missing: tasks.md")
+        tasks_dir = feature_dir / "tasks"
+        if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
+            failures.append("Required: at least one tasks/WP*.md file")
+        else:
+            for wp_file in sorted(tasks_dir.glob("WP*.md")):
+                if not _has_raw_dependencies_field(wp_file):
+                    failures.append(
+                        f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
+                        "(run 'spec-kitty agent mission finalize-tasks')"
+                    )
+                    break  # One failure message is enough
+
+    elif action == "implement":
+        if not _should_advance_wp_step("implement", feature_dir):
+            failures.append(
+                "Not all work packages have required status (for_review, approved, or done)"
+            )
+
+    elif action == "review":
+        if not _should_advance_wp_step("review", feature_dir):
+            failures.append("Not all work packages are approved or done")
+
+    return failures
+
+
+def _dispatch_via_composition(
+    *,
+    repo_root: Path,
+    mission: str,
+    action: str,
+    actor: str,
+    profile_hint: str | None,
+    request_text: str | None,
+    mode_of_work: Any | None,
+    feature_dir: Path,
+) -> list[str] | None:
+    """Run a composed action via ``StepContractExecutor``; then guard.
+
+    Returns:
+      - ``None`` on success (composition succeeded AND post-action guard
+        passed). The caller should continue to the legacy DAG advance call
+        so the runtime engine progresses to the next step.
+      - A non-empty list of failure descriptions if the executor raised
+        ``StepContractExecutionError`` (FR-009: structured CLI surface, not a
+        Python traceback) or the post-action guard failed. The caller turns
+        this into a ``Decision`` with ``guard_failures`` populated.
+
+    Constraint C-001 is preserved: this function only ever invokes
+    ``StepContractExecutor.execute``; it never touches
+    ``ProfileInvocationExecutor`` directly.
+    """
+    # Local import keeps module load lean and avoids circular import risk.
+    from specify_cli.mission_step_contracts.executor import (
+        StepContractExecutionContext,
+        StepContractExecutionError,
+        StepContractExecutor,
+    )
+
+    context = StepContractExecutionContext(
+        repo_root=repo_root,
+        mission=mission,
+        action=action,
+        actor=actor or "unknown",
+        profile_hint=profile_hint,
+        request_text=request_text,
+        mode_of_work=mode_of_work,
+    )
+    try:
+        StepContractExecutor(repo_root=repo_root).execute(context)
+    except StepContractExecutionError as exc:
+        # Structured CLI failure surface (FR-009) — caller turns this into a
+        # Decision; no Python traceback escapes.
+        return [f"composition failed for {mission}/{action}: {exc}"]
+
+    failures = _check_composed_action_guard(action, feature_dir)
+    if failures:
+        return failures
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Run management
 # ---------------------------------------------------------------------------
 
@@ -656,6 +823,75 @@ def decide_next_via_runtime(
                 run_id=run_ref.run_id,
                 step_id=current_step_id,
             )
+
+    # Composition dispatch (mission `software-dev-composition-rewrite-01KQ26CY`).
+    #
+    # For the built-in `software-dev` mission's five public actions, route the
+    # just-completed step through `StepContractExecutor.execute` BEFORE we let
+    # the runtime engine advance the DAG. The composition produces the
+    # invocation_id chain (host harness interprets it); a structured guard
+    # failure surface (Decision.kind=blocked, guard_failures populated) is
+    # used in lieu of a Python traceback when the executor raises
+    # `StepContractExecutionError`. C-008 hard-guards this on
+    # `mission == "software-dev"`; every other mission falls through to the
+    # legacy DAG advance unchanged.
+    if (
+        result == "success"
+        and current_step_id
+        and _should_dispatch_via_composition(mission_type, current_step_id)
+    ):
+        composed_action = _normalize_action_for_composition(current_step_id)
+        composition_failures = _dispatch_via_composition(
+            repo_root=repo_root,
+            mission=mission_type,
+            action=composed_action,
+            actor=agent,
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=feature_dir,
+        )
+        if composition_failures:
+            action, wp_id, workspace_path = _state_to_action(
+                current_step_id,
+                mission_slug,
+                feature_dir,
+                repo_root,
+                mission_type,
+            )
+            prompt_file = (
+                _build_prompt_safe(
+                    action or current_step_id,
+                    feature_dir,
+                    mission_slug,
+                    wp_id,
+                    agent,
+                    repo_root,
+                    mission_type,
+                )
+                if action
+                else None
+            )
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=current_step_id,
+                timestamp=now,
+                reason=composition_failures[0],
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                prompt_file=prompt_file,
+                guard_failures=composition_failures,
+                progress=progress,
+                origin=origin,
+                run_id=run_ref.run_id,
+                step_id=current_step_id,
+            )
+        # Composition succeeded; fall through to the legacy DAG advance so
+        # the runtime engine progresses to the next step.
 
     # Advance via runtime
     try:

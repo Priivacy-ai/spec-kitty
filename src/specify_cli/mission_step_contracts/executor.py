@@ -36,6 +36,7 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
 _ACTION_PROFILE_DEFAULTS: dict[tuple[str, str], str] = {
     ("software-dev", "specify"): "researcher-robbie",
     ("software-dev", "plan"): "architect-alphonso",
+    ("software-dev", "tasks"): "architect-alphonso",
     ("software-dev", "implement"): "implementer-ivan",
     ("software-dev", "review"): "reviewer-renata",
 }

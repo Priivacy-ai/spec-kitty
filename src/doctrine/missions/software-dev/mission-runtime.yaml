@@ -1,3 +1,11 @@
+# DEPRECATED (since #503 / phase 6 wp6.2): this template is no longer the
+# authoritative source for action dispatch on the built-in software-dev
+# mission. The live runtime path is now driven by mission step contracts
+# under src/doctrine/mission_step_contracts/shipped/ via
+# StepContractExecutor + ProfileInvocationExecutor composition. This file
+# is retained as a transitional reference and may be removed in a future
+# slice. Do not extend it.
+#
 # =============================================================================
 # Runtime DAG-based Mission Template (v2.1.0)
 # =============================================================================
