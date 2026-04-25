@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "phase6-composition-stabilization-01KQ2JAS",
+  "mission_id": "01KQ2JASW34A4K6HYNS5V41KFK",
+  "mission_branch": "kitty/mission-phase6-composition-stabilization-01KQ2JAS",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "tests/specify_cli/invocation/test_invocation_e2e.py",
+        "tests/specify_cli/mission_step_contracts/test_software_dev_composition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-25T15:14:56.729713+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}
