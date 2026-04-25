@@ -463,6 +463,44 @@ def test_dispatch_logs_invocation_chain_on_success(
     assert "inv-001" in log_msg
 
 
+def test_dispatch_handles_non_sized_invocation_ids_and_returns_guard_failures(
+    feature_dir: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Guard failures still surface when executor metadata is non-sized."""
+    import logging
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = object()
+
+    with (
+        caplog.at_level(logging.INFO, logger="specify_cli.next.runtime_bridge"),
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ),
+    ):
+        failures = _dispatch_via_composition(
+            repo_root=repo_root,
+            mission="software-dev",
+            action="tasks",
+            actor="architect-alphonso",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=feature_dir,
+        )
+
+    assert failures is not None
+    assert any("tasks.md" in failure for failure in failures)
+    log_messages = [record.getMessage() for record in caplog.records]
+    assert any("emitted 0 invocation(s)" in message for message in log_messages)
+
+
 def test_unexpected_exception_surfaces_structured_cli_error(
     feature_dir_with_full_tasks: Path, tmp_path: Path
 ) -> None:
@@ -596,6 +634,22 @@ def test_collapsed_tasks_guard_fails_after_packages_when_no_wp_files(
     )
     assert any("WP*.md" in f for f in failures), (
         f"Expected WP*.md missing failure; got {failures!r}"
+    )
+
+
+def test_collapsed_tasks_guard_fails_after_packages_when_tasks_md_missing(
+    feature_dir: Path,
+) -> None:
+    """tasks_packages guard still requires the top-level tasks.md artifact."""
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
+
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_packages"
+    )
+    assert any("tasks.md" in f for f in failures), (
+        f"tasks_packages must require tasks.md; got {failures!r}"
     )
 
 
