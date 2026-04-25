@@ -26,7 +26,8 @@ subtasks:
 - T034
 phase: Phase 4 - End-to-end fidelity
 assignee: ''
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "44631"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -304,3 +305,4 @@ Wall-clock target: < 10 s for the full suite (NFR-004). If it exceeds, profile a
 ## Activity Log
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
+- 2026-04-25T19:04:09Z – claude:sonnet:implementer-ivan:implementer – shell_pid=44631 – Started implementation via action command

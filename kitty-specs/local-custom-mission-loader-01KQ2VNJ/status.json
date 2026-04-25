@@ -1,7 +1,7 @@
 {
-  "event_count": 35,
-  "last_event_id": "01KQ30CY5WGB2VHTPRTFH8C2KS",
-  "materialized_at": "2026-04-25T19:03:26.140936+00:00",
+  "event_count": 37,
+  "last_event_id": "01KQ30E8NEKSQKHS2VW29ZAAXK",
+  "materialized_at": "2026-04-25T19:04:09.646697+00:00",
   "mission_number": "",
   "mission_slug": "local-custom-mission-loader-01KQ2VNJ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-04-25T19:03:26.140936+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet:implementer-ivan:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ2X6E07G9MWVJYDSSP6P13B",
-      "last_transition_at": "2026-04-25T18:07:27.239553+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ30E8NEKSQKHS2VW29ZAAXK",
+      "last_transition_at": "2026-04-25T19:04:09.646697+00:00"
     },
     "WP07": {
       "actor": "finalize-tasks",
