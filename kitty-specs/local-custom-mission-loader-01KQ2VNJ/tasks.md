@@ -28,11 +28,11 @@
 | T015 | Hook contract registration into `MissionStepContractRepository` lookup path | WP03 |  | [D] |
 | T016 | Unit tests: contract synthesis output shape (FR-008) | WP03 | [D] |
 | T017 | Unit tests: registry shadow precedence + lifetime | WP03 | [D] |
-| T018 | Extend `_should_dispatch_via_composition` (read `agent_profile`) | WP04 |  |
-| T019 | Add `_resolve_step_agent_profile()` helper in `runtime_bridge.py` | WP04 |  |
-| T020 | Extend `_dispatch_via_composition` caller to thread `profile_hint` | WP04 |  |
-| T021 | Unit tests: gate widening true/false matrix | WP04 | [P] |
-| T022 | Extend `test_runtime_bridge_composition.py` (built-ins unchanged + custom dispatches) | WP04 |  |
+| T018 | Extend `_should_dispatch_via_composition` (read `agent_profile`) | WP04 |  | [D] |
+| T019 | Add `_resolve_step_agent_profile()` helper in `runtime_bridge.py` | WP04 |  | [D] |
+| T020 | Extend `_dispatch_via_composition` caller to thread `profile_hint` | WP04 |  | [D] |
+| T021 | Unit tests: gate widening true/false matrix | WP04 | [D] |
+| T022 | Extend `test_runtime_bridge_composition.py` (built-ins unchanged + custom dispatches) | WP04 |  | [D] |
 | T023 | Create `mission_loader/command.py` (functional core) | WP05 |  |
 | T024 | Register `@app.command("run")` in `cli/commands/mission_type.py` | WP05 |  |
 | T025 | Implement validation → registry-register → run-start orchestration | WP05 |  |
@@ -157,11 +157,11 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T018 Extend `_should_dispatch_via_composition(mission, step_id, *, run_dir=None)` to also return True when the frozen template's matching step has non-empty `agent_profile` (WP04)
-- [ ] T019 Add `_resolve_step_agent_profile(run_dir, step_id) -> str | None` reading the frozen template (WP04)
-- [ ] T020 In the dispatch caller (around line 1158-1180 in `runtime_bridge.py`), source `profile_hint` from `_resolve_step_agent_profile(run_dir, current_step_id)` (WP04)
-- [ ] T021 Unit tests for `_should_dispatch_via_composition`: built-in still True; custom with agent_profile True; custom without agent_profile False (WP04)
-- [ ] T022 Extend `tests/specify_cli/next/test_runtime_bridge_composition.py` with: (a) regression test that built-in software-dev dispatch is byte-identical post-widening; (b) new test for a custom mission's composed step (WP04)
+- [x] T018 Extend `_should_dispatch_via_composition(mission, step_id, *, run_dir=None)` to also return True when the frozen template's matching step has non-empty `agent_profile` (WP04)
+- [x] T019 Add `_resolve_step_agent_profile(run_dir, step_id) -> str | None` reading the frozen template (WP04)
+- [x] T020 In the dispatch caller (around line 1158-1180 in `runtime_bridge.py`), source `profile_hint` from `_resolve_step_agent_profile(run_dir, current_step_id)` (WP04)
+- [x] T021 Unit tests for `_should_dispatch_via_composition`: built-in still True; custom with agent_profile True; custom without agent_profile False (WP04)
+- [x] T022 Extend `tests/specify_cli/next/test_runtime_bridge_composition.py` with: (a) regression test that built-in software-dev dispatch is byte-identical post-widening; (b) new test for a custom mission's composed step (WP04)
 
 **Implementation sketch**: The widened gate calls `_resolve_step_agent_profile(run_dir, step_id)` only when `mission` is not in `_COMPOSED_ACTIONS_BY_MISSION`. This preserves the existing fast-path for built-ins. `_resolve_step_agent_profile()` calls `_load_frozen_template(run_dir)` (already in scope) and looks up the step.
 
