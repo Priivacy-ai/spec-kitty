@@ -510,3 +510,174 @@ def test_unexpected_exception_surfaces_structured_cli_error(
     assert err_message in surface
     # Must NOT be a Python repr / traceback — confirms structured surfacing.
     assert "Traceback" not in surface
+
+
+# ---------------------------------------------------------------------------
+# Hotfix tests for collapsed-tasks-guard regression (P0)
+# ---------------------------------------------------------------------------
+#
+# Reviewer-reproduced bug: the legacy DAG fires the bridge once per substep
+# (``tasks_outline`` → ``tasks_packages`` → ``tasks_finalize``), and the
+# collapsed guard demanded the post-finalize terminal state on every call.
+# That broke the live tasks_* flow because the user can only have produced
+# the post-outline artifacts after the first call. Fix: the guard branches
+# on ``legacy_step_id`` so it asks for only what the user is expected to
+# have produced at that substep.
+
+
+def test_collapsed_tasks_guard_passes_after_outline_with_only_tasks_md(
+    feature_dir: Path,
+) -> None:
+    """tasks_outline guard requires only tasks.md, not WP files yet.
+
+    Reproduces the reviewer-reported live-flow blocker: with only spec.md +
+    plan.md + tasks.md (no WP files yet), the collapsed-on-tasks_outline
+    guard previously returned a "Required: at least one tasks/WP*.md file"
+    failure, blocking the user from progressing to tasks_packages.
+    """
+    (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_outline"
+    )
+    assert failures == [], (
+        f"tasks_outline must accept only tasks.md being present at this point; "
+        f"got blocking failures {failures!r}"
+    )
+
+
+def test_collapsed_tasks_guard_fails_after_outline_when_tasks_md_missing(
+    feature_dir: Path,
+) -> None:
+    """tasks_outline guard still fails when tasks.md is absent."""
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_outline"
+    )
+    assert any("tasks.md" in f for f in failures), (
+        f"Expected tasks.md missing failure; got {failures!r}"
+    )
+
+
+def test_collapsed_tasks_guard_passes_after_packages_without_dependencies(
+    feature_dir: Path,
+) -> None:
+    """tasks_packages guard accepts WP files without dependencies frontmatter.
+
+    Reproduces the second flavor of the reviewer-reported blocker: with WP
+    files present but no ``dependencies:`` frontmatter (because finalize
+    hasn't run yet), the collapsed-on-tasks_packages guard previously
+    returned a "missing 'dependencies' in frontmatter — run finalize-tasks"
+    failure that pushed the user back to a step that wouldn't help.
+    """
+    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_packages"
+    )
+    assert failures == [], (
+        f"tasks_packages must accept WP files without dependencies "
+        f"(finalize-tasks adds them next); got {failures!r}"
+    )
+
+
+def test_collapsed_tasks_guard_fails_after_packages_when_no_wp_files(
+    feature_dir: Path,
+) -> None:
+    """tasks_packages guard requires at least one WP*.md file."""
+    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    (feature_dir / "tasks").mkdir()
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_packages"
+    )
+    assert any("WP*.md" in f for f in failures), (
+        f"Expected WP*.md missing failure; got {failures!r}"
+    )
+
+
+def test_collapsed_tasks_guard_demands_dependencies_on_finalize(
+    feature_dir: Path,
+) -> None:
+    """tasks_finalize guard demands the full terminal state including deps."""
+    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_finalize"
+    )
+    assert any("dependencies" in f for f in failures), (
+        f"Expected dependencies-missing failure on finalize; got {failures!r}"
+    )
+
+
+def test_collapsed_tasks_guard_terminal_when_no_legacy_step_id(
+    feature_dir_with_full_tasks: Path,
+) -> None:
+    """Composition-only invocation (no legacy_step_id) demands terminal state.
+
+    Backward-compat with the original collapsed guard semantics: when
+    something invokes the composed ``tasks`` action directly (not via a
+    legacy DAG substep), the user has implicitly committed to producing the
+    full post-finalize state in one shot, so the guard demands all three
+    legacy checks pass.
+    """
+    failures = _check_composed_action_guard("tasks", feature_dir_with_full_tasks)
+    assert failures == [], (
+        f"Composition-only tasks call against a fully-finalized feature dir "
+        f"must pass; got {failures!r}"
+    )
+
+    # And conversely: terminal-state demand still fails when WP deps missing.
+    bare = feature_dir_with_full_tasks.parent / "bare"
+    bare.mkdir()
+    (bare / "tasks.md").write_text("# tasks", encoding="utf-8")
+    tasks_dir = bare / "tasks"
+    tasks_dir.mkdir()
+    _write_wp_file(tasks_dir, "WP02", with_dependencies=False)
+    failures2 = _check_composed_action_guard("tasks", bare)
+    assert any("dependencies" in f for f in failures2), (
+        f"Composition-only call without deps must surface dependencies failure; "
+        f"got {failures2!r}"
+    )
+
+
+def test_dispatch_threads_legacy_step_id_to_guard(
+    feature_dir: Path, tmp_path: Path
+) -> None:
+    """End-to-end: bridge passes legacy_step_id through to the guard.
+
+    Reproduces the reviewer's decide_next() walk in a tighter form: after a
+    successful executor call (mocked) for a tasks_outline substep, the
+    bridge's guard check accepts only-tasks_md state instead of demanding
+    WP files. Without legacy_step_id threading, this would block.
+    """
+    (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+    with patch(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+        return_value=fake_result,
+    ):
+        failures = _dispatch_via_composition(
+            repo_root=repo_root,
+            mission="software-dev",
+            action="tasks",
+            actor="architect-alphonso",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=feature_dir,
+            legacy_step_id="tasks_outline",
+        )
+    assert failures is None, (
+        f"tasks_outline through dispatch must not block on missing WP files; "
+        f"got {failures!r}"
+    )

@@ -305,13 +305,33 @@ def _should_dispatch_via_composition(mission: str, step_id: str) -> bool:
     return _normalize_action_for_composition(step_id) in composed
 
 
-def _check_composed_action_guard(action: str, feature_dir: Path) -> list[str]:
+def _check_composed_action_guard(
+    action: str,
+    feature_dir: Path,
+    *,
+    legacy_step_id: str | None = None,
+) -> list[str]:
     """CLI-level guards that fire AFTER a composed action completes.
 
     Mirrors ``_check_cli_guards`` semantics for the five composed actions.
-    For ``tasks``, collapses the three legacy ``tasks_*`` checks into a
-    single guard whose pass condition is the **union** of the three legacy
-    guards (no weakening of assertions).
+
+    For ``tasks``, the assertion shape depends on which surface invoked us:
+
+    * **Legacy DAG path** (``legacy_step_id`` is ``"tasks_outline"`` /
+      ``"tasks_packages"`` / ``"tasks_finalize"``): the runtime engine fires
+      the bridge **once per substep**, so the guard must reflect the artifact
+      state the user is **expected** to have produced **at that substep**, not
+      the terminal post-finalize state. Demanding the terminal state on
+      ``tasks_outline`` blocks the user with "Required: at least one
+      tasks/WP*.md file" while the surfaced retry action is still
+      ``tasks-outline`` — an unsatisfiable loop. (Mission-review follow-up to
+      the original WP02 collapsed guard, which conflated dispatch
+      normalization with guard semantics.)
+
+    * **Composition-only path** (``legacy_step_id`` is ``None``): a direct
+      ``action="tasks"`` invocation represents the terminal state of the
+      whole composed action; the guard demands the **union** of all three
+      legacy substep checks (no weakening).
 
     Returns a list of failure descriptions; an empty list means all guards
     pass.
@@ -327,23 +347,38 @@ def _check_composed_action_guard(action: str, feature_dir: Path) -> list[str]:
             failures.append("Required artifact missing: plan.md")
 
     elif action == "tasks":
-        # Collapsed guard: union of legacy tasks_outline + tasks_packages +
-        # tasks_finalize. All three legacy negative cases must still trigger
-        # a failure here; otherwise the collapsed guard would silently weaken
-        # validation (reviewer guidance).
-        if not (feature_dir / "tasks.md").exists():
-            failures.append("Required artifact missing: tasks.md")
-        tasks_dir = feature_dir / "tasks"
-        if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
-            failures.append("Required: at least one tasks/WP*.md file")
+        if legacy_step_id == "tasks_outline":
+            # After tasks_outline the user is expected to have produced
+            # tasks.md. WP files and dependencies come in later substeps.
+            if not (feature_dir / "tasks.md").exists():
+                failures.append("Required artifact missing: tasks.md")
+        elif legacy_step_id == "tasks_packages":
+            # After tasks_packages: tasks.md AND >=1 WP file. Dependencies
+            # are not yet expected — finalize-tasks adds them in the next
+            # substep.
+            if not (feature_dir / "tasks.md").exists():
+                failures.append("Required artifact missing: tasks.md")
+            tasks_dir = feature_dir / "tasks"
+            if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
+                failures.append("Required: at least one tasks/WP*.md file")
         else:
-            for wp_file in sorted(tasks_dir.glob("WP*.md")):
-                if not _has_raw_dependencies_field(wp_file):
-                    failures.append(
-                        f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
-                        "(run 'spec-kitty agent mission finalize-tasks')"
-                    )
-                    break  # One failure message is enough
+            # legacy_step_id == "tasks_finalize" OR composition-only
+            # (legacy_step_id is None): demand the full terminal state.
+            # Union of legacy tasks_outline + tasks_packages + tasks_finalize
+            # checks; no weakening of assertions.
+            if not (feature_dir / "tasks.md").exists():
+                failures.append("Required artifact missing: tasks.md")
+            tasks_dir = feature_dir / "tasks"
+            if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
+                failures.append("Required: at least one tasks/WP*.md file")
+            else:
+                for wp_file in sorted(tasks_dir.glob("WP*.md")):
+                    if not _has_raw_dependencies_field(wp_file):
+                        failures.append(
+                            f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
+                            "(run 'spec-kitty agent mission finalize-tasks')"
+                        )
+                        break  # One failure message is enough
 
     elif action == "implement":
         if not _should_advance_wp_step("implement", feature_dir):
@@ -368,6 +403,7 @@ def _dispatch_via_composition(
     request_text: str | None,
     mode_of_work: Any | None,
     feature_dir: Path,
+    legacy_step_id: str | None = None,
 ) -> list[str] | None:
     """Run a composed action via ``StepContractExecutor``; then guard.
 
@@ -450,7 +486,9 @@ def _dispatch_via_composition(
         invocation_ids,
     )
 
-    failures = _check_composed_action_guard(action, feature_dir)
+    failures = _check_composed_action_guard(
+        action, feature_dir, legacy_step_id=legacy_step_id
+    )
     if failures:
         return failures
     return None
@@ -893,6 +931,12 @@ def decide_next_via_runtime(
             request_text=None,
             mode_of_work=None,
             feature_dir=feature_dir,
+            # Thread the original step_id so the post-action guard can branch
+            # on substep semantics for legacy tasks_outline/tasks_packages/
+            # tasks_finalize. Without this, the collapsed guard demands the
+            # terminal post-finalize state on every substep and blocks the
+            # live tasks_outline → tasks_packages → tasks_finalize flow.
+            legacy_step_id=current_step_id,
         )
         if composition_failures:
             action, wp_id, workspace_path = _state_to_action(
