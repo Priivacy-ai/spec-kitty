@@ -39,12 +39,12 @@
 | T026 | Implement `--json` envelope rendering (success + error) | WP05 |  | [D] |
 | T027 | Implement human (`rich.panel.Panel`) rendering | WP05 |  | [D] |
 | T028 | Unit tests: command happy / sad path against the validator stub | WP05 | [D] |
-| T029 | Author `tests/fixtures/missions/erp-integration/mission.yaml` | WP06 |  |
-| T030 | Integration test: `spec-kitty mission run` happy path with `--json` | WP06 |  |
-| T031 | Integration test: validation error envelope shape locked | WP06 |  |
-| T032 | Integration test: ERP runtime walk through composition + decision_required | WP06 |  |
-| T033 | Integration test: paired invocation records record contract action | WP06 |  |
-| T034 | Integration test: built-in mission walk unchanged | WP06 | [P] |
+| T029 | Author `tests/fixtures/missions/erp-integration/mission.yaml` | WP06 |  | [D] |
+| T030 | Integration test: `spec-kitty mission run` happy path with `--json` | WP06 |  | [D] |
+| T031 | Integration test: validation error envelope shape locked | WP06 |  | [D] |
+| T032 | Integration test: ERP runtime walk through composition + decision_required | WP06 |  | [D] |
+| T033 | Integration test: paired invocation records record contract action | WP06 |  | [D] |
+| T034 | Integration test: built-in mission walk unchanged | WP06 | [D] |
 | T035 | Perf test: loader p95 < 250 ms on ERP fixture | WP07 |  |
 | T036 | Perf test: ERP fixture full walk < 10 s | WP07 |  |
 | T037 | Configure `pytest --cov` fail-under 90 on `mission_loader/` package | WP07 |  |
@@ -218,12 +218,12 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T029 Author `tests/fixtures/missions/erp-integration/mission.yaml` with the seven-step ERP flow per `quickstart.md` (WP06)
-- [ ] T030 Integration test: `spec-kitty mission run erp-integration --mission <slug> --json` returns success envelope + creates run dir + does not start invocation execution (FR-001 / FR-013) (WP06)
-- [ ] T031 Integration test: missing-retrospective fixture returns `MISSION_RETROSPECTIVE_MISSING` envelope; reserved-key fixture returns `MISSION_KEY_RESERVED` envelope (FR-005 / FR-011) (WP06)
-- [ ] T032 Integration test: full ERP runtime walk via `decide_next_via_runtime`: composed step pairs invocation records, decision_required step pauses + resumes (FR-006 / FR-007 / FR-009) (WP06)
-- [ ] T033 Integration test: paired invocation records carry `action == <step.id>` (FR-006) (WP06)
-- [ ] T034 Integration test: re-run all built-in software-dev composition cases through the new gate; assert byte-identical Decisions to pre-widening (FR-010 regression trap) (WP06)
+- [x] T029 Author `tests/fixtures/missions/erp-integration/mission.yaml` with the seven-step ERP flow per `quickstart.md` (WP06)
+- [x] T030 Integration test: `spec-kitty mission run erp-integration --mission <slug> --json` returns success envelope + creates run dir + does not start invocation execution (FR-001 / FR-013) (WP06)
+- [x] T031 Integration test: missing-retrospective fixture returns `MISSION_RETROSPECTIVE_MISSING` envelope; reserved-key fixture returns `MISSION_KEY_RESERVED` envelope (FR-005 / FR-011) (WP06)
+- [x] T032 Integration test: full ERP runtime walk via `decide_next_via_runtime`: composed step pairs invocation records, decision_required step pauses + resumes (FR-006 / FR-007 / FR-009) (WP06)
+- [x] T033 Integration test: paired invocation records carry `action == <step.id>` (FR-006) (WP06)
+- [x] T034 Integration test: re-run all built-in software-dev composition cases through the new gate; assert byte-identical Decisions to pre-widening (FR-010 regression trap) (WP06)
 
 **Implementation sketch**: Fixtures live under `tests/fixtures/missions/<key>/mission.yaml`. The integration tests use `tmp_path` to assemble a project with the fixture copied to `.kittify/missions/erp-integration/mission.yaml`. The runtime walk test mocks `StepContractExecutor.execute` to return a synthetic `StepContractExecutionResult` with `invocation_ids=("inv-…",)`, then asserts the expected event log entries (mirroring patterns in `test_runtime_bridge_composition.py`).
 
