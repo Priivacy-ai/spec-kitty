@@ -375,3 +375,4 @@ spec-kitty agent action implement WP01 --agent <name> --mission shared-package-b
 ## Activity Log
 
 - 2026-04-25T10:47:41Z – claude:opus-4.7:python-implementer:implementer – shell_pid=29877 – Assigned agent via action command
+- 2026-04-25T10:59:25Z – claude:opus-4.7:python-implementer:implementer – shell_pid=29877 – Ready for review: Internalized runtime surface; 8/8 parity & gate tests passing.
