@@ -21,8 +21,8 @@ subtasks:
 - T022
 phase: Phase 2 - Loader core
 assignee: ''
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "37256"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "38425"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -242,3 +242,4 @@ The 21-case parametrization in `test_runtime_bridge_composition.py` MUST stay gr
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T18:39:42Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Started implementation via action command
 - 2026-04-25T18:47:37Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Composition gate widened; built-in dispatch byte-identical (35-case existing suite green, +2 new); custom missions dispatch via agent_profile
+- 2026-04-25T18:48:20Z – claude:opus:reviewer-renata:reviewer – shell_pid=38425 – Started review via action command
