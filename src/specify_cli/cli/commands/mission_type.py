@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from collections.abc import Iterable
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.cli.selector_resolution import resolve_selector
@@ -391,6 +393,77 @@ def create_cmd(
         "automatically on completion."
     )
     console.print()
+
+
+@app.command("run")
+def run_cmd(
+    mission_key: Annotated[
+        str,
+        typer.Argument(help="The reusable custom mission key."),
+    ],
+    mission_slug: Annotated[
+        str,
+        typer.Option("--mission", help="Tracked mission slug."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json/--no-json",
+            help="Emit JSON envelope to stdout instead of a rich panel.",
+        ),
+    ] = False,
+) -> None:
+    """Start (or attach to) a runtime for a project-authored custom mission definition."""
+    from specify_cli.mission_loader.command import run_custom_mission
+
+    project_root = get_project_root_or_exit()
+    result = run_custom_mission(mission_key, mission_slug, project_root)
+    _render_envelope(result.envelope, json_output)
+    raise typer.Exit(code=result.exit_code)
+
+
+def _render_envelope(envelope: dict[str, Any], json_output: bool) -> None:
+    """Render the mission-run envelope to stdout.
+
+    With ``json_output`` true, prints a stable JSON dump (no key
+    sorting; the contract pins the field order). Without it, builds a
+    rich :class:`Panel` mirroring the same fields.
+    """
+    if json_output:
+        print(json.dumps(envelope, indent=2, sort_keys=False))
+        return
+    _render_human(envelope)
+
+
+def _render_human(envelope: dict[str, Any]) -> None:
+    """Render the envelope as a :class:`rich.panel.Panel`."""
+    if envelope.get("result") == "success":
+        title = "Mission Run Started"
+        border = "green"
+        body = Text()
+        body.append(f"mission_key:  {envelope.get('mission_key')}\n")
+        body.append(f"mission_slug: {envelope.get('mission_slug')}\n")
+        mission_id = envelope.get("mission_id")
+        if mission_id:
+            body.append(f"mission_id:   {mission_id}\n")
+        body.append(f"feature_dir:  {envelope.get('feature_dir')}\n")
+        body.append(f"run_dir:      {envelope.get('run_dir')}")
+    else:
+        title = str(envelope.get("error_code") or "ERROR")
+        border = "red"
+        body = Text(str(envelope.get("message") or ""))
+        details = envelope.get("details") or {}
+        if isinstance(details, dict):
+            for key, value in details.items():
+                body.append(f"\n  {key}: {value}")
+
+    for warn in envelope.get("warnings", []) or []:
+        if isinstance(warn, dict):
+            body.append(
+                f"\n[warn] {warn.get('code', '')}: {warn.get('message', '')}"
+            )
+
+    console.print(Panel(body, title=title, border_style=border))
 
 
 @app.command("switch", deprecated=True)

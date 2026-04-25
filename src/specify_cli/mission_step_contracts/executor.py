@@ -32,6 +32,10 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
     ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
 }
 
+# FR-008 / Phase 6 #505: this table is for built-in missions ONLY.
+# Custom missions MUST resolve profile_hint via PromptStep.agent_profile;
+# expanding this table for arbitrary custom missions is forbidden.
+# See kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md §R-003.
 _ACTION_PROFILE_DEFAULTS: dict[tuple[str, str], str] = {
     ("software-dev", "specify"): "researcher-robbie",
     ("software-dev", "plan"): "architect-alphonso",

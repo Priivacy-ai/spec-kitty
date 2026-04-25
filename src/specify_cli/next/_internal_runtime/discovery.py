@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, Field
 
 from specify_cli.next._internal_runtime.schema import (
@@ -19,6 +19,30 @@ from specify_cli.next._internal_runtime.schema import (
     MissionTemplate,
     load_mission_template_file,
 )
+
+
+# ---------------------------------------------------------------------------
+# Reserved built-in mission keys (R-002)
+# ---------------------------------------------------------------------------
+
+#: Mission keys reserved for the built-in tier. Custom missions discovered
+#: from any non-builtin tier whose ``mission.key`` matches one of these are
+#: rejected by ``mission_loader.validator.validate_custom_mission`` with
+#: ``MISSION_KEY_RESERVED``. The built-in tier itself is exempt — built-ins
+#: are allowed (and expected) to declare these keys.
+RESERVED_BUILTIN_KEYS: frozenset[str] = frozenset(
+    {
+        "software-dev",
+        "research",
+        "documentation",
+        "plan",
+    }
+)
+
+
+def is_reserved_key(key: str) -> bool:
+    """Return ``True`` iff ``key`` is a reserved built-in mission key."""
+    return key in RESERVED_BUILTIN_KEYS
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +109,7 @@ def _collect_from_manifest(pack_root: Path) -> list[Path]:
     pack_file = pack_root / "mission-pack.yaml"
     if not pack_file.exists():
         return []
-    with open(pack_file, "r", encoding="utf-8") as handle:
+    with open(pack_file, encoding="utf-8") as handle:
         raw = yaml.safe_load(handle) or {}
 
     if not isinstance(raw, dict):
@@ -147,7 +171,7 @@ def _project_config_pack_paths(project_dir: Path) -> list[Path]:
     config_file = project_dir / ".kittify" / "config.yaml"
     if not config_file.exists():
         return []
-    with open(config_file, "r", encoding="utf-8") as handle:
+    with open(config_file, encoding="utf-8") as handle:
         raw = yaml.safe_load(handle) or {}
     mission_packs = raw.get("mission_packs", [])
     if not isinstance(mission_packs, list):

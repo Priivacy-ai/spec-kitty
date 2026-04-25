@@ -1,0 +1,42 @@
+mission:
+  key: erp-integration
+  name: ERP Integration
+  version: 0.1.0
+  description: Lookup an ERP record, ask the operator a question, and emit a JS adapter.
+
+steps:
+  - id: query-erp
+    title: Query the ERP system
+    description: Pull the active record set from the ERP integration endpoint.
+    agent_profile: researcher-robbie
+
+  - id: lookup-provider
+    title: Look up the matching provider
+    agent_profile: researcher-robbie
+    depends_on: [query-erp]
+
+  - id: ask-user
+    title: Confirm the export shape
+    description: Ask the operator which export shape to emit.
+    requires_inputs: [export_shape]
+    depends_on: [lookup-provider]
+
+  - id: create-js
+    title: Generate the JS adapter
+    agent_profile: implementer-ivan
+    depends_on: [ask-user]
+
+  - id: refactor-function
+    title: Refactor the legacy function
+    agent_profile: implementer-ivan
+    depends_on: [create-js]
+
+  - id: write-report
+    title: Summarize the run
+    agent_profile: researcher-robbie
+    depends_on: [refactor-function]
+
+  - id: retrospective
+    title: Mission retrospective marker
+    description: Reserved structural marker; execution lands in #506-#511.
+    depends_on: [write-report]

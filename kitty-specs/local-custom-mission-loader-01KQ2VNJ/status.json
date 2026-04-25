@@ -1,0 +1,77 @@
+{
+  "event_count": 58,
+  "last_event_id": "01KQ323GWJBKV7PJ2316W3ZYZQ",
+  "materialized_at": "2026-04-25T19:33:14.770300+00:00",
+  "mission_number": "99",
+  "mission_slug": "local-custom-mission-loader-01KQ2VNJ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ323EYYRV0CXPXX5WPVSRS6",
+      "last_transition_at": "2026-04-25T19:33:12.798106+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KQ323GJNXWQ0WY55J9K5N3PC",
+      "last_transition_at": "2026-04-25T19:33:14.453221+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KQ323GM8QNNT2QH8SF8AS0G1",
+      "last_transition_at": "2026-04-25T19:33:14.504123+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQ323GNWCK18BA439C51ZZAC",
+      "last_transition_at": "2026-04-25T19:33:14.556081+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ323GQGDS4EH7X67W5530BD",
+      "last_transition_at": "2026-04-25T19:33:14.608908+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ323GS5N00RDFAB3JMS101Q",
+      "last_transition_at": "2026-04-25T19:33:14.661469+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQ323GTX4K8ESS68JM8QST5C",
+      "last_transition_at": "2026-04-25T19:33:14.717855+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQ323GWJBKV7PJ2316W3ZYZQ",
+      "last_transition_at": "2026-04-25T19:33:14.770300+00:00"
+    }
+  }
+}

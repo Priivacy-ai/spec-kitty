@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-25T17:40:46.345219+00:00",
+  "friendly_name": "Local Custom Mission Loader",
+  "mission_id": "01KQ2VNJFYFT4371K45VMR8GPD",
+  "mission_number": 99,
+  "mission_slug": "local-custom-mission-loader-01KQ2VNJ",
+  "mission_type": "software-dev",
+  "purpose_context": "Phase 6 issue #505 closes the gap that today only built-in missions (software-dev, research, documentation, plan) can drive Spec Kitty workflows. This v1 tranche adds a local custom mission loader so a project can keep its own .kittify/missions/<key>/ YAML definitions and run them through the same internal runtime, StepContractExecutor, and ProfileInvocationExecutor pipeline as built-ins. Distribution stays local — SaaS registry, mission install, and cross-team sharing remain deferred under #516. Retrospective execution, retrospective.yaml, synthesizer handoff, and HiC/autonomous gating stay out of scope per #506-#511.",
+  "purpose_tldr": "Let teams author and run their own local mission definitions as first-class peers to built-in missions through the existing runtime and composition pipeline.",
+  "slug": "local-custom-mission-loader-01KQ2VNJ",
+  "source_description": "Phase 6 / WP6.5 prompt from START-HERE.md (workspace 20260425-192136-VUIM7c). Tracker: parent #468, umbrella #461, implements #505. Defers #504, #502, #506, #507, #508, #509, #510, #511, #516, #469.",
+  "target_branch": "main",
+  "vcs": "git"
+}

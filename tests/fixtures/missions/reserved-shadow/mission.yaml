@@ -1,0 +1,14 @@
+mission:
+  key: software-dev
+  name: Reserved Shadow
+  version: 0.1.0
+  description: Uses a reserved built-in key; loader must reject with MISSION_KEY_RESERVED.
+
+steps:
+  - id: plan
+    title: Plan
+    agent_profile: planner
+
+  - id: retrospective
+    title: Mission retrospective marker
+    depends_on: [plan]
