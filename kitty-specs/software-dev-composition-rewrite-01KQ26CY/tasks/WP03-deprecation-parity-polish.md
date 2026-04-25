@@ -185,3 +185,4 @@ git diff --name-only main..HEAD | grep -E '^(src/spec_kitty_events/|\.kittify/ch
 ## Activity Log
 
 - 2026-04-25T12:09:35Z – claude:opus:implementer-ivan:implementer – shell_pid=72584 – Started implementation via action command
+- 2026-04-25T12:12:45Z – claude:opus:implementer-ivan:implementer – shell_pid=72584 – Deprecation header on mission-runtime.yaml; actions/tasks/guidelines.md (42 lines) mirrors siblings; focused suite 46/46 green; C-007 boundary clean; mission.yaml untouched per D-3. Forced past gitignored dossier snapshot-latest.json blocker (same blocker WP01/WP02 reviewers used --force for; not WP-owned content, all owned files committed in 1c6b3f90).
