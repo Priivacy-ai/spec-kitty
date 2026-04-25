@@ -15,8 +15,8 @@ subtasks:
 - T027
 - T028
 - T029
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "70312"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "70965"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -343,3 +343,4 @@ spec-kitty agent action implement WP07 --agent <name> --mission shared-package-b
 
 - 2026-04-25T12:01:46Z – claude:opus-4.7:python-implementer:implementer – shell_pid=70312 – Started implementation via action command
 - 2026-04-25T12:03:09Z – claude:opus-4.7:python-implementer:implementer – shell_pid=70312 – Two consumer-test packages created. Events: 26 tests (10 top-level + 13 submodule + 3 shape). Tracker: 8 tests (4 top-level + 1 models + 3 shape). All 34 pass in 0.18s against events 4.0.0 / tracker 0.4.2. Pins derived from grep over src/ on post-WP04 tree. Refs FR-005, FR-009, C-003.
+- 2026-04-25T12:03:19Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=70965 – Started review via action command
