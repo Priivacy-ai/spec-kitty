@@ -1241,3 +1241,166 @@ def test_advancement_helper_failure_propagates_no_legacy_fallback(
     assert decision.reason is not None
     assert "boom: snapshot persistence broken" in decision.reason
     assert "RuntimeError" in decision.reason
+
+
+# ===========================================================================
+# Mission ``local-custom-mission-loader-01KQ2VNJ`` (WP04) — gate widening +
+# profile_hint plumbing.
+#
+# Two concerns get test pressure here:
+#
+#   1. Custom missions whose active step sets ``agent_profile`` must dispatch
+#      through composition AND the resolved profile must arrive at the
+#      executor as ``profile_hint``.
+#   2. Built-in ``software-dev`` dispatch must remain byte-identical: the
+#      executor is invoked with ``profile_hint=None`` (built-in templates
+#      don't set ``agent_profile``; ``_ACTION_PROFILE_DEFAULTS`` resolves it
+#      inside the executor).
+# ===========================================================================
+
+
+class TestCustomMissionComposition:
+    """WP04: composition gate widening + profile_hint plumbing."""
+
+    @staticmethod
+    def _patch_frozen_template_agent_profile(
+        run_dir: Path, step_id: str, agent_profile: str
+    ) -> None:
+        """Mutate the run's frozen template to set ``agent_profile`` on a step.
+
+        Tests use this to convert one of the existing (built-in) frozen
+        template steps into a custom-mission-equivalent step, exercising the
+        widened gate without scaffolding a fully discoverable custom mission.
+        """
+        import yaml as _yaml
+
+        frozen_path = run_dir / "mission_template_frozen.yaml"
+        data = _yaml.safe_load(frozen_path.read_text(encoding="utf-8"))
+        for step in data.get("steps", []):
+            if step.get("id") == step_id:
+                step["agent_profile"] = agent_profile
+                break
+        else:  # pragma: no cover — guard against test scaffolding drift
+            raise AssertionError(
+                f"step {step_id!r} not found in frozen template at {frozen_path}"
+            )
+        frozen_path.write_text(_yaml.safe_dump(data), encoding="utf-8")
+
+    def test_custom_mission_with_agent_profile_dispatches_with_profile_hint(
+        self, composed_software_dev_project
+    ) -> None:
+        """Active step's ``agent_profile`` arrives at the executor as ``profile_hint``.
+
+        We piggy-back on the software-dev scaffolding (which gives us a real
+        runtime run, frozen template, and lane state) and then mutate the
+        frozen template to set ``agent_profile`` on the ``specify`` step.
+        Because the gate widening reads the frozen template, this drives the
+        same code path a real custom mission would.
+        """
+        repo_root, _feature_dir, mission_slug = composed_software_dev_project
+        _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+        from specify_cli.next.runtime_bridge import (
+            decide_next_via_runtime,
+            get_or_start_run,
+        )
+
+        run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
+        # Inject a step-level ``agent_profile`` so the call site picks it up
+        # via ``_resolve_step_agent_profile`` and threads it through.
+        self._patch_frozen_template_agent_profile(
+            Path(run_ref.run_dir), "specify", "implementer-ivan"
+        )
+
+        fake_result = MagicMock()
+        fake_result.invocation_ids = ("inv-001",)
+
+        sentinel_decision = Decision(
+            kind=DecisionKind.step,
+            agent="test",
+            mission_slug=mission_slug,
+            mission="software-dev",
+            mission_state="next",
+            timestamp="2026-04-25T00:00:00+00:00",
+            action="next",
+            run_id="run-x",
+            step_id="next",
+        )
+
+        with (
+            patch(
+                "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+                return_value=fake_result,
+            ) as mock_execute,
+            patch(
+                "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+                return_value=sentinel_decision,
+            ),
+        ):
+            decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+        # Exactly one composition call, with the resolved profile threaded in.
+        assert mock_execute.call_count == 1
+        call = mock_execute.call_args
+        # The executor receives a single ``StepContractExecutionContext``
+        # argument; ``call.args`` may be empty if the bridge passed it
+        # positionally or via the ``context=`` kwarg. Cover both shapes.
+        context = call.args[0] if call.args else call.kwargs["context"]
+        assert isinstance(context, StepContractExecutionContext)
+        assert context.profile_hint == "implementer-ivan", (
+            f"Expected profile_hint='implementer-ivan' for a custom-mission "
+            f"step with agent_profile set; got {context.profile_hint!r}"
+        )
+
+    def test_builtin_software_dev_dispatches_with_none_profile_hint(
+        self, composed_software_dev_project
+    ) -> None:
+        """FR-010: built-in dispatch is byte-identical — ``profile_hint`` stays ``None``.
+
+        Built-in software-dev frozen templates do NOT set ``agent_profile``,
+        so ``_resolve_step_agent_profile`` returns ``None`` and the executor
+        receives ``profile_hint=None`` exactly as before this WP. The
+        executor's internal ``_resolve_profile_hint`` then falls back to
+        ``_ACTION_PROFILE_DEFAULTS`` — that fallback path is unchanged.
+        """
+        repo_root, _feature_dir, mission_slug = composed_software_dev_project
+        _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+        fake_result = MagicMock()
+        fake_result.invocation_ids = ("inv-001",)
+
+        sentinel_decision = Decision(
+            kind=DecisionKind.step,
+            agent="test",
+            mission_slug=mission_slug,
+            mission="software-dev",
+            mission_state="next",
+            timestamp="2026-04-25T00:00:00+00:00",
+            action="next",
+            run_id="run-x",
+            step_id="next",
+        )
+
+        with (
+            patch(
+                "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+                return_value=fake_result,
+            ) as mock_execute,
+            patch(
+                "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+                return_value=sentinel_decision,
+            ),
+        ):
+            decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+        assert mock_execute.call_count == 1
+        call = mock_execute.call_args
+        context = call.args[0] if call.args else call.kwargs["context"]
+        assert isinstance(context, StepContractExecutionContext)
+        assert context.profile_hint is None, (
+            f"Built-in software-dev dispatch must keep profile_hint=None to "
+            f"preserve the executor's _ACTION_PROFILE_DEFAULTS fallback path; "
+            f"got {context.profile_hint!r}"
+        )

@@ -1,0 +1,199 @@
+"""Functional core for the ``spec-kitty mission run`` CLI subcommand.
+
+Validates a custom-mission definition, registers synthesized step
+contracts in the per-process runtime registry shadow, and starts (or
+attaches to) the runtime for the requested tracked mission slug.
+
+The functional core never raises on operator-fixable errors and never
+calls :func:`sys.exit` or :func:`typer.Exit`; the Typer wrapper in
+:mod:`specify_cli.cli.commands.mission_type` is responsible for
+translating :class:`RunCustomMissionResult` into a process exit code.
+
+Registry-shadow lifetime
+------------------------
+For v1 the registry is a process-singleton; this module enters the
+registration once per CLI invocation and never exits. Subsequent
+``spec-kitty next`` calls in the same process see the shadow. Future
+tranches may revisit the lifetime model; until then, callers (including
+tests) clear the registry manually when they need a clean slate.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
+from specify_cli.mission_loader.errors import (
+    LoaderError,
+    LoaderWarning,
+    ValidationReport,
+)
+from specify_cli.mission_loader.registry import get_runtime_contract_registry
+from specify_cli.mission_loader.validator import validate_custom_mission
+from specify_cli.next import runtime_bridge
+from specify_cli.next._internal_runtime.discovery import DiscoveryContext
+
+# Infrastructure-level error code emitted by this CLI layer when
+# ``runtime_bridge.get_or_start_run`` raises. Not part of the validator's
+# closed enum (see contracts/validation-errors.md).
+_RUN_START_FAILED_CODE = "RUN_START_FAILED"
+
+
+@dataclass(frozen=True)
+class RunCustomMissionResult:
+    """Outcome of :func:`run_custom_mission`.
+
+    Attributes:
+        exit_code: 0 success, 1 infrastructure failure, 2 validation error.
+        envelope: JSON-serializable dict matching
+            ``contracts/mission-run-cli.md`` for the corresponding
+            outcome (``result == "success"`` or ``result == "error"``).
+    """
+
+    exit_code: int
+    envelope: dict[str, Any] = field(default_factory=dict)
+
+
+def run_custom_mission(
+    mission_key: str,
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    discovery_context: DiscoveryContext | None = None,
+) -> RunCustomMissionResult:
+    """Validate, register synthesized contracts, start (or attach to) the runtime.
+
+    Args:
+        mission_key: Reusable custom-mission key (e.g. ``"erp-integration"``).
+        mission_slug: Tracked mission slug (e.g. ``"erp-q3-rollout-01KQ..."``)
+            used to key the run under ``kitty-specs/<slug>/`` and the
+            ``feature-runs.json`` index.
+        repo_root: Project repository root.
+        discovery_context: Optional override; defaults to
+            :func:`_build_discovery_context` mirroring the runtime bridge.
+
+    Returns:
+        :class:`RunCustomMissionResult` with the wire-stable envelope.
+    """
+    ctx = discovery_context or _build_discovery_context(repo_root)
+    report = validate_custom_mission(mission_key, ctx)
+
+    if not report.ok:
+        return _validation_error_result(report)
+
+    # Register synthesized contracts in the process-singleton shadow. We
+    # intentionally do not enter the ``registered_runtime_contracts``
+    # context manager because v1 holds the shadow for the rest of the
+    # process; tests clear the registry directly between cases.
+    assert report.template is not None  # narrowed by report.ok
+    registry = get_runtime_contract_registry()
+    registry.register(synthesize_contracts(report.template))
+
+    try:
+        run_ref = runtime_bridge.get_or_start_run(
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            mission_type=mission_key,
+        )
+    except Exception as exc:  # noqa: BLE001 -- infrastructure boundary
+        registry.clear()
+        return RunCustomMissionResult(
+            exit_code=1,
+            envelope={
+                "result": "error",
+                "error_code": _RUN_START_FAILED_CODE,
+                "message": str(exc),
+                "details": {
+                    "mission_key": mission_key,
+                    "mission_slug": mission_slug,
+                },
+                "warnings": [_warning_dict(w) for w in report.warnings],
+            },
+        )
+
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    return RunCustomMissionResult(
+        exit_code=0,
+        envelope={
+            "result": "success",
+            "mission_key": mission_key,
+            "mission_slug": mission_slug,
+            "mission_id": _read_mission_id(feature_dir),
+            "feature_dir": str(feature_dir),
+            "run_dir": str(run_ref.run_dir),
+            "warnings": [_warning_dict(w) for w in report.warnings],
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
+    """Mirror :func:`runtime_bridge._build_discovery_context`.
+
+    The runtime bridge's helper is module-private; we duplicate the
+    construction here so this module does not depend on a private
+    surface. Both implementations point ``builtin_roots`` at the
+    packaged missions directory so built-in keys resolve identically.
+    """
+    package_missions = (
+        Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
+    )
+    return DiscoveryContext(
+        project_dir=repo_root,
+        builtin_roots=[package_missions],
+    )
+
+
+def _validation_error_result(report: ValidationReport) -> RunCustomMissionResult:
+    """Build the exit-code-2 envelope from the FIRST error in ``report``."""
+    err: LoaderError = report.errors[0]
+    return RunCustomMissionResult(
+        exit_code=2,
+        envelope={
+            "result": "error",
+            "error_code": str(err.code),
+            "message": err.message,
+            "details": dict(err.details),
+            "warnings": [_warning_dict(w) for w in report.warnings],
+        },
+    )
+
+
+def _warning_dict(warning: LoaderWarning) -> dict[str, Any]:
+    """Render a :class:`LoaderWarning` as a JSON-serializable dict."""
+    return {
+        "code": str(warning.code),
+        "message": warning.message,
+        "details": dict(warning.details),
+    }
+
+
+def _read_mission_id(feature_dir: Path) -> str | None:
+    """Read ``mission_id`` from ``<feature_dir>/meta.json`` if present.
+
+    Returns ``None`` when the file is missing or malformed; the success
+    envelope tolerates a null ``mission_id`` for runs whose tracked
+    mission has not yet been minted.
+    """
+    meta_path = feature_dir / "meta.json"
+    with contextlib.suppress(Exception):
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            value = data.get("mission_id")
+            if isinstance(value, str) and value:
+                return value
+    return None
+
+
+__all__ = [
+    "RunCustomMissionResult",
+    "run_custom_mission",
+]

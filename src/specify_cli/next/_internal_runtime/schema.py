@@ -399,7 +399,7 @@ class MissionMeta(BaseModel):
 
 
 class PromptStep(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     id: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
@@ -411,6 +411,15 @@ class PromptStep(BaseModel):
     depends_on: list[str] = Field(default_factory=list)
     raci: RACIAssignment | None = None
     raci_override_reason: str | None = None
+    agent_profile: str | None = Field(
+        default=None,
+        alias="agent-profile",
+        description="Profile id used as profile_hint when this step dispatches via composition.",
+    )
+    contract_ref: str | None = Field(
+        default=None,
+        description="Optional ID of an existing MissionStepContract; when set, contract_synthesis skips this step.",
+    )
 
     @model_validator(mode="after")
     def _validate_raci_override_reason(self) -> PromptStep:

@@ -294,17 +294,71 @@ def _normalize_action_for_composition(step_id: str) -> str:
     return step_id
 
 
-def _should_dispatch_via_composition(mission: str, step_id: str) -> bool:
+def _should_dispatch_via_composition(
+    mission: str,
+    step_id: str,
+    *,
+    run_dir: Path | None = None,
+) -> bool:
     """Return True iff ``(mission, step_id)`` routes through composition.
 
-    Hard-guarded on ``mission == "software-dev"`` (C-008). For any other
-    mission, returns False unconditionally so the bridge falls through to the
-    legacy DAG handler.
+    Order is critical and load-bearing:
+
+    1. **Built-in fast path** (PR #797 invariant): the
+       ``_COMPOSED_ACTIONS_BY_MISSION`` lookup short-circuits without loading
+       the frozen template, so built-in dispatch (e.g., ``software-dev``)
+       remains byte-identical to its pre-Phase-6 behavior.
+    2. **Custom mission widening** (Phase 6 / R-005): consulted only when
+       ``run_dir`` is provided AND the mission is NOT a built-in entry in
+       ``_COMPOSED_ACTIONS_BY_MISSION``. The active step's ``agent_profile``
+       is read from the frozen template; a non-empty value triggers
+       composition. Empty / missing ``agent_profile`` falls through to the
+       legacy DAG handler unchanged.
     """
+    # Built-in fast path — short-circuits without touching the frozen template.
     composed = _COMPOSED_ACTIONS_BY_MISSION.get(mission)
-    if composed is None:
+    if composed is not None and _normalize_action_for_composition(step_id) in composed:
+        return True
+
+    # Custom mission widening (R-005). ``run_dir`` is required to read the
+    # frozen template; without it (e.g., on the very first decide_next call
+    # before the run is started), fall through to the legacy DAG handler.
+    if run_dir is None:
         return False
-    return _normalize_action_for_composition(step_id) in composed
+    profile = _resolve_step_agent_profile(run_dir, step_id)
+    return bool(profile)  # treat empty string as falsy
+
+
+def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
+    """Return the ``agent_profile`` set on ``step_id`` in the frozen template.
+
+    Returns ``None`` when:
+
+    - ``run_dir`` lacks a frozen template (e.g., the run has not been started
+      yet, or template load otherwise raises).
+    - The step is not present in the template.
+    - The step's ``agent_profile`` is ``None`` or an empty string (treated as
+      falsy so the gate widens only for explicit author opt-in).
+
+    The lookup tolerates legacy ``tasks_outline`` / ``tasks_packages`` /
+    ``tasks_finalize`` substep IDs by normalizing through
+    ``_normalize_action_for_composition``.
+    """
+    try:
+        # Function-scoped import keeps module imports lean and matches the
+        # pattern used by ``_advance_run_state_after_composition``.
+        from specify_cli.next._internal_runtime.engine import _load_frozen_template
+
+        template = _load_frozen_template(run_dir)
+    except Exception:
+        return None
+
+    normalized = _normalize_action_for_composition(step_id)
+    for step in template.steps:
+        if step.id == step_id or step.id == normalized:
+            profile = step.agent_profile
+            return profile if profile else None
+    return None
 
 
 def _check_composed_action_guard(  # noqa: C901
@@ -1155,15 +1209,29 @@ def decide_next_via_runtime(
     if (
         result == "success"
         and current_step_id
-        and _should_dispatch_via_composition(mission_type, current_step_id)
+        and _should_dispatch_via_composition(
+            mission_type,
+            current_step_id,
+            run_dir=Path(run_ref.run_dir),
+        )
     ):
         composed_action = _normalize_action_for_composition(current_step_id)
+        # R-005: for custom missions, the active step's ``agent_profile`` is
+        # the source of truth for ``profile_hint``. For built-in missions
+        # (e.g., ``software-dev``), built-in templates do NOT set
+        # ``agent_profile``, so this resolves to ``None`` and the executor's
+        # ``_resolve_profile_hint`` falls back to ``_ACTION_PROFILE_DEFAULTS``
+        # — preserving byte-identical built-in dispatch behavior (FR-010).
+        resolved_profile = _resolve_step_agent_profile(
+            Path(run_ref.run_dir),
+            current_step_id,
+        )
         composition_failures = _dispatch_via_composition(
             repo_root=repo_root,
             mission=mission_type,
             action=composed_action,
             actor=agent,
-            profile_hint=None,
+            profile_hint=resolved_profile,
             request_text=None,
             mode_of_work=None,
             feature_dir=feature_dir,
