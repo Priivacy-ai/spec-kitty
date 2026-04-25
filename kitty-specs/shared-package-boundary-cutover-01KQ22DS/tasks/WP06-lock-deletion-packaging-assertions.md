@@ -227,3 +227,4 @@ spec-kitty agent action implement WP06 --agent <name> --mission shared-package-b
 ## Activity Log
 
 - 2026-04-25T11:59:19Z – claude:opus-4.7:python-implementer:implementer – shell_pid=69689 – Started implementation via action command
+- 2026-04-25T12:00:43Z – claude:opus-4.7:python-implementer:implementer – shell_pid=69689 – Test file tests/contract/test_packaging_no_vendored_events.py created with both fast filesystem assertion (T026, no marker) and distribution-gated wheel-shape assertion (T025, @pytest.mark.distribution). Both pass on post-WP05 tree (1.92s for full module). Refs FR-012, FR-019.
