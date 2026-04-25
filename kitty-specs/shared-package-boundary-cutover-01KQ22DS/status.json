@@ -1,18 +1,18 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KQ25DQ1580MYE20NV584AGWY",
-  "materialized_at": "2026-04-25T11:12:00.037110+00:00",
+  "event_count": 24,
+  "last_event_id": "01KQ25JV4FQ40XY5TXFRFVZKZY",
+  "materialized_at": "2026-04-25T11:14:48.079932+00:00",
   "mission_number": "",
   "mission_slug": "shared-package-boundary-cutover-01KQ22DS",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 8
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-25T11:02:18.742007+00:00"
     },
     "WP02": {
-      "actor": "claude:opus-4.7:python-reviewer:reviewer",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KQ25DQ1580MYE20NV584AGWY",
-      "last_transition_at": "2026-04-25T11:12:00.037110+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQ25JV4FQ40XY5TXFRFVZKZY",
+      "last_transition_at": "2026-04-25T11:14:48.079932+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
