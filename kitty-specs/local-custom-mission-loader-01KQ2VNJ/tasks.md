@@ -45,10 +45,10 @@
 | T032 | Integration test: ERP runtime walk through composition + decision_required | WP06 |  | [D] |
 | T033 | Integration test: paired invocation records record contract action | WP06 |  | [D] |
 | T034 | Integration test: built-in mission walk unchanged | WP06 | [D] |
-| T035 | Perf test: loader p95 < 250 ms on ERP fixture | WP07 |  |
-| T036 | Perf test: ERP fixture full walk < 10 s | WP07 |  |
-| T037 | Configure `pytest --cov` fail-under 90 on `mission_loader/` package | WP07 |  |
-| T038 | Update CI quality workflow to run `mypy --strict` on new modules | WP07 | [P] |
+| T035 | Perf test: loader p95 < 250 ms on ERP fixture | WP07 |  | [D] |
+| T036 | Perf test: ERP fixture full walk < 10 s | WP07 |  | [D] |
+| T037 | Configure `pytest --cov` fail-under 90 on `mission_loader/` package | WP07 |  | [D] |
+| T038 | Update CI quality workflow to run `mypy --strict` on new modules | WP07 | [D] |
 | T039 | Update `docs/reference/missions.md`: author guide for custom missions | WP08 |  |
 | T040 | Update `docs/reference/missions.md`: closed error code table | WP08 |  |
 | T041 | Update `docs/reference/missions.md`: ERP example walkthrough | WP08 |  |
@@ -247,10 +247,10 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T035 Add `tests/perf/test_loader_perf.py::test_load_p95_under_250ms` (50 iterations, asserts p95 < 250 ms) (WP07)
-- [ ] T036 Add `tests/perf/test_loader_perf.py::test_erp_full_walk_under_10s` (single-shot wall-clock assertion) (WP07)
-- [ ] T037 Configure `pytest --cov=src/specify_cli/mission_loader --cov-fail-under=90` for the new package; either via `pyproject.toml`, a dedicated invocation in `Makefile`/CI, or `pytest.ini` (WP07)
-- [ ] T038 Add `mypy --strict src/specify_cli/mission_loader` to `.github/workflows/ci-quality.yml` so NFR-005 is enforced in CI (WP07)
+- [x] T035 Add `tests/perf/test_loader_perf.py::test_load_p95_under_250ms` (50 iterations, asserts p95 < 250 ms) (WP07)
+- [x] T036 Add `tests/perf/test_loader_perf.py::test_erp_full_walk_under_10s` (single-shot wall-clock assertion) (WP07)
+- [x] T037 Configure `pytest --cov=src/specify_cli/mission_loader --cov-fail-under=90` for the new package; either via `pyproject.toml`, a dedicated invocation in `Makefile`/CI, or `pytest.ini` (WP07)
+- [x] T038 Add `mypy --strict src/specify_cli/mission_loader` to `.github/workflows/ci-quality.yml` so NFR-005 is enforced in CI (WP07)
 
 **Implementation sketch**: For T037, prefer adding a per-package coverage gate to the existing CI quality job rather than to the global pyproject (which may have a lower fail-under). For T038, the existing job likely already runs `mypy --strict src/`; if so, the new modules are covered automatically and T038 reduces to verifying the CI run picks them up.
 
