@@ -1,0 +1,20 @@
+{
+  "change_mode": "feature",
+  "created_at": "2026-04-25T14:57:36.551121+00:00",
+  "friendly_name": "Phase 6 Composition Stabilization",
+  "mission_id": "01KQ2JASW34A4K6HYNS5V41KFK",
+  "mission_number": 98,
+  "mission_slug": "phase6-composition-stabilization-01KQ2JAS",
+  "mission_type": "software-dev",
+  "purpose_context": "PR #795 made software-dev the first live consumer of the composition layer, but composed actions still fall through to legacy DAG dispatch (#786), StepContractExecutor leaves started-only invocation JSONL records (#793), and ProfileInvocationExecutor.invoke(profile_hint=...) records the role-default verb instead of the contract action (#794). All three must land before #505 custom mission loading can build on a credible composition path.",
+  "purpose_tldr": "Close three follow-ups on the just-landed software-dev composition path so it is single-dispatch, leaves no orphaned invocation records, and preserves contract action under profile_hint, unblocking the custom mission loader.",
+  "slug": "phase6-composition-stabilization-01KQ2JAS",
+  "source_description": "Phase 6 stabilization tranche after PR #795 covering issues #786, #793, #794. Brief: workspace start-here.md.",
+  "target_branch": "main",
+  "tracker_issues": [
+    "https://github.com/Priivacy-ai/spec-kitty/issues/786",
+    "https://github.com/Priivacy-ai/spec-kitty/issues/793",
+    "https://github.com/Priivacy-ai/spec-kitty/issues/794"
+  ],
+  "vcs": "git"
+}

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
 
 from charter._drg_helpers import load_validated_graph
 from doctrine.artifact_kinds import ArtifactKind
@@ -89,7 +88,7 @@ class StepContractStepResult:
         """Return the underlying invocation ID when this step was invoked."""
         if self.invocation_payload is None:
             return None
-        return cast(str, self.invocation_payload.invocation_id)
+        return self.invocation_payload.invocation_id
 
 
 @dataclass(frozen=True)
@@ -167,20 +166,31 @@ class StepContractExecutor:
                 profile_hint=profile_hint,
                 actor=context.actor,
                 mode_of_work=context.mode_of_work,
+                action_hint=selected_contract.action,
             )
-            step_results.append(
-                StepContractStepResult(
-                    step_id=step.id,
-                    sequence=sequence,
-                    description=step.description,
-                    command=step.command,
-                    command_declared=step.command is not None,
-                    guidance=step.guidance,
-                    resolved_delegations=tuple(resolved),
-                    unresolved_candidates=tuple(unresolved),
-                    invocation_payload=payload,
+            try:
+                step_results.append(
+                    StepContractStepResult(
+                        step_id=step.id,
+                        sequence=sequence,
+                        description=step.description,
+                        command=step.command,
+                        command_declared=step.command is not None,
+                        guidance=step.guidance,
+                        resolved_delegations=tuple(resolved),
+                        unresolved_candidates=tuple(unresolved),
+                        invocation_payload=payload,
+                    )
                 )
-            )
+            except Exception:
+                self._invocation_executor.complete_invocation(
+                    payload.invocation_id,
+                    outcome="failed",
+                )
+                raise
+            else:
+                # outcome describes the composition-step trail only; not host-LLM generation status.
+                self._invocation_executor.complete_invocation(payload.invocation_id, outcome="done")
 
         return StepContractExecutionResult(
             contract_id=selected_contract.id,

@@ -155,7 +155,7 @@ def test_complete_writes_completed_event(tmp_path: Path) -> None:
         "specify_cli.invocation.executor.build_charter_context",
         return_value=_COMPACT_CTX,
     ):
-        completed_record = executor.complete_invocation(
+        executor.complete_invocation(
             invocation_id=invocation_id,
             outcome="done",
         )
@@ -262,22 +262,21 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     with patch(
         "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
         return_value=disabled_routing,
-    ):
+    ), patch(
+        "specify_cli.invocation.propagator._get_saas_client",
+    ) as mock_client:
         with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-        ) as mock_client:
-            with patch(
-                "specify_cli.invocation.executor.build_charter_context",
-                return_value=_COMPACT_CTX,
-            ):
-                executor = ProfileInvocationExecutor(project)
-                payload = executor.invoke(
-                    "implement the feature",
-                    profile_hint="implementer-fixture",
-                )
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(project)
+            payload = executor.invoke(
+                "implement the feature",
+                profile_hint="implementer-fixture",
+            )
 
-            # (a) SaaS client was never called — sync gate suppressed emission
-            mock_client.assert_not_called()
+        # (a) SaaS client was never called — sync gate suppressed emission
+        mock_client.assert_not_called()
 
     # (b) Local JSONL written by the executor (not manually) — Tier 1 is mandatory
     events_dir = project / EVENTS_DIR
@@ -395,8 +394,8 @@ def test_complete_with_two_artifacts_and_commit(tmp_path: Path) -> None:
     events_dir = project / EVENTS_DIR
     lines = [ln for ln in (events_dir / f"{inv_id}.jsonl").read_text().splitlines() if ln.strip()]
     # started (1) + completed (1) + artifact_link (1) + artifact_link (1) + commit_link (1) = 5
-    assert len(lines) == 5, f"Expected 5 lines, got {len(lines)}: {[json.loads(l)['event'] for l in lines]}"
-    events = [json.loads(l)["event"] for l in lines]
+    assert len(lines) == 5, f"Expected 5 lines, got {len(lines)}: {[json.loads(ln)['event'] for ln in lines]}"
+    events = [json.loads(ln)["event"] for ln in lines]
     assert events[0] == "started"
     assert events[1] == "completed"
     assert events[2] == "artifact_link"
@@ -670,6 +669,159 @@ def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+# ===========================================================================
+# WP02 (#794) — action_hint kwarg behavioral tests (T009)
+# ===========================================================================
+
+
+@pytest.mark.parametrize("action_key", ["specify", "plan", "tasks", "implement", "review"])
+def test_invoke_with_action_hint_and_profile_hint_records_hint(
+    tmp_path: Path, action_key: str
+) -> None:
+    """profile_hint + truthy action_hint records action_hint verbatim (FR-009/FR-010).
+
+    Parametrized over the five contract actions (specify/plan/tasks/implement/review)
+    used by mission-step composition. The recorded `started` event MUST carry the
+    caller-supplied action key, and the returned payload MUST expose the same value.
+    """
+    project = _setup_minimal_project(tmp_path)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        payload = executor.invoke(
+            "any request text",
+            profile_hint="architect-alphonso",
+            action_hint=action_key,
+        )
+
+    # Payload exposes the hint
+    assert payload.action == action_key, (
+        f"Expected payload.action={action_key!r}, got {payload.action!r}"
+    )
+
+    # Started JSONL record carries the hint
+    events_dir = project / EVENTS_DIR
+    jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
+    started = json.loads(jsonl_file.read_text().splitlines()[0])
+    assert started["action"] == action_key, (
+        f"Expected started.action={action_key!r}, got {started['action']!r}"
+    )
+
+
+def test_invoke_profile_hint_only_falls_back_to_derived_action(tmp_path: Path) -> None:
+    """profile_hint with no action_hint falls back to the role-default verb (FR-011).
+
+    With architect-alphonso (Role.ARCHITECT), the legacy derivation returns the first
+    canonical verb for the role. The recorded action MUST equal what
+    ``_derive_action_from_request(request_text, profile.role)`` returns.
+    """
+    project = _setup_minimal_project(tmp_path)
+    request_text = "design the new component boundaries"
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        # Compute expected legacy action via the same path the executor uses
+        profile = executor._registry.resolve("architect-alphonso")
+        expected_action = executor._derive_action_from_request(request_text, profile.role)
+
+        payload = executor.invoke(
+            request_text,
+            profile_hint="architect-alphonso",
+        )
+
+    assert payload.action == expected_action
+
+    events_dir = project / EVENTS_DIR
+    jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
+    started = json.loads(jsonl_file.read_text().splitlines()[0])
+    assert started["action"] == expected_action, (
+        f"Expected legacy-derived action {expected_action!r}, got {started['action']!r}"
+    )
+
+
+def test_invoke_empty_action_hint_falls_back(tmp_path: Path) -> None:
+    """Empty-string action_hint is treated as not supplied (EDGE-005).
+
+    The truthiness check (`if action_hint:`) means an empty string falls back to
+    the legacy role-default-verb derivation, identical to passing no hint at all.
+    """
+    project = _setup_minimal_project(tmp_path)
+    request_text = "evaluate the architecture"
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        profile = executor._registry.resolve("architect-alphonso")
+        expected_action = executor._derive_action_from_request(request_text, profile.role)
+
+        payload = executor.invoke(
+            request_text,
+            profile_hint="architect-alphonso",
+            action_hint="",
+        )
+
+    assert payload.action == expected_action
+
+    events_dir = project / EVENTS_DIR
+    jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
+    started = json.loads(jsonl_file.read_text().splitlines()[0])
+    assert started["action"] == expected_action, (
+        f"Empty-string action_hint should fall back to {expected_action!r}, "
+        f"got {started['action']!r}"
+    )
+
+
+def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None:
+    """Router-backed branch ignores action_hint entirely (FR-012).
+
+    When ``profile_hint`` is None, the router decides both profile_id and action.
+    A supplied ``action_hint`` MUST NOT override the router's action.
+    """
+    from specify_cli.invocation.router import RouterDecision
+
+    project = _setup_minimal_project(tmp_path)
+
+    router_action = "implement"
+    fake_router = MagicMock()
+    fake_router.route.return_value = RouterDecision(
+        profile_id="implementer-fixture",
+        action=router_action,
+        confidence="canonical_verb",
+        match_reason="test fixture",
+    )
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project, router=fake_router)
+        payload = executor.invoke(
+            "implement the feature",
+            profile_hint=None,
+            action_hint="anything",
+        )
+
+    # Router decision wins; action_hint is ignored on this branch
+    assert payload.action == router_action
+    assert payload.action != "anything"
+
+    events_dir = project / EVENTS_DIR
+    jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
+    started = json.loads(jsonl_file.read_text().splitlines()[0])
+    assert started["action"] == router_action, (
+        f"Router branch must use router action {router_action!r}, got {started['action']!r}"
+    )
+    assert started["action"] != "anything"
+
+
 def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     """With sync disabled, all events are written locally; no propagation-errors file is created.
 
@@ -691,30 +843,29 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     with patch(
         "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
         return_value=disabled_routing,
-    ):
-        with patch("specify_cli.invocation.propagator._get_saas_client") as mock_client:
-            with patch(
-                "specify_cli.invocation.executor.build_charter_context",
-                return_value=_COMPACT_CTX,
-            ):
-                executor = ProfileInvocationExecutor(project)
-                payload = executor.invoke(
-                    "implement with mode",
-                    profile_hint="implementer-fixture",
-                    mode_of_work=ModeOfWork.TASK_EXECUTION,
-                )
-                inv_id = payload.invocation_id
+    ), patch("specify_cli.invocation.propagator._get_saas_client") as mock_client:
+        with patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=_COMPACT_CTX,
+        ):
+            executor = ProfileInvocationExecutor(project)
+            payload = executor.invoke(
+                "implement with mode",
+                profile_hint="implementer-fixture",
+                mode_of_work=ModeOfWork.TASK_EXECUTION,
+            )
+            inv_id = payload.invocation_id
 
-                # Complete with artifact and commit links
-                executor.complete_invocation(
-                    invocation_id=inv_id,
-                    outcome="done",
-                    artifact_refs=["src/example.py"],
-                    commit_sha="cafebabe1234",
-                )
+            # Complete with artifact and commit links
+            executor.complete_invocation(
+                invocation_id=inv_id,
+                outcome="done",
+                artifact_refs=["src/example.py"],
+                commit_sha="cafebabe1234",
+            )
 
-            # SaaS client never called (sync gate fires)
-            mock_client.assert_not_called()
+        # SaaS client never called (sync gate fires)
+        mock_client.assert_not_called()
 
     # All events written locally
     events_dir = project / EVENTS_DIR
@@ -722,9 +873,9 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     assert jsonl_file.exists()
     lines = [ln for ln in jsonl_file.read_text().splitlines() if ln.strip()]
     # started + completed + artifact_link + commit_link = 4 lines
-    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(l)['event'] for l in lines]}"
+    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(ln)['event'] for ln in lines]}"
 
-    events = [json.loads(l)["event"] for l in lines]
+    events = [json.loads(ln)["event"] for ln in lines]
     assert events == ["started", "completed", "artifact_link", "commit_link"]
 
     # No propagation-errors file created
