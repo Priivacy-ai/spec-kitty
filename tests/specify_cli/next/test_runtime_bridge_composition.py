@@ -1000,6 +1000,100 @@ def test_composition_success_advances_run_state_and_lane_events(
     )
 
 
+def test_advancement_helper_persists_decision_required_branch(
+    composed_software_dev_project,
+) -> None:
+    """RISK-2 follow-up: the advancement helper must mirror the engine's
+    ``decision_required`` branch.
+
+    The original WP01 helper handled only ``step`` and ``terminal``; if
+    ``plan_next()`` returned ``decision_required``, the bridge would map and
+    return a Decision but never persist ``pending_decisions`` or emit
+    ``DecisionInputRequested``. This test patches ``plan_next`` to force a
+    ``decision_required`` outcome on the composition path and asserts the
+    helper:
+
+    1. Persists ``pending_decisions[<decision_id>]`` in the run snapshot.
+    2. Appends exactly one ``DecisionInputRequested`` event to
+       ``run.events.jsonl``.
+    3. Returns a ``Decision`` carrying the decision metadata that callers
+       can answer.
+    """
+    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+    _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+    from spec_kitty_runtime.engine import _read_snapshot
+    from spec_kitty_runtime.schema import NextDecision
+    from specify_cli.next.runtime_bridge import (
+        decide_next_via_runtime,
+        get_or_start_run,
+    )
+
+    run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
+    run_dir = Path(run_ref.run_dir)
+
+    # Read the live snapshot so the synthetic decision references the real
+    # run_id / mission_key (NextDecision is frozen-validated).
+    snapshot_before = _read_snapshot(run_dir)
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+
+    synthetic_decision = NextDecision(
+        kind="decision_required",
+        run_id=snapshot_before.run_id,
+        mission_key=snapshot_before.mission_key,
+        step_id="post-specify-gate",
+        decision_id="dm-test-001",
+        input_key="post_specify_review",
+        question="Do you approve the spec output?",
+        options=["yes", "no"],
+    )
+
+    with (
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ),
+        patch(
+            "spec_kitty_runtime.planner.plan_next",
+            return_value=synthetic_decision,
+        ),
+    ):
+        decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+    # 1. pending_decisions persisted in the snapshot.
+    snapshot_after = _read_snapshot(run_dir)
+    assert "dm-test-001" in snapshot_after.pending_decisions, (
+        f"Expected pending_decisions to include 'dm-test-001'; "
+        f"got pending_decisions={dict(snapshot_after.pending_decisions)!r}"
+    )
+
+    # 2. Exactly one DecisionInputRequested event appended for this decision.
+    event_log = run_dir / "run.events.jsonl"
+    log_lines = [
+        json.loads(line)
+        for line in event_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    requested = [
+        ev
+        for ev in log_lines
+        if ev.get("event_type") == "DecisionInputRequested"
+        and ev.get("payload", {}).get("decision_id") == "dm-test-001"
+    ]
+    assert len(requested) == 1, (
+        f"Expected exactly one DecisionInputRequested event for 'dm-test-001'; "
+        f"got {requested!r}"
+    )
+
+    # 3. Returned Decision carries the decision metadata so callers can answer.
+    assert decision.kind == DecisionKind.decision_required
+    assert decision.decision_id == "dm-test-001"
+    assert decision.input_key == "post_specify_review"
+    assert decision.question == "Do you approve the spec output?"
+
+
 def test_decision_shape_unchanged_for_composed_action(
     composed_software_dev_project,
 ) -> None:

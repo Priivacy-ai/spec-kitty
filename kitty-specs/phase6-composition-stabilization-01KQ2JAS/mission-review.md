@@ -186,9 +186,70 @@ Verified the three fix sites match the spec/plan/contracts verbatim:
 
 ---
 
-## Final Verdict
+## Post-Review Follow-up Resolution (2026-04-25, post-`ae4e4d08`)
 
-**PASS WITH NOTES**
+The user's review caught two findings the initial audit had under-rated:
+
+### RESOLVED — RISK-1: `mypy --strict` multi-file invocation
+
+**Original audit recommendation was wrong.** The audit suggested wrapping the new `payload.invocation_id` accesses at lines 188/194 in `cast(str, ...)` to mirror the pre-existing line-92 pattern. The user correctly identified that **`cast()` does not suppress `attr-defined` at the access site** — the access (`payload.invocation_id`) is what mypy flags, and `cast()` only changes the resulting type. Line 92 was already using `cast()` and mypy still flagged it under multi-file analysis.
+
+**Actual fix applied** (commit pending):
+- Added typed instance attribute annotations to `InvocationPayload` (`src/specify_cli/invocation/executor.py:56-69`) alongside the existing `__slots__`. Class-level annotations without values are mypy-visible but do not conflict with `__slots__` storage.
+- Removed the now-redundant `cast(str, ...)` at `mission_step_contracts/executor.py:92` (mypy reported it as `redundant-cast` once the typed attributes were in place).
+- Removed the now-unused `from typing import cast` import in the same file.
+
+**Verification**: `uv run --python 3.13 python -m mypy --strict <all 3 source files>` → **Success: no issues found in 3 source files**.
+
+### RESOLVED — RISK-2 (NEW): Advancement helper dropped `decision_required` side effects
+
+The user identified a second finding the original audit missed entirely: `_advance_run_state_after_composition()` only mirrored the engine's `step` and `terminal` branches. When `plan_next()` returns `decision_required`, the helper mapped and returned the decision but never persisted `pending_decisions[decision_id]` or emitted `DecisionInputRequested`. The packaged `software-dev` runtime does not currently hit this branch, but project/runtime overrides and the upcoming custom-mission work (#505 — the very thing this tranche unblocks) can introduce input/audit gates after a composed step.
+
+**Fix applied** (commit pending):
+- Mirrored `spec_kitty_runtime.engine.next_step`'s `decision_required` branch verbatim in `_advance_run_state_after_composition()` (`src/specify_cli/next/runtime_bridge.py`).
+- Persists `pending_decisions[decision.decision_id]` with a `DecisionRequest` payload.
+- Emits exactly one `DecisionInputRequested` event per decision (re-poll-safe via the engine's existing "only emit on first occurrence" guard).
+- Persists the snapshot with the updated `pending_decisions`.
+
+**New regression test** locks the behavior:
+`tests/specify_cli/next/test_runtime_bridge_composition.py::test_advancement_helper_persists_decision_required_branch`. Patches `plan_next` to return a synthetic `decision_required`, then asserts (1) `pending_decisions[<decision_id>]` is in the post-call snapshot, (2) exactly one `DecisionInputRequested` event was appended to `run.events.jsonl`, and (3) the returned `Decision` carries `decision_id` / `input_key` / `question` so callers can answer.
+
+**Verification**: focused suite now **81 passed** (+1 from original 80; the new test is the addition).
+
+### Updated final validation
+
+```
+$ uv run --python 3.13 --extra test python -m pytest \
+    tests/specify_cli/next/test_runtime_bridge_composition.py \
+    tests/specify_cli/mission_step_contracts/test_software_dev_composition.py \
+    tests/specify_cli/invocation/test_invocation_e2e.py \
+    tests/specify_cli/invocation/test_writer.py -q
+======================= 81 passed, 78 warnings in 6.70s ========================
+
+$ uvx --from 'ruff' ruff check <6 owned files plus the modified ones>
+All checks passed!
+
+$ uv run --python 3.13 python -m mypy --strict \
+    src/specify_cli/next/runtime_bridge.py \
+    src/specify_cli/mission_step_contracts/executor.py \
+    src/specify_cli/invocation/executor.py
+Success: no issues found in 3 source files
+```
+
+The canonical multi-file `mypy --strict` invocation from `plan.md` now passes (NFR-003 satisfied without ambiguity).
+
+### Files touched in the follow-up
+
+- `src/specify_cli/invocation/executor.py` — added typed slot annotations + `GlossaryObservationBundle` import under `TYPE_CHECKING`.
+- `src/specify_cli/mission_step_contracts/executor.py` — dropped redundant `cast(str, ...)` at line 92, removed unused `from typing import cast` import.
+- `src/specify_cli/next/runtime_bridge.py` — added `decision_required` branch to `_advance_run_state_after_composition()` (imports `DecisionRequest` from `spec_kitty_runtime.schema`, `DecisionInputRequestedPayload` from `spec_kitty_events.mission_next`, `DECISION_INPUT_REQUESTED` from `spec_kitty_runtime.events`, `UTC, datetime` from stdlib `datetime`).
+- `tests/specify_cli/next/test_runtime_bridge_composition.py` — added `test_advancement_helper_persists_decision_required_branch` regression test.
+
+---
+
+## Final Verdict (revised)
+
+**PASS** (was: PASS WITH NOTES; both notes now resolved).
 
 ### Verdict rationale
 

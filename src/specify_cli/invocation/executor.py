@@ -16,7 +16,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from specify_cli.glossary.chokepoint import GlossaryChokepoint
+    from specify_cli.glossary.chokepoint import (
+        GlossaryChokepoint,
+        GlossaryObservationBundle,
+    )
 
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
@@ -55,6 +58,21 @@ class ActionRouterPlugin(Protocol):
 
 class InvocationPayload:
     """Ephemeral response returned to CLI callers."""
+
+    # Typed instance attribute annotations alongside __slots__ so callers (and
+    # mypy --strict) can see the payload shape. The class-level annotations
+    # carry no value, so they do not conflict with __slots__ storage. Without
+    # these, multi-file mypy --strict raises attr-defined on every payload
+    # access (RISK-1 / mission-review.md follow-up).
+    invocation_id: str
+    profile_id: str
+    profile_friendly_name: str
+    action: str
+    governance_context_text: str | None
+    governance_context_hash: str | None
+    governance_context_available: bool
+    router_confidence: str | None
+    glossary_observations: GlossaryObservationBundle | None
 
     __slots__ = (
         "invocation_id",

@@ -536,6 +536,8 @@ def _advance_run_state_after_composition(
     """
     # Local imports keep the legacy import block at the top of the module
     # focused and mirror the pattern used by ``_dispatch_via_composition``.
+    from datetime import UTC, datetime
+
     from spec_kitty_runtime.engine import (
         _append_event,
         _load_frozen_template,
@@ -543,18 +545,20 @@ def _advance_run_state_after_composition(
         _write_snapshot,
     )
     from spec_kitty_runtime.events import (
+        DECISION_INPUT_REQUESTED,
         MISSION_RUN_COMPLETED,
         NEXT_STEP_AUTO_COMPLETED,
         NEXT_STEP_ISSUED,
     )
     from spec_kitty_events.mission_next import (
+        DecisionInputRequestedPayload,
         MissionRunCompletedPayload,
         NextStepAutoCompletedPayload,
         NextStepIssuedPayload,
         RuntimeActorIdentity,
     )
     from spec_kitty_runtime.planner import plan_next
-    from spec_kitty_runtime.schema import MissionRunSnapshot
+    from spec_kitty_runtime.schema import DecisionRequest, MissionRunSnapshot
 
     run_dir = Path(run_ref.run_dir)
     snapshot = _read_snapshot(run_dir)
@@ -613,9 +617,20 @@ def _advance_run_state_after_composition(
         live_template_path=live_template_path,
     )
 
-    # Step 3 — record issued step / completion-of-mission events as the engine
-    # does, so downstream consumers of the run event log see equivalent state.
+    # Step 3 — record issued step / completion-of-mission / decision-required
+    # events as the engine does, so downstream consumers of the run event log
+    # see equivalent state. The three branches mirror
+    # ``spec_kitty_runtime.engine.next_step``:
+    #   - ``step``           → emit ``NextStepIssued``, stamp issued_step_id.
+    #   - ``decision_required`` → persist ``pending_decisions[decision_id]``
+    #     and emit ``DecisionInputRequested`` so a downstream caller can answer
+    #     it. Required for project/runtime overrides and custom missions that
+    #     introduce input/audit gates after a composed step (mission-review.md
+    #     RISK-2 fix).
+    #   - ``terminal``       → emit ``MissionRunCompleted`` if a step actually
+    #     just completed (avoid duplicate emit on re-poll).
     issued_step_id = snapshot.issued_step_id
+    pending_decisions = dict(snapshot.pending_decisions)
     if decision.kind == "step" and decision.step_id:
         issued_step_id = decision.step_id
         si_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
@@ -627,6 +642,36 @@ def _advance_run_state_after_composition(
         )
         _append_event(run_dir, NEXT_STEP_ISSUED, si_payload.model_dump(mode="json"))
         sync_emitter.emit_next_step_issued(si_payload)
+    elif decision.kind == "decision_required" and decision.decision_id:
+        # Persist input-keyed decisions in pending_decisions so they're
+        # answerable; only emit + persist on first occurrence to avoid
+        # duplicates on re-poll. Mirrors engine.next_step's branch verbatim
+        # (modulo the runtime emitter passed in, which is the same instance).
+        if decision.decision_id not in pending_decisions:
+            dr_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
+            req = DecisionRequest(
+                decision_id=decision.decision_id,
+                step_id=decision.step_id or "",
+                question=decision.question or "",
+                options=decision.options or [],
+                requested_by=dr_actor,
+                requested_at=datetime.now(UTC),
+            )
+            pending_decisions[decision.decision_id] = req.model_dump(mode="json")
+
+            dr_payload = DecisionInputRequestedPayload(
+                run_id=snapshot.run_id,
+                decision_id=decision.decision_id,
+                step_id=decision.step_id or "",
+                question=decision.question or "",
+                options=tuple(decision.options or []),
+                input_key=decision.input_key,
+                actor=dr_actor,
+            )
+            _append_event(
+                run_dir, DECISION_INPUT_REQUESTED, dr_payload.model_dump(mode="json")
+            )
+            sync_emitter.emit_decision_input_requested(dr_payload)
     elif decision.kind == "terminal" and did_complete_step:
         mc_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
         mc_payload = MissionRunCompletedPayload(
@@ -640,7 +685,7 @@ def _advance_run_state_after_composition(
         sync_emitter.emit_mission_run_completed(mc_payload)
 
     # Step 4 — persist the new snapshot so the next ``decide_next_via_runtime``
-    # call observes the fresh issued_step_id.
+    # call observes the fresh issued_step_id and any new pending_decisions.
     snapshot = MissionRunSnapshot(
         run_id=snapshot.run_id,
         mission_key=snapshot.mission_key,
@@ -651,7 +696,7 @@ def _advance_run_state_after_composition(
         completed_steps=snapshot.completed_steps,
         inputs=snapshot.inputs,
         decisions=snapshot.decisions,
-        pending_decisions=snapshot.pending_decisions,
+        pending_decisions=pending_decisions,
         blocked_reason=snapshot.blocked_reason,
     )
     _write_snapshot(run_dir, snapshot)
