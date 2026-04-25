@@ -15,11 +15,11 @@ Three work packages, dependency-ordered. Each WP is contained, ≤7 subtasks, no
 | T002 | Extend `_ACTION_PROFILE_DEFAULTS` with `("software-dev","tasks") → "architect-alphonso"` | WP01 |  | [D] |
 | T003 | Write `test_software_dev_composition.py` covering all five action contracts | WP01 | [P] (with T001/T002 once written) | [D] |
 | T004 | Confirm existing `test_executor.py` and shipped-contract loaders still pass | WP01 |  | [D] |
-| T005 | Add composition dispatch helper in `runtime_bridge.py` for `(software-dev, {specify,plan,tasks,implement,review})` | WP02 |  |
-| T006 | Implement collapsed `tasks` post-action guard (replaces `tasks_outline`/`tasks_packages`/`tasks_finalize` triple) | WP02 |  |
-| T007 | Wire post-action guard semantics for the other four composed actions (parity with `_check_step_guards`) | WP02 |  |
-| T008 | Write `test_runtime_bridge_composition.py` (positive dispatch, fall-through, missing-contract error, guard parity) | WP02 | [P] |
-| T009 | Confirm existing `test_runtime_bridge.py` and `test_agent_commands_routing.py` still pass | WP02 |  |
+| T005 | Add composition dispatch helper in `runtime_bridge.py` for `(software-dev, {specify,plan,tasks,implement,review})` | WP02 |  | [D] |
+| T006 | Implement collapsed `tasks` post-action guard (replaces `tasks_outline`/`tasks_packages`/`tasks_finalize` triple) | WP02 |  | [D] |
+| T007 | Wire post-action guard semantics for the other four composed actions (parity with `_check_step_guards`) | WP02 |  | [D] |
+| T008 | Write `test_runtime_bridge_composition.py` (positive dispatch, fall-through, missing-contract error, guard parity) | WP02 | [D] |
+| T009 | Confirm existing `test_runtime_bridge.py` and `test_agent_commands_routing.py` still pass | WP02 |  | [D] |
 | T010 | Prepend deprecation header comment to `mission-runtime.yaml` | WP03 | [P] |
 | T011 | Create `actions/tasks/guidelines.md` mirroring the four sibling action guidelines | WP03 | [P] |
 | T012 | Run focused tests + broader sweep; verify NFR-001 (no measurable wall-clock regression) | WP03 |  |
@@ -72,11 +72,11 @@ Three work packages, dependency-ordered. Each WP is contained, ≤7 subtasks, no
 
 ### Included subtasks
 
-- [ ] T005 Add a composition dispatch branch in `src/specify_cli/next/runtime_bridge.py`, guarded on `mission == "software-dev"` and `action ∈ {specify, plan, tasks, implement, review}` (WP02)
-- [ ] T006 Implement the collapsed `tasks` post-action guard reusing `_has_raw_dependencies_field` (WP02)
-- [ ] T007 Wire the `specify`/`plan`/`implement`/`review` post-action guards into the composition path with parity to the legacy `_check_step_guards` (WP02)
-- [ ] T008 Write `tests/specify_cli/next/test_runtime_bridge_composition.py` covering positive dispatch, fall-through for non-software-dev missions, missing-contract → `StepContractExecutionError` → non-zero CLI surface, and guard parity for each action (WP02)
-- [ ] T009 Run `pytest tests/specify_cli/next/test_runtime_bridge.py tests/specify_cli/runtime/test_agent_commands_routing.py` and confirm green (WP02)
+- [x] T005 Add a composition dispatch branch in `src/specify_cli/next/runtime_bridge.py`, guarded on `mission == "software-dev"` and `action ∈ {specify, plan, tasks, implement, review}` (WP02)
+- [x] T006 Implement the collapsed `tasks` post-action guard reusing `_has_raw_dependencies_field` (WP02)
+- [x] T007 Wire the `specify`/`plan`/`implement`/`review` post-action guards into the composition path with parity to the legacy `_check_step_guards` (WP02)
+- [x] T008 Write `tests/specify_cli/next/test_runtime_bridge_composition.py` covering positive dispatch, fall-through for non-software-dev missions, missing-contract → `StepContractExecutionError` → non-zero CLI surface, and guard parity for each action (WP02)
+- [x] T009 Run `pytest tests/specify_cli/next/test_runtime_bridge.py tests/specify_cli/runtime/test_agent_commands_routing.py` and confirm green (WP02)
 
 ### Implementation sketch
 
