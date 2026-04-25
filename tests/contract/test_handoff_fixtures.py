@@ -20,6 +20,18 @@ from specify_cli.sync.emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES
 # These match the examples in contracts/batch-api-contract.md.
 # ---------------------------------------------------------------------------
 
+# Shared placeholder identity values for fixture envelopes. The handoff
+# serialization tests only need these to be schema-valid (per the public
+# spec_kitty_events.Event Pydantic model); their semantic content is
+# irrelevant to the assertions below.
+_FIXTURE_BUILD_ID = "spec-kitty-cli@a1b2c3d4e5f6"
+_FIXTURE_PROJECT_UUID = "550e8400-e29b-41d4-a716-446655440000"
+_FIXTURE_PROJECT_SLUG = "spec-kitty"
+_FIXTURE_CORRELATION_ID = "01JMBYZ0000000000000000000"
+_FIXTURE_SCHEMA_VERSION = "3.0.0"
+_FIXTURE_DATA_TIER = 0
+
+
 FIXTURE_EVENTS = [
     # 1. WPStatusChanged (from fixture_01)
     {
@@ -34,9 +46,15 @@ FIXTURE_EVENTS = [
             "mission_slug": "039-cli-2x-readiness",
         },
         "timestamp": "2026-02-12T10:00:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 1,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 2. WPCreated (from fixture_02)
     {
@@ -50,9 +68,15 @@ FIXTURE_EVENTS = [
             "dependencies": ["WP02", "WP03"],
         },
         "timestamp": "2026-02-12T11:01:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 11,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 3. WPAssigned
     {
@@ -66,9 +90,15 @@ FIXTURE_EVENTS = [
             "retry_count": 0,
         },
         "timestamp": "2026-02-12T10:26:30+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 5,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 4. MissionCreated (from fixture_02)
     {
@@ -87,9 +117,15 @@ FIXTURE_EVENTS = [
             "created_at": "2026-02-12T11:02:00+00:00",
         },
         "timestamp": "2026-02-12T11:02:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 12,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 5. MissionClosed
     {
@@ -103,9 +139,15 @@ FIXTURE_EVENTS = [
             "total_duration": "8h 30m",
         },
         "timestamp": "2026-02-12T18:00:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 100,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 6. HistoryAdded
     {
@@ -119,9 +161,15 @@ FIXTURE_EVENTS = [
             "author": "wp07-agent",
         },
         "timestamp": "2026-02-12T14:00:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 50,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 7. ErrorLogged
     {
@@ -136,9 +184,15 @@ FIXTURE_EVENTS = [
             "agent_id": "wp03-agent",
         },
         "timestamp": "2026-02-12T15:00:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 60,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
     # 8. DependencyResolved
     {
@@ -151,9 +205,15 @@ FIXTURE_EVENTS = [
             "resolution_type": "completed",
         },
         "timestamp": "2026-02-12T16:00:00+00:00",
+        "build_id": _FIXTURE_BUILD_ID,
         "node_id": "a1b2c3d4e5f6",
         "lamport_clock": 70,
         "causation_id": None,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "project_slug": _FIXTURE_PROJECT_SLUG,
+        "correlation_id": _FIXTURE_CORRELATION_ID,
+        "schema_version": _FIXTURE_SCHEMA_VERSION,
+        "data_tier": _FIXTURE_DATA_TIER,
     },
 ]
 
@@ -285,9 +345,15 @@ class TestFixtureJsonFiles:
                 "aggregate_id": event_data["aggregate_id"],
                 "payload": event_data["payload"],
                 "timestamp": event_data["timestamp"],
+                "build_id": event_data["build_id"],
                 "node_id": event_data["node_id"],
                 "lamport_clock": event_data["lamport_clock"],
                 "causation_id": event_data.get("causation_id"),
+                "project_uuid": event_data["project_uuid"],
+                "project_slug": event_data.get("project_slug"),
+                "correlation_id": event_data["correlation_id"],
+                "schema_version": event_data.get("schema_version", "3.0.0"),
+                "data_tier": event_data.get("data_tier", 0),
             }
             event = Event(**core)
             assert event.event_id == event_data["event_id"]
@@ -303,9 +369,15 @@ class TestFixtureJsonFiles:
                 "aggregate_id": event_data["aggregate_id"],
                 "payload": event_data["payload"],
                 "timestamp": event_data["timestamp"],
+                "build_id": event_data["build_id"],
                 "node_id": event_data["node_id"],
                 "lamport_clock": event_data["lamport_clock"],
                 "causation_id": event_data.get("causation_id"),
+                "project_uuid": event_data["project_uuid"],
+                "project_slug": event_data.get("project_slug"),
+                "correlation_id": event_data["correlation_id"],
+                "schema_version": event_data.get("schema_version", "3.0.0"),
+                "data_tier": event_data.get("data_tier", 0),
             }
             Event(**core)
 
