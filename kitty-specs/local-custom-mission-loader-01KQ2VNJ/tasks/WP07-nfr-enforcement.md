@@ -184,3 +184,4 @@ CI YAML changes: confirm `gh workflow run ci-quality.yml` (if available) or `act
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T19:17:48Z – claude:sonnet:implementer-ivan:implementer – shell_pid=49074 – Started implementation via action command
+- 2026-04-25T19:23:08Z – claude:sonnet:implementer-ivan:implementer – shell_pid=49074 – Perf p95 / wall-clock checks landed; CI guards configured
