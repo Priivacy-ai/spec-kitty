@@ -21,7 +21,8 @@ subtasks:
 - T028
 phase: Phase 3 - Operator surface
 assignee: ''
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "40006"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -280,3 +281,4 @@ End-to-end integration tests live in WP06.
 ## Activity Log
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
+- 2026-04-25T18:52:07Z – claude:sonnet:implementer-ivan:implementer – shell_pid=40006 – Started implementation via action command
