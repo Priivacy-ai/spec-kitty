@@ -27,7 +27,6 @@ from types import SimpleNamespace
 from typing import Any
 
 from specify_cli.mission_metadata import mission_identity_fields
-from specify_cli.mission_v1.events import read_events
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
 from specify_cli.workspace_context import resolve_workspace_for_wp
@@ -125,6 +124,8 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
         (``specify_cli.next._internal_runtime``) via ``state.json`` in the
         run directory.
     """
+    from specify_cli.mission_v1.events import read_events
+
     events = read_events(feature_dir)
     last_state = initial_state
     for event in events:

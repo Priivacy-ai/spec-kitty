@@ -17,6 +17,14 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+def test_derive_mission_state_imports_legacy_events_lazily(tmp_path: Path) -> None:
+    """Legacy state derivation keeps event-log imports off the package import path."""
+    from specify_cli.next.decision import derive_mission_state
+
+    with patch("specify_cli.mission_v1.events.read_events", return_value=[]):
+        assert derive_mission_state(tmp_path, "discovery") == "discovery"
+
+
 def _make_mock_decision(
     is_query: bool = False,
     mission_state: str = "specify",

@@ -44,6 +44,14 @@ def test_notice_skipped_when_runtime_not_installed(
     assert captured.err == ""
 
 
+def test_runtime_package_missing_distribution_returns_false() -> None:
+    """PackageNotFoundError is the normal post-cutover target state."""
+    from importlib import metadata
+
+    with patch.object(metadata, "distribution", side_effect=metadata.PackageNotFoundError):
+        assert notice_mod._runtime_package_installed() is False
+
+
 def test_notice_emitted_on_first_invocation(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,

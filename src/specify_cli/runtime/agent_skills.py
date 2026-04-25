@@ -79,10 +79,6 @@ def _sync_skill_root(root: Path, registry: SkillRegistry) -> None:
 
 def ensure_global_agent_skills() -> None:
     """Ensure user-global canonical skill roots are populated for this CLI version."""
-    registry = _discover_registry()
-    if registry is None:
-        return
-
     kittify_home = get_kittify_home()
     kittify_home.mkdir(parents=True, exist_ok=True)
     cache_dir = kittify_home / "cache"
@@ -91,6 +87,10 @@ def ensure_global_agent_skills() -> None:
     version_file = cache_dir / _VERSION_FILENAME
     cli_version = _get_cli_version()
     if version_file.exists() and version_file.read_text().strip() == cli_version:
+        return
+
+    registry = _discover_registry()
+    if registry is None:
         return
 
     lock_path = cache_dir / _LOCK_FILENAME

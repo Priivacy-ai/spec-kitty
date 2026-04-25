@@ -471,9 +471,10 @@ class TestRegistration:
     def test_migration_is_registered(self) -> None:
         """RestorePromptCommandsMigration is discoverable via MigrationRegistry."""
         from specify_cli.upgrade.registry import MigrationRegistry
+        from specify_cli.upgrade.migrations import auto_discover_migrations
 
-        # Import triggers auto-discovery
-        import specify_cli.upgrade.migrations  # noqa: F401
+        MigrationRegistry.clear()
+        auto_discover_migrations()
 
         all_ids = list(MigrationRegistry._migrations.keys())
         assert "2.1.3_restore_prompt_commands" in all_ids

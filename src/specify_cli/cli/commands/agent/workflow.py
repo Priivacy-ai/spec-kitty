@@ -16,7 +16,6 @@ from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from charter.context import build_charter_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.git import safe_commit
@@ -40,6 +39,13 @@ from specify_cli.workspace_context import resolve_workspace_for_wp
 from datetime import UTC
 
 _REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
+
+
+def build_charter_context(*args, **kwargs):
+    """Patchable lazy wrapper for charter context rendering."""
+    from charter.context import build_charter_context as _build_charter_context
+
+    return _build_charter_context(*args, **kwargs)
 
 
 def _write_prompt_to_file(

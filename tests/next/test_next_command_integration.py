@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -515,6 +516,26 @@ class TestNextCommandCLI:
         assert data["preview_step"] is not None
         assert "run_id" in data
         assert data["step_id"] is None
+
+    def test_json_output_suppresses_runtime_notice(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Machine JSON output is never prefixed by the stale-runtime notice."""
+        repo_root = _scaffold_project(tmp_path)
+        monkeypatch.chdir(repo_root)
+
+        def _emit_notice() -> bool:
+            print("stale runtime notice", file=sys.stderr)
+            return True
+
+        with patch("specify_cli.cli.commands.next_cmd.maybe_emit_runtime_pkg_notice", side_effect=_emit_notice):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--mission", "042-test-feature", "--json"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "stale runtime notice" not in result.output
+        data = json.loads(result.output)
+        assert data["mission_slug"] == "042-test-feature"
 
     def test_invalid_result_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Invalid --result value causes exit code 1."""

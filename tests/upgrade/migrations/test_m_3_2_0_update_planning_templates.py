@@ -154,7 +154,7 @@ class TestDetect:
     def test_detect_skips_unreadable_files(self, tmp_path: Path) -> None:
         """detect() returns False when file exists but cannot be read (OSError)."""
         project = _setup_project(tmp_path, agents=["claude"])
-        stale = _create_agent_file(
+        _create_agent_file(
             project,
             ".claude",
             "commands",
@@ -359,8 +359,10 @@ class TestRegistration:
     def test_migration_is_registered(self) -> None:
         """UpdatePlanningTemplatesMigration is discoverable via MigrationRegistry."""
         from specify_cli.upgrade.registry import MigrationRegistry
+        from specify_cli.upgrade.migrations import auto_discover_migrations
 
-        import specify_cli.upgrade.migrations  # noqa: F401
+        MigrationRegistry.clear()
+        auto_discover_migrations()
 
         all_ids = list(MigrationRegistry._migrations.keys())
         assert "3.2.0_update_planning_templates" in all_ids
