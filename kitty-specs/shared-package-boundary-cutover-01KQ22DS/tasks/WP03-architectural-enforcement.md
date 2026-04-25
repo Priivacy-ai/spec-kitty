@@ -13,8 +13,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "40887"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "42391"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -289,3 +289,4 @@ spec-kitty agent action implement WP03 --agent <name> --mission shared-package-b
 
 - 2026-04-25T11:15:54Z – claude:opus-4.7:python-implementer:implementer – shell_pid=40887 – Started implementation via action command
 - 2026-04-25T11:22:55Z – claude:opus-4.7:python-implementer:implementer – shell_pid=40887 – Ready for review: R1 (no spec_kitty_runtime imports) live + AST + injection tests; R2 (vendored events) wired with xfail until WP04/WP05 land; R3 (tracker no re-export) live; pyproject R6 live, R4/R5 xfail until WP08. 9 pass, 3 xfail, ~3s runtime (NFR-006 ok).
+- 2026-04-25T11:23:12Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=42391 – Started review via action command
