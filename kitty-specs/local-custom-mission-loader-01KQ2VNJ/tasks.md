@@ -23,11 +23,11 @@
 | T010 | Unit tests: retrospective marker presence / absence | WP02 | [D] |
 | T011 | Unit tests: every closed error code reachable + envelope shape | WP02 | [D] |
 | T012 | Unit tests: precedence / shadow rules / reserved-key rejection | WP02 | [D] |
-| T013 | Create `mission_loader/contract_synthesis.py` (`synthesize_contracts`) | WP03 |  |
-| T014 | Create `mission_loader/registry.py` (in-process registry shadow) | WP03 |  |
-| T015 | Hook contract registration into `MissionStepContractRepository` lookup path | WP03 |  |
-| T016 | Unit tests: contract synthesis output shape (FR-008) | WP03 | [P] |
-| T017 | Unit tests: registry shadow precedence + lifetime | WP03 | [P] |
+| T013 | Create `mission_loader/contract_synthesis.py` (`synthesize_contracts`) | WP03 |  | [D] |
+| T014 | Create `mission_loader/registry.py` (in-process registry shadow) | WP03 |  | [D] |
+| T015 | Hook contract registration into `MissionStepContractRepository` lookup path | WP03 |  | [D] |
+| T016 | Unit tests: contract synthesis output shape (FR-008) | WP03 | [D] |
+| T017 | Unit tests: registry shadow precedence + lifetime | WP03 | [D] |
 | T018 | Extend `_should_dispatch_via_composition` (read `agent_profile`) | WP04 |  |
 | T019 | Add `_resolve_step_agent_profile()` helper in `runtime_bridge.py` | WP04 |  |
 | T020 | Extend `_dispatch_via_composition` caller to thread `profile_hint` | WP04 |  |
@@ -129,11 +129,11 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T013 Create `mission_loader/contract_synthesis.py` with `synthesize_contracts(template) -> list[MissionStepContract]` (WP03)
-- [ ] T014 Create `mission_loader/registry.py` with `RuntimeContractRegistry` class wrapping `MissionStepContractRepository` (WP03)
-- [ ] T015 Wire registry shadow into the lookup path used by `StepContractExecutor` (e.g., expose a context-managed `with registered_runtime_contracts(template):` helper) (WP03)
-- [ ] T016 Unit tests: one contract per composed step; `mission == template.mission.key`; `action == step.id`; profile_hint default; contract_ref short-circuit (WP03)
-- [ ] T017 Unit tests: registry shadow takes precedence over on-disk; lifetime ends after context exits (WP03)
+- [x] T013 Create `mission_loader/contract_synthesis.py` with `synthesize_contracts(template) -> list[MissionStepContract]` (WP03)
+- [x] T014 Create `mission_loader/registry.py` with `RuntimeContractRegistry` class wrapping `MissionStepContractRepository` (WP03)
+- [x] T015 Wire registry shadow into the lookup path used by `StepContractExecutor` (e.g., expose a context-managed `with registered_runtime_contracts(template):` helper) (WP03)
+- [x] T016 Unit tests: one contract per composed step; `mission == template.mission.key`; `action == step.id`; profile_hint default; contract_ref short-circuit (WP03)
+- [x] T017 Unit tests: registry shadow takes precedence over on-disk; lifetime ends after context exits (WP03)
 
 **Implementation sketch**: `synthesize_contracts()` walks `template.steps`, skipping steps where `requires_inputs` is non-empty (decision-required gates do NOT need contracts) and steps with `contract_ref` set. For each remaining composed step, build `MissionStepContract(id=f"custom:{key}:{step.id}", mission=key, action=step.id, steps=[MissionStep(id=f"{step.id}.execute", title=step.title, ...)])`. `RuntimeContractRegistry` exposes `register(contracts)`, `lookup(id) -> MissionStepContract | None`, and a context manager that auto-deregisters.
 

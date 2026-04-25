@@ -1,12 +1,12 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KQ2Y9GSF6G9DZHAD2DRG74GP",
-  "materialized_at": "2026-04-25T18:26:36.975836+00:00",
+  "event_count": 22,
+  "last_event_id": "01KQ2YFBBCG0VHC9XRG1P4FSRB",
+  "materialized_at": "2026-04-25T18:29:48.012128+00:00",
   "mission_number": "",
   "mission_slug": "local-custom-mission-loader-01KQ2VNJ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -25,18 +25,18 @@
       "last_transition_at": "2026-04-25T18:14:35.059397+00:00"
     },
     "WP02": {
-      "actor": "claude:opus:reviewer-renata:reviewer",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KQ2Y9GSF6G9DZHAD2DRG74GP",
-      "last_transition_at": "2026-04-25T18:26:36.975836+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KQ2YE60M83QH75HRSF1TQXMK",
+      "last_transition_at": "2026-04-25T18:29:09.780273+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet:implementer-ivan:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ2X6DWAW0DT5M5NBT4WRE4C",
-      "last_transition_at": "2026-04-25T18:07:27.114055+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ2YFBBCG0VHC9XRG1P4FSRB",
+      "last_transition_at": "2026-04-25T18:29:48.012128+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
