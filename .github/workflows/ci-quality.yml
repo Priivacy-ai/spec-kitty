@@ -2199,6 +2199,18 @@ jobs:
           print('OK: spec-kitty next returned a structured JSON payload')
           "
 
+      - name: NFR-003 latency regression gate
+        # Compares the median wall-clock of `spec-kitty next` across 5 runs
+        # against the pinned pre-cutover baseline in
+        # kitty-specs/shared-package-boundary-cutover-01KQ22DS/nfr-003-baseline.json
+        # and fails the build if regression > 20%.
+        run: |
+          /tmp/clean-venv/bin/python ${{ github.workspace }}/scripts/check_nfr_003_latency.py \
+            --python /tmp/clean-venv/bin/python \
+            --fixture /tmp/fixture \
+            --baseline ${{ github.workspace }}/kitty-specs/shared-package-boundary-cutover-01KQ22DS/nfr-003-baseline.json \
+            --runs 5
+
   # ---------------------------------------------------------------------------
   # quality-gate: single check that aggregates all required job results.
   # Skipped jobs are OK; only failures block.

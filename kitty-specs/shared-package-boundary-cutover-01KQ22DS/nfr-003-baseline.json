@@ -1,0 +1,23 @@
+{
+  "_about": "Pinned latency baseline for NFR-003 of mission shared-package-boundary-cutover-01KQ22DS. The CI gate compares the median of N fresh `spec-kitty next --agent test --mission clean-install-fixture-01KQ22XX --json` runs against this number and fails the build if regression > tolerance_pct.",
+  "fixture": "tests/fixtures/clean_install_fixture_mission",
+  "command": [
+    "spec-kitty",
+    "next",
+    "--agent",
+    "test",
+    "--mission",
+    "clean-install-fixture-01KQ22XX",
+    "--json"
+  ],
+  "pre_cutover_sha": "cbe62677",
+  "pre_cutover_median_seconds": 0.745,
+  "pre_cutover_methodology": "5 sequential subprocess runs on macOS Darwin 24.6.0, Python 3.14.0, editable-installed CLI in a fresh venv against the bundled clean-install fixture; median of wall-clock per `time.perf_counter()`.",
+  "post_cutover_median_seconds": 0.688,
+  "post_cutover_sha": "post-merge/shared-package-boundary-cutover-01KQ22DS-nfr-closure",
+  "delta_pct": -7.7,
+  "captured_at": "2026-04-25",
+  "tolerance_pct": 20.0,
+  "ci_target_median_seconds": 0.894,
+  "_ci_target_note": "ci_target_median_seconds = pre_cutover_median_seconds * (1 + tolerance_pct / 100). The gate enforces (current_median <= ci_target_median_seconds), i.e. <=20% regression vs the pinned pre-cutover baseline."
+}
