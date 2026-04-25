@@ -243,3 +243,4 @@ The 21-case parametrization in `test_runtime_bridge_composition.py` MUST stay gr
 - 2026-04-25T18:39:42Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Started implementation via action command
 - 2026-04-25T18:47:37Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Composition gate widened; built-in dispatch byte-identical (35-case existing suite green, +2 new); custom missions dispatch via agent_profile
 - 2026-04-25T18:48:20Z – claude:opus:reviewer-renata:reviewer – shell_pid=38425 – Started review via action command
+- 2026-04-25T18:51:19Z – claude:opus:reviewer-renata:reviewer – shell_pid=38425 – Review passed: gate short-circuits for built-ins (verified by mock); 35 existing + 2 new composition tests green; 14 gate widening tests green; mypy --strict clean; _ACTION_PROFILE_DEFAULTS untouched (comment-only); no regression in internal_runtime_parity, shared_package_boundary, mission_loader; diff scope clean (4 owned files).
