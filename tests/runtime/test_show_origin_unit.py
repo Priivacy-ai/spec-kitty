@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-from specify_cli.runtime.show_origin import (
+from runtime.orchestration.show_origin import (
     OriginEntry,
     collect_origins,
 )
@@ -52,15 +52,15 @@ class TestCollectOriginsBasic:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -80,15 +80,15 @@ class TestCollectOriginsBasic:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -104,15 +104,15 @@ class TestCollectOriginsBasic:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -134,15 +134,15 @@ class TestCollectOriginsBasic:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -180,15 +180,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -211,15 +211,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -241,15 +241,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -283,15 +283,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -321,15 +321,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -361,15 +361,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -401,15 +401,15 @@ class TestShowOriginTierLabels:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
+                "runtime.orchestration.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):

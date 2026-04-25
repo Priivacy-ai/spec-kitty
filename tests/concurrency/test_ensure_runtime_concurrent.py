@@ -40,7 +40,7 @@ def _run_ensure(args: tuple[str, str]) -> bool:
     os.environ["SPEC_KITTY_HOME"] = home_path
     os.environ["SPEC_KITTY_TEMPLATE_ROOT"] = str(Path(asset_dir) / "missions")
     try:
-        from specify_cli.runtime.bootstrap import ensure_runtime
+        from runtime.orchestration.bootstrap import ensure_runtime
 
         ensure_runtime()
         return True

@@ -11,7 +11,7 @@ from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
 
-from specify_cli.next.decision import (
+from runtime.decisioning.decision import (
     Decision,
     DecisionKind,
     _compute_wp_progress,
@@ -109,7 +109,7 @@ def _advance_runtime_to_step(
     Calls decide_next repeatedly to advance through the DAG steps
     (discovery -> specify -> plan -> tasks -> implement -> review -> accept).
     """
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.bridge.runtime_bridge import get_or_start_run
 
     from specify_cli.mission import get_mission_type
 
@@ -152,7 +152,7 @@ def _complete_all_steps(
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.bridge.runtime_bridge import get_or_start_run
 
     from specify_cli.mission import get_mission_type
 
@@ -551,7 +551,7 @@ class TestDecideNext:
 class TestTaskStepAliases:
     def test_tasks_outline_maps_to_tasks_outline_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_outline → tasks-outline via alias."""
-        from specify_cli.next.decision import _state_to_action
+        from runtime.decisioning.decision import _state_to_action
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
@@ -567,7 +567,7 @@ class TestTaskStepAliases:
 
     def test_tasks_packages_maps_to_tasks_packages_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_packages → tasks-packages via alias."""
-        from specify_cli.next.decision import _state_to_action
+        from runtime.decisioning.decision import _state_to_action
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
@@ -583,7 +583,7 @@ class TestTaskStepAliases:
 
     def test_tasks_finalize_maps_to_tasks_finalize_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_finalize → tasks-finalize via alias."""
-        from specify_cli.next.decision import _state_to_action
+        from runtime.decisioning.decision import _state_to_action
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
@@ -711,7 +711,7 @@ class TestInReviewLaneDecision:
         fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
 
         with patch(
-            "specify_cli.next.decision.resolve_workspace_for_wp",
+            "runtime.decisioning.decision.resolve_workspace_for_wp",
             return_value=fake_ws,
         ):
             action, wp_id, ws = _state_to_action(
@@ -734,7 +734,7 @@ class TestInReviewLaneDecision:
         fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
 
         with patch(
-            "specify_cli.next.decision.resolve_workspace_for_wp",
+            "runtime.decisioning.decision.resolve_workspace_for_wp",
             return_value=fake_ws,
         ):
             action, wp_id, ws = _state_to_action(
@@ -756,7 +756,7 @@ class TestInReviewLaneDecision:
         # review state falls through to generic template resolution
         # when no for_review WPs exist — verify it doesn't pick up in_review
         with patch(
-            "specify_cli.runtime.resolver.resolve_command",
+            "runtime.discovery.resolver.resolve_command",
             side_effect=FileNotFoundError,
         ):
             action, wp_id, ws = _state_to_action(

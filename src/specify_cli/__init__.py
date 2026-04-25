@@ -98,9 +98,9 @@ def main_callback(
 
     # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
     # Must run BEFORE check_version_pin() so global assets are available.
-    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
-    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
-    from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+    from runtime.agents.commands import ensure_global_agent_commands
+    from runtime.agents.skills import ensure_global_agent_skills
+    from runtime.orchestration.bootstrap import check_version_pin, ensure_runtime
 
     ensure_runtime()
     ensure_global_agent_skills()

@@ -1,0 +1,56 @@
+{
+  "event_count": 34,
+  "last_event_id": "01KQ002RG6GS8TZKF5F71ZMS2P",
+  "materialized_at": "2026-04-24T15:00:09.350890+00:00",
+  "mission_number": "96",
+  "mission_slug": "resolver-and-bootstrap-consolidation-01KPZS0A",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 1,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ002GAKA3FB27FRS0N77M4G",
+      "last_transition_at": "2026-04-24T15:00:00.979661+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ002K3A5WS8HFMV33KW676W",
+      "last_transition_at": "2026-04-24T15:00:03.818539+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "canceled",
+      "last_event_id": "01KPZZMZB4GXB2FKEX51NZHD3B",
+      "last_transition_at": "2026-04-24T14:52:37.604636+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ002NSTFT4KTE70C3KP2XPS",
+      "last_transition_at": "2026-04-24T15:00:06.586604+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ002RG6GS8TZKF5F71ZMS2P",
+      "last_transition_at": "2026-04-24T15:00:09.350890+00:00"
+    }
+  }
+}

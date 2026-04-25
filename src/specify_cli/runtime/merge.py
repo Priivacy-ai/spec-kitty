@@ -1,59 +1,21 @@
-"""Asset merging: populate global runtime from package assets.
+"""DEPRECATED — specify_cli.runtime.merge is a compatibility shim.
 
-Overwrites package-managed directories and files while preserving
-user-owned data (config.yaml, missions/custom/, cache/).
+Import from runtime.orchestration.merge instead:
+    from runtime.orchestration.merge import merge_runtime_assets
 """
-
 from __future__ import annotations
 
-import shutil
-from pathlib import Path
+__deprecated__ = True
+__canonical_import__ = "runtime.orchestration.merge"
+__removal_release__ = "3.4.0"
+__deprecation_message__ = (
+    "specify_cli.runtime.merge is deprecated; "
+    "use 'from runtime.orchestration.merge import ...' instead. "
+    "Scheduled for removal in 3.4.0."
+)
 
-# Directories managed by the package — overwritten on every update.
-# NEVER add missions/custom/ here; it is user-owned.
-MANAGED_DIRS: list[str] = [
-    "missions/software-dev",
-    "missions/research",
-    "missions/documentation",
-    "missions/plan",
-    "missions/audit",
-    "missions/refactor",
-    "scripts",
-]
+import warnings
 
-# Individual files managed by the package — overwritten on every update.
-MANAGED_FILES: list[str] = [
-    "AGENTS.md",
-]
+warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
 
-
-def merge_package_assets(source: Path, dest: Path) -> None:
-    """Overwrite package-managed files only. User files are untouched.
-
-    For each managed directory: if it exists in source, remove the
-    corresponding directory in dest (if present) and replace it with the
-    source version.  For each managed file: copy from source to dest if
-    it exists in source.
-
-    Files/directories NOT listed in MANAGED_DIRS or MANAGED_FILES
-    (e.g. config.yaml, missions/custom/) are never touched.
-
-    Args:
-        source: Temporary directory with fresh package assets.
-        dest: Target ~/.kittify/ directory.
-    """
-    for managed_dir in MANAGED_DIRS:
-        src = source / managed_dir
-        dst = dest / managed_dir
-        if src.exists():
-            if dst.exists():
-                shutil.rmtree(dst)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(src, dst)
-
-    for managed_file in MANAGED_FILES:
-        src = source / managed_file
-        dst = dest / managed_file
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+from runtime.orchestration.merge import *  # noqa: F401, F403  # NOSONAR

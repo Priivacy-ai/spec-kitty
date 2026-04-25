@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.runtime.resolver import (
+from runtime.discovery.resolver import (
     ResolutionResult,
     ResolutionTier,
     resolve_command,
@@ -85,11 +85,11 @@ class TestResolutionPrecedence:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -112,11 +112,11 @@ class TestResolutionPrecedence:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             warnings.catch_warnings(record=True) as w,
@@ -141,11 +141,11 @@ class TestResolutionPrecedence:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -163,11 +163,11 @@ class TestResolutionPrecedence:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "nonexistent_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -183,11 +183,11 @@ class TestResolutionPrecedence:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "empty_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),pytest.raises(FileNotFoundError, match="not found in any resolution tier")
         ):
@@ -211,11 +211,11 @@ class TestResolveCommand:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -233,11 +233,11 @@ class TestResolveCommand:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -262,11 +262,11 @@ class TestResolveMission:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -284,11 +284,11 @@ class TestResolveMission:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             warnings.catch_warnings(record=True) as w,
@@ -307,11 +307,11 @@ class TestResolveMission:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),pytest.raises(FileNotFoundError, match="not found in any resolution tier")
         ):
@@ -339,11 +339,11 @@ class TestLegacyResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             warnings.catch_warnings(record=True) as w,
@@ -382,11 +382,11 @@ class TestLegacyResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             warnings.catch_warnings(record=True) as w,
@@ -425,11 +425,11 @@ class TestLegacyResolution:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             warnings.catch_warnings(record=True) as w,
@@ -501,11 +501,11 @@ class TestInitResolverIntegration:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             # Also patch at the init module level (used in the discovery scan)
@@ -550,11 +550,11 @@ class TestInitResolverIntegration:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
@@ -611,11 +611,11 @@ class TestInitResolverIntegration:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
             patch(
@@ -644,11 +644,11 @@ class TestInitResolverIntegration:
 
         with (
             patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
+                "runtime.discovery.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
+                "runtime.discovery.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
             patch(

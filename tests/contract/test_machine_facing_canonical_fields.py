@@ -13,7 +13,7 @@ from specify_cli.acceptance_matrix import AcceptanceMatrix, write_acceptance_mat
 from specify_cli.agent_utils.status import show_kanban_status
 from specify_cli.core.worktree_topology import FeatureTopology, WPTopologyEntry, render_topology_json
 from specify_cli.context.models import MissionContext
-from specify_cli.next.decision import Decision, DecisionKind
+from runtime.decisioning.decision import Decision, DecisionKind
 from specify_cli.orchestrator_api.commands import app as orchestrator_app
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.policy.merge_gates import evaluate_merge_gates

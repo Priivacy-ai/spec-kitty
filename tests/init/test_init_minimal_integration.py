@@ -209,7 +209,7 @@ class TestInitResolvesFromGlobal:
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
-        from specify_cli.runtime.resolver import resolve_template, ResolutionTier
+        from runtime.discovery.resolver import resolve_template, ResolutionTier
 
         result = resolve_template("spec-template.md", project, mission="software-dev")
         assert result.tier == ResolutionTier.GLOBAL_MISSION
@@ -230,7 +230,7 @@ class TestInitResolvesFromGlobal:
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
-        from specify_cli.runtime.resolver import resolve_command, ResolutionTier
+        from runtime.discovery.resolver import resolve_command, ResolutionTier
 
         # WP01: command-templates were restored to the package; resolver finds them
         result = resolve_command("specify.md", project, mission="software-dev")
@@ -247,7 +247,7 @@ class TestInitResolvesFromGlobal:
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
-        from specify_cli.runtime.resolver import resolve_mission, ResolutionTier
+        from runtime.discovery.resolver import resolve_mission, ResolutionTier
 
         result = resolve_mission("software-dev", project)
         assert result.tier == ResolutionTier.GLOBAL_MISSION
@@ -265,7 +265,7 @@ class TestInitResolvesFromGlobal:
         override_dir.mkdir(parents=True)
         (override_dir / "spec-template.md").write_text("# Override template\n")
 
-        from specify_cli.runtime.resolver import resolve_template, ResolutionTier
+        from runtime.discovery.resolver import resolve_template, ResolutionTier
 
         result = resolve_template("spec-template.md", project, mission="software-dev")
         assert result.tier == ResolutionTier.OVERRIDE
@@ -280,7 +280,7 @@ class TestInitResolvesFromGlobal:
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
-        from specify_cli.runtime.resolver import resolve_command, ResolutionTier
+        from runtime.discovery.resolver import resolve_command, ResolutionTier
 
         # Package default should exist for standard commands like specify.md
         try:
@@ -377,7 +377,7 @@ class TestEnsureRuntimeCalledDuringInit:
 
         # Patch ensure_runtime at the module level so the lazy import picks it up
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap.ensure_runtime",
+            "runtime.orchestration.bootstrap.ensure_runtime",
             mock_ensure_runtime,
         )
 
@@ -387,7 +387,7 @@ class TestEnsureRuntimeCalledDuringInit:
 
         # Call the code path manually (mirrors lines 746-757 of init.py)
         try:
-            from specify_cli.runtime.bootstrap import ensure_runtime
+            from runtime.orchestration.bootstrap import ensure_runtime
             ensure_runtime()
         except Exception:
             pass
@@ -407,7 +407,7 @@ class TestEnsureRuntimeCalledDuringInit:
             raise RuntimeError("simulated bootstrap failure")
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap.ensure_runtime",
+            "runtime.orchestration.bootstrap.ensure_runtime",
             mock_ensure_runtime_fail,
         )
 
@@ -415,7 +415,7 @@ class TestEnsureRuntimeCalledDuringInit:
 
         # Simulate the init code path with failure
         try:
-            from specify_cli.runtime.bootstrap import ensure_runtime
+            from runtime.orchestration.bootstrap import ensure_runtime
             ensure_runtime()
         except Exception:
             pass  # graceful fallback

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.runtime.doctor import DoctorCheck
+from runtime.orchestration.doctor import DoctorCheck
 from specify_cli.status.doctor import (
     Category,
     DoctorResult,
@@ -982,7 +982,7 @@ class TestDoctorCLI:
 
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(
@@ -1014,7 +1014,7 @@ class TestDoctorCLI:
 
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(
@@ -1060,7 +1060,7 @@ class TestDoctorCLI:
 
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(
@@ -1106,7 +1106,7 @@ class TestDoctorCLI:
 
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(
@@ -1162,7 +1162,7 @@ class TestDoctorCLI:
 
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(
@@ -1211,7 +1211,7 @@ class TestDoctorCLI:
         # Default threshold: healthy
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(
@@ -1225,7 +1225,7 @@ class TestDoctorCLI:
         # Custom threshold: finding
         with (
             patch(
-                "specify_cli.runtime.doctor.run_global_checks",
+                "runtime.orchestration.doctor.run_global_checks",
                 return_value=_healthy_global_checks(),
             ),
             patch(

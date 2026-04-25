@@ -32,7 +32,7 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import locate_project_root
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.mission_v1.events import emit_event
-from specify_cli.next.decision import DecisionKind, decide_next
+from runtime.decisioning.decision import DecisionKind, decide_next
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
@@ -137,7 +137,7 @@ def next_step(
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.
     if result is None:
-        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
+        from runtime.bridge.runtime_bridge import QueryModeValidationError, query_current_state
 
         try:
             decision = query_current_state(agent, mission_slug, repo_root)
@@ -215,7 +215,7 @@ def _handle_answer(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        from specify_cli.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+        from runtime.bridge.runtime_bridge import answer_decision_via_runtime, get_or_start_run
         from specify_cli.mission import get_mission_type
 
         feature_dir = repo_root_path / "kitty-specs" / mission_slug

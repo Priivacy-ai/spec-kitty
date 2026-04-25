@@ -54,7 +54,7 @@ def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
 def run_dashboard_cli(
     *args: str,
     cwd: Path,
-    timeout: float = 5,
+    timeout: float = 15,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)

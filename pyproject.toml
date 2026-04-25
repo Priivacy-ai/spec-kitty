@@ -126,7 +126,7 @@ allow-direct-references = true
 spec-kitty-events = { path = "../spec-kitty-events", editable = true }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter", "src/runtime"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]

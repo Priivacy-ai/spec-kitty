@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.runtime.doctor import check_command_file_health
+from runtime.orchestration.doctor import check_command_file_health
 
 pytestmark = pytest.mark.fast
 

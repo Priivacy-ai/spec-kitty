@@ -17,7 +17,7 @@ import pytest
 
 from specify_cli.cli.commands.agent.workflow import _render_charter_context
 from charter.context import build_charter_context
-from specify_cli.next.prompt_builder import _governance_context
+from runtime.prompts.builder import _governance_context
 
 pytestmark = pytest.mark.fast
 

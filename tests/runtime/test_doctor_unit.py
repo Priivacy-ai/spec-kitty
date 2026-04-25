@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.runtime.doctor import (
+from runtime.orchestration.doctor import (
     DoctorCheck,
     check_global_runtime_exists,
     check_mission_integrity,

@@ -1,0 +1,27 @@
+name: Python Setup
+description: >
+  Upgrade pip, install project deps with constraints, then install
+  spec-kitty-runtime separately (intentionally excluded from pyproject.toml
+  due to the spec-kitty-events==4.0.0 pin — see constraints.txt).
+inputs:
+  extras:
+    description: pip extras to install (e.g. 'test' or 'test,lint')
+    required: false
+    default: 'test'
+runs:
+  using: composite
+  steps:
+    - name: Upgrade pip
+      shell: bash
+      run: python -m pip install --upgrade pip
+    - name: Install project dependencies
+      shell: bash
+      run: pip install -e ".[${{ inputs.extras }}]" -c constraints.txt
+    - name: Install spec-kitty-runtime
+      shell: bash
+      # --no-deps: all 0.4.x releases declare spec-kitty-events==3.x, which
+      # conflicts with the ==4.0.0 pin this project requires.  The runtime
+      # package's code is API-compatible with 4.0.0; the declared constraint
+      # is overly strict.  All other runtime deps (pydantic, pyyaml, jsonschema)
+      # are already satisfied by the main install above.
+      run: pip install --no-deps "spec-kitty-runtime>=0.4.3"

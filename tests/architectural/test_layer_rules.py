@@ -14,7 +14,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from pytestarch import LayerRule
+from pytestarch import LayerRule, Rule
 
 pytestmark = pytest.mark.architectural
 
@@ -41,7 +41,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 # Layer names as defined in the `landscape` fixture in conftest.py.
 # Keep this in sync with that fixture; both lists must agree.
 _DEFINED_LAYERS: frozenset[str] = frozenset(
-    ["kernel", "doctrine", "charter", "specify_cli"]
+    ["kernel", "doctrine", "charter", "specify_cli", "runtime"]
 )
 
 
@@ -174,5 +174,63 @@ class TestCharterBoundary:
             .are_named("charter")
             .should_not()
             .access_layers_that()
+            .are_named("specify_cli")
+        ).assert_applies(evaluable)
+
+
+# --- Invariant 4: runtime boundary (FR-007, FR-008, C-009) ---
+
+
+class TestRuntimeBoundary:
+    """Enforce the runtime dependency boundary (FR-007, FR-008, C-009).
+
+    Rules from architecture/2.x/05_ownership_manifest.yaml:
+      - runtime.may_call: charter_governance, doctrine, lifecycle_status, glossary
+      - runtime.may_be_called_by: cli_shell (specify_cli only)
+      - runtime must NOT import: specify_cli.cli.*, rich, typer
+    """
+
+    def test_runtime_does_not_import_from_cli_shell(self, evaluable):
+        """Runtime must not reach into the CLI command layer (specify_cli.cli.*)."""
+        (
+            Rule()
+            .modules_that()
+            .are_sub_modules_of("runtime")
+            .should_not()
+            .import_modules_that()
+            .are_sub_modules_of("specify_cli.cli")
+        ).assert_applies(evaluable)
+
+    def test_runtime_does_not_import_rich(self, evaluable):
+        """Runtime must not import the Rich presentation library directly."""
+        (
+            Rule()
+            .modules_that()
+            .are_sub_modules_of("runtime")
+            .should_not()
+            .import_modules_that()
+            .are_named("rich")
+        ).assert_applies(evaluable)
+
+    def test_runtime_does_not_import_typer(self, evaluable):
+        """Runtime must not import Typer directly (CLI framework belongs to specify_cli)."""
+        (
+            Rule()
+            .modules_that()
+            .are_sub_modules_of("runtime")
+            .should_not()
+            .import_modules_that()
+            .are_named("typer")
+        ).assert_applies(evaluable)
+
+    def test_only_specify_cli_imports_runtime(self, evaluable, landscape):
+        """Only the CLI shell layer (specify_cli) may depend on runtime."""
+        (
+            LayerRule()
+            .based_on(landscape)
+            .layers_that()
+            .are_named("runtime")
+            .should_only()
+            .be_accessed_by_layers_that()
             .are_named("specify_cli")
         ).assert_applies(evaluable)

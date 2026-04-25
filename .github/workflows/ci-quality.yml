@@ -168,10 +168,9 @@ jobs:
         with:
           node-version: '22'
 
-      - name: "[ENFORCED] Install Python dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[test,lint]"
+      - uses: ./.github/actions/python-setup
+        with:
+          extras: 'test,lint'
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -559,10 +558,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -620,10 +616,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -661,9 +654,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync"
         run: |
@@ -687,9 +678,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — merge"
         run: |
@@ -713,9 +702,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
@@ -741,9 +728,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — post_merge"
         run: |
@@ -769,9 +754,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — release"
         run: |
@@ -808,10 +791,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -852,9 +832,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — review"
         run: |
@@ -881,9 +859,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
@@ -911,9 +887,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
@@ -940,9 +914,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — dashboard"
         run: |
@@ -971,9 +943,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — upgrade"
         run: |
@@ -1002,9 +972,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — cli"
         run: |
@@ -1037,9 +1005,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — core misc"
         run: |
@@ -1089,9 +1055,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — charter"
         run: |
@@ -1123,9 +1087,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — agent"
         run: |
@@ -1157,9 +1119,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — agent"
         run: |
@@ -1193,10 +1153,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1233,9 +1190,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — sync"
         run: |
@@ -1264,9 +1219,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — merge"
         run: |
@@ -1295,9 +1248,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — missions"
         run: |
@@ -1328,9 +1279,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — post_merge"
         run: |
@@ -1360,9 +1309,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — release"
         run: |
@@ -1396,10 +1343,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1436,9 +1380,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — review"
         run: |
@@ -1467,9 +1409,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
@@ -1498,9 +1438,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — lanes"
         run: |
@@ -1529,9 +1467,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — dashboard"
         run: |
@@ -1561,9 +1497,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — upgrade"
         run: |
@@ -1592,9 +1526,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — cli"
         run: |
@@ -1646,10 +1578,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install Python dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1712,10 +1641,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install Python dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1776,10 +1702,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - uses: ./.github/actions/python-setup
 
       - name: "[ENFORCED] Download all coverage artifacts"
         uses: actions/download-artifact@v8

@@ -79,3 +79,13 @@ paths:
     owner: "charter team"
     reason: "Maven review-checks toolguide; Maven/Java tool names (pytest reference is cross-check example) are the subject matter."
     added_in: "3.2.4"
+  - path: "src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md"
+    scope: python
+    owner: "charter team"
+    reason: "Known-friction table documents a Django/pytest-django workaround (#770) for parallel lane worktrees; pytest reference is the subject of the troubleshooting entry, not accidental language bias."
+    added_in: "3.3.1"
+  - path: "src/doctrine/skills/spec-kitty-implement-review/SKILL.md"
+    scope: python
+    owner: "charter team"
+    reason: "Troubleshooting section documents a Django/pytest-django test-DB collision pattern (#770) for implementers; pytest reference is the subject of the documented workaround."
+    added_in: "3.3.1"

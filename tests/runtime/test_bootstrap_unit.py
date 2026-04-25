@@ -14,10 +14,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.runtime.bootstrap import (
+from runtime.orchestration.bootstrap import (
     _cleanup_orphaned_update_dirs,
     _get_cli_version,
     _lock_exclusive,
+    _run_version_locked_bootstrap,
     check_version_pin,
     ensure_runtime,
     populate_from_package,
@@ -146,7 +147,7 @@ class TestEnsureRuntimeFastPath:
     ) -> None:
         """When version.lock matches, no populate/merge occurs."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -168,7 +169,7 @@ class TestEnsureRuntimeFastPath:
     ) -> None:
         """Fast path does not acquire the file lock."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -176,7 +177,7 @@ class TestEnsureRuntimeFastPath:
         cache_dir.mkdir(parents=True)
         (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
-        with patch("specify_cli.runtime.bootstrap._lock_exclusive") as mock_lock:
+        with patch("runtime.orchestration.bootstrap._lock_exclusive") as mock_lock:
             ensure_runtime()
             mock_lock.assert_not_called()
 
@@ -192,7 +193,7 @@ class TestEnsureRuntimeSlowPath:
     ) -> None:
         """Missing version.lock triggers full populate + merge."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -210,7 +211,7 @@ class TestEnsureRuntimeSlowPath:
     ) -> None:
         """Stale version.lock triggers update and writes new version."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -231,7 +232,7 @@ class TestEnsureRuntimeSlowPath:
     ) -> None:
         """Slow path creates ~/.kittify/ if it doesn't exist."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -247,7 +248,7 @@ class TestEnsureRuntimeSlowPath:
     ) -> None:
         """Slow path copies managed directories into ~/.kittify/."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -265,7 +266,7 @@ class TestEnsureRuntimeSlowPath:
         """If another process wrote version.lock while we waited for lock,
         the double-check avoids redundant work."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -283,7 +284,7 @@ class TestEnsureRuntimeSlowPath:
             (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._lock_exclusive",
+            "runtime.orchestration.bootstrap._lock_exclusive",
             lock_that_creates_version,
         )
 
@@ -304,7 +305,7 @@ class TestEnsureRuntimeTempDirCleanup:
     ) -> None:
         """Temp directory is removed after successful update."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -323,7 +324,7 @@ class TestEnsureRuntimeTempDirCleanup:
     ) -> None:
         """Temp directory is removed even when populate raises."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -333,7 +334,7 @@ class TestEnsureRuntimeTempDirCleanup:
             raise RuntimeError("Simulated failure during populate")
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap.populate_from_package",
+            "runtime.orchestration.bootstrap.populate_from_package",
             exploding_populate,
         )
 
@@ -357,12 +358,12 @@ class TestEnsureRuntimeVersionLockWrittenLast:
     ) -> None:
         """version.lock does not exist until merge completes."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
         write_order: list[str] = []
-        original_merge = __import__("specify_cli.runtime.merge", fromlist=["merge_package_assets"]).merge_package_assets
+        original_merge = __import__("runtime.orchestration.merge", fromlist=["merge_package_assets"]).merge_package_assets
 
         def tracking_merge(source: Path, dest: Path) -> None:
             original_merge(source, dest)
@@ -372,7 +373,7 @@ class TestEnsureRuntimeVersionLockWrittenLast:
             assert not version_file.exists(), "version.lock written before merge completed"
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap.merge_package_assets",
+            "runtime.orchestration.bootstrap.merge_package_assets",
             tracking_merge,
         )
 
@@ -399,7 +400,7 @@ class TestInterruptedUpdateRecovery:
     ) -> None:
         """Missing version.lock after partial update triggers re-bootstrap (F-Bootstrap-001, 1A-07)."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -425,7 +426,7 @@ class TestInterruptedUpdateRecovery:
     ) -> None:
         """Recovery from interrupted update preserves user-owned files."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -449,7 +450,7 @@ class TestInterruptedUpdateRecovery:
     ) -> None:
         """Empty ~/.kittify/ directory triggers full bootstrap."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -514,7 +515,7 @@ class TestCleanupOrphanedUpdateDirs:
     ) -> None:
         """ensure_runtime() cleans orphaned dirs under the lock."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -714,10 +715,10 @@ class TestVersionPinWiredIntoCallback:
                 return_value=tmp_path,
             ),
             patch(
-                "specify_cli.runtime.bootstrap.check_version_pin",
+                "runtime.orchestration.bootstrap.check_version_pin",
                 mock_pin,
             ),
-            patch("specify_cli.runtime.bootstrap.ensure_runtime"),
+            patch("runtime.orchestration.bootstrap.ensure_runtime"),
             patch("specify_cli.root_callback"),
         ):
             from specify_cli import main_callback
@@ -738,10 +739,10 @@ class TestVersionPinWiredIntoCallback:
                 return_value=None,
             ),
             patch(
-                "specify_cli.runtime.bootstrap.check_version_pin",
+                "runtime.orchestration.bootstrap.check_version_pin",
                 mock_pin,
             ),
-            patch("specify_cli.runtime.bootstrap.ensure_runtime"),
+            patch("runtime.orchestration.bootstrap.ensure_runtime"),
             patch("specify_cli.root_callback"),
         ):
             from specify_cli import main_callback
@@ -749,3 +750,109 @@ class TestVersionPinWiredIntoCallback:
             main_callback(MagicMock(), version=False)
 
         mock_pin.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _run_version_locked_bootstrap — shared helper for ensure_global_agent_*
+# ---------------------------------------------------------------------------
+
+
+class TestRunVersionLockedBootstrap:
+    """Direct unit coverage of the version-locked bootstrap helper (FR-004)."""
+
+    def test_fast_path_skips_work_when_version_matches(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "runtime.orchestration.bootstrap.get_kittify_home",
+            lambda: tmp_path,
+        )
+        cache = tmp_path / "cache"
+        cache.mkdir()
+        (cache / "x.lock").write_text(_get_cli_version())
+
+        work = MagicMock()
+        _run_version_locked_bootstrap("x.lock", ".x.lock", work)
+
+        work.assert_not_called()
+
+    def test_slow_path_invokes_work_when_version_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "runtime.orchestration.bootstrap.get_kittify_home",
+            lambda: tmp_path,
+        )
+        work = MagicMock()
+
+        _run_version_locked_bootstrap("x.lock", ".x.lock", work)
+
+        work.assert_called_once()
+        assert (tmp_path / "cache" / "x.lock").read_text() == _get_cli_version()
+
+    def test_version_file_written_only_on_success(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If work() raises, the version file must NOT be written (retry semantic)."""
+        monkeypatch.setattr(
+            "runtime.orchestration.bootstrap.get_kittify_home",
+            lambda: tmp_path,
+        )
+
+        def failing_work() -> None:
+            raise RuntimeError("simulated bootstrap failure")
+
+        with pytest.raises(RuntimeError, match="simulated bootstrap failure"):
+            _run_version_locked_bootstrap("x.lock", ".x.lock", failing_work)
+
+        version_file = tmp_path / "cache" / "x.lock"
+        assert not version_file.exists(), (
+            "version file must not exist after failed work — guarantees next call retries"
+        )
+
+    def test_lock_released_even_when_work_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A second invocation must succeed if the first failed (lock released in finally)."""
+        monkeypatch.setattr(
+            "runtime.orchestration.bootstrap.get_kittify_home",
+            lambda: tmp_path,
+        )
+        first_work = MagicMock(side_effect=RuntimeError("fail"))
+        second_work = MagicMock()
+
+        with pytest.raises(RuntimeError):
+            _run_version_locked_bootstrap("x.lock", ".x.lock", first_work)
+
+        _run_version_locked_bootstrap("x.lock", ".x.lock", second_work)
+
+        first_work.assert_called_once()
+        second_work.assert_called_once()
+        assert (tmp_path / "cache" / "x.lock").read_text() == _get_cli_version()
+
+    def test_double_check_after_lock(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If version file appears between the fast path and lock acquisition, work is skipped."""
+        monkeypatch.setattr(
+            "runtime.orchestration.bootstrap.get_kittify_home",
+            lambda: tmp_path,
+        )
+        cache = tmp_path / "cache"
+        cache.mkdir()
+
+        # Simulate a concurrent writer: the version file appears after the fast-path
+        # check but before work runs. We patch _lock_exclusive to write the version
+        # file between the first check (which saw no file) and the re-check.
+        cli_version = _get_cli_version()
+        original_lock_exclusive = _lock_exclusive
+
+        def writer_lock(fd):  # type: ignore[no-untyped-def]
+            (cache / "x.lock").write_text(cli_version)
+            original_lock_exclusive(fd)
+
+        work = MagicMock()
+        with patch("runtime.orchestration.bootstrap._lock_exclusive", side_effect=writer_lock):
+            _run_version_locked_bootstrap("x.lock", ".x.lock", work)
+
+        work.assert_not_called()

@@ -14,7 +14,7 @@ from rich.table import Table
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
-from specify_cli.runtime.home import get_kittify_home
+from runtime.discovery.home import get_kittify_home
 
 
 # CI env-vars that should force non-interactive behaviour even when stdin
@@ -70,7 +70,7 @@ def command_files(
         spec-kitty doctor command-files
         spec-kitty doctor command-files --json
     """
-    from specify_cli.runtime.doctor import check_command_file_health
+    from runtime.orchestration.doctor import check_command_file_health
 
     try:
         project_path = locate_project_root()

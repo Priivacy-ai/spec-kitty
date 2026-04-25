@@ -13,14 +13,14 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
-from specify_cli.runtime.bootstrap import ensure_runtime, check_version_pin
-from specify_cli.runtime.resolver import (
+from runtime.orchestration.bootstrap import ensure_runtime, check_version_pin
+from runtime.discovery.resolver import (
     ResolutionTier,
     resolve_template,
     resolve_command,
     resolve_mission,
 )
-from specify_cli.runtime.migrate import execute_migration
+from runtime.orchestration.migrate import execute_migration
 
 import pytest
 
@@ -94,7 +94,7 @@ class TestFreshInstallE2E:
     ) -> None:
         """ensure_runtime() creates ~/.kittify/ and populates it from package assets."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -120,7 +120,7 @@ class TestFreshInstallE2E:
     ) -> None:
         """After ensure_runtime(), templates resolve from GLOBAL tier for a new project."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -147,7 +147,7 @@ class TestFreshInstallE2E:
     ) -> None:
         """Command templates also resolve from GLOBAL tier after ensure_runtime()."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -168,7 +168,7 @@ class TestFreshInstallE2E:
     ) -> None:
         """Mission configs resolve from GLOBAL tier after ensure_runtime()."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -189,7 +189,7 @@ class TestFreshInstallE2E:
     ) -> None:
         """check_version_pin() does not crash on a fresh project without config.yaml."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -218,12 +218,12 @@ class TestUpgradeLegacyProjectE2E:
         """Legacy project files resolve from LEGACY tier with a one-time
         stderr nudge (not DeprecationWarning) when global runtime is configured.
         """
-        from specify_cli.runtime.resolver import _reset_migrate_nudge
+        from runtime.discovery.resolver import _reset_migrate_nudge
 
         _reset_migrate_nudge()
 
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -266,7 +266,7 @@ class TestUpgradeLegacyProjectE2E:
     ) -> None:
         """After migration, user-created files (no package counterpart) land in overrides/."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -298,7 +298,7 @@ class TestUpgradeLegacyProjectE2E:
     ) -> None:
         """After migration, outdated defaults (with package counterpart) are SUPERSEDED."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -328,7 +328,7 @@ class TestUpgradeLegacyProjectE2E:
     ) -> None:
         """After migration, user-created templates resolve from OVERRIDE tier (no warning)."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -368,7 +368,7 @@ class TestUpgradeLegacyProjectE2E:
     ) -> None:
         """Migration removes files that are byte-identical to global."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -396,7 +396,7 @@ class TestUpgradeLegacyProjectE2E:
     ) -> None:
         """After removing identical files, resolution falls through to GLOBAL tier."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -428,7 +428,7 @@ class TestUpgradeLegacyProjectE2E:
     ) -> None:
         """Version pin in config.yaml emits warning during startup flow."""
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
@@ -466,7 +466,7 @@ class TestUpgradeLegacyProjectE2E:
         4. Post-migration resolution works from correct tiers
         """
         monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._get_cli_version",
+            "runtime.orchestration.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 

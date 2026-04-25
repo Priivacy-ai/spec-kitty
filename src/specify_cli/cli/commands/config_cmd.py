@@ -40,7 +40,7 @@ def config(
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
-    from specify_cli.runtime.show_origin import collect_origins
+    from runtime.orchestration.show_origin import collect_origins
 
     entries = collect_origins(repo_root, mission=mission)
 
@@ -77,7 +77,7 @@ def config(
     console.print(table)
 
     # Check for version pin
-    from specify_cli.runtime.bootstrap import check_version_pin
+    from runtime.orchestration.bootstrap import check_version_pin
 
     check_version_pin(repo_root)
 

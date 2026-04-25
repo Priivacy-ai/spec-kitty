@@ -36,7 +36,7 @@ from specify_cli.template import (
     copy_specify_base_from_package,
     get_local_repo_root,
 )
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from runtime.discovery.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
 
@@ -134,7 +134,7 @@ def _resolve_mission_command_templates_dir(
     precedence chain so mixed-tier command sets still produce the correct
     effective directory for init-time consumers.
     """
-    from specify_cli.runtime.resolver import resolve_command
+    from runtime.discovery.resolver import resolve_command
 
     candidate_dirs: list[Path] = [
         project_path / ".kittify" / "overrides" / "command-templates",
@@ -444,7 +444,7 @@ def init(  # noqa: C901
             # Bootstrap global runtime — hard fail on error (FR-003)
             tracker.start("runtime")
             try:
-                from specify_cli.runtime.bootstrap import ensure_runtime
+                from runtime.orchestration.bootstrap import ensure_runtime
 
                 ensure_runtime()
                 tracker.complete("runtime", "ok")

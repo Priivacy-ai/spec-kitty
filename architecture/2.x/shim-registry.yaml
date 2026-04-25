@@ -14,4 +14,127 @@
 # Baseline (2026-04-19): zero shims present at mission-615 start.
 # Every future entry must set grandfathered: false.
 
-shims: []
+shims:
+  # -------------------------------------------------------------------------
+  # specify_cli.next → runtime.*
+  # Mission: runtime-mission-execution-extraction-01KPDYGW
+  # Introduced in 3.2.0; removal target 3.4.0
+  # -------------------------------------------------------------------------
+
+  - legacy_path: "specify_cli.next"
+    canonical_import: "runtime"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Package __init__.py shim; re-exports runtime top-level symbols."
+
+  - legacy_path: "specify_cli.next.decision"
+    canonical_import: "runtime.decisioning.decision"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Core decision engine shim (Decision, DecisionKind, decide_next)."
+
+  - legacy_path: "specify_cli.next.prompt_builder"
+    canonical_import: "runtime.prompts.builder"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Prompt generation shim (build_prompt, build_decision_prompt)."
+
+  - legacy_path: "specify_cli.next.runtime_bridge"
+    canonical_import: "runtime.bridge.runtime_bridge"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "CLI/runtime bridge shim (decide_next_via_runtime, query_current_state)."
+
+  # -------------------------------------------------------------------------
+  # specify_cli.runtime → runtime.*
+  # Mission: runtime-mission-execution-extraction-01KPDYGW
+  # Introduced in 3.2.0; removal target 3.4.0
+  # -------------------------------------------------------------------------
+
+  - legacy_path: "specify_cli.runtime"
+    canonical_import: "runtime"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Package __init__.py shim; re-exports runtime top-level symbols."
+
+  - legacy_path: "specify_cli.runtime.agent_commands"
+    canonical_import: "runtime.agents.commands"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Global agent slash-command bootstrap shim."
+
+  - legacy_path: "specify_cli.runtime.agent_skills"
+    canonical_import: "runtime.agents.skills"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Global agent doctrine-skills bootstrap shim."
+
+  - legacy_path: "specify_cli.runtime.bootstrap"
+    canonical_import: "runtime.orchestration.bootstrap"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Runtime bootstrap shim (ensure_runtime, check_version_pin)."
+
+  - legacy_path: "specify_cli.runtime.doctor"
+    canonical_import: "runtime.orchestration.doctor"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Runtime health-check shim."
+
+  - legacy_path: "specify_cli.runtime.home"
+    canonical_import: "runtime.discovery.home"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Kittify home-directory discovery shim (get_kittify_home, get_package_asset_root)."
+
+  - legacy_path: "specify_cli.runtime.merge"
+    canonical_import: "runtime.orchestration.merge"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Asset-merge orchestration shim."
+
+  - legacy_path: "specify_cli.runtime.migrate"
+    canonical_import: "runtime.orchestration.migrate"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Per-project migration shim (classify_asset, execute_migration)."
+
+  - legacy_path: "specify_cli.runtime.resolver"
+    canonical_import: "runtime.discovery.resolver"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "5-tier asset resolution shim (resolve_command, resolve_mission, ResolutionResult)."
+
+  - legacy_path: "specify_cli.runtime.show_origin"
+    canonical_import: "runtime.orchestration.show_origin"
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.4.0"
+    tracker_issue: "#615"
+    grandfathered: false
+    notes: "Asset origin reporting shim (collect_origins, OriginEntry)."

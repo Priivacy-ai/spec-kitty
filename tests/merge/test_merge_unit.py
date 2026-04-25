@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.runtime.merge import MANAGED_DIRS, MANAGED_FILES, merge_package_assets
+from runtime.orchestration.merge import MANAGED_DIRS, MANAGED_FILES, merge_package_assets
 
 pytestmark = pytest.mark.fast
 

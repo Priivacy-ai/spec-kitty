@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lifecycle. Writes `widen-pending.jsonl`, emits `DecisionPointWidened` events,
   integrates with charter/specify/plan widen affordances. Surfaces decision
   write-back errors explicitly instead of silently suppressing them.
+- `PresentationSink` and `StepContractExecutor` Protocols at `src/runtime/seams/` providing
+  typed seams for presentation decoupling and future #461 Phase 6 step-contract execution.
 
 ### Changed
 
@@ -52,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TerminalOutcome` enum.
 - **`[tool.uv.sources]`** redirects `spec-kitty-events` to `../spec-kitty-events/`
   in editable mode for monorepo development. Dev-only; ignored by pip / PyPI.
+- Extracted Spec Kitty execution core (`specify_cli.next`, `specify_cli.runtime`) to canonical
+  top-level `runtime` package (mission `runtime-mission-execution-extraction-01KPDYGW`, #612).
+  Legacy import paths emit `DeprecationWarning` and will be removed in 3.4.0. Use `runtime.*`
+  instead. See [docs/migration/runtime-extraction.md](docs/migration/runtime-extraction.md).
+  Follows the `charter-ownership-consolidation-and-neutrality-hardening-01KPD880` exemplar
+  and the [#615 shim-registry contract](https://github.com/Priivacy-ai/spec-kitty/issues/615).
 
 ### Deferred
 
