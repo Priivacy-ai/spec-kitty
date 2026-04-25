@@ -19,6 +19,8 @@ subtasks:
 - T031
 - T032
 - T033
+agent: "claude:opus-4.7:python-implementer:implementer"
+shell_pid: "71202"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -269,3 +271,7 @@ xfail; this WP removes the xfail markers as it lands the satisfying changes.
 ```bash
 spec-kitty agent action implement WP08 --agent <name> --mission shared-package-boundary-cutover-01KQ22DS
 ```
+
+## Activity Log
+
+- 2026-04-25T12:03:53Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71202 – Started implementation via action command
