@@ -1,0 +1,52 @@
+{
+  "$id": "spec-kitty-events/comment_posted_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for CommentPosted events.",
+  "properties": {
+    "comment_id": {
+      "description": "Unique comment identifier",
+      "minLength": 1,
+      "title": "Comment Id",
+      "type": "string"
+    },
+    "content": {
+      "description": "Comment text",
+      "minLength": 1,
+      "title": "Content",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Comment author",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    },
+    "reply_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Parent comment_id for threading",
+      "title": "Reply To"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "comment_id",
+    "content"
+  ],
+  "title": "CommentPostedPayload",
+  "type": "object"
+}

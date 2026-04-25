@@ -1,0 +1,150 @@
+{
+  "$defs": {
+    "RuntimeActorIdentity": {
+      "description": "Identity of a runtime actor (human, LLM, or service).",
+      "properties": {
+        "actor_id": {
+          "description": "Unique actor identifier",
+          "minLength": 1,
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "actor_type": {
+          "description": "Actor category",
+          "pattern": "^(human|llm|service)$",
+          "title": "Actor Type",
+          "type": "string"
+        },
+        "display_name": {
+          "default": "",
+          "description": "Human-readable display name",
+          "title": "Display Name",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Model identifier (e.g., 'claude-opus-4-6')",
+          "title": "Model"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider (e.g., 'anthropic', 'openai')",
+          "title": "Provider"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool identifier",
+          "title": "Tool"
+        }
+      },
+      "required": [
+        "actor_id",
+        "actor_type"
+      ],
+      "title": "RuntimeActorIdentity",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/profile_invocation_started_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Payload for ProfileInvocationStarted events.\n\nEmitted when the runtime begins executing a step under a resolved agent profile.",
+  "properties": {
+    "action": {
+      "description": "Bound action name",
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "actor": {
+      "$ref": "#/$defs/RuntimeActorIdentity",
+      "description": "Runtime actor identity"
+    },
+    "governance_scope": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Governance scope identifier",
+      "title": "Governance Scope"
+    },
+    "mission_id": {
+      "description": "Mission identifier",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "profile_slug": {
+      "description": "Resolved agent profile slug",
+      "minLength": 1,
+      "title": "Profile Slug",
+      "type": "string"
+    },
+    "profile_version": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Profile version if versioned profiles are in use",
+      "title": "Profile Version"
+    },
+    "run_id": {
+      "description": "Run identifier from MissionRunStarted",
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Step being executed",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "run_id",
+    "step_id",
+    "action",
+    "profile_slug",
+    "actor"
+  ],
+  "title": "ProfileInvocationStartedPayload",
+  "type": "object"
+}

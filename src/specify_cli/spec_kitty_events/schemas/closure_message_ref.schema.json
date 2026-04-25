@@ -1,0 +1,46 @@
+{
+  "$id": "spec-kitty-events/closure_message_ref",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Reference to a Slack closure message posted when a decision is resolved.",
+  "properties": {
+    "channel_id": {
+      "description": "Slack channel identifier",
+      "minLength": 1,
+      "title": "Channel Id",
+      "type": "string"
+    },
+    "message_ts": {
+      "description": "Message timestamp (Slack ts format)",
+      "minLength": 1,
+      "title": "Message Ts",
+      "type": "string"
+    },
+    "thread_ts": {
+      "description": "Thread timestamp (Slack ts format)",
+      "minLength": 1,
+      "title": "Thread Ts",
+      "type": "string"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Permalink URL to the message",
+      "title": "Url"
+    }
+  },
+  "required": [
+    "channel_id",
+    "thread_ts",
+    "message_ts"
+  ],
+  "title": "ClosureMessageRef",
+  "type": "object"
+}

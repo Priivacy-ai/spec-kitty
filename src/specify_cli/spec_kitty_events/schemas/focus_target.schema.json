@@ -1,0 +1,29 @@
+{
+  "$id": "spec-kitty-events/focus_target",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Structured focus reference. Hashable for use as dict key.",
+  "properties": {
+    "target_id": {
+      "description": "Identifier within the target type",
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_type": {
+      "description": "Category of focus target",
+      "enum": [
+        "wp",
+        "step",
+        "file"
+      ],
+      "title": "Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_type",
+    "target_id"
+  ],
+  "title": "FocusTarget",
+  "type": "object"
+}

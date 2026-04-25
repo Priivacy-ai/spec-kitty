@@ -1,0 +1,11 @@
+{
+  "mission_id": "mission-fixture-001",
+  "scope_id": "scope-team-domain",
+  "step_id": "step-001",
+  "term_surface": "dashboard",
+  "confidence": 0.7,
+  "actor": "agent-001",
+  "step_metadata": {
+    "primitive": "specify"
+  }
+}

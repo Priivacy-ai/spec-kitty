@@ -1,0 +1,33 @@
+{
+  "$id": "spec-kitty-events/mission_closed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Typed payload for MissionClosed catalog events.",
+  "properties": {
+    "mission_number": {
+      "description": "Canonical mission number",
+      "minimum": 1,
+      "title": "Mission Number",
+      "type": "integer"
+    },
+    "mission_slug": {
+      "description": "Canonical mission slug",
+      "minLength": 1,
+      "title": "Mission Slug",
+      "type": "string"
+    },
+    "mission_type": {
+      "description": "Canonical mission workflow/template type",
+      "minLength": 1,
+      "title": "Mission Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_slug",
+    "mission_number",
+    "mission_type"
+  ],
+  "title": "MissionClosedPayload",
+  "type": "object"
+}

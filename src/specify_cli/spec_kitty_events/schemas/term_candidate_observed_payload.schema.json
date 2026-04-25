@@ -1,0 +1,62 @@
+{
+  "$id": "spec-kitty-events/term_candidate_observed_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for TermCandidateObserved event.",
+  "properties": {
+    "actor": {
+      "description": "Identity of the observing actor",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "confidence": {
+      "description": "Confidence score (0.0\u20131.0)",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "scope_id": {
+      "description": "Scope the term was observed in",
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Mission step that produced the term",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "step_metadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Mission primitive metadata for the step (no hardcoded step names)",
+      "title": "Step Metadata",
+      "type": "object"
+    },
+    "term_surface": {
+      "description": "Raw text form of the observed term",
+      "minLength": 1,
+      "title": "Term Surface",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "scope_id",
+    "step_id",
+    "term_surface",
+    "confidence",
+    "actor"
+  ],
+  "title": "TermCandidateObservedPayload",
+  "type": "object"
+}

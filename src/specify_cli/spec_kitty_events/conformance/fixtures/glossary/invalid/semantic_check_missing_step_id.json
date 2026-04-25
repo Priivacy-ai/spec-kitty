@@ -1,0 +1,19 @@
+{
+  "mission_id": "mission-fixture-001",
+  "scope_id": "scope-team-domain",
+  "conflicts": [
+    {
+      "term": "dashboard",
+      "nature": "ambiguous",
+      "severity": "high",
+      "description": "Multiple meanings detected"
+    }
+  ],
+  "severity": "high",
+  "confidence": 0.9,
+  "recommended_action": "block",
+  "effective_strictness": "max",
+  "step_metadata": {
+    "primitive": "generate"
+  }
+}

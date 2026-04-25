@@ -1,0 +1,54 @@
+{
+  "$id": "spec-kitty-events/glossary_strictness_set_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for GlossaryStrictnessSet event (mission-wide policy change).",
+  "properties": {
+    "actor": {
+      "description": "Actor who changed the setting",
+      "minLength": 1,
+      "title": "Actor",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "new_strictness": {
+      "description": "The new strictness mode",
+      "enum": [
+        "off",
+        "medium",
+        "max"
+      ],
+      "title": "New Strictness",
+      "type": "string"
+    },
+    "previous_strictness": {
+      "anyOf": [
+        {
+          "enum": [
+            "off",
+            "medium",
+            "max"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Previous mode (None if initial setting)",
+      "title": "Previous Strictness"
+    }
+  },
+  "required": [
+    "mission_id",
+    "new_strictness",
+    "actor"
+  ],
+  "title": "GlossaryStrictnessSetPayload",
+  "type": "object"
+}

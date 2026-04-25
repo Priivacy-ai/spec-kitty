@@ -1,0 +1,90 @@
+{
+  "$id": "spec-kitty-events/connector_degraded_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for ConnectorDegraded events.",
+  "properties": {
+    "actor_id": {
+      "minLength": 1,
+      "title": "Actor Id",
+      "type": "string"
+    },
+    "actor_type": {
+      "pattern": "^(human|service|system)$",
+      "title": "Actor Type",
+      "type": "string"
+    },
+    "connector_id": {
+      "minLength": 1,
+      "title": "Connector Id",
+      "type": "string"
+    },
+    "connector_type": {
+      "minLength": 1,
+      "title": "Connector Type",
+      "type": "string"
+    },
+    "degradation_reason": {
+      "minLength": 1,
+      "title": "Degradation Reason",
+      "type": "string"
+    },
+    "endpoint_url": {
+      "format": "uri",
+      "minLength": 1,
+      "title": "Endpoint Url",
+      "type": "string"
+    },
+    "last_healthy_at": {
+      "format": "date-time",
+      "title": "Last Healthy At",
+      "type": "string"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "project_uuid": {
+      "format": "uuid",
+      "title": "Project Uuid",
+      "type": "string"
+    },
+    "provider": {
+      "minLength": 1,
+      "title": "Provider",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "user_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "User Id"
+    }
+  },
+  "required": [
+    "connector_id",
+    "connector_type",
+    "provider",
+    "mission_id",
+    "project_uuid",
+    "actor_id",
+    "actor_type",
+    "endpoint_url",
+    "recorded_at",
+    "degradation_reason",
+    "last_healthy_at"
+  ],
+  "title": "ConnectorDegradedPayload",
+  "type": "object"
+}

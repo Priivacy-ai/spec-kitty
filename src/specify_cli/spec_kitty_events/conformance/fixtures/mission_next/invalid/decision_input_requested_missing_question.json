@@ -1,0 +1,10 @@
+{
+  "run_id": "run-001",
+  "decision_id": "input:db-password",
+  "step_id": "step-configure-db",
+  "options": [],
+  "actor": {
+    "actor_id": "agent-claude",
+    "actor_type": "llm"
+  }
+}

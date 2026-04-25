@@ -1,0 +1,17 @@
+{
+  "origin_surface": "planning_interview",
+  "decision_point_id": "01J10000000000000000000002",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "snapshot_kind": "digest",
+  "contributions": [
+    "OAuth2 is the industry standard and integrates well with our existing identity provider.",
+    "Session-based auth would require significant refactoring of the token refresh pipeline."
+  ],
+  "actor_id": "01J10000000000000000000013",
+  "actor_type": "service",
+  "state_entered_at": "2026-04-23T10:03:00+00:00",
+  "recorded_at": "2026-04-23T10:03:01+00:00"
+}

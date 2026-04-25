@@ -1,0 +1,22 @@
+{
+  "__comment": "Invalid: thread_ref is absent — required field on DecisionPointWidenedPayload; JSON Schema and Pydantic must reject",
+  "origin_surface": "planning_interview",
+  "decision_point_id": "01J10000000000000000000101",
+  "mission_id": "01KPWA0N4DX047S3NX734YRFVW",
+  "run_id": "01J10000000000000000000010",
+  "mission_slug": "decision-moment-v1-contract-freeze-01KPWA0N",
+  "mission_type": "software-dev",
+  "channel": "slack",
+  "teamspace_ref": {
+    "teamspace_id": "ts-01J10000000000000000000020",
+    "name": "Acme Engineering"
+  },
+  "default_channel_ref": {
+    "channel_id": "C01J10000000000000000000030",
+    "name": "spec-kitty-decisions"
+  },
+  "invited_participants": [],
+  "widened_by": "01J10000000000000000000011",
+  "widened_at": "2026-04-23T10:11:00+00:00",
+  "recorded_at": "2026-04-23T10:11:01+00:00"
+}

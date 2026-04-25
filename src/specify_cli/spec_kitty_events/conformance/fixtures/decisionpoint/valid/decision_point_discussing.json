@@ -1,0 +1,25 @@
+{
+  "origin_surface": "adr",
+  "decision_point_id": "dp-002",
+  "mission_id": "m-001",
+  "run_id": "run-001",
+  "phase": "P2",
+  "actor_id": "human-2",
+  "actor_type": "human",
+  "authority_role": "advisory",
+  "mission_owner_authority_flag": false,
+  "mission_owner_authority_path": "/missions/m-001/advisory",
+  "rationale": "Further discussion needed before resolution",
+  "alternatives_considered": [
+    "Approach 1",
+    "Approach 2",
+    "Approach 3"
+  ],
+  "evidence_refs": [
+    "ref-003"
+  ],
+  "state_entered_at": "2026-02-27T13:00:00+00:00",
+  "recorded_at": "2026-02-27T13:00:01+00:00",
+  "mission_slug": "mission-x",
+  "mission_type": "software-dev"
+}

@@ -1,0 +1,32 @@
+{
+  "$id": "spec-kitty-events/auth_principal_binding",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Roster-level auth principal to participant binding.",
+  "properties": {
+    "auth_principal_id": {
+      "description": "Authenticated identity (opaque to this package)",
+      "minLength": 1,
+      "title": "Auth Principal Id",
+      "type": "string"
+    },
+    "bound_at": {
+      "description": "Timestamp when binding was created",
+      "format": "date-time",
+      "title": "Bound At",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Mission-scoped participant identifier",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "auth_principal_id",
+    "participant_id",
+    "bound_at"
+  ],
+  "title": "AuthPrincipalBinding",
+  "type": "object"
+}

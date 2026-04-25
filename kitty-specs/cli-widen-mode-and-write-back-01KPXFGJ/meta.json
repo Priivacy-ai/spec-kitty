@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-23T15:32:08.561255+00:00",
+  "friendly_name": "CLI Widen Mode & Decision Write-Back",
+  "mission_id": "01KPXFGJXXCV25X3T9DWGME5V1",
+  "mission_number": 96,
+  "mission_slug": "cli-widen-mode-and-write-back-01KPXFGJ",
+  "mission_type": "software-dev",
+  "purpose_context": "Spec Kitty V1 Decision Moments let missions record interview questions locally. The next step is widening — letting a mission owner pull the team in for a decision that needs more input. V1 keeps the control model human-gated (LLM may suggest, human confirms) and the inference model local-first (Claude Code / Codex summarize fetched discussion; SaaS is pure state transport). This mission adds the CLI-side UX: the [w] affordance, audience review/trim, interview pause semantics (per-question block or continue, default block), candidate review via [a/e/d], and the local-answer-closes-Slack path.",
+  "purpose_tldr": "Add CLI Widen Mode — an inline affordance during charter/specify/plan interviews that lets the mission owner escalate an interview question to Teamspace collaboration via Slack, then review a locally-summarized discussion and write back the approved answer.",
+  "slug": "cli-widen-mode-and-write-back-01KPXFGJ",
+  "source_description": "CLI Widen Mode + Decision Moment write-back loop. Integrates with spec-kitty-saas #110 (widen endpoint + audience-default API) and #111 (Slack orchestration + discussion transcript fetch). Issue: spec-kitty#758.",
+  "target_branch": "main",
+  "vcs": "git"
+}

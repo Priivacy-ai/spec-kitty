@@ -1,0 +1,70 @@
+{
+  "event_count": 56,
+  "last_event_id": "01KPXCRQ00R6EQ67W0B86EYH6D",
+  "materialized_at": "2026-04-23T14:44:08.320512+00:00",
+  "mission_number": "",
+  "mission_slug": "cli-interview-decision-moments-01KPWT8P",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KPXBBYS0N1JABHB0MBTAG84P",
+      "last_transition_at": "2026-04-23T14:19:41.728437+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPXANYA15EH584E21KPY952T",
+      "last_transition_at": "2026-04-23T14:07:40.353996+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KPXBHRKHQHFF870V1SDJ1R2D",
+      "last_transition_at": "2026-04-23T14:22:52.017121+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPXBEA3VTFW21DQVKCSVWTW7",
+      "last_transition_at": "2026-04-23T14:20:58.875953+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPXC52CJ5JTSC3CY5EQWA88E",
+      "last_transition_at": "2026-04-23T14:33:24.626394+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPXCRQ00R6EQ67W0B86EYH6D",
+      "last_transition_at": "2026-04-23T14:44:08.320512+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KPXCFYFS9J69DBKB7ATMXSQY",
+      "last_transition_at": "2026-04-23T14:39:21.081724+00:00"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$id": "spec-kitty-events/glossary_scope_activated_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for GlossaryScopeActivated event.",
+  "properties": {
+    "glossary_version_id": {
+      "description": "Version of the glossary being activated",
+      "minLength": 1,
+      "title": "Glossary Version Id",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "scope_id": {
+      "description": "Unique scope identifier",
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "scope_type": {
+      "description": "Scope category",
+      "enum": [
+        "spec_kitty_core",
+        "team_domain",
+        "audience_domain",
+        "mission_local"
+      ],
+      "title": "Scope Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mission_id",
+    "scope_id",
+    "scope_type",
+    "glossary_version_id"
+  ],
+  "title": "GlossaryScopeActivatedPayload",
+  "type": "object"
+}

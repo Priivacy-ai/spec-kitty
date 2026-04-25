@@ -1,0 +1,35 @@
+{
+  "$id": "spec-kitty-events/drive_intent_set_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for DriveIntentSet events.",
+  "properties": {
+    "intent": {
+      "description": "Drive intent state",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "title": "Intent",
+      "type": "string"
+    },
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_id": {
+      "description": "Participant declaring intent",
+      "minLength": 1,
+      "title": "Participant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "participant_id",
+    "mission_id",
+    "intent"
+  ],
+  "title": "DriveIntentSetPayload",
+  "type": "object"
+}

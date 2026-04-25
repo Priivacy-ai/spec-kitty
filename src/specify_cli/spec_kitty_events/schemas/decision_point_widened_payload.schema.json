@@ -1,0 +1,314 @@
+{
+  "$defs": {
+    "DefaultChannelRef": {
+      "additionalProperties": false,
+      "description": "Reference to the default Slack channel for a teamspace.",
+      "properties": {
+        "channel_id": {
+          "description": "Slack channel identifier",
+          "minLength": 1,
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable channel name",
+          "title": "Name"
+        }
+      },
+      "required": [
+        "channel_id"
+      ],
+      "title": "DefaultChannelRef",
+      "type": "object"
+    },
+    "ParticipantExternalRefs": {
+      "additionalProperties": false,
+      "description": "Optional cross-channel identity references for a ParticipantIdentity.",
+      "properties": {
+        "slack_team_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slack Team Id"
+        },
+        "slack_user_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slack User Id"
+        },
+        "teamspace_member_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Teamspace Member Id"
+        }
+      },
+      "title": "ParticipantExternalRefs",
+      "type": "object"
+    },
+    "ParticipantIdentity": {
+      "description": "SaaS-minted, mission-scoped participant identity.",
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable name for display",
+          "title": "Display Name"
+        },
+        "external_refs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParticipantExternalRefs"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional cross-channel identity references (V1)"
+        },
+        "participant_id": {
+          "description": "SaaS-minted, mission-scoped unique identifier",
+          "minLength": 1,
+          "title": "Participant Id",
+          "type": "string"
+        },
+        "participant_type": {
+          "description": "Participant category",
+          "enum": [
+            "human",
+            "llm_context"
+          ],
+          "title": "Participant Type",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SaaS-issued session identifier",
+          "title": "Session Id"
+        }
+      },
+      "required": [
+        "participant_id",
+        "participant_type"
+      ],
+      "title": "ParticipantIdentity",
+      "type": "object"
+    },
+    "TeamspaceRef": {
+      "additionalProperties": false,
+      "description": "Reference to a Slack-connected teamspace.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable teamspace name",
+          "title": "Name"
+        },
+        "teamspace_id": {
+          "description": "Teamspace identifier",
+          "minLength": 1,
+          "title": "Teamspace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "teamspace_id"
+      ],
+      "title": "TeamspaceRef",
+      "type": "object"
+    },
+    "ThreadRef": {
+      "additionalProperties": false,
+      "description": "Reference to a Slack thread.",
+      "properties": {
+        "channel_id": {
+          "description": "Slack channel identifier",
+          "minLength": 1,
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "slack_team_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Slack workspace team identifier",
+          "title": "Slack Team Id"
+        },
+        "thread_ts": {
+          "description": "Thread timestamp (Slack ts format)",
+          "minLength": 1,
+          "title": "Thread Ts",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Permalink URL to the thread",
+          "title": "Url"
+        }
+      },
+      "required": [
+        "channel_id",
+        "thread_ts"
+      ],
+      "title": "ThreadRef",
+      "type": "object"
+    }
+  },
+  "$id": "spec-kitty-events/decision_point_widened_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "V1-only: one Slack thread created for an interview-origin Decision Moment.",
+  "properties": {
+    "channel": {
+      "const": "slack",
+      "title": "Channel",
+      "type": "string"
+    },
+    "decision_point_id": {
+      "minLength": 1,
+      "title": "Decision Point Id",
+      "type": "string"
+    },
+    "default_channel_ref": {
+      "$ref": "#/$defs/DefaultChannelRef"
+    },
+    "invited_participants": {
+      "items": {
+        "$ref": "#/$defs/ParticipantIdentity"
+      },
+      "title": "Invited Participants",
+      "type": "array"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "mission_slug": {
+      "minLength": 1,
+      "title": "Mission Slug",
+      "type": "string"
+    },
+    "mission_type": {
+      "minLength": 1,
+      "title": "Mission Type",
+      "type": "string"
+    },
+    "origin_surface": {
+      "const": "planning_interview",
+      "title": "Origin Surface",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "run_id": {
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "teamspace_ref": {
+      "$ref": "#/$defs/TeamspaceRef"
+    },
+    "thread_ref": {
+      "$ref": "#/$defs/ThreadRef"
+    },
+    "widened_at": {
+      "format": "date-time",
+      "title": "Widened At",
+      "type": "string"
+    },
+    "widened_by": {
+      "minLength": 1,
+      "title": "Widened By",
+      "type": "string"
+    }
+  },
+  "required": [
+    "origin_surface",
+    "decision_point_id",
+    "mission_id",
+    "run_id",
+    "mission_slug",
+    "mission_type",
+    "channel",
+    "teamspace_ref",
+    "default_channel_ref",
+    "thread_ref",
+    "widened_by",
+    "widened_at",
+    "recorded_at"
+  ],
+  "title": "DecisionPointWidenedPayload",
+  "type": "object"
+}

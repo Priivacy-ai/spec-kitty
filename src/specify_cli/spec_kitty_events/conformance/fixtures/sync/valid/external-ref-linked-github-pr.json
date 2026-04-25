@@ -1,0 +1,13 @@
+{
+  "link_id": "link-github-pr-001",
+  "connector_id": "conn-github-001",
+  "external_provider": "github",
+  "external_ref_type": "pull_request",
+  "external_ref_id": "42",
+  "external_ref_url": "https://github.com/myorg/myrepo/pull/42",
+  "internal_aggregate_type": "mission_wp",
+  "internal_aggregate_id": "m-001/WP01",
+  "mission_id": "m-001",
+  "linked_by": "human-operator",
+  "recorded_at": "2026-02-27T14:00:00+00:00"
+}

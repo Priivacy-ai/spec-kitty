@@ -1,0 +1,59 @@
+{
+  "$id": "spec-kitty-events/sync_retry_scheduled_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload for SyncRetryScheduled events.",
+  "properties": {
+    "connector_id": {
+      "minLength": 1,
+      "title": "Connector Id",
+      "type": "string"
+    },
+    "delivery_id": {
+      "minLength": 1,
+      "title": "Delivery Id",
+      "type": "string"
+    },
+    "max_retries": {
+      "minimum": 1,
+      "title": "Max Retries",
+      "type": "integer"
+    },
+    "mission_id": {
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "next_retry_at": {
+      "format": "date-time",
+      "title": "Next Retry At",
+      "type": "string"
+    },
+    "recorded_at": {
+      "format": "date-time",
+      "title": "Recorded At",
+      "type": "string"
+    },
+    "retry_attempt": {
+      "minimum": 1,
+      "title": "Retry Attempt",
+      "type": "integer"
+    },
+    "source_event_fingerprint": {
+      "minLength": 1,
+      "title": "Source Event Fingerprint",
+      "type": "string"
+    }
+  },
+  "required": [
+    "delivery_id",
+    "source_event_fingerprint",
+    "connector_id",
+    "mission_id",
+    "recorded_at",
+    "retry_attempt",
+    "max_retries",
+    "next_retry_at"
+  ],
+  "title": "SyncRetryScheduledPayload",
+  "type": "object"
+}

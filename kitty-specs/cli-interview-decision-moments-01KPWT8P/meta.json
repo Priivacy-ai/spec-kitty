@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-23T09:20:49.489073+00:00",
+  "friendly_name": "CLI Interview Decision Moments",
+  "mission_id": "01KPWT8PNY8683QX3WBW6VXYM7",
+  "mission_number": 95,
+  "mission_slug": "cli-interview-decision-moments-01KPWT8P",
+  "mission_type": "software-dev",
+  "slug": "cli-interview-decision-moments-01KPWT8P",
+  "source_description": "CLI-owned Decision Moment API (open/resolve/defer/cancel/verify) with ask-time paper trail under kitty-specs/<mission>/decisions/. Used by charter, specify, and plan. Bumps spec-kitty-events dep to 4.0.0.",
+  "target_branch": "main",
+  "vcs": "git"
+}

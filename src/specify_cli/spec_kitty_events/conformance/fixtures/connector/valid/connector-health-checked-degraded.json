@@ -1,0 +1,13 @@
+{
+  "connector_id": "conn-github-001",
+  "connector_type": "github",
+  "provider": "github",
+  "mission_id": "m-001",
+  "project_uuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "actor_id": "system-health-probe",
+  "actor_type": "system",
+  "endpoint_url": "https://api.github.com",
+  "recorded_at": "2026-02-27T12:10:00+00:00",
+  "health_status": "degraded",
+  "latency_ms": 3200.0
+}

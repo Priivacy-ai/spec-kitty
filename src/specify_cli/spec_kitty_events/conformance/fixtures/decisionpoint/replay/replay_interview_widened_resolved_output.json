@@ -1,0 +1,102 @@
+{
+  "actual_participants": [
+    {
+      "display_name": "Alice Expert",
+      "external_refs": {
+        "slack_team_id": "T0123456789",
+        "slack_user_id": "U0000000001",
+        "teamspace_member_id": null
+      },
+      "participant_id": "p-ext-001",
+      "participant_type": "human",
+      "session_id": null
+    },
+    {
+      "display_name": "Bob Engineer",
+      "external_refs": {
+        "slack_team_id": "T0123456789",
+        "slack_user_id": "U0000000002",
+        "teamspace_member_id": null
+      },
+      "participant_id": "p-ext-002",
+      "participant_type": "human",
+      "session_id": null
+    }
+  ],
+  "anomalies": [],
+  "closed_locally_while_widened": false,
+  "closure_message": {
+    "channel_id": "C0123456789",
+    "message_ts": "1714464300.000200",
+    "thread_ts": "1714464000.000100",
+    "url": "https://acme.slack.com/archives/C0123456789/p1714464300000200"
+  },
+  "decision_point_id": "dp-iv-002",
+  "event_count": 4,
+  "final_answer": "blue-green",
+  "input_key": "migration_strategy",
+  "last_actor_id": "human-owner-2",
+  "last_actor_type": "human",
+  "last_alternatives_considered": null,
+  "last_authority_role": null,
+  "last_evidence_refs": null,
+  "last_rationale": null,
+  "last_state_entered_at": "2026-04-23T10:00:03Z",
+  "mission_id": "m-interview-002",
+  "mission_slug": "data-pipeline",
+  "mission_type": "software-dev",
+  "options": [
+    "blue-green",
+    "rolling",
+    "canary",
+    "Other"
+  ],
+  "origin_flow": "plan",
+  "origin_surface": "planning_interview",
+  "other_answer": false,
+  "phase": "P2",
+  "question": "How should we handle schema migration in production?",
+  "resolved_by": "human-owner-2",
+  "run_id": "run-iv-002",
+  "state": "resolved",
+  "step_id": "step-mig-001",
+  "summary": {
+    "candidate_answer": "blue-green",
+    "extracted_at": "2026-04-23T10:00:03Z",
+    "source": "slack_extraction",
+    "text": "Team consensus: blue-green deployment avoids schema version conflicts during migration."
+  },
+  "terminal_outcome": "resolved",
+  "widening": {
+    "channel": "slack",
+    "default_channel_ref": {
+      "channel_id": "C0123456789",
+      "name": "spec-kitty-decisions"
+    },
+    "invited_participants": [
+      {
+        "display_name": "Alice Expert",
+        "external_refs": {
+          "slack_team_id": "T0123456789",
+          "slack_user_id": "U0000000001",
+          "teamspace_member_id": null
+        },
+        "participant_id": "p-ext-001",
+        "participant_type": "human",
+        "session_id": null
+      }
+    ],
+    "teamspace_ref": {
+      "name": "Acme Engineering",
+      "teamspace_id": "ts-acme-001"
+    },
+    "thread_ref": {
+      "channel_id": "C0123456789",
+      "slack_team_id": "T0123456789",
+      "thread_ts": "1714464000.000100",
+      "url": "https://acme.slack.com/archives/C0123456789/p1714464000000100"
+    },
+    "widened_at": "2026-04-23T10:00:01Z",
+    "widened_by": "human-owner-2"
+  }
+}

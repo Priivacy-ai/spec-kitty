@@ -1,0 +1,65 @@
+{
+  "$id": "spec-kitty-events/potential_step_collision_detected_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Typed payload for PotentialStepCollisionDetected events.",
+  "properties": {
+    "mission_id": {
+      "description": "Mission context",
+      "minLength": 1,
+      "title": "Mission Id",
+      "type": "string"
+    },
+    "participant_ids": {
+      "description": "Colliding participants",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "title": "Participant Ids",
+      "type": "array"
+    },
+    "severity": {
+      "description": "Warning severity level",
+      "enum": [
+        "info",
+        "warning"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "step_id": {
+      "description": "Colliding step",
+      "minLength": 1,
+      "title": "Step Id",
+      "type": "string"
+    },
+    "warning_id": {
+      "description": "Unique warning identifier",
+      "minLength": 1,
+      "title": "Warning Id",
+      "type": "string"
+    },
+    "wp_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Work package context",
+      "title": "Wp Id"
+    }
+  },
+  "required": [
+    "warning_id",
+    "mission_id",
+    "participant_ids",
+    "step_id",
+    "severity"
+  ],
+  "title": "PotentialStepCollisionDetectedPayload",
+  "type": "object"
+}

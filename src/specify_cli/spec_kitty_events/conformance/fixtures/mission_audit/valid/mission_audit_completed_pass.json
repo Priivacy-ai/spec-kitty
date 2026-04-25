@@ -1,0 +1,32 @@
+{
+  "mission_id": "mission-010",
+  "run_id": "run-001",
+  "actor": "agent-claude",
+  "verdict": "pass",
+  "severity": "info",
+  "findings_count": 0,
+  "artifact_ref": {
+    "report_path": "audits/mission-010/run-001/report.json",
+    "content_hash": {
+      "hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "algorithm": "sha256",
+      "size_bytes": 4096,
+      "encoding": "utf-8"
+    },
+    "provenance": {
+      "source_event_ids": [
+        "01JAUDIT000000000000000001",
+        "01JAUDIT000000000000000002"
+      ],
+      "git_sha": "abc123def456789",
+      "git_ref": "refs/heads/010-mission-audit-lifecycle-contracts",
+      "actor_id": "agent-claude",
+      "actor_kind": "llm",
+      "revised_at": "2026-02-25T16:30:00Z"
+    }
+  },
+  "summary": "All acceptance criteria verified. No findings.",
+  "mission_slug": "mission-010",
+  "mission_number": 10,
+  "mission_type": "software-dev"
+}

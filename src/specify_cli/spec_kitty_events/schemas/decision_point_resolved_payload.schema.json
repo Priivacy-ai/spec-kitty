@@ -1,0 +1,503 @@
+{
+  "$defs": {
+    "ClosureMessageRef": {
+      "additionalProperties": false,
+      "description": "Reference to a Slack closure message posted when a decision is resolved.",
+      "properties": {
+        "channel_id": {
+          "description": "Slack channel identifier",
+          "minLength": 1,
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "message_ts": {
+          "description": "Message timestamp (Slack ts format)",
+          "minLength": 1,
+          "title": "Message Ts",
+          "type": "string"
+        },
+        "thread_ts": {
+          "description": "Thread timestamp (Slack ts format)",
+          "minLength": 1,
+          "title": "Thread Ts",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Permalink URL to the message",
+          "title": "Url"
+        }
+      },
+      "required": [
+        "channel_id",
+        "thread_ts",
+        "message_ts"
+      ],
+      "title": "ClosureMessageRef",
+      "type": "object"
+    },
+    "DecisionAuthorityRole": {
+      "enum": [
+        "mission_owner",
+        "advisory",
+        "informed"
+      ],
+      "title": "DecisionAuthorityRole",
+      "type": "string"
+    },
+    "DecisionPointResolvedAdrPayload": {
+      "additionalProperties": false,
+      "description": "3.x-compatible ADR-style Resolved payload.",
+      "properties": {
+        "actor_id": {
+          "minLength": 1,
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "actor_type": {
+          "enum": [
+            "human",
+            "llm",
+            "service"
+          ],
+          "title": "Actor Type",
+          "type": "string"
+        },
+        "alternatives_considered": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Alternatives Considered",
+          "type": "array"
+        },
+        "authority_role": {
+          "$ref": "#/$defs/DecisionAuthorityRole"
+        },
+        "decision_point_id": {
+          "minLength": 1,
+          "title": "Decision Point Id",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "mission_id": {
+          "minLength": 1,
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "mission_owner_authority_flag": {
+          "title": "Mission Owner Authority Flag",
+          "type": "boolean"
+        },
+        "mission_owner_authority_path": {
+          "title": "Mission Owner Authority Path",
+          "type": "string"
+        },
+        "mission_slug": {
+          "minLength": 1,
+          "title": "Mission Slug",
+          "type": "string"
+        },
+        "mission_type": {
+          "minLength": 1,
+          "title": "Mission Type",
+          "type": "string"
+        },
+        "origin_surface": {
+          "const": "adr",
+          "title": "Origin Surface",
+          "type": "string"
+        },
+        "phase": {
+          "minLength": 1,
+          "title": "Phase",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "title": "Recorded At",
+          "type": "string"
+        },
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state_entered_at": {
+          "format": "date-time",
+          "title": "State Entered At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin_surface",
+        "decision_point_id",
+        "mission_id",
+        "run_id",
+        "mission_slug",
+        "mission_type",
+        "phase",
+        "actor_id",
+        "actor_type",
+        "authority_role",
+        "mission_owner_authority_flag",
+        "mission_owner_authority_path",
+        "rationale",
+        "alternatives_considered",
+        "evidence_refs",
+        "state_entered_at",
+        "recorded_at"
+      ],
+      "title": "DecisionPointResolvedAdrPayload",
+      "type": "object"
+    },
+    "DecisionPointResolvedInterviewPayload": {
+      "additionalProperties": false,
+      "description": "V1 interview-origin Resolved payload.",
+      "properties": {
+        "actual_participants": {
+          "items": {
+            "$ref": "#/$defs/ParticipantIdentity"
+          },
+          "title": "Actual Participants",
+          "type": "array"
+        },
+        "closed_locally_while_widened": {
+          "default": false,
+          "title": "Closed Locally While Widened",
+          "type": "boolean"
+        },
+        "closure_message": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClosureMessageRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "decision_point_id": {
+          "minLength": 1,
+          "title": "Decision Point Id",
+          "type": "string"
+        },
+        "final_answer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Final Answer"
+        },
+        "mission_id": {
+          "minLength": 1,
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "mission_slug": {
+          "minLength": 1,
+          "title": "Mission Slug",
+          "type": "string"
+        },
+        "mission_type": {
+          "minLength": 1,
+          "title": "Mission Type",
+          "type": "string"
+        },
+        "origin_surface": {
+          "const": "planning_interview",
+          "title": "Origin Surface",
+          "type": "string"
+        },
+        "other_answer": {
+          "default": false,
+          "title": "Other Answer",
+          "type": "boolean"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "title": "Recorded At",
+          "type": "string"
+        },
+        "resolved_by": {
+          "minLength": 1,
+          "title": "Resolved By",
+          "type": "string"
+        },
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state_entered_at": {
+          "format": "date-time",
+          "title": "State Entered At",
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SummaryBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "terminal_outcome": {
+          "$ref": "#/$defs/TerminalOutcome"
+        }
+      },
+      "required": [
+        "origin_surface",
+        "decision_point_id",
+        "mission_id",
+        "run_id",
+        "mission_slug",
+        "mission_type",
+        "terminal_outcome",
+        "resolved_by",
+        "state_entered_at",
+        "recorded_at"
+      ],
+      "title": "DecisionPointResolvedInterviewPayload",
+      "type": "object"
+    },
+    "ParticipantExternalRefs": {
+      "additionalProperties": false,
+      "description": "Optional cross-channel identity references for a ParticipantIdentity.",
+      "properties": {
+        "slack_team_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slack Team Id"
+        },
+        "slack_user_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slack User Id"
+        },
+        "teamspace_member_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Teamspace Member Id"
+        }
+      },
+      "title": "ParticipantExternalRefs",
+      "type": "object"
+    },
+    "ParticipantIdentity": {
+      "description": "SaaS-minted, mission-scoped participant identity.",
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable name for display",
+          "title": "Display Name"
+        },
+        "external_refs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParticipantExternalRefs"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional cross-channel identity references (V1)"
+        },
+        "participant_id": {
+          "description": "SaaS-minted, mission-scoped unique identifier",
+          "minLength": 1,
+          "title": "Participant Id",
+          "type": "string"
+        },
+        "participant_type": {
+          "description": "Participant category",
+          "enum": [
+            "human",
+            "llm_context"
+          ],
+          "title": "Participant Type",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SaaS-issued session identifier",
+          "title": "Session Id"
+        }
+      },
+      "required": [
+        "participant_id",
+        "participant_type"
+      ],
+      "title": "ParticipantIdentity",
+      "type": "object"
+    },
+    "SummaryBlock": {
+      "additionalProperties": false,
+      "description": "Structured summary of a resolved decision with provenance.",
+      "properties": {
+        "candidate_answer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Candidate answer extracted from the summary",
+          "title": "Candidate Answer"
+        },
+        "extracted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the summary was extracted (if from Slack)",
+          "title": "Extracted At"
+        },
+        "source": {
+          "$ref": "#/$defs/SummarySource",
+          "description": "Provenance of this summary"
+        },
+        "text": {
+          "description": "Summary text (non-empty)",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "source"
+      ],
+      "title": "SummaryBlock",
+      "type": "object"
+    },
+    "SummarySource": {
+      "description": "Provenance of a SummaryBlock.",
+      "enum": [
+        "slack_extraction",
+        "manual",
+        "mission_owner_override"
+      ],
+      "title": "SummarySource",
+      "type": "string"
+    },
+    "TerminalOutcome": {
+      "description": "Terminal resolution outcome for a decision point.",
+      "enum": [
+        "resolved",
+        "deferred",
+        "canceled"
+      ],
+      "title": "TerminalOutcome",
+      "type": "string"
+    }
+  },
+  "$id": "spec-kitty-events/decision_point_resolved_payload",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "discriminator": {
+    "mapping": {
+      "adr": "#/$defs/DecisionPointResolvedAdrPayload",
+      "planning_interview": "#/$defs/DecisionPointResolvedInterviewPayload"
+    },
+    "propertyName": "origin_surface"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/DecisionPointResolvedAdrPayload"
+    },
+    {
+      "$ref": "#/$defs/DecisionPointResolvedInterviewPayload"
+    }
+  ]
+}

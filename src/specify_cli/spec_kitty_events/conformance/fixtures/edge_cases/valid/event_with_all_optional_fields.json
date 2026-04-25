@@ -1,0 +1,18 @@
+{
+  "event_id": "01JMXXXXXXXXXXXXXXXXXXXXXX",
+  "event_type": "TestEvent",
+  "aggregate_id": "test-aggregate",
+  "payload": {
+    "key": "value"
+  },
+  "timestamp": "2026-01-15T10:00:00Z",
+  "build_id": "build-test-fixture",
+  "node_id": "test-node",
+  "lamport_clock": 1,
+  "causation_id": "01JMYYYYYYYYYYYYYYYYYYYYYY",
+  "project_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "project_slug": "my-project",
+  "correlation_id": "01JMZZZZZZZZZZZZZZZZZZZZZZ",
+  "schema_version": "3.0.0",
+  "data_tier": 2
+}

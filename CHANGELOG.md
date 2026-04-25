@@ -17,16 +17,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SaaS read-model policy** at `src/specify_cli/invocation/projection_policy.py` — typed module mapping `(mode, event)` to projection rules. Documented in `docs/trail-model.md`.
 - **Tier 2 SaaS projection decision** — decisively documented as deferred in `docs/trail-model.md`. Tier 2 evidence stays local-only in 3.2.x.
 - **README Governance layer subsection** — entry point for operators discovering the advise/ask/do surface.
+- **Decision Moment Ledger (V1)** — new `spec-kitty agent decision` subgroup with five
+  subcommands: `open`, `resolve`, `defer`, `cancel`, `verify`. Mints ULID `decision_id`s
+  at interview ask-time, writes paper trail under `kitty-specs/<mission>/decisions/`
+  (`index.json` + `DM-<id>.md`), and appends `DecisionPointOpened(interview)` /
+  `DecisionPointResolved(interview)` events to `status.events.jsonl`. Local-only;
+  no SaaS sync required.
+- **Charter integration** — `spec-kitty charter interview` now calls `decision open`
+  before each question and the appropriate terminal command after each answer.
+  `answers.yaml` behavior is unchanged.
+- **Specify + Plan template updates** — `specify.md` and `plan.md` source templates
+  gain a Decision Moment Protocol section instructing the LLM to call decision
+  subcommands at ask/resolution time and write `<!-- decision_id: <id> -->` anchors
+  for deferred decisions.
+- **`decision verify` gate** — scans `spec.md` / `plan.md` for
+  `[NEEDS CLARIFICATION: ...] <!-- decision_id: <id> -->` sentinels and
+  cross-checks against the decisions index. Exits non-zero on drift
+  (`DEFERRED_WITHOUT_MARKER`, `MARKER_WITHOUT_DECISION`, `STALE_MARKER`).
+- **Widen Mode (#758)** — `spec-kitty agent decision widen` + `resolve --from-widen`
+  lifecycle. Writes `widen-pending.jsonl`, emits `DecisionPointWidened` events,
+  integrates with charter/specify/plan widen affordances. Surfaces decision
+  write-back errors explicitly instead of silently suppressing them.
 
 ### Changed
 
 - `spec-kitty profile-invocation complete --evidence` is now mode-gated: rejected on `advisory` / `query` invocations with `InvalidModeForEvidenceError`. Rejection occurs before any write; the invocation stays open.
 - `_propagate_one` consults the new projection policy after the sync-gate and authentication lookup. Existing `task_execution` / `mission_step` projection behaviour is preserved exactly.
 - Dashboard user-visible wording: the mission selector, current-mission header, overview heading, analysis heading, and empty-state prompt now read "Mission Run" / "mission" instead of "Feature". Backend identifiers (CSS classes, HTML IDs, cookie keys, API route segments, JSON field names) are unchanged.
+- **`spec-kitty-events` bumped to `==4.0.0`** — vendored copy at
+  `src/specify_cli/spec_kitty_events/` refreshed. Introduces
+  `DecisionPointOpenedInterviewPayload`, `DecisionPointResolvedInterviewPayload`,
+  `OriginSurface.PLANNING_INTERVIEW` (`origin_surface: planning_interview`),
+  `OriginFlow` enum (values `specify`, `plan`), `DecisionPointWidened`, and
+  `TerminalOutcome` enum.
+- **`[tool.uv.sources]`** redirects `spec-kitty-events` to `../spec-kitty-events/`
+  in editable mode for monorepo development. Dev-only; ignored by pip / PyPI.
 
 ### Deferred
 
 - `spec-kitty explain` (issue #534) remains deferred to Phase 5 pending DRG glossary addressability (#499, #759).
+
+### Out of scope (tracked separately)
+
+- SaaS sync projection for widened decisions — tracked in spec-kitty-saas#110, #111.
+- Tasks-phase interview support — future mission.
 
 ### Migration notes
 
