@@ -116,12 +116,20 @@ class ProfileInvocationExecutor:
         profile_hint: str | None = None,
         actor: str = "unknown",
         mode_of_work: ModeOfWork | None = None,
+        *,
+        action_hint: str | None = None,
     ) -> InvocationPayload:
         """Route the request, load governance context, write started record, return payload.
 
         IMPORTANT: Does NOT spawn any LLM call. Returns synchronously.
         mark_loaded=False ensures first-load state for specify/plan/implement/review
         is NOT poisoned by invocation calls.
+
+        Args:
+            action_hint: Optional caller-supplied action key. When supplied alongside
+                ``profile_hint``, this value replaces the role-default-verb derivation.
+                Empty strings are treated as if not supplied (legacy fallback per
+                EDGE-005). Has no effect on the router-backed branch.
         """
         invocation_id = _new_ulid()  # uses codebase-standard ulid library
 
@@ -129,7 +137,12 @@ class ProfileInvocationExecutor:
         router_confidence: str | None = None
         if profile_hint is not None:
             profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
-            action = self._derive_action_from_request(request_text, profile.role)
+            # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
+            # use it verbatim; otherwise fall back to the legacy role-default-verb
+            # derivation. Truthiness (not `is not None`) means empty-string falls back.
+            action = action_hint or self._derive_action_from_request(
+                request_text, profile.role
+            )
             router_confidence = None  # caller supplied explicit hint
         elif self._router is not None:
             # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)

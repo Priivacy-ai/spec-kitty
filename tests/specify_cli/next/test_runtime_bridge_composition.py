@@ -737,3 +737,410 @@ def test_dispatch_threads_legacy_step_id_to_guard(
         f"tasks_outline through dispatch must not block on missing WP files; "
         f"got {failures!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WP01 / Issue #786 — Single-dispatch invariant tests
+# ---------------------------------------------------------------------------
+#
+# These tests pin the FR-001 / FR-002 / FR-005 / FR-015 contract for the
+# composition-backed software-dev path:
+#
+#   1. After a successful composition, ``runtime_next_step`` (the legacy DAG
+#      dispatch handler) MUST NOT be called for the same action attempt.
+#   2. Run-state advancement still happens — via
+#      ``_advance_run_state_after_composition``.
+#   3. ``Decision`` shape is unchanged.
+#   4. Non-composed actions still flow through ``runtime_next_step``.
+#   5. If the advancement helper raises, the error surfaces via the existing
+#      ``Decision`` blocked shape, and ``runtime_next_step`` is **not**
+#      entered as a silent fallback (EDGE-003).
+
+
+import json
+import subprocess
+
+from specify_cli.next.decision import Decision, DecisionKind
+
+
+def _init_git_repo_for_run(path: Path) -> None:
+    """Initialize a minimal git repo so ``decide_next_via_runtime`` can resolve."""
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=path,
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.com"],
+        cwd=path,
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=path,
+        capture_output=True,
+        check=True,
+    )
+    (path / "README.md").write_text("# test", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=path, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "init"], cwd=path, capture_output=True, check=True
+    )
+
+
+def _scaffold_software_dev_project(tmp_path: Path) -> tuple[Path, Path, str]:
+    """Scaffold a minimal software-dev project with a feature dir.
+
+    Returns ``(repo_root, feature_dir, mission_slug)``.
+    """
+    mission_slug = "042-test-feature"
+    repo_root = tmp_path / "project"
+    repo_root.mkdir()
+    _init_git_repo_for_run(repo_root)
+
+    (repo_root / ".kittify").mkdir()
+
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_type": "software-dev"}),
+        encoding="utf-8",
+    )
+    return repo_root, feature_dir, mission_slug
+
+
+def _advance_runtime_to_step(
+    repo_root: Path, mission_slug: str, target_step: str
+) -> None:
+    """Drive the runtime engine until ``issued_step_id == target_step``."""
+    from spec_kitty_runtime import NullEmitter, next_step as engine_next_step
+    from spec_kitty_runtime.engine import _read_snapshot
+    from specify_cli.next.runtime_bridge import get_or_start_run
+
+    run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
+    for _ in range(20):
+        snapshot = _read_snapshot(Path(run_ref.run_dir))
+        if snapshot.issued_step_id == target_step:
+            return
+        engine_next_step(
+            run_ref, agent_id="test", result="success", emitter=NullEmitter()
+        )
+    raise RuntimeError(
+        f"Could not drive runtime to step {target_step!r}; current snapshot ="
+        f"{_read_snapshot(Path(run_ref.run_dir))!r}"
+    )
+
+
+def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Seed a single status event so ``get_wp_lane`` returns ``lane`` for ``wp_id``."""
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    event = StatusEvent(
+        event_id=f"test-{wp_id}-{lane}",
+        mission_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
+
+
+@pytest.fixture()
+def composed_software_dev_project(tmp_path: Path):
+    """Scaffold a software-dev project with all composed-action artifacts present.
+
+    Yields ``(repo_root, feature_dir, mission_slug)``. Ready for tests that
+    reach the composition path of ``decide_next_via_runtime``. WP01 is seeded
+    in the ``done`` lane so the bridge's WP-iteration short-circuit advances
+    past ``implement`` / ``review`` and the composition path is reached.
+    """
+    repo_root, feature_dir, mission_slug = _scaffold_software_dev_project(tmp_path)
+    # Lay down the artifacts every composed action's guard wants present so a
+    # success path actually reaches the advancement helper.
+    (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    tasks = feature_dir / "tasks"
+    tasks.mkdir()
+    _write_wp_file(tasks, "WP01")
+    # Seed WP01 into the ``done`` lane so the WP-iteration check
+    # (_should_advance_wp_step) does NOT short-circuit before we reach the
+    # composition dispatch path for the implement / review actions.
+    _seed_wp_event_for_lane(feature_dir, "WP01", "done")
+    yield repo_root, feature_dir, mission_slug
+
+
+_COMPOSED_SOFTWARE_DEV_ACTIONS = ("specify", "plan", "tasks", "implement", "review")
+
+
+@pytest.mark.parametrize("step_id", _COMPOSED_SOFTWARE_DEV_ACTIONS)
+def test_composition_success_skips_legacy_dispatch(
+    composed_software_dev_project, step_id: str
+) -> None:
+    """FR-001 / FR-015: ``runtime_next_step`` is NOT called after composition.
+
+    Parametrized over the five composed software-dev actions. We patch the
+    legacy DAG dispatch entry point as imported into the bridge module
+    (``specify_cli.next.runtime_bridge.runtime_next_step``) and assert it is
+    not entered when the composition path succeeds.
+    """
+    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+    _advance_runtime_to_step(repo_root, mission_slug, step_id)
+
+    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+    sentinel_decision = Decision(
+        kind=DecisionKind.step,
+        agent="test",
+        mission_slug=mission_slug,
+        mission="software-dev",
+        mission_state="next",
+        timestamp="2026-04-25T00:00:00+00:00",
+        action="next",
+        run_id="run-x",
+        step_id="next",
+    )
+    with (
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            return_value=sentinel_decision,
+        ) as mock_advance,
+        patch(
+            "specify_cli.next.runtime_bridge.runtime_next_step",
+        ) as mock_legacy,
+    ):
+        decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+    # The legacy DAG dispatch handler MUST NOT be called after composition
+    # success — that is the single-dispatch invariant (FR-001).
+    mock_legacy.assert_not_called()
+    # And the advancement helper is the one that runs.
+    assert mock_advance.call_count == 1
+    # The Decision returned is the one produced by the helper.
+    assert decision is sentinel_decision
+
+
+def test_composition_success_advances_run_state_and_lane_events(
+    composed_software_dev_project,
+) -> None:
+    """FR-002: composition success advances run state and emits lane events.
+
+    The advancement helper is responsible for the legacy path's progression
+    primitives. After a successful composition for ``specify``, the run
+    snapshot's ``issued_step_id`` must move forward, and the runtime event log
+    must record a ``NextStepAutoCompleted`` for the just-completed step.
+    """
+    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+    _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+    from spec_kitty_runtime.engine import _read_snapshot
+    from specify_cli.next.runtime_bridge import (
+        decide_next_via_runtime,
+        get_or_start_run,
+    )
+
+    run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
+    run_dir = Path(run_ref.run_dir)
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+
+    with patch(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+        return_value=fake_result,
+    ):
+        decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+    # Run-state advanced past ``specify``.
+    snapshot = _read_snapshot(run_dir)
+    assert "specify" in snapshot.completed_steps, (
+        f"Expected 'specify' in completed_steps after composition success; "
+        f"snapshot={snapshot!r}"
+    )
+
+    # The runtime event log received the canonical ``NextStepAutoCompleted``
+    # event for the step we just composed — emitted exactly once for this
+    # advance (no duplicate from a legacy fall-through).
+    event_log = run_dir / "run.events.jsonl"
+    log_lines = [
+        json.loads(line)
+        for line in event_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    auto_completed = [
+        ev
+        for ev in log_lines
+        if ev.get("event_type") == "NextStepAutoCompleted"
+        and ev.get("payload", {}).get("step_id") == "specify"
+    ]
+    assert len(auto_completed) == 1, (
+        f"Expected exactly one NextStepAutoCompleted for 'specify'; "
+        f"got {auto_completed!r}"
+    )
+    # And the returned Decision reflects progression (or terminal).
+    assert decision.kind in (
+        DecisionKind.step,
+        DecisionKind.terminal,
+        DecisionKind.decision_required,
+    )
+
+
+def test_decision_shape_unchanged_for_composed_action(
+    composed_software_dev_project,
+) -> None:
+    """FR-005: composed-path Decision exposes the same field set as the legacy path.
+
+    Snapshot the ``Decision`` field set so a future change that adds or
+    removes a field on the composed path will fail loudly. The expected set
+    is the dataclass's documented fields; the comparison is a strict equality
+    so renaming or hiding any field reads as a regression.
+    """
+    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+    _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+    with patch(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+        return_value=fake_result,
+    ):
+        decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+    expected_fields = {
+        "kind",
+        "agent",
+        "mission_slug",
+        "mission",
+        "mission_state",
+        "timestamp",
+        "action",
+        "wp_id",
+        "workspace_path",
+        "prompt_file",
+        "reason",
+        "guard_failures",
+        "progress",
+        "origin",
+        "run_id",
+        "step_id",
+        "decision_id",
+        "input_key",
+        "question",
+        "options",
+        "is_query",
+        "preview_step",
+        "mission_number",
+        "mission_type",
+    }
+    actual_fields = set(vars(decision).keys())
+    assert actual_fields == expected_fields, (
+        f"Decision field set drifted on the composed path; "
+        f"unexpected={actual_fields - expected_fields!r}, "
+        f"missing={expected_fields - actual_fields!r}"
+    )
+
+
+def test_non_composed_action_uses_legacy_runtime_next_step(
+    composed_software_dev_project,
+) -> None:
+    """EDGE-002: actions outside the composition allow-list still call the legacy path.
+
+    Uses the software-dev mission's ``bootstrap`` step (not in the composition
+    allow-list) so that ``_should_dispatch_via_composition`` returns False and
+    the bridge falls through to the legacy ``runtime_next_step`` path. This
+    pins the non-composed regression: composition-side helpers must not run,
+    and the legacy DAG handler is the one and only entry point exercised.
+    """
+    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+
+    # The first ``decide_next_via_runtime`` call has no prior issued step
+    # (current_step_id == None), so the composition predicate is False
+    # because the gating ``current_step_id and ...`` is False; the bridge
+    # therefore falls through to ``runtime_next_step``.
+    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+    sentinel_runtime_decision = MagicMock()
+    sentinel_runtime_decision.kind = "terminal"
+    sentinel_runtime_decision.step_id = None
+    sentinel_runtime_decision.run_id = "run-y"
+    sentinel_runtime_decision.reason = "Mission complete"
+
+    with (
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute"
+        ) as mock_execute,
+        patch(
+            "specify_cli.next.runtime_bridge._advance_run_state_after_composition"
+        ) as mock_advance,
+        patch(
+            "specify_cli.next.runtime_bridge.runtime_next_step",
+            return_value=sentinel_runtime_decision,
+        ) as mock_legacy,
+    ):
+        decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+    # For a non-composed entry path the legacy DAG handler is the only one
+    # that runs; composition-side helpers are never entered.
+    mock_legacy.assert_called_once()
+    mock_execute.assert_not_called()
+    mock_advance.assert_not_called()
+
+
+def test_advancement_helper_failure_propagates_no_legacy_fallback(
+    composed_software_dev_project,
+) -> None:
+    """EDGE-003: helper raises → ``Decision(blocked)`` and NO legacy fallback.
+
+    If the advancement helper itself raises after a successful composition,
+    the bridge MUST surface the failure as a structured ``Decision`` and MUST
+    NOT silently re-enter ``runtime_next_step`` as a fallback. Doing so would
+    re-introduce the very double-dispatch this WP forbids.
+    """
+    repo_root, _feature_dir, mission_slug = composed_software_dev_project
+    _advance_runtime_to_step(repo_root, mission_slug, "specify")
+
+    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+
+    with (
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            side_effect=RuntimeError("boom: snapshot persistence broken"),
+        ) as mock_advance,
+        patch(
+            "specify_cli.next.runtime_bridge.runtime_next_step",
+        ) as mock_legacy,
+    ):
+        decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
+
+    assert mock_advance.called
+    # CRITICAL: the legacy DAG dispatch handler must NOT be entered as a
+    # silent fallback when the advancement helper fails.
+    mock_legacy.assert_not_called()
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason is not None
+    assert "boom: snapshot persistence broken" in decision.reason
+    assert "RuntimeError" in decision.reason

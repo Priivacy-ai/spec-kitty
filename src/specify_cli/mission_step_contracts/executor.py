@@ -167,20 +167,31 @@ class StepContractExecutor:
                 profile_hint=profile_hint,
                 actor=context.actor,
                 mode_of_work=context.mode_of_work,
+                action_hint=selected_contract.action,
             )
-            step_results.append(
-                StepContractStepResult(
-                    step_id=step.id,
-                    sequence=sequence,
-                    description=step.description,
-                    command=step.command,
-                    command_declared=step.command is not None,
-                    guidance=step.guidance,
-                    resolved_delegations=tuple(resolved),
-                    unresolved_candidates=tuple(unresolved),
-                    invocation_payload=payload,
+            try:
+                step_results.append(
+                    StepContractStepResult(
+                        step_id=step.id,
+                        sequence=sequence,
+                        description=step.description,
+                        command=step.command,
+                        command_declared=step.command is not None,
+                        guidance=step.guidance,
+                        resolved_delegations=tuple(resolved),
+                        unresolved_candidates=tuple(unresolved),
+                        invocation_payload=payload,
+                    )
                 )
-            )
+            except Exception:
+                self._invocation_executor.complete_invocation(
+                    payload.invocation_id,
+                    outcome="failed",
+                )
+                raise
+            else:
+                # outcome describes the composition-step trail only; not host-LLM generation status.
+                self._invocation_executor.complete_invocation(payload.invocation_id, outcome="done")
 
         return StepContractExecutionResult(
             contract_id=selected_contract.id,
