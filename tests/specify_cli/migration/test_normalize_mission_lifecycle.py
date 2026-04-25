@@ -59,6 +59,7 @@ def _write_task(feature_dir: Path, *, lane: str = "in_progress") -> None:
 
 
 def _append_event(feature_dir: Path, *, lane: str = "claimed") -> None:
+    at = datetime.now(UTC).isoformat()
     append_event(
         feature_dir,
         StatusEvent(
@@ -67,7 +68,7 @@ def _append_event(feature_dir: Path, *, lane: str = "claimed") -> None:
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane(lane),
-            at="2026-04-21T12:00:00+00:00",
+            at=at,
             actor="test-agent",
             force=False,
             execution_mode="worktree",

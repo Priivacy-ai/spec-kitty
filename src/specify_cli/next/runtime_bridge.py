@@ -582,20 +582,30 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     """Resolve the runtime template path for a mission key.
 
     Uses deterministic runtime discovery precedence for mission-runtime YAML:
-    explicit -> env -> project override -> project legacy -> user global
-    -> project config -> built-in.
+    explicit -> env -> project override -> project legacy -> project config
+    -> user global -> built-in.
+
+    For the built-in ``software-dev`` mission, the packaged runtime template is
+    canonical after this composition rewrite. Stale user-global mission packs
+    from earlier installs must not reintroduce the legacy tasks_* DAG, while
+    explicit, env, and project-scoped overrides remain honored.
     """
     context = _build_discovery_context(repo_root)
     env_value = os.environ.get(context.env_var_name, "")
-    tiers: list[list[Path]] = [
+    project_tiers: list[list[Path]] = [
         list(context.explicit_paths),
         _split_env_paths(env_value),
         [repo_root / ".kittify" / "overrides" / "missions"],
         [repo_root / ".kittify" / "missions"],
-        [context.user_home / ".kittify" / "missions"],
         _project_config_pack_paths(repo_root),
-        list(context.builtin_roots),
     ]
+    global_tier = [context.user_home / ".kittify" / "missions"]
+    builtin_tier = list(context.builtin_roots)
+    tiers = (
+        project_tiers + [builtin_tier, global_tier]
+        if mission_type == "software-dev"
+        else project_tiers + [global_tier, builtin_tier]
+    )
 
     for roots in tiers:
         for root in roots:

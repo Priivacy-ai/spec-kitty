@@ -99,6 +99,7 @@ jobs:
               - 'src/specify_cli/next/**'
               - 'src/specify_cli/runtime/**'
               - 'tests/next/**'
+              - 'tests/specify_cli/next/**'
               - 'tests/runtime/**'
             lanes:
               - 'src/specify_cli/lanes/**'
@@ -893,7 +894,8 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
-          python -m pytest tests/next/ -m "fast and not windows_ci" -q --tb=short \
+          python -m pytest tests/next/ tests/specify_cli/next/ \
+            -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
       - name: "Upload fast-next coverage"
@@ -1061,6 +1063,7 @@ jobs:
             --ignore=tests/release \
             --ignore=tests/review \
             --ignore=tests/next \
+            --ignore=tests/specify_cli/next \
             --ignore=tests/lanes \
             --ignore=tests/test_dashboard \
             --ignore=tests/upgrade \
@@ -1480,7 +1483,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
-          python -m pytest tests/next/ \
+          python -m pytest tests/next/ tests/specify_cli/next/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/next \
