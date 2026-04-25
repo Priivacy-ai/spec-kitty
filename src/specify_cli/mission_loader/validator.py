@@ -25,7 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 from pydantic import ValidationError as PydanticValidationError
 
 from specify_cli.mission_loader.errors import (
@@ -163,6 +163,12 @@ def validate_custom_mission(
             warnings=warnings,
         )
     except MissionRuntimeError as exc:
+        if "has no steps" in str(exc):
+            return ValidationReport(
+                discovered=selected,
+                errors=[_missing_steps_error(selected.path, mission_key)],
+                warnings=warnings,
+            )
         return ValidationReport(
             discovered=selected,
             errors=[
@@ -197,7 +203,23 @@ def validate_custom_mission(
 
     # Step 4: structural checks.
     errors: list[LoaderError] = []
-    if not has_retrospective_marker(template):
+    if not template.steps:
+        errors.append(
+            LoaderError(
+                code=LoaderErrorCode.MISSION_REQUIRED_FIELD_MISSING,
+                message=(
+                    f"Required mission field(s) missing in {selected.path}: steps"
+                ),
+                details={
+                    "file": selected.path,
+                    "mission_key": mission_key,
+                    "field": "steps",
+                    "missing_fields": ["steps"],
+                    "parse_error": "Mission template must declare at least one step.",
+                },
+            )
+        )
+    elif not has_retrospective_marker(template):
         actual_last = template.steps[-1].id if template.steps else None
         errors.append(
             LoaderError(
@@ -221,8 +243,8 @@ def validate_custom_mission(
             # exempt from profile-binding rules.
             continue
         no_inputs = len(step.requires_inputs) == 0
-        no_profile = step.agent_profile is None
-        no_contract_ref = step.contract_ref is None
+        no_profile = not _has_text(step.agent_profile)
+        no_contract_ref = not _has_text(step.contract_ref)
         if no_inputs and no_profile and no_contract_ref:
             errors.append(
                 LoaderError(
@@ -239,7 +261,7 @@ def validate_custom_mission(
                     },
                 )
             )
-        if step.agent_profile is not None and step.contract_ref is not None:
+        if _has_text(step.agent_profile) and _has_text(step.contract_ref):
             errors.append(
                 LoaderError(
                     code=LoaderErrorCode.MISSION_STEP_AMBIGUOUS_BINDING,
@@ -266,6 +288,10 @@ def validate_custom_mission(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _has_text(value: str | None) -> bool:
+    return bool(value and value.strip())
 
 
 def _find_selected(
@@ -390,6 +416,8 @@ def _classify_load_failure(
     except MissionRuntimeError as exc:
         # MissionRuntimeError covers shape errors that bypass Pydantic
         # (e.g. "must be a mapping", "no steps").
+        if "has no steps" in str(exc):
+            return _missing_steps_error(str(path), mission_key)
         return LoaderError(
             code=LoaderErrorCode.MISSION_YAML_MALFORMED,
             message=str(exc),
@@ -456,6 +484,20 @@ def _map_pydantic_error(
             "file": file_path,
             "mission_key": mission_key,
             "parse_error": str(exc),
+        },
+    )
+
+
+def _missing_steps_error(file_path: str, mission_key: str) -> LoaderError:
+    return LoaderError(
+        code=LoaderErrorCode.MISSION_REQUIRED_FIELD_MISSING,
+        message=f"Required mission field(s) missing in {file_path}: steps",
+        details={
+            "file": file_path,
+            "mission_key": mission_key,
+            "field": "steps",
+            "missing_fields": ["steps"],
+            "parse_error": "Mission template must declare at least one step.",
         },
     )
 

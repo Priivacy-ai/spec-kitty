@@ -1286,16 +1286,14 @@ class TestCustomMissionComposition:
             )
         frozen_path.write_text(_yaml.safe_dump(data), encoding="utf-8")
 
-    def test_custom_mission_with_agent_profile_dispatches_with_profile_hint(
+    def test_builtin_software_dev_ignores_template_agent_profile(
         self, composed_software_dev_project
     ) -> None:
-        """Active step's ``agent_profile`` arrives at the executor as ``profile_hint``.
+        """Built-in dispatch ignores template-side ``agent_profile`` values.
 
-        We piggy-back on the software-dev scaffolding (which gives us a real
-        runtime run, frozen template, and lane state) and then mutate the
-        frozen template to set ``agent_profile`` on the ``specify`` step.
-        Because the gate widening reads the frozen template, this drives the
-        same code path a real custom mission would.
+        Custom missions read ``agent_profile`` from the frozen template, but
+        built-in ``software-dev`` must keep PR #797's fast path and continue
+        using ``_ACTION_PROFILE_DEFAULTS`` inside the executor.
         """
         repo_root, _feature_dir, mission_slug = composed_software_dev_project
         _advance_runtime_to_step(repo_root, mission_slug, "specify")
@@ -1339,7 +1337,8 @@ class TestCustomMissionComposition:
         ):
             decide_next_via_runtime("test", mission_slug, "success", repo_root)
 
-        # Exactly one composition call, with the resolved profile threaded in.
+        # Exactly one composition call, with no profile threaded in for the
+        # built-in fast path.
         assert mock_execute.call_count == 1
         call = mock_execute.call_args
         # The executor receives a single ``StepContractExecutionContext``
@@ -1347,9 +1346,9 @@ class TestCustomMissionComposition:
         # positionally or via the ``context=`` kwarg. Cover both shapes.
         context = call.args[0] if call.args else call.kwargs["context"]
         assert isinstance(context, StepContractExecutionContext)
-        assert context.profile_hint == "implementer-ivan", (
-            f"Expected profile_hint='implementer-ivan' for a custom-mission "
-            f"step with agent_profile set; got {context.profile_hint!r}"
+        assert context.profile_hint is None, (
+            "Built-in software-dev dispatch must ignore template-side "
+            f"agent_profile; got {context.profile_hint!r}"
         )
 
     def test_builtin_software_dev_dispatches_with_none_profile_hint(

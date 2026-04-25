@@ -522,3 +522,76 @@ def test_run_custom_mission_starts_runtime_for_erp_fixture(
     assert registry.lookup("custom:erp-integration:retrospective") is None
     # The ask-user decision-required gate must NOT have a synthesized contract.
     assert registry.lookup("custom:erp-integration:ask-user") is None
+
+
+def test_next_dispatch_synthesizes_contract_after_registry_clear(
+    tmp_path: Path,
+) -> None:
+    """Regression: ``mission run`` and ``next`` are separate CLI processes.
+
+    ``mission run`` registers synthesized contracts in a process-local
+    registry, but the normal operator flow invokes ``spec-kitty next`` in a
+    fresh process. Clearing the registry here simulates that boundary; the
+    bridge must recover the custom step contract from the frozen template.
+    """
+    repo_root = _setup_project(tmp_path / "repo", fixture="erp-integration")
+    _init_min_repo(repo_root)
+
+    result = run_custom_mission(
+        "erp-integration",
+        "erp-walk",
+        repo_root,
+        discovery_context=_isolated_context(repo_root),
+    )
+    assert result.exit_code == 0, result.envelope
+
+    # ``decide_next_via_runtime`` expects the tracked feature directory to
+    # exist when it builds decisions/prompts.
+    (repo_root / "kitty-specs" / "erp-walk").mkdir(parents=True, exist_ok=True)
+
+    # First ``next`` call issues the first step; no composition dispatch yet.
+    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+
+    first = decide_next_via_runtime("test", "erp-walk", "success", repo_root)
+    assert first.step_id == "query-erp"
+
+    # Simulate a new CLI process before completing the issued custom step.
+    get_runtime_contract_registry().clear()
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001",)
+    sentinel_decision = Decision(
+        kind=DecisionKind.step,
+        agent="test",
+        mission_slug="erp-walk",
+        mission="erp-integration",
+        mission_state="lookup-provider",
+        timestamp="2026-04-25T00:00:00+00:00",
+        action="lookup-provider",
+        run_id="run-x",
+        step_id="lookup-provider",
+    )
+
+    with (
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ) as mock_execute,
+        patch(
+            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            return_value=sentinel_decision,
+        ),
+    ):
+        second = decide_next_via_runtime("test", "erp-walk", "success", repo_root)
+
+    assert second is sentinel_decision
+    assert mock_execute.call_count == 1
+    call = mock_execute.call_args
+    context = call.args[0] if call.args else call.kwargs["context"]
+    contract = call.kwargs["contract"]
+    assert isinstance(context, StepContractExecutionContext)
+    assert context.mission == "erp-integration"
+    assert context.action == "query-erp"
+    assert context.profile_hint == "researcher-robbie"
+    assert contract is not None
+    assert contract.id == "custom:erp-integration:query-erp"

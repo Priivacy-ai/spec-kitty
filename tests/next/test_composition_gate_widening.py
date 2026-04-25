@@ -25,6 +25,7 @@ import yaml
 
 from specify_cli.next.runtime_bridge import (
     _resolve_step_agent_profile,
+    _resolve_runtime_contract_for_step,
     _should_dispatch_via_composition,
 )
 
@@ -151,6 +152,29 @@ def test_custom_mission_with_agent_profile_returns_true(tmp_path: Path) -> None:
     )
 
 
+def test_custom_mission_with_contract_ref_returns_true(tmp_path: Path) -> None:
+    """A custom mission whose active step has ``contract_ref`` also widens the gate."""
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="custom-mission",
+        steps=[
+            {
+                "id": "step1",
+                "title": "Custom step one",
+                "contract_ref": "plan",
+            },
+        ],
+    )
+
+    assert (
+        _should_dispatch_via_composition(
+            "custom-mission", "step1", run_dir=run_dir
+        )
+        is True
+    )
+
+
 def test_custom_mission_without_agent_profile_returns_false(tmp_path: Path) -> None:
     """Custom mission step with ``agent_profile=None`` falls through to legacy DAG."""
     run_dir = tmp_path / "run"
@@ -259,6 +283,69 @@ def test_resolve_step_agent_profile_returns_profile_for_matching_step(
 
     assert _resolve_step_agent_profile(run_dir, "step1") == "researcher-robbie"
     assert _resolve_step_agent_profile(run_dir, "step2") == "architect-alphonso"
+
+
+def test_resolve_runtime_contract_synthesizes_from_frozen_template(
+    tmp_path: Path,
+) -> None:
+    """Synthesized contracts survive normal separate-process ``next`` usage.
+
+    The process-local registry may be empty when ``spec-kitty next`` runs, so
+    the bridge must be able to synthesize the active step contract from the
+    frozen template.
+    """
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="custom-mission",
+        steps=[
+            {
+                "id": "step1",
+                "title": "Step one",
+                "agent_profile": "researcher-robbie",
+            },
+        ],
+    )
+
+    contract = _resolve_runtime_contract_for_step(
+        repo_root=tmp_path,
+        run_dir=run_dir,
+        mission="custom-mission",
+        step_id="step1",
+    )
+
+    assert contract is not None
+    assert contract.id == "custom:custom-mission:step1"
+    assert contract.mission == "custom-mission"
+    assert contract.action == "step1"
+
+
+def test_resolve_runtime_contract_uses_contract_ref(tmp_path: Path) -> None:
+    """``contract_ref`` resolves against the existing repository by id."""
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="custom-mission",
+        steps=[
+            {
+                "id": "step1",
+                "title": "Step one",
+                "contract_ref": "plan",
+            },
+        ],
+    )
+
+    contract = _resolve_runtime_contract_for_step(
+        repo_root=tmp_path,
+        run_dir=run_dir,
+        mission="custom-mission",
+        step_id="step1",
+    )
+
+    assert contract is not None
+    assert contract.id == "plan"
+    assert contract.mission == "software-dev"
+    assert contract.action == "plan"
 
 
 def test_resolve_step_agent_profile_returns_none_for_missing_step(

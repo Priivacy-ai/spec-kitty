@@ -16,12 +16,12 @@
 | `depends_on` | `list[str]` | `[]` | Existing. |
 | `raci` | `RACIAssignment \| None` | `None` | Existing. |
 | `raci_override_reason` | `str \| None` | `None` | Existing. |
-| **`agent_profile`** | **`str \| None`** | **`None`** | **NEW.** Pydantic field alias `agent-profile`. When set, the composition gate dispatches this step through `StepContractExecutor` with `profile_hint=<value>`. |
-| **`contract_ref`** | **`str \| None`** | **`None`** | **NEW.** Optional pointer to a pre-existing `MissionStepContract.id`. When present, contract synthesis is skipped for this step; the repository must resolve the ID. |
+| **`agent_profile`** | **`str \| None`** | **`None`** | **NEW.** Pydantic field alias `agent-profile`. When set to a non-empty value, the composition gate dispatches this step through `StepContractExecutor` with `profile_hint=<value>`. |
+| **`contract_ref`** | **`str \| None`** | **`None`** | **NEW.** Optional non-empty pointer to a pre-existing `MissionStepContract.id`. When present, contract synthesis is skipped for this step; the repository must resolve the ID. |
 
 #### Invariants on `PromptStep`
 
-1. If `requires_inputs` is empty and `agent_profile` is `None` and `contract_ref` is `None`, the step is interpreted as a "narrative" step (legacy DAG / engine-only). This case is allowed but does NOT participate in composition.
+1. If `requires_inputs` is empty and `agent_profile` is unset/blank and `contract_ref` is unset/blank, the loader emits a `MISSION_STEP_NO_PROFILE_BINDING` error (operator must provide a binding).
 2. If `agent_profile` is non-empty AND `contract_ref` is non-empty, the loader emits a `MISSION_STEP_AMBIGUOUS_BINDING` error (operator must pick one).
 3. The Pydantic config for `PromptStep` MUST set `populate_by_name=True` and `alias_generator` such that `agent_profile` is also accepted as `agent-profile` from YAML.
 

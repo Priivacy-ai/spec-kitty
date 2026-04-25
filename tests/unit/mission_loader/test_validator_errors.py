@@ -135,6 +135,24 @@ def test_missing_required_field_yields_MISSION_REQUIRED_FIELD_MISSING(
     assert details["mission_key"] == "incomplete"
 
 
+def test_missing_steps_yields_MISSION_REQUIRED_FIELD_MISSING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    body = """
+    mission:
+      key: no-steps
+      name: No Steps
+      version: "1.0.0"
+    """
+    _write_mission(tmp_path, "no-steps", body)
+    ctx = _isolated_context(tmp_path, monkeypatch)
+    report = validate_custom_mission("no-steps", ctx)
+
+    assert report.errors[0].code is LoaderErrorCode.MISSION_REQUIRED_FIELD_MISSING
+    assert report.errors[0].details["field"] == "steps"
+    assert report.errors[0].details["missing_fields"] == ["steps"]
+
+
 # ---------------------------------------------------------------------------
 # MISSION_KEY_RESERVED
 # ---------------------------------------------------------------------------
@@ -232,6 +250,34 @@ def test_step_without_binding_yields_MISSION_STEP_NO_PROFILE_BINDING(
     )
     assert err.details["step_id"] == "orphan"
     assert err.details["mission_key"] == "nobind"
+
+
+def test_step_with_blank_agent_profile_yields_MISSION_STEP_NO_PROFILE_BINDING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    body = """
+    mission:
+      key: blank-profile
+      name: Blank Profile
+      version: "1.0.0"
+    steps:
+      - id: blank
+        title: Blank
+        agent_profile: "   "
+      - id: retrospective
+        title: Retro
+        agent_profile: retro
+    """
+    _write_mission(tmp_path, "blank-profile", body)
+    ctx = _isolated_context(tmp_path, monkeypatch)
+    report = validate_custom_mission("blank-profile", ctx)
+
+    codes = [e.code for e in report.errors]
+    assert LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING in codes
+    err = next(
+        e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING
+    )
+    assert err.details["step_id"] == "blank"
 
 
 # ---------------------------------------------------------------------------

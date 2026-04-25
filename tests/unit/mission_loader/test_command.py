@@ -180,6 +180,11 @@ def test_happy_path_returns_zero_and_success_envelope(
     assert env["run_dir"] == str(fake_run_dir)
     assert env["warnings"] == []
 
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["mission_id"] == "01KQABCDEFGHJKMNPQRSTVWXYZ"
+    assert meta["mission_type"] == "erp-integration"
+    assert meta["mission_key"] == "erp-integration"
+
     # Bridge invoked with the right wiring.
     assert captured["mission_slug"] == "erp-q3-rollout-01KQABC"
     assert captured["mission_type"] == "erp-integration"
@@ -214,6 +219,10 @@ def test_happy_path_with_no_meta_json_returns_null_mission_id(
     )
     assert result.exit_code == 0
     assert result.envelope["mission_id"] is None
+    meta_path = repo_root / "kitty-specs" / "tracked-mission-slug" / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert meta["mission_type"] == "erp-integration"
+    assert meta["mission_key"] == "erp-integration"
 
 
 # ---------------------------------------------------------------------------

@@ -263,8 +263,8 @@ Every entry in `steps[]` is a `PromptStep`. The table below covers every author-
 | `id` | yes | str | Unique within the mission; the final step's `id` MUST be `retrospective`. |
 | `title` | yes | str | Short human label rendered in the Kanban / panels. |
 | `description` | no | str | Free-form prose. Recommended for clarity. |
-| `agent_profile` (alias `agent-profile`) | conditional | str | Profile key for composed steps. Required unless the step uses `contract_ref` or is a `requires_inputs` gate. Both snake-case and kebab-case YAML keys are accepted. |
-| `contract_ref` | conditional | str | Reference to an existing `MissionStepContract` ID. Mutually exclusive with `agent_profile`. |
+| `agent_profile` (alias `agent-profile`) | conditional | non-empty str | Profile key for composed steps. Required unless the step uses `contract_ref` or is a `requires_inputs` gate. Both snake-case and kebab-case YAML keys are accepted. |
+| `contract_ref` | conditional | non-empty str | Reference to an existing `MissionStepContract` ID. Mutually exclusive with `agent_profile`. |
 | `requires_inputs` | no | list[str] | Marks the step as a decision-required gate. The runtime pauses and the operator answers via `spec-kitty agent decision resolve …`. |
 | `depends_on` | no | list[str] | Step IDs this step waits on. Used for dependency-aware ordering. |
 | `raci` | no | object | Optional RACI override (`responsible`, `accountable`, `consulted`, `informed`). |

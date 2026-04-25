@@ -310,10 +310,10 @@ def _should_dispatch_via_composition(
        remains byte-identical to its pre-Phase-6 behavior.
     2. **Custom mission widening** (Phase 6 / R-005): consulted only when
        ``run_dir`` is provided AND the mission is NOT a built-in entry in
-       ``_COMPOSED_ACTIONS_BY_MISSION``. The active step's ``agent_profile``
-       is read from the frozen template; a non-empty value triggers
-       composition. Empty / missing ``agent_profile`` falls through to the
-       legacy DAG handler unchanged.
+       ``_COMPOSED_ACTIONS_BY_MISSION``. The active step's explicit binding is
+       read from the frozen template; a non-empty ``agent_profile`` OR
+       ``contract_ref`` triggers composition. Empty / missing bindings fall
+       through to the legacy DAG handler unchanged.
     """
     # Built-in fast path — short-circuits without touching the frozen template.
     composed = _COMPOSED_ACTIONS_BY_MISSION.get(mission)
@@ -325,8 +325,31 @@ def _should_dispatch_via_composition(
     # before the run is started), fall through to the legacy DAG handler.
     if run_dir is None:
         return False
-    profile = _resolve_step_agent_profile(run_dir, step_id)
-    return bool(profile)  # treat empty string as falsy
+    profile, contract_ref = _resolve_step_binding(run_dir, step_id)
+    return bool(profile or contract_ref)  # treat empty strings as falsy
+
+
+def _resolve_step_binding(run_dir: Path, step_id: str) -> tuple[str | None, str | None]:
+    """Return ``(agent_profile, contract_ref)`` for ``step_id`` in the frozen template.
+
+    Missing templates, missing steps, and empty strings all resolve to
+    ``None`` values so callers fail closed through the legacy path or the
+    executor's structured error surface.
+    """
+    try:
+        from specify_cli.next._internal_runtime.engine import _load_frozen_template
+
+        template = _load_frozen_template(run_dir)
+    except Exception:
+        return None, None
+
+    normalized = _normalize_action_for_composition(step_id)
+    for step in template.steps:
+        if step.id == step_id or step.id == normalized:
+            profile = step.agent_profile.strip() if step.agent_profile else None
+            contract_ref = step.contract_ref.strip() if step.contract_ref else None
+            return profile or None, contract_ref or None
+    return None, None
 
 
 def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
@@ -344,9 +367,29 @@ def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
     ``tasks_finalize`` substep IDs by normalizing through
     ``_normalize_action_for_composition``.
     """
+    profile, _contract_ref = _resolve_step_binding(run_dir, step_id)
+    return profile
+
+
+def _resolve_runtime_contract_for_step(
+    *,
+    repo_root: Path,
+    run_dir: Path,
+    mission: str,
+    step_id: str,
+) -> Any | None:
+    """Resolve a custom step contract from durable frozen-template state.
+
+    ``mission run`` and ``next`` normally execute in separate CLI processes,
+    so the process-local registry populated by ``mission run`` cannot be the
+    only handoff for synthesized contracts.
+    """
     try:
-        # Function-scoped import keeps module imports lean and matches the
-        # pattern used by ``_advance_run_state_after_composition``.
+        from doctrine.mission_step_contracts.repository import (
+            MissionStepContractRepository,
+        )
+        from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
+        from specify_cli.mission_loader.registry import lookup_contract
         from specify_cli.next._internal_runtime.engine import _load_frozen_template
 
         template = _load_frozen_template(run_dir)
@@ -355,10 +398,47 @@ def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
 
     normalized = _normalize_action_for_composition(step_id)
     for step in template.steps:
-        if step.id == step_id or step.id == normalized:
-            profile = step.agent_profile
-            return profile if profile else None
+        if step.id != step_id and step.id != normalized:
+            continue
+        contract_ref = step.contract_ref.strip() if step.contract_ref else None
+        if contract_ref:
+            repository = MissionStepContractRepository(
+                project_dir=repo_root
+                / ".kittify"
+                / "doctrine"
+                / "mission_step_contracts"
+            )
+            return lookup_contract(contract_ref, repository)
+        profile = step.agent_profile.strip() if step.agent_profile else None
+        if profile:
+            contract_id = f"custom:{mission}:{normalized}"
+            for contract in synthesize_contracts(template):
+                if contract.id == contract_id:
+                    return contract
+        return None
     return None
+
+
+def _composition_dispatch_inputs(
+    *,
+    repo_root: Path,
+    run_dir: Path,
+    mission: str,
+    step_id: str,
+    action: str,
+) -> tuple[str | None, Any | None]:
+    """Return ``(profile_hint, contract)`` for a composition dispatch."""
+    if action in _COMPOSED_ACTIONS_BY_MISSION.get(mission, frozenset()):
+        return None, None
+    return (
+        _resolve_step_agent_profile(run_dir, step_id),
+        _resolve_runtime_contract_for_step(
+            repo_root=repo_root,
+            run_dir=run_dir,
+            mission=mission,
+            step_id=step_id,
+        ),
+    )
 
 
 def _check_composed_action_guard(  # noqa: C901
@@ -459,6 +539,7 @@ def _dispatch_via_composition(
     mode_of_work: Any | None,
     feature_dir: Path,
     legacy_step_id: str | None = None,
+    contract: Any | None = None,
 ) -> list[str] | None:
     """Run a composed action via ``StepContractExecutor``; then guard.
 
@@ -499,20 +580,18 @@ def _dispatch_via_composition(
         request_text=request_text,
         mode_of_work=mode_of_work,
     )
-    # F-1 (mission local-custom-mission-loader-01KQ2VNJ): for custom missions,
-    # the synthesized contract lives only in the in-memory
-    # ``RuntimeContractRegistry``; the on-disk repository has no record of it.
-    # Look the contract up by its synthesized id (``custom:<mission>:<action>``)
-    # and pass it explicitly. When the registry has no entry (built-in
-    # software-dev dispatch), ``synthesized`` is ``None`` and the executor
-    # falls through to ``MissionStepContractRepository.get_by_action(...)``
-    # exactly as before -- built-in dispatch stays byte-identical.
+    # For custom missions, prefer the durable contract resolved from the
+    # frozen template during ``next``. Fall back to the process-local registry
+    # for in-process tests and callers, and then to the executor's repository
+    # lookup for built-in software-dev dispatch.
     from specify_cli.mission_loader.registry import get_runtime_contract_registry
 
-    synthesized = get_runtime_contract_registry().lookup(f"custom:{mission}:{action}")
+    selected_contract = contract or get_runtime_contract_registry().lookup(
+        f"custom:{mission}:{action}"
+    )
     try:
         result = StepContractExecutor(repo_root=repo_root).execute(
-            context, contract=synthesized
+            context, contract=selected_contract
         )
     except StepContractExecutionError as exc:
         # Structured CLI failure surface (FR-009) — caller turns this into a
@@ -1228,6 +1307,7 @@ def decide_next_via_runtime(
             run_dir=Path(run_ref.run_dir),
         )
     ):
+        run_dir = Path(run_ref.run_dir)
         composed_action = _normalize_action_for_composition(current_step_id)
         # R-005: for custom missions, the active step's ``agent_profile`` is
         # the source of truth for ``profile_hint``. For built-in missions
@@ -1235,9 +1315,12 @@ def decide_next_via_runtime(
         # ``agent_profile``, so this resolves to ``None`` and the executor's
         # ``_resolve_profile_hint`` falls back to ``_ACTION_PROFILE_DEFAULTS``
         # — preserving byte-identical built-in dispatch behavior (FR-010).
-        resolved_profile = _resolve_step_agent_profile(
-            Path(run_ref.run_dir),
-            current_step_id,
+        resolved_profile, runtime_contract = _composition_dispatch_inputs(
+            repo_root=repo_root,
+            run_dir=run_dir,
+            mission=mission_type,
+            step_id=current_step_id,
+            action=composed_action,
         )
         composition_failures = _dispatch_via_composition(
             repo_root=repo_root,
@@ -1254,6 +1337,7 @@ def decide_next_via_runtime(
             # terminal post-finalize state on every substep and blocks the
             # live tasks_outline → tasks_packages → tasks_finalize flow.
             legacy_step_id=current_step_id,
+            contract=runtime_contract,
         )
         if composition_failures:
             action, wp_id, workspace_path = _state_to_action(

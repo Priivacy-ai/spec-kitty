@@ -155,6 +155,8 @@ def run_custom_mission(
         )
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
+    _ensure_feature_metadata(feature_dir, mission_key)
+
     return RunCustomMissionResult(
         exit_code=0,
         envelope={
@@ -270,6 +272,30 @@ def _warning_dict(warning: LoaderWarning) -> dict[str, Any]:
         "message": warning.message,
         "details": dict(warning.details),
     }
+
+
+def _ensure_feature_metadata(feature_dir: Path, mission_key: str) -> None:
+    """Persist the custom mission key so later ``spec-kitty next`` resolves it.
+
+    The runtime index under ``.kittify/runtime`` is not the only reader:
+    ``decide_next_via_runtime`` first asks ``kitty-specs/<slug>/meta.json`` for
+    the mission type. Without this handoff, a normal separate-process
+    ``mission run`` -> ``next`` flow falls back to ``software-dev``.
+    """
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = feature_dir / "meta.json"
+    data: dict[str, Any] = {}
+    with contextlib.suppress(Exception):
+        loaded = json.loads(meta_path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            data = loaded
+    data["mission_type"] = mission_key
+    data["mission_key"] = mission_key
+    data.setdefault("mission", mission_key)
+    meta_path.write_text(
+        json.dumps(data, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _read_mission_id(feature_dir: Path) -> str | None:
