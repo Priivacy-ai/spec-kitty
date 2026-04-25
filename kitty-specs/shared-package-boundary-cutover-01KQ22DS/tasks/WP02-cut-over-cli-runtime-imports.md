@@ -16,8 +16,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "32856"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "38679"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -283,3 +283,4 @@ spec-kitty agent action implement WP02 --agent <name> --mission shared-package-b
 
 - 2026-04-25T11:02:39Z – claude:opus-4.7:python-implementer:implementer – shell_pid=32856 – Started implementation via action command
 - 2026-04-25T11:11:38Z – claude:opus-4.7:python-implementer:implementer – shell_pid=32856 – Ready for review: cutover complete; zero spec_kitty_runtime imports in src/, all 245 next+architectural tests pass
+- 2026-04-25T11:12:00Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=38679 – Started review via action command
