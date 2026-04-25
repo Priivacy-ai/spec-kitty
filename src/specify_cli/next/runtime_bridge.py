@@ -542,13 +542,13 @@ def _advance_run_state_after_composition(
     # focused and mirror the pattern used by ``_dispatch_via_composition``.
     from datetime import UTC, datetime
 
-    from spec_kitty_runtime.engine import (
+    from specify_cli.next._internal_runtime.engine import (
         _append_event,
         _load_frozen_template,
         _read_snapshot,
         _write_snapshot,
     )
-    from spec_kitty_runtime.events import (
+    from specify_cli.next._internal_runtime.events import (
         DECISION_INPUT_REQUESTED,
         MISSION_RUN_COMPLETED,
         NEXT_STEP_AUTO_COMPLETED,
@@ -561,8 +561,8 @@ def _advance_run_state_after_composition(
         NextStepIssuedPayload,
         RuntimeActorIdentity,
     )
-    from spec_kitty_runtime.planner import plan_next
-    from spec_kitty_runtime.schema import DecisionRequest, MissionRunSnapshot
+    from specify_cli.next._internal_runtime.planner import plan_next
+    from specify_cli.next._internal_runtime.schema import DecisionRequest, MissionRunSnapshot
 
     run_dir = Path(run_ref.run_dir)
     snapshot = _read_snapshot(run_dir)

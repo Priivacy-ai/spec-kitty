@@ -817,8 +817,11 @@ def _advance_runtime_to_step(
     repo_root: Path, mission_slug: str, target_step: str
 ) -> None:
     """Drive the runtime engine until ``issued_step_id == target_step``."""
-    from spec_kitty_runtime import NullEmitter, next_step as engine_next_step
-    from spec_kitty_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime.engine import (
+        _read_snapshot,
+        next_step as engine_next_step,
+    )
+    from specify_cli.next._internal_runtime.events import NullEmitter
     from specify_cli.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
@@ -948,7 +951,7 @@ def test_composition_success_advances_run_state_and_lane_events(
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from spec_kitty_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime.engine import _read_snapshot
     from specify_cli.next.runtime_bridge import (
         decide_next_via_runtime,
         get_or_start_run,
@@ -1022,8 +1025,8 @@ def test_advancement_helper_persists_decision_required_branch(
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from spec_kitty_runtime.engine import _read_snapshot
-    from spec_kitty_runtime.schema import NextDecision
+    from specify_cli.next._internal_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime.schema import NextDecision
     from specify_cli.next.runtime_bridge import (
         decide_next_via_runtime,
         get_or_start_run,
@@ -1056,7 +1059,7 @@ def test_advancement_helper_persists_decision_required_branch(
             return_value=fake_result,
         ),
         patch(
-            "spec_kitty_runtime.planner.plan_next",
+            "specify_cli.next._internal_runtime.planner.plan_next",
             return_value=synthetic_decision,
         ),
     ):
