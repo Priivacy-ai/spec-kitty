@@ -275,3 +275,4 @@ spec-kitty agent action implement WP08 --agent <name> --mission shared-package-b
 ## Activity Log
 
 - 2026-04-25T12:03:53Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71202 – Started implementation via action command
+- 2026-04-25T12:06:37Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71202 – pyproject.toml: events/tracker switched to compatibility ranges; runtime absent; [tool.uv.sources] removed. constraints.txt deleted. uv.lock generated (events 4.0.0, tracker 0.4.2, no runtime) and tracked via .gitignore exception. WP03 xfail markers removed; 12/12 architectural tests pass. Refs FR-006, FR-007, FR-008, FR-013, NFR-005.
