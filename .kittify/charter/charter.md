@@ -1,7 +1,7 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.1.2
+> Version: 1.1.3
 
 ## Purpose
 
@@ -44,92 +44,41 @@ This charter captures the technical standards, architectural principles, and dev
 
 ---
 
-## Architecture: Private Dependency Pattern
+## Architecture: Shared Package Boundaries
 
-### spec-kitty-events Library
+### External Contract Packages
 
-**Repository:** https://github.com/Priivacy-ai/spec-kitty-events (PRIVATE)
+`spec-kitty-events` and `spec-kitty-tracker` are true external package dependencies for the Spec Kitty CLI. Treat them like normal third-party Python libraries with Spec Kitty-owned governance:
 
-**Purpose:** Shared event sourcing library providing:
-- Lamport clocks for causal ordering
-- CRDT merge rules for conflict resolution
-- Event storage adapters (JSONL, SQLite)
-- Deterministic conflict detection
+- Consume released PyPI packages through the normal dependency graph.
+- Do not vendor their source into the CLI package.
+- Do not commit path dependencies, editable installs, or moving branch refs for production or release builds.
+- Use SemVer-compatible dependency ranges in library/package metadata where compatibility allows; keep exact artifact resolution in lockfiles and release records.
+- Validate cross-repo behavior with consumer tests and compatibility fixtures rather than forcing every sibling package to release in lockstep.
 
-**Used by:**
-- spec-kitty CLI (current)
-- spec-kitty Django backend (future SaaS platform)
+`spec-kitty-events` owns event envelopes, payload schemas, committed fixtures, replay helpers, and event compatibility rules.
+
+`spec-kitty-tracker` owns tracker provider abstractions, hosted discovery/sync primitives, normalized tracker models, and tracker authority policy behavior.
+
+### Internal Runtime Boundary
+
+Mission runtime behavior is CLI-owned implementation code, not an external shared dependency for the CLI release path.
+
+- Runtime code used by `spec-kitty next` and mission execution should live inside this repository.
+- CLI runtime code may consume `spec-kitty-events` and `spec-kitty-tracker` as external package contracts where needed.
+- The CLI must not require the standalone `spec-kitty-runtime` PyPI package at runtime.
+- Do not add release gates that require publishing `spec-kitty-runtime` before the CLI can ship.
+- If SaaS needs analogous mission execution behavior, establish an explicit SaaS-owned boundary or a new shared contract through a reviewed issue before reintroducing a shared runtime package.
 
 ### Development Workflow Requirements
 
-**Primary workflow (required for CI/CD autonomy):**
+For external package contract changes:
 
-1. Make changes in spec-kitty-events repository
-2. Commit and push to GitHub
-3. Get commit hash: `git rev-parse HEAD`
-4. Update spec-kitty `pyproject.toml` with new commit hash:
-   ```toml
-   spec-kitty-events = { git = "https://github.com/Priivacy-ai/spec-kitty-events.git", rev = "abc1234" }
-   ```
-5. Run `uv sync` (the project uses PEP 621 + Hatch via `pyproject.toml`; `uv` is the canonical dependency manager — see `CONTRIBUTING.md`)
-6. Test integration, commit spec-kitty changes
-
-**Local rapid iteration (use sparingly):**
-- Temporary only: `pip install -e ../spec-kitty-events`
-- **Must revert to Git dependency before committing**
-
-**Forbidden practices:**
-- ❌ Never commit spec-kitty with local `pip -e` path dependency
-- ❌ Never use `rev = "main"` (breaks determinism, causes CI flakiness)
-- ❌ Never assume spec-kitty-events is available locally
-
-### CI/CD Authentication
-
-**GitHub Actions** uses a **deploy key** to access the private spec-kitty-events repository:
-- Secret name: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
-- Access: Read-only to spec-kitty-events
-- Key rotation: Every 12 months or when compromised
-
-**SSH setup in CI:**
-```yaml
-- name: Setup SSH for private repo
-  run: |
-    mkdir -p ~/.ssh
-    echo "${{ secrets.SPEC_KITTY_EVENTS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-    chmod 600 ~/.ssh/id_ed25519
-    ssh-keyscan github.com >> ~/.ssh/known_hosts
-```
-
-### PyPI Release Process
-
-**Current strategy (until spec-kitty-events goes public):**
-1. Vendor events library into `src/specify_cli/_vendored/events/`
-2. Run release script: `python scripts/vendor_and_release.py`
-3. Publish to PyPI (users don't need GitHub access)
-
-**Future strategy (when events is open source):**
-1. Remove vendoring
-2. Use standard Git dependency in published wheel
-3. Update release documentation
-
-### Testing Integration Changes
-
-**For changes spanning both repositories:**
-
-1. Create feature branch in spec-kitty-events: `feature/lamport-clocks`
-2. Create matching branch in spec-kitty: `feature/004-cli-event-log`
-3. Pin spec-kitty to events feature branch during development
-4. Iterate until tests pass
-5. Merge events feature → main
-6. Update spec-kitty to pin to events main commit hash
-7. Merge spec-kitty feature
-
-**Why commit pinning:**
-- Deterministic CI builds (exact same behavior every time)
-- Explicit integration points (you control when updates happen)
-- Prevents silent breakage from upstream changes
-
-**Details:** See [ADR-11: Dual-Repository Pattern](../../architecture/adrs/2026-01-27-11-dual-repository-pattern.md)
+1. Change the owning package repository first.
+2. Publish or prepare a versioned package artifact with compatibility notes.
+3. Update CLI dependency constraints or lockfiles to consume that artifact.
+4. Run CLI consumer tests that cover the changed contract.
+5. Do not merge temporary path, git, branch, or editable-install overrides.
 
 ---
 
