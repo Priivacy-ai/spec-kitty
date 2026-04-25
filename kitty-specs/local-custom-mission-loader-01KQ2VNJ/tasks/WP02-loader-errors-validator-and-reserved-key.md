@@ -25,8 +25,8 @@ subtasks:
 - T012
 phase: Phase 2 - Loader core
 assignee: ''
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "33878"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "35312"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -286,3 +286,4 @@ The coverage report must show ≥ 90% line coverage on the `mission_loader/` pac
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T18:14:58Z – claude:sonnet:implementer-ivan:implementer – shell_pid=33878 – Started implementation via action command
 - 2026-04-25T18:25:58Z – claude:sonnet:implementer-ivan:implementer – shell_pid=33878 – Validator + closed error enum + reserved-key check; coverage 94%; existing tests green
+- 2026-04-25T18:26:37Z – claude:opus:reviewer-renata:reviewer – shell_pid=35312 – Started review via action command
