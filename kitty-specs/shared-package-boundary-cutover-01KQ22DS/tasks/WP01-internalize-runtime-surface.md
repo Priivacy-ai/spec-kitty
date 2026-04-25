@@ -22,7 +22,8 @@ subtasks:
 - T007
 - T008
 - T009
-shell_pid: '29877'
+shell_pid: "29877"
+agent: "claude:opus-4.7:python-implementer:implementer"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -370,3 +371,7 @@ golden baselines from T001.
 ```bash
 spec-kitty agent action implement WP01 --agent <name> --mission shared-package-boundary-cutover-01KQ22DS
 ```
+
+## Activity Log
+
+- 2026-04-25T10:47:41Z – claude:opus-4.7:python-implementer:implementer – shell_pid=29877 – Assigned agent via action command
