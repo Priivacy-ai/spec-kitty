@@ -33,12 +33,12 @@
 | T020 | Extend `_dispatch_via_composition` caller to thread `profile_hint` | WP04 |  | [D] |
 | T021 | Unit tests: gate widening true/false matrix | WP04 | [D] |
 | T022 | Extend `test_runtime_bridge_composition.py` (built-ins unchanged + custom dispatches) | WP04 |  | [D] |
-| T023 | Create `mission_loader/command.py` (functional core) | WP05 |  |
-| T024 | Register `@app.command("run")` in `cli/commands/mission_type.py` | WP05 |  |
-| T025 | Implement validation → registry-register → run-start orchestration | WP05 |  |
-| T026 | Implement `--json` envelope rendering (success + error) | WP05 |  |
-| T027 | Implement human (`rich.panel.Panel`) rendering | WP05 |  |
-| T028 | Unit tests: command happy / sad path against the validator stub | WP05 | [P] |
+| T023 | Create `mission_loader/command.py` (functional core) | WP05 |  | [D] |
+| T024 | Register `@app.command("run")` in `cli/commands/mission_type.py` | WP05 |  | [D] |
+| T025 | Implement validation → registry-register → run-start orchestration | WP05 |  | [D] |
+| T026 | Implement `--json` envelope rendering (success + error) | WP05 |  | [D] |
+| T027 | Implement human (`rich.panel.Panel`) rendering | WP05 |  | [D] |
+| T028 | Unit tests: command happy / sad path against the validator stub | WP05 | [D] |
 | T029 | Author `tests/fixtures/missions/erp-integration/mission.yaml` | WP06 |  |
 | T030 | Integration test: `spec-kitty mission run` happy path with `--json` | WP06 |  |
 | T031 | Integration test: validation error envelope shape locked | WP06 |  |
@@ -187,12 +187,12 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T023 Create `src/specify_cli/mission_loader/command.py` with `run_custom_mission(...)` functional core, decoupled from Typer (WP05)
-- [ ] T024 Register `@app.command("run")` in `src/specify_cli/cli/commands/mission_type.py` delegating to `run_custom_mission()` (WP05)
-- [ ] T025 Implement orchestration: validate → register synthesized contracts via `with` block → call `runtime_bridge.get_or_start_run(mission_slug, repo_root, mission_type=<key>)` → return result envelope (WP05)
-- [ ] T026 Implement `--json` envelope (success and error shapes per `contracts/mission-run-cli.md`) (WP05)
-- [ ] T027 Implement human (`rich.panel.Panel`) rendering with the same field set (WP05)
-- [ ] T028 Unit tests: happy path, validation error → exit 2, infrastructure error → exit 1, JSON envelope shape locked (WP05)
+- [x] T023 Create `src/specify_cli/mission_loader/command.py` with `run_custom_mission(...)` functional core, decoupled from Typer (WP05)
+- [x] T024 Register `@app.command("run")` in `src/specify_cli/cli/commands/mission_type.py` delegating to `run_custom_mission()` (WP05)
+- [x] T025 Implement orchestration: validate → register synthesized contracts via `with` block → call `runtime_bridge.get_or_start_run(mission_slug, repo_root, mission_type=<key>)` → return result envelope (WP05)
+- [x] T026 Implement `--json` envelope (success and error shapes per `contracts/mission-run-cli.md`) (WP05)
+- [x] T027 Implement human (`rich.panel.Panel`) rendering with the same field set (WP05)
+- [x] T028 Unit tests: happy path, validation error → exit 2, infrastructure error → exit 1, JSON envelope shape locked (WP05)
 
 **Implementation sketch**: Functional core signature: `run_custom_mission(mission_key: str, mission_slug: str, repo_root: Path, *, json_output: bool) -> int`. Returns exit code; emits to stdout. Typer wrapper just calls it and `raise typer.Exit(code)`. The `with` block holds the runtime registry shadow active for the duration of the run-start; long-lived steps continue to read it via the executor's repository façade.
 
