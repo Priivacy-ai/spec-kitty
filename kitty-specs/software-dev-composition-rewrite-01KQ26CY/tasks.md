@@ -20,10 +20,10 @@ Three work packages, dependency-ordered. Each WP is contained, ≤7 subtasks, no
 | T007 | Wire post-action guard semantics for the other four composed actions (parity with `_check_step_guards`) | WP02 |  | [D] |
 | T008 | Write `test_runtime_bridge_composition.py` (positive dispatch, fall-through, missing-contract error, guard parity) | WP02 | [D] |
 | T009 | Confirm existing `test_runtime_bridge.py` and `test_agent_commands_routing.py` still pass | WP02 |  | [D] |
-| T010 | Prepend deprecation header comment to `mission-runtime.yaml` | WP03 | [P] |
-| T011 | Create `actions/tasks/guidelines.md` mirroring the four sibling action guidelines | WP03 | [P] |
-| T012 | Run focused tests + broader sweep; verify NFR-001 (no measurable wall-clock regression) | WP03 |  |
-| T013 | Cross-check no `spec-kitty-events` package or `.kittify/charter/` files were touched (C-007 boundary check) | WP03 |  |
+| T010 | Prepend deprecation header comment to `mission-runtime.yaml` | WP03 | [D] |
+| T011 | Create `actions/tasks/guidelines.md` mirroring the four sibling action guidelines | WP03 | [D] |
+| T012 | Run focused tests + broader sweep; verify NFR-001 (no measurable wall-clock regression) | WP03 |  | [D] |
+| T013 | Cross-check no `spec-kitty-events` package or `.kittify/charter/` files were touched (C-007 boundary check) | WP03 |  | [D] |
 
 ---
 
@@ -107,10 +107,10 @@ Three work packages, dependency-ordered. Each WP is contained, ≤7 subtasks, no
 
 ### Included subtasks
 
-- [ ] T010 Prepend a deprecation header comment block to `src/doctrine/missions/software-dev/mission-runtime.yaml` (WP03)
-- [ ] T011 Create `src/doctrine/missions/software-dev/actions/tasks/guidelines.md` matching the structure/length of `actions/plan/guidelines.md` and `actions/implement/guidelines.md` (WP03)
-- [ ] T012 Run `pytest tests/specify_cli/mission_step_contracts/ tests/specify_cli/next/ tests/specify_cli/runtime/` and confirm all green (WP03)
-- [ ] T013 Verify C-007 boundary: `git diff --stat main` must not list any file under `src/spec_kitty_events/` or `.kittify/charter/` (WP03)
+- [x] T010 Prepend a deprecation header comment block to `src/doctrine/missions/software-dev/mission-runtime.yaml` (WP03)
+- [x] T011 Create `src/doctrine/missions/software-dev/actions/tasks/guidelines.md` matching the structure/length of `actions/plan/guidelines.md` and `actions/implement/guidelines.md` (WP03)
+- [x] T012 Run `pytest tests/specify_cli/mission_step_contracts/ tests/specify_cli/next/ tests/specify_cli/runtime/` and confirm all green (WP03)
+- [x] T013 Verify C-007 boundary: `git diff --stat main` must not list any file under `src/spec_kitty_events/` or `.kittify/charter/` (WP03)
 
 ### Implementation sketch
 
