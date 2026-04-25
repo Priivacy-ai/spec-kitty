@@ -208,3 +208,4 @@ Do NOT edit:
 ## Activity Log
 
 - 2026-04-25T15:15:50Z – claude:opus:implementer:implementer – shell_pid=94539 – Assigned agent via action command
+- 2026-04-25T15:22:19Z – claude:opus:implementer:implementer – shell_pid=94539 – action_hint kwarg added; profile_hint branch uses it when truthy; router branch unchanged; focused suite green
