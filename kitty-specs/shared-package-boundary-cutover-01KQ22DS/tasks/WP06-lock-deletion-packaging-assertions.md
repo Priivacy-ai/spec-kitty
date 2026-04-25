@@ -12,8 +12,8 @@ branch_strategy: Planning artifacts for this feature were generated on main. Dur
 subtasks:
 - T025
 - T026
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "69689"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "70069"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -228,3 +228,4 @@ spec-kitty agent action implement WP06 --agent <name> --mission shared-package-b
 
 - 2026-04-25T11:59:19Z – claude:opus-4.7:python-implementer:implementer – shell_pid=69689 – Started implementation via action command
 - 2026-04-25T12:00:43Z – claude:opus-4.7:python-implementer:implementer – shell_pid=69689 – Test file tests/contract/test_packaging_no_vendored_events.py created with both fast filesystem assertion (T026, no marker) and distribution-gated wheel-shape assertion (T025, @pytest.mark.distribution). Both pass on post-WP05 tree (1.92s for full module). Refs FR-012, FR-019.
+- 2026-04-25T12:00:49Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=70069 – Started review via action command
