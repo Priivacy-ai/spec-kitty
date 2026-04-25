@@ -2073,6 +2073,29 @@ jobs:
           SONAR_HOST_URL: ${{ steps.sonar_settings.outputs.host_url }}
 
   # ---------------------------------------------------------------------------
+  # uv-lock-check: assert `uv.lock` is in sync with `pyproject.toml`. NFR-005 of
+  # mission shared-package-boundary-cutover-01KQ22DS pins exact versions in
+  # `uv.lock` (not pyproject); this job blocks PRs that would silently
+  # regenerate the lockfile (DRIFT-1 follow-up of mission-review).
+  # ---------------------------------------------------------------------------
+  uv-lock-check:
+    name: uv lock --check (NFR-005)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: "[ENFORCED] Assert uv.lock is up-to-date with pyproject.toml"
+        run: |
+          # `uv lock --check` exits non-zero if the lockfile would change. This
+          # gates against drift between pyproject.toml constraints and uv.lock
+          # exact pins (NFR-005, C-006).
+          uv lock --check
+
+  # ---------------------------------------------------------------------------
   # build-wheel: build the spec-kitty-cli wheel once and share it with the
   # clean-install-verification job (FR-010 / FR-019 of mission
   # shared-package-boundary-cutover-01KQ22DS).
@@ -2216,6 +2239,7 @@ jobs:
       - integration-tests-cli
       - integration-tests-agent
       - clean-install-verification
+      - uv-lock-check
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -2257,7 +2281,8 @@ jobs:
             "${{ needs.integration-tests-upgrade.result }}" \
             "${{ needs.integration-tests-cli.result }}" \
             "${{ needs.integration-tests-agent.result }}" \
-            "${{ needs.clean-install-verification.result }}"; do
+            "${{ needs.clean-install-verification.result }}" \
+            "${{ needs.uv-lock-check.result }}"; do
             if [ "$result" = "failure" ]; then
               echo "A required job failed."
               exit 1

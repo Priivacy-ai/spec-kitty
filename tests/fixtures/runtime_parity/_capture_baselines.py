@@ -1,3 +1,10 @@
+# QUARANTINED-BY-C-006: dev-only / migration-support utility.
+# This file is NOT a production code path. It exists to regenerate the
+# golden parity baselines from the upstream `spec_kitty_runtime` source
+# tree during the WP01 internalization of mission
+# `shared-package-boundary-cutover-01KQ22DS`. C-006 forbids editable / path /
+# git overrides on production paths; this script is the documented
+# exception and must never be invoked by runtime code.
 """Capture golden parity baselines for the internalized runtime.
 
 This script is intended to run against the upstream ``spec_kitty_runtime``
