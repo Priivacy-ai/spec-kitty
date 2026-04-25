@@ -50,6 +50,9 @@ class QueryModeValidationError(ValueError):
     """Raised when query mode cannot produce a truthful read-only preview."""
 
 
+MissionRunRef = None
+
+
 def start_mission_run(*args: Any, **kwargs: Any) -> Any:
     """Lazily proxy to the runtime bootstrap entrypoint."""
     from spec_kitty_runtime import start_mission_run as runtime_start_mission_run
@@ -62,6 +65,13 @@ def load_mission_template_file(*args: Any, **kwargs: Any) -> Any:
     from spec_kitty_runtime.schema import load_mission_template_file as runtime_load_mission_template_file
 
     return runtime_load_mission_template_file(*args, **kwargs)
+
+
+def runtime_provide_decision_answer(*args: Any, **kwargs: Any) -> Any:
+    """Lazily proxy to the runtime decision-answer API."""
+    from spec_kitty_runtime import provide_decision_answer as runtime_answer
+
+    return runtime_answer(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -104,16 +114,20 @@ def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
 
 def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
     """Construct MissionRunRef across runtime versions."""
-    from spec_kitty_runtime import MissionRunRef
+    mission_run_ref_cls = MissionRunRef
+    if mission_run_ref_cls is None:
+        from spec_kitty_runtime import MissionRunRef as runtime_mission_run_ref
+
+        mission_run_ref_cls = runtime_mission_run_ref
 
     try:
-        return MissionRunRef(
+        return mission_run_ref_cls(
             run_id=run_id,
             run_dir=run_dir,
             mission_key=mission_type,
         )
     except TypeError:
-        return MissionRunRef(
+        return mission_run_ref_cls(
             run_id=run_id,
             run_dir=run_dir,
             mission_type=mission_type,
@@ -876,7 +890,6 @@ def answer_decision_via_runtime(
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
     except Exception:
         pass
-    from spec_kitty_runtime import provide_decision_answer as runtime_provide_decision_answer
     from spec_kitty_runtime.schema import ActorIdentity
 
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
