@@ -164,3 +164,4 @@ Success criteria:
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T18:11:28Z – claude – shell_pid=32550 – Schema fields added; all validation green; built-in templates parse unchanged
 - 2026-04-25T18:11:57Z – claude:opus:reviewer-renata:reviewer – shell_pid=33338 – Started review via action command
+- 2026-04-25T18:14:35Z – claude:opus:reviewer-renata:reviewer – shell_pid=33338 – Review passed: agent_profile (kebab alias) + contract_ref fields added, populate_by_name=True, scope limited to schema.py + new test file, executor.py untouched, all targeted tests pass (123+35), built-in mission templates still parse via parity tests, ruff/mypy issues confirmed pre-existing on baseline.
