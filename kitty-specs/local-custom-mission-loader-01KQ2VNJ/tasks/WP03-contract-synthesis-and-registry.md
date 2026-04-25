@@ -17,8 +17,8 @@ subtasks:
 - T017
 phase: Phase 2 - Loader core
 assignee: ''
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "35895"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "36738"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -206,3 +206,4 @@ UV_PYTHON=3.13.9 uv run --no-sync ruff check src/specify_cli/mission_loader/cont
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T18:29:48Z – claude:sonnet:implementer-ivan:implementer – shell_pid=35895 – Started implementation via action command
 - 2026-04-25T18:36:13Z – claude:sonnet:implementer-ivan:implementer – shell_pid=35895 – Contract synthesis + registry shadow done; coverage >= 90%
+- 2026-04-25T18:36:47Z – claude:opus:reviewer-renata:reviewer – shell_pid=36738 – Started review via action command
