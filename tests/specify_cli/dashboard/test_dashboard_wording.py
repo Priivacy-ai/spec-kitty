@@ -129,3 +129,9 @@ class TestDashboardAccessibilityRegression:
         assert content.count('role="button"') >= 12
         assert content.count('tabindex="0"') >= 12
         assert "onkeydown=\"handleKeyboardActivate(event, function() { window.location='/glossary'; })\"" in content
+
+    def test_index_html_cdn_script_uses_sri(self) -> None:
+        content = INDEX_HTML.read_text()
+        assert 'src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"' in content
+        assert 'integrity="sha384-zbcZAIxlvJtNE3Dp5nxLXdXtXyxwOdnILY1TDPVmKFhl4r4nSUG1r8bcFXGVa4Te"' in content
+        assert 'crossorigin="anonymous"' in content
