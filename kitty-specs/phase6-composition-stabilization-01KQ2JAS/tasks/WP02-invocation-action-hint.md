@@ -19,7 +19,8 @@ subtasks:
 - T008
 - T009
 - T010
-shell_pid: '94539'
+shell_pid: "94539"
+agent: "claude:opus:implementer:implementer"
 history:
 - at: '2026-04-25T15:09:39Z'
   by: tasks
@@ -203,3 +204,7 @@ Do NOT edit:
 
 - **Positional drift**: prevented by `*` keyword-only separator and mypy --strict.
 - **Silent legacy-fallback regression**: explicit empty-string and `None` fallback tests; existing tests must pass unchanged.
+
+## Activity Log
+
+- 2026-04-25T15:15:50Z – claude:opus:implementer:implementer – shell_pid=94539 – Assigned agent via action command
