@@ -30,8 +30,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:opus:implementer-ivan:implementer"
-shell_pid: "67398"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "71454"
 history:
 - at: '2026-04-25T11:39:00Z'
   actor: claude
@@ -320,3 +320,5 @@ cd src && pytest tests/specify_cli/next/test_runtime_bridge.py tests/specify_cli
 ## Activity Log
 
 - 2026-04-25T11:56:23Z – claude:opus:implementer-ivan:implementer – shell_pid=67398 – Started implementation via action command
+- 2026-04-25T12:04:17Z – claude:opus:implementer-ivan:implementer – shell_pid=67398 – Composition dispatch wired with strict mission/action guard; 14 new + 44 legacy bridge + 5 routing + 9 step-contract tests all green; C-001/C-003/C-007/C-008 boundaries respected; tasks_* legacy step IDs normalize to single composed tasks guard with equivalent assertions; mypy --strict clean on runtime_bridge.py.
+- 2026-04-25T12:05:07Z – claude:opus:reviewer-renata:reviewer – shell_pid=71454 – Started review via action command
