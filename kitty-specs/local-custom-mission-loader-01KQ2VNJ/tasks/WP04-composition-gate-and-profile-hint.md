@@ -21,7 +21,8 @@ subtasks:
 - T022
 phase: Phase 2 - Loader core
 assignee: ''
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "37256"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -239,3 +240,4 @@ The 21-case parametrization in `test_runtime_bridge_composition.py` MUST stay gr
 ## Activity Log
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
+- 2026-04-25T18:39:42Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Started implementation via action command
