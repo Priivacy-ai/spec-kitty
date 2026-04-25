@@ -11,10 +11,10 @@
 
 | ID | Description | WP | Parallel |
 | --- | --- | --- | --- |
-| T001 | Add `agent_profile` field with kebab alias to `PromptStep` | WP01 |  |
-| T002 | Add `contract_ref` field to `PromptStep` | WP01 |  |
-| T003 | Configure `populate_by_name=True` on `PromptStep.model_config` | WP01 |  |
-| T004 | Schema parse / alias / round-trip unit tests | WP01 | [P] |
+| T001 | Add `agent_profile` field with kebab alias to `PromptStep` | WP01 |  | [D] |
+| T002 | Add `contract_ref` field to `PromptStep` | WP01 |  | [D] |
+| T003 | Configure `populate_by_name=True` on `PromptStep.model_config` | WP01 |  | [D] |
+| T004 | Schema parse / alias / round-trip unit tests | WP01 | [D] |
 | T005 | Create `mission_loader/__init__.py` stub package | WP02 |  |
 | T006 | Create `mission_loader/errors.py` (closed enums + Pydantic models) | WP02 |  |
 | T007 | Create `mission_loader/retrospective.py` (`has_retrospective_marker`) | WP02 | [P] |
@@ -69,10 +69,10 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T001 Add `agent_profile: str | None = None` to `PromptStep` with field alias `agent-profile` (WP01)
-- [ ] T002 Add `contract_ref: str | None = None` to `PromptStep` (WP01)
-- [ ] T003 Configure `populate_by_name=True` on `PromptStep.model_config` so kebab and snake both parse (WP01)
-- [ ] T004 Add unit tests: snake-case parse, kebab-case parse, both-set round-trip, default `None`, mypy strict (WP01)
+- [x] T001 Add `agent_profile: str | None = None` to `PromptStep` with field alias `agent-profile` (WP01)
+- [x] T002 Add `contract_ref: str | None = None` to `PromptStep` (WP01)
+- [x] T003 Configure `populate_by_name=True` on `PromptStep.model_config` so kebab and snake both parse (WP01)
+- [x] T004 Add unit tests: snake-case parse, kebab-case parse, both-set round-trip, default `None`, mypy strict (WP01)
 
 **Implementation sketch**: Pydantic v2 supports per-field alias via `Field(alias="agent-profile")`. Use `model_config = ConfigDict(frozen=True, populate_by_name=True)` so `PromptStep(agent_profile="x")` and `PromptStep.model_validate({"agent-profile": "x"})` both succeed. Default `None` so existing built-in templates parse unchanged.
 
