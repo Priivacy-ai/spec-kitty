@@ -20,8 +20,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: "claude:opus:implementer:implementer"
-shell_pid: "6407"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "14046"
 history:
 - at: '2026-04-25T15:09:39Z'
   by: tasks
@@ -282,3 +282,4 @@ Do NOT edit:
 
 - 2026-04-25T15:24:52Z – claude:opus:implementer:implementer – shell_pid=6407 – Started implementation via action command
 - 2026-04-25T15:30:59Z – claude:opus:implementer:implementer – shell_pid=6407 – action_hint pass-through + per-step try/except/else with done/failed close; multi-step pairing independent; focused suite green
+- 2026-04-25T15:31:26Z – claude:opus:reviewer:reviewer – shell_pid=14046 – Started review via action command
