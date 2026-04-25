@@ -399,3 +399,114 @@ def test_plan_guard_requires_plan_md(tmp_path: Path) -> None:
     assert any("plan.md" in f for f in failures), (
         f"Expected a failure mentioning plan.md; got {failures!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Mission-review follow-up tests (post-merge fixes for findings R-2 and R-3)
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_logs_invocation_chain_on_success(
+    feature_dir_with_full_tasks: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """FR-008: the bridge forwards the executor's invocation_id chain to logs.
+
+    Mission-review finding R-2: prior to this test, ``_dispatch_via_composition``
+    captured no return value from ``StepContractExecutor.execute``, so the
+    ``StepContractExecutionResult.invocation_ids`` chain was discarded on the
+    live path. This test pins the new behavior: composition success emits an
+    INFO log line that includes the mission, action, count, and the
+    invocation_ids tuple so downstream operators / event-trail consumers can
+    correlate the composed action with its underlying ProfileInvocationExecutor
+    calls.
+    """
+    import logging
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = ("inv-001", "inv-002", "inv-003", "inv-004")
+
+    with caplog.at_level(logging.INFO, logger="specify_cli.next.runtime_bridge"):
+        with patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ):
+            failures = _dispatch_via_composition(
+                repo_root=repo_root,
+                mission="software-dev",
+                action="tasks",
+                actor="architect-alphonso",
+                profile_hint=None,
+                request_text=None,
+                mode_of_work=None,
+                feature_dir=feature_dir_with_full_tasks,
+            )
+
+    assert failures is None
+    # The chain must reach the bridge log so it can be consumed by event/trail
+    # writers and operator triage tools.
+    composition_logs = [
+        r for r in caplog.records if "composed software-dev/tasks emitted" in r.message
+    ]
+    assert composition_logs, (
+        f"Expected a composition INFO log forwarding the invocation chain; "
+        f"got {[r.message for r in caplog.records]!r}"
+    )
+    log_msg = composition_logs[0].getMessage()
+    assert "4 invocation(s)" in log_msg
+    assert "inv-001" in log_msg
+
+
+def test_unexpected_exception_surfaces_structured_cli_error(
+    feature_dir_with_full_tasks: Path, tmp_path: Path
+) -> None:
+    """FR-009: any executor exception class becomes a structured CLI failure.
+
+    Mission-review finding R-3: prior to this test, only
+    ``StepContractExecutionError`` was caught; a ``ValueError`` (or any other
+    exception class) raised by the executor would escape as a Python traceback,
+    contradicting FR-009's "structured CLI error, NOT crash" mandate. This
+    test pins the widened catch: an unexpected exception class becomes a
+    well-formed failure list the caller can wrap in a
+    ``Decision(kind=blocked, guard_failures=[...])``.
+
+    The assertion text checks for the ``crashed`` keyword (vs. the expected
+    ``failed`` from the narrow catch) so the two failure modes remain
+    distinguishable in operator-facing surfaces.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    err_message = "transient error reading contract from disk"
+    with patch(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+        side_effect=ValueError(err_message),
+    ) as mock_execute:
+        failures = _dispatch_via_composition(
+            repo_root=repo_root,
+            mission="software-dev",
+            action="implement",
+            actor="implementer-ivan",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=feature_dir_with_full_tasks,
+        )
+
+    assert mock_execute.call_count == 1
+    assert failures is not None
+    assert len(failures) == 1
+    surface = failures[0]
+    # Distinguishes "unexpected" path from the narrow StepContractExecutionError
+    # path which uses "failed".
+    assert "crashed" in surface
+    assert "software-dev/implement" in surface
+    # Exception class is named so operators can triage by type.
+    assert "ValueError" in surface
+    assert err_message in surface
+    # Must NOT be a Python repr / traceback — confirms structured surfacing.
+    assert "Traceback" not in surface

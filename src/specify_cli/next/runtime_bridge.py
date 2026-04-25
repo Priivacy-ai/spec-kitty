@@ -401,11 +401,44 @@ def _dispatch_via_composition(
         mode_of_work=mode_of_work,
     )
     try:
-        StepContractExecutor(repo_root=repo_root).execute(context)
+        result = StepContractExecutor(repo_root=repo_root).execute(context)
     except StepContractExecutionError as exc:
         # Structured CLI failure surface (FR-009) — caller turns this into a
         # Decision; no Python traceback escapes.
         return [f"composition failed for {mission}/{action}: {exc}"]
+    except Exception as exc:  # noqa: BLE001 — FR-009 contract: any executor
+        # exception class must surface as a structured CLI failure rather than
+        # a Python traceback. The narrow ``StepContractExecutionError`` catch
+        # above handles the documented executor failure mode; this widened
+        # catch defends against contract drift (e.g., a future executor change
+        # that raises ``ValueError`` from a malformed YAML, or a transient
+        # ``OSError`` reading a contract file). The exception detail is logged
+        # for operator triage; the structured surface preserves the FR-009 UX.
+        logger.exception(
+            "unexpected exception in composition for %s/%s", mission, action
+        )
+        return [
+            f"composition crashed for {mission}/{action}: "
+            f"{type(exc).__name__}: {exc}"
+        ]
+
+    # FR-008: forward the invocation_id chain produced by the executor to the
+    # bridge log so downstream event/trail writers and operators can correlate
+    # the composed action with its underlying ProfileInvocationExecutor calls.
+    # Defensive ``getattr`` + duck-typed length so test mocks (MagicMock) and
+    # real ``StepContractExecutionResult`` instances both flow through cleanly.
+    invocation_ids = getattr(result, "invocation_ids", ()) or ()
+    try:
+        invocation_count = len(invocation_ids)
+    except TypeError:
+        invocation_count = 0
+    logger.info(
+        "composed %s/%s emitted %d invocation(s): %s",
+        mission,
+        action,
+        invocation_count,
+        invocation_ids,
+    )
 
     failures = _check_composed_action_guard(action, feature_dir)
     if failures:
