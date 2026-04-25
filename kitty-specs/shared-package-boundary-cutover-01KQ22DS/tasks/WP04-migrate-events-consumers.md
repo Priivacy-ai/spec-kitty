@@ -15,6 +15,8 @@ subtasks:
 - T019
 - T020
 - T021
+agent: "claude:opus-4.7:python-implementer:implementer"
+shell_pid: "43440"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -261,3 +263,7 @@ vendored tree.
 ```bash
 spec-kitty agent action implement WP04 --agent <name> --mission shared-package-boundary-cutover-01KQ22DS
 ```
+
+## Activity Log
+
+- 2026-04-25T11:25:08Z – claude:opus-4.7:python-implementer:implementer – shell_pid=43440 – Started implementation via action command
