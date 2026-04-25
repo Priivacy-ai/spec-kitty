@@ -1,19 +1,19 @@
 {
-  "event_count": 34,
-  "last_event_id": "01KQ307YBPT6VM3YG56E0BBTT4",
-  "materialized_at": "2026-04-25T19:00:42.486318+00:00",
+  "event_count": 35,
+  "last_event_id": "01KQ30CY5WGB2VHTPRTFH8C2KS",
+  "materialized_at": "2026-04-25T19:03:26.140936+00:00",
   "mission_number": "",
   "mission_slug": "local-custom-mission-loader-01KQ2VNJ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 4,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 3
   },
   "work_packages": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-04-25T18:51:16.076958+00:00"
     },
     "WP05": {
-      "actor": "claude:opus:reviewer-renata:reviewer",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_review",
-      "last_event_id": "01KQ307YBPT6VM3YG56E0BBTT4",
-      "last_transition_at": "2026-04-25T19:00:42.486318+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQ30CY5WGB2VHTPRTFH8C2KS",
+      "last_transition_at": "2026-04-25T19:03:26.140936+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
