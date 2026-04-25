@@ -307,7 +307,7 @@ the workaround ready in your dispatch prompts.
 
 | Friction | When it hits | Workaround | Upstream |
 |---|---|---|---|
-| Test-DB collisions across parallel lanes | Django + pytest-django projects with ≥2 concurrent lane runs | `DJANGO_TEST_DATABASE_NAME=test_<proj>_lane_<letter> pytest --create-db` | #770 |
+| Test-DB collisions across parallel lanes | Django-backed projects with ≥2 concurrent lane runs | `DJANGO_TEST_DATABASE_NAME=test_<proj>_lane_<letter> <test-command> --create-db` | #770 |
 | Stale lane on merge | Missions where multiple WPs touched `pyproject.toml` / `urls.py` / shared `__init__.py` | `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>` per stale lane, resolve, retry outer merge | #771 |
 | Post-merge invariant check on `.worktrees/` | Every successful merge | `mv .worktrees /tmp/park && mark-status done && mv back` | #772 |
 | Silent repo fallback when target isn't initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after ceremony; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |
