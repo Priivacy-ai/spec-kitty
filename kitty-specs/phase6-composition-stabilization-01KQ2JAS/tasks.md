@@ -16,10 +16,10 @@
 | T004 | Update `decide_next_via_runtime(...)` to short-circuit on composition success | WP01 | |
 | T005 | Add negative-condition + advancement + non-composed regression tests | WP01 | |
 | T006 | Verify focused pytest + ruff + mypy --strict for WP01 surface | WP01 | |
-| T007 | Extend `ProfileInvocationExecutor.invoke(...)` signature with keyword-only `action_hint` | WP02 | |
-| T008 | Apply `action_hint` truthiness inside `profile_hint`-branch; preserve legacy fallback | WP02 | |
-| T009 | Add direct unit + e2e tests for action_hint behavior in `test_invocation_e2e.py` | WP02 | |
-| T010 | Verify focused pytest + ruff + mypy --strict for WP02 surface | WP02 | |
+| T007 | Extend `ProfileInvocationExecutor.invoke(...)` signature with keyword-only `action_hint` | WP02 | | [D] |
+| T008 | Apply `action_hint` truthiness inside `profile_hint`-branch; preserve legacy fallback | WP02 | | [D] |
+| T009 | Add direct unit + e2e tests for action_hint behavior in `test_invocation_e2e.py` | WP02 | | [D] |
+| T010 | Verify focused pytest + ruff + mypy --strict for WP02 surface | WP02 | | [D] |
 | T011 | Pass `action_hint=selected_contract.action` from `StepContractExecutor.execute(...)` | WP03 | |
 | T012 | Wrap per-step body in `try/except/else`; close invocation with `done`/`failed` | WP03 | |
 | T013 | Add a one-line code comment at the close site documenting the trail-only outcome semantic | WP03 | |
@@ -88,10 +88,10 @@
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T007 Extend `ProfileInvocationExecutor.invoke(...)` signature with keyword-only `action_hint` (WP02)
-- [ ] T008 Apply `action_hint` truthiness inside `profile_hint`-branch; preserve legacy fallback (WP02)
-- [ ] T009 Add direct unit + e2e tests for action_hint behavior in `test_invocation_e2e.py` (WP02)
-- [ ] T010 Verify focused pytest + ruff + mypy --strict for WP02 surface (WP02)
+- [x] T007 Extend `ProfileInvocationExecutor.invoke(...)` signature with keyword-only `action_hint` (WP02)
+- [x] T008 Apply `action_hint` truthiness inside `profile_hint`-branch; preserve legacy fallback (WP02)
+- [x] T009 Add direct unit + e2e tests for action_hint behavior in `test_invocation_e2e.py` (WP02)
+- [x] T010 Verify focused pytest + ruff + mypy --strict for WP02 surface (WP02)
 
 **Implementation sketch**:
 1. Update the signature of `ProfileInvocationExecutor.invoke(...)` to add `*, action_hint: str | None = None` after `mode_of_work`.
