@@ -230,3 +230,4 @@ Do NOT edit:
 - 2026-04-25T15:15:39Z – claude:opus:implementer:implementer – shell_pid=94442 – Assigned agent via action command
 - 2026-04-25T15:26:04Z – claude:opus:implementer:implementer – shell_pid=94442 – Single-dispatch + advancement helper landed; all focused checks green
 - 2026-04-25T15:26:29Z – claude:opus:reviewer:reviewer – shell_pid=8970 – Started review via action command
+- 2026-04-25T15:28:45Z – claude:opus:reviewer:reviewer – shell_pid=8970 – Review passed: composition-backed software-dev actions are single-dispatch (verified for all 5 contract actions); _advance_run_state_after_composition reuses existing primitives without re-entering legacy dispatch; tasks guard ordering preserved; Decision shape stable; helper-failure path surfaces via Decision error shape with no legacy fallback; mission-runtime.yaml untouched; focused suite + ruff + mypy --strict all green.

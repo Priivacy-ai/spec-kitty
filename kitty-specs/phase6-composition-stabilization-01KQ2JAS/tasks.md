@@ -20,12 +20,12 @@
 | T008 | Apply `action_hint` truthiness inside `profile_hint`-branch; preserve legacy fallback | WP02 | | [D] |
 | T009 | Add direct unit + e2e tests for action_hint behavior in `test_invocation_e2e.py` | WP02 | | [D] |
 | T010 | Verify focused pytest + ruff + mypy --strict for WP02 surface | WP02 | | [D] |
-| T011 | Pass `action_hint=selected_contract.action` from `StepContractExecutor.execute(...)` | WP03 | |
-| T012 | Wrap per-step body in `try/except/else`; close invocation with `done`/`failed` | WP03 | |
-| T013 | Add a one-line code comment at the close site documenting the trail-only outcome semantic | WP03 | |
-| T014 | Add lifecycle-pairing tests (success, failure, multi-step) in `test_software_dev_composition.py` | WP03 | |
-| T015 | Add governance-context-uses-contract-action test (FR-013) and call-site-uses-action-hint test (FR-014) | WP03 | |
-| T016 | Verify focused pytest + ruff + mypy --strict for WP03 surface; run the full focused suite | WP03 | |
+| T011 | Pass `action_hint=selected_contract.action` from `StepContractExecutor.execute(...)` | WP03 | | [D] |
+| T012 | Wrap per-step body in `try/except/else`; close invocation with `done`/`failed` | WP03 | | [D] |
+| T013 | Add a one-line code comment at the close site documenting the trail-only outcome semantic | WP03 | | [D] |
+| T014 | Add lifecycle-pairing tests (success, failure, multi-step) in `test_software_dev_composition.py` | WP03 | | [D] |
+| T015 | Add governance-context-uses-contract-action test (FR-013) and call-site-uses-action-hint test (FR-014) | WP03 | | [D] |
+| T016 | Verify focused pytest + ruff + mypy --strict for WP03 surface; run the full focused suite | WP03 | | [D] |
 
 `[P]` is reserved for cross-file parallelism within a single WP. WP01, WP02, and WP03 each own a different source-code area, so the WPs themselves can be lane-scheduled in parallel where their dependencies allow. WP03 depends on WP02 because WP03 calls `invoke(action_hint=...)`, which only exists after WP02 lands.
 
@@ -129,12 +129,12 @@
 **Dependencies**: WP02
 
 **Included subtasks**:
-- [ ] T011 Pass `action_hint=selected_contract.action` from `StepContractExecutor.execute(...)` (WP03)
-- [ ] T012 Wrap per-step body in `try/except/else`; close invocation with `done`/`failed` (WP03)
-- [ ] T013 Add a one-line code comment at the close site documenting the trail-only outcome semantic (WP03)
-- [ ] T014 Add lifecycle-pairing tests (success, failure, multi-step) in `test_software_dev_composition.py` (WP03)
-- [ ] T015 Add governance-context-uses-contract-action test (FR-013) and call-site-uses-action-hint test (FR-014) (WP03)
-- [ ] T016 Verify focused pytest + ruff + mypy --strict for WP03 surface; run the full focused suite (WP03)
+- [x] T011 Pass `action_hint=selected_contract.action` from `StepContractExecutor.execute(...)` (WP03)
+- [x] T012 Wrap per-step body in `try/except/else`; close invocation with `done`/`failed` (WP03)
+- [x] T013 Add a one-line code comment at the close site documenting the trail-only outcome semantic (WP03)
+- [x] T014 Add lifecycle-pairing tests (success, failure, multi-step) in `test_software_dev_composition.py` (WP03)
+- [x] T015 Add governance-context-uses-contract-action test (FR-013) and call-site-uses-action-hint test (FR-014) (WP03)
+- [x] T016 Verify focused pytest + ruff + mypy --strict for WP03 surface; run the full focused suite (WP03)
 
 **Implementation sketch**:
 1. In `StepContractExecutor.execute(...)`, on every `self._invocation_executor.invoke(...)` call (the one at the existing site for each composed contract step), add `action_hint=selected_contract.action`.
