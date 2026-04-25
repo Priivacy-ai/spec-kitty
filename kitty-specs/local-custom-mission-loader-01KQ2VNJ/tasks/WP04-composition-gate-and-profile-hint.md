@@ -241,3 +241,4 @@ The 21-case parametrization in `test_runtime_bridge_composition.py` MUST stay gr
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T18:39:42Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Started implementation via action command
+- 2026-04-25T18:47:37Z – claude:sonnet:implementer-ivan:implementer – shell_pid=37256 – Composition gate widened; built-in dispatch byte-identical (35-case existing suite green, +2 new); custom missions dispatch via agent_profile
