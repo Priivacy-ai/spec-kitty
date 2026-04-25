@@ -19,8 +19,8 @@ subtasks:
 - T031
 - T032
 - T033
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "71202"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "71774"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -276,3 +276,4 @@ spec-kitty agent action implement WP08 --agent <name> --mission shared-package-b
 
 - 2026-04-25T12:03:53Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71202 – Started implementation via action command
 - 2026-04-25T12:06:37Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71202 – pyproject.toml: events/tracker switched to compatibility ranges; runtime absent; [tool.uv.sources] removed. constraints.txt deleted. uv.lock generated (events 4.0.0, tracker 0.4.2, no runtime) and tracked via .gitignore exception. WP03 xfail markers removed; 12/12 architectural tests pass. Refs FR-006, FR-007, FR-008, FR-013, NFR-005.
+- 2026-04-25T12:06:47Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=71774 – Started review via action command
