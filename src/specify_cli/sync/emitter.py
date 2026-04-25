@@ -1466,9 +1466,6 @@ class EventEmitter:
             from specify_cli.spec_kitty_events import Event as EventModel
 
             # 1. Validate envelope via spec-kitty-events Pydantic model
-            # spec-kitty-events 4.0.0 added build_id, project_uuid, correlation_id
-            # as required fields; fall back to safe defaults for events emitted
-            # under 3.x schema that lack these fields.
             model_data = {
                 "event_id": event["event_id"],
                 "event_type": event["event_type"],
@@ -1478,9 +1475,6 @@ class EventEmitter:
                 "node_id": event["node_id"],
                 "lamport_clock": event["lamport_clock"],
                 "causation_id": event.get("causation_id"),
-                "build_id": event.get("build_id") or "unknown",
-                "project_uuid": event.get("project_uuid") or "00000000-0000-0000-0000-000000000000",
-                "correlation_id": event.get("correlation_id") or event["event_id"],
             }
             EventModel(**model_data)
 

@@ -102,9 +102,6 @@ def _validate_envelope(event_data: dict[str, Any], errors: list[str]) -> None:
     Extracts only the fields the model cares about so that extra fields
     (``team_slug``, ``project_uuid``, etc.) don't cause spurious failures.
     """
-    # spec-kitty-events 4.0.0 added build_id, project_uuid, correlation_id as
-    # required fields; fall back to safe defaults for events emitted under 3.x
-    # schema that lack these fields.
     model_fields = {
         "event_id": event_data.get("event_id"),
         "event_type": event_data.get("event_type"),
@@ -114,9 +111,6 @@ def _validate_envelope(event_data: dict[str, Any], errors: list[str]) -> None:
         "node_id": event_data.get("node_id"),
         "lamport_clock": event_data.get("lamport_clock"),
         "causation_id": event_data.get("causation_id"),
-        "build_id": event_data.get("build_id") or "unknown",
-        "project_uuid": event_data.get("project_uuid") or "00000000-0000-0000-0000-000000000000",
-        "correlation_id": event_data.get("correlation_id") or event_data.get("event_id"),
     }
     try:
         Event(**model_fields)

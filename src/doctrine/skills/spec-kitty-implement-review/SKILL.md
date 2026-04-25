@@ -781,34 +781,3 @@ pass but the module is never imported from the live command path, the feature
 does not work. This is the most common post-merge defect. Run
 `grep -r "from.*<new_module>" src/` to verify at least one live caller exists
 for every new module.
-
-**Test-DB collisions across parallel lane worktrees (Django/pytest-django
-projects)**: When multiple implementer agents run tests concurrently in
-separate lane worktrees of the same project, they collide on the shared
-default test database, producing errors like `psycopg2.errors.DuplicateColumn`
-or `must be owner of table <name>`. Workaround that sub-agents commonly
-rediscover:
-```bash
-DJANGO_TEST_DATABASE_NAME=test_<project>_lane_<letter> uv run pytest ... --create-db
-```
-Include this pattern in your dispatch prompts for Django-backed WPs so each
-implementer knows to use a lane-scoped DB up front. Tracked upstream as
-https://github.com/Priivacy-ai/spec-kitty/issues/770 for built-in support.
-
-**Lane staleness on merge**: After `spec-kitty merge` completes lane A, lane B
-can become stale against the updated mission branch on shared files
-(`pyproject.toml`, `uv.lock`, module `__init__.py`, `urls.py`). The merge
-halts on the stale lane with a manual-merge prompt. For multi-lane missions
-the rote work can be significant (~30 min for 8+ lanes). The pattern is:
-`cd .worktrees/<slug>-lane-X && git merge kitty/mission-<slug> --no-edit`,
-resolve any conflicts (usually union-merge on TOML / import-line / comment
-additions), commit, then retry the outer merge. Tracked upstream as
-https://github.com/Priivacy-ai/spec-kitty/issues/771 for auto-rebase support.
-
-**Running multi-repo or multi-mission programs**: The implement-review loop
-in this skill is scoped to a single mission. When orchestrating across
-multiple missions and repos (e.g., a cross-repo feature release), you will
-need a layer above this one that handles: inter-repo dependency sequencing,
-pulse-heartbeat safety nets when running many agents for long stretches,
-and post-merge mission-review + remediation chaining. See the companion
-skill `spec-kitty-program-orchestrate` for that pattern.

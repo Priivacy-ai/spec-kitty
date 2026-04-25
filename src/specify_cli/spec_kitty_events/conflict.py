@@ -1,5 +1,5 @@
 """Conflict detection using Lamport clocks."""
-from typing import Tuple
+
 from .models import Event
 
 
@@ -22,12 +22,12 @@ def is_concurrent(event1: Event, event2: Event) -> bool:
         True if events are concurrent (conflicting), False otherwise
 
     Example:
-        >>> e1 = Event(event_id="ID1", aggregate_id="WP001", lamport_clock=5, project_uuid=..., ...)
-        >>> e2 = Event(event_id="ID2", aggregate_id="WP001", lamport_clock=5, project_uuid=..., ...)
+        >>> e1 = Event(event_id="ID1", aggregate_id="WP001", lamport_clock=5, ...)
+        >>> e2 = Event(event_id="ID2", aggregate_id="WP001", lamport_clock=5, ...)
         >>> is_concurrent(e1, e2)
         True
 
-        >>> e3 = Event(event_id="ID3", aggregate_id="WP002", lamport_clock=5, project_uuid=..., ...)
+        >>> e3 = Event(event_id="ID3", aggregate_id="WP002", lamport_clock=5, ...)
         >>> is_concurrent(e1, e3)  # Different aggregate
         False
     """
@@ -38,7 +38,7 @@ def is_concurrent(event1: Event, event2: Event) -> bool:
     )
 
 
-def total_order_key(event: Event) -> Tuple[int, str]:
+def total_order_key(event: Event) -> tuple[int, str]:
     """Generate sortable key for deterministic total ordering.
 
     When multiple events have the same lamport_clock (concurrent events),

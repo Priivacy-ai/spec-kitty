@@ -114,7 +114,7 @@ Check in priority order:
    - Objective → Functional Requirements
    - Constraints and non-goals → Non-Functional Requirements and Constraints
    - Acceptance criteria → FR status and Definition of Done markers
-   - Risks and open questions → Assumptions or `[NEEDS CLARIFICATION: <text>] <!-- decision_id: <id> -->` markers (max 3; use `decision defer` before writing each marker)
+   - Risks and open questions → Assumptions or `[NEEDS CLARIFICATION]` markers (max 3)
 
 4. **Ask gap-filling questions only.** Scale to brief quality:
 
@@ -146,53 +146,6 @@ Check in priority order:
 ### If no brief file is found → Proceed with normal Discovery Gate
 
 No change to current behaviour. Continue to the Discovery Gate section below.
-
-## Decision Moment Protocol
-
-Before asking **any** interview question during this command, you MUST:
-
-1. Run `spec-kitty agent decision open` to mint a decision_id:
-   ```
-   spec-kitty agent decision open \
-     --mission <mission-slug> \
-     --flow specify \
-     --slot-key specify.<section>.<question-slug> \
-     --input-key <snake_case_key> \
-     --question "<question text>" \
-     [--options '["option1","option2","Other"]']
-   ```
-   Capture the returned `decision_id` from the JSON output.
-
-2. Ask the question to the user in chat.
-
-3. After the user answers, run **exactly one** of:
-   - Resolved answer:
-     `spec-kitty agent decision resolve <decision_id> --mission <slug> --final-answer "<answer>" [--other-answer]`
-   - Deferred / skip:
-     `spec-kitty agent decision defer <decision_id> --mission <slug> --rationale "<reason>"`
-   - Not applicable / cancel:
-     `spec-kitty agent decision cancel <decision_id> --mission <slug> --rationale "<reason>"`
-
-4. When deferring, write the inline marker into `spec.md` immediately after the
-   relevant section:
-   ```
-   [NEEDS CLARIFICATION: <brief description of what needs answering>] <!-- decision_id: <decision_id> -->
-   ```
-
-5. Before declaring the interview phase complete, run:
-   `spec-kitty agent decision verify --mission <slug>`
-   Address any findings (`DEFERRED_WITHOUT_MARKER`, `MARKER_WITHOUT_DECISION`,
-   `STALE_MARKER`) before proceeding.
-
-**Important constraints:**
-- `--slot-key` format: `specify.<section>.<question-slug>` (e.g.,
-  `specify.auth.strategy`).
-- `--input-key` is the snake_case programmatic key (e.g., `auth_strategy`).
-- The `decision_id` on the wire is a plain ULID (26 chars). The `DM-` prefix
-  appears only in artifact filenames, not in CLI arguments.
-- Widening is represented by the CLI/SaaS widen flow; if that flow returns
-  canonical thread metadata, it must be recorded as `DecisionPointWidened`.
-- SaaS sync is not required; all operations are local-only.
 
 ## Discovery Gate (mandatory)
 
@@ -322,7 +275,7 @@ The text the user typed after `/spec-kitty.specify` in the triggering message **
 
 Given that feature description, do this:
 
-- **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` to at most three critical decisions the user has postponed; call `decision defer` before writing each such marker).
+- **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …]` to at most three critical decisions the user has postponed).
 - **Interactive Interview Mode (no arguments)**: Use the discovery interview to elicit all necessary context, synthesize the working feature description, and confirm it with the user before you generate any specification artifacts.
 
 1. **Check discovery status**:

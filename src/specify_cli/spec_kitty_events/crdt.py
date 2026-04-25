@@ -1,9 +1,10 @@
 """CRDT merge functions for conflict resolution."""
-from typing import List, Set, Any
+
+from typing import Any
 from .models import Event
 
 
-def merge_gset(events: List[Event]) -> Set[Any]:
+def merge_gset(events: list[Event]) -> set[Any]:
     """Merge GSet (grow-only set) from multiple events.
 
     Extracts tags from event.payload["tags"] and returns the union of all sets.
@@ -16,8 +17,8 @@ def merge_gset(events: List[Event]) -> Set[Any]:
         Union of all tag sets
 
     Example:
-        >>> e1 = Event(payload={"tags": {"bug", "urgent"}}, project_uuid=..., ...)
-        >>> e2 = Event(payload={"tags": {"bug", "resolved"}}, project_uuid=..., ...)
+        >>> e1 = Event(payload={"tags": {"bug", "urgent"}}, ...)
+        >>> e2 = Event(payload={"tags": {"bug", "resolved"}}, ...)
         >>> merge_gset([e1, e2])
         {"bug", "urgent", "resolved"}
 
@@ -25,7 +26,7 @@ def merge_gset(events: List[Event]) -> Set[Any]:
         - Empty payload or missing "tags" key is treated as empty set
         - Duplicate tags are automatically deduplicated (set semantics)
     """
-    merged: Set[Any] = set()
+    merged: set[Any] = set()
     for event in events:
         tags = event.payload.get("tags", set())
         # Convert to set if needed (handle list/tuple inputs)
@@ -35,7 +36,7 @@ def merge_gset(events: List[Event]) -> Set[Any]:
     return merged
 
 
-def merge_counter(events: List[Event]) -> int:
+def merge_counter(events: list[Event]) -> int:
     """Merge Counter CRDT from multiple events.
 
     Extracts deltas from event.payload["delta"] and returns the sum,
@@ -50,8 +51,8 @@ def merge_counter(events: List[Event]) -> int:
         Sum of all deltas (deduplicated by event_id)
 
     Example:
-        >>> e1 = Event(event_id="ID1", payload={"delta": 5}, project_uuid=..., ...)
-        >>> e2 = Event(event_id="ID2", payload={"delta": 3}, project_uuid=..., ...)
+        >>> e1 = Event(event_id="ID1", payload={"delta": 5}, ...)
+        >>> e2 = Event(event_id="ID2", payload={"delta": 3}, ...)
         >>> merge_counter([e1, e2])
         8
         >>> merge_counter([e1, e1, e2])  # e1 counted once (idempotent)
@@ -61,7 +62,7 @@ def merge_counter(events: List[Event]) -> int:
         - Empty payload or missing "delta" key is treated as 0
         - Deduplication prevents double-counting same event
     """
-    seen_ids: Set[str] = set()
+    seen_ids: set[str] = set()
     total = 0
     for event in events:
         # Deduplicate by event_id

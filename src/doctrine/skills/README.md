@@ -48,7 +48,6 @@ Skills should teach agents to load doctrine **iteratively**:
 | `spec-kitty-runtime-review` | Review workflow surface: claim, review, approve/reject |
 | `spec-kitty-mission-review` | Post-merge mission review: FR trace, drift analysis, risk/security audit, final verdict |
 | `spec-kitty-implement-review` | Implement-review orchestration loop across WPs |
-| `spec-kitty-program-orchestrate` | Multi-repo program orchestration: drive several missions end-to-end in dependency order with parallel sub-agents and a pulse-heartbeat safety net |
 | `spec-kitty-setup-doctor` | Installation diagnostics and repair |
 | `spec-kitty-git-workflow` | Git operations, worktree lifecycle, safe-commit pattern |
 | `spec-kitty-glossary-context` | Terminology curation and semantic integrity |

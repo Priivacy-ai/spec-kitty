@@ -92,54 +92,6 @@ This command does **not** update agent-specific context files.
   - `quickstart.md`
   - `occurrence_map.yaml` when bulk-edit planning applies
 
-## Decision Moment Protocol
-
-Before asking **any** clarifying question during plan elaboration, you MUST:
-
-1. Run `spec-kitty agent decision open` to mint a decision_id:
-   ```
-   spec-kitty agent decision open \
-     --mission <mission-slug> \
-     --flow plan \
-     --slot-key plan.<section>.<question-slug> \
-     --input-key <snake_case_key> \
-     --question "<question text>" \
-     [--options '["option1","option2","Other"]']
-   ```
-   Capture the returned `decision_id` from the JSON output.
-
-2. Ask the question to the user in chat.
-
-3. After the user answers, run **exactly one** of:
-   - Resolved:
-     `spec-kitty agent decision resolve <decision_id> --mission <slug> --final-answer "<answer>"`
-   - Deferred:
-     `spec-kitty agent decision defer <decision_id> --mission <slug> --rationale "<reason>"`
-   - Canceled:
-     `spec-kitty agent decision cancel <decision_id> --mission <slug> --rationale "<reason>"`
-
-4. When deferring, write the inline marker into `plan.md`:
-   ```
-   [NEEDS CLARIFICATION: <brief description>] <!-- decision_id: <decision_id> -->
-   ```
-
-5. Before finishing this command, run:
-   `spec-kitty agent decision verify --mission <slug>`
-   Resolve all findings (`DEFERRED_WITHOUT_MARKER`, `MARKER_WITHOUT_DECISION`,
-   `STALE_MARKER`) before proceeding.
-
-**Important constraints:**
-- `--slot-key` format: `plan.<section>.<question-slug>` (e.g.,
-  `plan.architecture.db-choice`).
-- `--input-key` is the snake_case programmatic key (e.g., `db_choice`).
-- The `decision_id` on the wire is a plain ULID (26 chars). The `DM-` prefix
-  appears only in artifact filenames, not in CLI arguments.
-- The verifier cross-checks `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->`
-  sentinels in `plan.md` against the decisions index and exits non-zero on drift.
-- Widening is represented by the CLI/SaaS widen flow; if that flow returns
-  canonical thread metadata, it must be recorded as `DecisionPointWidened`.
-- Local-only; no SaaS calls needed.
-
 ## Planning Interrogation (mandatory)
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
@@ -233,7 +185,7 @@ If the mission is not a bulk edit, skip this step.
 4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/charter/charter.md` if it exists. If the charter file is missing, skip Charter Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
 5. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
-   - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` only when the user deliberately postpones a decision (call `decision defer` before writing each such marker)
+   - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - If a charter exists, fill Charter Check section from it and challenge any conflicts directly with the user. If no charter exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
    - Phase 0: Generate research.md (commission research to resolve every outstanding clarification, prioritizing unresolved domain rules, lifecycle questions, and event/integration behavior before generic tech comparisons)

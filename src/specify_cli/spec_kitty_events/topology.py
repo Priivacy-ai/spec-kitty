@@ -1,10 +1,10 @@
 """Topological sorting of events by causation relationships."""
+
 from collections import deque
-from typing import Deque, List, Dict
 from .models import Event, CyclicDependencyError
 
 
-def topological_sort(events: List[Event]) -> List[Event]:
+def topological_sort(events: list[Event]) -> list[Event]:
     """Sort events by causation relationships (parent before child).
 
     Uses Kahn's algorithm to perform topological sort. Events with no parent
@@ -20,9 +20,9 @@ def topological_sort(events: List[Event]) -> List[Event]:
         CyclicDependencyError: If events form a cycle in causation graph
 
     Example:
-        >>> e1 = Event(event_id="ID1", causation_id=None, project_uuid=..., ...)  # Root
-        >>> e2 = Event(event_id="ID2", causation_id="ID1", project_uuid=..., ...)  # Child of e1
-        >>> e3 = Event(event_id="ID3", causation_id="ID2", project_uuid=..., ...)  # Child of e2
+        >>> e1 = Event(event_id="ID1", causation_id=None, ...)  # Root
+        >>> e2 = Event(event_id="ID2", causation_id="ID1", ...)  # Child of e1
+        >>> e3 = Event(event_id="ID3", causation_id="ID2", ...)  # Child of e2
         >>> sorted_events = topological_sort([e3, e1, e2])
         >>> # Result: [e1, e2, e3] (parent before child)
     """
@@ -30,9 +30,9 @@ def topological_sort(events: List[Event]) -> List[Event]:
         return []
 
     # Build event lookup and dependency graph
-    event_map: Dict[str, Event] = {e.event_id: e for e in events}
-    in_degree: Dict[str, int] = {e.event_id: 0 for e in events}
-    children: Dict[str, List[str]] = {e.event_id: [] for e in events}
+    event_map: dict[str, Event] = {e.event_id: e for e in events}
+    in_degree: dict[str, int] = {e.event_id: 0 for e in events}
+    children: dict[str, list[str]] = {e.event_id: [] for e in events}
 
     # Calculate in-degrees (number of parents)
     for event in events:
@@ -44,10 +44,8 @@ def topological_sort(events: List[Event]) -> List[Event]:
             children[event.causation_id].append(event.event_id)
 
     # Kahn's algorithm: start with nodes that have no parents (in-degree = 0)
-    queue: Deque[str] = deque(
-        eid for eid, degree in in_degree.items() if degree == 0
-    )
-    result: List[Event] = []
+    queue: deque[str] = deque(eid for eid, degree in in_degree.items() if degree == 0)
+    result: list[Event] = []
 
     while queue:
         # Pop event with no remaining dependencies
