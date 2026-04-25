@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-25T10:19:37.137918+00:00",
+  "friendly_name": "shared package boundary cutover",
+  "mission_id": "01KQ22DSP6D1F7QCF7N87T8B66",
+  "mission_number": null,
+  "mission_slug": "shared-package-boundary-cutover-01KQ22DS",
+  "mission_type": "software-dev",
+  "slug": "shared-package-boundary-cutover-01KQ22DS",
+  "target_branch": "main"
+}
