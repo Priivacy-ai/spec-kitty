@@ -306,3 +306,4 @@ Wall-clock target: < 10 s for the full suite (NFR-004). If it exceeds, profile a
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T19:04:09Z – claude:sonnet:implementer-ivan:implementer – shell_pid=44631 – Started implementation via action command
+- 2026-04-25T19:14:00Z – claude:sonnet:implementer-ivan:implementer – shell_pid=44631 – ERP fixture + integration suite covers FR-001/005/006/007/009/010/011/013; built-in parity preserved
