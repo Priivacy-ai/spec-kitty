@@ -789,7 +789,7 @@ default test database, producing errors like `psycopg2.errors.DuplicateColumn`
 or `must be owner of table <name>`. Workaround that sub-agents commonly
 rediscover:
 ```bash
-DJANGO_TEST_DATABASE_NAME=test_<project>_lane_<letter> uv run <test-command> ... --create-db
+DJANGO_TEST_DATABASE_NAME=test_<project>_lane_<letter> <project-test-command> --create-db
 ```
 Include this pattern in your dispatch prompts for Django-backed WPs so each
 implementer knows to use a lane-scoped DB up front. Tracked upstream as

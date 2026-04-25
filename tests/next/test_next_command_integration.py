@@ -177,9 +177,7 @@ def _advance_runtime_to_step(
         "discovery",
         "specify",
         "plan",
-        "tasks_outline",
-        "tasks_packages",
-        "tasks_finalize",
+        "tasks",
         "implement",
         "review",
         "accept",
@@ -475,7 +473,9 @@ class TestNextCommandKnownBlockedMissions:
             patch(
                 "specify_cli.next.runtime_bridge._should_advance_wp_step",
                 side_effect=CanonicalStatusNotFoundError(
-                    "Canonical status not found for feature '042-test-feature'. Run 'spec-kitty agent mission finalize-tasks --mission 042-test-feature' to bootstrap the event log."
+                    "Canonical status not found for feature '042-test-feature'. "
+                    "Run 'spec-kitty agent mission finalize-tasks --mission "
+                    "042-test-feature' to bootstrap the event log."
                 ),
             ),
         ):
@@ -835,8 +835,8 @@ class TestNextCommandDecisionRequired:
 
 
 class TestAtomicTaskTransitions:
-    def test_plan_to_tasks_outline_to_packages_to_finalize(self, tmp_path: Path) -> None:
-        """Advance through all 3 atomic task steps in the correct order."""
+    def test_plan_to_single_composed_tasks_step(self, tmp_path: Path) -> None:
+        """Advance through the single public tasks step."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
 
@@ -865,13 +865,12 @@ class TestAtomicTaskTransitions:
             if decision.step_id and decision.step_id not in seen_steps:
                 seen_steps.append(decision.step_id)
 
-        # All 3 atomic task steps must be visited
-        assert "tasks_outline" in seen_steps, f"tasks_outline not visited; saw: {seen_steps}"
-        assert "tasks_packages" in seen_steps, f"tasks_packages not visited; saw: {seen_steps}"
-        assert "tasks_finalize" in seen_steps, f"tasks_finalize not visited; saw: {seen_steps}"
+        assert "tasks" in seen_steps, f"tasks not visited; saw: {seen_steps}"
+        assert "tasks_outline" not in seen_steps, f"legacy tasks_outline should not be issued; saw: {seen_steps}"
+        assert "tasks_packages" not in seen_steps, f"legacy tasks_packages should not be issued; saw: {seen_steps}"
+        assert "tasks_finalize" not in seen_steps, f"legacy tasks_finalize should not be issued; saw: {seen_steps}"
 
-        # Verify correct ordering: outline before packages before finalize
-        outline_idx = seen_steps.index("tasks_outline")
-        packages_idx = seen_steps.index("tasks_packages")
-        finalize_idx = seen_steps.index("tasks_finalize")
-        assert outline_idx < packages_idx < finalize_idx, f"Steps out of order: outline@{outline_idx}, packages@{packages_idx}, finalize@{finalize_idx}"
+        plan_idx = seen_steps.index("plan")
+        tasks_idx = seen_steps.index("tasks")
+        implement_idx = seen_steps.index("implement")
+        assert plan_idx < tasks_idx < implement_idx, f"Steps out of order: {seen_steps}"
