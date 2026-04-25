@@ -15,7 +15,8 @@ subtasks:
 - T041
 phase: Phase 5 - Polish
 assignee: ''
-agent: claude
+agent: "claude:sonnet:curator-carla:implementer"
+shell_pid: "55890"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -128,3 +129,4 @@ Success criteria:
 ## Activity Log
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
+- 2026-04-25T19:26:36Z – claude:sonnet:curator-carla:implementer – shell_pid=55890 – Started implementation via action command
