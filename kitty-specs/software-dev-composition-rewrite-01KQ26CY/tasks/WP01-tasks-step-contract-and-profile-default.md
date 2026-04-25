@@ -22,7 +22,8 @@ subtasks:
 - T002
 - T003
 - T004
-shell_pid: '55714'
+shell_pid: "55714"
+agent: "claude:opus:implementer-ivan:implementer"
 history:
 - at: '2026-04-25T11:39:00Z'
   actor: claude
@@ -200,3 +201,7 @@ _ACTION_PROFILE_DEFAULTS: dict[tuple[str, str], str] = {
 ## Implementation command
 
 `spec-kitty agent action implement WP01 --agent <your-agent-name>`
+
+## Activity Log
+
+- 2026-04-25T11:45:14Z – claude:opus:implementer-ivan:implementer – shell_pid=55714 – Assigned agent via action command
