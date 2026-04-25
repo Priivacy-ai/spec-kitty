@@ -1,0 +1,39 @@
+schema_version: "1.0"
+id: tasks
+action: tasks
+mission: software-dev
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action tasks --role tasks --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: outline
+    description: Produce tasks.md — the work-package outline derived from the plan
+    delegates_to:
+      kind: tactic
+      candidates:
+        - problem-decomposition
+        - requirements-validation-workflow
+
+  - id: packages
+    description: Generate individual tasks/WP##.md prompt files
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+        - 024-locality-of-change
+
+  - id: finalize
+    description: Validate dependencies and finalize WP metadata
+    command: "spec-kitty agent mission finalize-tasks"
+    delegates_to:
+      kind: directive
+      candidates:
+        - 024-locality-of-change

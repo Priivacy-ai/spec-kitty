@@ -170,6 +170,43 @@ class TestRuntimeTemplateKey:
         result = runtime_bridge._runtime_template_key("software-dev", repo_root)
         assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
 
+    def test_software_dev_builtin_outranks_stale_user_global(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A stale user-global software-dev runtime must not revive legacy tasks_*."""
+        repo_root = _scaffold_project(tmp_path)
+
+        import specify_cli.next.runtime_bridge as runtime_bridge
+
+        builtin_root = Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
+        user_home = tmp_path / "home"
+        global_runtime = user_home / ".kittify" / "missions" / "software-dev" / "mission-runtime.yaml"
+        global_runtime.parent.mkdir(parents=True)
+        global_runtime.write_text(
+            "mission:\n  key: software-dev\n  name: stale\n  version: '2.1.0'\n"
+            "steps:\n"
+            "  - id: tasks_outline\n    title: outline\n"
+            "  - id: tasks_packages\n    title: packages\n    depends_on: [tasks_outline]\n"
+            "  - id: tasks_finalize\n    title: finalize\n    depends_on: [tasks_packages]\n",
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr(
+            runtime_bridge,
+            "_build_discovery_context",
+            lambda root: DiscoveryContext(
+                project_dir=root,
+                builtin_roots=[builtin_root],
+                user_home=user_home,
+            ),
+        )
+
+        result = runtime_bridge._runtime_template_key("software-dev", repo_root)
+        assert result != str(global_runtime.resolve())
+        assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
+
     def test_project_legacy_used_when_override_absent(self, tmp_path: Path) -> None:
         """Legacy .kittify/missions path remains supported after override tier."""
         repo_root = _scaffold_project(tmp_path)
@@ -307,7 +344,7 @@ class TestWPIteration:
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
-        step_order = ["discovery", "specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize", "implement"]
+        step_order = ["discovery", "specify", "plan", "tasks", "implement"]
         for _ in range(len(step_order)):
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             if snapshot.issued_step_id == "implement":
