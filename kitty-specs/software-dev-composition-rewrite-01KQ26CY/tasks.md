@@ -11,10 +11,10 @@ Three work packages, dependency-ordered. Each WP is contained, ≤7 subtasks, no
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Author `tasks.step-contract.yaml` (outline → packages → finalize sub-steps) | WP01 |  |
-| T002 | Extend `_ACTION_PROFILE_DEFAULTS` with `("software-dev","tasks") → "architect-alphonso"` | WP01 |  |
-| T003 | Write `test_software_dev_composition.py` covering all five action contracts | WP01 | [P] (with T001/T002 once written) |
-| T004 | Confirm existing `test_executor.py` and shipped-contract loaders still pass | WP01 |  |
+| T001 | Author `tasks.step-contract.yaml` (outline → packages → finalize sub-steps) | WP01 |  | [D] |
+| T002 | Extend `_ACTION_PROFILE_DEFAULTS` with `("software-dev","tasks") → "architect-alphonso"` | WP01 |  | [D] |
+| T003 | Write `test_software_dev_composition.py` covering all five action contracts | WP01 | [P] (with T001/T002 once written) | [D] |
+| T004 | Confirm existing `test_executor.py` and shipped-contract loaders still pass | WP01 |  | [D] |
 | T005 | Add composition dispatch helper in `runtime_bridge.py` for `(software-dev, {specify,plan,tasks,implement,review})` | WP02 |  |
 | T006 | Implement collapsed `tasks` post-action guard (replaces `tasks_outline`/`tasks_packages`/`tasks_finalize` triple) | WP02 |  |
 | T007 | Wire post-action guard semantics for the other four composed actions (parity with `_check_step_guards`) | WP02 |  |
@@ -40,10 +40,10 @@ Three work packages, dependency-ordered. Each WP is contained, ≤7 subtasks, no
 
 ### Included subtasks
 
-- [ ] T001 Author `src/doctrine/mission_step_contracts/shipped/tasks.step-contract.yaml` per the contract in `contracts/tasks-step-contract-schema.md` (WP01)
-- [ ] T002 Extend `_ACTION_PROFILE_DEFAULTS` in `src/specify_cli/mission_step_contracts/executor.py` with the `tasks` entry (WP01)
-- [ ] T003 Write `tests/specify_cli/mission_step_contracts/test_software_dev_composition.py` covering all five `(software-dev, action)` contracts via the executor (WP01)
-- [ ] T004 Run `pytest tests/specify_cli/mission_step_contracts/test_executor.py` and confirm green (WP01)
+- [x] T001 Author `src/doctrine/mission_step_contracts/shipped/tasks.step-contract.yaml` per the contract in `contracts/tasks-step-contract-schema.md` (WP01)
+- [x] T002 Extend `_ACTION_PROFILE_DEFAULTS` in `src/specify_cli/mission_step_contracts/executor.py` with the `tasks` entry (WP01)
+- [x] T003 Write `tests/specify_cli/mission_step_contracts/test_software_dev_composition.py` covering all five `(software-dev, action)` contracts via the executor (WP01)
+- [x] T004 Run `pytest tests/specify_cli/mission_step_contracts/test_executor.py` and confirm green (WP01)
 
 ### Implementation sketch
 
