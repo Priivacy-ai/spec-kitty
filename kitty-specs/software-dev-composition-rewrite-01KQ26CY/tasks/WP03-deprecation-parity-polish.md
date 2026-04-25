@@ -21,6 +21,8 @@ subtasks:
 - T011
 - T012
 - T013
+agent: "claude:opus:implementer-ivan:implementer"
+shell_pid: "72584"
 history:
 - at: '2026-04-25T11:39:00Z'
   actor: claude
@@ -179,3 +181,7 @@ git diff --name-only main..HEAD | grep -E '^(src/spec_kitty_events/|\.kittify/ch
 ## Implementation command
 
 `spec-kitty agent action implement WP03 --agent <your-agent-name>`
+
+## Activity Log
+
+- 2026-04-25T12:09:35Z – claude:opus:implementer-ivan:implementer – shell_pid=72584 – Started implementation via action command
