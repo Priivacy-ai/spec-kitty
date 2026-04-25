@@ -1,4 +1,9 @@
-"""Unit tests for the ``spec-kitty next`` decision engine."""
+"""Unit tests for the ``spec-kitty next`` decision engine.
+
+This file imports runtime symbols only via ``specify_cli.next._internal_runtime``
+following the WP02 cutover in mission ``shared-package-boundary-cutover-01KQ22DS``.
+No quarantined ``spec_kitty_runtime`` references are needed.
+"""
 
 from __future__ import annotations
 
@@ -117,8 +122,8 @@ def _advance_runtime_to_step(
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
-    from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
-    from spec_kitty_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from specify_cli.next._internal_runtime.engine import _read_snapshot
 
     # Keep advancing until the target step is issued
     step_order = [
@@ -160,7 +165,7 @@ def _complete_all_steps(
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
-    from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
+    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
 
     # There are 9 steps: each needs to be issued + completed
     for _ in range(20):  # generous upper bound

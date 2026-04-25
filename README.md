@@ -290,6 +290,8 @@ Lane terminology follows the glossary: see
 pip install spec-kitty-cli
 # or
 uv tool install spec-kitty-cli
+# spec-kitty-cli ships its own runtime; no separate spec-kitty-runtime
+# install is required (see ADR 2026-04-25-1).
 
 # 2. Initialize your project
 spec-kitty init my-project --ai claude

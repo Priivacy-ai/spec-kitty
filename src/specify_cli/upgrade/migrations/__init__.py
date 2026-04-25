@@ -1,7 +1,7 @@
 """Migration implementations for Spec Kitty upgrade system.
 
-Auto-discovers all migration modules from the filesystem.
-No manual imports needed - just create m_*.py files!
+Discovery is explicit so importing shared migration primitives does not load
+every historical migration during unrelated CLI commands.
 """
 
 from __future__ import annotations
@@ -84,9 +84,6 @@ def auto_discover_migrations() -> None:
         joined = "; ".join(failures)
         raise MigrationDiscoveryError(f"Failed to import migration module(s): {joined}")
 
-
-# Auto-discover all migrations on module import
-auto_discover_migrations()
 
 # Export the auto_discover function for testing
 __all__ = ["MigrationDiscoveryError", "auto_discover_migrations"]

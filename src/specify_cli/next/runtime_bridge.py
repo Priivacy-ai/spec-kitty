@@ -1,4 +1,8 @@
-"""Bridge between CLI ``decide_next()`` and ``spec-kitty-runtime`` engine.
+"""Bridge between CLI ``decide_next()`` and the CLI-internal ``_internal_runtime`` engine.
+
+The runtime is now internalized as part of mission
+``shared-package-boundary-cutover-01KQ22DS``; production code no longer imports
+the standalone ``spec-kitty-runtime`` PyPI package.
 
 Maps the CLI's Decision dataclass to the runtime's NextDecision by:
 
@@ -25,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from spec_kitty_runtime import (
+from specify_cli.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
     MissionRunRef,
@@ -35,7 +39,7 @@ from spec_kitty_runtime import (
     provide_decision_answer as runtime_provide_decision_answer,
     start_mission_run,
 )
-from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
+from specify_cli.next._internal_runtime.schema import ActorIdentity, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
@@ -1037,7 +1041,7 @@ def decide_next_via_runtime(
 
     # Read current run state
     try:
-        from spec_kitty_runtime.engine import _read_snapshot
+        from specify_cli.next._internal_runtime.engine import _read_snapshot
 
         snapshot = _read_snapshot(Path(run_ref.run_dir))
         current_step_id = snapshot.issued_step_id
@@ -1332,8 +1336,8 @@ def query_current_state(
     # on every return path (success, raise, or early exit).
     try:
         try:
-            from spec_kitty_runtime import engine
-            from spec_kitty_runtime.planner import plan_next
+            from specify_cli.next._internal_runtime import engine
+            from specify_cli.next._internal_runtime.planner import plan_next
 
             if run_ref is None:
                 run_ref, ephemeral_run_store = _start_ephemeral_query_run(
@@ -1454,7 +1458,7 @@ def answer_decision_via_runtime(
         mission_type=mission_type,
     )
     try:
-        from spec_kitty_runtime.engine import _read_snapshot
+        from specify_cli.next._internal_runtime.engine import _read_snapshot
 
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
     except Exception:

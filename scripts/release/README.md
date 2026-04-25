@@ -56,14 +56,15 @@ python scripts/release/extract_changelog.py 2.0.0
 
 ### `check_shared_package_drift.py`
 
-Validates that the CLI, SaaS app, and published runtime source agree on the
-current contract-bearing package pins and that no emergency `tool.uv`
-override remains in the CLI metadata.
+Validates that the CLI's compatible shared-package ranges contain the exact
+versions resolved in `uv.lock`, that SaaS pins agree with those resolved
+versions when the private SaaS pyproject is available, that no emergency
+`tool.uv` override remains in CLI metadata, and that retired
+`spec-kitty-runtime` is not a CLI dependency.
 
 ```bash
 python scripts/release/check_shared_package_drift.py \
-  --saas-pyproject ../spec-kitty-saas/pyproject.toml \
-  --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
+  --saas-pyproject ../spec-kitty-saas/pyproject.toml
 ```
 
 ### `check_exact_install.py`
@@ -114,8 +115,7 @@ vim CHANGELOG.md     # add ## [3.1.0a0] - YYYY-MM-DD (or final ## [3.1.0])
 python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 python -m pytest
 python scripts/release/check_shared_package_drift.py \
-  --saas-pyproject ../spec-kitty-saas/pyproject.toml \
-  --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
+  --saas-pyproject ../spec-kitty-saas/pyproject.toml
 python -m build
 python scripts/release/check_exact_install.py --package spec-kitty-cli
 python scripts/release/check_candidate_consumer_compat.py \

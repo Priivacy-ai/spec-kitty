@@ -124,17 +124,13 @@ class TestAutoDiscovery:
 
         assert versions == sorted_versions, "Migrations should be sorted by target_version"
 
-    def test_auto_discover_called_on_module_import(self):
-        """Auto-discovery runs automatically when migrations module is imported."""
-        # This test verifies the module-level call works
-        # We can't really test this without reimporting, but we can verify
-        # that importing the module populates the registry
+    def test_import_does_not_auto_discover(self):
+        """Importing the migrations package does not load every migration."""
+        MigrationRegistry.clear()
 
-        # Import fresh (this happens in conftest or test setup)
         from specify_cli.upgrade import migrations  # noqa: F401
 
-        # Verify registry is populated
-        assert len(MigrationRegistry.get_all()) > 0
+        assert len(MigrationRegistry.get_all()) == 0
 
     def test_all_migration_files_have_registration_decorator(self):
         """All m_*.py files use @MigrationRegistry.register decorator."""
@@ -170,6 +166,7 @@ class TestAutoDiscoveryIntegration:
         detector.detect_version()
 
         # This should work with auto-discovered migrations
+        auto_discover_migrations()
         applicable = MigrationRegistry.get_applicable(
             from_version="0.1.0",
             to_version="999.0.0",  # Get all migrations

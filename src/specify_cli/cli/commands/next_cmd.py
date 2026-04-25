@@ -31,11 +31,17 @@ from typing import Annotated
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import locate_project_root
 from specify_cli.cli.selector_resolution import resolve_selector
-from specify_cli.mission_v1.events import emit_event
-from specify_cli.next.decision import DecisionKind, decide_next
+from specify_cli.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
+
+
+def decide_next(agent: str, mission_slug: str, result: str, repo_root):
+    """Patchable lazy wrapper for the next mutation engine."""
+    from specify_cli.next.decision import decide_next as _decide_next
+
+    return _decide_next(agent, mission_slug, result, repo_root)
 
 
 @require_main_repo
@@ -71,13 +77,49 @@ def next_step(
         spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --result success --json
         spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
     """
-    # Resolve repo root
+    _maybe_emit_runtime_notice(json_output)
+
     repo_root = locate_project_root()
     if repo_root is None:
         print("Error: Could not locate project root", file=sys.stderr)
         raise typer.Exit(1)
 
-    # Resolve feature slug
+    mission_slug = _resolve_mission_slug(mission, feature)
+    _validate_result_and_answer(result, answer, json_output)
+    answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
+
+    # Query mode: bare call without --result remains read-only and does not
+    # require agent identity.
+    if result is None:
+        _run_query_mode(agent, mission_slug, repo_root, json_output, answered_id, answer)
+        return  # No event emitted, no DAG advancement
+
+    if not agent:
+        print("Error: --agent is required when --result is provided", file=sys.stderr)
+        raise typer.Exit(1)
+
+    decision = decide_next(agent, mission_slug, result, repo_root)
+    _emit_mission_next_invoked(agent, result, mission_slug, repo_root, decision)
+    _print_decision(decision, json_output, answered_id, answer)
+
+    if decision.kind == "blocked":
+        raise typer.Exit(1)
+
+
+def _maybe_emit_runtime_notice(json_output: bool) -> None:
+    """Emit the stale-runtime notice only for human-readable output."""
+    # FR-020 of mission shared-package-boundary-cutover-01KQ22DS: emit a
+    # one-time deprecation notice if the retired spec-kitty-runtime package
+    # is still installed in the operator's environment. The check uses
+    # importlib.metadata, which does NOT import spec_kitty_runtime, so it
+    # does not violate FR-002 / C-001. JSON mode is a machine contract:
+    # stdout must be exactly one JSON document, and Typer's CliRunner may
+    # combine stderr into result.output.
+    if not json_output:
+        maybe_emit_runtime_pkg_notice()
+
+
+def _resolve_mission_slug(mission: str | None, feature: str | None) -> str:
     try:
         resolved = resolve_selector(
             canonical_value=mission,
@@ -87,86 +129,82 @@ def next_step(
             suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
             command_hint="--mission <slug>",
         )
-        mission_slug = resolved.canonical_value
     except typer.BadParameter as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
+    return resolved.canonical_value
 
+
+def _print_error(message: str, json_output: bool) -> None:
+    if json_output:
+        print(json.dumps({"error": message}))
+    else:
+        print(message, file=sys.stderr)
+
+
+def _validate_result_and_answer(result: str | None, answer: str | None, json_output: bool) -> None:
     if result is not None and result not in _VALID_RESULTS:
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
         raise typer.Exit(1)
 
     if answer is not None and result is None:
-        message = "Error: --answer requires --result because query mode is read-only"
-        if json_output:
-            print(json.dumps({"error": message}))
-        else:
-            print(message, file=sys.stderr)
+        _print_error("Error: --answer requires --result because query mode is read-only", json_output)
         raise typer.Exit(1)
 
-    # Handle --answer flow before invoking decide_next. Answering a pending
-    # decision is a mutation and requires agent identity. The earlier validation
-    # has already rejected --answer without --result, so we are guaranteed to
-    # be in advancing mode by the time we get here.
-    answered_id = None
-    if answer is not None:
-        if not agent:
-            message = "Error: --agent is required when --answer is provided"
-            if json_output:
-                print(json.dumps({"error": message}))
-            else:
-                print(message, file=sys.stderr)
-            raise typer.Exit(1)
-        stderr_buffer = io.StringIO() if json_output else None
-        redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
-        try:
-            with redirect:
-                answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
-        except typer.Exit as exc:
-            if json_output:
-                message = (stderr_buffer.getvalue().strip() if stderr_buffer is not None else "") or str(exc) or "Answer handling failed"
-                print(json.dumps({"error": message}))
-                raise typer.Exit(1)
-            raise
-        except Exception as exc:
-            if json_output:
-                print(json.dumps({"error": str(exc)}))
-                raise typer.Exit(1) from exc
-            raise
 
-    # Query mode: bare call without --result remains read-only and does not
-    # require agent identity.
-    if result is None:
-        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
-
-        try:
-            decision = query_current_state(agent, mission_slug, repo_root)
-        except QueryModeValidationError as exc:
-            if json_output:
-                print(json.dumps({"error": str(exc)}))
-            else:
-                print(f"Error: {exc}", file=sys.stderr)
-            raise typer.Exit(1) from exc
-        if json_output:
-            d = decision.to_dict()
-            if answered_id is not None:
-                d["answered"] = answered_id
-                d["answer"] = answer
-            print(json.dumps(d, indent=2))
-        else:
-            _print_human(decision)
-            if answered_id is not None:
-                print(f"  Answered decision: {answered_id}")
-        return  # No event emitted, no DAG advancement
-
+def _maybe_handle_answer(
+    agent: str | None,
+    mission_slug: str,
+    answer: str | None,
+    decision_id: str | None,
+    repo_root: object,
+    json_output: bool,
+) -> str | None:
+    if answer is None:
+        return None
     if not agent:
-        print("Error: --agent is required when --result is provided", file=sys.stderr)
+        _print_error("Error: --agent is required when --answer is provided", json_output)
         raise typer.Exit(1)
 
-    # Core decision
-    decision = decide_next(agent, mission_slug, result, repo_root)
+    stderr_buffer = io.StringIO() if json_output else None
+    redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
+    try:
+        with redirect:
+            return _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+    except typer.Exit as exc:
+        if json_output:
+            message = (stderr_buffer.getvalue().strip() if stderr_buffer is not None else "") or str(exc) or "Answer handling failed"
+            print(json.dumps({"error": message}))
+            raise typer.Exit(1) from exc
+        raise
+    except Exception as exc:
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+            raise typer.Exit(1) from exc
+        raise
 
-    # Emit MissionNextInvoked event
+
+def _run_query_mode(
+    agent: str | None,
+    mission_slug: str,
+    repo_root: object,
+    json_output: bool,
+    answered_id: str | None,
+    answer: str | None,
+) -> None:
+    from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
+
+    try:
+        decision = query_current_state(agent, mission_slug, repo_root)
+    except QueryModeValidationError as exc:
+        _print_error(f"Error: {exc}" if not json_output else str(exc), json_output)
+        raise typer.Exit(1) from exc
+    _print_decision(decision, json_output, answered_id, answer)
+
+
+def _emit_mission_next_invoked(agent: str, result: str, mission_slug: str, repo_root: object, decision) -> None:
+    from specify_cli.mission_v1.events import emit_event
+
     feature_dir = repo_root / "kitty-specs" / mission_slug
     emit_event(
         "MissionNextInvoked",
@@ -182,7 +220,8 @@ def next_step(
         feature_dir=feature_dir if feature_dir.is_dir() else None,
     )
 
-    # Output — always exactly one JSON document
+
+def _print_decision(decision, json_output: bool, answered_id: str | None, answer: str | None) -> None:
     if json_output:
         d = decision.to_dict()
         if answered_id is not None:
@@ -193,10 +232,6 @@ def next_step(
         if answered_id is not None:
             print(f"  Answered decision: {answered_id}")
         _print_human(decision)
-
-    # Exit code
-    if decision.kind == DecisionKind.blocked:
-        raise typer.Exit(1)
 
 
 def _handle_answer(
@@ -224,7 +259,7 @@ def _handle_answer(
 
         # If no decision_id provided, try to auto-resolve
         if decision_id is None:
-            from spec_kitty_runtime.engine import _read_snapshot
+            from specify_cli.next._internal_runtime.engine import _read_snapshot
 
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             pending = snapshot.pending_decisions
@@ -261,35 +296,38 @@ def _handle_answer(
 
 def _print_human(decision) -> None:
     """Print a human-readable summary."""
-
-    # SC-003: query mode output must begin with the full verbatim label
     if getattr(decision, "is_query", False):
-        print("[QUERY \u2014 no result provided, state not advanced]")
-        print(f"  Mission: {decision.mission_slug} @ {decision.mission_state}")
-        if getattr(decision, "mission", None):
-            print(f"  Mission Type: {decision.mission}")
-        if getattr(decision, "preview_step", None):
-            print(f"  Next step: {decision.preview_step}")
-        if getattr(decision, "question", None):
-            print(f"  Question: {decision.question}")
-            if getattr(decision, "options", None):
-                print(f"  Options: {', '.join(decision.options)}")
-            if getattr(decision, "decision_id", None):
-                print(f"  Decision ID: {decision.decision_id}")
-        elif getattr(decision, "reason", None):
-            print(f"  Reason: {decision.reason}")
-        if decision.progress:
-            p = decision.progress
-            total = p.get("total_wps", 0)
-            done = p.get("done_wps", 0)
-            if total > 0:
-                pct = int(p.get("weighted_percentage", 0))
-                print(f"  Progress: {pct}% ({done}/{total} done)")
-        if decision.run_id:
-            print(f"  Run ID: {decision.run_id}")
+        _print_query_human(decision)
         return
+    _print_standard_human(decision)
 
-    # --- Standard (non-query) output — unchanged below this line ---
+
+def _print_query_human(decision) -> None:
+    # SC-003: query mode output must begin with the full verbatim label.
+    print("[QUERY \u2014 no result provided, state not advanced]")
+    print(f"  Mission: {decision.mission_slug} @ {decision.mission_state}")
+    if getattr(decision, "mission", None):
+        print(f"  Mission Type: {decision.mission}")
+    if getattr(decision, "preview_step", None):
+        print(f"  Next step: {decision.preview_step}")
+    _print_query_details(decision)
+    _print_progress(decision)
+    if decision.run_id:
+        print(f"  Run ID: {decision.run_id}")
+
+
+def _print_query_details(decision) -> None:
+    if getattr(decision, "question", None):
+        print(f"  Question: {decision.question}")
+        if getattr(decision, "options", None):
+            print(f"  Options: {', '.join(decision.options)}")
+        if getattr(decision, "decision_id", None):
+            print(f"  Decision ID: {decision.decision_id}")
+    elif getattr(decision, "reason", None):
+        print(f"  Reason: {decision.reason}")
+
+
+def _print_standard_human(decision) -> None:
     kind = decision.kind.upper()
     print(f"[{kind}] {decision.mission_slug} @ {decision.mission_state}")
     if getattr(decision, "mission", None):
@@ -318,13 +356,7 @@ def _print_human(decision) -> None:
     if decision.decision_id:
         print(f"  Decision ID: {decision.decision_id}")
 
-    if decision.progress:
-        p = decision.progress
-        total = p.get("total_wps", 0)
-        done = p.get("done_wps", 0)
-        if total > 0:
-            pct = int(p.get("weighted_percentage", 0))
-            print(f"  Progress: {pct}% ({done}/{total} done)")
+    _print_progress(decision)
 
     if decision.run_id:
         print(f"  Run ID: {decision.run_id}")
@@ -333,3 +365,13 @@ def _print_human(decision) -> None:
         print()
         print("  Next step: read the prompt file:")
         print(f"    cat {decision.prompt_file}")
+
+
+def _print_progress(decision) -> None:
+    if decision.progress:
+        p = decision.progress
+        total = p.get("total_wps", 0)
+        done = p.get("done_wps", 0)
+        if total > 0:
+            pct = int(p.get("weighted_percentage", 0))
+            print(f"  Progress: {pct}% ({done}/{total} done)")

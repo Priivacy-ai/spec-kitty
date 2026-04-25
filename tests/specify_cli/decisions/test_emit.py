@@ -16,13 +16,13 @@ from pathlib import Path
 
 from specify_cli.decisions.emit import emit_decision_opened, emit_decision_resolved
 from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
-from specify_cli.spec_kitty_events.decisionpoint import (
+from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
     DecisionPointOpenedInterviewPayload,
     DecisionPointResolvedInterviewPayload,
 )
-from specify_cli.spec_kitty_events.decision_moment import OriginSurface
+from spec_kitty_events.decision_moment import OriginSurface
 
 
 # ---------------------------------------------------------------------------

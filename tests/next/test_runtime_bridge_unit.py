@@ -1,4 +1,10 @@
-"""Unit tests for the runtime bridge module."""
+"""Unit tests for the runtime bridge module.
+
+This file imports runtime symbols only via ``specify_cli.next._internal_runtime``
+following the WP02 cutover in mission ``shared-package-boundary-cutover-01KQ22DS``.
+No quarantined ``spec_kitty_runtime`` references are needed; tests assert against
+the internalized runtime surface, which is the authoritative production target.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +17,7 @@ import pytest
 
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.decision import DecisionKind
-from spec_kitty_runtime import DiscoveryContext
+from specify_cli.next._internal_runtime import DiscoveryContext
 
 pytestmark = pytest.mark.fast
 
@@ -339,8 +345,8 @@ class TestWPIteration:
             get_or_start_run,
             decide_next_via_runtime,
         )
-        from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
-        from spec_kitty_runtime.engine import _read_snapshot
+        from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+        from specify_cli.next._internal_runtime.engine import _read_snapshot
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -377,8 +383,8 @@ class TestWPIteration:
             get_or_start_run,
             decide_next_via_runtime,
         )
-        from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
-        from spec_kitty_runtime.engine import _read_snapshot
+        from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+        from specify_cli.next._internal_runtime.engine import _read_snapshot
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -460,7 +466,7 @@ class TestAnswerDecisionViaRuntime:
     def test_snapshot_read_failure_is_tolerated(self, monkeypatch, tmp_path: Path) -> None:
         """Decision answers should continue even when snapshot hydration fails."""
         from specify_cli.next import runtime_bridge
-        import spec_kitty_runtime.engine as runtime_engine
+        import specify_cli.next._internal_runtime.engine as runtime_engine
 
         repo_root = tmp_path / "project"
         repo_root.mkdir()
@@ -617,7 +623,7 @@ class TestAnswerDecision:
         repo_root = _scaffold_project(tmp_path)
 
         from specify_cli.next.runtime_bridge import answer_decision_via_runtime
-        from spec_kitty_runtime.schema import MissionRuntimeError
+        from specify_cli.next._internal_runtime.schema import MissionRuntimeError
 
         with pytest.raises(MissionRuntimeError, match="not found"):
             answer_decision_via_runtime(

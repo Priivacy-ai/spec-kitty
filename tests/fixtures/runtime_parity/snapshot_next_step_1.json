@@ -1,0 +1,14 @@
+{
+  "context": null,
+  "decision_id": "input:topic",
+  "input_key": "topic",
+  "kind": "decision_required",
+  "mission_key": "ref-parity",
+  "options": null,
+  "prompt": null,
+  "question": "Input required before step 'discovery': provide value for 'topic'.",
+  "reason": "missing_required_input",
+  "run_id": "<RUN_ID>",
+  "step_id": "discovery",
+  "step_title": null
+}

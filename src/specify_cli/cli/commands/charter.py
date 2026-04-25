@@ -15,19 +15,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from charter.compiler import compile_charter, write_compiled_charter
-from charter.context import BOOTSTRAP_ACTIONS, build_charter_context
-from charter.hasher import is_stale
-from charter.interview import (
-    MINIMAL_QUESTION_ORDER,
-    QUESTION_ORDER,
-    QUESTION_PROMPTS,
-    apply_answer_overrides,
-    default_interview,
-    read_interview_answers,
-    write_interview_answers,
-)
-from charter.sync import ensure_charter_bundle_fresh, sync as sync_charter
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.decisions import service as _dm_service
@@ -50,6 +37,20 @@ app = typer.Typer(
 app.add_typer(charter_bundle_app, name="bundle")
 
 console = Console()
+
+
+def default_interview(*args, **kwargs):
+    """Patchable lazy wrapper for default charter interview generation."""
+    from charter.interview import default_interview as _default_interview
+
+    return _default_interview(*args, **kwargs)
+
+
+def ensure_charter_bundle_fresh(*args, **kwargs):
+    """Patchable lazy wrapper for charter bundle freshness checks."""
+    from charter.sync import ensure_charter_bundle_fresh as _ensure_charter_bundle_fresh
+
+    return _ensure_charter_bundle_fresh(*args, **kwargs)
 
 
 def _resolve_charter_path(repo_root: Path) -> Path:
@@ -107,6 +108,8 @@ def _display_path(path: Path, repo_root: Path) -> str:
 
 def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
     try:
+        from charter.hasher import is_stale
+
         sync_result = ensure_charter_bundle_fresh(repo_root)
         # Generate glossary entity pages (non-blocking; silent on failure)
         try:
@@ -907,6 +910,14 @@ def interview(  # noqa: C901
     ),
 ) -> None:
     """Capture charter interview answers for later generation."""
+    from charter.interview import (
+        MINIMAL_QUESTION_ORDER,
+        QUESTION_ORDER,
+        QUESTION_PROMPTS,
+        apply_answer_overrides,
+        write_interview_answers,
+    )
+
     try:
         repo_root = find_repo_root()
         normalized_profile = profile.strip().lower()
@@ -1186,6 +1197,10 @@ def generate(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Generate charter bundle from interview answers + doctrine references."""
+    from charter.compiler import compile_charter, write_compiled_charter
+    from charter.interview import read_interview_answers
+    from charter.sync import sync as sync_charter
+
     try:
         repo_root = find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
@@ -1294,6 +1309,8 @@ def context(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Render charter context for a specific workflow action."""
+    from charter.context import BOOTSTRAP_ACTIONS, build_charter_context
+
     try:
         repo_root = find_repo_root()
         result = build_charter_context(repo_root, action=action, mark_loaded=mark_loaded)
@@ -1334,6 +1351,8 @@ def sync(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Sync charter.md to structured YAML config files."""
+    from charter.sync import sync as sync_charter
+
     try:
         repo_root = find_repo_root()
         charter_path = _resolve_charter_path(repo_root)

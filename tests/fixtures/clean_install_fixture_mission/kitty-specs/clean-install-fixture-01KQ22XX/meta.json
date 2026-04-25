@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-25T12:00:00+00:00",
+  "friendly_name": "clean install fixture",
+  "mission_id": "01KQ22XX0000000000000000XX",
+  "mission_number": null,
+  "mission_slug": "clean-install-fixture-01KQ22XX",
+  "mission_type": "software-dev",
+  "slug": "clean-install-fixture-01KQ22XX",
+  "target_branch": "main"
+}

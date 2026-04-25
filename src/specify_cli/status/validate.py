@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from specify_cli.spec_kitty_events import normalize_event_id
+from spec_kitty_events import normalize_event_id
 
 from .models import Lane
 from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES

@@ -106,13 +106,6 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/spec-kitty-release-contracts
 
-          curl -fsSL \
-            -H "Accept: application/vnd.github.raw" \
-            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-runtime/contents/pyproject.toml?ref=main" \
-            -o /tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml
-
-          echo "runtime_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-runtime-pyproject.toml" >> "$GITHUB_OUTPUT"
-
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
             echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
             echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS compatibility fetches for this release run."
@@ -137,9 +130,7 @@ jobs:
 
       - name: Validate shared package drift
         run: |
-          ARGS=(
-            --runtime-pyproject "${{ steps.fetch_refs.outputs.runtime_pyproject }}"
-          )
+          ARGS=()
 
           if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
             ARGS+=(

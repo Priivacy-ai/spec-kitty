@@ -207,8 +207,9 @@ def upgrade(  # noqa: C901
     from specify_cli.upgrade.registry import MigrationRegistry
     from specify_cli.upgrade.runner import MigrationRunner, validate_upgrade_target
 
-    # Import migrations to register them
-    from specify_cli.upgrade import migrations  # noqa: F401
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+
+    auto_discover_migrations()
 
     # Detect current version
     detector = VersionDetector(project_path)

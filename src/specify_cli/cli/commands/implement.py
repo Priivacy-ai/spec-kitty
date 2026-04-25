@@ -16,8 +16,6 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 
-from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready, render_gate_failure
-from specify_cli.bulk_edit.inference import scan_spec_file
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
@@ -472,6 +470,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         )
 
         # Bulk edit occurrence classification gate (FR-006)
+        from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready, render_gate_failure
+
         gate_result = ensure_occurrence_classification_ready(feature_dir)
         if not gate_result.passed:
             render_gate_failure(gate_result, console)
@@ -479,6 +479,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         # Inference warning for potentially unmarked bulk edits (FR-009)
         if gate_result.change_mode is None:
+            from specify_cli.bulk_edit.inference import scan_spec_file
+
             inference = scan_spec_file(feature_dir)
             if inference.triggered and not acknowledge_not_bulk_edit:
                 matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)

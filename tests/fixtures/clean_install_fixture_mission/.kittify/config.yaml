@@ -1,0 +1,12 @@
+# Minimal config.yaml for the clean-install fixture mission.
+#
+# This fixture is consumed by the clean-install-verification CI job and the
+# local-runnable test in tests/integration/test_clean_install_next.py per
+# FR-010 / FR-017 of mission shared-package-boundary-cutover-01KQ22DS.
+agents:
+  available:
+    - claude
+charter:
+  pointers: []
+merge:
+  strategy: squash

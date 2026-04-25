@@ -1,6 +1,10 @@
 """Core decision engine for ``spec-kitty next``.
 
-Delegates planning to ``spec-kitty-runtime`` via :mod:`runtime_bridge`.
+Delegates planning to the CLI-internal runtime
+(``specify_cli.next._internal_runtime``) via :mod:`runtime_bridge`.
+Post-mission ``shared-package-boundary-cutover-01KQ22DS`` the standalone
+``spec-kitty-runtime`` PyPI package is no longer involved in any
+production code path.
 
 The :class:`Decision` dataclass and :class:`DecisionKind` constants are the
 public JSON contract.  WP helpers (``_compute_wp_progress``,
@@ -23,7 +27,6 @@ from types import SimpleNamespace
 from typing import Any
 
 from specify_cli.mission_metadata import mission_identity_fields
-from specify_cli.mission_v1.events import read_events
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
 from specify_cli.workspace_context import resolve_workspace_for_wp
@@ -116,9 +119,13 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
     or contains no ``phase_entered`` events.
 
     .. deprecated:: 2.0.0
-        No longer used by ``decide_next``.  Runtime state is now managed by
-        ``spec-kitty-runtime`` via ``state.json`` in the run directory.
+        No longer used by ``decide_next``.  Runtime state is now managed
+        by the CLI-internal runtime
+        (``specify_cli.next._internal_runtime``) via ``state.json`` in the
+        run directory.
     """
+    from specify_cli.mission_v1.events import read_events
+
     events = read_events(feature_dir)
     last_state = initial_state
     for event in events:
@@ -327,8 +334,9 @@ def decide_next(
     """Decide the next action for an agent in the mission loop.
 
     Delegates to :func:`runtime_bridge.decide_next_via_runtime` which uses
-    the ``spec-kitty-runtime`` DAG planner for step resolution and manages
-    run state locally under ``.kittify/runtime/runs/``.
+    the CLI-internal runtime's DAG planner
+    (``specify_cli.next._internal_runtime.planner``) for step resolution
+    and manages run state locally under ``.kittify/runtime/runs/``.
 
     The canonical agent loop is::
 
