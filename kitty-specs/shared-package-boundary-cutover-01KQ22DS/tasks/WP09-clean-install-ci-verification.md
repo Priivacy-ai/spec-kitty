@@ -16,8 +16,8 @@ subtasks:
 - T035
 - T036
 - T037
-agent: "claude:opus-4.7:python-implementer:implementer"
-shell_pid: "71904"
+agent: "claude:opus-4.7:python-reviewer:reviewer"
+shell_pid: "72749"
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner
@@ -385,3 +385,4 @@ spec-kitty agent action implement WP09 --agent <name> --mission shared-package-b
 
 - 2026-04-25T12:07:05Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71904 – Started implementation via action command
 - 2026-04-25T12:10:48Z – claude:opus-4.7:python-implementer:implementer – shell_pid=71904 – Added build-wheel + clean-install-verification CI jobs in ci-quality.yml (timeout 5min per NFR-004), fixture mission under tests/fixtures/clean_install_fixture_mission/, local-runnable test tests/integration/test_clean_install_next.py (distribution-marked), and protect-main.yml header comment documenting the required-checks contract. Fixture verified consumable by 'spec-kitty agent tasks status'. Refs FR-010, FR-017, NFR-003, NFR-004.
+- 2026-04-25T12:10:51Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=72749 – Started review via action command
