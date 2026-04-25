@@ -96,6 +96,8 @@ sdd-*/
 .github/*
 !.github/workflows/
 !.github/workflows/*.yml
+!.github/actions/
+!.github/actions/**
 !.github/PULL_REQUEST_TEMPLATE.md
 .roo/
 .amazonq/
