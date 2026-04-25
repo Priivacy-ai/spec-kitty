@@ -17,8 +17,8 @@ subtasks:
 - T004
 phase: Phase 1 - Schema (foundational)
 assignee: ''
-agent: claude
-shell_pid: '32550'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "33338"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -163,3 +163,4 @@ Success criteria:
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
 - 2026-04-25T18:11:28Z – claude – shell_pid=32550 – Schema fields added; all validation green; built-in templates parse unchanged
+- 2026-04-25T18:11:57Z – claude:opus:reviewer-renata:reviewer – shell_pid=33338 – Started review via action command
