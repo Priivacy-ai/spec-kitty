@@ -25,7 +25,8 @@ subtasks:
 - T012
 phase: Phase 2 - Loader core
 assignee: ''
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "33878"
 history:
 - at: '2026-04-25T17:54:43Z'
   actor: system
@@ -283,3 +284,4 @@ The coverage report must show ≥ 90% line coverage on the `mission_loader/` pac
 ## Activity Log
 
 - 2026-04-25T17:54:43Z -- system -- Prompt created.
+- 2026-04-25T18:14:58Z – claude:sonnet:implementer-ivan:implementer – shell_pid=33878 – Started implementation via action command
