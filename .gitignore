@@ -46,7 +46,13 @@ env/
 .env.local
 .codex/
 .claudeignore
+# Personal pyproject overrides for cross-package dev (Pattern B in
+# docs/development/local-overrides.md). Never committed.
+pyproject.local.toml
 *.lock
+# uv.lock is the canonical lockfile for spec-kitty-cli (NFR-005 of mission
+# shared-package-boundary-cutover-01KQ22DS); track it explicitly.
+!uv.lock
 .worktrees/
 .kittify/.dashboard
 .kittify/active-mission

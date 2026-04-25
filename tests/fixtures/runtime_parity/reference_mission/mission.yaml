@@ -1,0 +1,22 @@
+mission:
+  key: ref-parity
+  name: Reference Parity Mission
+  version: "1.0.0"
+  description: "Minimal mission used to capture parity snapshots for the internalized runtime."
+
+steps:
+  - id: discovery
+    title: Discovery
+    description: Initial discovery step.
+    prompt: "Run discovery."
+    requires_inputs: [topic]
+  - id: specify
+    title: Specify
+    depends_on: [discovery]
+    description: Specification step.
+    prompt: "Write the spec."
+  - id: done
+    title: Done
+    depends_on: [specify]
+    description: Terminal step.
+    prompt: "Mission complete."

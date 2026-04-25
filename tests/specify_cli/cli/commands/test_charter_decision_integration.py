@@ -213,7 +213,7 @@ def test_charter_decision_triple_coherence(tmp_path: Path) -> None:
     )
 
     # (g) All Opened events have origin_surface and origin_flow
-    from specify_cli.spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
+    from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
 
     opened_events = [e for e in event_lines if e["event_type"] == DECISION_POINT_OPENED]
     for ev in opened_events:

@@ -142,8 +142,9 @@ the larger `status/` sub-modules. These have not been targeted yet:
 `mutmut` copies tests into `mutants/tests/` and runs pytest from `mutants/`. The conftest's
 `test_venv` autouse session fixture builds a test venv based on `REPO_ROOT`, which resolves
 to `mutants/` when running from that directory. This caused the venv to be rebuilt on every
-fresh `mutants/` generation (taking 60–90s per run and requiring a GitHub clone of
-`spec-kitty-runtime`).
+fresh `mutants/` generation (taking 60–90s per run; pre-cutover this also required a
+GitHub clone of `spec-kitty-runtime`, which is no longer needed since mission
+`shared-package-boundary-cutover-01KQ22DS` internalized the runtime surface).
 
 **Fix**: Added `.pytest_cache/spec-kitty-test-venv/` to `also_copy` in `pyproject.toml`.
 mutmut now copies the pre-built venv into each fresh `mutants/` directory, skipping the rebuild.
@@ -156,7 +157,7 @@ the CLI binary or use filesystem paths that break under the `mutants/` `REPO_ROO
 
 - `tests/unit/agent/` — fixture setup errors
 - `tests/unit/mission_v1/` — creates a full test venv (takes >30s, timeout)
-- `tests/unit/next/` — transitive import of `mission_v1` which requires `spec-kitty-runtime`
+- `tests/unit/next/` — transitive import of `mission_v1` which requires the internalized runtime under `src/specify_cli/next/_internal_runtime/`
 - `tests/unit/orchestrator_api/` — fails in mutants env
 - `tests/unit/runtime/` — fails in mutants env
 - `tests/unit/test_atomic_status_commits.py` — git commit operations break in mutants

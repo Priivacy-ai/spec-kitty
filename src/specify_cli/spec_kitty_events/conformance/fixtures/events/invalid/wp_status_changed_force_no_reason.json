@@ -1,9 +1,0 @@
-{
-  "wp_id": "WP01",
-  "from_lane": "planned",
-  "to_lane": "claimed",
-  "actor": "test-agent",
-  "force": true,
-  "execution_mode": "worktree",
-  "mission_slug": "mission-001"
-}

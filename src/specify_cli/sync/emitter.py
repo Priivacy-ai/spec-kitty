@@ -38,7 +38,7 @@ import ulid
 from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
+from spec_kitty_events import normalize_event_id as _normalize_event_id
 
 from .clock import LamportClock
 from .config import SyncConfig
@@ -1463,7 +1463,7 @@ class EventEmitter:
         Returns True if valid, False if invalid (warned and discarded).
         """
         try:
-            from specify_cli.spec_kitty_events import Event as EventModel
+            from spec_kitty_events import Event as EventModel
 
             # 1. Validate envelope via spec-kitty-events Pydantic model
             # spec-kitty-events 4.0.0 added build_id, project_uuid, correlation_id

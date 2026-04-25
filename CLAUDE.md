@@ -956,4 +956,18 @@ unset GITHUB_TOKEN && gh auth status
 # Should show keyring token with 'repo' scope as active
 ```
 
+## Shared Package Boundary (post-cutover)
+
+As of mission `shared-package-boundary-cutover-01KQ22DS` (2026-04-25):
+
+- **Runtime**: CLI-internal under `src/specify_cli/next/_internal_runtime/`. The standalone `spec-kitty-runtime` PyPI package is retired; the CLI does not depend on it.
+- **Events**: external PyPI dependency. Consumed only via `spec_kitty_events.*` public imports. The vendored copy under `src/specify_cli/spec_kitty_events/` was removed.
+- **Tracker**: external PyPI dependency. Consumed only via `spec_kitty_tracker.*` public imports.
+- **Compatibility ranges** live in `pyproject.toml`; **exact pins** live in `uv.lock`.
+- **Editable / path overrides** for events / tracker are dev-only; never committed in `pyproject.toml`'s `[tool.uv.sources]`. Consult [`docs/development/local-overrides.md`](docs/development/local-overrides.md) for the dev workflow.
+
+Architectural enforcement of these invariants lives in `tests/architectural/test_shared_package_boundary.py` and `tests/architectural/test_pyproject_shape.py`. The clean-install verification job in `.github/workflows/ci-quality.yml` (`clean-install-verification`) proves `spec-kitty next` works in a fresh venv without `spec-kitty-runtime`.
+
+ADR: [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md). Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
+
 <!-- MANUAL ADDITIONS END -->

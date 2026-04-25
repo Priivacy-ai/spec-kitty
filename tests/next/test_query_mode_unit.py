@@ -310,7 +310,7 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge.get_or_start_run", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", side_effect=Exception("snapshot read failed")),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", side_effect=Exception("snapshot read failed")),
         ):
             with pytest.raises(QueryModeValidationError, match="Could not read query state"):
                 query_current_state("claude", "069-test", tmp_path)
@@ -341,9 +341,9 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
-            patch("spec_kitty_runtime.planner.plan_next", return_value=blocked),
+            patch("specify_cli.next._internal_runtime.planner.plan_next", return_value=blocked),
         ):
             with pytest.raises(QueryModeValidationError, match="has no issuable first step"):
                 query_current_state("claude", "069-test", tmp_path)
@@ -378,9 +378,9 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
-            patch("spec_kitty_runtime.planner.plan_next", return_value=decision_required),
+            patch("specify_cli.next._internal_runtime.planner.plan_next", return_value=decision_required),
         ):
             decision = query_current_state("claude", "069-test", tmp_path)
 
@@ -429,9 +429,9 @@ class TestQueryCurrentStateErrorPaths:
             ),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
-            patch("spec_kitty_runtime.planner.plan_next", return_value=first_step),
+            patch("specify_cli.next._internal_runtime.planner.plan_next", return_value=first_step),
         ):
             decision = query_current_state(None, "069-test", tmp_path)
 
@@ -471,9 +471,9 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=persisted_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
-            patch("spec_kitty_runtime.planner.plan_next", return_value=next_step),
+            patch("specify_cli.next._internal_runtime.planner.plan_next", return_value=next_step),
         ):
             decision = query_current_state(None, "069-test", tmp_path)
 
@@ -505,10 +505,10 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
             patch(
-                "spec_kitty_runtime.planner.plan_next",
+                "specify_cli.next._internal_runtime.planner.plan_next",
                 side_effect=QueryModeValidationError("planner contract violation"),
             ),
         ):
@@ -541,9 +541,9 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
-            patch("spec_kitty_runtime.planner.plan_next", return_value=terminal),
+            patch("specify_cli.next._internal_runtime.planner.plan_next", return_value=terminal),
         ):
             decision = query_current_state(None, "069-test", tmp_path)
 
@@ -621,9 +621,9 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
             patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
-            patch("spec_kitty_runtime.planner.plan_next", return_value=blocked),
+            patch("specify_cli.next._internal_runtime.planner.plan_next", return_value=blocked),
         ):
             decision = query_current_state("claude", "069-test", tmp_path)
 

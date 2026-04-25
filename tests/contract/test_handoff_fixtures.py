@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.spec_kitty_events.models import Event
+from spec_kitty_events import Event
 from specify_cli.sync.emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES
 
 # ---------------------------------------------------------------------------

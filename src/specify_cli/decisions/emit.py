@@ -2,7 +2,7 @@
 
 Appends ``DecisionPointOpened(interview)`` and ``DecisionPointResolved(interview)``
 events to ``kitty-specs/<mission_slug>/status.events.jsonl`` using the
-vendored ``specify_cli.spec_kitty_events.decisionpoint`` payload models (4.0.0).
+public ``spec_kitty_events.decisionpoint`` payload models (4.0.0 contract).
 
 Event envelope format (one JSON line, sorted keys):
     event_id, at, event_type, payload
@@ -31,13 +31,13 @@ from pathlib import Path
 import ulid as _ulid_mod
 
 from specify_cli.decisions.models import IndexEntry
-from specify_cli.spec_kitty_events.decisionpoint import (
+from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
     DecisionPointOpenedInterviewPayload,
     DecisionPointResolvedInterviewPayload,
 )
-from specify_cli.spec_kitty_events.decision_moment import (
+from spec_kitty_events.decision_moment import (
     OriginFlow as _EventOriginFlow,
     OriginSurface,
     TerminalOutcome,

@@ -224,7 +224,7 @@ def _handle_answer(
 
         # If no decision_id provided, try to auto-resolve
         if decision_id is None:
-            from spec_kitty_runtime.engine import _read_snapshot
+            from specify_cli.next._internal_runtime.engine import _read_snapshot
 
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             pending = snapshot.pending_decisions

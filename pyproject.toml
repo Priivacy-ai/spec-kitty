@@ -61,14 +61,17 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    "spec-kitty-events==4.0.0",
-    # spec-kitty-runtime is intentionally not listed here: all 0.4.x releases
-    # transitively require spec-kitty-events<4.0, which conflicts with the ==4.0.0
-    # pin above.  The vendored src/specify_cli/spec_kitty_events/ tree is the
-    # actual events runtime surface.  spec-kitty-runtime must be pre-installed
-    # separately (>=0.4.3 is known-good).  See constraints.txt and DRIFT-1 in
-    # mission review 01KPWT8P.
-    "spec-kitty-tracker==0.4.2",
+    # spec-kitty-events / spec-kitty-tracker: external PyPI dependencies.
+    # Compatibility ranges follow the upstream public-surface contracts pinned
+    # in tests/contract/spec_kitty_events_consumer/ and
+    # tests/contract/spec_kitty_tracker_consumer/. Exact pinned versions live
+    # in uv.lock, not here. spec-kitty-runtime is intentionally absent: the
+    # CLI's runtime surface is internalized under
+    # src/specify_cli/next/_internal_runtime/ (see WP01 of mission
+    # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
+    # tests/architectural/test_pyproject_shape.py.
+    "spec-kitty-events>=4.0.0,<5.0.0",
+    "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
     "filelock>=3.13.0",  # Credential storage locking
@@ -121,9 +124,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
-
-[tool.uv.sources]
-spec-kitty-events = { path = "../spec-kitty-events", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]
@@ -408,7 +408,6 @@ also_copy = [
     "src/specify_cli/dossier/",  # Copy dossier
     "src/specify_cli/dashboard/",  # Copy dashboard
     "src/specify_cli/orchestrator_api/",  # Copy orchestrator API
-    "src/specify_cli/spec_kitty_events/",  # Copy spec kitty events
     "src/specify_cli/templates/",  # Copy templates
     "src/specify_cli/mission_v1/",  # Copy mission v1
     "src/specify_cli/scripts/",  # Copy scripts

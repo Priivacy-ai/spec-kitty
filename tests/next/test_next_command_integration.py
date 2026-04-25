@@ -1,4 +1,9 @@
-"""Integration tests for ``spec-kitty next`` CLI command."""
+"""Integration tests for ``spec-kitty next`` CLI command.
+
+This file imports runtime symbols only via ``specify_cli.next._internal_runtime``
+following the WP02 cutover in mission ``shared-package-boundary-cutover-01KQ22DS``.
+No quarantined ``spec_kitty_runtime`` references are needed.
+"""
 
 from __future__ import annotations
 
@@ -161,8 +166,8 @@ def _advance_runtime_to_step(
     """Advance the runtime run past steps until target_step_id is issued."""
     from specify_cli.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
-    from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
-    from spec_kitty_runtime.engine import _read_snapshot
+    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from specify_cli.next._internal_runtime.engine import _read_snapshot
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
@@ -199,7 +204,7 @@ def _complete_all_steps(
     """Complete all runtime steps to reach terminal state."""
     from specify_cli.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
-    from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
+    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
@@ -466,7 +471,7 @@ class TestNextCommandKnownBlockedMissions:
         with (
             patch("specify_cli.next.runtime_bridge.get_or_start_run", return_value=RunRef()),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("spec_kitty_runtime.engine._read_snapshot", return_value=Snapshot()),
+            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=Snapshot()),
             patch(
                 "specify_cli.next.runtime_bridge._should_advance_wp_step",
                 side_effect=CanonicalStatusNotFoundError(
@@ -590,7 +595,7 @@ class TestNextCommandCLI:
 
         from specify_cli.mission import get_mission_type
         from specify_cli.next.runtime_bridge import get_or_start_run
-        from spec_kitty_runtime.engine import _read_snapshot
+        from specify_cli.next._internal_runtime.engine import _read_snapshot
 
         mission_type = get_mission_type(repo_root / "kitty-specs" / "042-test-feature")
         run_ref = get_or_start_run("042-test-feature", repo_root, mission_type)

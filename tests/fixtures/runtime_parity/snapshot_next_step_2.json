@@ -1,0 +1,29 @@
+{
+  "context": {
+    "actor_context": {
+      "agent_id": "parity-agent"
+    },
+    "expected_output": null,
+    "mission_key": "ref-parity",
+    "policy_snapshot": {
+      "default_route": "same_llm_context",
+      "extras": {},
+      "strictness": "medium"
+    },
+    "run_id": "<RUN_ID>",
+    "step_description": "Initial discovery step.",
+    "step_id": "discovery",
+    "step_title": "Discovery"
+  },
+  "decision_id": null,
+  "input_key": null,
+  "kind": "step",
+  "mission_key": "ref-parity",
+  "options": null,
+  "prompt": "Run discovery.",
+  "question": null,
+  "reason": null,
+  "run_id": "<RUN_ID>",
+  "step_id": "discovery",
+  "step_title": "Discovery"
+}

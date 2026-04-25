@@ -2073,6 +2073,110 @@ jobs:
           SONAR_HOST_URL: ${{ steps.sonar_settings.outputs.host_url }}
 
   # ---------------------------------------------------------------------------
+  # build-wheel: build the spec-kitty-cli wheel once and share it with the
+  # clean-install-verification job (FR-010 / FR-019 of mission
+  # shared-package-boundary-cutover-01KQ22DS).
+  # ---------------------------------------------------------------------------
+  build-wheel:
+    name: Build wheel
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      - name: Build wheel
+        run: |
+          python -m build --wheel
+          ls -la dist/
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-kitty-cli-wheel
+          path: dist/spec_kitty_cli-*.whl
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # clean-install-verification: structurally proves `spec-kitty next` runs in
+  # a fresh venv without `spec-kitty-runtime` installed (FR-010, FR-017,
+  # NFR-003, NFR-004 of mission shared-package-boundary-cutover-01KQ22DS).
+  # ---------------------------------------------------------------------------
+  clean-install-verification:
+    name: Clean install verification (FR-010)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5     # NFR-004
+    needs: [build-wheel]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download CLI wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: spec-kitty-cli-wheel
+          path: dist/
+
+      - name: Set up clean Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Create clean venv
+        run: |
+          python -m venv /tmp/clean-venv
+          /tmp/clean-venv/bin/pip install --upgrade pip
+
+      - name: Install CLI from wheel
+        run: |
+          /tmp/clean-venv/bin/pip install dist/spec_kitty_cli-*.whl
+          /tmp/clean-venv/bin/pip list
+
+      - name: Assert spec-kitty-runtime is NOT installed
+        run: |
+          if /tmp/clean-venv/bin/pip show spec-kitty-runtime >/dev/null 2>&1; then
+            echo "::error::FAIL: spec-kitty-runtime is installed; cutover regressed (FR-006/FR-010)"
+            exit 1
+          fi
+          echo "OK: spec-kitty-runtime is not installed"
+
+      - name: Assert no runtime import side-effect
+        run: |
+          /tmp/clean-venv/bin/python -c "
+          import sys
+          import specify_cli  # triggers the CLI's import graph
+          leaked = [k for k in sys.modules if 'spec_kitty_runtime' in k]
+          assert not leaked, f'spec_kitty_runtime imported: {leaked}'
+          print('OK: spec_kitty_runtime not imported')
+          "
+
+      - name: Run spec-kitty next against fixture mission
+        run: |
+          cp -r tests/fixtures/clean_install_fixture_mission /tmp/fixture
+          cd /tmp/fixture
+          git init -q
+          git -c user.email=ci@test -c user.name=ci add -A
+          git -c user.email=ci@test -c user.name=ci commit -q -m "fixture mission"
+          /tmp/clean-venv/bin/spec-kitty next \
+            --agent claude \
+            --mission clean-install-fixture-01KQ22XX \
+            --json | tee /tmp/next.json
+          /tmp/clean-venv/bin/python -c "
+          import json, pathlib
+          data = json.loads(pathlib.Path('/tmp/next.json').read_text())
+          assert isinstance(data, dict), data
+          print('OK: spec-kitty next returned a structured JSON payload')
+          "
+
+  # ---------------------------------------------------------------------------
   # quality-gate: single check that aggregates all required job results.
   # Skipped jobs are OK; only failures block.
   # ---------------------------------------------------------------------------
@@ -2111,6 +2215,7 @@ jobs:
       - integration-tests-upgrade
       - integration-tests-cli
       - integration-tests-agent
+      - clean-install-verification
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -2151,7 +2256,8 @@ jobs:
             "${{ needs.integration-tests-dashboard.result }}" \
             "${{ needs.integration-tests-upgrade.result }}" \
             "${{ needs.integration-tests-cli.result }}" \
-            "${{ needs.integration-tests-agent.result }}"; do
+            "${{ needs.integration-tests-agent.result }}" \
+            "${{ needs.clean-install-verification.result }}"; do
             if [ "$result" = "failure" ]; then
               echo "A required job failed."
               exit 1

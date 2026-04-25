@@ -1,5 +1,24 @@
 name: Protect Main Branch
 
+# Required-checks contract (FR-010 of mission
+# shared-package-boundary-cutover-01KQ22DS):
+#
+# This workflow only enforces "no direct push to main" via post-hoc commit
+# inspection. The actual required-status-checks list is configured via
+# GitHub branch protection rules at:
+#   Settings -> Branches -> Branch protection rules -> main
+#                                                   -> Required status checks
+#
+# The following checks MUST be in that list (in addition to whatever was
+# there before this mission):
+#
+#   - clean-install-verification  (job in .github/workflows/ci-quality.yml)
+#
+# When this workflow file is updated, a maintainer with admin access on the
+# repo MUST also add 'clean-install-verification' to the required-checks
+# list. The CLAUDE.md / docs/migration/shared-package-boundary-cutover.md
+# guide owns the runbook for that change.
+
 on:
   push:
     branches:

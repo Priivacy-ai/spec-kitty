@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError as PydanticValidationError
 
-from specify_cli.spec_kitty_events.models import Event
+from spec_kitty_events import Event
 from .batch import categorize_error
 from .emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES, VALID_AGGREGATE_TYPES
 
