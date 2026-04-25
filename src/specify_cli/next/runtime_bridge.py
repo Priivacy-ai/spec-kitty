@@ -323,8 +323,6 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
 
 def _template_key_for_file(path: Path) -> str | None:
     try:
-        from spec_kitty_runtime.schema import load_mission_template_file
-
         template = load_mission_template_file(path)
         return template.mission.key
     except Exception:
@@ -753,7 +751,6 @@ def query_current_state(
         try:
             from spec_kitty_runtime import engine
             from spec_kitty_runtime.planner import plan_next
-            from spec_kitty_runtime.schema import load_mission_template_file
 
             if run_ref is None:
                 run_ref, ephemeral_run_store = _start_ephemeral_query_run(
