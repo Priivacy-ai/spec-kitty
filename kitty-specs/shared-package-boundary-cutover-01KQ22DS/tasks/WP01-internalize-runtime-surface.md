@@ -378,3 +378,4 @@ spec-kitty agent action implement WP01 --agent <name> --mission shared-package-b
 - 2026-04-25T10:59:25Z – claude:opus-4.7:python-implementer:implementer – shell_pid=29877 – Ready for review: Internalized runtime surface; 8/8 parity & gate tests passing.
 - 2026-04-25T10:59:53Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=32142 – Started review via action command
 - 2026-04-25T11:02:19Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=32142 – Review passed: internal runtime surface complete, no forbidden imports, parity tests (8) pass, all required public+submodule symbols exported
+- 2026-04-25T12:17:32Z – claude:opus-4.7:python-reviewer:reviewer – shell_pid=32142 – Done override: post-merge
