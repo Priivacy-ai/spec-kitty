@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-shared-package-boundary-cutover-01KQ22DS
+base_commit: db964785165dee1b0b7c606e02df43e22ed0ae42
+created_at: '2026-04-25T10:47:39.006742+00:00'
 subtasks:
 - T001
 - T002
@@ -19,6 +22,7 @@ subtasks:
 - T007
 - T008
 - T009
+shell_pid: '29877'
 history:
 - at: '2026-04-25T10:31:00+00:00'
   actor: planner

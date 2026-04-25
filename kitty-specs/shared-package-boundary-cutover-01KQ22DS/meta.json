@@ -6,5 +6,7 @@
   "mission_slug": "shared-package-boundary-cutover-01KQ22DS",
   "mission_type": "software-dev",
   "slug": "shared-package-boundary-cutover-01KQ22DS",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-25T10:47:38.244638+00:00"
 }
