@@ -30,6 +30,8 @@ subtasks:
 - T007
 - T008
 - T009
+agent: "claude:opus:implementer-ivan:implementer"
+shell_pid: "67398"
 history:
 - at: '2026-04-25T11:39:00Z'
   actor: claude
@@ -314,3 +316,7 @@ cd src && pytest tests/specify_cli/next/test_runtime_bridge.py tests/specify_cli
 ## Implementation command
 
 `spec-kitty agent action implement WP02 --agent <your-agent-name>`
+
+## Activity Log
+
+- 2026-04-25T11:56:23Z – claude:opus:implementer-ivan:implementer – shell_pid=67398 – Started implementation via action command
