@@ -20,6 +20,8 @@ subtasks:
 - T014
 - T015
 - T016
+agent: "claude:opus:implementer:implementer"
+shell_pid: "6407"
 history:
 - at: '2026-04-25T15:09:39Z'
   by: tasks
@@ -275,3 +277,7 @@ Do NOT edit:
 - **`complete_invocation` raises in the `else` branch**: existing failure mode; do not nest a second try/except.
 - **Reviewer mistakes outcome `"done"` for "host LLM finished generation"**: the explicit named test from T014 plus the comment from T013 document the semantic.
 - **Multi-step pairing collapses**: explicit multistep test from T014 catches a single shared try/except.
+
+## Activity Log
+
+- 2026-04-25T15:24:52Z – claude:opus:implementer:implementer – shell_pid=6407 – Started implementation via action command
