@@ -3,7 +3,10 @@
 # =============================================================================
 #
 # Transitional template alongside the v1 state-machine mission.yaml.
-# Used by spec-kitty next when bridging to spec-kitty-runtime.
+# Used by spec-kitty next when bridging to the CLI-internal runtime
+# (specify_cli.next._internal_runtime); post-mission
+# shared-package-boundary-cutover-01KQ22DS the standalone
+# spec-kitty-runtime PyPI package is no longer involved.
 #
 # The runtime engine uses DAG-based step planning instead of state transitions.
 # WP-level iteration within "implement" and "review" steps is managed by the

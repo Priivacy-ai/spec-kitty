@@ -171,7 +171,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="spec-kitty-runtime",
+        owner_module="next/_internal_runtime",
         creation_trigger="mission run start",
     ),
     StateSurface(
@@ -181,7 +181,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSONL,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="spec-kitty-runtime",
+        owner_module="next/_internal_runtime",
         creation_trigger="mission run events",
     ),
     StateSurface(
@@ -191,7 +191,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.YAML,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="spec-kitty-runtime",
+        owner_module="next/_internal_runtime",
         creation_trigger="mission run start",
     ),
     StateSurface(
