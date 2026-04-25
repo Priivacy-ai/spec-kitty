@@ -430,21 +430,23 @@ def test_dispatch_logs_invocation_chain_on_success(
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001", "inv-002", "inv-003", "inv-004")
 
-    with caplog.at_level(logging.INFO, logger="specify_cli.next.runtime_bridge"):
-        with patch(
+    with (
+        caplog.at_level(logging.INFO, logger="specify_cli.next.runtime_bridge"),
+        patch(
             "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
             return_value=fake_result,
-        ):
-            failures = _dispatch_via_composition(
-                repo_root=repo_root,
-                mission="software-dev",
-                action="tasks",
-                actor="architect-alphonso",
-                profile_hint=None,
-                request_text=None,
-                mode_of_work=None,
-                feature_dir=feature_dir_with_full_tasks,
-            )
+        ),
+    ):
+        failures = _dispatch_via_composition(
+            repo_root=repo_root,
+            mission="software-dev",
+            action="tasks",
+            actor="architect-alphonso",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=feature_dir_with_full_tasks,
+        )
 
     assert failures is None
     # The chain must reach the bridge log so it can be consumed by event/trail

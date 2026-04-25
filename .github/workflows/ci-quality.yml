@@ -172,6 +172,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test,lint]"
+          # spec-kitty-runtime is required by next/runtime tests and patch-target
+          # validation, but its published wheel pins an older spec-kitty-events.
+          # Install it without deps so this repo's spec-kitty-events==4.0.0 pin
+          # remains authoritative.
+          pip install spec-kitty-runtime==0.4.5 --no-deps
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -884,6 +889,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+          pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
@@ -1470,6 +1476,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+          pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |

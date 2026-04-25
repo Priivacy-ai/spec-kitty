@@ -275,6 +275,11 @@ class TestPlanMissionRegressions:
         assert "steps" in data, "software-dev must have steps at top level"
         steps = data["steps"]
         assert len(steps) > 0, "software-dev must have at least one step"
+        step_ids = [step["id"] for step in steps]
+        assert "tasks" in step_ids, "software-dev must expose the single public tasks step"
+        assert "tasks_outline" not in step_ids, "legacy tasks_outline must stay internal to composition"
+        assert "tasks_packages" not in step_ids, "legacy tasks_packages must stay internal to composition"
+        assert "tasks_finalize" not in step_ids, "legacy tasks_finalize must stay internal to composition"
 
         # Verify templates directory exists for software-dev
         templates_dir = Path("src/specify_cli/missions/software-dev/templates")

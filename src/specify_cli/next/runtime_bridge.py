@@ -20,7 +20,7 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -176,7 +176,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C901
     """Check CLI-level guard conditions before completing a step.
 
     Returns list of failure descriptions. Empty list means all guards pass.
@@ -218,9 +218,8 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
         if not _should_advance_wp_step("implement", feature_dir):
             failures.append("Not all work packages have required status (for_review, approved, or done)")
 
-    elif step_id == "review":
-        if not _should_advance_wp_step("review", feature_dir):
-            failures.append("Not all work packages are approved or done")
+    elif step_id == "review" and not _should_advance_wp_step("review", feature_dir):
+        failures.append("Not all work packages are approved or done")
 
     return failures
 
@@ -254,7 +253,7 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 # mission's five public actions (``specify``, ``plan``, ``tasks``,
 # ``implement``, ``review``) through ``StepContractExecutor.execute`` instead
 # of the legacy mission-runtime.yaml DAG step handlers. All other missions and
-# step IDs continue to fall through to the legacy DAG path unchanged
+# step IDs continue to fall through to the runtime planner path unchanged
 # (constraint C-008).
 #
 # Constraints active here:
@@ -270,10 +269,9 @@ _COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
     "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
 }
 
-# Legacy DAG step IDs that the composition layer collapses into the single
-# ``tasks`` action. The composed ``tasks`` contract holds the substructure
-# (outline / packages / finalize) internally; the runtime DAG still issues the
-# old step IDs until WP03 retires the mission-runtime template.
+# Legacy run snapshots and project-local templates may still contain the old
+# tasks substep IDs. Normalize them into the single public ``tasks`` action so
+# existing in-flight missions can advance through the composition path.
 _LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset(
     {"tasks_outline", "tasks_packages", "tasks_finalize"}
 )
@@ -305,7 +303,7 @@ def _should_dispatch_via_composition(mission: str, step_id: str) -> bool:
     return _normalize_action_for_composition(step_id) in composed
 
 
-def _check_composed_action_guard(
+def _check_composed_action_guard(  # noqa: C901
     action: str,
     feature_dir: Path,
     *,
@@ -386,9 +384,8 @@ def _check_composed_action_guard(
                 "Not all work packages have required status (for_review, approved, or done)"
             )
 
-    elif action == "review":
-        if not _should_advance_wp_step("review", feature_dir):
-            failures.append("Not all work packages are approved or done")
+    elif action == "review" and not _should_advance_wp_step("review", feature_dir):
+        failures.append("Not all work packages are approved or done")
 
     return failures
 
@@ -409,8 +406,8 @@ def _dispatch_via_composition(
 
     Returns:
       - ``None`` on success (composition succeeded AND post-action guard
-        passed). The caller should continue to the legacy DAG advance call
-        so the runtime engine progresses to the next step.
+        passed). The caller should continue to the runtime planner advance call
+        so run state progresses to the next step.
       - A non-empty list of failure descriptions if the executor raised
         ``StepContractExecutionError`` (FR-009: structured CLI surface, not a
         Python traceback) or the post-action guard failed. The caller turns
@@ -420,15 +417,9 @@ def _dispatch_via_composition(
     ``StepContractExecutor.execute``; it never touches
     ``ProfileInvocationExecutor`` directly.
 
-    .. note::
-       **Architectural follow-up (Priivacy-ai/spec-kitty#786):** today the
-       caller still falls through to ``runtime_next_step`` (the legacy DAG
-       advance) on success, which leaves composition as a side-channel
-       layered atop the legacy executor model rather than the canonical
-       dispatcher mandated by FR-003. Issue #786 (Phase 6 follow-up under
-       #468) tracks the work to make composition the **only** dispatch
-       surface for the five composed ``software-dev`` actions before #505
-       lands. Do not extend the dual-path here — that work belongs in #786.
+    The follow-up ``runtime_next_step`` call is only run-state planning. The
+    action dispatch for the five public ``software-dev`` actions happens here,
+    through composition, before the planner advances.
     """
     # Local import keeps module load lean and avoids circular import risk.
     from specify_cli.mission_step_contracts.executor import (
@@ -909,13 +900,13 @@ def decide_next_via_runtime(
     #
     # For the built-in `software-dev` mission's five public actions, route the
     # just-completed step through `StepContractExecutor.execute` BEFORE we let
-    # the runtime engine advance the DAG. The composition produces the
+    # the runtime planner advance run state. The composition produces the
     # invocation_id chain (host harness interprets it); a structured guard
     # failure surface (Decision.kind=blocked, guard_failures populated) is
     # used in lieu of a Python traceback when the executor raises
     # `StepContractExecutionError`. C-008 hard-guards this on
     # `mission == "software-dev"`; every other mission falls through to the
-    # legacy DAG advance unchanged.
+    # runtime planner unchanged.
     if (
         result == "success"
         and current_step_id
@@ -977,8 +968,8 @@ def decide_next_via_runtime(
                 run_id=run_ref.run_id,
                 step_id=current_step_id,
             )
-        # Composition succeeded; fall through to the legacy DAG advance so
-        # the runtime engine progresses to the next step.
+        # Composition succeeded; fall through to the runtime planner advance so
+        # run state progresses to the next step.
 
     # Advance via runtime
     try:

@@ -307,7 +307,7 @@ class TestWPIteration:
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
-        step_order = ["discovery", "specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize", "implement"]
+        step_order = ["discovery", "specify", "plan", "tasks", "implement"]
         for _ in range(len(step_order)):
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             if snapshot.issued_step_id == "implement":
