@@ -22,7 +22,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '94442'
+shell_pid: "94442"
+agent: "claude:opus:implementer:implementer"
 history:
 - at: '2026-04-25T15:09:39Z'
   by: tasks
@@ -223,3 +224,7 @@ Do NOT edit:
 - **Duplicate lane events**: enumerate emissions before adding the helper; the new test asserts each event fires exactly once.
 - **Re-introducing the P0 `tasks` guard regression**: keep `_check_composed_action_guard(...)` BEFORE the new helper; existing `tasks_*` guard tests must pass without modification.
 - **Helper raises silently and falls back to legacy**: the new `test_advancement_helper_failure_propagates_no_legacy_fallback` test catches this.
+
+## Activity Log
+
+- 2026-04-25T15:15:39Z – claude:opus:implementer:implementer – shell_pid=94442 – Assigned agent via action command
