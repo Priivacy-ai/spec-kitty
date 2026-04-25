@@ -15,14 +15,14 @@
 | T002 | Add `contract_ref` field to `PromptStep` | WP01 |  | [D] |
 | T003 | Configure `populate_by_name=True` on `PromptStep.model_config` | WP01 |  | [D] |
 | T004 | Schema parse / alias / round-trip unit tests | WP01 | [D] |
-| T005 | Create `mission_loader/__init__.py` stub package | WP02 |  |
-| T006 | Create `mission_loader/errors.py` (closed enums + Pydantic models) | WP02 |  |
-| T007 | Create `mission_loader/retrospective.py` (`has_retrospective_marker`) | WP02 | [P] |
-| T008 | Add `RESERVED_BUILTIN_KEYS` constant + `is_reserved_key()` to `_internal_runtime/discovery.py` | WP02 |  |
-| T009 | Create `mission_loader/validator.py` with `validate_custom_mission()` | WP02 |  |
-| T010 | Unit tests: retrospective marker presence / absence | WP02 | [P] |
-| T011 | Unit tests: every closed error code reachable + envelope shape | WP02 | [P] |
-| T012 | Unit tests: precedence / shadow rules / reserved-key rejection | WP02 | [P] |
+| T005 | Create `mission_loader/__init__.py` stub package | WP02 |  | [D] |
+| T006 | Create `mission_loader/errors.py` (closed enums + Pydantic models) | WP02 |  | [D] |
+| T007 | Create `mission_loader/retrospective.py` (`has_retrospective_marker`) | WP02 | [D] |
+| T008 | Add `RESERVED_BUILTIN_KEYS` constant + `is_reserved_key()` to `_internal_runtime/discovery.py` | WP02 |  | [D] |
+| T009 | Create `mission_loader/validator.py` with `validate_custom_mission()` | WP02 |  | [D] |
+| T010 | Unit tests: retrospective marker presence / absence | WP02 | [D] |
+| T011 | Unit tests: every closed error code reachable + envelope shape | WP02 | [D] |
+| T012 | Unit tests: precedence / shadow rules / reserved-key rejection | WP02 | [D] |
 | T013 | Create `mission_loader/contract_synthesis.py` (`synthesize_contracts`) | WP03 |  |
 | T014 | Create `mission_loader/registry.py` (in-process registry shadow) | WP03 |  |
 | T015 | Hook contract registration into `MissionStepContractRepository` lookup path | WP03 |  |
@@ -98,14 +98,14 @@ The Subtask Index is a reference table only. Per-WP progress is tracked via the 
 
 **Subtasks**:
 
-- [ ] T005 Create `src/specify_cli/mission_loader/__init__.py` exporting public API (WP02)
-- [ ] T006 Create `errors.py` with `LoaderErrorCode`, `LoaderWarningCode` (StrEnum), `LoaderError`, `LoaderWarning`, and `ValidationReport` Pydantic models (WP02)
-- [ ] T007 Create `retrospective.py` with `has_retrospective_marker(template) -> bool` (WP02)
-- [ ] T008 Add `RESERVED_BUILTIN_KEYS = frozenset({"software-dev","research","documentation","plan"})` and `is_reserved_key(key)` helper to `_internal_runtime/discovery.py` (WP02)
-- [ ] T009 Create `validator.py` with `validate_custom_mission(mission_key, context) -> ValidationReport` implementing the flow in `data-model.md` §Validation flow (WP02)
-- [ ] T010 Unit tests: marker present / absent / wrong id / steps empty (WP02)
-- [ ] T011 Parametrized unit tests: every closed error code in `contracts/validation-errors.md` reachable; envelope shape locked (WP02)
-- [ ] T012 Unit tests: precedence (env > project_override > project_legacy > user_global > project_config > builtin); shadow warnings for non-built-in keys; reserved-key rejection (WP02)
+- [x] T005 Create `src/specify_cli/mission_loader/__init__.py` exporting public API (WP02)
+- [x] T006 Create `errors.py` with `LoaderErrorCode`, `LoaderWarningCode` (StrEnum), `LoaderError`, `LoaderWarning`, and `ValidationReport` Pydantic models (WP02)
+- [x] T007 Create `retrospective.py` with `has_retrospective_marker(template) -> bool` (WP02)
+- [x] T008 Add `RESERVED_BUILTIN_KEYS = frozenset({"software-dev","research","documentation","plan"})` and `is_reserved_key(key)` helper to `_internal_runtime/discovery.py` (WP02)
+- [x] T009 Create `validator.py` with `validate_custom_mission(mission_key, context) -> ValidationReport` implementing the flow in `data-model.md` §Validation flow (WP02)
+- [x] T010 Unit tests: marker present / absent / wrong id / steps empty (WP02)
+- [x] T011 Parametrized unit tests: every closed error code in `contracts/validation-errors.md` reachable; envelope shape locked (WP02)
+- [x] T012 Unit tests: precedence (env > project_override > project_legacy > user_global > project_config > builtin); shadow warnings for non-built-in keys; reserved-key rejection (WP02)
 
 **Implementation sketch**: `validate_custom_mission()` returns `ValidationReport(template, discovered, errors=[...], warnings=[...])`. Catches every YAML-load `ValidationError` and converts to `LoaderError(MISSION_YAML_MALFORMED)` (with `MISSION_REQUIRED_FIELD_MISSING` as a sub-case when known fields are missing). Re-uses `discovery.discover_missions_with_warnings()` and `load_mission_template_file()` — does NOT add a parallel loader (FR-003).
 
