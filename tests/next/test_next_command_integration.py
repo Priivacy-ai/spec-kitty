@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 from pathlib import Path
@@ -19,6 +20,13 @@ from tests.lane_test_utils import write_single_lane_manifest
 pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
+
+_RUNTIME_SKIP_REASON = "spec-kitty-runtime is optional in the default test environment"
+
+
+def _require_runtime() -> None:
+    if importlib.util.find_spec("spec_kitty_runtime") is None:
+        pytest.skip(_RUNTIME_SKIP_REASON)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -159,6 +167,7 @@ def _advance_runtime_to_step(
     agent: str = "test-agent",
 ) -> None:
     """Advance the runtime run past steps until target_step_id is issued."""
+    _require_runtime()
     from specify_cli.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
@@ -197,6 +206,7 @@ def _complete_all_steps(
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
+    _require_runtime()
     from specify_cli.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
@@ -451,6 +461,7 @@ class TestNextCommandKnownBlockedMissions:
         assert decision.action is not None
 
     def test_missing_canonical_status_during_wp_iteration_returns_structured_decision(self, tmp_path: Path) -> None:
+        _require_runtime()
         repo_root = _scaffold_project(tmp_path)
 
         from specify_cli.next.runtime_bridge import decide_next_via_runtime
@@ -585,6 +596,7 @@ class TestNextCommandCLI:
 
     def test_query_mode_does_not_advance_state(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bare query calls are read-only and keep the run snapshot unchanged."""
+        _require_runtime()
         repo_root = _scaffold_project(tmp_path)
         monkeypatch.chdir(repo_root)
 

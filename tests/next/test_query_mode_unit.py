@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -15,6 +16,13 @@ from specify_cli import app as cli_app
 
 pytestmark = pytest.mark.fast
 runner = CliRunner()
+
+_RUNTIME_SKIP_REASON = "spec-kitty-runtime is optional in the default test environment"
+
+
+def _require_runtime() -> None:
+    if importlib.util.find_spec("spec_kitty_runtime") is None:
+        pytest.skip(_RUNTIME_SKIP_REASON)
 
 
 def _make_mock_decision(
@@ -297,6 +305,7 @@ class TestQueryCurrentStateErrorPaths:
 
     def test_read_snapshot_exception_raises_validation_error(self, tmp_path: Path) -> None:
         """Corrupted runtime state should fail query mode loudly, not return unknown."""
+        _require_runtime()
         from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
         from unittest.mock import MagicMock
 
@@ -316,6 +325,7 @@ class TestQueryCurrentStateErrorPaths:
                 query_current_state("claude", "069-test", tmp_path)
 
     def test_invalid_first_step_raises_clear_validation_error(self, tmp_path: Path) -> None:
+        _require_runtime()
         from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
         from unittest.mock import MagicMock
 
@@ -349,6 +359,7 @@ class TestQueryCurrentStateErrorPaths:
                 query_current_state("claude", "069-test", tmp_path)
 
     def test_pending_decision_metadata_is_preserved_in_query_mode(self, tmp_path: Path) -> None:
+        _require_runtime()
         from specify_cli.next.runtime_bridge import query_current_state
         from unittest.mock import MagicMock
 
@@ -397,6 +408,7 @@ class TestQueryCurrentStateErrorPaths:
         the function returns, so a non-null ``run_id`` would mislead callers
         into thinking they can advance state against a run that no longer
         exists on disk."""
+        _require_runtime()
         from specify_cli.next.runtime_bridge import query_current_state
         from unittest.mock import MagicMock
 
@@ -445,6 +457,7 @@ class TestQueryCurrentStateErrorPaths:
     def test_persisted_run_query_keeps_run_id(self, tmp_path: Path) -> None:
         """Counter-test for the omission above: when the run is real and
         persisted (not ephemeral), the run_id must still be emitted."""
+        _require_runtime()
         from specify_cli.next.runtime_bridge import query_current_state
         from unittest.mock import MagicMock
 
@@ -484,6 +497,7 @@ class TestQueryCurrentStateErrorPaths:
         """A QueryModeValidationError raised inside the bootstrap should propagate
         as-is rather than being wrapped in a generic 'Could not read query state'
         error. This guards the explicit re-raise branch in query_current_state."""
+        _require_runtime()
         from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
         from unittest.mock import MagicMock
 
@@ -516,6 +530,7 @@ class TestQueryCurrentStateErrorPaths:
                 query_current_state(None, "069-test", tmp_path)
 
     def test_terminal_runtime_decision_renders_done_mission_state(self, tmp_path: Path) -> None:
+        _require_runtime()
         from specify_cli.next.runtime_bridge import query_current_state
         from unittest.mock import MagicMock
 
@@ -569,6 +584,7 @@ class TestQueryCurrentStateErrorPaths:
 
     def test_start_ephemeral_query_run_cleans_up_on_bootstrap_failure(self, tmp_path: Path) -> None:
         """If start_mission_run raises, the freshly created temp dir is removed."""
+        _require_runtime()
         from specify_cli.next.runtime_bridge import _start_ephemeral_query_run
 
         created_dirs: list[Path] = []
@@ -594,6 +610,7 @@ class TestQueryCurrentStateErrorPaths:
             assert not path.exists(), f"{path} should have been removed on failure"
 
     def test_blocked_query_keeps_step_id_and_reason_separate(self, tmp_path: Path) -> None:
+        _require_runtime()
         from specify_cli.next.runtime_bridge import query_current_state
         from unittest.mock import MagicMock
 

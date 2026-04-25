@@ -11,6 +11,8 @@ import pytest
 
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.decision import DecisionKind
+
+pytest.importorskip("spec_kitty_runtime")
 from spec_kitty_runtime import DiscoveryContext
 
 pytestmark = pytest.mark.fast
