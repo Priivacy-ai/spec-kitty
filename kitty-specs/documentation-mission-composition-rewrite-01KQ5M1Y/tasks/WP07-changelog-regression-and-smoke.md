@@ -192,3 +192,4 @@ Reference: [quickstart.md](../quickstart.md) for the smoke command sequence.
 ## Activity Log
 
 - 2026-04-26T20:33:06Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=57847 – Started implementation via action command
+- 2026-04-26T20:41:47Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=57847 – Evidence collected: regression PASS (169/169), lint zero new findings (1 pre-existing #805 baseline on executor.py:106), smoke OK from separate temp repo via --project (mission=documentation, preview_step=discover). Evidence files committed on main; lane branch now contains only CHANGELOG + code (no kitty-specs/ files).
