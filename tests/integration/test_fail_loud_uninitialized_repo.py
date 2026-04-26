@@ -47,6 +47,7 @@ def test_uninitialized_dir_raises_with_resolved_root(tmp_path: Path) -> None:
     assert excinfo.value.root == tmp_path.resolve()
     rendered = str(excinfo.value)
     # Actionable message names the resolved root and the missing markers.
+    assert "SPEC_KITTY_REPO_NOT_INITIALIZED" in rendered
     assert str(tmp_path.resolve()) in rendered
     assert "kitty-specs" in rendered
     assert "config.yaml" in rendered

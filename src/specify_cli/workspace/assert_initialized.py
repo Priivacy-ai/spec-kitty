@@ -23,9 +23,12 @@ from .root_resolver import (
 )
 
 __all__ = [
+    "SPEC_KITTY_REPO_NOT_INITIALIZED",
     "SpecKittyNotInitialized",
     "assert_initialized",
 ]
+
+SPEC_KITTY_REPO_NOT_INITIALIZED = "SPEC_KITTY_REPO_NOT_INITIALIZED"
 
 
 class SpecKittyNotInitialized(Exception):
@@ -42,7 +45,8 @@ class SpecKittyNotInitialized(Exception):
         self.missing = list(missing)
         bullets = "\n".join(f"  - {p}" for p in self.missing)
         message = (
-            "Spec Kitty is not initialized at the resolved repo root.\n"
+            f"{SPEC_KITTY_REPO_NOT_INITIALIZED}: Spec Kitty is not initialized "
+            "at the resolved repo root.\n"
             f"  Resolved root: {self.root}\n"
             "  Missing:\n"
             f"{bullets}\n"
