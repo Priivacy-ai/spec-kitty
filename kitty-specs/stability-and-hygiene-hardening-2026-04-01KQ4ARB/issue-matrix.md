@@ -90,10 +90,10 @@ Verdict semantics:
 
 | Verdict | Count |
 |---------|-------|
-| `fixed` | 38 |
+| `fixed` | 39 |
 | `verified-already-fixed` | 15 |
 | `deferred-with-followup` | 1 |
-| **Total rows** | **54** |
+| **Total rows** | **55** |
 
 The single `deferred-with-followup` row is `Priivacy-ai/spec-kitty-tracker#1`,
 where WP06 internalized the auth transport but `tracker/saas_client.py`
