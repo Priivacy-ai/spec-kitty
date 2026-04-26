@@ -23,7 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '76291'
+shell_pid: "76291"
+agent: "claude:opus-4-7:implementer:implementer"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -264,3 +265,7 @@ When reviewing this WP, focus on:
    files.
 4. No silent suppression in T004 — the test for unrelated tracked changes
    should still surface a structured error.
+
+## Activity Log
+
+- 2026-04-26T07:47:30Z – claude:opus-4-7:implementer:implementer – shell_pid=76291 – Assigned agent via action command
