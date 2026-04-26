@@ -19,12 +19,12 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 | T007 | Author 5 shipped step contracts: `research-{scoping,methodology,gathering,synthesis,output}.step-contract.yaml` | WP02 | [D] |
 | T008 | Author 5 action doctrine bundles (10 files: `index.yaml` + `guidelines.md` per action) under `src/doctrine/missions/research/actions/<action>/` | WP02 | [D] |
 | T009 | Smoke: `MissionStepContractRepository().list_all()` returns 10 contracts; `MissionTemplateRepository.get_action_guidelines("research", <action>)` returns non-empty per action | WP02 | – | [D] |
-| T010 | Audit `src/doctrine/graph.yaml` — read software-dev action nodes (lines 5-18) and the surrounding edges to learn the exact node/edge shape | WP03 | – |
-| T011 | Add 5 `action:research/<action>` nodes to `src/doctrine/graph.yaml` | WP03 | – |
-| T012 | Add per-action `scope` edges (per plan D2 edge map) from each research action to its directives + tactics | WP03 | – |
-| T013 | **PROOF (mandatory)**: `load_validated_graph(repo)` succeeds (`assert_valid()` passes) | WP03 | – |
-| T014 | **PROOF (mandatory)**: for each of 5 research actions, `resolve_context(graph, f"action:research/{action}", depth=...).artifact_urns` is non-empty | WP03 | – |
-| T015 | Add `tests/specify_cli/test_research_drg_nodes.py` asserting T013 + T014 hold (no mocks of `load_validated_graph` or `resolve_context`) | WP03 | – |
+| T010 | Audit `src/doctrine/graph.yaml` — read software-dev action nodes (lines 5-18) and the surrounding edges to learn the exact node/edge shape | WP03 | – | [D] |
+| T011 | Add 5 `action:research/<action>` nodes to `src/doctrine/graph.yaml` | WP03 | – | [D] |
+| T012 | Add per-action `scope` edges (per plan D2 edge map) from each research action to its directives + tactics | WP03 | – | [D] |
+| T013 | **PROOF (mandatory)**: `load_validated_graph(repo)` succeeds (`assert_valid()` passes) | WP03 | – | [D] |
+| T014 | **PROOF (mandatory)**: for each of 5 research actions, `resolve_context(graph, f"action:research/{action}", depth=...).artifact_urns` is non-empty | WP03 | – | [D] |
+| T015 | Add `tests/specify_cli/test_research_drg_nodes.py` asserting T013 + T014 hold (no mocks of `load_validated_graph` or `resolve_context`) | WP03 | – | [D] |
 | T016 | Verify `researcher-robbie` and `reviewer-renata` profiles exist under `src/doctrine/agent_profiles/shipped/` | WP04 | – |
 | T017 | Add 5 `("research", action)` entries to `_ACTION_PROFILE_DEFAULTS` in `executor.py` | WP04 | – |
 | T018 | Author `tests/specify_cli/mission_step_contracts/test_research_composition.py` covering contract loading, profile defaults, doctrine bundle resolution, software-dev sentinel | WP04 | – |
@@ -95,12 +95,12 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 **Independent test**: `load_validated_graph(repo)` succeeds; `resolve_context(graph, f"action:research/{action}", depth=...)` returns non-empty `artifact_urns` for each of 5 actions.
 
 **Subtasks**:
-- [ ] T010 Audit graph.yaml node + edge format (WP03)
-- [ ] T011 Add 5 action:research/* nodes (WP03)
-- [ ] T012 Add per-action scope edges (WP03)
-- [ ] T013 Proof — assert_valid passes (WP03)
-- [ ] T014 Proof — resolve_context.artifact_urns non-empty per action (WP03)
-- [ ] T015 Test asserting both proofs (WP03)
+- [x] T010 Audit graph.yaml node + edge format (WP03)
+- [x] T011 Add 5 action:research/* nodes (WP03)
+- [x] T012 Add per-action scope edges (WP03)
+- [x] T013 Proof — assert_valid passes (WP03)
+- [x] T014 Proof — resolve_context.artifact_urns non-empty per action (WP03)
+- [x] T015 Test asserting both proofs (WP03)
 
 **Dependencies**: None.
 
