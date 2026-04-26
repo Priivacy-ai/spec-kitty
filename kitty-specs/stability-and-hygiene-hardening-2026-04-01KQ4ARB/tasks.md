@@ -15,12 +15,12 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Pin lane-planning data-loss regression and fix merge inclusion | WP01 |  |
-| T002 | Make `spec-kitty merge --resume` resumable and bounded | WP01 |  |
-| T003 | Post-merge index refresh — no phantom deletions | WP01 | [P] |
-| T004 | Post-merge bookkeeping tolerates untracked `.worktrees/` and unrelated files | WP01 | [P] |
-| T005 | Dependent-WP scheduler in lane planner | WP01 |  |
-| T006 | Lane-specific test database isolation for parallel SaaS/Django lanes | WP01 | [P] |
+| T001 | Pin lane-planning data-loss regression and fix merge inclusion | WP01 |  | [D] |
+| T002 | Make `spec-kitty merge --resume` resumable and bounded | WP01 |  | [D] |
+| T003 | Post-merge index refresh — no phantom deletions | WP01 | [D] |
+| T004 | Post-merge bookkeeping tolerates untracked `.worktrees/` and unrelated files | WP01 | [D] |
+| T005 | Dependent-WP scheduler in lane planner | WP01 |  | [D] |
+| T006 | Lane-specific test database isolation for parallel SaaS/Django lanes | WP01 | [D] |
 | T007 | Provenance escape helper for `source_file` lines | WP02 | [P] |
 | T008 | Path canonicalization + symlink guard for intake scanner | WP02 | [P] |
 | T009 | Intake size-cap enforcement before full read | WP02 | [P] |
@@ -85,12 +85,12 @@ lanes whose base includes the dependency; isolate parallel test databases.
 **Dependencies**: none.
 
 **Subtasks**:
-- [ ] T001 Pin lane-planning data-loss regression and fix merge inclusion (WP01)
-- [ ] T002 Make `spec-kitty merge --resume` resumable and bounded (WP01)
-- [ ] T003 Post-merge index refresh — no phantom deletions (WP01)
-- [ ] T004 Post-merge bookkeeping tolerates untracked `.worktrees/` and unrelated files (WP01)
-- [ ] T005 Dependent-WP scheduler in lane planner (WP01)
-- [ ] T006 Lane-specific test database isolation for parallel SaaS/Django lanes (WP01)
+- [x] T001 Pin lane-planning data-loss regression and fix merge inclusion (WP01)
+- [x] T002 Make `spec-kitty merge --resume` resumable and bounded (WP01)
+- [x] T003 Post-merge index refresh — no phantom deletions (WP01)
+- [x] T004 Post-merge bookkeeping tolerates untracked `.worktrees/` and unrelated files (WP01)
+- [x] T005 Dependent-WP scheduler in lane planner (WP01)
+- [x] T006 Lane-specific test database isolation for parallel SaaS/Django lanes (WP01)
 
 **Prompt**: [tasks/WP01-merge-lane-safety.md](tasks/WP01-merge-lane-safety.md)
 
