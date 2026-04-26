@@ -61,7 +61,8 @@ spec-kitty agent action implement WP03 --agent <name>
 - `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/plan.md` — D2 (DRG authoring) + per-action edge map
 - `src/doctrine/graph.yaml` — read software-dev nodes (lines 5-18) + surrounding edges
 - `src/charter/_drg_helpers.py:19-39` — `load_validated_graph()` and `assert_valid()`
-- `src/specify_cli/next/_internal_runtime/engine.py:962-1019` — `resolve_context()`
+- **`src/doctrine/drg/query.py:79` — `resolve_context()`. THIS is the resolver composition uses.** Do NOT use `src/specify_cli/next/_internal_runtime/engine.resolve_context` — that is a different function on a different surface and proves nothing about DRG resolution.
+- **`src/specify_cli/mission_step_contracts/executor.py:151-153` — the canonical composition call site**: `resolve_context(graph, action_urn, depth=context.resolution_depth)`. Mirror this exactly in T014.
 - v1 attempt at `attempt/research-composition-mission-100-broken` — note that v1 did NOT add graph nodes; you cannot copy from v1 here.
 
 ## Subtask T010 — Audit graph.yaml node + edge format
@@ -136,24 +137,28 @@ spec-kitty agent action implement WP03 --agent <name>
 ## Subtask T014 — PROOF (mandatory): resolve_context returns non-empty artifact_urns
 
 **Steps**:
-1. Run:
+1. Use the SAME resolver composition uses. Import from `doctrine.drg.query`, not `specify_cli.next._internal_runtime.engine`. Use the SAME depth value composition uses, which is `context.resolution_depth` in `executor.py:153`. Read the default for `resolution_depth` in `StepContractExecutionContext` to know the literal default value at call time.
+2. Run:
    ```python
    from pathlib import Path
    from charter._drg_helpers import load_validated_graph
-   from specify_cli.next._internal_runtime.engine import resolve_context
+   from doctrine.drg.query import resolve_context  # <-- THE composition resolver
 
    g = load_validated_graph(Path('.'))
+   # Substitute the literal default of StepContractExecutionContext.resolution_depth.
+   # Read it from the source — do NOT guess.
+   COMPOSITION_DEPTH = <value-from-StepContractExecutionContext-default>
+
    for action in ['scoping', 'methodology', 'gathering', 'synthesis', 'output']:
        urn = f'action:research/{action}'
        node = g.get_node(urn)
        assert node, f"Missing node: {urn}"
-       ctx = resolve_context(g, urn, depth=2)  # match composition's actual depth
+       ctx = resolve_context(g, urn, depth=COMPOSITION_DEPTH)
        assert ctx.artifact_urns, f"Empty artifact_urns for {urn}"
        print(f"{urn}: {len(ctx.artifact_urns)} artifact_urns")
    ```
-2. Expected: 5 lines with non-zero artifact_urns counts.
-3. If any action returns empty, the edges in T012 are insufficient — add more or check that the resolver is walking the relations you used (`scope` may need to be supplemented).
-4. Confirm exact `depth=` argument by reading `_dispatch_via_composition`'s call into `resolve_context` (around `executor.py:153`); use that same depth in this proof.
+3. Expected: 5 lines with non-zero artifact_urns counts.
+4. If any action returns empty, the edges in T012 are insufficient — add more or check that the resolver is walking the relations you used (`scope` may need to be supplemented). The fix is to add edges, not to lower the depth.
 5. Capture output in your commit message under `resolve_context proof:`.
 
 **Files**: no edits in T014.
@@ -164,7 +169,7 @@ spec-kitty agent action implement WP03 --agent <name>
 1. Create `tests/specify_cli/test_research_drg_nodes.py`.
 2. Three tests:
    - `test_research_action_nodes_exist`: parametrized over 5 actions; `load_validated_graph(repo).get_node(...)` returns truthy.
-   - `test_research_action_resolve_context_non_empty`: parametrized over 5 actions; `resolve_context(...).artifact_urns` is non-empty.
+   - `test_research_action_resolve_context_non_empty`: parametrized over 5 actions; `resolve_context(...).artifact_urns` is non-empty. **Import from `doctrine.drg.query`** — same module composition uses (`executor.py:18`).
    - `test_drg_assert_valid_passes`: `load_validated_graph(repo)` succeeds (no exception).
 3. **Do NOT mock `load_validated_graph` or `resolve_context`** — these are the C-007 forbidden surfaces. Read the real graph.
 4. Run: `uv run pytest tests/specify_cli/test_research_drg_nodes.py -v`. All 11 tests pass (3 + 5 + 5 - duplicate counts).

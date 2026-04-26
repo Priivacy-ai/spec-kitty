@@ -111,9 +111,10 @@ spec-kitty agent action implement WP02 --agent <name>
 **Steps**:
 1. Create directories: `src/doctrine/missions/research/actions/{scoping,methodology,gathering,synthesis,output}/`.
 2. In each directory, author `index.yaml` and `guidelines.md` (10 files total). Pull verbatim from v1 tag content.
-3. `index.yaml` fields: `action`, `directives` (list of slugs), `tactics` (list of slugs). Match v1.
+3. `index.yaml` fields: `action`, `directives` (list of slugs), `tactics` (list of slugs). Match v1's shape.
 4. `guidelines.md`: plain markdown. The `output/guidelines.md` MUST contain the literal `gate_passed("publication_approved")` token; preserve from v1 cycle-2.
-5. Validate via the doctrine resolver:
+5. **Validate every slug against current shipped doctrine, not blindly preserve from v1.** For each directive/tactic slug an `index.yaml` references, verify the file exists at `src/doctrine/directives/shipped/<slug>*` or `src/doctrine/tactics/shipped/<slug>*` on the current baseline. If a v1 slug is stale (renamed/removed since the tag was created), substitute the closest current equivalent and document the substitution in the commit message. The slugs you keep here MUST also appear in WP03's per-action edge map — if a bundle references a slug WP03's graph doesn't edge to, either add the edge in WP03 or drop the slug here. Coordinate with WP03 reviewer.
+6. Validate via the doctrine resolver:
    ```python
    from specify_cli.missions.repository import MissionTemplateRepository  # whatever the actual import is
    from specify_cli.next._internal_runtime.discovery import load_mission_template
