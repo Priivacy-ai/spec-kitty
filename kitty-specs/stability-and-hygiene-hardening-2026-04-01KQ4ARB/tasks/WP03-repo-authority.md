@@ -14,6 +14,8 @@ subtasks:
 - T015
 - T016
 - T017
+agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "86236"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -211,3 +213,7 @@ inactive when it actually started.
    to fail after the alloc starts is fine; what matters is whether the
    `planned -> in_progress` event was already on disk when the allocator
    blew up.
+
+## Activity Log
+
+- 2026-04-26T08:23:38Z – claude:opus-4-7:implementer:implementer – shell_pid=86236 – Started implementation via action command
