@@ -546,6 +546,14 @@ def create_mission(
     friendly_name: Annotated[str | None, typer.Option("--friendly-name", help="Human-friendly mission title")] = None,
     purpose_tldr: Annotated[str | None, typer.Option("--purpose-tldr", help="One-line stakeholder TLDR for the mission")] = None,
     purpose_context: Annotated[str | None, typer.Option("--purpose-context", help="Short stakeholder-facing paragraph for the mission")] = None,
+    pr_bound: Annotated[bool, typer.Option("--pr-bound/--no-pr-bound", help="Mark mission as PR-bound (gate fires on merge_target_branch)")] = False,
+    branch_strategy: Annotated[
+        str | None,
+        typer.Option(
+            "--branch-strategy",
+            help="Branch-strategy gate control (e.g., 'already-confirmed' to bypass the prompt)",
+        ),
+    ] = None,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -580,6 +588,42 @@ def create_mission(
             else:
                 console.print(f"[bold red]Error:[/bold red] {exc}")
             raise typer.Exit(1) from exc
+
+    # Branch-strategy gate (FR-033, WP07/T040): when the mission is PR-bound
+    # and the operator is on the merge target branch, prompt for confirmation
+    # unless `--branch-strategy already-confirmed` is supplied.
+    from specify_cli.cli.commands._branch_strategy_gate import (
+        BranchStrategyGateError,
+        evaluate_branch_strategy,
+    )
+
+    current_branch = get_current_branch(repo_root)
+    effective_merge_target = target_branch or current_branch
+    try:
+        gate_outcome = evaluate_branch_strategy(
+            pr_bound=pr_bound,
+            current_branch=current_branch,
+            merge_target_branch=effective_merge_target,
+            branch_strategy=branch_strategy,
+            prompt=lambda message: typer.confirm(message, default=False),
+        )
+    except BranchStrategyGateError as exc:
+        if json_output:
+            _emit_json({"error": str(exc)})
+        else:
+            console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if gate_outcome.prompted and not gate_outcome.decision.proceed:
+        message = (
+            "Mission creation aborted by operator at branch-strategy gate. "
+            "Switch to a feature branch or pass `--branch-strategy already-confirmed`."
+        )
+        if json_output:
+            _emit_json({"error": message, "branch_strategy_gate": "aborted"})
+        else:
+            console.print(f"[yellow]Aborted:[/yellow] {message}")
+        raise typer.Exit(1)
 
     try:
         result = create_mission_core(
@@ -618,6 +662,20 @@ def create_mission(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
+
+    # Persist pr_bound flag in meta.json (FR-033 schema addition).
+    if pr_bound:
+        try:
+            meta_file = result.feature_dir / "meta.json"
+            if meta_file.exists():
+                meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
+                if not meta_data.get("pr_bound"):
+                    meta_data["pr_bound"] = True
+                    from specify_cli.mission_metadata import write_meta
+
+                    write_meta(result.feature_dir, meta_data)
+        except (OSError, json.JSONDecodeError):
+            pass
 
     # -- Output formatting (stays in the CLI layer) --
     if not json_output:

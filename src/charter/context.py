@@ -13,7 +13,6 @@ from ruamel.yaml.error import YAMLError
 
 from charter._doctrine_paths import resolve_project_root
 from charter.language_scope import infer_repo_languages
-from charter.resolver import GovernanceResolutionError, resolve_governance
 from kernel.atomic import atomic_write
 
 
@@ -614,28 +613,29 @@ def _render_bootstrap(charter_path: Path, summary: list[str], references: list[d
     return "\n".join(lines)
 
 
-def _render_compact_governance(repo_root: Path) -> str:
-    try:
-        resolution = resolve_governance(repo_root)
-    except GovernanceResolutionError as exc:
-        return f"Governance: unresolved ({exc})"
-    except Exception as exc:
-        return f"Governance: unavailable ({exc})"
+def _render_compact_governance(
+    repo_root: Path,
+    *,
+    directive_ids: list[str] | None = None,
+    tactic_ids: list[str] | None = None,
+) -> str:
+    """Render the compact governance block (FR-034).
 
-    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else NONE_LABEL
-    directives = ", ".join(resolution.directives) if resolution.directives else NONE_LABEL
-    tools = ", ".join(resolution.tools) if resolution.tools else NONE_LABEL
+    Compact mode preserves every directive ID, tactic ID, and section
+    anchor that bootstrap mode would emit; only the long-form prose
+    body is collapsed. ``directive_ids`` / ``tactic_ids`` are optional
+    bootstrap-side lists that the caller has already resolved; when
+    omitted the compact view falls back to the resolver's directive
+    canon.
+    """
+    from charter.compact import render_compact_view
 
-    lines = [
-        "Governance:",
-        f"  - Template set: {resolution.template_set}",
-        f"  - Paradigms: {paradigms}",
-        f"  - Directives: {directives}",
-        f"  - Tools: {tools}",
-    ]
-    if resolution.diagnostics:
-        lines.append(f"  - Diagnostics: {' | '.join(resolution.diagnostics)}")
-    return "\n".join(lines)
+    view = render_compact_view(
+        repo_root,
+        directive_ids=directive_ids or (),
+        tactic_ids=tactic_ids or (),
+    )
+    return view.text
 
 
 def _extract_policy_summary(content: str) -> list[str]:

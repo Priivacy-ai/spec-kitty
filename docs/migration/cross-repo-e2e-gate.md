@@ -1,0 +1,164 @@
+# Cross-Repo E2E Gate — Operator Migration Guide
+
+**Status**: Active as of mission
+`stability-and-hygiene-hardening-2026-04-01KQ4ARB` (2026-04-26).
+**ADR**: [`architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md`](../../architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md)
+**Skill**: [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+
+This guide tells operators how to run the cross-repo end-to-end gate
+that `spec-kitty-mission-review` now enforces, and how to handle the
+three exception cases the gate recognizes.
+
+## What the gate is
+
+After every Spec Kitty mission that touches cross-repo behavior
+(events / tracker / SaaS / sync / merge / intake / runtime), the
+mission-review skill runs three pass/fail checks before allowing
+acceptance:
+
+1. **Contract gate** — `pytest spec-kitty/tests/contract/ -v`. Asserts
+   that the in-repo expected shape of events/tracker payloads still
+   matches what the resolved PyPI versions produce.
+2. **Architectural gate** — `pytest spec-kitty/tests/architectural/
+   -v`. Asserts that import boundaries, public API surface, and
+   layer rules still hold (no `spec_kitty_runtime` imports in
+   production paths, public events/tracker imports only, etc.).
+3. **Cross-repo e2e gate** — `pytest
+   spec-kitty-end-to-end-testing/scenarios/ -v`. Drives real
+   workflows against a real dev SaaS endpoint to verify cross-repo
+   behavior end to end.
+
+All three are hard gates. A FAIL on any of them blocks
+`/spec-kitty.accept`.
+
+The gate also reads
+`kitty-specs/<slug>/issue-matrix.md` and rejects any mission whose
+matrix has a row with an empty verdict or a verdict outside the
+allowed set (`fixed`, `verified-already-fixed`,
+`deferred-with-followup`).
+
+## The four floor scenarios
+
+The e2e repo at `spec-kitty-end-to-end-testing/scenarios/` ships at
+least these scenarios. Future missions add more on top.
+
+| File | FR coverage | What it proves |
+|------|-------------|----------------|
+| `dependent_wp_planning_lane.py` | FR-001, FR-005, FR-038 | A mission with sequential dependent WPs plus a planning-lane WP merges with no silent omission of approved commits. |
+| `uninitialized_repo_fail_loud.py` | FR-032, FR-039 | `spec-kitty specify`/`plan`/`tasks` in a non-Spec-Kitty directory exit non-zero with `SPEC_KITTY_REPO_NOT_INITIALIZED` and write zero files into a sibling initialized repo. |
+| `saas_sync_enabled.py` | FR-040 | A full mission run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` against a configured dev SaaS endpoint produces sync emits at the endpoint, OR records a structured "endpoint unreachable" outcome that triggers the operator-exception path. |
+| `contract_drift_caught.py` | FR-041 | Staging a fake `spec-kitty-events` candidate that drops a required envelope field causes `pytest tests/contract/` to exit non-zero with a missing-field diagnostic. |
+
+## How to run the gate
+
+From the spec-kitty repo:
+
+```bash
+export SPEC_KITTY_ENABLE_SAAS_SYNC=1
+
+# 1. Contract gate
+pytest tests/contract/ -v
+
+# 2. Architectural gate
+pytest tests/architectural/ -v
+
+# 3. Cross-repo e2e gate (separate repo)
+cd ../spec-kitty-end-to-end-testing
+pytest scenarios/ -v
+```
+
+If all three exit zero AND the issue matrix is fully populated, the
+mission is gate-clean.
+
+## Exception path: `mission-exception.md`
+
+The e2e gate has one allowed exception path: the dev SaaS endpoint or
+some other environment dependency is genuinely unreachable on the
+reviewer's machine, and the failing scenario is not actually about a
+code defect.
+
+In that case the operator authors a `mission-exception.md` artifact
+under `kitty-specs/<slug>/`:
+
+```markdown
+# Mission Exception: <slug>
+
+**Operator**: <human name and email>
+**Date**: <ISO date>
+**Failing scenario**: `spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py::test_full_mission_with_sync`
+**Failing assertion**: `assert endpoint_health.reachable, "dev SaaS endpoint must be reachable"`
+
+## Why the failure is environmental, not a code defect
+
+[Operator narrative. Example: "The dev SaaS endpoint at
+https://dev.spec-kitty.example was unreachable from this machine
+during review. `curl -fsS <endpoint>/health` exits non-zero. This is
+infra, not code."]
+
+## Reproduction command
+
+```bash
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 \
+  pytest spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py -v
+```
+
+## Follow-up
+
+[Either a follow-up issue link, e.g. "Tracked as
+Priivacy-ai/spec-kitty#NNN" OR a written commitment to retry against
+the endpoint within a documented window.]
+```
+
+The mission-review skill rejects an exception artifact that is
+missing any of those fields.
+
+## Common exception cases (non-exhaustive)
+
+### Case A: dev SaaS endpoint is down or unreachable
+
+The `saas_sync_enabled.py` scenario detects this with an explicit
+health-check assertion (`expected_endpoint_health` flag). If the
+endpoint is unreachable, the scenario records a structured
+"unavailable" outcome rather than silently passing. The operator
+files `mission-exception.md` referencing the specific scenario and
+follows the schema above.
+
+### Case B: e2e harness has a hard dependency this machine cannot satisfy
+
+Example: the harness needs Docker to spin up a tracker fixture and
+the reviewer's machine has no Docker daemon. The same exception
+schema applies. The exception artifact must name the missing
+dependency and the command the operator ran.
+
+### Case C: scenario blocker that is genuinely a follow-up issue
+
+If a scenario's failure is a real code defect that the team has
+deliberately deferred to a follow-up mission, the mission cannot be
+exception-waived — the issue matrix's `deferred-with-followup` slot
+is the right home, and the mission-review skill enforces that the
+follow-up issue exists. An exception artifact is for *environmental
+blockers*, not for deferred bugs.
+
+## What is NOT allowed
+
+- A blanket waiver across all e2e scenarios. Each failing scenario
+  needs its own exception entry. The skill rejects an exception
+  artifact whose `Failing scenario:` field names more than one
+  scenario.
+- A `SPEC_KITTY_E2E_OPTIONAL=1` env-var override. This was rejected
+  as Alternative 4 in the ADR.
+- An exception with no follow-up. Either a follow-up issue link or a
+  written retry commitment is mandatory.
+
+## Cross-references
+
+- ADR (the gate rationale, full alternatives table):
+  [`architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md`](../../architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md)
+- Skill source (the enforcement code path):
+  [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+- Mission spec (FR-038, FR-039, FR-040, FR-041, NFR-006, C-010):
+  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
+- Issue matrix (the row-coverage gate input):
+  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md`](../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md)
+- Research D1 (the matrix shape decision that this gate reads):
+  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md`](../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md)

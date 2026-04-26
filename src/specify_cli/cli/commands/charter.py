@@ -2131,7 +2131,13 @@ def charter_resynthesize(  # noqa: C901
 
 @app.command("lint")
 def charter_lint(
-    feature: str | None = typer.Option(None, "--feature", help="Scope lint to a specific feature slug"),
+    mission: str | None = typer.Option(None, "--mission", help="Scope lint to a specific mission slug"),
+    feature: str | None = typer.Option(
+        None,
+        "--feature",
+        hidden=True,
+        help="(deprecated) Use --mission",
+    ),
     orphans: bool = typer.Option(False, "--orphans", help="Run only orphan checks"),
     contradictions: bool = typer.Option(False, "--contradictions", help="Run only contradiction checks"),
     stale: bool = typer.Option(False, "--stale", help="Run only staleness checks"),
@@ -2149,13 +2155,16 @@ def charter_lint(
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
 
+    # Resolve canonical --mission, accepting hidden --feature as a deprecated alias.
+    scope = mission if mission is not None else feature
+
     # Resolve which checks to run
     explicit = {k for k, v in [("orphans", orphans), ("contradictions", contradictions), ("staleness", stale)] if v}
     active_checks: set[str] | None = explicit if explicit else None  # None = all
 
     engine = LintEngine(repo_root)
     report = engine.run(
-        feature_scope=feature,
+        feature_scope=scope,
         checks=active_checks,
         min_severity=severity,
     )

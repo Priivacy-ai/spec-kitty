@@ -14,6 +14,7 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.ownership.models import ExecutionMode
+from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.workspace_context import ResolvedWorkspace
@@ -33,6 +34,14 @@ class LaneWorkspaceResult:
     vcs_backend_value: str
     execution_mode: str
     resolution_kind: str
+    # WP01/T006/FR-006: lane-specific test database env vars, derived from
+    # mission_slug + lane_id. Empty for planning-artifact resolutions
+    # (no per-lane test DB needed when there is no per-lane worktree).
+    lane_test_env: dict[str, str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.lane_test_env is None:
+            self.lane_test_env = {}
 
 
 def create_lane_workspace(
@@ -158,6 +167,9 @@ def create_lane_workspace(
         vcs_backend_value=vcs_backend_value,
         execution_mode=resolved_workspace.execution_mode,
         resolution_kind=resolved_workspace.resolution_kind,
+        # FR-006: derive a lane-suffixed test DB name so two parallel lanes
+        # (e.g. SaaS / Django) cannot collide on a shared test database.
+        lane_test_env=lane_test_env(mission_slug, lane_id),
     )
 
 

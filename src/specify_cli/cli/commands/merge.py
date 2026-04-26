@@ -905,6 +905,28 @@ def _run_lane_based_merge_locked(
             f"{(_err_checkout or '').strip()}"
         )
 
+    # -- WP01/T003 FR-003: Refresh the index against on-disk reality --
+    # ``git checkout HEAD -- .`` restores file content to match HEAD, but the
+    # cached stat info in the index can still trail real on-disk state after
+    # worktree churn (mtime/inode changes), producing phantom ``D ``/`` M``
+    # entries in subsequent ``git status`` calls. ``git update-index
+    # --refresh`` reconciles the index stats with the working tree without
+    # touching any blobs. Treat divergence as informational — never fail.
+    _ret_refresh, _out_refresh, _err_refresh = run_command(
+        ["git", "update-index", "--refresh"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if _ret_refresh != 0:
+        # Non-zero is expected when files truly differ from HEAD (e.g.
+        # the two status files we are about to safe_commit). Log and move
+        # on — the working-tree invariant check below is the contract.
+        logger.debug(
+            "post-merge index refresh reported divergence (this is informational): %s",
+            (_out_refresh or _err_refresh or "").strip(),
+        )
+
     # -- T001: Mark WPs done with per-WP state tracking --
     console.print("  [dim]Recording merged work packages as done...[/dim]")
     for lane in lanes_manifest.lanes:

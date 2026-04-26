@@ -69,6 +69,39 @@ TASKS_MD_FILENAME = "tasks.md"
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
+# WP04/T022 (FR-017): normalize qualified task identifiers so that
+# `mark-status` accepts both bare (``T001`` / ``WP01``) and mission-qualified
+# (``<mission_slug>/T001`` or ``<mission_slug>:WP01``) emissions from
+# ``tasks-finalize`` and downstream automation. This is a parser-side
+# extension; the original token is returned unchanged when it does not match
+# a qualified shape so downstream "task not found" surfaces stay structured
+# for genuinely garbage input.
+_QUALIFIED_TASK_ID_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*[/:](?P<task>[A-Za-z]+\d+)$"
+)
+
+
+def _normalize_task_id_input(raw: str) -> str:
+    """Normalize a task ID to its bare form (e.g. ``T001`` or ``WP01``).
+
+    Accepts:
+        - ``T001`` / ``WP01`` (bare) -> returned unchanged
+        - ``<mission_slug>/T001`` (qualified) -> ``T001``
+        - ``<mission_slug>:WP01`` (qualified) -> ``WP01``
+
+    Garbage inputs are returned unchanged so the downstream "task ID not
+    found in tasks.md" error path remains the canonical structured
+    failure surface for unknown identifiers.
+    """
+    if not raw or not isinstance(raw, str):
+        return raw
+    candidate = raw.strip()
+    match = _QUALIFIED_TASK_ID_RE.match(candidate)
+    if match:
+        return match.group("task").upper()
+    return candidate
+
+
 def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     """Return paths to all deterministic status artifacts that exist on disk.
 
@@ -1677,6 +1710,15 @@ def mark_status(
         if not task_ids:
             _output_error(json_output, "At least one task ID is required")
             raise typer.Exit(1)
+
+        # WP04/T022 (FR-017): accept both bare and mission-qualified task IDs.
+        # `tasks-finalize` and downstream emitters may produce IDs in either
+        # shape: `T001` or `<mission_slug>/T001` (or `<mission_slug>:T001`).
+        # Normalize to bare task IDs before validation. A garbage ID that is
+        # not a recognizable task token surfaces as "no task IDs found in
+        # tasks.md" downstream — preserving the existing structured-error
+        # contract for unknown tasks.
+        task_ids = [_normalize_task_id_input(tid) for tid in task_ids]
 
         # Get repo root and feature slug
         repo_root = locate_project_root()

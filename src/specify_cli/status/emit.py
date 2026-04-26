@@ -34,6 +34,7 @@ from pydantic import ValidationError
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
+from specify_cli.workspace import canonicalize_feature_dir
 from .wp_metadata import read_wp_frontmatter
 
 from .models import (
@@ -360,6 +361,12 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
 
     if feature_dir is None or mission_slug is None or wp_id is None or to_lane is None or actor is None:
         raise TypeError("emit_status_transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
+
+    # WP03/T014/FR-013: route the feature_dir through the canonical-root
+    # resolver. When the caller hands us a worktree-rooted path, this
+    # rewrites it to the main repo's kitty-specs/<slug>/ so the event log
+    # never lands in a stale worktree-local copy.
+    feature_dir = canonicalize_feature_dir(feature_dir)
 
     # T023: Load mission_id (ULID) from meta.json to use as the canonical
     # machine-facing identity for new events.  None for legacy/pre-3.1.1 missions.

@@ -6,17 +6,24 @@ Provides two local artefacts written by ``spec-kitty intake``:
 * ``.kittify/brief-source.yaml`` — SHA-256 fingerprint + metadata for traceability
 
 Neither file should be committed to version control; both are gitignored.
+
+Security-critical helpers (provenance escaping, atomic writes) live in the
+``specify_cli.intake`` package; this module is the operator-facing surface
+that composes them.
 """
 
 from __future__ import annotations
 
 import hashlib
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
+
+from specify_cli.intake.brief_writer import atomic_write_text
+from specify_cli.intake.provenance import escape_for_comment
+from specify_cli.intake.scanner import load_allow_cross_fs
 
 
 MISSION_BRIEF_FILENAME = "mission-brief.md"
@@ -65,35 +72,38 @@ def write_mission_brief(
     brief_hash = hashlib.sha256(content.encode()).hexdigest()
     ingested_at = datetime.now(tz=UTC).isoformat()
 
+    # WP02 T007: provenance strings come from operator-controlled file
+    # paths and must be escaped before they land in markdown comments
+    # or the YAML sidecar.  ``escape_for_comment`` strips control
+    # characters, neutralises ``-->`` / ``*/`` / leading ``#``, and
+    # clips to MAX_PROVENANCE_BYTES.
+    safe_source_file = escape_for_comment(source_file)
+    safe_source_agent = escape_for_comment(source_agent) if source_agent else None
+
     header = (
-        f"<!-- spec-kitty intake: ingested from {source_file} at {ingested_at} -->\n"
+        f"<!-- spec-kitty intake: ingested from {safe_source_file} at {ingested_at} -->\n"
         f"<!-- brief_hash: {brief_hash} -->"
     )
     brief_text = header + "\n\n" + content
 
     source_data: dict[str, str] = {
-        "source_file": source_file,
+        # The cleaned form is what the YAML sidecar records.  Storing the
+        # cleaned value (rather than the raw input) keeps the SHA-256 hash
+        # the source of truth for the *content* and the YAML the source of
+        # truth for *provenance metadata*.
+        "source_file": safe_source_file,
         "ingested_at": ingested_at,
         "brief_hash": brief_hash,
     }
-    if source_agent is not None:
-        source_data["source_agent"] = source_agent
+    if safe_source_agent is not None:
+        source_data["source_agent"] = safe_source_agent
 
-    # Write using temp files + replace() for atomic writes.
-    tmp_brief = kittify / f".tmp-brief-{os.getpid()}.md"
-    tmp_source = kittify / f".tmp-source-{os.getpid()}.yaml"
-    try:
-        tmp_brief.write_text(brief_text, encoding="utf-8")
-        tmp_source.write_text(
-            yaml.safe_dump(source_data, default_flow_style=False),
-            encoding="utf-8",
-        )
-        tmp_brief.replace(brief_path)
-        tmp_source.replace(source_path)
-    except Exception:
-        tmp_brief.unlink(missing_ok=True)
-        tmp_source.unlink(missing_ok=True)
-        raise
+    # WP02 T010: atomic write via open + fsync + replace.  Cross-fs
+    # writes are rejected unless explicitly allowed in config.yaml.
+    allow_cross_fs = load_allow_cross_fs(repo_root)
+    source_yaml = yaml.safe_dump(source_data, default_flow_style=False)
+    atomic_write_text(brief_path, brief_text, allow_cross_fs=allow_cross_fs)
+    atomic_write_text(source_path, source_yaml, allow_cross_fs=allow_cross_fs)
 
     return brief_path, source_path
 
