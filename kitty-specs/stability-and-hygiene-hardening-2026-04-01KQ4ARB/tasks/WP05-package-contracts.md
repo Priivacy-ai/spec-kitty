@@ -19,8 +19,8 @@ subtasks:
 - T029
 - T030
 - T031
-agent: "claude:opus-4-7:implementer:implementer"
-shell_pid: "5842"
+agent: "claude:opus-4-7:reviewer:reviewer"
+shell_pid: "13083"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -269,3 +269,4 @@ consumer verifies it.
 
 - 2026-04-26T08:54:50Z – claude:opus-4-7:implementer:implementer – shell_pid=5842 – Started implementation via action command
 - 2026-04-26T09:07:41Z – claude:opus-4-7:implementer:implementer – shell_pid=5842 – WP05 ready: T025 resolved-version envelope contract test+snapshot; T026 mission-review contract gate test; T027 events/tracker public-import freeze; T028 no spec-kitty-runtime production dep; T029 release.yml downstream-consumer-verify job + promotion gate; T030 ADR-2026-04-26-1 contract pinning; T031 snapshot script + docs/development/contract-pinning.md. Closes the WP04-flagged drift in test_cross_repo_consumers.py.
+- 2026-04-26T09:08:31Z – claude:opus-4-7:reviewer:reviewer – shell_pid=13083 – Started review via action command
