@@ -11,7 +11,7 @@ requirement_refs:
 - FR-014
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Current branch main; planning base main; merge target main; lane-based execution worktree per finalize-tasks. Depends on WP05. THIS IS THE FINAL MERGE GATE — without dogfood evidence in this WP's commit, the mission cannot merge.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T025
 - T026

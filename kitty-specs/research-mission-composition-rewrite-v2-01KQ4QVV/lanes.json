@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "mission_slug": "research-mission-composition-rewrite-v2-01KQ4QVV",
+  "mission_id": "01KQ4QVVZ4DC6CXA1XCZZAQ8AG",
+  "mission_branch": "kitty/mission-research-mission-composition-rewrite-v2-01KQ4QVV",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/quickstart.md",
+        "kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/smoke-evidence.md",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/mission_step_contracts/shipped/research-gathering.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/research-methodology.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/research-output.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/research-scoping.step-contract.yaml",
+        "src/doctrine/mission_step_contracts/shipped/research-synthesis.step-contract.yaml",
+        "src/doctrine/missions/research/actions/gathering/guidelines.md",
+        "src/doctrine/missions/research/actions/gathering/index.yaml",
+        "src/doctrine/missions/research/actions/methodology/guidelines.md",
+        "src/doctrine/missions/research/actions/methodology/index.yaml",
+        "src/doctrine/missions/research/actions/output/guidelines.md",
+        "src/doctrine/missions/research/actions/output/index.yaml",
+        "src/doctrine/missions/research/actions/scoping/guidelines.md",
+        "src/doctrine/missions/research/actions/scoping/index.yaml",
+        "src/doctrine/missions/research/actions/synthesis/guidelines.md",
+        "src/doctrine/missions/research/actions/synthesis/index.yaml",
+        "src/doctrine/missions/research/mission-runtime.yaml",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "src/specify_cli/missions/research/mission-runtime.yaml",
+        "src/specify_cli/missions/research/templates/accept.md",
+        "src/specify_cli/missions/research/templates/gathering.md",
+        "src/specify_cli/missions/research/templates/methodology.md",
+        "src/specify_cli/missions/research/templates/output.md",
+        "src/specify_cli/missions/research/templates/scoping.md",
+        "src/specify_cli/missions/research/templates/synthesis.md",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/integration/test_research_runtime_walk.py",
+        "tests/specify_cli/mission_step_contracts/test_research_composition.py",
+        "tests/specify_cli/next/test_runtime_bridge_research_composition.py",
+        "tests/specify_cli/test_research_drg_nodes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-26T11:56:01.503221+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}
