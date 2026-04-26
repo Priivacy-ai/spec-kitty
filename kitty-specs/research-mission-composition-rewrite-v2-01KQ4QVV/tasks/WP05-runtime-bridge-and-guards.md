@@ -203,3 +203,4 @@ This WP is where the bridge contract is locked. The test file is the single most
 ## Activity Log
 
 - 2026-04-26T13:03:15Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=62801 – Started implementation via action command
+- 2026-04-26T13:08:14Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=62801 – Implements T020-T024: research composition dispatch entry, 5 research guard branches with fail-closed default, bridge test file with C-007 enforcement. 28 new tests pass; 38 software-dev regression green; mypy/ruff clean; C-007 grep zero hits.
