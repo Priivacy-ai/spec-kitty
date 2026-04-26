@@ -1584,6 +1584,7 @@ class EventEmitter:
                         task = asyncio.ensure_future(self.ws_client.send_event(event))
                         self._pending_tasks.add(task)
                         task.add_done_callback(self._pending_tasks.discard)
+                        task.add_done_callback(lambda completed: self._queue_if_async_send_failed(completed, event))
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True
@@ -1602,3 +1603,17 @@ class EventEmitter:
                 f"[yellow]Warning: Event routing failed: {e}[/yellow]"
             )
             return False
+
+    def _queue_if_async_send_failed(self, completed: object, event: dict[str, Any]) -> None:
+        """Queue an event if a fire-and-forget WebSocket send fails later."""
+        try:
+            exception = completed.exception()  # type: ignore[attr-defined]
+        except Exception as exc:
+            exception = exc
+        if exception is None:
+            return
+        logger.debug("Async WebSocket send failed; queueing event %s: %s", event.get("event_id"), exception)
+        try:
+            self.queue.queue_event(event)
+        except Exception as queue_exc:
+            logger.warning("Failed to queue event %s after async send failure: %s", event.get("event_id"), queue_exc)

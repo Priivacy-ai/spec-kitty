@@ -1109,6 +1109,32 @@ class TestRouteEvent:
             asyncio.get_event_loop = original_get_event_loop
             asyncio.ensure_future = original_ensure_future
 
+    def test_async_ws_send_failure_is_queued(
+        self, emitter: EventEmitter, mock_auth: MagicMock
+    ):
+        """A later fire-and-forget WebSocket failure must not drop the event."""
+        del mock_auth
+
+        event = {
+            "event_id": emitter.generate_causation_id(),
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "test-team",
+        }
+        completed = MagicMock()
+        completed.exception.return_value = ConnectionError("Connection closed")
+        emitter.queue = MagicMock()
+
+        emitter._queue_if_async_send_failed(completed, event)
+
+        emitter.queue.queue_event.assert_called_once_with(event)
+
     def test_auth_exception_falls_back_to_queue(
         self, emitter: EventEmitter, monkeypatch
     ):
