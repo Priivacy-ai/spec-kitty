@@ -98,6 +98,12 @@ class WorkspaceContext:
     lane_wp_ids: list[str]  # All WPs assigned to this lane
     current_wp: str | None = None  # Which WP is currently active in the lane
 
+    # Lane-specific test database isolation env vars (FR-006).
+    # Empty dict for repo-root planning workspaces (no parallel-lane DB risk).
+    # Populated by `lane_test_env(mission_slug, lane_id)` so two parallel
+    # SaaS / Django lanes cannot collide on a single shared test DB.
+    lane_test_env: dict[str, str] | None = None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
