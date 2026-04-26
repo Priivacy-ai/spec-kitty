@@ -148,14 +148,34 @@ def write_brief_atomic(
 ) -> None:
     """Atomically write the mission brief and its provenance sidecar.
 
-    Both writes go through :func:`atomic_write_text` so a kill-9 mid-write
-    cannot leave a half-written file.  The function additionally checks
-    that ``scanner_root`` and ``writer_root`` agree (FR-012) before any
-    I/O happens, so a misconfigured caller fails before touching disk.
+    Each individual write is atomic via ``open + fsync + replace`` (the
+    ``atomic_write_text`` helper). True pair-atomicity is impossible on
+    POSIX (only single-file rename is atomic), so this helper enforces an
+    ordering that minimises the window during which a reader can observe
+    inconsistent state:
+
+    1. ``source.yaml`` is renamed FIRST.
+    2. ``brief.md``  is renamed SECOND, acting as the "commit marker"
+       for the pair.
+
+    A reader that consults ``brief.md`` first will see "no brief" any time
+    the brief has not yet been renamed in — including the entire window
+    between step 1 and step 2. The companion reader
+    (``mission_brief.read_brief_source``) honours this by treating
+    ``source-without-brief`` as ``None`` (equivalent to "no brief"). The
+    legacy recovery branch in ``write_mission_brief`` then unlinks the
+    orphan source on the next write.
+
+    Note that we also tolerate stale ``.tmp`` files left behind by a
+    kill between fsync and the first rename — each ``atomic_write_*``
+    call uses a unique ``PID.hex`` suffix so concurrent writers and
+    crashed predecessors never collide on the same temp filename.
     """
     _validate_root_consistency(scanner_root, writer_root)
-    atomic_write_text(brief_path, brief_text, allow_cross_fs=allow_cross_fs)
+    # Source first so brief.md remains the canonical "commit marker"
+    # for the pair. The reader treats source-without-brief as no brief.
     atomic_write_text(source_path, source_yaml, allow_cross_fs=allow_cross_fs)
+    atomic_write_text(brief_path, brief_text, allow_cross_fs=allow_cross_fs)
 
 
 __all__ = [
