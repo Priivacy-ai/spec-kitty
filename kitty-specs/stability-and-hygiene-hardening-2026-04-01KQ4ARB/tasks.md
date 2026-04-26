@@ -53,11 +53,11 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T036 | Replay handles tenant/project collision deterministically | WP06 |  | [D] |
 | T037 | Tracker bidirectional sync — bounded retries + structured failure | WP06 | [D] |
 | T038 | ADR-2026-04-26-2: Centralized auth transport boundary | WP06 | [D] |
-| T039 | Fail-loud uninitialized repo for spec/plan/tasks | WP07 | [P] |
-| T040 | Branch-strategy gate for PR-bound missions | WP07 | [P] |
-| T041 | Charter compact mode preserves directive IDs + section anchors | WP07 | [P] |
-| T042 | Hide legacy `--feature` aliases in help output | WP07 | [P] |
-| T043 | Local custom mission loader post-merge hygiene audit + fix or follow-up | WP07 | [P] |
+| T039 | Fail-loud uninitialized repo for spec/plan/tasks | WP07 | [D] |
+| T040 | Branch-strategy gate for PR-bound missions | WP07 | [D] |
+| T041 | Charter compact mode preserves directive IDs + section anchors | WP07 | [D] |
+| T042 | Hide legacy `--feature` aliases in help output | WP07 | [D] |
+| T043 | Local custom mission loader post-merge hygiene audit + fix or follow-up | WP07 | [D] |
 | T044 | `issue-matrix.md` scaffold + populated traceability matrix | WP08 |  |
 | T045 | E2E: dependent-WP planning lane merges without data loss | WP08 |  |
 | T046 | E2E: uninitialized repo fails loud | WP08 | [P] |
@@ -252,11 +252,11 @@ local custom mission loader post-merge hygiene audited and fixed or scoped.
 **Dependencies**: none.
 
 **Subtasks**:
-- [ ] T039 Fail-loud uninitialized repo for spec/plan/tasks (WP07)
-- [ ] T040 Branch-strategy gate for PR-bound missions (WP07)
-- [ ] T041 Charter compact mode preserves directive IDs + section anchors (WP07)
-- [ ] T042 Hide legacy `--feature` aliases in help output (WP07)
-- [ ] T043 Local custom mission loader post-merge hygiene audit + fix or follow-up (WP07)
+- [x] T039 Fail-loud uninitialized repo for spec/plan/tasks (WP07)
+- [x] T040 Branch-strategy gate for PR-bound missions (WP07)
+- [x] T041 Charter compact mode preserves directive IDs + section anchors (WP07)
+- [x] T042 Hide legacy `--feature` aliases in help output (WP07)
+- [x] T043 Local custom mission loader post-merge hygiene audit + fix or follow-up (WP07)
 
 **Prompt**: [tasks/WP07-governance-hygiene.md](tasks/WP07-governance-hygiene.md)
 
