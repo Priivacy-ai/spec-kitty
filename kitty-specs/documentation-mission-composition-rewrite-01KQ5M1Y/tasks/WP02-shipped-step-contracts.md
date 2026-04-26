@@ -15,6 +15,8 @@ subtasks:
 - T008
 - T009
 - T010
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "49689"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -255,3 +257,7 @@ Same shape as T004 with these differences:
 - Verify no `expected_artifacts` key anywhere (grep all 6 YAMLs).
 - Verify the parametrized test parametrizes over exactly 6 actions in alphabetical or workflow order.
 - Verify the test file is under `tests/specify_cli/mission_step_contracts/` (matches the existing research test path).
+
+## Activity Log
+
+- 2026-04-26T20:02:14Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=49689 – Started implementation via action command
