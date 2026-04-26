@@ -22,6 +22,8 @@ subtasks:
 - T022
 - T023
 - T024
+agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "93036"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -256,3 +258,7 @@ worktree can be allocated.
    filter.
 4. T024: schema drift here is a footgun. Make sure the test loads
    every shipped mission YAML, not just `plan`.
+
+## Activity Log
+
+- 2026-04-26T08:36:09Z – claude:opus-4-7:implementer:implementer – shell_pid=93036 – Started implementation via action command
