@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-26T19:25:26.071361+00:00",
+  "friendly_name": "documentation mission composition rewrite",
+  "mission_id": "01KQ5M1Y190VANF39KMBWZP6SD",
+  "mission_number": null,
+  "mission_slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
+  "mission_type": "software-dev",
+  "slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
+  "target_branch": "main"
+}
