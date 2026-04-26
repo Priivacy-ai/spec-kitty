@@ -1,10 +1,12 @@
 {
   "created_at": "2026-04-26T07:23:40.047104+00:00",
-  "friendly_name": "stability and hygiene hardening 2026 04",
+  "friendly_name": "Spec Kitty Stability & Hygiene Hardening (April 2026)",
   "mission_id": "01KQ4ARB0P4SFB0KCDMVZ6BXC8",
   "mission_number": null,
   "mission_slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
   "mission_type": "software-dev",
   "slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
-  "target_branch": "main"
+  "source_description": "Cross-repo Spec Kitty stability and hygiene hardening across merge/worktree safety, intake security, runtime state progression, cross-repo package contracts, sync recovery, and e2e coverage. Driven by start-here.md in the workspace root; covers issue lists across spec-kitty, spec-kitty-events, spec-kitty-tracker, spec-kitty-runtime, spec-kitty-tracker, and spec-kitty-end-to-end-testing repos.",
+  "target_branch": "main",
+  "vcs": "git"
 }
