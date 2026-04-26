@@ -14,6 +14,8 @@ subtasks:
 - T017
 - T018
 - T019
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "52671"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -242,3 +244,7 @@ Reference: [data-model.md → DRG node and edge shapes](../data-model.md#drg-nod
 - Verify no edits to existing research or software-dev nodes/edges (regression contract).
 - Verify the bundle ↔ DRG consistency test parametrizes over all 6 actions.
 - Verify the latency test reads both research and documentation timings for parity.
+
+## Activity Log
+
+- 2026-04-26T20:14:37Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=52671 – Started implementation via action command
