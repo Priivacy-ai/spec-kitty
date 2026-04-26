@@ -293,6 +293,28 @@ class TestWPStatusChanged:
         assert event is not None
         assert event["payload"]["mission_id"] == "01KTESTMISSIONID00000000001"
 
+    def test_transition_metadata_passes_through(self, emitter: EventEmitter, temp_queue):
+        """WPStatusChanged carries the canonical status event metadata TeamSpace projects."""
+        evidence = {"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}
+        event = emitter.emit_wp_status_changed(
+            "WP01",
+            "approved",
+            "done",
+            actor="claude",
+            force=False,
+            reason="move-task: approved -> done",
+            review_ref="review:123",
+            execution_mode="worktree",
+            evidence=evidence,
+        )
+        assert event is not None
+        assert event["payload"]["force"] is False
+        assert event["payload"]["reason"] == "move-task: approved -> done"
+        assert event["payload"]["review_ref"] == "review:123"
+        assert event["payload"]["execution_mode"] == "worktree"
+        assert event["payload"]["evidence"] == evidence
+        assert event["evidence"] == evidence
+
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""
         emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -654,6 +676,11 @@ class TestConvenienceFunctions:
             mission_id="01KTESTMISSIONID00000000001",
             causation_id=None,
             policy_metadata=None,
+            force=False,
+            reason=None,
+            review_ref=None,
+            execution_mode=None,
+            evidence=None,
         )
 
     @patch("specify_cli.sync.events.get_emitter")

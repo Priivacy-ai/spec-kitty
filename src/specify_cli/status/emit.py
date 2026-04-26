@@ -524,7 +524,13 @@ def _saas_fan_out(
             actor=event.actor,
             mission_slug=mission_slug,
             mission_id=event.mission_id,
+            causation_id=event.event_id,
             policy_metadata=policy_metadata,
+            force=event.force,
+            reason=event.reason,
+            review_ref=event.review_ref,
+            execution_mode=event.execution_mode,
+            evidence=event.evidence.to_dict() if event.evidence else None,
             ensure_daemon=ensure_sync_daemon,
         )
     except ImportError:

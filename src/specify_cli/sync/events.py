@@ -208,6 +208,11 @@ def emit_wp_status_changed(
     mission_id: str | None = None,
     causation_id: str | None = None,
     policy_metadata: dict[str, Any] | None = None,
+    force: bool = False,
+    reason: str | None = None,
+    review_ref: str | None = None,
+    execution_mode: str | None = None,
+    evidence: dict[str, Any] | None = None,
     *,
     ensure_daemon: bool = True,
 ) -> dict[str, Any] | None:
@@ -223,6 +228,11 @@ def emit_wp_status_changed(
         mission_id=resolved_mission_id,
         causation_id=causation_id,
         policy_metadata=policy_metadata,
+        force=force,
+        reason=reason,
+        review_ref=review_ref,
+        execution_mode=execution_mode,
+        evidence=evidence,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)

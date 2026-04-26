@@ -749,6 +749,11 @@ class EventEmitter:
         mission_id: str | None = None,
         causation_id: str | None = None,
         policy_metadata: dict | None = None,
+        force: bool = False,
+        reason: str | None = None,
+        review_ref: str | None = None,
+        execution_mode: str | None = None,
+        evidence: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
         payload = {
@@ -758,6 +763,11 @@ class EventEmitter:
             "actor": actor,
             "mission_slug": mission_slug,
             "policy_metadata": policy_metadata,
+            "force": force,
+            "reason": reason,
+            "review_ref": review_ref,
+            "execution_mode": execution_mode,
+            "evidence": evidence,
         }
         if mission_id is not None:
             payload["mission_id"] = mission_id
@@ -771,6 +781,11 @@ class EventEmitter:
                 "from_lane": from_lane,
                 "to_lane": to_lane,
                 "actor": actor,
+                "force": force,
+                "reason": reason,
+                "review_ref": review_ref,
+                "execution_mode": execution_mode,
+                "evidence": evidence,
             },
         )
 
