@@ -151,6 +151,20 @@ class TestParseEventResults:
         assert len(result.event_results) == 2
         assert all(r.status == "success" for r in result.event_results)
 
+    def test_accepted_and_warning_are_successful(self):
+        """Server status-transition accepted/warning responses are durable successes."""
+        result = BatchSyncResult()
+        raw = [
+            {"event_id": "e1", "status": "accepted"},
+            {"event_id": "e2", "status": "warning"},
+        ]
+        _parse_event_results(raw, result)
+
+        assert result.synced_count == 2
+        assert result.error_count == 0
+        assert result.synced_ids == ["e1", "e2"]
+        assert all(r.status == "success" for r in result.event_results)
+
     def test_mixed_results(self):
         """Mix of success, duplicate, and rejected events."""
         result = BatchSyncResult()

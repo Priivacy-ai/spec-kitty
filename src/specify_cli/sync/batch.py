@@ -222,7 +222,7 @@ def _parse_event_results(
         status = event_result.get("status")
         error_msg = event_result.get("error_message") or event_result.get("error")
 
-        if status == "success":
+        if status in ("success", "accepted", "warning"):
             result.synced_count += 1
             result.synced_ids.append(event_id)
             result.event_results.append(BatchEventResult(event_id=event_id, status="success"))
