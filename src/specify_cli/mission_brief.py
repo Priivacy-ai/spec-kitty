@@ -22,6 +22,10 @@ from typing import Any
 import yaml  # type: ignore[import-untyped]
 
 from specify_cli.intake.brief_writer import atomic_write_text
+from specify_cli.intake.errors import (
+    IntakeFileMissingError,
+    IntakeFileUnreadableError,
+)
 from specify_cli.intake.provenance import escape_for_comment
 from specify_cli.intake.scanner import load_allow_cross_fs
 
@@ -114,26 +118,75 @@ def write_mission_brief(
 
 
 def read_mission_brief(repo_root: Path) -> str | None:
-    """Return the full contents of ``.kittify/mission-brief.md`` or ``None``."""
+    """Return the full contents of ``.kittify/mission-brief.md``.
+
+    Returns ``None`` when the file does not exist (legitimate "no brief").
+    Raises :class:`IntakeFileUnreadableError` when the file exists but
+    cannot be read or decoded — distinguishing a corrupt brief from a
+    missing one (FR-011). Callers that explicitly want lenient behavior
+    must catch the exception themselves.
+    """
     path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
-    if not path.exists():
-        return None
     try:
         return path.read_text(encoding="utf-8")
-    except Exception:  # noqa: BLE001
+    except FileNotFoundError:
         return None
+    except OSError as exc:
+        raise IntakeFileUnreadableError(path=path, cause=exc) from exc
+    except UnicodeDecodeError as exc:
+        raise IntakeFileUnreadableError(path=path, cause=exc) from exc
 
 
 def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
-    """Return parsed YAML from ``.kittify/brief-source.yaml`` or ``None``."""
+    """Return parsed YAML from ``.kittify/brief-source.yaml``.
+
+    Returns ``None`` when the file does not exist (legitimate "no brief").
+    Raises :class:`IntakeFileUnreadableError` when the file exists but is
+    unreadable, undecodable, or contains non-mapping YAML — distinguishing
+    a corrupt provenance sidecar from a missing one (FR-011).
+    """
     path = repo_root / ".kittify" / BRIEF_SOURCE_FILENAME
-    if not path.exists():
-        return None
     try:
-        result = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        return result if isinstance(result, dict) else None
-    except Exception:  # noqa: BLE001
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
         return None
+    except OSError as exc:
+        raise IntakeFileUnreadableError(path=path, cause=exc) from exc
+    except UnicodeDecodeError as exc:
+        raise IntakeFileUnreadableError(path=path, cause=exc) from exc
+
+    try:
+        result = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise IntakeFileUnreadableError(path=path, cause=exc) from exc
+
+    if result is None:
+        # Empty file is treated as a missing-but-not-corrupt sidecar; the
+        # CLI surface still distinguishes None vs an unreadable raise.
+        return None
+    if not isinstance(result, dict):
+        raise IntakeFileUnreadableError(
+            path=path,
+            cause=ValueError(
+                f"brief-source.yaml must contain a YAML mapping; "
+                f"got {type(result).__name__}"
+            ),
+        )
+    return result
+
+
+# Re-export the structured error so callers don't need to know which
+# subpackage owns it. Surfaces FR-011 at this module's import layer.
+__all__ = [  # noqa: PLE0604 — module-level export contract
+    "BRIEF_SOURCE_FILENAME",
+    "IntakeFileMissingError",
+    "IntakeFileUnreadableError",
+    "MISSION_BRIEF_FILENAME",
+    "clear_mission_brief",
+    "read_brief_source",
+    "read_mission_brief",
+    "write_mission_brief",
+]
 
 
 # ---------------------------------------------------------------------------

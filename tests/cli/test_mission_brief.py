@@ -115,15 +115,26 @@ def test_read_source_returns_dict_when_present(tmp_path: Path) -> None:
     assert "brief_hash" in result
 
 
-def test_read_source_returns_none_for_non_mapping_yaml(tmp_path: Path) -> None:
-    """read_brief_source returns None when the YAML root is not a mapping."""
+def test_read_source_raises_on_non_mapping_yaml(tmp_path: Path) -> None:
+    """FR-011: read_brief_source MUST raise on a corrupt YAML root.
+
+    Pre-fix this returned None, collapsing 'corrupt sidecar' into the
+    same state as 'no brief'. The mission stability-and-hygiene-hardening
+    -2026-04 review caught the gap: callers cannot tell whether the brief
+    is genuinely absent or whether the provenance file is malformed and
+    needs operator attention. The reader now raises a structured
+    IntakeFileUnreadableError; legitimate "no brief" still returns None
+    (pinned by other tests in this module and by
+    test_mission_brief_missing_vs_corrupt.py).
+    """
+    from specify_cli.intake.errors import IntakeFileUnreadableError
+
     source_path = tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME
     source_path.parent.mkdir()
     source_path.write_text("- not\n- a\n- mapping\n", encoding="utf-8")
 
-    result = read_brief_source(tmp_path)
-
-    assert result is None
+    with pytest.raises(IntakeFileUnreadableError):
+        read_brief_source(tmp_path)
 
 
 def test_clear_removes_both_files(tmp_path: Path) -> None:
