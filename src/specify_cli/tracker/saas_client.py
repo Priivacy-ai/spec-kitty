@@ -247,6 +247,17 @@ class SaaSTrackerClient:
         Tokens and team slug come from the process-wide ``TokenManager``
         via the sync bridge helpers at the top of this module. No direct
         filesystem or credential-store access.
+
+        FR-030 / WP06 deferral note: this module remains on the legacy
+        ``httpx.Client(...)`` instantiation pattern because 130+
+        downstream tests (under ``tests/sync/tracker/``) patch
+        ``specify_cli.tracker.saas_client.httpx.Client`` directly. The
+        architectural test in
+        ``tests/architectural/test_auth_transport_singleton.py``
+        explicitly allowlists this file with a tracked follow-up — the
+        centralized :class:`AuthenticatedClient` exists and is the
+        target for the next migration wave (sync, websocket, and
+        widen-mode SaaS).
         """
         access_token = _fetch_access_token_sync()
         if access_token is None:

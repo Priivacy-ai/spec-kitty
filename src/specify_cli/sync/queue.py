@@ -19,6 +19,29 @@ class _BatchEventResultLike(Protocol):
 
 DEFAULT_MAX_QUEUE_SIZE = 100_000
 
+# FR-027 / T035: when callers opt into the strict-capacity append surface,
+# the queue rejects events that would exceed this cap and surfaces
+# ``OfflineQueueFull`` for the caller to translate into a recoverable
+# CLI experience (drain to overflow file, re-queue).
+DEFAULT_STRICT_CAP_SIZE = 10_000
+
+
+class OfflineQueueFull(RuntimeError):
+    """Raised by :meth:`OfflineQueue.append` when the queue is at capacity.
+
+    The exception carries the cap and the current depth so the CLI
+    handler can render a single recoverable line and offer a drain path
+    (``--auto-drain`` or interactive confirmation).
+    """
+
+    def __init__(self, *, cap: int, current: int) -> None:
+        super().__init__(
+            f"Offline sync queue at capacity ({current}/{cap}). "
+            "Drain to file or expand cap before queueing more events."
+        )
+        self.cap = cap
+        self.current = current
+
 # Event types eligible for coalescing: when a new event of one of these types
 # arrives and an equivalent event (same type + coalesce key) already exists in
 # the queue, the existing row is updated in-place rather than inserting a new
@@ -463,6 +486,119 @@ class OfflineQueue:
         if "coalesce_key" not in columns:
             conn.execute("ALTER TABLE queue ADD COLUMN coalesce_key TEXT")
             conn.commit()
+
+    # ------------------------------------------------------------------
+    # FR-027 / T035: strict-cap append + drain-to-file recovery
+    # ------------------------------------------------------------------
+
+    def append(
+        self,
+        event: dict[str, Any],
+        *,
+        cap: int | None = None,
+    ) -> None:
+        """Append an event with strict capacity enforcement (FR-027).
+
+        Unlike :meth:`queue_event`, this method MUST NOT silently evict
+        older events when the queue is full. Instead it raises
+        :class:`OfflineQueueFull`, which the CLI surface translates into
+        a single recoverable line plus the drain-to-file path (see
+        :meth:`drain_to_file`).
+
+        Args:
+            event: Envelope dict with ``event_id`` / ``event_type`` /
+                ``payload`` (same shape as :meth:`queue_event`).
+            cap: Override the strict cap. When ``None`` the default
+                ``DEFAULT_STRICT_CAP_SIZE`` (10_000) applies — this is
+                deliberately tighter than ``queue_event``'s eviction cap
+                so the CLI can react before the eviction path triggers.
+
+        Raises:
+            OfflineQueueFull: Appending would exceed *cap*.
+            sqlite3.Error: Database I/O failure (caller decides).
+        """
+        effective_cap = int(cap) if cap is not None else DEFAULT_STRICT_CAP_SIZE
+        c_key = _coalesce_key(event)
+
+        # Coalesce path is still allowed because it does not grow the
+        # queue. Mirrors :meth:`queue_event`.
+        if c_key is not None and self._try_coalesce(event, c_key):
+            return
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM queue")
+            count_row = cursor.fetchone()
+            current_size = int(count_row[0]) if count_row else 0
+            if current_size >= effective_cap:
+                raise OfflineQueueFull(cap=effective_cap, current=current_size)
+
+            conn.execute(
+                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    str(event["event_id"]),
+                    str(event["event_type"]),
+                    json.dumps(event),
+                    int(datetime.now().timestamp()),
+                    c_key,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def drain_to_file(self, path: Path) -> int:
+        """Drain every queued event to *path* as JSONL and clear the queue.
+
+        Used by the CLI's offline-overflow recovery path (FR-027): when
+        :meth:`append` raises :class:`OfflineQueueFull`, the operator
+        confirms (or passes ``--auto-drain``) and the entire queue is
+        copied to ``.kittify/sync/overflow-<utc-iso>.jsonl`` for later
+        replay via :func:`specify_cli.sync.replay.replay_events`.
+
+        The drained file is a strict JSONL stream — one JSON event per
+        line, sorted by ``(timestamp, id)`` to match the FIFO order
+        preserved in :meth:`drain_queue`.
+
+        Args:
+            path: Destination JSONL path. Parent directories are
+                created if missing. The file is overwritten if it
+                already exists.
+
+        Returns:
+            Number of events drained.
+        """
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT data FROM queue ORDER BY timestamp ASC, id ASC"
+            )
+            rows = cursor.fetchall()
+        finally:
+            conn.close()
+
+        count = 0
+        with open(path, "w", encoding="utf-8") as fh:
+            for row in rows:
+                raw = row[0]
+                try:
+                    parsed = json.loads(raw)
+                except (TypeError, ValueError):
+                    # Skip un-parseable rows — they should never exist
+                    # but losing them here is preferable to corrupting
+                    # the JSONL stream.
+                    continue
+                fh.write(json.dumps(parsed, sort_keys=True))
+                fh.write("\n")
+                count += 1
+
+        # Clearing the queue MUST happen after the file write succeeds
+        # so a crash mid-drain does not lose evidence.
+        self.clear()
+        return count
 
     def queue_event(self, event: dict[str, Any]) -> bool:
         """

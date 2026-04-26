@@ -420,11 +420,10 @@ class TestNextCommandRuntimeFields:
 class TestNextCommandKnownBlockedMissions:
     """Strict reminders for accepted-but-unimplemented mission mappings."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=("Tracked in docs/development/tracking/next-mission-mappings/issue-plan-mission-next-mapping.md"),
-    )
     def test_plan_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
+        # WP04/T024 (FR-021): the plan mission's `mission-runtime.yaml`
+        # now validates against the runtime schema, so this test
+        # transitions from strict-xfail to a hard regression check.
         repo_root = _scaffold_project(
             tmp_path,
             mission_slug="043-plan-feature",

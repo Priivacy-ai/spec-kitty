@@ -518,6 +518,44 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         raise typer.Exit(1) from exc
 
     tracker.start("create")
+    # WP03/T015/FR-014: emit `planned -> claimed -> in_progress` BEFORE
+    # any worktree allocation that could fail. If the allocator raises,
+    # we emit `in_progress -> blocked` with reason=worktree_alloc_failed
+    # so the WP never appears inactive when it actually started.
+    import os as _os
+    pre_alloc_status_emitted = False
+    try:
+        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
+        if current_lane == Lane.PLANNED:
+            shell_pid_pre = str(_os.getppid())
+            status_execution_mode_pre = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
+            update_fields(wp_file, {"shell_pid": shell_pid_pre})
+
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=Lane.CLAIMED,
+                actor="implement-command",
+                execution_mode=status_execution_mode_pre,
+                repo_root=repo_root,
+            ))
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=Lane.IN_PROGRESS,
+                actor="implement-command",
+                execution_mode=status_execution_mode_pre,
+                repo_root=repo_root,
+            ))
+            pre_alloc_status_emitted = True
+    except Exception as _emit_exc:
+        # If the pre-alloc emit itself fails, surface but do not block
+        # alloc — the prior code already tolerated emit failures further
+        # downstream.
+        console.print(f"[yellow]Warning:[/yellow] Could not emit pre-alloc status transition: {_emit_exc}")
+
     try:
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
@@ -569,42 +607,30 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         tracker.error("create", f"workspace allocation failed: {exc}")
         console.print(tracker.render())
         console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
-        raise typer.Exit(1) from exc
-
-    try:
-        import os
-
-        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
-        if current_lane == Lane.PLANNED:
-            shell_pid = str(os.getppid())
-            commit_msg = f"chore: {wp_id} claimed for implementation"
-            status_execution_mode = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
-
-            update_fields(wp_file, {"shell_pid": shell_pid})
-
+        # WP03/T015/FR-014: emit `in_progress -> blocked` so the WP does
+        # not look inactive after a worktree allocation failure.
+        if pre_alloc_status_emitted:
             try:
                 emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=wp_id,
-                    to_lane=Lane.CLAIMED,
+                    to_lane=Lane.BLOCKED,
                     actor="implement-command",
-                    execution_mode=status_execution_mode,
+                    execution_mode="worktree",
+                    reason="worktree_alloc_failed",
+                    policy_metadata={"evidence": str(exc)},
                     repo_root=repo_root,
                 ))
-                emit_status_transition(TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=wp_id,
-                    to_lane=Lane.IN_PROGRESS,
-                    actor="implement-command",
-                    execution_mode=status_execution_mode,
-                    repo_root=repo_root,
-                ))
-            except Exception as exc:
-                console.print(f"[red]Error:[/red] Could not emit canonical status transition: {exc}")
-                raise typer.Exit(1) from exc
+            except Exception as _blocked_exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}"
+                )
+        raise typer.Exit(1) from exc
 
+    try:
+        if pre_alloc_status_emitted:
+            commit_msg = f"chore: {wp_id} claimed for implementation"
             if auto_commit:
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"

@@ -509,6 +509,129 @@ For each hit, ask:
 
 ---
 
+## Step 8.5: Enforce the Hard Gates (Contract / Architectural / Cross-Repo E2E / Issue Matrix)
+
+As of 2026-04-26 (mission `stability-and-hygiene-hardening-2026-04-01KQ4ARB`,
+ADR `architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md`), mission review
+runs four hard gates in order. A FAIL on any gate produces a FAIL verdict
+in Step 9 unless the operator-exception path documented below is used.
+
+### Gate 1: Contract tests (FR-023)
+
+```bash
+cd <spec-kitty-repo>
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest tests/contract/ -v
+```
+
+Non-zero exit ⇒ **HARD FAIL**. There is no exception path for contract
+tests; a contract drift is a code defect by construction.
+
+Record the exit code and any failing test names in your review report
+under a new section `## Gate Results — Contract`.
+
+### Gate 2: Architectural tests
+
+```bash
+cd <spec-kitty-repo>
+pytest tests/architectural/ -v
+```
+
+Non-zero exit ⇒ **HARD FAIL**. Layer-rule, public-import, and
+package-boundary violations are code defects by construction.
+
+Record the result under `## Gate Results — Architectural`.
+
+### Gate 3: Cross-repo E2E (FR-038, FR-039, FR-040, FR-041, C-010)
+
+```bash
+cd <spec-kitty-end-to-end-testing-repo>
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest scenarios/ -v
+```
+
+Non-zero exit ⇒ **HARD FAIL** unless an operator-exception artifact
+exists at `kitty-specs/<slug>/mission-exception.md` and matches the
+required schema (see below).
+
+The four floor scenarios are:
+
+- `dependent_wp_planning_lane.py` — FR-001, FR-005, FR-038
+- `uninitialized_repo_fail_loud.py` — FR-032, FR-039
+- `saas_sync_enabled.py` — FR-040
+- `contract_drift_caught.py` — FR-041
+
+Future missions touching cross-repo behavior MUST add scenarios that
+prove their behavior; verify any new mission-claimed cross-repo
+behavior has an e2e scenario, and FAIL the review if it does not.
+
+Record the result under `## Gate Results — Cross-Repo E2E`.
+
+### Gate 4: Issue matrix (FR-037)
+
+```bash
+cat kitty-specs/<slug>/issue-matrix.md
+```
+
+For every row in the matrix table, assert that the `verdict` cell is one of:
+
+- `fixed`
+- `verified-already-fixed`
+- `deferred-with-followup`
+
+Any empty `verdict`, any literal value `unknown`, or any verdict outside
+that allow-list ⇒ **HARD FAIL** with the failing row(s) listed.
+
+For every `deferred-with-followup` row, assert that the `evidence_ref`
+cell names a follow-up issue or a precise narrower follow-up issue
+title. A bare "deferred" with no follow-up handle is a FAIL.
+
+Record the result under `## Gate Results — Issue Matrix`.
+
+### Operator exception path (Gate 3 only)
+
+The cross-repo e2e gate has one allowed exception path: the dev SaaS
+endpoint or some other environmental dependency is genuinely unreachable
+on the reviewer's machine, and the failing scenario is not actually
+about a code defect. In that case the operator authors a
+`mission-exception.md` artifact under `kitty-specs/<slug>/`. The skill
+accepts the exception only if all of the following are present:
+
+| Field | Required content |
+|-------|------------------|
+| `**Operator**:` | Human name and contact |
+| `**Date**:` | ISO date the exception was granted |
+| `**Failing scenario**:` | Single scenario file::test, NOT a wildcard |
+| `**Failing assertion**:` | The exact assertion line that failed |
+| Narrative section | Why the failure is environmental, not a code defect |
+| `## Reproduction command` | The exact command the operator ran |
+| `## Follow-up` | Either a follow-up issue link or a written retry commitment in a documented window |
+
+Reject the exception artifact (and FAIL the review) if any of these are
+missing. Reject the exception if the `Failing scenario:` field names
+more than one scenario — a blanket waiver across the whole e2e suite is
+not allowed by C-010.
+
+Reject the exception if `mission-exception.md` covers a scenario that
+the skill can verify is actually a code defect (e.g., a `pytest`
+traceback that is not network-related). Operator exceptions are for
+environmental blockers, not for deferred bugs.
+
+Full operator runbook for the exception path:
+[`docs/migration/cross-repo-e2e-gate.md`](../../../docs/migration/cross-repo-e2e-gate.md).
+
+### Recording the gate results
+
+The mission review report (Step 9) MUST include a top-level section
+`## Gate Results` containing one subsection per gate. Each subsection
+records the command run, the exit code, and a one-paragraph rationale.
+For Gate 3, if an exception was granted, link to the exception artifact
+and quote the operator's narrative.
+
+A mission whose Gate Results show any HARD FAIL with no documented
+exception receives the FAIL verdict in Step 9, regardless of how
+clean the FR coverage table looks.
+
+---
+
 ## Step 9: Generate the Mission Review Report
 
 Produce a single structured markdown report. The report is your deliverable.
@@ -524,6 +647,39 @@ must be able to understand each finding from the report alone.
 **Baseline commit**: `<baseline_merge_commit>`
 **HEAD at review**: `<git rev-parse HEAD>`
 **WPs reviewed**: WP01..WPN
+
+---
+
+## Gate Results
+
+### Gate 1 — Contract tests
+- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest tests/contract/ -v`
+- Exit code: <0 | non-zero>
+- Result: PASS | FAIL
+- Notes: <failing test names if any>
+
+### Gate 2 — Architectural tests
+- Command: `pytest tests/architectural/ -v`
+- Exit code: <0 | non-zero>
+- Result: PASS | FAIL
+- Notes: ...
+
+### Gate 3 — Cross-repo E2E
+- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest spec-kitty-end-to-end-testing/scenarios/ -v`
+- Exit code: <0 | non-zero>
+- Result: PASS | FAIL | EXCEPTION (with link to `kitty-specs/<slug>/mission-exception.md`)
+- Notes: <failing scenarios; if EXCEPTION, quote the operator narrative>
+
+### Gate 4 — Issue Matrix
+- File: `kitty-specs/<slug>/issue-matrix.md`
+- Rows: <count>
+- Empty / `unknown` verdicts: <count, ideally 0>
+- `deferred-with-followup` rows missing a follow-up handle: <count, ideally 0>
+- Result: PASS | FAIL
+
+A FAIL on any of Gates 1, 2, or 4 forces the Final Verdict to FAIL. A
+FAIL on Gate 3 forces FAIL unless a valid `mission-exception.md` is
+present.
 
 ---
 

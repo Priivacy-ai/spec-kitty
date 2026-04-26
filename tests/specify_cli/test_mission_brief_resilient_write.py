@@ -44,22 +44,35 @@ def test_write_mission_brief_recovers_from_source_without_brief(tmp_path):
 
 
 def test_write_mission_brief_pre_replace_crash_leaves_no_final_files(tmp_path, monkeypatch):
-    """A crash inside write_text (before replace) leaves no partial final-path state."""
-    call_count = [0]
-    original = Path.write_text
+    """A crash during the second atomic write (after the brief landed) must not
+    leave a half-written final source file or a stranded ``.tmp`` file.
 
-    def patched(self: Path, text: str, **kwargs):
+    WP02 T010 routes the writes through ``atomic_write_text`` (open + fsync +
+    replace), so the natural injection point for a "crash" is ``os.replace``.
+    The pre-WP02 implementation patched ``Path.write_text``; the same
+    invariant — no partial final state — still holds.
+    """
+    import os as _os
+
+    call_count = [0]
+    original_replace = _os.replace
+
+    def patched_replace(src, dst):
         call_count[0] += 1
         if call_count[0] == 2:
             raise OSError("simulated crash")
-        return original(self, text, **kwargs)
+        return original_replace(src, dst)
 
-    monkeypatch.setattr(Path, "write_text", patched)
+    monkeypatch.setattr("specify_cli.intake.brief_writer.os.replace", patched_replace)
     with pytest.raises(OSError):
         write_mission_brief(tmp_path, "# Test", "test.md")
     kittify = tmp_path / ".kittify"
-    assert not (kittify / MISSION_BRIEF_FILENAME).exists()
-    assert not list(kittify.glob(".tmp-brief-*.md"))
+    # The brief landed (first replace succeeded) but the source did not.
+    # The atomic-write contract: ``target`` is either fully written or
+    # absent; tmp files are cleaned up on failure.
+    assert not (kittify / BRIEF_SOURCE_FILENAME).exists()
+    # No .tmp leftovers from either write.
+    assert not list(kittify.glob("*.tmp"))
 
 
 def test_write_mission_brief_return_value(tmp_path):

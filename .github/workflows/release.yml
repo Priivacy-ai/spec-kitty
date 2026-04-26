@@ -277,9 +277,101 @@ jobs:
             SHA256SUMS.txt
           retention-days: 30
 
+  downstream-consumer-verify:
+    # FR-026 / WP05 of mission stability-and-hygiene-hardening-2026-04-01KQ4ARB:
+    # No candidate release is promoted to stable until a downstream consumer
+    # has verified compatibility. This job runs the end-to-end "contract drift
+    # caught" scenario (from spec-kitty-end-to-end-testing) against the freshly
+    # built distributions and uploads a verification artifact at
+    # .kittify/release/downstream-verified.json. The publish-pypi job depends
+    # on this job's success, so a red downstream verify blocks promotion.
+    name: Downstream consumer verification
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Setup SSH for private repository access
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SPEC_KITTY_EVENTS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+        shell: bash
+
+      - name: Install tooling
+        run: |
+          uv sync --python "$(which python)" --extra test
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-distributions
+          path: dist-candidate/
+
+      - name: Run downstream consumer scenario suite
+        # The fixture consumer suite lives in spec-kitty-end-to-end-testing.
+        # If the path is missing, the verify job MUST fail loud rather than
+        # silently letting promotion proceed -- a missing scenario directory
+        # means the gate has no evidence to back it.
+        run: |
+          set -euo pipefail
+          SCENARIO=spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py
+          if [ ! -f "$SCENARIO" ]; then
+            echo "::error::Downstream scenario suite missing at $SCENARIO."
+            echo "::error::FR-026 requires a downstream consumer suite to gate promotion."
+            exit 1
+          fi
+          python -m pytest "$SCENARIO" -v 2>&1 | tee downstream-verify.log
+
+      - name: Record verification artifact
+        if: success()
+        run: |
+          set -euo pipefail
+          mkdir -p .kittify/release
+          VERSION="${GITHUB_REF_NAME#v}"
+          cat > .kittify/release/downstream-verified.json <<EOF
+          {
+            "status": "passed",
+            "candidate_version": "${VERSION}",
+            "consumer": "spec-kitty-end-to-end-testing",
+            "scenario": "contract_drift_caught",
+            "verified_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_id": "${GITHUB_RUN_ID}",
+            "commit_sha": "${GITHUB_SHA}"
+          }
+          EOF
+          cat .kittify/release/downstream-verified.json
+
+      - name: Upload verification artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: downstream-verified
+          path: |
+            .kittify/release/downstream-verified.json
+            downstream-verify.log
+          retention-days: 90
+
   publish-pypi:
     name: Publish to PyPI
-    needs: build-release
+    # FR-026: promotion to PyPI is gated on downstream-consumer-verify.
+    needs:
+      - build-release
+      - downstream-consumer-verify
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -292,6 +384,28 @@ jobs:
         with:
           name: release-distributions
           path: .
+
+      - name: Download downstream verification artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: downstream-verified
+          path: .kittify/release/
+
+      - name: Verify downstream-consumer-verify produced a passing artifact
+        # Defense in depth: even if `needs:` were ever loosened, refuse to
+        # publish without a passing verification artifact (FR-026).
+        run: |
+          set -euo pipefail
+          ARTIFACT=.kittify/release/downstream-verified.json
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "::error::Missing downstream verification artifact at $ARTIFACT."
+            exit 1
+          fi
+          STATUS=$(python -c "import json,sys;print(json.load(open('$ARTIFACT')).get('status',''))")
+          if [ "$STATUS" != "passed" ]; then
+            echo "::error::Downstream verification status='$STATUS'; promotion blocked."
+            exit 1
+          fi
 
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
