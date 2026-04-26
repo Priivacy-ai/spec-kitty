@@ -268,3 +268,4 @@ consumer verifies it.
 ## Activity Log
 
 - 2026-04-26T08:54:50Z – claude:opus-4-7:implementer:implementer – shell_pid=5842 – Started implementation via action command
+- 2026-04-26T09:07:41Z – claude:opus-4-7:implementer:implementer – shell_pid=5842 – WP05 ready: T025 resolved-version envelope contract test+snapshot; T026 mission-review contract gate test; T027 events/tracker public-import freeze; T028 no spec-kitty-runtime production dep; T029 release.yml downstream-consumer-verify job + promotion gate; T030 ADR-2026-04-26-1 contract pinning; T031 snapshot script + docs/development/contract-pinning.md. Closes the WP04-flagged drift in test_cross_repo_consumers.py.
