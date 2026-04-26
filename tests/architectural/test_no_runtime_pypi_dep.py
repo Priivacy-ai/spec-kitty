@@ -23,6 +23,7 @@ related ``[tool.uv.sources]`` invariants from the cutover mission.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import textwrap
@@ -36,6 +37,7 @@ pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PYPROJECT = _REPO_ROOT / "pyproject.toml"
+_SRC = _REPO_ROOT / "src"
 
 # Optional-dependency groups that are dev-only and may legitimately mention
 # the runtime package (e.g. for migration tests).
@@ -131,11 +133,25 @@ def test_cli_next_decision_imports_without_spec_kitty_runtime() -> None:
         """
     )
 
+    # Prepend the repo's ``src/`` to ``PYTHONPATH`` so the child resolves
+    # ``specify_cli`` from the working tree before any host site-packages
+    # entry. That hardens the test against a developer environment whose
+    # site-packages contains a stale editable-install reference (e.g. a
+    # ``.pth`` line pointing at a previously-active worktree directory that
+    # has since been removed by a mission merge). The CI clean-install gate
+    # remains authoritative; this prepend only affects local runs where the
+    # host venv is shared across worktrees.
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        f"{_SRC}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else str(_SRC)
+    )
     result = subprocess.run(
         [sys.executable, "-c", snippet],
         capture_output=True,
         text=True,
         cwd=str(_REPO_ROOT),
+        env=env,
         timeout=60,
     )
     assert result.returncode == 0, (
