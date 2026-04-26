@@ -211,3 +211,4 @@ WP03 is the first WP that adds formal tests. The tests are real — they read th
 ## Activity Log
 
 - 2026-04-26T12:29:11Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=40578 – Started implementation via action command
+- 2026-04-26T12:40:38Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=40578 – T010-T015 complete; assert_valid passes; resolve_context returns non-empty artifact_urns for all 5 research actions; 11 new tests pass; no new regressions
