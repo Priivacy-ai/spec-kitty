@@ -1,10 +1,14 @@
 {
   "created_at": "2026-04-26T19:25:26.071361+00:00",
-  "friendly_name": "documentation mission composition rewrite",
+  "friendly_name": "Documentation Mission Composition Rewrite",
+  "purpose_tldr": "Move the built-in documentation mission onto the StepContractExecutor composition substrate so a fresh documentation mission starts and advances via spec-kitty next.",
+  "purpose_context": "Phase 6 #502 / WP6.4. Documentation is the last legacy state-machine mission in spec-kitty after software-dev (#503) and research (#504) shipped on the composition substrate. This mission delivers the runtime sidecar, shipped step contracts, action doctrine bundles, DRG nodes, runtime-bridge wiring, fail-closed guards, and a real-runtime integration walk so the documentation mission runs end-to-end through the live runtime path.",
   "mission_id": "01KQ5M1Y190VANF39KMBWZP6SD",
   "mission_number": null,
   "mission_slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
   "mission_type": "software-dev",
   "slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "source_description": "Phase 6 WP6.4 — GitHub issue #502 (umbrella #461, epic #468). Modeled on landed research composition rewrite #504."
 }
