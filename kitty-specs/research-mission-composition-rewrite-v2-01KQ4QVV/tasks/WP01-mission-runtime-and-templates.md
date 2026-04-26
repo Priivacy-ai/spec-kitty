@@ -190,3 +190,4 @@ WP01 does not add formal tests. T005 is a runnability smoke. WP04 (composition r
 ## Activity Log
 
 - 2026-04-26T12:05:52Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=7384 – Assigned agent via action command
+- 2026-04-26T12:10:04Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=7384 – Ready for review: mission-runtime sidecar + 6 templates; runnability proof captured
