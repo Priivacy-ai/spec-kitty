@@ -312,8 +312,12 @@ class TestWPStatusChanged:
         assert event["payload"]["reason"] == "move-task: approved -> done"
         assert event["payload"]["review_ref"] == "review:123"
         assert event["payload"]["execution_mode"] == "worktree"
-        assert event["payload"]["evidence"] == evidence
-        assert event["evidence"] == evidence
+        assert event["payload"]["evidence"]["review"] == evidence["review"]
+        assert event["payload"]["evidence"]["repos"] == [
+            {"repo": "test-org/test-repo", "branch": "test-branch", "commit": "a" * 40}
+        ]
+        assert event["evidence"] == event["payload"]["evidence"]
+        assert "repos" not in evidence
 
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""

@@ -756,6 +756,19 @@ class EventEmitter:
         evidence: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
+        evidence_payload = evidence
+        if evidence_payload is not None and not evidence_payload.get("repos"):
+            git_meta = self._get_git_metadata()
+            evidence_payload = {
+                **evidence_payload,
+                "repos": [
+                    {
+                        "repo": git_meta.repo_slug or "local",
+                        "branch": git_meta.git_branch or "unknown",
+                        "commit": git_meta.head_commit_sha or "unknown",
+                    }
+                ],
+            }
         payload = {
             "wp_id": wp_id,
             "from_lane": from_lane,
@@ -767,7 +780,7 @@ class EventEmitter:
             "reason": reason,
             "review_ref": review_ref,
             "execution_mode": execution_mode,
-            "evidence": evidence,
+            "evidence": evidence_payload,
         }
         if mission_id is not None:
             payload["mission_id"] = mission_id
@@ -785,7 +798,7 @@ class EventEmitter:
                 "reason": reason,
                 "review_ref": review_ref,
                 "execution_mode": execution_mode,
-                "evidence": evidence,
+                "evidence": evidence_payload,
             },
         )
 
