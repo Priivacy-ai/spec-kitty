@@ -22,6 +22,8 @@ subtasks:
 - T021
 - T022
 - T023
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "54294"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -300,3 +302,7 @@ This WP depends on WP01 (sidecar template must exist for the integration walk to
 - Verify the fail-closed default emits the exact message FR-017 / data-model.md specifies.
 - Verify no new top-level branches in `_check_composed_action_guard` other than the documentation branch.
 - Verify the test file is at `tests/specify_cli/next/` (matches the existing research test path).
+
+## Activity Log
+
+- 2026-04-26T20:19:56Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=54294 – Started implementation via action command
