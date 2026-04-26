@@ -19,6 +19,8 @@ subtasks:
 - T022
 - T023
 - T024
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "62801"
 history:
 - timestamp: '2026-04-26T11:46:43Z'
   actor: claude
@@ -197,3 +199,7 @@ This WP is where the bridge contract is locked. The test file is the single most
 - The new test file's first ~10 lines are the C-007 enforcement docstring.
 - `grep` against the C-007 list returns zero hits.
 - Run all tests yourself.
+
+## Activity Log
+
+- 2026-04-26T13:03:15Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=62801 – Started implementation via action command
