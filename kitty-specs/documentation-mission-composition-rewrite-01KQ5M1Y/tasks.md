@@ -12,9 +12,9 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Author `src/specify_cli/missions/documentation/mission-runtime.yaml` (mission.key=documentation, 6 composed steps + accept) | WP01 | [P] |
-| T002 | Author `src/doctrine/missions/documentation/mission-runtime.yaml` (byte-for-byte mirror) | WP01 | [P] |
-| T003 | Author `tests/specify_cli/test_documentation_template_resolution.py` proving sidecar wins over legacy `mission.yaml` | WP01 |  |
+| T001 | Author `src/specify_cli/missions/documentation/mission-runtime.yaml` (mission.key=documentation, 6 composed steps + accept) | WP01 | [P] | [D] |
+| T002 | Author `src/doctrine/missions/documentation/mission-runtime.yaml` (byte-for-byte mirror) | WP01 | [D] |
+| T003 | Author `tests/specify_cli/test_documentation_template_resolution.py` proving sidecar wins over legacy `mission.yaml` | WP01 |  | [D] |
 | T004 | Author `documentation-discover.step-contract.yaml` | WP02 | [P] |
 | T005 | Author `documentation-audit.step-contract.yaml` | WP02 | [P] |
 | T006 | Author `documentation-design.step-contract.yaml` | WP02 | [P] |
@@ -57,9 +57,9 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 **Included subtasks**:
 
-- [ ] T001 Author `src/specify_cli/missions/documentation/mission-runtime.yaml` with `mission.key=documentation`, 6 composed steps + `accept` per data-model.md (WP01)
-- [ ] T002 Author `src/doctrine/missions/documentation/mission-runtime.yaml` as a byte-for-byte mirror (WP01)
-- [ ] T003 Author `tests/specify_cli/test_documentation_template_resolution.py` proving the sidecar wins over `mission.yaml` (WP01)
+- [x] T001 Author `src/specify_cli/missions/documentation/mission-runtime.yaml` with `mission.key=documentation`, 6 composed steps + `accept` per data-model.md (WP01)
+- [x] T002 Author `src/doctrine/missions/documentation/mission-runtime.yaml` as a byte-for-byte mirror (WP01)
+- [x] T003 Author `tests/specify_cli/test_documentation_template_resolution.py` proving the sidecar wins over `mission.yaml` (WP01)
 
 **Implementation sketch**: copy research's `mission-runtime.yaml` shape verbatim, swap action verbs and prompt_template names, change `mission.key` to `documentation`. Mirror to doctrine side. Test calls `_resolve_runtime_template_in_root(<package_root>, "documentation")` and asserts the resolved path basename.
 
