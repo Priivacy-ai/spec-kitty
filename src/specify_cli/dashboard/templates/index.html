@@ -22,7 +22,7 @@
                 <pre class="tree-view" id="tree-info">Loading…</pre>
             </div>
             <div class="feature-selector" id="feature-selector-container">
-                <label>Mission Run:</label>
+                <label for="feature-select">Mission Run:</label>
                 <select id="feature-select" onchange="switchFeature(this.value)">
                     <option value="">Loading...</option>
                 </select>
@@ -39,55 +39,55 @@
     <div class="container">
         <div class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">‹</button>
-            <div class="sidebar-item" data-page="charter" onclick="switchPage('charter')" title="Charter">
+            <button type="button" class="sidebar-item" data-page="charter" onclick="switchPage('charter')" title="Charter">
                 📜 <span class="sidebar-label">Charter</span>
-            </div>
+            </button>
             <div class="last-update sidebar-last-update">Last updated: <span id="last-update">Loading...</span></div>
             <div class="sidebar-section-header" style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Workflow
             </div>
-            <div class="sidebar-item active" data-page="overview" data-step="overview" onclick="switchPage('overview')" title="Overview">
+            <button type="button" class="sidebar-item active" data-page="overview" data-step="overview" onclick="switchPage('overview')" title="Overview">
                 <span id="icon-overview">📊</span> <span class="sidebar-label">Overview</span>
-            </div>
-            <div class="sidebar-item" data-page="spec" data-step="specify" onclick="switchPage('spec')" title="Specify">
+            </button>
+            <button type="button" class="sidebar-item" data-page="spec" data-step="specify" onclick="switchPage('spec')" title="Specify">
                 <span id="icon-specify">⏳</span> <span class="sidebar-label">Specify</span>
-            </div>
-            <div class="sidebar-item" data-page="plan" data-step="plan" onclick="switchPage('plan')" title="Plan">
+            </button>
+            <button type="button" class="sidebar-item" data-page="plan" data-step="plan" onclick="switchPage('plan')" title="Plan">
                 <span id="icon-plan">⏳</span> <span class="sidebar-label">Plan</span>
-            </div>
-            <div class="sidebar-item" data-page="tasks" data-step="tasks" onclick="switchPage('tasks')" title="Tasks">
+            </button>
+            <button type="button" class="sidebar-item" data-page="tasks" data-step="tasks" onclick="switchPage('tasks')" title="Tasks">
                 <span id="icon-tasks">⏳</span> <span class="sidebar-label">Tasks</span>
-            </div>
-            <div class="sidebar-item" data-page="kanban" data-step="implement" onclick="switchPage('kanban')" title="Implement">
+            </button>
+            <button type="button" class="sidebar-item" data-page="kanban" data-step="implement" onclick="switchPage('kanban')" title="Implement">
                 <span id="icon-implement">⏳</span> <span class="sidebar-label">Implement</span>
-            </div>
+            </button>
             <div class="sidebar-section-header" style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Artifacts
             </div>
-            <div class="sidebar-item" data-page="research" onclick="switchPage('research')" title="Research">
+            <button type="button" class="sidebar-item" data-page="research" onclick="switchPage('research')" title="Research">
                 🔬 <span class="sidebar-label">Research</span>
-            </div>
-            <div class="sidebar-item" data-page="contracts" onclick="switchPage('contracts')" title="Contracts">
+            </button>
+            <button type="button" class="sidebar-item" data-page="contracts" onclick="switchPage('contracts')" title="Contracts">
                 📜 <span class="sidebar-label">Contracts</span>
-            </div>
-            <div class="sidebar-item" data-page="checklists" onclick="switchPage('checklists')" title="Checklists">
+            </button>
+            <button type="button" class="sidebar-item" data-page="checklists" onclick="switchPage('checklists')" title="Checklists">
                 ✅ <span class="sidebar-label">Checklists</span>
-            </div>
-            <div class="sidebar-item" data-page="quickstart" onclick="switchPage('quickstart')" title="Quickstart">
+            </button>
+            <button type="button" class="sidebar-item" data-page="quickstart" onclick="switchPage('quickstart')" title="Quickstart">
                 🚀 <span class="sidebar-label">Quickstart</span>
-            </div>
-            <div class="sidebar-item" data-page="data-model" onclick="switchPage('data-model')" title="Data Model">
+            </button>
+            <button type="button" class="sidebar-item" data-page="data-model" onclick="switchPage('data-model')" title="Data Model">
                 💾 <span class="sidebar-label">Data Model</span>
-            </div>
+            </button>
             <div class="sidebar-section-header" style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 System
             </div>
-            <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')" title="Diagnostics">
+            <button type="button" class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')" title="Diagnostics">
                 🔍 <span class="sidebar-label">Diagnostics</span>
-            </div>
-            <div class="sidebar-item" onclick="window.location='/glossary'" title="Glossary">
+            </button>
+            <a class="sidebar-item" href="/glossary" title="Glossary">
                 📖 <span class="sidebar-label">Glossary</span>
-            </div>
+            </a>
         </div>
 
         <div class="main-content">
@@ -96,12 +96,12 @@
                     <h2>Mission Run Overview</h2>
                     <div id="overview-content"></div>
                 </div>
-                <div class="content-card" id="glossary-tile" onclick="window.location='/glossary'" style="cursor:pointer; margin-top: 16px;">
+                <a class="content-card content-card-link" id="glossary-tile" href="/glossary" style="margin-top: 16px;">
                     <h2>📖 Glossary</h2>
                     <div id="glossary-tile-body" class="status-summary" style="margin-top: 12px;">
                         <div class="status-card total" style="font-size: 0.9em;">Loading…</div>
                     </div>
-                </div>
+                </a>
                 <div class="content-card" id="lint-tile" style="margin-top: 16px;">
                     <h2>🔍 Decay Watch</h2>
                     <div id="lint-tile-body" class="status-summary" style="margin-top: 12px;">
