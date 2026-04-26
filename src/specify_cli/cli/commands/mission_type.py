@@ -440,30 +440,44 @@ def _render_human(envelope: dict[str, Any]) -> None:
     if envelope.get("result") == "success":
         title = "Mission Run Started"
         border = "green"
-        body = Text()
-        body.append(f"mission_key:  {envelope.get('mission_key')}\n")
-        body.append(f"mission_slug: {envelope.get('mission_slug')}\n")
-        mission_id = envelope.get("mission_id")
-        if mission_id:
-            body.append(f"mission_id:   {mission_id}\n")
-        body.append(f"feature_dir:  {envelope.get('feature_dir')}\n")
-        body.append(f"run_dir:      {envelope.get('run_dir')}")
+        body = _build_success_body(envelope)
     else:
         title = str(envelope.get("error_code") or "ERROR")
         border = "red"
-        body = Text(str(envelope.get("message") or ""))
-        details = envelope.get("details") or {}
-        if isinstance(details, dict):
-            for key, value in details.items():
-                body.append(f"\n  {key}: {value}")
+        body = _build_error_body(envelope)
 
-    for warn in envelope.get("warnings", []) or []:
-        if isinstance(warn, dict):
-            body.append(
-                f"\n[warn] {warn.get('code', '')}: {warn.get('message', '')}"
-            )
+    _append_warning_lines(body, envelope.get("warnings"))
 
     console.print(Panel(body, title=title, border_style=border))
+
+
+def _build_success_body(envelope: dict[str, Any]) -> Text:
+    body = Text()
+    body.append(f"mission_key:  {envelope.get('mission_key')}\n")
+    body.append(f"mission_slug: {envelope.get('mission_slug')}\n")
+    mission_id = envelope.get("mission_id")
+    if mission_id:
+        body.append(f"mission_id:   {mission_id}\n")
+    body.append(f"feature_dir:  {envelope.get('feature_dir')}\n")
+    body.append(f"run_dir:      {envelope.get('run_dir')}")
+    return body
+
+
+def _build_error_body(envelope: dict[str, Any]) -> Text:
+    body = Text(str(envelope.get("message") or ""))
+    details = envelope.get("details") or {}
+    if not isinstance(details, dict):
+        return body
+    for key, value in details.items():
+        body.append(f"\n  {key}: {value}")
+    return body
+
+
+def _append_warning_lines(body: Text, warnings: Any) -> None:
+    for warn in warnings or []:
+        if not isinstance(warn, dict):
+            continue
+        body.append(f"\n[warn] {warn.get('code', '')}: {warn.get('message', '')}")
 
 
 @app.command("switch", deprecated=True)
