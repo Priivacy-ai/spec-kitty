@@ -147,7 +147,7 @@ class SynthesisRequest:
 def _to_jsonable(obj: Any) -> Any:
     """Recursively convert an object to a JSON-serializable form with sorted keys."""
     if isinstance(obj, dict):
-        return {k: _to_jsonable(v) for k in sorted(obj.keys()) for _ in [None] if (v := obj[k]) is not None or True}
+        return {k: _to_jsonable(obj[k]) for k in sorted(obj.keys())}
     if isinstance(obj, (list, tuple)):
         return [_to_jsonable(v) for v in obj]
     # Stable representation for float — avoid locale-sensitive formatting

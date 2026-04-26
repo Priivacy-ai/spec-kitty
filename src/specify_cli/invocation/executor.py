@@ -282,40 +282,13 @@ class ProfileInvocationExecutor:
         )
 
         # Step 4: Promote to Tier 2 evidence artifact if --evidence was supplied (existing behaviour).
-        if evidence_ref is not None:
-            evidence_path = Path(evidence_ref)
-            candidate_path: Path | None = None
-            if not evidence_path.is_absolute():
-                repo_root = self._repo_root.resolve()
-                resolved_relative_path = (repo_root / evidence_path).resolve()
-                if resolved_relative_path.is_relative_to(repo_root):
-                    candidate_path = resolved_relative_path
-            else:
-                # Absolute paths are the operator's explicit choice.
-                candidate_path = evidence_path
-            try:
-                content = (
-                    candidate_path.read_text(encoding="utf-8")
-                    if candidate_path is not None
-                    else evidence_ref
-                )
-            except OSError:
-                content = evidence_ref  # fallback: treat the value as inline content
-            evidence_base_dir = self._repo_root / ".kittify" / "evidence"
-            promote_to_evidence(completed, evidence_base_dir, content)
+        self._promote_evidence_if_requested(completed, evidence_ref)
 
         # Step 5 (NEW): Append artifact_link events (FR-007).
-        for raw_ref in artifact_refs or []:
-            normalised = normalise_ref(raw_ref, self._repo_root)
-            self._writer.append_correlation_link(
-                invocation_id, kind="artifact", ref=normalised,
-            )
+        self._append_artifact_links(invocation_id, artifact_refs)
 
         # Step 6 (NEW): Append commit_link event (FR-007).
-        if commit_sha is not None:
-            self._writer.append_correlation_link(
-                invocation_id, sha=commit_sha,
-            )
+        self._append_commit_link(invocation_id, commit_sha)
 
         # Step 7: Propagate completed event (non-blocking, best-effort; existing behaviour).
         # Correlation events (artifact_link, commit_link) are locally written by
@@ -330,6 +303,57 @@ class ProfileInvocationExecutor:
             self._propagator.submit(completed)
 
         return completed
+
+    def _promote_evidence_if_requested(
+        self,
+        completed: InvocationRecord,
+        evidence_ref: str | None,
+    ) -> None:
+        if evidence_ref is None:
+            return
+        content = self._resolve_evidence_content(evidence_ref)
+        evidence_base_dir = self._repo_root / ".kittify" / "evidence"
+        promote_to_evidence(completed, evidence_base_dir, content)
+
+    def _resolve_evidence_content(self, evidence_ref: str) -> str:
+        candidate_path = self._resolve_evidence_path(evidence_ref)
+        try:
+            return (
+                candidate_path.read_text(encoding="utf-8")
+                if candidate_path is not None
+                else evidence_ref
+            )
+        except OSError:
+            return evidence_ref
+
+    def _resolve_evidence_path(self, evidence_ref: str) -> Path | None:
+        evidence_path = Path(evidence_ref)
+        if evidence_path.is_absolute():
+            return evidence_path
+
+        repo_root = self._repo_root.resolve()
+        resolved_relative_path = (repo_root / evidence_path).resolve()
+        if resolved_relative_path.is_relative_to(repo_root):
+            return resolved_relative_path
+        return None
+
+    def _append_artifact_links(
+        self,
+        invocation_id: str,
+        artifact_refs: list[str] | None,
+    ) -> None:
+        for raw_ref in artifact_refs or []:
+            normalised = normalise_ref(raw_ref, self._repo_root)
+            self._writer.append_correlation_link(
+                invocation_id,
+                kind="artifact",
+                ref=normalised,
+            )
+
+    def _append_commit_link(self, invocation_id: str, commit_sha: str | None) -> None:
+        if commit_sha is None:
+            return
+        self._writer.append_correlation_link(invocation_id, sha=commit_sha)
 
     def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None:
         """Read mode_of_work from the started event. Returns None for pre-mission records

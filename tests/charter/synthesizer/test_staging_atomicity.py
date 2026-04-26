@@ -135,9 +135,14 @@ def test_context_manager_on_exception_routes_to_failed(tmp_path: Path) -> None:
 def test_context_manager_on_success_does_not_auto_wipe(tmp_path: Path) -> None:
     """Context manager on success does NOT wipe staging — caller must call wipe()."""
     stage = StagingDir.create(tmp_path, RUN_ID)
-    with stage:
-        pass  # No exception
+    result = stage.__enter__()
+    try:
+        pass
+    finally:
+        exit_result = stage.__exit__(None, None, None)
     # Staging dir should still exist (caller is responsible for wipe after promote)
+    assert result is stage
+    assert exit_result is None
     assert stage.root.exists()
 
 

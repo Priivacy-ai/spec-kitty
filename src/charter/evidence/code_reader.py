@@ -36,6 +36,9 @@ EXCLUDED_DIRS: frozenset[str] = frozenset(
 )
 
 # Indicator file → language (order matters for resolution when multiple found)
+PACKAGE_JSON = "package.json"
+
+
 LANGUAGE_INDICATORS: dict[str, str] = {
     "pyproject.toml": "python",
     "setup.py": "python",
@@ -48,7 +51,7 @@ LANGUAGE_INDICATORS: dict[str, str] = {
     "Gemfile": "ruby",
     "composer.json": "php",
     # package.json is handled separately (js vs ts disambiguation)
-    "package.json": "javascript",
+    PACKAGE_JSON: "javascript",
 }
 
 FRAMEWORK_INDICATORS: dict[str, str] = {
@@ -268,7 +271,7 @@ class CodeReadingCollector:
     ) -> str:
         """Return the primary language string."""
         # TypeScript takes precedence over JavaScript when tsconfig.json present
-        if "package.json" in indicator_files:
+        if PACKAGE_JSON in indicator_files:
             if "tsconfig.json" in indicator_files:
                 return "typescript"
             # Majority-extension heuristic
@@ -279,7 +282,7 @@ class CodeReadingCollector:
 
         # Check remaining language indicators in priority order
         for indicator, lang in LANGUAGE_INDICATORS.items():
-            if indicator == "package.json":
+            if indicator == PACKAGE_JSON:
                 continue  # handled above
             if indicator in indicator_files:
                 return lang
