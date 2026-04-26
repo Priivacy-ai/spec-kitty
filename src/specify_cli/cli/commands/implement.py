@@ -672,6 +672,17 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     "lane_id": result.lane_id,
                     "execution_mode": result_execution_mode,
                     "status": "created",
+                    # FR-006: surface the lane-suffixed test DB env so
+                    # downstream agents / test runners can `os.environ.update`
+                    # without re-deriving the helper. Empty dict for
+                    # planning-artifact workspaces (lane_id is None) or
+                    # when the result type doesn't carry a real dict
+                    # (e.g. a MagicMock in unit tests).
+                    "lane_test_env": (
+                        result.lane_test_env
+                        if isinstance(getattr(result, "lane_test_env", None), dict)
+                        else {}
+                    ),
                 }
             )
         )
@@ -700,6 +711,21 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     console.print()
     console.print("[dim]All file edits, writes, and commits MUST happen in this directory.[/dim]")
     console.print("[dim]Writing to the main repository instead of the lane worktree is a critical error.[/dim]")
+
+    # FR-006: surface the lane-suffixed test DB env so the agent can
+    # export it before running the project's test suite. Persisted to
+    # WorkspaceContext for resurrection by later commands; printed here
+    # so a human operator can copy/paste in their shell.
+    lane_env = getattr(result, "lane_test_env", None)
+    if isinstance(lane_env, dict) and lane_env:
+        console.print()
+        console.print("[bold cyan]Lane-specific test environment (FR-006):[/bold cyan]")
+        for key, value in sorted(lane_env.items()):
+            console.print(f"  export {key}={value}")
+        console.print(
+            "[dim]Two parallel SaaS / Django lanes will collide on a single shared test DB"
+            " unless these are exported in the lane's test process.[/dim]"
+        )
 
 
 __all__ = ["_ensure_vcs_in_meta", "detect_feature_context", "find_wp_file", "implement"]

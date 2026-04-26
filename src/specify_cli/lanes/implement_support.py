@@ -140,6 +140,13 @@ def create_lane_workspace(
             },
         )
 
+        # FR-006: persist the lane-specific test-DB env so consumers
+        # (agents, test runners) do not have to re-derive it. Empty for
+        # planning-artifact workspaces; non-empty for code lanes.
+        persisted_lane_test_env = (
+            lane_test_env(mission_slug, lane_id) if lane_id is not None else {}
+        )
+
         context = WorkspaceContext(
             wp_id=wp_id,
             mission_slug=mission_slug,
@@ -154,6 +161,7 @@ def create_lane_workspace(
             lane_id=lane_id,
             lane_wp_ids=list(lane.wp_ids) if lane else [],
             current_wp=wp_id,
+            lane_test_env=persisted_lane_test_env,
         )
         save_context(repo_root, context)
 
