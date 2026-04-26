@@ -269,3 +269,4 @@ When reviewing this WP, focus on:
 ## Activity Log
 
 - 2026-04-26T07:47:30Z – claude:opus-4-7:implementer:implementer – shell_pid=76291 – Assigned agent via action command
+- 2026-04-26T08:02:59Z – claude:opus-4-7:implementer:implementer – shell_pid=76291 – WP01 ready for review: merge data-loss regression pinned (T001), resume idempotent (T002), index refresh (T003), untracked tolerance (T004), dependent-WP scheduler (T005), lane DB isolation (T006). Tests in tests/integration/ and tests/unit/lanes/ green.
