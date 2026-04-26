@@ -22,8 +22,8 @@ subtasks:
 - T021
 - T022
 - T023
-agent: "claude:opus-4.7:implementer-ivan:implementer"
-shell_pid: "54294"
+agent: "claude:opus-4.7:reviewer-renata:reviewer"
+shell_pid: "55493"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -307,3 +307,4 @@ This WP depends on WP01 (sidecar template must exist for the integration walk to
 
 - 2026-04-26T20:19:56Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=54294 – Started implementation via action command
 - 2026-04-26T20:23:10Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=54294 – T020-T023 complete; 21 tests pass; regression suite green; ruff+mypy clean
+- 2026-04-26T20:23:40Z – claude:opus-4.7:reviewer-renata:reviewer – shell_pid=55493 – Started review via action command
