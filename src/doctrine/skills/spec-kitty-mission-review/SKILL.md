@@ -520,7 +520,7 @@ in Step 9 unless the operator-exception path documented below is used.
 
 ```bash
 cd <spec-kitty-repo>
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest tests/contract/ -v
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> tests/contract/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL**. There is no exception path for contract
@@ -533,7 +533,7 @@ under a new section `## Gate Results — Contract`.
 
 ```bash
 cd <spec-kitty-repo>
-pytest tests/architectural/ -v
+<test-runner> tests/architectural/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL**. Layer-rule, public-import, and
@@ -545,7 +545,7 @@ Record the result under `## Gate Results — Architectural`.
 
 ```bash
 cd <spec-kitty-end-to-end-testing-repo>
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest scenarios/ -v
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> scenarios/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL** unless an operator-exception artifact
@@ -611,7 +611,7 @@ more than one scenario — a blanket waiver across the whole e2e suite is
 not allowed by C-010.
 
 Reject the exception if `mission-exception.md` covers a scenario that
-the skill can verify is actually a code defect (e.g., a `pytest`
+the skill can verify is actually a code defect (e.g., a test-runner
 traceback that is not network-related). Operator exceptions are for
 environmental blockers, not for deferred bugs.
 
@@ -653,19 +653,19 @@ must be able to understand each finding from the report alone.
 ## Gate Results
 
 ### Gate 1 — Contract tests
-- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest tests/contract/ -v`
+- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> tests/contract/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL
 - Notes: <failing test names if any>
 
 ### Gate 2 — Architectural tests
-- Command: `pytest tests/architectural/ -v`
+- Command: `<test-runner> tests/architectural/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL
 - Notes: ...
 
 ### Gate 3 — Cross-repo E2E
-- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest spec-kitty-end-to-end-testing/scenarios/ -v`
+- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> spec-kitty-end-to-end-testing/scenarios/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL | EXCEPTION (with link to `kitty-specs/<slug>/mission-exception.md`)
 - Notes: <failing scenarios; if EXCEPTION, quote the operator narrative>
