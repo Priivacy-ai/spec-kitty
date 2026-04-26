@@ -21,12 +21,12 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T004 | Post-merge bookkeeping tolerates untracked `.worktrees/` and unrelated files | WP01 | [D] |
 | T005 | Dependent-WP scheduler in lane planner | WP01 |  | [D] |
 | T006 | Lane-specific test database isolation for parallel SaaS/Django lanes | WP01 | [D] |
-| T007 | Provenance escape helper for `source_file` lines | WP02 | [P] |
-| T008 | Path canonicalization + symlink guard for intake scanner | WP02 | [P] |
-| T009 | Intake size-cap enforcement before full read | WP02 | [P] |
-| T010 | Atomic write helpers for brief + provenance | WP02 | [P] |
-| T011 | Missing vs corrupt distinction in intake reader | WP02 | [P] |
-| T012 | Root consistency between scan and write | WP02 |  |
+| T007 | Provenance escape helper for `source_file` lines | WP02 | [D] |
+| T008 | Path canonicalization + symlink guard for intake scanner | WP02 | [D] |
+| T009 | Intake size-cap enforcement before full read | WP02 | [D] |
+| T010 | Atomic write helpers for brief + provenance | WP02 | [D] |
+| T011 | Missing vs corrupt distinction in intake reader | WP02 | [D] |
+| T012 | Root consistency between scan and write | WP02 |  | [D] |
 | T013 | `workspace/root_resolver.py` — single canonical-root resolver | WP03 |  |
 | T014 | Wire status emit / charter / config writes through resolver | WP03 |  |
 | T015 | Emit `planned -> in_progress` before worktree alloc; recoverable failure path | WP03 |  |
@@ -111,12 +111,12 @@ atomic writes, missing-vs-corrupt distinction, single intake root.
 **Dependencies**: none.
 
 **Subtasks**:
-- [ ] T007 Provenance escape helper for `source_file` lines (WP02)
-- [ ] T008 Path canonicalization + symlink guard for intake scanner (WP02)
-- [ ] T009 Intake size-cap enforcement before full read (WP02)
-- [ ] T010 Atomic write helpers for brief + provenance (WP02)
-- [ ] T011 Missing vs corrupt distinction in intake reader (WP02)
-- [ ] T012 Root consistency between scan and write (WP02)
+- [x] T007 Provenance escape helper for `source_file` lines (WP02)
+- [x] T008 Path canonicalization + symlink guard for intake scanner (WP02)
+- [x] T009 Intake size-cap enforcement before full read (WP02)
+- [x] T010 Atomic write helpers for brief + provenance (WP02)
+- [x] T011 Missing vs corrupt distinction in intake reader (WP02)
+- [x] T012 Root consistency between scan and write (WP02)
 
 **Prompt**: [tasks/WP02-intake-security.md](tasks/WP02-intake-security.md)
 
