@@ -25,10 +25,10 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 | T013 | **PROOF (mandatory)**: `load_validated_graph(repo)` succeeds (`assert_valid()` passes) | WP03 | – | [D] |
 | T014 | **PROOF (mandatory)**: for each of 5 research actions, `resolve_context(graph, f"action:research/{action}", depth=...).artifact_urns` is non-empty | WP03 | – | [D] |
 | T015 | Add `tests/specify_cli/test_research_drg_nodes.py` asserting T013 + T014 hold (no mocks of `load_validated_graph` or `resolve_context`) | WP03 | – | [D] |
-| T016 | Verify `researcher-robbie` and `reviewer-renata` profiles exist under `src/doctrine/agent_profiles/shipped/` | WP04 | – |
-| T017 | Add 5 `("research", action)` entries to `_ACTION_PROFILE_DEFAULTS` in `executor.py` | WP04 | – |
-| T018 | Author `tests/specify_cli/mission_step_contracts/test_research_composition.py` covering contract loading, profile defaults, doctrine bundle resolution, software-dev sentinel | WP04 | – |
-| T019 | Run `pytest tests/specify_cli/mission_step_contracts/`; mypy + ruff on changed files; zero new findings | WP04 | – |
+| T016 | Verify `researcher-robbie` and `reviewer-renata` profiles exist under `src/doctrine/agent_profiles/shipped/` | WP04 | – | [D] |
+| T017 | Add 5 `("research", action)` entries to `_ACTION_PROFILE_DEFAULTS` in `executor.py` | WP04 | – | [D] |
+| T018 | Author `tests/specify_cli/mission_step_contracts/test_research_composition.py` covering contract loading, profile defaults, doctrine bundle resolution, software-dev sentinel | WP04 | – | [D] |
+| T019 | Run `pytest tests/specify_cli/mission_step_contracts/`; mypy + ruff on changed files; zero new findings | WP04 | – | [D] |
 | T020 | Add `"research": frozenset({...})` to `_COMPOSED_ACTIONS_BY_MISSION` in `runtime_bridge.py` | WP05 | – |
 | T021 | Add 5 research-action branches to `_check_composed_action_guard()` per plan D3 (artifact + event-count checks against feature_dir) | WP05 | – |
 | T022 | Add fail-closed default for unknown research actions: returns `["No guard registered for research action: <action>"]` (NOT empty list) | WP05 | – |
@@ -119,10 +119,10 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 **Independent test**: `pytest tests/specify_cli/mission_step_contracts/test_research_composition.py` passes; software-dev sentinel passes.
 
 **Subtasks**:
-- [ ] T016 Verify profile names exist (WP04)
-- [ ] T017 Add 5 entries to `_ACTION_PROFILE_DEFAULTS` (WP04)
-- [ ] T018 Author `test_research_composition.py` (WP04)
-- [ ] T019 Run focused + regression (WP04)
+- [x] T016 Verify profile names exist (WP04)
+- [x] T017 Add 5 entries to `_ACTION_PROFILE_DEFAULTS` (WP04)
+- [x] T018 Author `test_research_composition.py` (WP04)
+- [x] T019 Run focused + regression (WP04)
 
 **Dependencies**: WP01, WP02, WP03.
 
