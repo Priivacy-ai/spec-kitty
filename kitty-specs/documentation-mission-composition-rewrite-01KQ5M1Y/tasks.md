@@ -35,9 +35,9 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 | T021 | Add 6 entries to `_ACTION_PROFILE_DEFAULTS` in `src/specify_cli/mission_step_contracts/executor.py` | WP05 |  | [D] |
 | T022 | Add `_has_generated_docs(feature_dir)` helper + documentation branch in `_check_composed_action_guard()` (with fail-closed default for unknown actions) | WP05 |  | [D] |
 | T023 | Author `tests/specify_cli/next/test_runtime_bridge_documentation_composition.py` (dispatch entry + per-action guard cases + unknown-action fail-closed + missing-artifact failure messages) | WP05 |  | [D] |
-| T024 | Author scaffolding `_init_min_repo` + `_scaffold_documentation_feature` + `isolated_repo` fixture in `tests/integration/test_documentation_runtime_walk.py`. Include C-007 docstring at top. | WP06 |  |
-| T025 | Author happy-path tests: `test_get_or_start_run_succeeds_for_documentation`, `test_documentation_template_resolves_runtime_sidecar`, `test_composition_advances_one_documentation_step`, `test_paired_invocation_lifecycle_is_recorded` | WP06 |  |
-| T026 | Author guard-failure tests: `test_missing_artifact_blocks_with_structured_failure`, `test_unknown_documentation_action_fails_closed` | WP06 |  |
+| T024 | Author scaffolding `_init_min_repo` + `_scaffold_documentation_feature` + `isolated_repo` fixture in `tests/integration/test_documentation_runtime_walk.py`. Include C-007 docstring at top. | WP06 |  | [D] |
+| T025 | Author happy-path tests: `test_get_or_start_run_succeeds_for_documentation`, `test_documentation_template_resolves_runtime_sidecar`, `test_composition_advances_one_documentation_step`, `test_paired_invocation_lifecycle_is_recorded` | WP06 |  | [D] |
+| T026 | Author guard-failure tests: `test_missing_artifact_blocks_with_structured_failure`, `test_unknown_documentation_action_fails_closed` | WP06 |  | [D] |
 | T027 | Author `CHANGELOG.md` entry for #502 documentation mission composition | WP07 |  |
 | T028 | Run full regression sweep: `tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, `tests/specify_cli/next/test_runtime_bridge_research_composition.py`, `tests/integration/test_research_runtime_walk.py`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/integration/test_mission_run_command.py` — record pass/fail evidence | WP07 |  |
 | T029 | Run `mypy --strict` and `ruff check` on changed files; record zero-new-findings evidence | WP07 |  |
@@ -165,9 +165,9 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 **Included subtasks**:
 
-- [ ] T024 Author scaffolding (`_init_min_repo`, `_scaffold_documentation_feature`, `isolated_repo` fixture) and the C-007 docstring at the top of `tests/integration/test_documentation_runtime_walk.py` (WP06)
-- [ ] T025 Author 4 happy-path tests: `test_get_or_start_run_succeeds_for_documentation`, `test_documentation_template_resolves_runtime_sidecar`, `test_composition_advances_one_documentation_step`, `test_paired_invocation_lifecycle_is_recorded` (WP06)
-- [ ] T026 Author 2 guard-failure tests: `test_missing_artifact_blocks_with_structured_failure`, `test_unknown_documentation_action_fails_closed` (WP06)
+- [x] T024 Author scaffolding (`_init_min_repo`, `_scaffold_documentation_feature`, `isolated_repo` fixture) and the C-007 docstring at the top of `tests/integration/test_documentation_runtime_walk.py` (WP06)
+- [x] T025 Author 4 happy-path tests: `test_get_or_start_run_succeeds_for_documentation`, `test_documentation_template_resolves_runtime_sidecar`, `test_composition_advances_one_documentation_step`, `test_paired_invocation_lifecycle_is_recorded` (WP06)
+- [x] T026 Author 2 guard-failure tests: `test_missing_artifact_blocks_with_structured_failure`, `test_unknown_documentation_action_fails_closed` (WP06)
 
 **Implementation sketch**: copy `tests/integration/test_research_runtime_walk.py` verbatim, substitute mission_type and action verbs, write the necessary "happy-path" feature artifacts (spec.md, gap-analysis.md, plan.md, docs/index.md, audit-report.md, release.md) before invoking composition for tests that should advance.
 
