@@ -22,6 +22,8 @@ subtasks:
 - T024
 - T025
 - T026
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "56310"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -268,3 +270,7 @@ The reference is `tests/integration/test_research_runtime_walk.py`. Read it end-
 - Verify the C-007 docstring at the top is verbatim and lists all 6 forbidden symbols.
 - Verify the file imports `_dispatch_via_composition` is NOT done (it should not be in the imports). The test consumes the live runtime, not internal helpers.
 - Verify the unknown-action test expects exactly `"No guard registered for documentation action: ghost"`.
+
+## Activity Log
+
+- 2026-04-26T20:26:31Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=56310 – Started implementation via action command
