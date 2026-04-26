@@ -242,3 +242,4 @@ directory used for brief writes.
 ## Activity Log
 
 - 2026-04-26T08:07:29Z – claude:opus-4-7:implementer:implementer – shell_pid=82553 – Started implementation via action command
+- 2026-04-26T08:18:39Z – claude:opus-4-7:implementer:implementer – shell_pid=82553 – WP02 ready for review: T007 escape_for_comment helper wired into mission_brief; T008 assert_under_root with strict resolve + symlink guard; T009 size cap via os.stat pre-open + read_stdin_capped(cap+1) for STDIN; T010 atomic_write_bytes (open+fsync+replace) with 100-trial fork-SIGKILL harness proving 0 partial files; T011 IntakeFileMissingError vs IntakeFileUnreadableError distinction with cause-chain preservation; T012 root-consistency validation in write_brief_atomic raising IntakeRootInconsistentError before any I/O.
