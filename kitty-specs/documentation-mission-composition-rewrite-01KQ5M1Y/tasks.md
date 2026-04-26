@@ -38,10 +38,10 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 | T024 | Author scaffolding `_init_min_repo` + `_scaffold_documentation_feature` + `isolated_repo` fixture in `tests/integration/test_documentation_runtime_walk.py`. Include C-007 docstring at top. | WP06 |  | [D] |
 | T025 | Author happy-path tests: `test_get_or_start_run_succeeds_for_documentation`, `test_documentation_template_resolves_runtime_sidecar`, `test_composition_advances_one_documentation_step`, `test_paired_invocation_lifecycle_is_recorded` | WP06 |  | [D] |
 | T026 | Author guard-failure tests: `test_missing_artifact_blocks_with_structured_failure`, `test_unknown_documentation_action_fails_closed` | WP06 |  | [D] |
-| T027 | Author `CHANGELOG.md` entry for #502 documentation mission composition | WP07 |  |
-| T028 | Run full regression sweep: `tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, `tests/specify_cli/next/test_runtime_bridge_research_composition.py`, `tests/integration/test_research_runtime_walk.py`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/integration/test_mission_run_command.py` — record pass/fail evidence | WP07 |  |
-| T029 | Run `mypy --strict` and `ruff check` on changed files; record zero-new-findings evidence | WP07 |  |
-| T030 | Verify dogfood smoke (quickstart.md sequence) executes end-to-end from a temp repo using `uv --project`; record JSON outputs as mission-review evidence | WP07 |  |
+| T027 | Author `CHANGELOG.md` entry for #502 documentation mission composition | WP07 |  | [D] |
+| T028 | Run full regression sweep: `tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, `tests/specify_cli/next/test_runtime_bridge_research_composition.py`, `tests/integration/test_research_runtime_walk.py`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/integration/test_mission_run_command.py` — record pass/fail evidence | WP07 |  | [D] |
+| T029 | Run `mypy --strict` and `ruff check` on changed files; record zero-new-findings evidence | WP07 |  | [D] |
+| T030 | Verify dogfood smoke (quickstart.md sequence) executes end-to-end from a temp repo using `uv --project`; record JSON outputs as mission-review evidence | WP07 |  | [D] |
 
 `[P]` = parallel-safe within the WP (different files, no shared state).
 
@@ -185,10 +185,10 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 **Included subtasks**:
 
-- [ ] T027 Add `CHANGELOG.md` entry for #502 documentation mission composition rewrite (WP07)
-- [ ] T028 Run full regression sweep on the 6 protected suites; record results (WP07)
-- [ ] T029 Run `mypy --strict` and `ruff check` on all changed files; record results (WP07)
-- [ ] T030 Verify quickstart dogfood smoke runs cleanly from a temp repo using `uv --project`; record outputs (WP07)
+- [x] T027 Add `CHANGELOG.md` entry for #502 documentation mission composition rewrite (WP07)
+- [x] T028 Run full regression sweep on the 6 protected suites; record results (WP07)
+- [x] T029 Run `mypy --strict` and `ruff check` on all changed files; record results (WP07)
+- [x] T030 Verify quickstart dogfood smoke runs cleanly from a temp repo using `uv --project`; record outputs (WP07)
 
 **Implementation sketch**: this is a checklist WP. Each subtask produces an artifact under `kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/evidence/<subtask-id>.md` (newly created directory); these are the inputs the mission-review skill consumes for the SC-006 verdict.
 
