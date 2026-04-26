@@ -234,3 +234,4 @@ precise follow-up.
 ## Activity Log
 
 - 2026-04-26T09:32:49Z – claude:opus-4-7:implementer:implementer – shell_pid=23967 – Started implementation via action command
+- 2026-04-26T09:47:02Z – claude:opus-4-7:implementer:implementer – shell_pid=23967 – WP07 ready: T039 fail-loud assert_initialized; T040 PR-bound branch-strategy gate with already-confirmed bypass; T041 compact charter preserves directive/tactic IDs + section anchors; T042 charter.py --feature now hidden, terminology-guards green; T043 verdict verified-already-fixed (RuntimeContractRegistry snapshot/restore) with regression test pinned
