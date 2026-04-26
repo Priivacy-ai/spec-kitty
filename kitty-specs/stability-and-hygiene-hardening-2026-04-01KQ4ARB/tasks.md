@@ -46,13 +46,13 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T029 | Downstream-consumer verification step for candidate releases | WP05 |  | [D] |
 | T030 | ADR-2026-04-26-1: Contract pinning to resolved package version | WP05 | [D] |
 | T031 | `scripts/snapshot_events_envelope.py` + dev workflow doc | WP05 | [D] |
-| T032 | Centralized `AuthenticatedClient` in `src/specify_cli/auth/transport.py` | WP06 |  |
-| T033 | Architectural test: no direct `httpx.Client` outside auth transport | WP06 | [P] |
-| T034 | Token-refresh log dedup (≤1 user-facing line per invocation) | WP06 |  |
-| T035 | `OfflineQueueFull` raise + drain helper | WP06 | [P] |
-| T036 | Replay handles tenant/project collision deterministically | WP06 |  |
-| T037 | Tracker bidirectional sync — bounded retries + structured failure | WP06 | [P] |
-| T038 | ADR-2026-04-26-2: Centralized auth transport boundary | WP06 | [P] |
+| T032 | Centralized `AuthenticatedClient` in `src/specify_cli/auth/transport.py` | WP06 |  | [D] |
+| T033 | Architectural test: no direct `httpx.Client` outside auth transport | WP06 | [D] |
+| T034 | Token-refresh log dedup (≤1 user-facing line per invocation) | WP06 |  | [D] |
+| T035 | `OfflineQueueFull` raise + drain helper | WP06 | [D] |
+| T036 | Replay handles tenant/project collision deterministically | WP06 |  | [D] |
+| T037 | Tracker bidirectional sync — bounded retries + structured failure | WP06 | [D] |
+| T038 | ADR-2026-04-26-2: Centralized auth transport boundary | WP06 | [D] |
 | T039 | Fail-loud uninitialized repo for spec/plan/tasks | WP07 | [P] |
 | T040 | Branch-strategy gate for PR-bound missions | WP07 | [P] |
 | T041 | Charter compact mode preserves directive IDs + section anchors | WP07 | [P] |
@@ -224,13 +224,13 @@ e2e (WP08) uses the new transport.
 **Dependencies**: WP05 (auth transport sits at the cross-repo boundary).
 
 **Subtasks**:
-- [ ] T032 Centralized `AuthenticatedClient` in `src/specify_cli/auth/transport.py` (WP06)
-- [ ] T033 Architectural test: no direct `httpx.Client` outside auth transport (WP06)
-- [ ] T034 Token-refresh log dedup (≤1 user-facing line per invocation) (WP06)
-- [ ] T035 `OfflineQueueFull` raise + drain helper (WP06)
-- [ ] T036 Replay handles tenant/project collision deterministically (WP06)
-- [ ] T037 Tracker bidirectional sync — bounded retries + structured failure (WP06)
-- [ ] T038 ADR-2026-04-26-2: Centralized auth transport boundary (WP06)
+- [x] T032 Centralized `AuthenticatedClient` in `src/specify_cli/auth/transport.py` (WP06)
+- [x] T033 Architectural test: no direct `httpx.Client` outside auth transport (WP06)
+- [x] T034 Token-refresh log dedup (≤1 user-facing line per invocation) (WP06)
+- [x] T035 `OfflineQueueFull` raise + drain helper (WP06)
+- [x] T036 Replay handles tenant/project collision deterministically (WP06)
+- [x] T037 Tracker bidirectional sync — bounded retries + structured failure (WP06)
+- [x] T038 ADR-2026-04-26-2: Centralized auth transport boundary (WP06)
 
 **Prompt**: [tasks/WP06-sync-and-auth.md](tasks/WP06-sync-and-auth.md)
 
