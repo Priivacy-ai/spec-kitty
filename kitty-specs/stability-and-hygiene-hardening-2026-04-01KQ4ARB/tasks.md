@@ -32,13 +32,13 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T015 | Emit `planned -> in_progress` before worktree alloc; recoverable failure path | WP03 |  | [D] |
 | T016 | Contract test: canonical root from inside a worktree | WP03 | [D] |
 | T017 | Integration test: status emit on alloc failure | WP03 | [D] |
-| T018 | Bare `next` does not advance state (no implicit success) | WP04 |  |
-| T019 | Eliminate `unknown` mission state and `[QUERY - no result provided]` placeholder | WP04 |  |
-| T020 | `execution_mode: planning_artifact` lane-skip path | WP04 |  |
-| T021 | Review-claim transition emits `for_review -> in_review` | WP04 | [P] |
-| T022 | `mark-status` accepts both bare and qualified WP IDs | WP04 | [P] |
-| T023 | Dashboard / progress counters reflect approved / in-review / done correctly | WP04 | [P] |
-| T024 | Validate `plan` mission's `mission-runtime.yaml` against runtime schema | WP04 | [P] |
+| T018 | Bare `next` does not advance state (no implicit success) | WP04 |  | [D] |
+| T019 | Eliminate `unknown` mission state and `[QUERY - no result provided]` placeholder | WP04 |  | [D] |
+| T020 | `execution_mode: planning_artifact` lane-skip path | WP04 |  | [D] |
+| T021 | Review-claim transition emits `for_review -> in_review` | WP04 | [D] |
+| T022 | `mark-status` accepts both bare and qualified WP IDs | WP04 | [D] |
+| T023 | Dashboard / progress counters reflect approved / in-review / done correctly | WP04 | [D] |
+| T024 | Validate `plan` mission's `mission-runtime.yaml` against runtime schema | WP04 | [D] |
 | T025 | Resolved-version contract test for `spec-kitty-events` envelope | WP05 |  |
 | T026 | `tests/contract/` as hard mission-review gate | WP05 |  |
 | T027 | Architectural test: `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports stable | WP05 | [P] |
@@ -166,13 +166,13 @@ validates.
 **Dependencies**: WP03 (uses the canonical-root resolver).
 
 **Subtasks**:
-- [ ] T018 Bare `next` does not advance state (no implicit success) (WP04)
-- [ ] T019 Eliminate `unknown` mission state and `[QUERY - no result provided]` placeholder (WP04)
-- [ ] T020 `execution_mode: planning_artifact` lane-skip path (WP04)
-- [ ] T021 Review-claim transition emits `for_review -> in_review` (WP04)
-- [ ] T022 `mark-status` accepts both bare and qualified WP IDs (WP04)
-- [ ] T023 Dashboard / progress counters reflect approved / in-review / done correctly (WP04)
-- [ ] T024 Validate `plan` mission's `mission-runtime.yaml` against runtime schema (WP04)
+- [x] T018 Bare `next` does not advance state (no implicit success) (WP04)
+- [x] T019 Eliminate `unknown` mission state and `[QUERY - no result provided]` placeholder (WP04)
+- [x] T020 `execution_mode: planning_artifact` lane-skip path (WP04)
+- [x] T021 Review-claim transition emits `for_review -> in_review` (WP04)
+- [x] T022 `mark-status` accepts both bare and qualified WP IDs (WP04)
+- [x] T023 Dashboard / progress counters reflect approved / in-review / done correctly (WP04)
+- [x] T024 Validate `plan` mission's `mission-runtime.yaml` against runtime schema (WP04)
 
 **Prompt**: [tasks/WP04-runtime-next.md](tasks/WP04-runtime-next.md)
 
