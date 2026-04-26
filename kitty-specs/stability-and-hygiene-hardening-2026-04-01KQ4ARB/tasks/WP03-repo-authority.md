@@ -217,3 +217,4 @@ inactive when it actually started.
 ## Activity Log
 
 - 2026-04-26T08:23:38Z – claude:opus-4-7:implementer:implementer – shell_pid=86236 – Started implementation via action command
+- 2026-04-26T08:32:51Z – claude:opus-4-7:implementer:implementer – shell_pid=86236 – WP03 ready for review: T013 resolver+__init__ created with worktree commondir parsing, T014 emit pipeline canonicalizes feature_dir, T015 implement.py emits planned->claimed->in_progress before alloc and in_progress->blocked on alloc failure with reason=worktree_alloc_failed, T016 contract test pins resolver+emit via real git worktree add, T017 integration test asserts pre-alloc emit ordering and blocked event with evidence
