@@ -64,8 +64,8 @@ def test_initialized_dir_returns_root(tmp_path: Path) -> None:
     assert resolved == tmp_path.resolve()
 
 
-def test_partial_init_missing_specs_dir(tmp_path: Path) -> None:
-    """Only ``.kittify/config.yaml``: still uninitialized."""
+def test_partial_init_missing_specs_dir_fails_when_specs_required(tmp_path: Path) -> None:
+    """Only ``.kittify/config.yaml``: plan/tasks-style guards still fail."""
     _git_init(tmp_path)
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
@@ -74,6 +74,15 @@ def test_partial_init_missing_specs_dir(tmp_path: Path) -> None:
         assert_initialized(tmp_path)
 
     assert any("kitty-specs" in str(p) for p in excinfo.value.missing)
+
+
+def test_partial_init_missing_specs_dir_allowed_for_first_specify(tmp_path: Path) -> None:
+    """Only ``.kittify/config.yaml`` is enough for specify to create kitty-specs."""
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
+
+    assert assert_initialized(tmp_path, require_specs=False) == tmp_path.resolve()
 
 
 def test_partial_init_missing_config(tmp_path: Path) -> None:

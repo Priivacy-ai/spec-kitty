@@ -38,7 +38,7 @@ PLAN_WIDEN_QUESTIONS: list[tuple[str, str]] = [
 _console = Console()
 
 
-def _enforce_initialized() -> None:
+def _enforce_initialized(*, require_specs: bool = True) -> None:
     """Fail-loud if the cwd's canonical repo is not a Spec Kitty project (FR-032).
 
     Symmetric with FR-005's no-silent-fallback selector stance: if the
@@ -48,7 +48,7 @@ def _enforce_initialized() -> None:
     sibling repo.
     """
     try:
-        assert_initialized()
+        assert_initialized(require_specs=require_specs)
     except SpecKittyNotInitialized as exc:
         _console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -69,7 +69,7 @@ def specify(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
-    _enforce_initialized()
+    _enforce_initialized(require_specs=False)
     slug = _slugify_feature_input(feature)
     resolved_mission_type = mission_type
     if mission_type is not None or mission is not None:

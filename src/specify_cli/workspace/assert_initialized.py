@@ -5,8 +5,8 @@ fall back to a parent or sibling initialized repository when the cwd
 is not itself a Spec Kitty project. :func:`assert_initialized` is the
 single entry point that enforces that invariant: it resolves the
 canonical mission repo root via :mod:`specify_cli.workspace.root_resolver`
-and raises :class:`SpecKittyNotInitialized` if either ``.kittify/config.yaml``
-or ``kitty-specs/`` is missing.
+and raises :class:`SpecKittyNotInitialized` if required project markers
+are missing.
 
 Callers should invoke this at the very top of their command handler,
 *before* any side-effecting work, so a wrong cwd never produces a
@@ -52,7 +52,7 @@ class SpecKittyNotInitialized(Exception):
         super().__init__(message)
 
 
-def assert_initialized(root: Path | None = None) -> Path:
+def assert_initialized(root: Path | None = None, *, require_specs: bool = True) -> Path:
     """Verify that ``root`` (or its canonical resolution) is initialized.
 
     Resolution rules:
@@ -64,11 +64,15 @@ def assert_initialized(root: Path | None = None) -> Path:
     * When ``root`` is supplied (test-friendly path), it is used as-is
       and not redirected to a parent or sibling project.
 
-    A repo is considered initialized when both
-    ``<root>/.kittify/config.yaml`` and ``<root>/kitty-specs/`` exist.
+    A repo is considered initialized when ``<root>/.kittify/config.yaml``
+    exists. Commands that operate on existing mission artifacts should
+    leave ``require_specs=True`` so ``<root>/kitty-specs/`` is also
+    required. ``specify`` passes ``require_specs=False`` because mission
+    creation is the code path that lazily creates ``kitty-specs/``.
 
     Args:
         root: Optional explicit repo root. When omitted the cwd is used.
+        require_specs: Require an existing ``kitty-specs/`` directory.
 
     Returns:
         The validated repo root path.
@@ -85,7 +89,11 @@ def assert_initialized(root: Path | None = None) -> Path:
             # No git repo at all -- treat as uninitialized at the cwd.
             raise SpecKittyNotInitialized(
                 cwd,
-                missing=[cwd / ".kittify" / "config.yaml", cwd / "kitty-specs"],
+                missing=(
+                    [cwd / ".kittify" / "config.yaml", cwd / "kitty-specs"]
+                    if require_specs
+                    else [cwd / ".kittify" / "config.yaml"]
+                ),
             ) from exc
     else:
         resolved_root = Path(root).resolve()
@@ -96,7 +104,7 @@ def assert_initialized(root: Path | None = None) -> Path:
     missing: list[Path] = []
     if not config_path.exists():
         missing.append(config_path)
-    if not specs_dir.is_dir():
+    if require_specs and not specs_dir.is_dir():
         missing.append(specs_dir)
 
     if missing:

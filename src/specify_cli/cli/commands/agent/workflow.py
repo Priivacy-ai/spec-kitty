@@ -6,27 +6,25 @@ import logging
 import re
 import subprocess
 import tempfile
+from datetime import UTC
 from pathlib import Path
-from typing import Optional
-
-logger = logging.getLogger(__name__)
+from typing import Annotated
 
 import typer
-from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
+from charter.context import build_charter_context
+from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
+from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
+from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
+from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import TransitionRequest
 from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
-from specify_cli.core.utils import write_text_within_directory
 from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
@@ -36,16 +34,10 @@ from specify_cli.tasks_support import (
     split_frontmatter,
 )
 from specify_cli.workspace_context import resolve_workspace_for_wp
-from datetime import UTC
+
+logger = logging.getLogger(__name__)
 
 _REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
-
-
-def build_charter_context(*args, **kwargs):
-    """Patchable lazy wrapper for charter context rendering."""
-    from charter.context import build_charter_context as _build_charter_context
-
-    return _build_charter_context(*args, **kwargs)
 
 
 def _write_prompt_to_file(
