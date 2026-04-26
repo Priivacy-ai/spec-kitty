@@ -17,6 +17,8 @@ subtasks:
 - T017
 - T018
 - T019
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "53732"
 history:
 - timestamp: '2026-04-26T11:46:43Z'
   actor: claude
@@ -144,3 +146,7 @@ This is the first integration-test gate after the foundation WPs. It proves all 
 - Test file mirrors `test_software_dev_composition.py` structure.
 - Run all tests yourself.
 - `grep -E "patch.*load_validated_graph|patch.*resolve_context|patch.*_dispatch_via_composition|patch.*StepContractExecutor.execute|patch.*ProfileInvocationExecutor.invoke|patch.*_load_frozen_template" tests/specify_cli/mission_step_contracts/test_research_composition.py` returns zero hits.
+
+## Activity Log
+
+- 2026-04-26T12:50:08Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=53732 – Started implementation via action command
