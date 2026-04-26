@@ -27,11 +27,11 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T010 | Atomic write helpers for brief + provenance | WP02 | [D] |
 | T011 | Missing vs corrupt distinction in intake reader | WP02 | [D] |
 | T012 | Root consistency between scan and write | WP02 |  | [D] |
-| T013 | `workspace/root_resolver.py` — single canonical-root resolver | WP03 |  |
-| T014 | Wire status emit / charter / config writes through resolver | WP03 |  |
-| T015 | Emit `planned -> in_progress` before worktree alloc; recoverable failure path | WP03 |  |
-| T016 | Contract test: canonical root from inside a worktree | WP03 | [P] |
-| T017 | Integration test: status emit on alloc failure | WP03 | [P] |
+| T013 | `workspace/root_resolver.py` — single canonical-root resolver | WP03 |  | [D] |
+| T014 | Wire status emit / charter / config writes through resolver | WP03 |  | [D] |
+| T015 | Emit `planned -> in_progress` before worktree alloc; recoverable failure path | WP03 |  | [D] |
+| T016 | Contract test: canonical root from inside a worktree | WP03 | [D] |
+| T017 | Integration test: status emit on alloc failure | WP03 | [D] |
 | T018 | Bare `next` does not advance state (no implicit success) | WP04 |  |
 | T019 | Eliminate `unknown` mission state and `[QUERY - no result provided]` placeholder | WP04 |  |
 | T020 | `execution_mode: planning_artifact` lane-skip path | WP04 |  |
@@ -138,11 +138,11 @@ failure event on alloc failure.
 **Dependencies**: none.
 
 **Subtasks**:
-- [ ] T013 `workspace/root_resolver.py` — single canonical-root resolver (WP03)
-- [ ] T014 Wire status emit / charter / config writes through resolver (WP03)
-- [ ] T015 Emit `planned -> in_progress` before worktree alloc; recoverable failure path (WP03)
-- [ ] T016 Contract test: canonical root from inside a worktree (WP03)
-- [ ] T017 Integration test: status emit on alloc failure (WP03)
+- [x] T013 `workspace/root_resolver.py` — single canonical-root resolver (WP03)
+- [x] T014 Wire status emit / charter / config writes through resolver (WP03)
+- [x] T015 Emit `planned -> in_progress` before worktree alloc; recoverable failure path (WP03)
+- [x] T016 Contract test: canonical root from inside a worktree (WP03)
+- [x] T017 Integration test: status emit on alloc failure (WP03)
 
 **Prompt**: [tasks/WP03-repo-authority.md](tasks/WP03-repo-authority.md)
 
