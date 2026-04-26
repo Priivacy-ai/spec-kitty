@@ -21,6 +21,7 @@ from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.tasks_support import TaskCliError, find_repo_root
+from charter.sync import ensure_charter_bundle_fresh
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +45,6 @@ def default_interview(*args, **kwargs):
     from charter.interview import default_interview as _default_interview
 
     return _default_interview(*args, **kwargs)
-
-
-def ensure_charter_bundle_fresh(*args, **kwargs):
-    """Patchable lazy wrapper for charter bundle freshness checks."""
-    from charter.sync import ensure_charter_bundle_fresh as _ensure_charter_bundle_fresh
-
-    return _ensure_charter_bundle_fresh(*args, **kwargs)
 
 
 def _resolve_charter_path(repo_root: Path) -> Path:
