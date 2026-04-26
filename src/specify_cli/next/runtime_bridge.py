@@ -271,6 +271,7 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 
 _COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
     "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
+    "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
 }
 
 # Legacy run snapshots and project-local templates may still contain the old
@@ -441,15 +442,97 @@ def _composition_dispatch_inputs(
     )
 
 
+def _count_source_documented_events(feature_dir: Path) -> int:
+    """Return the number of ``source_documented`` events in the mission event log.
+
+    Mirrors the v1 ``event_count`` guard primitive (see
+    ``src/specify_cli/mission_v1/guards.py``): reads
+    ``feature_dir / "mission-events.jsonl"``, treats each line as a JSON
+    record, and counts those whose ``type`` equals ``"source_documented"``.
+
+    Missing or unreadable logs return ``0`` so the guard fails closed at the
+    research ``gathering`` branch.
+    """
+    log_path = feature_dir / "mission-events.jsonl"
+    if not log_path.is_file():
+        return 0
+    count = 0
+    try:
+        for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(entry, dict) and entry.get("type") == "source_documented":
+                count += 1
+    except OSError:
+        return 0
+    return count
+
+
+def _publication_approved(feature_dir: Path) -> bool:
+    """Return True iff the mission event log carries a ``publication_approved`` gate event.
+
+    Mirrors the v1 ``gate_passed`` guard primitive: a gate event is recorded
+    as ``{"type": "gate_passed", "name": "<gate_name>"}`` in
+    ``feature_dir / "mission-events.jsonl"``. Missing or unreadable logs
+    return ``False`` so the research ``output`` guard fails closed.
+
+    This signal was chosen because the research mission's existing v1
+    ``mission.yaml`` declares the same surface
+    (``gate_passed("publication_approved")``) for both the source-side gate
+    check and the publication-approval gate. Keeping the runtime bridge's
+    guard reading from the same JSONL the v1 guard primitives consume
+    avoids forking the gate-event surface during the v2 composition
+    rewrite.
+    """
+    log_path = feature_dir / "mission-events.jsonl"
+    if not log_path.is_file():
+        return False
+    try:
+        for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (
+                isinstance(entry, dict)
+                and entry.get("type") == "gate_passed"
+                and entry.get("name") == "publication_approved"
+            ):
+                return True
+    except OSError:
+        return False
+    return False
+
+
 def _check_composed_action_guard(  # noqa: C901
     action: str,
     feature_dir: Path,
     *,
+    mission: str = "software-dev",
     legacy_step_id: str | None = None,
 ) -> list[str]:
     """CLI-level guards that fire AFTER a composed action completes.
 
-    Mirrors ``_check_cli_guards`` semantics for the five composed actions.
+    Mirrors ``_check_cli_guards`` semantics for the composed actions.
+
+    The ``mission`` keyword-only parameter selects the guard branch family:
+
+    * ``mission="software-dev"`` (default) routes through the original
+      software-dev guard chain (``specify`` / ``plan`` / ``tasks`` /
+      ``implement`` / ``review``).
+    * ``mission="research"`` routes through the research guard chain
+      (``scoping`` / ``methodology`` / ``gathering`` / ``synthesis`` /
+      ``output``) plus a **fail-closed default** for any unknown research
+      action — closing the v1 P1 silent-pass finding where unknown actions
+      fell through with empty failures.
 
     For ``tasks``, the assertion shape depends on which surface invoked us:
 
@@ -473,6 +556,37 @@ def _check_composed_action_guard(  # noqa: C901
     pass.
     """
     failures: list[str] = []
+
+    if mission == "research":
+        # Research composition guard chain (D3) + fail-closed default for
+        # unknown research actions (T022 — closes the v1 P1 silent-pass
+        # finding). Every (mission="research", action=<unknown>) tuple
+        # produces a non-empty failures list, which the dispatch surface
+        # propagates as a structured error with no run-state advancement.
+        if action == "scoping":
+            if not (feature_dir / "spec.md").is_file():
+                failures.append("Required artifact missing: spec.md")
+        elif action == "methodology":
+            if not (feature_dir / "plan.md").is_file():
+                failures.append("Required artifact missing: plan.md")
+        elif action == "gathering":
+            if not (feature_dir / "source-register.csv").is_file():
+                failures.append("Required artifact missing: source-register.csv")
+            if _count_source_documented_events(feature_dir) < 3:
+                failures.append("Insufficient sources documented (need >=3)")
+        elif action == "synthesis":
+            if not (feature_dir / "findings.md").is_file():
+                failures.append("Required artifact missing: findings.md")
+        elif action == "output":
+            if not (feature_dir / "report.md").is_file():
+                failures.append("Required artifact missing: report.md")
+            if not _publication_approved(feature_dir):
+                failures.append("Publication approval gate not passed")
+        else:
+            failures.append(
+                f"No guard registered for research action: {action}"
+            )
+        return failures
 
     if action == "specify":
         if not (feature_dir / "spec.md").exists():
@@ -632,7 +746,7 @@ def _dispatch_via_composition(
     )
 
     failures = _check_composed_action_guard(
-        action, feature_dir, legacy_step_id=legacy_step_id
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
     )
     if failures:
         return failures

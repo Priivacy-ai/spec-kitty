@@ -1,0 +1,49 @@
+schema_version: "1.0"
+id: research-methodology
+action: methodology
+mission: research
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action methodology --role methodology --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: read_spec
+    description: Read and understand the research spec produced in scoping
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+
+  - id: design_methodology
+    description: Document research methodology — design choices, frameworks, reproducibility plan
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+        - adr-drafting-workflow
+
+  - id: document_decisions
+    description: Record methodology decisions as ADRs
+    delegates_to:
+      kind: directive
+      candidates:
+        - 003-decision-documentation-requirement
+
+  - id: write_plan
+    description: Write plan.md to kitty-specs/{mission_slug}/
+    command: "Write plan.md in kitty-specs/{mission_slug}/"
+
+  - id: commit_plan
+    description: Commit the methodology plan to main branch
+    delegates_to:
+      kind: directive
+      candidates:
+        - 029-agent-commit-signing-policy
+        - 033-targeted-staging-policy

@@ -42,6 +42,11 @@ _ACTION_PROFILE_DEFAULTS: dict[tuple[str, str], str] = {
     ("software-dev", "tasks"): "architect-alphonso",
     ("software-dev", "implement"): "implementer-ivan",
     ("software-dev", "review"): "reviewer-renata",
+    ("research", "scoping"): "researcher-robbie",
+    ("research", "methodology"): "researcher-robbie",
+    ("research", "gathering"): "researcher-robbie",
+    ("research", "synthesis"): "researcher-robbie",
+    ("research", "output"): "reviewer-renata",
 }
 
 

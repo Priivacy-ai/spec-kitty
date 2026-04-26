@@ -1,0 +1,10 @@
+action: methodology
+directives:
+  - 003-decision-documentation-requirement
+  - 010-specification-fidelity-requirement
+tactics:
+  - adr-drafting-workflow
+  - requirements-validation-workflow
+styleguides: []
+toolguides: []
+procedures: []

@@ -2,6 +2,21 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
+- urn: action:research/gathering
+  kind: action
+  label: gathering
+- urn: action:research/methodology
+  kind: action
+  label: methodology
+- urn: action:research/output
+  kind: action
+  label: output
+- urn: action:research/scoping
+  kind: action
+  label: scoping
+- urn: action:research/synthesis
+  kind: action
+  label: synthesis
 - urn: action:software-dev/implement
   kind: action
   label: implement
@@ -557,6 +572,60 @@ edges:
   target: tactic:problem-decomposition
   relation: scope
 - source: action:software-dev/tasks
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/scoping
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/scoping
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/scoping
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/scoping
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:research/methodology
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/methodology
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/methodology
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:research/methodology
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/gathering
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/gathering
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:research/gathering
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/synthesis
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/synthesis
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/synthesis
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:research/synthesis
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/output
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/output
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:research/output
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: directive:DIRECTIVE_001

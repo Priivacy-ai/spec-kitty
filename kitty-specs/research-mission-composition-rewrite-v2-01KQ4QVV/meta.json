@@ -1,0 +1,15 @@
+{
+  "change_mode": "feature_addition",
+  "created_at": "2026-04-26T11:12:47.736508+00:00",
+  "friendly_name": "Research Mission Composition Rewrite v2",
+  "mission_id": "01KQ4QVVZ4DC6CXA1XCZZAQ8AG",
+  "mission_number": 100,
+  "mission_slug": "research-mission-composition-rewrite-v2-01KQ4QVV",
+  "mission_type": "software-dev",
+  "purpose_context": "The first attempt (preserved at git tag attempt/research-composition-mission-100-broken) shipped contracts, doctrine bundles, profile defaults, and dispatch wiring but failed external review with four findings: research has no MissionTemplate.steps and is not runnable end-to-end via spec-kitty next, the validated DRG has zero action:research/* nodes so resolve_context returns empty, _check_composed_action_guard does not handle research actions so missing-artifact scenarios silently pass, and the integration test bypassed the runtime entirely. This mission re-platforms research onto the composition substrate the way software-dev actually uses it: a real MissionTemplate with PromptStep list + mission.key, action nodes wired into the validated DRG, _check_composed_action_guard extended for the five research actions, and a real get_or_start_run integration walk that drives the live runtime.",
+  "purpose_tldr": "Re-attempt Phase 6 #504 with corrected scope: deliver a runnable composition-backed research mission with real DRG nodes and guard parity, validated by a real-runtime walk.",
+  "slug": "research-mission-composition-rewrite-v2-01KQ4QVV",
+  "source_description": "Reroll of Phase 6 issue #504 (parent epic #468, umbrella #461). Baseline: origin/main commit e056f39. Prior attempt evidence: git tag attempt/research-composition-mission-100-broken at d10af600.",
+  "target_branch": "main",
+  "vcs": "git"
+}

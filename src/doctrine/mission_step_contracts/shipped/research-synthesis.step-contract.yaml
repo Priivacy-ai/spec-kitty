@@ -1,0 +1,53 @@
+schema_version: "1.0"
+id: research-synthesis
+action: synthesis
+mission: research
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action synthesis --role synthesis --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: read_sources
+    description: Read source-register.csv and supporting evidence collected during gathering
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+
+  - id: synthesize_findings
+    description: Synthesize documented evidence into findings; trace each conclusion to source rows
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+        - adr-drafting-workflow
+    guidance: >
+      Every claim in findings.md must cite at least one row from source-register.csv.
+      If evidence is insufficient for a conclusion, route back to gathering via the
+      `gather_more` transition rather than weakening the finding.
+
+  - id: document_decisions
+    description: Record synthesis decisions, alternative interpretations, and excluded evidence
+    delegates_to:
+      kind: directive
+      candidates:
+        - 003-decision-documentation-requirement
+
+  - id: write_findings
+    description: Write findings.md to kitty-specs/{mission_slug}/
+    command: "Write findings.md in kitty-specs/{mission_slug}/"
+
+  - id: commit_findings
+    description: Commit findings.md with co-author attribution
+    delegates_to:
+      kind: directive
+      candidates:
+        - 029-agent-commit-signing-policy
+        - 033-targeted-staging-policy
