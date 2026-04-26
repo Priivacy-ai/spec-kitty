@@ -21,6 +21,8 @@ subtasks:
 - T010
 - T011
 - T012
+agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "82553"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -236,3 +238,7 @@ directory used for brief writes.
    `os.kill(pid, signal.SIGKILL)`, not Python-level cancellation.
 4. Memory ceiling (T009 / NFR-003): the assertion must measure peak
    RSS, not arbitrary heap counters.
+
+## Activity Log
+
+- 2026-04-26T08:07:29Z – claude:opus-4-7:implementer:implementer – shell_pid=82553 – Started implementation via action command

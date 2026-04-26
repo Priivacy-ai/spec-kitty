@@ -1,12 +1,12 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KQ4D1SNMJ9S0MX5NCV75V7BW",
-  "materialized_at": "2026-04-26T08:03:46.996604+00:00",
+  "event_count": 15,
+  "last_event_id": "01KQ4D8K3K9G3N029X7376CS3A",
+  "materialized_at": "2026-04-26T08:07:29.651450+00:00",
   "mission_number": "",
   "mission_slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,22 +14,22 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude:opus-4-7:reviewer:reviewer",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KQ4D1SNMJ9S0MX5NCV75V7BW",
-      "last_transition_at": "2026-04-26T08:03:46.996604+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KQ4D7KNWXE9GMTC9CJHCB33K",
+      "last_transition_at": "2026-04-26T08:06:57.468201+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ4C25RBQ0T9880SY3EY33M8",
-      "last_transition_at": "2026-04-26T07:46:30.795939+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ4D8K3K9G3N029X7376CS3A",
+      "last_transition_at": "2026-04-26T08:07:29.651450+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
