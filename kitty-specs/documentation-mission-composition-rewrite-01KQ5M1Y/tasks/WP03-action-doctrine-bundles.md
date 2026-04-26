@@ -14,6 +14,8 @@ subtasks:
 - T014
 - T015
 - T016
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "51028"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -199,3 +201,7 @@ procedures: []
 - Compare each `guidelines.md` to `src/doctrine/missions/research/actions/scoping/guidelines.md` for tone and structure.
 - Verify the slug forms are the kebab form (no `directive:` prefix in `index.yaml`).
 - Verify no edits outside the 12 owned files.
+
+## Activity Log
+
+- 2026-04-26T20:08:30Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=51028 – Started implementation via action command
