@@ -15,13 +15,13 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 | T001 | Author `src/specify_cli/missions/documentation/mission-runtime.yaml` (mission.key=documentation, 6 composed steps + accept) | WP01 | [P] | [D] |
 | T002 | Author `src/doctrine/missions/documentation/mission-runtime.yaml` (byte-for-byte mirror) | WP01 | [D] |
 | T003 | Author `tests/specify_cli/test_documentation_template_resolution.py` proving sidecar wins over legacy `mission.yaml` | WP01 |  | [D] |
-| T004 | Author `documentation-discover.step-contract.yaml` | WP02 | [P] |
-| T005 | Author `documentation-audit.step-contract.yaml` | WP02 | [P] |
-| T006 | Author `documentation-design.step-contract.yaml` | WP02 | [P] |
-| T007 | Author `documentation-generate.step-contract.yaml` | WP02 | [P] |
-| T008 | Author `documentation-validate.step-contract.yaml` | WP02 | [P] |
-| T009 | Author `documentation-publish.step-contract.yaml` | WP02 | [P] |
-| T010 | Author `tests/specify_cli/mission_step_contracts/test_documentation_composition.py` (parametrized over all 6 contracts; profile-default mapping; no `expected_artifacts` key check) | WP02 |  |
+| T004 | Author `documentation-discover.step-contract.yaml` | WP02 | [D] |
+| T005 | Author `documentation-audit.step-contract.yaml` | WP02 | [D] |
+| T006 | Author `documentation-design.step-contract.yaml` | WP02 | [D] |
+| T007 | Author `documentation-generate.step-contract.yaml` | WP02 | [D] |
+| T008 | Author `documentation-validate.step-contract.yaml` | WP02 | [D] |
+| T009 | Author `documentation-publish.step-contract.yaml` | WP02 | [D] |
+| T010 | Author `tests/specify_cli/mission_step_contracts/test_documentation_composition.py` (parametrized over all 6 contracts; profile-default mapping; no `expected_artifacts` key check) | WP02 |  | [D] |
 | T011 | Author `discover/{index.yaml,guidelines.md}` action bundle | WP03 | [P] |
 | T012 | Author `audit/{index.yaml,guidelines.md}` | WP03 | [P] |
 | T013 | Author `design/{index.yaml,guidelines.md}` | WP03 | [P] |
@@ -77,13 +77,13 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 **Included subtasks**:
 
-- [ ] T004 Author `documentation-discover.step-contract.yaml` per [contracts/step-contracts.md](./contracts/step-contracts.md) (WP02)
-- [ ] T005 Author `documentation-audit.step-contract.yaml` (WP02)
-- [ ] T006 Author `documentation-design.step-contract.yaml` (WP02)
-- [ ] T007 Author `documentation-generate.step-contract.yaml` (WP02)
-- [ ] T008 Author `documentation-validate.step-contract.yaml` (WP02)
-- [ ] T009 Author `documentation-publish.step-contract.yaml` (WP02)
-- [ ] T010 Author `tests/specify_cli/mission_step_contracts/test_documentation_composition.py` (WP02)
+- [x] T004 Author `documentation-discover.step-contract.yaml` per [contracts/step-contracts.md](./contracts/step-contracts.md) (WP02)
+- [x] T005 Author `documentation-audit.step-contract.yaml` (WP02)
+- [x] T006 Author `documentation-design.step-contract.yaml` (WP02)
+- [x] T007 Author `documentation-generate.step-contract.yaml` (WP02)
+- [x] T008 Author `documentation-validate.step-contract.yaml` (WP02)
+- [x] T009 Author `documentation-publish.step-contract.yaml` (WP02)
+- [x] T010 Author `tests/specify_cli/mission_step_contracts/test_documentation_composition.py` (WP02)
 
 **Implementation sketch**: copy `research-scoping.step-contract.yaml` as the template; substitute action verb, mission key, step IDs, delegate references per the [contracts/step-contracts.md](./contracts/step-contracts.md) one-paragraph spec for each contract. Test parametrizes over the 6 contracts and asserts schema invariants.
 
