@@ -16,6 +16,8 @@ subtasks:
 - T013
 - T014
 - T015
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "40578"
 history:
 - timestamp: '2026-04-26T11:46:43Z'
   actor: claude
@@ -205,3 +207,7 @@ WP03 is the first WP that adds formal tests. The tests are real — they read th
 - Run T013 + T014 proofs yourself. Both must produce the documented output.
 - Run `pytest tests/specify_cli/test_research_drg_nodes.py -v` — all tests pass.
 - `grep -E "patch|MagicMock|Mock\\(" tests/specify_cli/test_research_drg_nodes.py` should return zero hits against `load_validated_graph` or `resolve_context`.
+
+## Activity Log
+
+- 2026-04-26T12:29:11Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=40578 – Started implementation via action command
