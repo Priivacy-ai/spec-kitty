@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-26T06:51:27.732203+00:00",
+  "friendly_name": "Doctrine Enrichment: Frontend, Brownfield, and Tactic Normalization",
+  "mission_id": "01KQ48XAGYF876MDHJ62GV0KSM",
+  "mission_number": 100,
+  "mission_slug": "doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
+  "mission_type": "software-dev",
+  "purpose_context": "Spec Kitty's doctrine library grows alongside the supported development practices it encodes. This mission adds a frontend specialist profile (Frontend Freddy), brownfield analysis tactics, and adapter tactics from the quickstart project. It also brings structural order to the growing tactics library by organizing shipped tactics into category subdirectories (testing, analysis, communication, architecture) following the existing refactoring/ pattern. Finally, it enriches existing profiles (reviewer-renata, implementer-ivan) with new operating procedures and adds a generic acceptance test for profile specialization tactic inheritance.",
+  "purpose_tldr": "Enrich Spec Kitty's doctrine library with frontend design and brownfield analysis artifacts, normalize the tactic directory structure, and strengthen profile inheritance test coverage.",
+  "slug": "doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
+  "target_branch": "feature/doctrine-enrichment-bdd-profiles",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-26T11:42:41.567659+00:00"
+}
