@@ -275,3 +275,4 @@ retry.
 ## Activity Log
 
 - 2026-04-26T09:12:15Z – claude:opus-4-7:implementer:implementer – shell_pid=16385 – Started implementation via action command
+- 2026-04-26T09:29:05Z – claude:opus-4-7:implementer:implementer – shell_pid=16385 – WP06 ready: T032 AuthenticatedClient + AuthRefreshFailed; T033 AST architectural test (with documented allowlist for tracker/saas_client.py); T034 user-facing dedup; T035 OfflineQueueFull + drain_to_file; T036 replay TenantMismatch/ProjectMismatch; T037 bidirectional retry policy with structured failure; T038 ADR 2026-04-26-2.
