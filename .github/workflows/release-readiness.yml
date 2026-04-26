@@ -11,6 +11,15 @@ on:
       - scripts/release/**
       - RELEASE_CHECKLIST.md
       - .github/workflows/release-readiness.yml
+  # Also trigger after ci-quality completes on PRs — avoids duplicate test execution.
+  # ci-quality runs tests; this workflow then does release-specific checks.
+  # Skip if the triggering ci-quality run was not from a PR (push/schedule).
+  workflow_run:
+    workflows: ["CI Quality"]
+    types: [completed]
+    branches:
+      - main
+      - 2.x
   workflow_dispatch:
     inputs:
       tag:
@@ -18,7 +27,7 @@ on:
         required: false
         type: string
   schedule:
-    # Run nightly to monitor drift
+    # Run nightly to monitor drift. No dependency on ci-quality — runs independently.
     - cron: '0 2 * * *'
 
 concurrency:
@@ -32,6 +41,12 @@ permissions:
 jobs:
   check-readiness:
     runs-on: ubuntu-latest
+    # Skip entirely when triggered by ci-quality completing on a non-PR event (push/schedule).
+    # ci-quality already ran tests on PRs; release-readiness just runs release checks here.
+    # Standalone triggers (pull_request, workflow_dispatch, schedule) always run.
+    if: >-
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.event == 'pull_request'
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
@@ -66,6 +81,7 @@ jobs:
           pip install -e .[test]
 
       - name: Verify test isolation
+        if: github.event_name != 'workflow_run'
         run: |
           cat > verify_isolation.py << 'EOF'
           import sys
@@ -113,7 +129,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Run full non-Windows suite
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         run: |
           echo "::group::Running full test suite"
           # Exclude windows_ci tests — they run on the native windows-latest job (ci-windows.yml).
