@@ -26,6 +26,8 @@ subtasks:
 - T048
 - T049
 - T050
+agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "31585"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -280,3 +282,7 @@ verdict and an evidence pointer.
    not enough.
 4. The ADR must be referenced from at least three places (research,
    migration doc, mission-review skill).
+
+## Activity Log
+
+- 2026-04-26T09:51:18Z – claude:opus-4-7:implementer:implementer – shell_pid=31585 – Started implementation via action command
