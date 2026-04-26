@@ -63,12 +63,27 @@ notes: >
   the scenarios.
   BDD scenarios serve three purposes: (1) Communication — shared understanding; (2) Specification —
   explicit behavioral contract; (3) Validation — executable acceptance tests.
+  Toolchain landscape (informational — steps above are toolchain-agnostic):
+  Specification language: Gherkin (.feature files) with Given/When/Then.
+  Runners: Cucumber-JVM (Java/Kotlin), Cucumber-JS (JavaScript/TypeScript),
+  Behave (Python), SpecFlow (.NET/C#), Godog (Go).
+  Browser automation: Playwright (modern, multi-language, built-in auto-wait),
+  Selenium WebDriver (mature, W3C standard, Java/.NET ecosystem).
+  Narrative reports: Serenity BDD (JVM) — Screenplay pattern + living documentation HTML.
+  Custom DSLs: when the domain vocabulary is highly specialised and stakeholders do not
+  read Gherkin, a fluent internal DSL in the project language may replace Gherkin;
+  trade-off: better domain expression, worse non-technical readability and no
+  built-in living documentation.
+  Source: patterns.sddevelopment.be/primers/toolchain-and-automation/bdd
 
 failure_modes:
   - "Encoding implementation details in scenarios — scenarios that mention databases, API calls, or method names couple tests to implementation and break during refactoring."
   - "Abstract or generic scenarios — scenarios using 'a valid user' or 'appropriate data' cannot serve as acceptance criteria because 'valid' and 'appropriate' are undefined; use concrete, specific examples."
   - "Treating scenarios as documentation only — scenarios not wired to executable tests provide no regression protection."
   - "Skipping stakeholder validation — scenarios written by engineers without domain input often specify the wrong behavior."
+  - "Rubber-stamp scenarios — writing Given/When/Then scenarios after the code is done to satisfy a process requirement, rather than letting them drive development."
+  - "Shared mutable state between scenarios — Scenario B relying on state created by Scenario A breaks test isolation and makes the suite order-dependent."
+  - "Orphaned step definitions — step definitions with no matching .feature step accumulate silently; run cucumber --dry-run (or equivalent) regularly to detect them."
 
 references:
   - name: Acceptance Test Driven Development
@@ -83,3 +98,11 @@ references:
     type: styleguide
     id: testing-principles
     when: BDD scenarios should satisfy the Inspiring and Exemplary test desiderata
+  - name: BDD Scenario Lifecycle
+    type: procedure
+    id: bdd-scenario-lifecycle
+    when: After scenarios are written in Given/When/Then, use this procedure to wire them to executable tests and maintain them as living documentation
+  - name: Behaviour-Driven Development Paradigm
+    type: paradigm
+    id: behaviour-driven-development
+    when: For the philosophical and collaborative framing of BDD — Discovery/Formulation/Automation cycle, Three Amigos practice

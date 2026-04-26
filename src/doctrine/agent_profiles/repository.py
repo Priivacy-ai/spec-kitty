@@ -133,6 +133,7 @@ def _score_profile(context: TaskContext, profile: AgentProfile) -> float:
 # List-type profile fields merged by union rather than child-replaces-parent.
 _LIST_FIELDS: frozenset[str] = frozenset({
     "capabilities", "directive-references", "canonical-verbs", "mode-defaults",
+    "tactic-references",
 })
 
 

@@ -74,6 +74,8 @@ failure_modes:
   - "Cluster boundaries remain unclear — when terms co-occur broadly, use a co-occurrence matrix visualized as a network graph; high-centrality terms are shared kernel candidates, not boundary candidates."
   - "LLM similarity scores are unreliable — co-occurrence from the actual codebase is the primary signal; use LLM scoring only to validate or break ties."
 
+notes: >
+  Adapted from patterns.sddevelopment.be.
 references:
   - name: Language-Driven Design
     type: tactic

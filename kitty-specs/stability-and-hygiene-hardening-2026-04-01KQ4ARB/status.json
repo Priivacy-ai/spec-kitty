@@ -2,7 +2,7 @@
   "event_count": 60,
   "last_event_id": "01KQ4M5321A5RHB82KFA5SFJMC",
   "materialized_at": "2026-04-26T10:07:54.945059+00:00",
-  "mission_number": "",
+  "mission_number": "100",
   "mission_slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
   "mission_type": "software-dev",
   "summary": {

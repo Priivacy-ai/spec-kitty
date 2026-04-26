@@ -30,6 +30,7 @@ context-sources:
     - language-driven-design
     - reverse-speccing
   additional:
+    - behaviour-driven-development-paradigm
     - review-checklist
     - security-guidelines
     - performance-benchmarks
@@ -151,3 +152,12 @@ tactic-references:
     rationale: Detect terminology conflicts in diffs as early signals of architectural problems or missing bounded context boundaries
   - id: reverse-speccing
     rationale: Validate that tests serve as executable specifications by reconstructing system understanding from test code alone
+  - id: test-readability-clarity-check
+    rationale: >
+      Apply the dual-perspective reconstruction check during review: read only the
+      test suite and attempt to reconstruct system behavior, then compare against
+      the specification. Tests that fail reconstruction are documentation gaps.
+  - id: bdd-scenario-lifecycle
+    rationale: >
+      Verify that every behavior covered in scope has a passing executable scenario
+      before approving the WP. Scenarios not yet wired to step definitions block approval.
