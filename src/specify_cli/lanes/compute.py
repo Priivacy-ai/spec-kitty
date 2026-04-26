@@ -421,14 +421,33 @@ def compute_lanes(
 
     # Compute lane-level dependencies.
     # Lane B depends on lane A if any WP in B depends on any WP in A
-    # (and they are in different lanes — which only happens via write-scope grouping).
+    # (and they are in different lanes).
+    #
+    # P2.7 fix: planning-artifact WPs participate in this calculation.
+    # A code WP that depends on a planning-artifact WP must have a lane
+    # edge to PLANNING_LANE_ID, and a planning-artifact WP that depends
+    # on a code WP must put PLANNING_LANE_ID downstream of that code
+    # lane. Without this, the lane planner happily fan-outs lanes that
+    # should be sequential, and the merge order silently violates the
+    # declared dependency graph.
     wp_to_lane: dict[str, str] = {}
     for lane in lanes:
         for wp_id in lane.wp_ids:
             wp_to_lane[wp_id] = lane.lane_id
+    # Map every planning-artifact WP to the canonical lane id so
+    # cross-mode deps (code -> planning, planning -> code) resolve.
+    for planning_wp_id in planning_artifact_wp_ids:
+        wp_to_lane[planning_wp_id] = PLANNING_LANE_ID
 
+    # Seed lane_deps for every lane we know about — including
+    # PLANNING_LANE_ID when the mission has any planning-artifact WPs.
     lane_deps: dict[str, set[str]] = {lane.lane_id: set() for lane in lanes}
-    for wp_id in code_wp_ids:
+    if planning_artifact_wp_ids:
+        lane_deps[PLANNING_LANE_ID] = set()
+
+    # Iterate every WP (code AND planning) so cross-mode dependency
+    # edges are captured.
+    for wp_id in code_wp_ids + planning_artifact_wp_ids:
         my_lane = wp_to_lane.get(wp_id)
         if not my_lane:
             continue
@@ -439,7 +458,25 @@ def compute_lanes(
 
     # Assign parallel groups via topological sort of lane DAG.
     # Lanes at the same depth in the DAG can run in parallel.
-    lane_depth = _compute_lane_depths(lanes, lane_deps)
+    # The planning lane participates in the depth calculation when
+    # the mission has any planning-artifact WPs so its parallel_group
+    # honours upstream code-lane dependencies (P2.7).
+    depth_input_lanes = list(lanes)
+    if planning_artifact_wp_ids:
+        # Synthesise a placeholder ExecutionLane for the depth calc.
+        # The real planning lane is constructed below; this stand-in
+        # exists only so PLANNING_LANE_ID appears in the topo input.
+        depth_input_lanes.append(
+            ExecutionLane(
+                lane_id=PLANNING_LANE_ID,
+                wp_ids=tuple(sorted(planning_artifact_wp_ids)),
+                write_scope=(),
+                predicted_surfaces=("planning",),
+                depends_on_lanes=tuple(sorted(lane_deps[PLANNING_LANE_ID])),
+                parallel_group=0,
+            )
+        )
+    lane_depth = _compute_lane_depths(depth_input_lanes, lane_deps)
 
     # Rebuild lanes with depends_on_lanes and parallel_group.
     final_lanes: list[ExecutionLane] = []
@@ -461,7 +498,12 @@ def compute_lanes(
     # This lane resolves to the main repository checkout, not a .worktrees/ directory.
     all_lanes = list(final_lanes)
     if planning_artifact_wp_ids:
-        planning_lane = _build_planning_lane(planning_artifact_wp_ids, ownership_manifests)
+        planning_lane = _build_planning_lane(
+            planning_artifact_wp_ids,
+            ownership_manifests,
+            depends_on_lanes=tuple(sorted(lane_deps[PLANNING_LANE_ID])),
+            parallel_group=lane_depth.get(PLANNING_LANE_ID, 0),
+        )
         all_lanes.append(planning_lane)
 
     # planning_artifact_wps is a derived view populated from lane-planning's wp_ids
@@ -492,12 +534,22 @@ def compute_lanes(
 def _build_planning_lane(
     planning_artifact_wp_ids: list[str],
     ownership_manifests: dict[str, OwnershipManifest],
+    *,
+    depends_on_lanes: tuple[str, ...] = (),
+    parallel_group: int = 0,
 ) -> ExecutionLane:
     """Build the canonical lane-planning ExecutionLane for all planning-artifact WPs.
 
     All planning-artifact WPs in a mission are grouped into one lane with
     ``lane_id == PLANNING_LANE_ID``.  This lane resolves to the main repository
     checkout at runtime (see ``resolve_workspace_for_wp``).
+
+    P2.7: ``depends_on_lanes`` and ``parallel_group`` come from the lane
+    DAG calculation in ``compute_lanes`` so cross-mode dependencies
+    (code WP → planning WP, or planning WP → code WP) are honoured at
+    lane scheduling time. Defaults to no upstream lanes / parallel
+    group 0 for backwards compatibility with the all-planning-only
+    short-circuit.
     """
     write_scope: set[str] = set()
     for wp_id in planning_artifact_wp_ids:
@@ -510,8 +562,8 @@ def _build_planning_lane(
         wp_ids=tuple(sorted(planning_artifact_wp_ids)),
         write_scope=tuple(sorted(write_scope)),
         predicted_surfaces=("planning",),
-        depends_on_lanes=(),
-        parallel_group=0,
+        depends_on_lanes=depends_on_lanes,
+        parallel_group=parallel_group,
     )
 
 
