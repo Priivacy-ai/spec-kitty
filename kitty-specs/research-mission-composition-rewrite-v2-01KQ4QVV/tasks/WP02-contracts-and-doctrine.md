@@ -13,6 +13,8 @@ subtasks:
 - T007
 - T008
 - T009
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "22421"
 history:
 - timestamp: '2026-04-26T11:46:43Z'
   actor: claude
@@ -162,3 +164,7 @@ WP02 does not add formal tests. T009 is a smoke check. WP04 owns the formal cont
 - Confirm 15 new files in the diff.
 - Confirm software-dev contracts and doctrine are byte-identical to baseline.
 - Spot-check `output/guidelines.md` for the `gate_passed("publication_approved")` literal.
+
+## Activity Log
+
+- 2026-04-26T12:16:40Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=22421 – Started implementation via action command
