@@ -1,8 +1,8 @@
 """Tests for command_installer.py (WP03).
 
 Covers:
-- Happy path install (11 SKILL.md files, manifest has 11 entries)
-- Idempotent install (second call: already_installed == 11, zero disk writes)
+- Happy path install (12 SKILL.md files, manifest has 12 entries)
+- Idempotent install (second call: already_installed == 12, zero disk writes)
 - Reused-shared add (install codex then vibe; agents == ("codex", "vibe"))
 - Three-tenant coexistence (NFR-002 load-bearing test)
 - Parent-dir preservation (third-party file alongside SKILL.md)
@@ -629,7 +629,7 @@ class TestConstants:
         assert "vibe" in SUPPORTED_AGENTS
 
     def test_canonical_commands_count(self) -> None:
-        assert len(CANONICAL_COMMANDS) == 11
+        assert len(CANONICAL_COMMANDS) == 12
 
     def test_canonical_commands_no_duplicates(self) -> None:
         assert len(set(CANONICAL_COMMANDS)) == len(CANONICAL_COMMANDS)

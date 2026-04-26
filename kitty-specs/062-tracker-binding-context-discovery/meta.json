@@ -4,6 +4,7 @@
   "feature_slug": "062-tracker-binding-context-discovery",
   "friendly_name": "Tracker Binding Context Discovery",
   "mission": "software-dev",
+  "mission_id": "01KQ47E80FJD7PJHQB6DQ8DV03",
   "slug": "tracker-binding-context-discovery",
   "source_description": "Implement CLI-side of ADR 2026-04-04-1: replace manual --project-slug bind with host-resolved discovery and selection workflow",
   "target_branch": "main",

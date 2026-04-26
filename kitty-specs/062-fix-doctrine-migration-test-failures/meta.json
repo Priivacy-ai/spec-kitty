@@ -1,12 +1,13 @@
 {
+  "created_at": "2026-04-02T16:48:38.348783+00:00",
   "feature_number": "062",
-  "slug": "062-fix-doctrine-migration-test-failures",
   "friendly_name": "Fix Doctrine Migration Test Failures",
   "mission": "software-dev",
-  "mission_number": "062",
+  "mission_id": "01KQ47E80ES90DCQ8RE2JHWWRA",
+  "mission_number": 62,
   "mission_slug": "062-fix-doctrine-migration-test-failures",
+  "slug": "062-fix-doctrine-migration-test-failures",
   "source_description": "Fix CI test failures caused by doctrine migration: update stale path references, assertion mismatches, and mock targets across 10 test files",
-  "created_at": "2026-04-02T16:48:38.348783+00:00",
   "target_branch": "feature/agent-profile-implementation-rebased",
   "vcs": "git"
 }
