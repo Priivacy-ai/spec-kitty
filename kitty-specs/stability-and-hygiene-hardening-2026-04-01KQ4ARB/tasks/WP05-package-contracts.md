@@ -19,6 +19,8 @@ subtasks:
 - T029
 - T030
 - T031
+agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "5842"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -262,3 +264,7 @@ consumer verifies it.
    DAG with `downstream-consumer-verify` strictly before `promote`.
 4. T030: ADR must be referenced from at least one of `research.md` and
    the contract markdown to avoid orphaning.
+
+## Activity Log
+
+- 2026-04-26T08:54:50Z – claude:opus-4-7:implementer:implementer – shell_pid=5842 – Started implementation via action command
