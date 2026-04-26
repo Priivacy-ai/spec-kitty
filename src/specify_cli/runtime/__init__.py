@@ -9,22 +9,28 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Any
 
+_BOOTSTRAP_MODULE = "specify_cli.runtime.bootstrap"
+_HOME_MODULE = "specify_cli.runtime.home"
+_MIGRATE_MODULE = "specify_cli.runtime.migrate"
+_RESOLVER_MODULE = "specify_cli.runtime.resolver"
+_SHOW_ORIGIN_MODULE = "specify_cli.runtime.show_origin"
+
 _EXPORT_MODULES = {
-    "AssetDisposition": "specify_cli.runtime.migrate",
-    "MigrationReport": "specify_cli.runtime.migrate",
-    "OriginEntry": "specify_cli.runtime.show_origin",
-    "ResolutionResult": "specify_cli.runtime.resolver",
-    "ResolutionTier": "specify_cli.runtime.resolver",
-    "check_version_pin": "specify_cli.runtime.bootstrap",
-    "classify_asset": "specify_cli.runtime.migrate",
-    "collect_origins": "specify_cli.runtime.show_origin",
-    "ensure_runtime": "specify_cli.runtime.bootstrap",
-    "execute_migration": "specify_cli.runtime.migrate",
-    "get_kittify_home": "specify_cli.runtime.home",
-    "get_package_asset_root": "specify_cli.runtime.home",
-    "resolve_command": "specify_cli.runtime.resolver",
-    "resolve_mission": "specify_cli.runtime.resolver",
-    "resolve_template": "specify_cli.runtime.resolver",
+    "AssetDisposition": _MIGRATE_MODULE,
+    "MigrationReport": _MIGRATE_MODULE,
+    "OriginEntry": _SHOW_ORIGIN_MODULE,
+    "ResolutionResult": _RESOLVER_MODULE,
+    "ResolutionTier": _RESOLVER_MODULE,
+    "check_version_pin": _BOOTSTRAP_MODULE,
+    "classify_asset": _MIGRATE_MODULE,
+    "collect_origins": _SHOW_ORIGIN_MODULE,
+    "ensure_runtime": _BOOTSTRAP_MODULE,
+    "execute_migration": _MIGRATE_MODULE,
+    "get_kittify_home": _HOME_MODULE,
+    "get_package_asset_root": _HOME_MODULE,
+    "resolve_command": _RESOLVER_MODULE,
+    "resolve_mission": _RESOLVER_MODULE,
+    "resolve_template": _RESOLVER_MODULE,
 }
 
 

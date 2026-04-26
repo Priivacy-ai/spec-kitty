@@ -20,6 +20,12 @@ from specify_cli.next._internal_runtime.schema import (
     load_mission_template_file,
 )
 
+_CONFIG_FILENAME = "config.yaml"
+_KITTIFY_DIRNAME = ".kittify"
+_MISSION_FILENAME = "mission.yaml"
+_MISSIONS_DIRNAME = "missions"
+_OVERRIDES_DIRNAME = "overrides"
+
 
 # ---------------------------------------------------------------------------
 # Reserved built-in mission keys (R-002)
@@ -132,7 +138,7 @@ def _collect_from_manifest(pack_root: Path) -> list[Path]:
 def _scan_root(root: Path) -> list[Path]:
     candidates: list[Path] = []
 
-    if root.is_file() and root.name == "mission.yaml":
+    if root.is_file() and root.name == _MISSION_FILENAME:
         return [root]
 
     if not root.exists() or not root.is_dir():
@@ -142,18 +148,19 @@ def _scan_root(root: Path) -> list[Path]:
     candidates.extend(_collect_from_manifest(root))
 
     # Legacy/common mission-root layout: <root>/<mission_key>/mission.yaml
-    for mission_file in sorted(root.glob("*/mission.yaml")):
+    for mission_file in sorted(root.glob(f"*/{_MISSION_FILENAME}")):
         candidates.append(mission_file)
 
     # Canonical pack layout.
-    missions_dir = root / "missions"
+    missions_dir = root / _MISSIONS_DIRNAME
     if missions_dir.is_dir():
-        for mission_file in sorted(missions_dir.glob("*/mission.yaml")):
+        for mission_file in sorted(missions_dir.glob(f"*/{_MISSION_FILENAME}")):
             candidates.append(mission_file)
 
     # Direct mission root fallback.
-    if (root / "mission.yaml").exists():
-        candidates.append(root / "mission.yaml")
+    direct_mission = root / _MISSION_FILENAME
+    if direct_mission.exists():
+        candidates.append(direct_mission)
 
     # De-duplicate while preserving order.
     seen: set[Path] = set()
@@ -168,7 +175,7 @@ def _scan_root(root: Path) -> list[Path]:
 
 
 def _project_config_pack_paths(project_dir: Path) -> list[Path]:
-    config_file = project_dir / ".kittify" / "config.yaml"
+    config_file = project_dir / _KITTIFY_DIRNAME / _CONFIG_FILENAME
     if not config_file.exists():
         return []
     with open(config_file, encoding="utf-8") as handle:
@@ -204,15 +211,15 @@ def _build_tiers(context: DiscoveryContext) -> list[tuple[str, str, list[Path]]]
         tiers.append(
             (
                 "project_override",
-                str(project_dir / ".kittify" / "overrides" / "missions"),
-                [project_dir / ".kittify" / "overrides" / "missions"],
+                str(project_dir / _KITTIFY_DIRNAME / _OVERRIDES_DIRNAME / _MISSIONS_DIRNAME),
+                [project_dir / _KITTIFY_DIRNAME / _OVERRIDES_DIRNAME / _MISSIONS_DIRNAME],
             )
         )
         tiers.append(
             (
                 "project_legacy",
-                str(project_dir / ".kittify" / "missions"),
-                [project_dir / ".kittify" / "missions"],
+                str(project_dir / _KITTIFY_DIRNAME / _MISSIONS_DIRNAME),
+                [project_dir / _KITTIFY_DIRNAME / _MISSIONS_DIRNAME],
             )
         )
 
@@ -228,7 +235,7 @@ def _build_tiers(context: DiscoveryContext) -> list[tuple[str, str, list[Path]]]
         tiers.append(
             (
                 "project_config",
-                str(project_dir / ".kittify" / "config.yaml"),
+                str(project_dir / _KITTIFY_DIRNAME / _CONFIG_FILENAME),
                 _project_config_pack_paths(project_dir),
             )
         )

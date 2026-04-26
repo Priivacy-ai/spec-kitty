@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+_NEXT_INTERNAL_RUNTIME_OWNER = "next/_internal_runtime"
+
 
 # ---------------------------------------------------------------------------
 # T001 -- State Enums
@@ -171,7 +173,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="next/_internal_runtime",
+        owner_module=_NEXT_INTERNAL_RUNTIME_OWNER,
         creation_trigger="mission run start",
     ),
     StateSurface(
@@ -181,7 +183,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSONL,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="next/_internal_runtime",
+        owner_module=_NEXT_INTERNAL_RUNTIME_OWNER,
         creation_trigger="mission run events",
     ),
     StateSurface(
@@ -191,7 +193,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.YAML,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="next/_internal_runtime",
+        owner_module=_NEXT_INTERNAL_RUNTIME_OWNER,
         creation_trigger="mission run start",
     ),
     StateSurface(
