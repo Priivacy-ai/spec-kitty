@@ -1104,6 +1104,7 @@ class TestRouteEvent:
             asyncio.get_event_loop = lambda: DummyLoop()
             asyncio.ensure_future = fake_ensure_future
             assert emitter._route_event(event) is True
+            emitter.queue.queue_event.assert_called_once_with(event)
             assert ensured, "Expected ensure_future to be called"
         finally:
             asyncio.get_event_loop = original_get_event_loop

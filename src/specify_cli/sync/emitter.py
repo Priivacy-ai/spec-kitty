@@ -1572,10 +1572,16 @@ class EventEmitter:
         Returns True if event was sent/queued successfully.
         """
         try:
-            # Check if authenticated (via TokenManager)
-            authenticated = self._is_authenticated()
+            queued = self.queue.queue_event(event)
 
-            # If authenticated and WebSocket connected, send directly
+            # Check if authenticated (via TokenManager)
+            try:
+                authenticated = self._is_authenticated()
+            except Exception:
+                authenticated = False
+
+            # WebSocket publish is opportunistic: the local queue is the
+            # durable outbox, because the WS path has no per-event server ack.
             if authenticated and self.ws_client is not None and self.ws_client.connected:
                 try:
                     import asyncio
@@ -1590,13 +1596,10 @@ class EventEmitter:
                     return True
                 except Exception as e:
                     _console.print(
-                        f"[yellow]Warning: WebSocket send failed, "
-                        f"queueing: {e}[/yellow]"
+                        f"[yellow]Warning: WebSocket send failed; event remains queued: {e}[/yellow]"
                     )
-                    # Fall through to queue
 
-            # Queue event for later sync
-            return self.queue.queue_event(event)
+            return queued
 
         except Exception as e:
             _console.print(
