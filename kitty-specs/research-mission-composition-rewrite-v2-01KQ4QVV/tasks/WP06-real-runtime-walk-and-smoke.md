@@ -17,6 +17,8 @@ subtasks:
 - T026
 - T027
 - T028
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "68016"
 history:
 - timestamp: '2026-04-26T11:46:43Z'
   actor: claude
@@ -218,3 +220,7 @@ This is the gate. Reviewer MUST:
 6. Confirm the v1 P0 finding (`MissionRuntimeError: Mission 'research' not found`) is reproducibly closed: `git checkout origin/main && uv run python -c "from specify_cli.next.runtime_bridge import get_or_start_run; ..."` should still raise; `git checkout HEAD && <same script>` should succeed.
 
 If any of these fail, REJECT WP06. The mission does not merge without this gate clean.
+
+## Activity Log
+
+- 2026-04-26T13:15:28Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=68016 – Started implementation via action command
