@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KQ4TB1JPVGHEDXR7WP03TWBX",
-  "materialized_at": "2026-04-26T11:56:01.494755+00:00",
+  "event_count": 8,
+  "last_event_id": "01KQ4TX1NHE3M2ET71PFRX7RX9",
+  "materialized_at": "2026-04-26T12:05:51.409654+00:00",
   "mission_number": "",
   "mission_slug": "research-mission-composition-rewrite-v2-01KQ4QVV",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ4TB19KA07473N01CR5TW1P",
-      "last_transition_at": "2026-04-26T11:56:01.203755+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ4TX1NHE3M2ET71PFRX7RX9",
+      "last_transition_at": "2026-04-26T12:05:51.409654+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
