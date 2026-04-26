@@ -23,8 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: "76291"
-agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "81695"
+agent: "claude:opus-4-7:reviewer:reviewer"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -270,3 +270,4 @@ When reviewing this WP, focus on:
 
 - 2026-04-26T07:47:30Z – claude:opus-4-7:implementer:implementer – shell_pid=76291 – Assigned agent via action command
 - 2026-04-26T08:02:59Z – claude:opus-4-7:implementer:implementer – shell_pid=76291 – WP01 ready for review: merge data-loss regression pinned (T001), resume idempotent (T002), index refresh (T003), untracked tolerance (T004), dependent-WP scheduler (T005), lane DB isolation (T006). Tests in tests/integration/ and tests/unit/lanes/ green.
+- 2026-04-26T08:03:47Z – claude:opus-4-7:reviewer:reviewer – shell_pid=81695 – Started review via action command
