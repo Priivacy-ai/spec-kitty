@@ -39,13 +39,13 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T022 | `mark-status` accepts both bare and qualified WP IDs | WP04 | [D] |
 | T023 | Dashboard / progress counters reflect approved / in-review / done correctly | WP04 | [D] |
 | T024 | Validate `plan` mission's `mission-runtime.yaml` against runtime schema | WP04 | [D] |
-| T025 | Resolved-version contract test for `spec-kitty-events` envelope | WP05 |  |
-| T026 | `tests/contract/` as hard mission-review gate | WP05 |  |
-| T027 | Architectural test: `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports stable | WP05 | [P] |
-| T028 | Architectural test: no `spec-kitty-runtime` production dep | WP05 | [P] |
-| T029 | Downstream-consumer verification step for candidate releases | WP05 |  |
-| T030 | ADR-2026-04-26-1: Contract pinning to resolved package version | WP05 | [P] |
-| T031 | `scripts/snapshot_events_envelope.py` + dev workflow doc | WP05 | [P] |
+| T025 | Resolved-version contract test for `spec-kitty-events` envelope | WP05 |  | [D] |
+| T026 | `tests/contract/` as hard mission-review gate | WP05 |  | [D] |
+| T027 | Architectural test: `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports stable | WP05 | [D] |
+| T028 | Architectural test: no `spec-kitty-runtime` production dep | WP05 | [D] |
+| T029 | Downstream-consumer verification step for candidate releases | WP05 |  | [D] |
+| T030 | ADR-2026-04-26-1: Contract pinning to resolved package version | WP05 | [D] |
+| T031 | `scripts/snapshot_events_envelope.py` + dev workflow doc | WP05 | [D] |
 | T032 | Centralized `AuthenticatedClient` in `src/specify_cli/auth/transport.py` | WP06 |  |
 | T033 | Architectural test: no direct `httpx.Client` outside auth transport | WP06 | [P] |
 | T034 | Token-refresh log dedup (≤1 user-facing line per invocation) | WP06 |  |
@@ -196,13 +196,13 @@ pass.
 **Dependencies**: none.
 
 **Subtasks**:
-- [ ] T025 Resolved-version contract test for `spec-kitty-events` envelope (WP05)
-- [ ] T026 `tests/contract/` as hard mission-review gate (WP05)
-- [ ] T027 Architectural test: `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports stable (WP05)
-- [ ] T028 Architectural test: no `spec-kitty-runtime` production dep (WP05)
-- [ ] T029 Downstream-consumer verification step for candidate releases (WP05)
-- [ ] T030 ADR-2026-04-26-1: Contract pinning to resolved package version (WP05)
-- [ ] T031 `scripts/snapshot_events_envelope.py` + dev workflow doc (WP05)
+- [x] T025 Resolved-version contract test for `spec-kitty-events` envelope (WP05)
+- [x] T026 `tests/contract/` as hard mission-review gate (WP05)
+- [x] T027 Architectural test: `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports stable (WP05)
+- [x] T028 Architectural test: no `spec-kitty-runtime` production dep (WP05)
+- [x] T029 Downstream-consumer verification step for candidate releases (WP05)
+- [x] T030 ADR-2026-04-26-1: Contract pinning to resolved package version (WP05)
+- [x] T031 `scripts/snapshot_events_envelope.py` + dev workflow doc (WP05)
 
 **Prompt**: [tasks/WP05-package-contracts.md](tasks/WP05-package-contracts.md)
 
