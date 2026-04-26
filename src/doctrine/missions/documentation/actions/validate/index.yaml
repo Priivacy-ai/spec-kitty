@@ -1,0 +1,10 @@
+action: validate
+directives:
+  - 010-specification-fidelity-requirement
+  - 037-living-documentation-sync
+tactics:
+  - premortem-risk-identification
+  - requirements-validation-workflow
+styleguides: []
+toolguides: []
+procedures: []
