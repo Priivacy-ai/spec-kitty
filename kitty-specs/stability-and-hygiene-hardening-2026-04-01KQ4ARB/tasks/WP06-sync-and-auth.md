@@ -21,6 +21,8 @@ subtasks:
 - T036
 - T037
 - T038
+agent: "claude:opus-4-7:implementer:implementer"
+shell_pid: "16385"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -269,3 +271,7 @@ retry.
 4. T036: the test must exercise both `TenantMismatch` and
    `ProjectMismatch` paths separately; do not collapse into one
    assertion.
+
+## Activity Log
+
+- 2026-04-26T09:12:15Z – claude:opus-4-7:implementer:implementer – shell_pid=16385 – Started implementation via action command
