@@ -155,8 +155,8 @@ def test_intake_from_subdir_writes_to_repo_root(tmp_path: Path, monkeypatch: pyt
     assert not (subdir / ".kittify" / MISSION_BRIEF_FILENAME).exists()
 
 
-def test_intake_show_ignores_invalid_source_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """--show still prints the brief when the provenance YAML is malformed."""
+def test_intake_show_reports_invalid_source_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--show fails loud when the provenance YAML is malformed."""
     monkeypatch.chdir(tmp_path)
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
@@ -165,5 +165,6 @@ def test_intake_show_ignores_invalid_source_yaml(tmp_path: Path, monkeypatch: py
 
     result = runner.invoke(app, ["intake", "--show"], catch_exceptions=False)
 
-    assert result.exit_code == 0
-    assert PLAN_CONTENT in result.output
+    assert result.exit_code == 2
+    assert "Brief provenance" in result.output
+    assert "unreadable" in result.output
