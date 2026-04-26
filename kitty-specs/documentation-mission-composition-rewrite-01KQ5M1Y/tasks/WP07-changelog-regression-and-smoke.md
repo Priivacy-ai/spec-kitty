@@ -13,6 +13,8 @@ subtasks:
 - T028
 - T029
 - T030
+agent: "claude:opus-4.7:reviewer-renata:implementer"
+shell_pid: "57847"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -186,3 +188,7 @@ Reference: [quickstart.md](../quickstart.md) for the smoke command sequence.
 - Read `evidence/smoke.md`; grep for `--directory` (must be 0); verify `mission == "documentation"` in `next.json`.
 - Verify the CHANGELOG entry references #502 and the 6 documentation actions.
 - Verify the smoke ran from a temp repo OUTSIDE the spec-kitty source tree (per C-010).
+
+## Activity Log
+
+- 2026-04-26T20:33:06Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=57847 – Started implementation via action command
