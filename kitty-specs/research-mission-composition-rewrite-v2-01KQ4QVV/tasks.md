@@ -34,10 +34,10 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 | T022 | Add fail-closed default for unknown research actions: returns `["No guard registered for research action: <action>"]` (NOT empty list) | WP05 | – | [D] |
 | T023 | Author `tests/specify_cli/next/test_runtime_bridge_research_composition.py`. Cover: dispatch fires for known research actions, refuses unknown, fast-path invariant, action_hint==step.id, no fall-through after success/failure, all 5 guard-failure cases on empty feature_dir, fail-closed for unknown research action. **C-007 forbidden mock list pasted as a header comment in the test file; reviewer greps for any forbidden patch target.** | WP05 | – | [D] |
 | T024 | Run `pytest tests/specify_cli/next/`; mypy + ruff on changed files; zero new findings | WP05 | – | [D] |
-| T025 | Author `tests/integration/test_research_runtime_walk.py` — drives `get_or_start_run('demo-research-walk', tmp_repo, 'research')` end-to-end through at least one composed step. Asserts: no `MissionRuntimeError`, `context.action == step.id`, paired invocation lifecycle records (started + done/failed), structured guard failure on missing artifact, no fall-through to legacy DAG. **C-007 forbidden mock list pasted as header comment; reviewer greps.** | WP06 | – |
-| T026 | Author `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/quickstart.md` with the operator-runnable dogfood smoke sequence (clean checkout, create demo mission, advance one step, observe trail records) | WP06 | – |
-| T027 | Run full regression sweep: `pytest tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/integration/test_mission_run_command.py`. All must pass. mypy --strict + ruff zero new findings on full diff. | WP06 | – |
-| T028 | Capture dogfood evidence: from a clean shell run quickstart sequence; paste full command output into `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/smoke-evidence.md` and into the WP06 commit message. **Without this evidence file, mission-review verdict is UNVERIFIED.** | WP06 | – |
+| T025 | Author `tests/integration/test_research_runtime_walk.py` — drives `get_or_start_run('demo-research-walk', tmp_repo, 'research')` end-to-end through at least one composed step. Asserts: no `MissionRuntimeError`, `context.action == step.id`, paired invocation lifecycle records (started + done/failed), structured guard failure on missing artifact, no fall-through to legacy DAG. **C-007 forbidden mock list pasted as header comment; reviewer greps.** | WP06 | – | [D] |
+| T026 | Author `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/quickstart.md` with the operator-runnable dogfood smoke sequence (clean checkout, create demo mission, advance one step, observe trail records) | WP06 | – | [D] |
+| T027 | Run full regression sweep: `pytest tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/integration/test_mission_run_command.py`. All must pass. mypy --strict + ruff zero new findings on full diff. | WP06 | – | [D] |
+| T028 | Capture dogfood evidence: from a clean shell run quickstart sequence; paste full command output into `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/smoke-evidence.md` and into the WP06 commit message. **Without this evidence file, mission-review verdict is UNVERIFIED.** | WP06 | – | [D] |
 
 ## Work Packages
 
@@ -186,10 +186,10 @@ Reviewer greps the test file. Any hit blocks approval.
 **Dogfood smoke evidence (mandatory)**: WP06 produces `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/smoke-evidence.md` with verbatim command output from running the quickstart sequence on a clean shell. Mission-review consumes this file as the C-008 hard gate.
 
 **Subtasks**:
-- [ ] T025 Author `test_research_runtime_walk.py` with C-007 enforcement (WP06)
-- [ ] T026 Author `quickstart.md` with operator dogfood sequence (WP06)
-- [ ] T027 Run full regression sweep + mypy/ruff (WP06)
-- [ ] T028 Capture dogfood evidence in `smoke-evidence.md` (WP06)
+- [x] T025 Author `test_research_runtime_walk.py` with C-007 enforcement (WP06)
+- [x] T026 Author `quickstart.md` with operator dogfood sequence (WP06)
+- [x] T027 Run full regression sweep + mypy/ruff (WP06)
+- [x] T028 Capture dogfood evidence in `smoke-evidence.md` (WP06)
 
 **Dependencies**: WP05.
 
