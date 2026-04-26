@@ -13,8 +13,8 @@ subtasks:
 - T028
 - T029
 - T030
-agent: "claude:opus-4.7:reviewer-renata:implementer"
-shell_pid: "57847"
+agent: "claude:opus-4.7:reviewer-renata:reviewer"
+shell_pid: "60094"
 history:
 - action: created
   at: '2026-04-26T19:46:00Z'
@@ -193,3 +193,4 @@ Reference: [quickstart.md](../quickstart.md) for the smoke command sequence.
 
 - 2026-04-26T20:33:06Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=57847 – Started implementation via action command
 - 2026-04-26T20:41:47Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=57847 – Evidence collected: regression PASS (169/169), lint zero new findings (1 pre-existing #805 baseline on executor.py:106), smoke OK from separate temp repo via --project (mission=documentation, preview_step=discover). Evidence files committed on main; lane branch now contains only CHANGELOG + code (no kitty-specs/ files).
+- 2026-04-26T20:42:28Z – claude:opus-4.7:reviewer-renata:reviewer – shell_pid=60094 – Started review via action command
