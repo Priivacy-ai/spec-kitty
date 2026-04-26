@@ -29,7 +29,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from charter._drg_helpers import load_validated_graph
 from doctrine.drg.query import resolve_context

@@ -265,7 +265,9 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
     )
 
     research_actions = {"scoping", "methodology", "gathering", "synthesis", "output"}
+    valid_outcomes = {"done", "failed"}
     saw_started = False
+    saw_pair = False
     for trail in trail_files:
         events: list[dict[str, object]] = []
         for raw in trail.read_text(encoding="utf-8").splitlines():
@@ -294,7 +296,23 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
             f"Recorded action {action!r} is not a research-native step ID. "
             f"Trail={trail.name}; record={first!r}"
         )
+        # FR-012: every started invocation in this trail MUST be paired with
+        # a completed event whose outcome is 'done' or 'failed'. A trail
+        # that holds only a started record indicates a torn lifecycle and
+        # would let FR-012 silently regress.
+        completed = [e for e in events if e.get("event") == "completed"]
+        assert completed, (
+            f"Trail {trail.name} has a started record but no completed event; "
+            "FR-012 requires paired lifecycle for every dispatched invocation."
+        )
+        outcome = completed[-1].get("outcome")
+        assert outcome in valid_outcomes, (
+            f"Completed event in {trail.name} has invalid outcome {outcome!r}; "
+            f"FR-012 requires one of {sorted(valid_outcomes)}."
+        )
+        saw_pair = True
     assert saw_started, "No started records found across the invocation trail."
+    assert saw_pair, "No paired started+completed records found across the trail."
 
 
 # ---------------------------------------------------------------------------

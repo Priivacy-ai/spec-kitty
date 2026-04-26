@@ -39,10 +39,14 @@ A CSV row per source with at minimum:
 - `relevance_note` — one sentence on why this source matters to the research
   question.
 
-Each registered source must be paired with a `source_documented` event in
-the mission's status events log; the runtime emits this event automatically
-when the action succeeds, but the gathering agent is responsible for
-ensuring three or more rows are registered before requesting advancement.
+Each registered source must be paired with a `source_documented` event the
+gathering agent emits to `kitty-specs/<mission-slug>/mission-events.jsonl`.
+The runtime does NOT emit these events — registering a row in
+`source-register.csv` is not enough on its own. Use
+`specify_cli.mission_v1.events.emit_event("source_documented", {...},
+mission_name=..., feature_dir=...)` (one call per source) so the composition
+guard sees at least three matching entries before requesting advancement to
+`synthesis`.
 
 ## Doctrine References
 
