@@ -22,12 +22,12 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 | T008 | Author `documentation-validate.step-contract.yaml` | WP02 | [D] |
 | T009 | Author `documentation-publish.step-contract.yaml` | WP02 | [D] |
 | T010 | Author `tests/specify_cli/mission_step_contracts/test_documentation_composition.py` (parametrized over all 6 contracts; profile-default mapping; no `expected_artifacts` key check) | WP02 |  | [D] |
-| T011 | Author `discover/{index.yaml,guidelines.md}` action bundle | WP03 | [P] |
-| T012 | Author `audit/{index.yaml,guidelines.md}` | WP03 | [P] |
-| T013 | Author `design/{index.yaml,guidelines.md}` | WP03 | [P] |
-| T014 | Author `generate/{index.yaml,guidelines.md}` | WP03 | [P] |
-| T015 | Author `validate/{index.yaml,guidelines.md}` | WP03 | [P] |
-| T016 | Author `publish/{index.yaml,guidelines.md}` | WP03 | [P] |
+| T011 | Author `discover/{index.yaml,guidelines.md}` action bundle | WP03 | [D] |
+| T012 | Author `audit/{index.yaml,guidelines.md}` | WP03 | [D] |
+| T013 | Author `design/{index.yaml,guidelines.md}` | WP03 | [D] |
+| T014 | Author `generate/{index.yaml,guidelines.md}` | WP03 | [D] |
+| T015 | Author `validate/{index.yaml,guidelines.md}` | WP03 | [D] |
+| T016 | Author `publish/{index.yaml,guidelines.md}` | WP03 | [D] |
 | T017 | Add 6 documentation action nodes to `src/doctrine/graph.yaml` | WP04 |  |
 | T018 | Add 22 scope edges from documentation action URNs to existing directive/tactic URNs | WP04 |  |
 | T019 | Author `tests/specify_cli/test_documentation_drg_nodes.py` (DRG node + resolve_context non-empty + bundle↔edges consistency + NFR-007 latency) | WP04 |  |
@@ -101,12 +101,12 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 **Included subtasks**:
 
-- [ ] T011 Author `discover/index.yaml` + `discover/guidelines.md` (WP03)
-- [ ] T012 Author `audit/index.yaml` + `audit/guidelines.md` (WP03)
-- [ ] T013 Author `design/index.yaml` + `design/guidelines.md` (WP03)
-- [ ] T014 Author `generate/index.yaml` + `generate/guidelines.md` (WP03)
-- [ ] T015 Author `validate/index.yaml` + `validate/guidelines.md` (WP03)
-- [ ] T016 Author `publish/index.yaml` + `publish/guidelines.md` (WP03)
+- [x] T011 Author `discover/index.yaml` + `discover/guidelines.md` (WP03)
+- [x] T012 Author `audit/index.yaml` + `audit/guidelines.md` (WP03)
+- [x] T013 Author `design/index.yaml` + `design/guidelines.md` (WP03)
+- [x] T014 Author `generate/index.yaml` + `generate/guidelines.md` (WP03)
+- [x] T015 Author `validate/index.yaml` + `validate/guidelines.md` (WP03)
+- [x] T016 Author `publish/index.yaml` + `publish/guidelines.md` (WP03)
 
 **Implementation sketch**: copy research's `actions/scoping/{index.yaml,guidelines.md}` as the template; substitute action verb and adjust directives/tactics per the [data-model.md DRG edges table](./data-model.md#edges-add-to-srcdoctrinegraphyaml-edges-block). Each `guidelines.md` is 30-50 lines of governance prose for the host LLM. The directives/tactics in `index.yaml` MUST match the URN edges WP04 will add to `graph.yaml` (the unit test in WP04 enforces the 1-to-1 mapping by URN suffix).
 
