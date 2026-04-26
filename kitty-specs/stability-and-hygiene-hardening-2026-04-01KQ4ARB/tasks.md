@@ -58,13 +58,13 @@ Total: **50 subtasks**, average **~6 subtasks per WP** (200–500 line prompts).
 | T041 | Charter compact mode preserves directive IDs + section anchors | WP07 | [D] |
 | T042 | Hide legacy `--feature` aliases in help output | WP07 | [D] |
 | T043 | Local custom mission loader post-merge hygiene audit + fix or follow-up | WP07 | [D] |
-| T044 | `issue-matrix.md` scaffold + populated traceability matrix | WP08 |  |
-| T045 | E2E: dependent-WP planning lane merges without data loss | WP08 |  |
-| T046 | E2E: uninitialized repo fails loud | WP08 | [P] |
-| T047 | E2E: SaaS / sync flows under `SPEC_KITTY_ENABLE_SAAS_SYNC=1` | WP08 |  |
-| T048 | E2E: package contract drift is caught before release | WP08 | [P] |
-| T049 | ADR-2026-04-26-3: Cross-repo e2e as hard mission-review gate | WP08 | [P] |
-| T050 | Wire mission-review skill to enforce e2e + `tests/contract/` gates | WP08 |  |
+| T044 | `issue-matrix.md` scaffold + populated traceability matrix | WP08 |  | [D] |
+| T045 | E2E: dependent-WP planning lane merges without data loss | WP08 |  | [D] |
+| T046 | E2E: uninitialized repo fails loud | WP08 | [D] |
+| T047 | E2E: SaaS / sync flows under `SPEC_KITTY_ENABLE_SAAS_SYNC=1` | WP08 |  | [D] |
+| T048 | E2E: package contract drift is caught before release | WP08 | [D] |
+| T049 | ADR-2026-04-26-3: Cross-repo e2e as hard mission-review gate | WP08 | [D] |
+| T050 | Wire mission-review skill to enforce e2e + `tests/contract/` gates | WP08 |  | [D] |
 
 ## Work Packages
 
@@ -278,13 +278,13 @@ matrix and the contract pass.
 **Dependencies**: WP01, WP02, WP03, WP04, WP05, WP06, WP07.
 
 **Subtasks**:
-- [ ] T044 `issue-matrix.md` scaffold + populated traceability matrix (WP08)
-- [ ] T045 E2E: dependent-WP planning lane merges without data loss (WP08)
-- [ ] T046 E2E: uninitialized repo fails loud (WP08)
-- [ ] T047 E2E: SaaS / sync flows under `SPEC_KITTY_ENABLE_SAAS_SYNC=1` (WP08)
-- [ ] T048 E2E: package contract drift is caught before release (WP08)
-- [ ] T049 ADR-2026-04-26-3: Cross-repo e2e as hard mission-review gate (WP08)
-- [ ] T050 Wire mission-review skill to enforce e2e + `tests/contract/` gates (WP08)
+- [x] T044 `issue-matrix.md` scaffold + populated traceability matrix (WP08)
+- [x] T045 E2E: dependent-WP planning lane merges without data loss (WP08)
+- [x] T046 E2E: uninitialized repo fails loud (WP08)
+- [x] T047 E2E: SaaS / sync flows under `SPEC_KITTY_ENABLE_SAAS_SYNC=1` (WP08)
+- [x] T048 E2E: package contract drift is caught before release (WP08)
+- [x] T049 ADR-2026-04-26-3: Cross-repo e2e as hard mission-review gate (WP08)
+- [x] T050 Wire mission-review skill to enforce e2e + `tests/contract/` gates (WP08)
 
 **Prompt**: [tasks/WP08-traceability-and-e2e.md](tasks/WP08-traceability-and-e2e.md)
 
