@@ -15,10 +15,10 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 | T003 | Author `src/doctrine/missions/research/mission-runtime.yaml` (mirror of T002) | WP01 | – | [D] |
 | T004 | Author 6 prompt templates: `scoping.md`, `methodology.md`, `gathering.md`, `synthesis.md`, `output.md`, `accept.md` | WP01 | [D] |
 | T005 | Runnability proof: from a clean tmp repo, `get_or_start_run('demo-research', tmp_repo, 'research')` succeeds without raising `MissionRuntimeError` | WP01 | – | [D] |
-| T006 | Reference v1 step contracts and doctrine bundles from git tag `attempt/research-composition-mission-100-broken` (read-only; do not merge) | WP02 | – |
-| T007 | Author 5 shipped step contracts: `research-{scoping,methodology,gathering,synthesis,output}.step-contract.yaml` | WP02 | [P] |
-| T008 | Author 5 action doctrine bundles (10 files: `index.yaml` + `guidelines.md` per action) under `src/doctrine/missions/research/actions/<action>/` | WP02 | [P] |
-| T009 | Smoke: `MissionStepContractRepository().list_all()` returns 10 contracts; `MissionTemplateRepository.get_action_guidelines("research", <action>)` returns non-empty per action | WP02 | – |
+| T006 | Reference v1 step contracts and doctrine bundles from git tag `attempt/research-composition-mission-100-broken` (read-only; do not merge) | WP02 | – | [D] |
+| T007 | Author 5 shipped step contracts: `research-{scoping,methodology,gathering,synthesis,output}.step-contract.yaml` | WP02 | [D] |
+| T008 | Author 5 action doctrine bundles (10 files: `index.yaml` + `guidelines.md` per action) under `src/doctrine/missions/research/actions/<action>/` | WP02 | [D] |
+| T009 | Smoke: `MissionStepContractRepository().list_all()` returns 10 contracts; `MissionTemplateRepository.get_action_guidelines("research", <action>)` returns non-empty per action | WP02 | – | [D] |
 | T010 | Audit `src/doctrine/graph.yaml` — read software-dev action nodes (lines 5-18) and the surrounding edges to learn the exact node/edge shape | WP03 | – |
 | T011 | Add 5 `action:research/<action>` nodes to `src/doctrine/graph.yaml` | WP03 | – |
 | T012 | Add per-action `scope` edges (per plan D2 edge map) from each research action to its directives + tactics | WP03 | – |
@@ -73,10 +73,10 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 **Independent test**: 10 contracts visible to `MissionStepContractRepository`; non-empty content from `MissionTemplateRepository.get_action_guidelines` for each research action.
 
 **Subtasks**:
-- [ ] T006 Reference v1 tag artifacts (WP02)
-- [ ] T007 Author 5 step contracts (WP02)
-- [ ] T008 Author 10 doctrine bundle files (WP02)
-- [ ] T009 Smoke-load both repositories (WP02)
+- [x] T006 Reference v1 tag artifacts (WP02)
+- [x] T007 Author 5 step contracts (WP02)
+- [x] T008 Author 10 doctrine bundle files (WP02)
+- [x] T009 Smoke-load both repositories (WP02)
 
 **Dependencies**: None.
 
