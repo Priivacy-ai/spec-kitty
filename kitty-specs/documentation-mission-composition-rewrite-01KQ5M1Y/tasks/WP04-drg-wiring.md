@@ -248,3 +248,4 @@ Reference: [data-model.md → DRG node and edge shapes](../data-model.md#drg-nod
 ## Activity Log
 
 - 2026-04-26T20:14:37Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=52671 – Started implementation via action command
+- 2026-04-26T20:18:04Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=52671 – T017-T019 complete; 6 nodes + 22 edges; 13/13 tests pass; ruff+mypy clean
