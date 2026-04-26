@@ -79,7 +79,14 @@ def test_read_brief_source_returns_none_when_file_is_absent(tmp_path: Path) -> N
 
 
 def test_read_brief_source_returns_dict_when_valid(tmp_path: Path) -> None:
+    """A complete brief pair (sidecar + commit marker) returns the parsed dict."""
     (tmp_path / ".kittify").mkdir()
+    # P2.5 pair-atomicity: read_brief_source returns None unless brief.md
+    # also exists (it is the commit marker). A complete pair must include
+    # both files for the parsed dict to be surfaced.
+    (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).write_text(
+        "# brief\n", encoding="utf-8"
+    )
     (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).write_text(
         "source_file: /tmp/plan.md\n"
         "ingested_at: 2026-04-26T00:00:00Z\n"

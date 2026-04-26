@@ -140,10 +140,24 @@ def read_mission_brief(repo_root: Path) -> str | None:
 def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
     """Return parsed YAML from ``.kittify/brief-source.yaml``.
 
-    Returns ``None`` when the file does not exist (legitimate "no brief").
+    Returns ``None`` when the file does not exist (legitimate "no brief"),
+    OR when the file parses cleanly but its companion ``brief.md`` is
+    absent (the kill-mid-write window — see pair-atomicity rule below).
+
     Raises :class:`IntakeFileUnreadableError` when the file exists but is
     unreadable, undecodable, or contains non-mapping YAML — distinguishing
-    a corrupt provenance sidecar from a missing one (FR-011).
+    a corrupt provenance sidecar from a missing one (FR-011). Corrupt
+    state ALWAYS surfaces, regardless of brief presence, so operators
+    learn about the corruption rather than seeing a silent "no brief".
+
+    Pair-atomicity rule (kill-mid-write recovery): the brief writer
+    renames ``source.yaml`` first, then ``brief.md`` as the commit
+    marker. If a kill happens between the two renames, ``source.yaml``
+    can be on disk while ``brief.md`` is not. After we have proven the
+    sidecar parses cleanly (so we are not hiding corruption), we treat
+    that orphan state as "no brief" so callers see the same surface as
+    if the write never started. The legacy recovery branch in
+    :func:`write_mission_brief` unlinks the orphan on the next write.
     """
     path = repo_root / ".kittify" / BRIEF_SOURCE_FILENAME
     try:
@@ -172,6 +186,16 @@ def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
                 f"got {type(result).__name__}"
             ),
         )
+
+    # Pair-atomicity rule (P2.5): the writer renames source.yaml first
+    # and brief.md second as the commit marker. If brief.md is absent,
+    # the operation either never started or was killed between the two
+    # renames — treat as "no brief". Corrupt-sidecar errors above always
+    # surface first, so operators still learn about real corruption.
+    brief_path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
+    if not brief_path.exists():
+        return None
+
     return result
 
 
