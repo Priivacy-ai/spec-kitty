@@ -1,7 +1,7 @@
 {
-  "event_count": 55,
-  "last_event_id": "01KQ4K6PEJC315WTQ00HH9V3SM",
-  "materialized_at": "2026-04-26T09:51:18.994920+00:00",
+  "event_count": 56,
+  "last_event_id": "01KQ4KTSETCYZEP4878D1NB93W",
+  "materialized_at": "2026-04-26T10:02:17.434401+00:00",
   "mission_number": "",
   "mission_slug": "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -67,11 +67,11 @@
       "last_transition_at": "2026-04-26T09:50:50.675996+00:00"
     },
     "WP08": {
-      "actor": "claude:opus-4-7:implementer:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KQ4K6PEJC315WTQ00HH9V3SM",
-      "last_transition_at": "2026-04-26T09:51:18.994920+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KQ4KTSETCYZEP4878D1NB93W",
+      "last_transition_at": "2026-04-26T10:02:17.434401+00:00"
     }
   }
 }
