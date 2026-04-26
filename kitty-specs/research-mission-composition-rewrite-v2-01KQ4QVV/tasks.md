@@ -29,11 +29,11 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 | T017 | Add 5 `("research", action)` entries to `_ACTION_PROFILE_DEFAULTS` in `executor.py` | WP04 | – | [D] |
 | T018 | Author `tests/specify_cli/mission_step_contracts/test_research_composition.py` covering contract loading, profile defaults, doctrine bundle resolution, software-dev sentinel | WP04 | – | [D] |
 | T019 | Run `pytest tests/specify_cli/mission_step_contracts/`; mypy + ruff on changed files; zero new findings | WP04 | – | [D] |
-| T020 | Add `"research": frozenset({...})` to `_COMPOSED_ACTIONS_BY_MISSION` in `runtime_bridge.py` | WP05 | – |
-| T021 | Add 5 research-action branches to `_check_composed_action_guard()` per plan D3 (artifact + event-count checks against feature_dir) | WP05 | – |
-| T022 | Add fail-closed default for unknown research actions: returns `["No guard registered for research action: <action>"]` (NOT empty list) | WP05 | – |
-| T023 | Author `tests/specify_cli/next/test_runtime_bridge_research_composition.py`. Cover: dispatch fires for known research actions, refuses unknown, fast-path invariant, action_hint==step.id, no fall-through after success/failure, all 5 guard-failure cases on empty feature_dir, fail-closed for unknown research action. **C-007 forbidden mock list pasted as a header comment in the test file; reviewer greps for any forbidden patch target.** | WP05 | – |
-| T024 | Run `pytest tests/specify_cli/next/`; mypy + ruff on changed files; zero new findings | WP05 | – |
+| T020 | Add `"research": frozenset({...})` to `_COMPOSED_ACTIONS_BY_MISSION` in `runtime_bridge.py` | WP05 | – | [D] |
+| T021 | Add 5 research-action branches to `_check_composed_action_guard()` per plan D3 (artifact + event-count checks against feature_dir) | WP05 | – | [D] |
+| T022 | Add fail-closed default for unknown research actions: returns `["No guard registered for research action: <action>"]` (NOT empty list) | WP05 | – | [D] |
+| T023 | Author `tests/specify_cli/next/test_runtime_bridge_research_composition.py`. Cover: dispatch fires for known research actions, refuses unknown, fast-path invariant, action_hint==step.id, no fall-through after success/failure, all 5 guard-failure cases on empty feature_dir, fail-closed for unknown research action. **C-007 forbidden mock list pasted as a header comment in the test file; reviewer greps for any forbidden patch target.** | WP05 | – | [D] |
+| T024 | Run `pytest tests/specify_cli/next/`; mypy + ruff on changed files; zero new findings | WP05 | – | [D] |
 | T025 | Author `tests/integration/test_research_runtime_walk.py` — drives `get_or_start_run('demo-research-walk', tmp_repo, 'research')` end-to-end through at least one composed step. Asserts: no `MissionRuntimeError`, `context.action == step.id`, paired invocation lifecycle records (started + done/failed), structured guard failure on missing artifact, no fall-through to legacy DAG. **C-007 forbidden mock list pasted as header comment; reviewer greps.** | WP06 | – |
 | T026 | Author `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/quickstart.md` with the operator-runnable dogfood smoke sequence (clean checkout, create demo mission, advance one step, observe trail records) | WP06 | – |
 | T027 | Run full regression sweep: `pytest tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/next/test_runtime_bridge_composition.py`, `tests/integration/test_custom_mission_runtime_walk.py`, `tests/integration/test_mission_run_command.py`. All must pass. mypy --strict + ruff zero new findings on full diff. | WP06 | – |
@@ -151,11 +151,11 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 Reviewer greps the test file. Any hit blocks approval.
 
 **Subtasks**:
-- [ ] T020 Add `"research"` to `_COMPOSED_ACTIONS_BY_MISSION` (WP05)
-- [ ] T021 Add 5 research-action branches to `_check_composed_action_guard` (WP05)
-- [ ] T022 Add fail-closed default for unknown research actions (WP05)
-- [ ] T023 Author bridge test with C-007 enforcement (WP05)
-- [ ] T024 Run focused + regression + mypy/ruff (WP05)
+- [x] T020 Add `"research"` to `_COMPOSED_ACTIONS_BY_MISSION` (WP05)
+- [x] T021 Add 5 research-action branches to `_check_composed_action_guard` (WP05)
+- [x] T022 Add fail-closed default for unknown research actions (WP05)
+- [x] T023 Author bridge test with C-007 enforcement (WP05)
+- [x] T024 Run focused + regression + mypy/ruff (WP05)
 
 **Dependencies**: WP04.
 
