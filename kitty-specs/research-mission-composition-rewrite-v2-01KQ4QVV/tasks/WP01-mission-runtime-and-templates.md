@@ -19,7 +19,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '7384'
+shell_pid: "7384"
+agent: "claude:opus-4.7:implementer-ivan:implementer"
 history:
 - timestamp: '2026-04-26T11:46:43Z'
   actor: claude
@@ -185,3 +186,7 @@ WP01 does not add formal tests. T005 is a runnability smoke. WP04 (composition r
 - Diff `src/specify_cli/missions/research/mission-runtime.yaml` and `src/doctrine/missions/research/mission-runtime.yaml`. Confirm 6 steps, correct depends_on chain, profiles match D2 (researcher-robbie ×4 + reviewer-renata for output).
 - Run the T005 proof script yourself from a fresh tmp dir.
 - `git diff` should show only the 8 new files.
+
+## Activity Log
+
+- 2026-04-26T12:05:52Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=7384 – Assigned agent via action command
