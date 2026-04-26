@@ -22,8 +22,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: "claude:opus-4-7:implementer:implementer"
-shell_pid: "93036"
+agent: "claude:opus-4-7:reviewer:reviewer"
+shell_pid: "1535"
 history:
 - at: 2026-04-26T07:36:00Z
   actor: claude
@@ -263,3 +263,4 @@ worktree can be allocated.
 
 - 2026-04-26T08:36:09Z – claude:opus-4-7:implementer:implementer – shell_pid=93036 – Started implementation via action command
 - 2026-04-26T08:49:53Z – claude:opus-4-7:implementer:implementer – shell_pid=93036 – WP04 ready for review: T018 query mode pinned; T019 placeholder absent; T020 planning_artifact contract pinned; T021 review claim emits for_review->in_review; T022 mark-status accepts qualified IDs; T023 dashboard counters per-lane verified; T024 plan/mission-runtime.yaml validates and strict-xfail demoted.
+- 2026-04-26T08:50:35Z – claude:opus-4-7:reviewer:reviewer – shell_pid=1535 – Started review via action command
