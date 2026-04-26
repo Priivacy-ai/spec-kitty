@@ -8,6 +8,16 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from specify_cli.intake.errors import (
+    IntakeFileMissingError,
+    IntakeFileUnreadableError,
+    IntakeTooLargeError,
+)
+from specify_cli.intake.scanner import (
+    load_max_brief_bytes,
+    read_brief,
+    read_stdin_capped,
+)
 from specify_cli.intake_sources import scan_for_plans
 from specify_cli.mission_brief import (
     BRIEF_SOURCE_FILENAME,
@@ -21,8 +31,26 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 console = Console()
 err_console = Console(stderr=True)
 
-# Maximum size for a mission brief file. Rejects oversized input before reading into memory.
+# Maximum size for a mission brief file. Resolved from `.kittify/config.yaml`
+# (`intake.max_brief_bytes`) at request time via `load_max_brief_bytes()`. The
+# constant below is the documented hard fallback used when no config file is
+# present; it must match `intake.scanner.DEFAULT_MAX_BRIEF_BYTES`.
 MAX_BRIEF_FILE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
+
+
+def _format_too_large_message(exc: IntakeTooLargeError) -> str:
+    """Render an `IntakeTooLargeError` into a user-friendly stderr line."""
+    size = exc.detail.get("size")
+    cap = exc.detail.get("cap", 0)
+    if isinstance(size, int):
+        size_str = f"{size / 1024 / 1024:.1f} MB"
+    else:
+        size_str = "size unknown"
+    cap_mb = max(cap // 1024 // 1024, 1)
+    return (
+        f"[red]File is too large to ingest ({size_str}). "
+        f"Maximum allowed size is {cap_mb} MB.[/red]"
+    )
 
 
 def _resolve_repo_root() -> Path:
@@ -53,20 +81,17 @@ def _write_brief_from_candidate(
             "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
         )
         raise typer.Exit(1)
+    cap = load_max_brief_bytes(repo_root)
     try:
-        file_size = found_path.stat().st_size
-    except OSError:
-        file_size = 0
-    if file_size > MAX_BRIEF_FILE_SIZE_BYTES:
-        err_console.print(
-            f"[red]File is too large to ingest ({file_size / 1024 / 1024:.1f} MB). "
-            f"Maximum allowed size is {MAX_BRIEF_FILE_SIZE_BYTES // 1024 // 1024} MB.[/red]"
-        )
-        raise typer.Exit(1)
-    try:
-        content = found_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        err_console.print(f"[red]Could not read file: {exc}[/red]")
+        content = read_brief(found_path, cap=cap)
+    except IntakeTooLargeError as exc:
+        err_console.print(_format_too_large_message(exc))
+        raise typer.Exit(1) from None
+    except IntakeFileMissingError:
+        err_console.print(f"[red]File not found: {found_path}[/red]")
+        raise typer.Exit(1) from None
+    except IntakeFileUnreadableError as exc:
+        err_console.print(f"[red]Could not read file: {exc.__cause__}[/red]")
         raise typer.Exit(1) from None
     write_mission_brief(repo_root, content, str(found_path), source_agent=source_agent_value)
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
@@ -140,8 +165,22 @@ def intake(
 
     # --show branch: print and exit, no writes
     if show:
-        brief = read_mission_brief(repo_root)
-        source = read_brief_source(repo_root)
+        try:
+            brief = read_mission_brief(repo_root)
+        except IntakeFileUnreadableError as exc:
+            err_console.print(
+                f"[red]Brief file at .kittify/mission-brief.md exists but is "
+                f"unreadable: {exc.__cause__}[/red]"
+            )
+            raise typer.Exit(2) from None
+        try:
+            source = read_brief_source(repo_root)
+        except IntakeFileUnreadableError as exc:
+            err_console.print(
+                f"[red]Brief provenance at .kittify/brief-source.yaml exists "
+                f"but is unreadable: {exc.__cause__}[/red]"
+            )
+            raise typer.Exit(2) from None
         if brief is None and source is None:
             err_console.print("[red]No brief found at .kittify/mission-brief.md[/red]")
             raise typer.Exit(1)
@@ -181,31 +220,34 @@ def intake(
         )
         raise typer.Exit(1)
 
-    # Read content from file or stdin
+    # Read content from file or stdin via the bounded intake helpers so
+    # the documented size cap (FR-009 / NFR-003) is enforced before the
+    # entire payload is buffered into memory.
+    cap = load_max_brief_bytes(repo_root)
     if path == "-":
-        content = sys.stdin.read()
+        try:
+            content = read_stdin_capped(sys.stdin, cap=cap)
+        except IntakeTooLargeError as exc:
+            err_console.print(_format_too_large_message(exc))
+            raise typer.Exit(1) from None
+        except IntakeFileUnreadableError as exc:
+            err_console.print(f"[red]Could not read stdin: {exc.__cause__}[/red]")
+            raise typer.Exit(1) from None
         source_file = "stdin"
     else:
         explicit_path = Path(path)
         try:
-            file_size = explicit_path.stat().st_size
-        except OSError:
-            file_size = 0
-        if file_size > MAX_BRIEF_FILE_SIZE_BYTES:
-            err_console.print(
-                f"[red]File is too large to ingest ({file_size / 1024 / 1024:.1f} MB). "
-                f"Maximum allowed size is {MAX_BRIEF_FILE_SIZE_BYTES // 1024 // 1024} MB.[/red]"
-            )
-            raise typer.Exit(1)
-        try:
-            content = explicit_path.read_text(encoding="utf-8")
-            source_file = path
-        except FileNotFoundError:
+            content = read_brief(explicit_path, cap=cap)
+        except IntakeTooLargeError as exc:
+            err_console.print(_format_too_large_message(exc))
+            raise typer.Exit(1) from None
+        except IntakeFileMissingError:
             err_console.print(f"[red]File not found: {path}[/red]")
             raise typer.Exit(1) from None
-        except OSError as exc:
-            err_console.print(f"[red]Could not read file: {exc}[/red]")
+        except IntakeFileUnreadableError as exc:
+            err_console.print(f"[red]Could not read file: {exc.__cause__}[/red]")
             raise typer.Exit(1) from None
+        source_file = path
 
     write_mission_brief(repo_root, content, source_file)
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
