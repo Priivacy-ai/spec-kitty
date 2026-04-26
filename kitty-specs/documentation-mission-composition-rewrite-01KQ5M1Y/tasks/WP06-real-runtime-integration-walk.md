@@ -274,3 +274,4 @@ The reference is `tests/integration/test_research_runtime_walk.py`. Read it end-
 ## Activity Log
 
 - 2026-04-26T20:26:31Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=56310 – Started implementation via action command
+- 2026-04-26T20:30:34Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=56310 – T024-T026 complete; 6 real-runtime tests pass; zero forbidden mocks
