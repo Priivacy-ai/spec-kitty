@@ -10,11 +10,11 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Audit software-dev mission-runtime.yaml structure (read full file; record schema, RACI, defaults) | WP01 | – |
-| T002 | Author `src/specify_cli/missions/research/mission-runtime.yaml` (6 PromptSteps + meta) | WP01 | – |
-| T003 | Author `src/doctrine/missions/research/mission-runtime.yaml` (mirror of T002) | WP01 | – |
-| T004 | Author 6 prompt templates: `scoping.md`, `methodology.md`, `gathering.md`, `synthesis.md`, `output.md`, `accept.md` | WP01 | [P] |
-| T005 | Runnability proof: from a clean tmp repo, `get_or_start_run('demo-research', tmp_repo, 'research')` succeeds without raising `MissionRuntimeError` | WP01 | – |
+| T001 | Audit software-dev mission-runtime.yaml structure (read full file; record schema, RACI, defaults) | WP01 | – | [D] |
+| T002 | Author `src/specify_cli/missions/research/mission-runtime.yaml` (6 PromptSteps + meta) | WP01 | – | [D] |
+| T003 | Author `src/doctrine/missions/research/mission-runtime.yaml` (mirror of T002) | WP01 | – | [D] |
+| T004 | Author 6 prompt templates: `scoping.md`, `methodology.md`, `gathering.md`, `synthesis.md`, `output.md`, `accept.md` | WP01 | [D] |
+| T005 | Runnability proof: from a clean tmp repo, `get_or_start_run('demo-research', tmp_repo, 'research')` succeeds without raising `MissionRuntimeError` | WP01 | – | [D] |
 | T006 | Reference v1 step contracts and doctrine bundles from git tag `attempt/research-composition-mission-100-broken` (read-only; do not merge) | WP02 | – |
 | T007 | Author 5 shipped step contracts: `research-{scoping,methodology,gathering,synthesis,output}.step-contract.yaml` | WP02 | [P] |
 | T008 | Author 5 action doctrine bundles (10 files: `index.yaml` + `guidelines.md` per action) under `src/doctrine/missions/research/actions/<action>/` | WP02 | [P] |
@@ -50,11 +50,11 @@ This is the reroll of issue #504 after the v1 attempt (preserved at git tag `att
 **Independent test**: From a clean tmp repo, `get_or_start_run` for `mission_type='research'` returns a run handle without `MissionRuntimeError`. The runtime engine reaches at least the planning step.
 
 **Subtasks**:
-- [ ] T001 Audit software-dev mission-runtime.yaml structure (WP01)
-- [ ] T002 Author `src/specify_cli/missions/research/mission-runtime.yaml` (WP01)
-- [ ] T003 Author `src/doctrine/missions/research/mission-runtime.yaml` (WP01)
-- [ ] T004 Author 6 prompt templates (WP01)
-- [ ] T005 Runnability proof — `get_or_start_run` succeeds (WP01)
+- [x] T001 Audit software-dev mission-runtime.yaml structure (WP01)
+- [x] T002 Author `src/specify_cli/missions/research/mission-runtime.yaml` (WP01)
+- [x] T003 Author `src/doctrine/missions/research/mission-runtime.yaml` (WP01)
+- [x] T004 Author 6 prompt templates (WP01)
+- [x] T005 Runnability proof — `get_or_start_run` succeeds (WP01)
 
 **Dependencies**: None.
 
