@@ -28,9 +28,9 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 | T014 | Author `generate/{index.yaml,guidelines.md}` | WP03 | [D] |
 | T015 | Author `validate/{index.yaml,guidelines.md}` | WP03 | [D] |
 | T016 | Author `publish/{index.yaml,guidelines.md}` | WP03 | [D] |
-| T017 | Add 6 documentation action nodes to `src/doctrine/graph.yaml` | WP04 |  |
-| T018 | Add 22 scope edges from documentation action URNs to existing directive/tactic URNs | WP04 |  |
-| T019 | Author `tests/specify_cli/test_documentation_drg_nodes.py` (DRG node + resolve_context non-empty + bundle↔edges consistency + NFR-007 latency) | WP04 |  |
+| T017 | Add 6 documentation action nodes to `src/doctrine/graph.yaml` | WP04 |  | [D] |
+| T018 | Add 22 scope edges from documentation action URNs to existing directive/tactic URNs | WP04 |  | [D] |
+| T019 | Author `tests/specify_cli/test_documentation_drg_nodes.py` (DRG node + resolve_context non-empty + bundle↔edges consistency + NFR-007 latency) | WP04 |  | [D] |
 | T020 | Add `"documentation"` entry to `_COMPOSED_ACTIONS_BY_MISSION` | WP05 |  |
 | T021 | Add 6 entries to `_ACTION_PROFILE_DEFAULTS` in `src/specify_cli/mission_step_contracts/executor.py` | WP05 |  |
 | T022 | Add `_has_generated_docs(feature_dir)` helper + documentation branch in `_check_composed_action_guard()` (with fail-closed default for unknown actions) | WP05 |  |
@@ -124,9 +124,9 @@ The plan suggested 8 work packages; this tasks.md consolidates them into 7 becau
 
 **Included subtasks**:
 
-- [ ] T017 Add 6 documentation action nodes to `src/doctrine/graph.yaml` `nodes:` block (alphabetical with the existing `action:` URN family) (WP04)
-- [ ] T018 Add ~22 scope edges to `src/doctrine/graph.yaml` `edges:` block per the data-model.md table (WP04)
-- [ ] T019 Author `tests/specify_cli/test_documentation_drg_nodes.py` with 3 tests: per-action node+context; bundle↔edges consistency; resolve_context latency vs research 2× median (NFR-007) (WP04)
+- [x] T017 Add 6 documentation action nodes to `src/doctrine/graph.yaml` `nodes:` block (alphabetical with the existing `action:` URN family) (WP04)
+- [x] T018 Add ~22 scope edges to `src/doctrine/graph.yaml` `edges:` block per the data-model.md table (WP04)
+- [x] T019 Author `tests/specify_cli/test_documentation_drg_nodes.py` with 3 tests: per-action node+context; bundle↔edges consistency; resolve_context latency vs research 2× median (NFR-007) (WP04)
 
 **Implementation sketch**: append nodes and edges directly to graph.yaml in the locations data-model.md specifies. The validated graph loader will reject the file if any directive/tactic URN does not exist; verify URNs DIRECTIVE_001/003/010/037 and the four tactics already exist via grep before authoring.
 
