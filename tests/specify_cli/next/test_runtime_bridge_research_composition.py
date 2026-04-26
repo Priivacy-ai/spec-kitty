@@ -319,6 +319,40 @@ def test_count_source_documented_events_counts_matching_entries(
     assert _count_source_documented_events(feature_dir) == 3
 
 
+def test_count_source_documented_events_ignores_blank_and_malformed_lines(
+    feature_dir: Path,
+) -> None:
+    """Blank lines and malformed JSON entries do not count as documented sources."""
+    (feature_dir / "mission-events.jsonl").write_text(
+        "\n"
+        '{"type": "source_documented", "name": "src-1"}\n'
+        "{not-json\n"
+        '{"type": "other", "name": "src-2"}\n',
+        encoding="utf-8",
+    )
+    assert _count_source_documented_events(feature_dir) == 1
+
+
+def test_count_source_documented_events_returns_zero_on_read_error(
+    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unreadable mission-events.jsonl files fail closed at zero."""
+    (feature_dir / "mission-events.jsonl").write_text(
+        '{"type": "source_documented", "name": "src-1"}\n',
+        encoding="utf-8",
+    )
+
+    def _raise_os_error(
+        self: Path, *_args: object, **_kwargs: object
+    ) -> str:
+        if self.name == "mission-events.jsonl":
+            raise OSError("simulated read failure")
+        return ""
+
+    monkeypatch.setattr(Path, "read_text", _raise_os_error)
+    assert _count_source_documented_events(feature_dir) == 0
+
+
 def test_publication_approved_returns_false_when_log_missing(
     feature_dir: Path,
 ) -> None:
@@ -338,6 +372,39 @@ def test_publication_approved_true_when_gate_event_present(
         ],
     )
     assert _publication_approved(feature_dir) is True
+
+
+def test_publication_approved_ignores_blank_and_malformed_lines(
+    feature_dir: Path,
+) -> None:
+    """Blank lines and malformed JSON entries do not satisfy the publication gate."""
+    (feature_dir / "mission-events.jsonl").write_text(
+        "\n"
+        "{not-json\n"
+        '{"type": "gate_passed", "name": "other_gate"}\n',
+        encoding="utf-8",
+    )
+    assert _publication_approved(feature_dir) is False
+
+
+def test_publication_approved_returns_false_on_read_error(
+    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unreadable mission-events.jsonl files fail closed for publication approval."""
+    (feature_dir / "mission-events.jsonl").write_text(
+        '{"type": "gate_passed", "name": "publication_approved"}\n',
+        encoding="utf-8",
+    )
+
+    def _raise_os_error(
+        self: Path, *_args: object, **_kwargs: object
+    ) -> str:
+        if self.name == "mission-events.jsonl":
+            raise OSError("simulated read failure")
+        return ""
+
+    monkeypatch.setattr(Path, "read_text", _raise_os_error)
+    assert _publication_approved(feature_dir) is False
 
 
 def test_publication_approved_false_for_other_gate_names(
