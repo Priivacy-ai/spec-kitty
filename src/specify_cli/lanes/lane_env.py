@@ -30,7 +30,7 @@ SPEC_KITTY_TEST_DB_NAME_ENV: Final[str] = "SPEC_KITTY_TEST_DB_NAME"
 # Conservative pattern: alphanumerics + underscore + dash. Database identifier
 # rules vary; this is the intersection that works on Postgres, MySQL, and as
 # a SQLite filename component.
-_DB_SAFE_RE: Final[re.Pattern[str]] = re.compile(r"[^A-Za-z0-9_]+")
+_DB_SAFE_RE: Final[re.Pattern[str]] = re.compile(r"\W+")
 
 
 def _slugify(value: str) -> str:

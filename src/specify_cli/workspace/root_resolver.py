@@ -157,8 +157,6 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
                 with _CACHE_LOCK:
                     _CACHE[start] = resolved
                 return resolved
-            # Submodule / separate-git-dir; keep walking up.
-            continue
 
     raise WorkspaceRootNotFound(start)
 
