@@ -299,10 +299,26 @@ class TestRetroEventNames:
             "retrospective.proposal.applied",
             "retrospective.proposal.rejected",
         }
-        assert RETROSPECTIVE_EVENT_NAMES == expected
+        assert expected == RETROSPECTIVE_EVENT_NAMES
 
     def test_is_frozenset(self) -> None:
         assert isinstance(RETROSPECTIVE_EVENT_NAMES, frozenset)
+
+    def test_matches_upstream_registry_when_available(self) -> None:
+        try:
+            from spec_kitty_events import retrospective as upstream_retrospective
+        except ImportError:  # pragma: no cover - dependency is required in normal installs
+            pytest.skip("spec_kitty_events is not importable")
+
+        upstream_names = getattr(
+            upstream_retrospective,
+            "RETROSPECTIVE_EVENT_NAMES",
+            None,
+        )
+        if upstream_names is None:
+            pytest.skip("spec_kitty_events package is older than retrospective 4.1")
+
+        assert upstream_names == RETROSPECTIVE_EVENT_NAMES
 
     def test_no_collision_with_lane_values(self) -> None:
         """Retrospective event names must not overlap with 9-lane state values."""
