@@ -70,7 +70,7 @@ dependencies = [
     # src/specify_cli/next/_internal_runtime/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    "spec-kitty-events>=4.0.0,<5.0.0",
+    "spec-kitty-events>=4.1.0,<5.0.0",
     "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing

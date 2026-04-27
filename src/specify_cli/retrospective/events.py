@@ -1,8 +1,9 @@
 """Pydantic v2 payload models for retrospective runtime events.
 
 The event-name registry is imported from ``spec_kitty_events`` when the 4.1+
-surface is installed. A local fallback keeps the CLI compatible with the
-currently pinned 4.0.x package until the release pin is advanced.
+surface is installed. A local fallback keeps the CLI importable if a downstream
+test harness temporarily supplies an older package, but packaged installs pin
+the upstream 4.1+ registry.
 
 Source-of-truth: kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md
 """
