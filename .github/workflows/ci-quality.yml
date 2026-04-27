@@ -1929,8 +1929,9 @@ jobs:
   # ---------------------------------------------------------------------------
   # sonarcloud: collects coverage XMLs from all upstream test jobs and feeds
   # them to SonarCloud. No tests are re-run — coverage is merged from artifacts.
-  # Runs on push to main, the nightly schedule, or manual dispatch. PRs skip
-  # Sonar entirely to keep review latency low.
+  # Temporarily limited to schedule/manual runs while #825 tracks the existing
+  # project-wide Sonar quality gate backlog. PRs skip Sonar entirely to keep
+  # review latency low, and pushes skip it so main can report test/build health.
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
@@ -1968,7 +1969,7 @@ jobs:
       - integration-tests-agent
       - slow-tests
       - e2e-cross-cutting
-    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
     steps:
       - name: "[INFO] Check Sonar token availability"
