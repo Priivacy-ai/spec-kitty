@@ -21,7 +21,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '55038'
+shell_pid: "55038"
+agent: "claude:sonnet:python-implementer:implementer"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -185,3 +186,7 @@ spec-kitty agent action implement WP01 --agent <name>
 ```
 
 This WP has no dependencies; it can run as soon as `lanes.json` is computed by `finalize-tasks`.
+
+## Activity Log
+
+- 2026-04-27T08:38:43Z – claude:sonnet:python-implementer:implementer – shell_pid=55038 – Assigned agent via action command
