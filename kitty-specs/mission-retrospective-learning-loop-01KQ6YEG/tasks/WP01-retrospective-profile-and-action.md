@@ -18,7 +18,8 @@ subtasks:
 - T002
 - T003
 - T004
-shell_pid: '55171'
+shell_pid: "55171"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -136,3 +137,7 @@ Use existing test fixtures in `tests/doctrine/` if available.
 ```bash
 spec-kitty agent action implement WP01 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T08:38:59Z – claude:sonnet:implementer:implementer – shell_pid=55171 – Assigned agent via action command
