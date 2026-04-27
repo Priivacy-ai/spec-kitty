@@ -181,3 +181,83 @@ class TestBuildUpgradeHintPackageArg:
         """The *package* kwarg is accepted (reserved for future use)."""
         hint = build_upgrade_hint(InstallMethod.PIPX, package="spec-kitty-cli")
         assert hint.install_method == InstallMethod.PIPX
+
+
+# ---------------------------------------------------------------------------
+# FIX 4 — SOURCE note must not blank in render_human (P3)
+# ---------------------------------------------------------------------------
+
+
+class TestSourceHintRendersWithoutUnavailable:
+    """FIX 4: SOURCE note must not contain parentheses that trip _safe() regex.
+
+    messages._safe() applies ^[A-Za-z0-9.\\-+_ /:]{1,256}$ to all interpolated
+    values; parentheses are excluded.  The old SOURCE note contained '(' and ')'
+    so render_human produced 'Upgrade the CLI: <unavailable>'.  After FIX 4 the
+    note must pass the regex and render verbatim.
+    """
+
+    def test_source_note_has_no_parentheses(self) -> None:
+        """After FIX 4 the SOURCE note must not contain ( or ) characters."""
+        hint = build_upgrade_hint(InstallMethod.SOURCE)
+        assert hint.note is not None
+        assert "(" not in hint.note, (
+            f"SOURCE note still contains '(': {hint.note!r}. "
+            "Parentheses cause render_human to substitute <unavailable>."
+        )
+        assert ")" not in hint.note, (
+            f"SOURCE note still contains ')': {hint.note!r}."
+        )
+
+    def test_source_hint_renders_without_unavailable(self) -> None:
+        """render_human for PROJECT_TOO_NEW_FOR_CLI + SOURCE install must not produce <unavailable>."""
+        from datetime import datetime, UTC
+        from pathlib import Path
+
+        from specify_cli.compat.messages import render_human
+        from specify_cli.compat.planner import (
+            CliStatus,
+            Decision,
+            Fr023Case,
+            Plan,
+            ProjectState,
+            ProjectStatus,
+        )
+        from specify_cli.compat.safety import Safety
+
+        _now = datetime(2026, 4, 27, 12, 0, 0, tzinfo=UTC)
+        hint = build_upgrade_hint(InstallMethod.SOURCE)
+        cli_status = CliStatus(
+            installed_version="2.0.11",
+            latest_version="2.0.14",
+            latest_source="pypi",
+            is_outdated=True,
+            fetched_at=_now,
+        )
+        project_status = ProjectStatus(
+            state=ProjectState.TOO_NEW,
+            project_root=Path("/tmp/testproj"),
+            schema_version=9,
+            min_supported=3,
+            max_supported=3,
+            metadata_error=None,
+        )
+        plan = Plan(
+            decision=Decision.BLOCK_CLI_UPGRADE,
+            cli_status=cli_status,
+            project_status=project_status,
+            safety=Safety.UNSAFE,
+            pending_migrations=(),
+            install_method=InstallMethod.SOURCE,
+            upgrade_hint=hint,
+            fr023_case=Fr023Case.PROJECT_TOO_NEW_FOR_CLI,
+            exit_code=5,
+            rendered_human="",
+            rendered_json={},
+        )
+        rendered = render_human(plan)
+        assert "<unavailable>" not in rendered, (
+            f"render_human produced '<unavailable>' for SOURCE hint: {rendered!r}. "
+            "The SOURCE note must not contain characters excluded by the _safe() regex."
+        )
+        assert rendered.strip() != "", "render_human returned empty string for SOURCE hint."

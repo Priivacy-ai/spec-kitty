@@ -95,7 +95,7 @@ _HINT_TABLE: dict[InstallMethod, tuple[str | None, str | None]] = {
     ),
     InstallMethod.SOURCE: (
         None,
-        "Rebuild from source: pip install -e . (or your normal dev workflow).",
+        "Rebuild from source: pip install -e . or use your normal dev workflow.",
     ),
     InstallMethod.UNKNOWN: (
         None,
