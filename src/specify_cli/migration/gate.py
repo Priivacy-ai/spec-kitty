@@ -17,6 +17,32 @@ from pathlib import Path
 
 import typer
 
+
+def _build_command_path() -> tuple[str, ...]:
+    """Build the full command path from sys.argv, e.g. ('agent', 'mission', 'branch-context').
+
+    Stops at the first flag (--something or -x). Returns an empty tuple when
+    the program was invoked with no subcommand.
+
+    sys.argv[0] is the program name and is excluded. Only positional tokens
+    before the first flag are included; everything from the first flag onward
+    is ignored.
+
+    Examples::
+
+        sys.argv = ["spec-kitty", "agent", "mission", "branch-context", "--json"]
+        _build_command_path() -> ("agent", "mission", "branch-context")
+
+        sys.argv = ["spec-kitty", "--help"]
+        _build_command_path() -> ()
+    """
+    path: list[str] = []
+    for arg in sys.argv[1:]:
+        if arg.startswith("-"):
+            break
+        path.append(arg)
+    return tuple(path)
+
 # Commands that are allowed to run even when the schema version is incompatible.
 # Kept for backward compatibility (some tests may import _EXEMPT_COMMANDS).
 # The compat.safety registry is the authoritative source for exemption logic.
@@ -65,7 +91,7 @@ def check_schema_version(
     from specify_cli.compat import plan as compat_plan  # noqa: PLC0415
 
     inv = Invocation(
-        command_path=(invoked_subcommand,) if invoked_subcommand else (),
+        command_path=_build_command_path(),
         raw_args=tuple(sys.argv[1:]),
         is_help=False,
         is_version=False,
