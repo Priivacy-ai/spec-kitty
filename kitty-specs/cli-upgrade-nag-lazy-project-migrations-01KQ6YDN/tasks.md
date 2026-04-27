@@ -13,11 +13,11 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Create `compat/` package skeleton (no `__init__.py` exports yet — empty placeholder) | WP01 | — |
-| T002 | Implement `LatestVersionProvider` Protocol + `LatestVersionResult` dataclass in `compat/provider.py` | WP01 | — |
-| T003 | Implement `PyPIProvider` (httpx, 2s timeout, no redirects, 1MB body cap, version sanitisation) | WP01 | — |
-| T004 | Implement `NoNetworkProvider` and `FakeLatestVersionProvider` (test double) | WP01 | — |
-| T005 | Unit tests for all three providers with network mocked | WP01 | [P] |
+| T001 | Create `compat/` package skeleton (no `__init__.py` exports yet — empty placeholder) | WP01 | — | [D] |
+| T002 | Implement `LatestVersionProvider` Protocol + `LatestVersionResult` dataclass in `compat/provider.py` | WP01 | — | [D] |
+| T003 | Implement `PyPIProvider` (httpx, 2s timeout, no redirects, 1MB body cap, version sanitisation) | WP01 | — | [D] |
+| T004 | Implement `NoNetworkProvider` and `FakeLatestVersionProvider` (test double) | WP01 | — | [D] |
+| T005 | Unit tests for all three providers with network mocked | WP01 | [D] |
 | T006 | Implement `NagCacheRecord` dataclass + `NagCache` class in `compat/cache.py` | WP02 | — |
 | T007 | Add 0o600 file mode + 0o700 parent dir mode + symlink-resistant lstat checks | WP02 | — |
 | T008 | Implement throttle predicate with clock-skew handling and version-key invalidation | WP02 | — |
@@ -68,11 +68,11 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~360 lines.
 
 **Included subtasks**:
-- [ ] T001 Create `compat/` package skeleton (no `__init__.py` exports yet — empty placeholder) (WP01)
-- [ ] T002 Implement `LatestVersionProvider` Protocol + `LatestVersionResult` dataclass in `compat/provider.py` (WP01)
-- [ ] T003 Implement `PyPIProvider` (httpx, 2s timeout, no redirects, 1MB body cap, version sanitisation) (WP01)
-- [ ] T004 Implement `NoNetworkProvider` and `FakeLatestVersionProvider` (test double) (WP01)
-- [ ] T005 Unit tests for all three providers with network mocked (WP01)
+- [x] T001 Create `compat/` package skeleton (no `__init__.py` exports yet — empty placeholder) (WP01)
+- [x] T002 Implement `LatestVersionProvider` Protocol + `LatestVersionResult` dataclass in `compat/provider.py` (WP01)
+- [x] T003 Implement `PyPIProvider` (httpx, 2s timeout, no redirects, 1MB body cap, version sanitisation) (WP01)
+- [x] T004 Implement `NoNetworkProvider` and `FakeLatestVersionProvider` (test double) (WP01)
+- [x] T005 Unit tests for all three providers with network mocked (WP01)
 
 **Implementation sketch**: Create `compat/__init__.py` (empty placeholder; WP06 will populate exports). Create `compat/provider.py` with `LatestVersionResult`, the `LatestVersionProvider` Protocol, and three implementations: `PyPIProvider`, `NoNetworkProvider`, `FakeLatestVersionProvider`. Sanitise parsed version strings. Mock httpx in tests with `respx` (preferred) or `pytest-httpx`.
 
