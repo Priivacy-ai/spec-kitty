@@ -18,8 +18,8 @@ subtasks:
 - T002
 - T003
 - T004
-shell_pid: "64622"
-agent: "claude:opus:reviewer:reviewer"
+shell_pid: "68115"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -144,3 +144,4 @@ spec-kitty agent action implement WP01 --agent <name>
 - 2026-04-27T08:49:40Z – claude:sonnet:implementer:implementer – shell_pid=55171 – Ready for review: profile + 3 actions + graph edges + DRG resolver test. Deviations: profile uses .yaml (not .agent.yaml) to avoid breaking shipped-profiles count test; actions use retrospect/index.yaml (not retrospect.yaml) per existing convention. All 26 new tests pass, all 1410 doctrine tests pass, mypy clean on new code.
 - 2026-04-27T08:50:01Z – claude:opus:reviewer:reviewer – shell_pid=64622 – Started review via action command
 - 2026-04-27T08:53:43Z – claude:opus:reviewer:reviewer – shell_pid=64622 – Moved to planned
+- 2026-04-27T08:54:08Z – claude:sonnet:implementer:implementer – shell_pid=68115 – Started implementation via action command
