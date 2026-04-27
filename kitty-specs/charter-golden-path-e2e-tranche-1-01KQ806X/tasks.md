@@ -25,9 +25,9 @@ WP02 depends on WP01.
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Add `fresh_e2e_project` fixture to `tests/e2e/conftest.py` | WP01 | — |
-| T002 | Add source-checkout pollution-guard helpers (`capture_source_pollution_baseline`, `assert_no_source_pollution`) to `tests/e2e/conftest.py` | WP01 | [P] |
-| T003 | Add subprocess-failure diagnostic helper (`format_subprocess_failure`) to `tests/e2e/conftest.py` | WP01 | [P] |
+| T001 | Add `fresh_e2e_project` fixture to `tests/e2e/conftest.py` | WP01 | — | [D] |
+| T002 | Add source-checkout pollution-guard helpers (`capture_source_pollution_baseline`, `assert_no_source_pollution`) to `tests/e2e/conftest.py` | WP01 | [D] |
+| T003 | Add subprocess-failure diagnostic helper (`format_subprocess_failure`) to `tests/e2e/conftest.py` | WP01 | [D] |
 | T004 | Scaffold `tests/e2e/test_charter_epic_golden_path.py` (module docstring, markers, baseline capture, fixture wiring) | WP02 | — |
 | T005 | Implement Step 1 + Step 2 — project bootstrap (`git init` → `spec-kitty init`) and Charter governance flow (interview → generate → bundle validate → synthesize `--adapter fixture --dry-run` → synthesize `--adapter fixture` → status → lint) with all FR-009..FR-013 assertions | WP02 | — |
 | T006 | Implement Step 3 — mission scaffolding (`agent mission create` → `setup-plan` → seed minimal `software-dev` mission → `finalize-tasks`) with FR-005 assertions | WP02 | — |
@@ -62,9 +62,9 @@ After WP01:
 
 ### Included subtasks
 
-- [ ] T001 Add `fresh_e2e_project` fixture (WP01)
-- [ ] T002 Add source-checkout pollution-guard helpers (WP01)
-- [ ] T003 Add subprocess-failure diagnostic helper (WP01)
+- [x] T001 Add `fresh_e2e_project` fixture (WP01)
+- [x] T002 Add source-checkout pollution-guard helpers (WP01)
+- [x] T003 Add subprocess-failure diagnostic helper (WP01)
 
 ### Implementation sketch
 
