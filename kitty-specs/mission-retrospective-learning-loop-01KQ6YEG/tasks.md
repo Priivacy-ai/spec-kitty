@@ -30,12 +30,12 @@
 | T017 | Charter-override loader integration + structured-error on missing meta/charter | WP04 |  | [D] |
 | T018 | Parent-process heuristic w/ conservative non-interactive list | WP04 |  | [D] |
 | T019 | Tests: each precedence layer + ambiguous resolution + audit recording | WP04 |  | [D] |
-| T020 | `gate.is_completion_allowed()` API + `GateDecision`/`GateReason` shapes | WP05 |  |
-| T021 | Decision matrix (8 rows from `contracts/gate_api.md`) | WP05 |  |
-| T022 | Charter-clause resolution for autonomous-skip override path | WP05 |  |
-| T023 | Operational predicates for "silent auto-run" and "silent skip" | WP05 |  |
-| T024 | Thin caller in `next/_internal_runtime/retrospective_hook.py` | WP05 |  |
-| T025 | Tests: every decision-matrix row + determinism replay | WP05 |  |
+| T020 | `gate.is_completion_allowed()` API + `GateDecision`/`GateReason` shapes | WP05 |  | [D] |
+| T021 | Decision matrix (8 rows from `contracts/gate_api.md`) | WP05 |  | [D] |
+| T022 | Charter-clause resolution for autonomous-skip override path | WP05 |  | [D] |
+| T023 | Operational predicates for "silent auto-run" and "silent skip" | WP05 |  | [D] |
+| T024 | Thin caller in `next/_internal_runtime/retrospective_hook.py` | WP05 |  | [D] |
+| T025 | Tests: every decision-matrix row + determinism replay | WP05 |  | [D] |
 | T026 | Lifecycle terminus hook in `next` (built-in mission flow) | WP06 |  |
 | T027 | HiC offer/skip prompt UX in `next` | WP06 |  |
 | T028 | Autonomous auto-invocation path | WP06 |  |
@@ -225,12 +225,12 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-011, FR-012, FR-013, FR-014, FR-015, NFR-007, NFR-008.
 
 **Subtasks**:
-- [ ] T020 `gate.is_completion_allowed()` API + `GateDecision`/`GateReason` shapes (WP05)
-- [ ] T021 Decision matrix (8 rows from `contracts/gate_api.md`) (WP05)
-- [ ] T022 Charter-clause resolution for autonomous-skip override path (WP05)
-- [ ] T023 Operational predicates for "silent auto-run" and "silent skip" (WP05)
-- [ ] T024 Thin caller in `next/_internal_runtime/retrospective_hook.py` (WP05)
-- [ ] T025 Tests: every decision-matrix row + determinism replay (WP05)
+- [x] T020 `gate.is_completion_allowed()` API + `GateDecision`/`GateReason` shapes (WP05)
+- [x] T021 Decision matrix (8 rows from `contracts/gate_api.md`) (WP05)
+- [x] T022 Charter-clause resolution for autonomous-skip override path (WP05)
+- [x] T023 Operational predicates for "silent auto-run" and "silent skip" (WP05)
+- [x] T024 Thin caller in `next/_internal_runtime/retrospective_hook.py` (WP05)
+- [x] T025 Tests: every decision-matrix row + determinism replay (WP05)
 
 **Implementation sketch**:
 1. `gate.py` — `is_completion_allowed(mission_id, *, feature_dir, repo_root, mode_override=None) -> GateDecision`.
