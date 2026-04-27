@@ -190,3 +190,4 @@ This WP has no dependencies; it can run as soon as `lanes.json` is computed by `
 ## Activity Log
 
 - 2026-04-27T08:38:43Z – claude:sonnet:python-implementer:implementer – shell_pid=55038 – Assigned agent via action command
+- 2026-04-27T08:43:42Z – claude:sonnet:python-implementer:implementer – shell_pid=55038 – WP01 ready: provider.py implemented, tests green, mypy/ruff clean
