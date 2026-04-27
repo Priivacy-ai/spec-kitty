@@ -12,8 +12,8 @@ subtasks:
 - T018
 - T019
 - T020
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "89202"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "90085"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -140,3 +140,4 @@ spec-kitty agent action implement WP05 --agent <name>
 
 - 2026-04-27T09:13:06Z – claude:sonnet:python-implementer:implementer – shell_pid=89202 – Started implementation via action command
 - 2026-04-27T09:16:26Z – claude:sonnet:python-implementer:implementer – shell_pid=89202 – Ready: 3 adapters + arch test enforcing no-logic invariant
+- 2026-04-27T09:16:45Z – claude:opus:python-reviewer:reviewer – shell_pid=90085 – Started review via action command
