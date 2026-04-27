@@ -355,20 +355,18 @@ class TestIsFresh:
         assert NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
 
     def test_exactly_at_throttle_boundary_returns_false(self) -> None:
-        """Shown exactly throttle_seconds ago → False (delta == throttle → expired)."""
+        """Shown exactly throttle_seconds ago → False (delta == throttle → expired, RISK-5 fix).
+
+        Per the corrected data-model: ``delta < throttle_seconds`` is the freshness
+        predicate, so the boundary (delta == throttle) is treated as expired.
+        """
         from datetime import timedelta
 
         last = _NOW - timedelta(seconds=86400)
         record = _make_record(last_shown_at=last)
-        # delta == throttle_seconds is NOT strictly greater → returns False
-        # (boundary: delta > throttle_seconds is False, but delta == throttle is NOT "fresh")
-        # Per spec: returns True only when delta <= throttle_seconds exclusive:
-        # "If delta > throttle_seconds: return False. Else True."
-        # At delta == throttle_seconds the predicate returns True (not expired yet).
-        # We test the boundary by checking both sides.
         result = NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION)
-        # delta == throttle_seconds: NOT > throttle, so returns True
-        assert result is True
+        # delta == throttle_seconds → expired (False)
+        assert result is False
 
     def test_far_past_returns_false(self) -> None:
         """Shown 1 year ago → False."""

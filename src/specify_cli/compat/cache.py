@@ -318,7 +318,7 @@ class NagCache:
            (CLI was upgraded since the record was written; FR-025).
         3. ``record.last_shown_at is None`` → ``False`` (nag never shown yet).
         4. ``delta < 0`` → ``False`` (clock moved backward; CHK044).
-        5. ``delta > throttle_seconds`` → ``False`` (window elapsed).
+        5. ``delta >= throttle_seconds`` → ``False`` (window elapsed; boundary is expired).
         6. Otherwise → ``True`` (fresh; suppress nag).
 
         Args:
@@ -340,7 +340,7 @@ class NagCache:
         if delta < 0:
             # Clock skew — treat as expired (CHK044).
             return False
-        return not delta > throttle_seconds
+        return delta < throttle_seconds
 
 
 # ---------------------------------------------------------------------------
