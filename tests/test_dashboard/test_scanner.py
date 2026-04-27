@@ -123,6 +123,129 @@ def test_scan_all_features_display_name_avoids_duplicate_prefix(tmp_path):
     assert features[0]["display_name"] == "001 - Demo Feature"
 
 
+def test_scan_all_features_orders_selector_rows_by_recency(tmp_path):
+    older = _create_feature(tmp_path, "aaa-older-mission")
+    newer = _create_feature(tmp_path, "zzz-newer-mission")
+    (older / "meta.json").write_text(
+        json.dumps(
+            {
+                "friendly_name": "Older Mission",
+                "created_at": "2026-04-01T10:00:00+00:00",
+                "mission_id": "01KOLDER000000000000000000",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (newer / "meta.json").write_text(
+        json.dumps(
+            {
+                "friendly_name": "Newer Mission",
+                "created_at": "2026-04-02T10:00:00+00:00",
+                "mission_id": "01KNEWER000000000000000000",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert [feature["id"] for feature in features[:2]] == [
+        "zzz-newer-mission",
+        "aaa-older-mission",
+    ]
+
+
+def test_feature_recency_helpers_cover_timestamp_and_legacy_fallbacks():
+    assert scanner._parse_created_at(None) is None
+    assert scanner._parse_created_at("") is None
+    assert scanner._parse_created_at("not-a-date") is None
+    assert scanner._parse_created_at("2026-04-02T10:00:00Z") == scanner._parse_created_at("2026-04-02T10:00:00+00:00")
+    assert scanner._parse_created_at("2026-04-02T10:00:00") == scanner._parse_created_at("2026-04-02T10:00:00+00:00")
+
+    assert scanner._coerce_sort_mission_number(True) is None
+    assert scanner._coerce_sort_mission_number(42) == 42
+    assert scanner._coerce_sort_mission_number("042") == 42
+    assert scanner._coerce_sort_mission_number("WP42") is None
+
+    fallback_key = scanner._feature_recency_sort_key({"id": "legacy-mission", "meta": "not-a-dict"})
+    assert fallback_key == (False, float("-inf"), False, "", False, -1, "legacy-mission")
+
+
+def test_read_dashboard_feature_meta_ignores_malformed_and_non_object_json(tmp_path):
+    invalid = tmp_path / "kitty-specs" / "001-invalid-meta"
+    invalid.mkdir(parents=True)
+    (invalid / "meta.json").write_text("{bad json", encoding="utf-8")
+
+    assert scanner._read_dashboard_feature_meta(invalid) == ("001-invalid-meta", None)
+
+    non_object = tmp_path / "kitty-specs" / "002-non-object-meta"
+    non_object.mkdir(parents=True)
+    (non_object / "meta.json").write_text('["not", "an", "object"]', encoding="utf-8")
+
+    assert scanner._read_dashboard_feature_meta(non_object) == ("002-non-object-meta", None)
+
+
+def test_build_legacy_kanban_stats_counts_lane_directories(tmp_path):
+    tasks_dir = tmp_path / "tasks"
+    (tasks_dir / "planned").mkdir(parents=True)
+    (tasks_dir / "done" / "nested").mkdir(parents=True)
+    (tasks_dir / "planned" / "WP01-demo.md").write_text("# WP01\n", encoding="utf-8")
+    (tasks_dir / "done" / "nested" / "WP02-demo.md").write_text("# WP02\n", encoding="utf-8")
+
+    stats = scanner._build_legacy_kanban_stats(tasks_dir)
+
+    assert stats["planned"] == 1
+    assert stats["done"] == 1
+    assert stats["total"] == 2
+
+
+def test_build_event_log_kanban_stats_surfaces_missing_event_log(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-missing-event-log"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-demo.md").write_text(
+        "---\nwork_package_id: WP01\n---\n# Work Package Prompt: Demo\n",
+        encoding="utf-8",
+    )
+
+    stats = scanner._build_event_log_kanban_stats(feature_dir, tasks_dir)
+
+    assert stats["total"] == 0
+    assert "Event log not found" in stats["error"]
+
+
+def test_build_event_log_kanban_stats_tolerates_weighted_progress_failure(tmp_path, monkeypatch):
+    from specify_cli.status import reducer
+
+    feature_dir = _create_feature(tmp_path, "001-progress-fallback")
+
+    def fail_materialize(_feature_dir):
+        raise RuntimeError("progress unavailable")
+
+    monkeypatch.setattr(reducer, "materialize", fail_materialize)
+
+    stats = scanner._build_event_log_kanban_stats(feature_dir, feature_dir / "tasks")
+
+    assert stats["total"] == 1
+    assert stats["planned"] == 1
+    assert "weighted_percentage" not in stats
+
+
+def test_build_kanban_stats_handles_absent_and_legacy_paths(tmp_path, monkeypatch):
+    feature_dir = tmp_path / "kitty-specs" / "001-legacy"
+    tasks_dir = feature_dir / "tasks"
+    (tasks_dir / "doing").mkdir(parents=True)
+    (tasks_dir / "doing" / "WP01-demo.md").write_text("# WP01\n", encoding="utf-8")
+
+    assert scanner._build_kanban_stats(feature_dir, {"kanban": {}})["total"] == 0
+
+    monkeypatch.setattr(scanner, "is_legacy_format", lambda _feature_dir: True)
+    stats = scanner._build_kanban_stats(feature_dir, {"kanban": {"exists": True}})
+
+    assert stats["doing"] == 1
+    assert stats["total"] == 1
+
+
 def test_scan_all_features_keeps_purpose_summary_in_meta_only(tmp_path):
     feature_dir = _create_feature(tmp_path)
     (feature_dir / "meta.json").write_text(
