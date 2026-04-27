@@ -298,3 +298,7 @@ Both tests fail without T001's fix; both pass after.
 ```bash
 spec-kitty agent action implement WP01 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T19:23:23Z – claude – shell_pid=63270 – Ready for review: schema_version clobber fix + unit + e2e regressions; mypy --strict + ruff clean
