@@ -52,12 +52,12 @@
 | T039 | Exit codes per `contracts/cli_surfaces.md` (0/1/2/3/4/5) | WP08 |  | [D] |
 | T040 | Rich + JSON output renderers (informational equivalence) | WP08 |  | [D] |
 | T041 | Tests: CLI integration tests for synthesize | WP08 |  | [D] |
-| T042 | `summary.py` reducer + `SummarySnapshot` Pydantic model | WP09 |  |
-| T043 | Streaming corpus reader for `.kittify/missions/*/retrospective.yaml` | WP09 |  |
-| T044 | Tolerance: malformed / missing / legacy / in-flight / terminus_no_retrospective categories | WP09 |  |
-| T045 | `cli.py` `retrospect summary` subcommand wiring under top-level `retrospect` | WP09 |  |
-| T046 | Rich + JSON renderers (informational equivalence) | WP09 |  |
-| T047 | Tests: rich/brief/skipped/missing/malformed corpus tolerance + 200-mission perf bound | WP09 |  |
+| T042 | `summary.py` reducer + `SummarySnapshot` Pydantic model | WP09 |  | [D] |
+| T043 | Streaming corpus reader for `.kittify/missions/*/retrospective.yaml` | WP09 |  | [D] |
+| T044 | Tolerance: malformed / missing / legacy / in-flight / terminus_no_retrospective categories | WP09 |  | [D] |
+| T045 | `cli.py` `retrospect summary` subcommand wiring under top-level `retrospect` | WP09 |  | [D] |
+| T046 | Rich + JSON renderers (informational equivalence) | WP09 |  | [D] |
+| T047 | Tests: rich/brief/skipped/missing/malformed corpus tolerance + 200-mission perf bound | WP09 |  | [D] |
 | T048 | §4.5.1 inequality predicate as a calibration helper module | WP10 |  |
 | T049 | Calibration walker: every (profile, action) pair × in-scope missions | WP10 |  |
 | T050 | Per-mission calibration report template + 4 reports (software-dev / research / documentation / ERP custom) | WP10 |  |
@@ -364,12 +364,12 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-025, FR-026, FR-027, NFR-003, NFR-004.
 
 **Subtasks**:
-- [ ] T042 `summary.py` reducer + `SummarySnapshot` Pydantic model (WP09)
-- [ ] T043 Streaming corpus reader for `.kittify/missions/*/retrospective.yaml` (WP09)
-- [ ] T044 Tolerance: malformed / missing / legacy / in-flight / terminus_no_retrospective categories (WP09)
-- [ ] T045 `cli.py` `retrospect summary` subcommand wiring under top-level `retrospect` (WP09)
-- [ ] T046 Rich + JSON renderers (informational equivalence) (WP09)
-- [ ] T047 Tests: rich/brief/skipped/missing/malformed corpus tolerance + 200-mission perf bound (WP09)
+- [x] T042 `summary.py` reducer + `SummarySnapshot` Pydantic model (WP09)
+- [x] T043 Streaming corpus reader for `.kittify/missions/*/retrospective.yaml` (WP09)
+- [x] T044 Tolerance: malformed / missing / legacy / in-flight / terminus_no_retrospective categories (WP09)
+- [x] T045 `cli.py` `retrospect summary` subcommand wiring under top-level `retrospect` (WP09)
+- [x] T046 Rich + JSON renderers (informational equivalence) (WP09)
+- [x] T047 Tests: rich/brief/skipped/missing/malformed corpus tolerance + 200-mission perf bound (WP09)
 
 **Implementation sketch**:
 1. `summary.py` — pure reducer over a list of `RetrospectiveRecord | MalformedSummaryEntry`.
