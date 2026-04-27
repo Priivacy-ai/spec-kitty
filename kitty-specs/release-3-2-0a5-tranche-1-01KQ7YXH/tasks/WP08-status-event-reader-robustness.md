@@ -14,7 +14,8 @@ subtasks:
 - T037
 - T038
 - T039
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "67890"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -371,3 +372,7 @@ See [contracts/status_event_reader_tolerates_decision_events.contract.md](../con
 ```bash
 spec-kitty agent action implement WP08 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T19:30:13Z – claude:sonnet:implementer-ivan:implementer – shell_pid=67890 – Started implementation via action command
