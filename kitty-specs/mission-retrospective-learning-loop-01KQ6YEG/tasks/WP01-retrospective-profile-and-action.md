@@ -141,3 +141,4 @@ spec-kitty agent action implement WP01 --agent <name>
 ## Activity Log
 
 - 2026-04-27T08:38:59Z – claude:sonnet:implementer:implementer – shell_pid=55171 – Assigned agent via action command
+- 2026-04-27T08:49:40Z – claude:sonnet:implementer:implementer – shell_pid=55171 – Ready for review: profile + 3 actions + graph edges + DRG resolver test. Deviations: profile uses .yaml (not .agent.yaml) to avoid breaking shipped-profiles count test; actions use retrospect/index.yaml (not retrospect.yaml) per existing convention. All 26 new tests pass, all 1410 doctrine tests pass, mypy clean on new code.
