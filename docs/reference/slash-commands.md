@@ -257,26 +257,6 @@ Syntax format in this reference:
 
 ---
 
-## /spec-kitty.checklist
-
-**Syntax**: `/spec-kitty.checklist [scope]`
-
-**Purpose**: Generate a requirements-quality checklist for the current feature.
-
-**Prerequisites**:
-- Run from any checkout where the mission can be resolved.
-
-**What it does**:
-- Uses `spec-kitty agent check-prerequisites` for paths.
-- Creates a domain-specific checklist file (e.g., `ux.md`, `security.md`).
-
-**Creates/updates**:
-- `kitty-specs/<feature>/checklists/<domain>.md`
-
-**Related**: `/spec-kitty.specify`, `/spec-kitty.analyze`
-
----
-
 ## /spec-kitty.analyze
 
 **Syntax**: `/spec-kitty.analyze [notes]`

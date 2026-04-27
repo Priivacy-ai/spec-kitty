@@ -1,15 +1,15 @@
 {
+  "change_mode": "bulk_edit",
   "created_at": "2026-04-27T17:13:45.186291+00:00",
   "friendly_name": "3.2.0a5 Tranche 1: Release Reset & CLI Surface Cleanup",
   "mission_id": "01KQ7YXHA5AMZHJT3HQ8XPTZ6B",
-  "mission_number": null,
+  "mission_number": 104,
   "mission_slug": "release-3-2-0a5-tranche-1-01KQ7YXH",
   "mission_type": "software-dev",
   "purpose_context": "This stabilization tranche resets the 3.2.0a5 release train and clears nine release-hygiene issues. It removes the deprecated /spec-kitty.checklist command from generated user-facing surfaces, restores strict mypy on mission-step contracts, fixes the dev-worktree upgrade version mismatch, suppresses misleading post-success sync and token-refresh error noise, hides legacy --feature aliases from help while keeping them functional, sharpens the init message when the target is not a git repository, and clarifies the spec-kitty agent decision command shape, so the next prerelease behaves predictably for local agents and contributors.",
   "purpose_tldr": "Stabilize the 3.2.0a5 release train and trim confusing CLI surfaces; no new product features.",
   "slug": "release-3-2-0a5-tranche-1-01KQ7YXH",
+  "source_description": "Stabilization tranche prepared in start-here.md (workspace root) covering GitHub issues #805, #705, #815, #635, #636, #790, #774, #735, #717. Bulk-edit mode is set because issue #815 removes the /spec-kitty.checklist command across ~30 template/registry/snapshot/doc files; an occurrence map is to be drafted during /spec-kitty.plan. Other issues are localized fixes.",
   "target_branch": "release/3.2.0a5-tranche-1",
-  "vcs": "git",
-  "change_mode": "bulk_edit",
-  "source_description": "Stabilization tranche prepared in start-here.md (workspace root) covering GitHub issues #805, #705, #815, #635, #636, #790, #774, #735, #717. Bulk-edit mode is set because issue #815 removes the /spec-kitty.checklist command across ~30 template/registry/snapshot/doc files; an occurrence map is to be drafted during /spec-kitty.plan. Other issues are localized fixes."
+  "vcs": "git"
 }

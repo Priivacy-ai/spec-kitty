@@ -15,7 +15,7 @@ prompt = """
 - Whether the feature succeeds or fails
 
 **QUALITY OVER SPEED**: This is NOT the time to save tokens or rush. Take your time to:
-- Understand the full scope deeply
+- Understand the full scope<!-- glossary:glossary:scope --> deeply
 - Break work into clear, manageable pieces
 - Write detailed, actionable guidance
 - Think through risks and edge cases
@@ -24,27 +24,27 @@ prompt = """
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in the repository root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
 
 **IMPORTANT**: Tasks works in the repository root checkout. NO worktrees created.
 
 ```bash
-# Run from project root (same directory as /spec-kitty.plan):
+# Run from project<!-- glossary:glossary:project --> root (same directory as /spec-kitty.plan):
 # You should already be here if you just ran /spec-kitty.plan
 
 # Creates:
-# - kitty-specs/<mission_slug>/tasks/WP01-*.md → In repository root checkout
+# - kitty-specs/<mission_slug<!-- glossary:glossary:mission_slug -->>/tasks/WP01-*.md → In repository root checkout
 # - kitty-specs/<mission_slug>/tasks/WP02-*.md → In repository root checkout
 #   (the NNN- prefix in directory listings is display-only metadata)
-# - Commits ALL to target branch
+# - Commits ALL to target branch<!-- glossary:glossary:target-branch -->
 # - NO worktrees created
 ```
 
 **Do NOT cd anywhere**. Stay in the repository root checkout.
 
-**Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission <handle>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
+**Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission<!-- glossary:glossary:mission --> <handle>`. Your agent will call `spec-kitty agent action implement WP<!-- glossary:glossary:wp -->## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane<!-- glossary:glossary:lane --> gets exactly one worktree.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -67,8 +67,8 @@ Treat the resolver JSON as canonical for:
 - `feature_dir`
 - `current_branch`
 - `target_branch`
-- `planning_base_branch`
-- `merge_target_branch`
+- `planning_base_branch<!-- glossary:glossary:planning_base_branch -->`
+- `merge_target_branch<!-- glossary:glossary:merge_target_branch -->`
 - `branch_matches_target`
 - exact follow-up commands (`check_prerequisites`, `finalize_tasks`)
 
@@ -135,7 +135,7 @@ Prompts do not rediscover feature context. Commands do.
 
 5. **Roll subtasks into work packages** (IDs `WP01`, `WP02`, ...):
 
-   **IDEAL WORK PACKAGE SIZE** (most important guideline):
+   **IDEAL WORK PACKAGE<!-- glossary:glossary:work-package --> SIZE** (most important guideline):
    - **Target: 3-7 subtasks per WP** (results in 200-500 line prompts)
    - **Maximum: 10 subtasks per WP** (results in ~700 line prompts)
    - **If more than 10 subtasks needed**: Create additional WPs, don't pack them in
@@ -220,7 +220,7 @@ Prompts do not rediscover feature context. Commands do.
    This step is MANDATORY. Without it:
    - Dependencies won't be in frontmatter
    - Branching-strategy metadata won't be normalized into every WP prompt
-   - `lanes.json` won't be available to resolve the real workspace path/branch for each WP
+   - `lanes.json` won't be available to resolve the real workspace<!-- glossary:glossary:workspace --> path/branch for each WP
    - Requirement refs won't be validated/normalized
    - Agents won't know which lane a WP belongs to or which workspace to enter
    - Tasks won't be committed to target branch
@@ -254,7 +254,7 @@ The combination of `tasks.md` and the bundled prompt files must enable a new eng
 
 The LLM should analyze tasks.md for dependency relationships:
 - Explicit phrases: "Depends on WP##", "Dependencies: WP##"
-- Phase grouping: Phase 2 WPs typically depend on Phase 1
+- Phase<!-- glossary:glossary:phase --> grouping: Phase 2 WPs typically depend on Phase 1
 - Default to empty if unclear
 
 **Generate dependencies in WP frontmatter**:
@@ -263,7 +263,7 @@ Each WP prompt file MUST include a `dependencies` field:
 ```yaml
 ---
 work_package_id: "WP02"
-title: "Build API"
+title: "Build<!-- glossary:glossary:build --> API"
 dependencies: ["WP01"]  # Generated from tasks.md
 subtasks: ["T001", "T002"]
 ---
@@ -308,7 +308,7 @@ frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad ma
 **Examples of well-sized WPs**:
 - WP01: Foundation Setup (5 subtasks, ~300 lines)
   - T001: Create database schema
-  - T002: Set up migration system
+  - T002: Set up migration<!-- glossary:glossary:migration --> system
   - T003: Create base models
   - T004: Add validation layer
   - T005: Write foundation tests
@@ -417,7 +417,7 @@ frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad ma
 
 ### Step 1: Detect Feature Context
 
-Resolve the feature slug from explicit user direction, current branch, or current directory path.
+Resolve the feature slug<!-- glossary:glossary:feature-slug --> from explicit user direction, current branch<!-- glossary:glossary:current-branch -->, or current directory path.
 
 If ambiguous, run `check-prerequisites` once without `--mission`, parse the JSON candidate list, and select one explicit mission slug.
 
@@ -513,7 +513,7 @@ Check JSON output for "commit_created": true and "commit_hash" to verify.
 
 ### Step 8a: Assign Agent Profiles
 
-After `finalize-tasks` completes, review all available doctrine-provided and user-created agent profiles and assign the most relevant profile to each work package.
+After `finalize-tasks` completes, review all available doctrine<!-- glossary:glossary:doctrine -->-provided and user-created agent profiles and assign the most relevant profile to each work package.
 
 List available profiles:
 ```bash
@@ -547,7 +547,7 @@ Provide summary with:
 
 After reporting, ask the user directly:
 
-> **Should I use the `/spec-kitty-implement-review` skill to fully implement all WPs until completion?**
+> **Should I use the `/spec-kitty-implement-review` skill<!-- glossary:glossary:skill --> to fully implement all WPs until completion?**
 > This will dispatch implementing and reviewing agents for every WP, handle rejection cycles, and merge all lanes when done.
 
 - If the user says **yes**: invoke the `spec-kitty-implement-review` skill with the mission slug. The user may also specify which agents to use for implementation and review (e.g., "yes, use sonnet for implementing and opus for reviewing").

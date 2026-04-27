@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 import yaml
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.diagnostics import invocation_succeeded
 
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .routing import is_sync_enabled_for_checkout
@@ -308,17 +309,31 @@ class SyncRuntime:
 
         Disconnects WebSocket and stops background sync service.
         Safe to call multiple times or if not started.
+
+        FR-008: When ``invocation_succeeded()`` returns True, any warnings
+        emitted by the inner shutdown path (background sync, websocket
+        teardown) should be downgraded so they don't paint red over a
+        clean stdout JSON payload (#735). The ``BackgroundSyncService.stop``
+        path consults the same flag.
         """
         if not self.started:
             return
+
+        succeeded = invocation_succeeded()
 
         if self.ws_client:
             try:
                 if self._async_loop is not None:
                     future = asyncio.run_coroutine_threadsafe(self.ws_client.disconnect(), self._async_loop)
                     future.result(timeout=5.0)
-            except Exception:
-                pass
+            except Exception as exc:
+                if succeeded:
+                    logger.debug(
+                        "WebSocket disconnect failed during post-success shutdown: %s",
+                        exc,
+                    )
+                else:
+                    logger.debug("WebSocket disconnect failed during shutdown: %s", exc)
             self.ws_client = None
 
         if self.background_service:

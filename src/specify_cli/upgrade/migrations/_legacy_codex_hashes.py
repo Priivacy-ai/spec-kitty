@@ -21,9 +21,12 @@ non-spec-kitty filename (e.g. ``my-team-workflow.md``).
 
 See spec §Out of Scope (WP06 task spec) for the full rationale.
 
-Canonical command set (11 commands as of 3.2.0)
+Canonical command set (3.2.0a5+)
 ------------------------------------------------
 Matches :data:`specify_cli.skills.command_installer.CANONICAL_COMMANDS`.
+The deprecated ``spec-kitty.checklist.md`` legacy filename was removed in
+3.2.0a5 (FR-003 / FR-004 / #815) — pre-3.2 codex projects that contain
+that file should treat it as user-owned content and migrate manually.
 """
 
 from __future__ import annotations
@@ -38,7 +41,6 @@ LEGACY_CODEX_FILENAMES: frozenset[str] = frozenset(
     {
         "spec-kitty.analyze.md",
         "spec-kitty.charter.md",
-        "spec-kitty.checklist.md",
         "spec-kitty.implement.md",
         "spec-kitty.plan.md",
         "spec-kitty.research.md",

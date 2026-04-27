@@ -41,13 +41,13 @@ from specify_cli.skills import command_renderer
 
 SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe")
 
-#: The 11 canonical command templates that exist in the current codebase.
+#: The canonical command templates that exist in the current codebase.
 #: Matches the files under
 #: ``src/specify_cli/missions/software-dev/command-templates/``.
+#: ``checklist`` was retired in 3.2.0a5 (FR-003 / FR-004 / #815).
 CANONICAL_COMMANDS: tuple[str, ...] = (
     "analyze",
     "charter",
-    "checklist",
     "implement",
     "plan",
     "research",

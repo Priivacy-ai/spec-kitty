@@ -7,6 +7,7 @@ spec_kitty:
   schema_version: 3
   initialized_at: '2026-04-07T09:10:40.826207'
   last_upgraded_at: '2026-04-27T19:12:06.441023'
+  schema_version: 3
 environment:
   python_version: 3.14.0
   platform: darwin

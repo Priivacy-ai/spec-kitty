@@ -3,7 +3,7 @@ description: Execute a work package implementation
 ---
 <!-- spec-kitty-command-version: 3.1.2a3 -->
 
-# /spec-kitty.implement - Execute Work Package Implementation
+# /spec-kitty.implement - Execute Work Package<!-- glossary:glossary:work-package --> Implementation
 
 **Version**: 0.12.0+
 
@@ -17,11 +17,11 @@ guardrails for bulk operations.
 
 ## Working Directory
 
-**IMPORTANT**: This step works inside the execution workspace (worktree)
+**IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
 allocated by `spec-kitty agent action implement WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -46,12 +46,12 @@ Then execute the returned `check_prerequisites` command and capture
 
 The output of `spec-kitty agent action implement ...` is the authoritative work
 package prompt and execution context. Do **not** separately call
-`spec-kitty charter context` or rummage through unrelated files looking for a
+`spec-kitty charter<!-- glossary:glossary:charter --> context` or rummage through unrelated files looking for a
 "newer" prompt unless the command output tells you to.
 
 ### 2. Load Work Package Prompt
 
-Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
+Read the WP<!-- glossary:glossary:wp --> prompt file from `feature_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
 - `owned_files` -- only modify files matching these globs
 - `authoritative_surface` -- primary directory for this WP
@@ -65,7 +65,7 @@ Parse frontmatter for:
 
 ### 2a. Load Agent Profile
 
-Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
+Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
 
 If `agent_profile` is empty, run `spec-kitty agent profile list` and select the best
 available profile for the WP's `task_type` and `authoritative_surface`.
@@ -88,11 +88,11 @@ Work through each subtask in order:
 After all subtasks are complete:
 - All tests pass
 - No files outside `owned_files` were modified
-- Code follows project conventions (run linter if configured)
+- Code follows project<!-- glossary:glossary:project --> conventions (run linter if configured)
 
 ---
 
-## Bulk Edit Occurrence Classification
+## Bulk Edit<!-- glossary:glossary:bulk-edit --> Occurrence Classification<!-- glossary:glossary:occurrence-classification -->
 
 If this mission has `change_mode: bulk_edit` in its `meta.json`, an occurrence
 classification artifact is required before implementation can begin.
@@ -100,7 +100,7 @@ classification artifact is required before implementation can begin.
 **What to check**:
 1. Read `meta.json` in the feature directory — look for `"change_mode": "bulk_edit"`
 2. If present, verify `occurrence_map.yaml` exists in the same directory
-3. The occurrence map classifies the target term by semantic category with
+3. The occurrence map<!-- glossary:glossary:occurrence-map --> classifies the target term by semantic category with
    per-category actions: `rename`, `manual_review`, `do_not_change`, `rename_if_user_visible`
 
 **During implementation**:

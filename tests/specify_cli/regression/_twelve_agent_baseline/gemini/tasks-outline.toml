@@ -2,13 +2,13 @@ description = "Create a work package manifest"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.tasks-outline - Create Work Package Manifest
+# /spec-kitty.tasks-outline - Create Work Package<!-- glossary:glossary:work-package --> Manifest
 
 **Version**: 3.2.0
 
 ## Purpose
 
-Create `wps.yaml` — the structured work package manifest that defines WP metadata,
+Create `wps.yaml` — the structured work package manifest that defines WP<!-- glossary:glossary:wp --> metadata,
 dependencies, and file ownership. `tasks.md` is generated automatically from this
 manifest by `finalize-tasks`.
 
@@ -23,18 +23,18 @@ manifest by `finalize-tasks`.
 - How reviewable the code will be
 - Whether the feature succeeds or fails
 
-**QUALITY OVER SPEED**: Take your time to understand the full scope deeply,
+**QUALITY OVER SPEED**: Take your time to understand the full scope<!-- glossary:glossary:scope --> deeply,
 break work into clear pieces, and write detailed guidance.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in the repository root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
 
 **IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
 
 **Do NOT cd anywhere**. Stay in the repository root checkout.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -52,7 +52,7 @@ Before proceeding, resolve canonical command context:
 spec-kitty agent context resolve --action tasks_outline --mission <mission-slug> --json
 ```
 
-Treat that JSON as canonical for feature slug, feature directory, and target branch.
+Treat that JSON as canonical for feature slug<!-- glossary:glossary:feature-slug -->, feature directory, and target branch<!-- glossary:glossary:target-branch -->.
 Do not probe git branch state manually inside the prompt.
 
 ## Steps
@@ -172,7 +172,7 @@ be parsed by `finalize-tasks`.**
 Rules:
 - A WP with no predecessors: `dependencies: []`
 - A WP that depends on another: `dependencies: [WP01]`
-- Phase grouping: Phase 2 WPs typically depend on Phase 1 WPs
+- Phase<!-- glossary:glossary:phase --> grouping: Phase 2 WPs typically depend on Phase 1 WPs
 
 **DO NOT generate WP prompt files in this step.** That happens in the next step.
 

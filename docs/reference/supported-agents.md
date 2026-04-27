@@ -330,7 +330,6 @@ All agents support the same 13 slash commands:
 | `/spec-kitty.dashboard` | Open web dashboard |
 | `/spec-kitty.charter` | Create project principles |
 | `/spec-kitty.research` | Conduct research |
-| `/spec-kitty.checklist` | Generate checklists |
 | `/spec-kitty.analyze` | Analyze codebase |
 
 See [Slash Commands](slash-commands.md) for complete documentation.

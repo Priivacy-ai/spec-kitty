@@ -31,15 +31,6 @@
       "agents": [
         "codex"
       ],
-      "content_hash": "32a2a000504f0a3a7db01b26add7204a2a23b838d70a9a80bd0242cd073d26df",
-      "installed_at": "2026-04-26T06:35:35.805040+00:00",
-      "path": ".agents/skills/spec-kitty.checklist/SKILL.md",
-      "spec_kitty_version": "3.2.0a4"
-    },
-    {
-      "agents": [
-        "codex"
-      ],
       "content_hash": "b5e0d0e2fa69fcaddcca2e1f3715803de83448a6076ac69a9ce304ad8d103973",
       "installed_at": "2026-04-26T06:35:35.806276+00:00",
       "path": ".agents/skills/spec-kitty.implement/SKILL.md",

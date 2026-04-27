@@ -2,7 +2,7 @@ description = "Interview and compile a project charter"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.charter - Interview + Compile Charter
+# /spec-kitty.charter<!-- glossary:glossary:charter --> - Interview + Compile Charter
 
 ## User Input
 
@@ -12,11 +12,11 @@ prompt = """
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Repo Scope
+## Repo Scope<!-- glossary:glossary:scope -->
 
-`/spec-kitty.charter` is a repo-scoped governance flow, not a per-mission flow.
+`/spec-kitty.charter` is a repo-scoped governance flow, not a per-mission<!-- glossary:glossary:mission --> flow.
 
-- Run it from the repository root.
+- Run it from the repository<!-- glossary:glossary:repository --> root.
 - Do **not** try to resolve a mission handle for this command.
 - For charter subcommands, `--mission-type` means the reusable mission blueprint
   (for example `software-dev` or `documentation`), not a mission instance in
@@ -42,9 +42,9 @@ spec-kitty mission list
 For this command, the default mission type is `software-dev` unless the user
 explicitly wants a different mission blueprint.
 
-## Skill Load
+## Skill<!-- glossary:glossary:skill --> Load
 
-Before proceeding, load the `spec-kitty-charter-doctrine` skill for the charter
+Before proceeding, load the `spec-kitty-charter-doctrine<!-- glossary:glossary:doctrine -->` skill for the charter
 lifecycle model, doctrine access patterns, and action-context rules.
 
 If the skill conflicts with this command contract, follow this command contract.
@@ -65,15 +65,15 @@ interview experience. Your job is to:
 5. Verify generation with `spec-kitty charter status --json`.
 
 Do not preload governance context for all workflow actions as part of charter
-generation. Action context is loaded iteratively at the actual action boundary.
+generation. Action context<!-- glossary:glossary:action-context --> is loaded iteratively at the actual action boundary.
 
 ## Doctrine Gaps
 
-If no shipped paradigm or directive cleanly fits the user's needs:
+If no shipped paradigm or directive<!-- glossary:glossary:directive --> cleanly fits the user's needs:
 
 - Do **not** force a near-match just to populate selections.
 - Keep `selected_paradigms` and `selected_directives` narrow and truthful.
-- Encode the missing policy as project-specific charter policy in the interview
+- Encode the missing policy as project<!-- glossary:glossary:project -->-specific charter policy in the interview
   answers and generated charter.
 - Say clearly that this is a doctrine gap, not an existing doctrine match.
 - Treat it as a candidate for later doctrine extraction rather than solving it by
@@ -112,7 +112,7 @@ Use this for normal `/spec-kitty.charter` runs.
      - agent wrapper directories such as `.claude/`, `.codex/`, `.gemini/`,
        `.cursor/`, `.opencode/`
    - If the repo is otherwise sparse, say so plainly. A freshly initialized
-     Spec Kitty workspace with mostly `.kittify/` metadata is a greenfield
+     Spec Kitty workspace<!-- glossary:glossary:workspace --> with mostly `.kittify/` metadata is a greenfield
      bootstrap case, not a signal-rich codebase.
    - In that greenfield case, stop spending time inspecting Spec Kitty init
      relics and start the interview. The user's answers are the primary source

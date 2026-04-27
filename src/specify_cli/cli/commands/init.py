@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime, UTC
 from pathlib import Path
@@ -230,6 +231,32 @@ def _detect_default_vcs() -> VCSBackend:
         raise VCSNotFoundError("git is not available. Please install git.")
 
 
+def _is_inside_git_work_tree(target: Path) -> bool:
+    """Return True when ``target`` is inside a git work tree.
+
+    The caller MUST already have verified ``is_git_available()`` is True;
+    this helper assumes the ``git`` binary is on ``PATH`` and only answers
+    the work-tree question. If the binary is missing the subprocess call
+    will raise ``FileNotFoundError``, which we treat as "not in a work
+    tree" so the caller's existing ``git not detected`` branch keeps
+    ownership of the binary-missing message (no double-print).
+
+    The target directory must already exist before this is called; if it
+    doesn't, ``cwd=`` will raise and we again return False.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=str(target),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, OSError):
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
 def _display_vcs_info(_detected_vcs: VCSBackend, console: Console) -> None:
     """Display informational message about VCS selection.
 
@@ -354,6 +381,19 @@ def init(  # noqa: C901
         _console.print()
         _display_vcs_info(selected_vcs, _console)
         _console.print()
+        # FR-005 (#636): When the git binary IS available but the target
+        # directory is not inside a git work tree, surface one actionable
+        # info line. We probe the target if it exists, else its parent —
+        # the question is "will the scaffold land inside a repo?".
+        # The scaffold itself still completes (canonical invariant
+        # 01KQ84P1AJ8H3FPJN9J5C12CBY: non-git init is allowed; silent
+        # non-git init is not).
+        probe_dir = project_path if project_path.exists() else project_path.parent
+        if not _is_inside_git_work_tree(probe_dir):
+            _console.print(
+                "[yellow]ℹ Target is not a git repository[/yellow] — "
+                "run `git init` here before using `spec-kitty agent ...` commands."
+            )
     except VCSNotFoundError:
         # git not available - not an error, just informational
         selected_vcs = None
@@ -656,6 +696,14 @@ def init(  # noqa: C901
 
     # Boxed "Next steps" section
     steps_lines = []
+    # FR-005 (#636): When the target is NOT inside a git work tree, prepend
+    # a "Run git init" bullet ABOVE all other next-step items so it is the
+    # first thing the user sees. Recompute against the now-existing
+    # project_path (not the parent) for the post-init check.
+    if not _is_inside_git_work_tree(project_path):
+        steps_lines.append(
+            "○ [yellow]Run [cyan]git init[/cyan][/yellow] - this directory is not yet a git repository"
+        )
     step_num = 1
     if not here:
         steps_lines.append(f"{step_num}. Go to the project folder: [cyan]cd {project_name}[/cyan]")
@@ -720,7 +768,6 @@ def init(  # noqa: C901
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
         "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/])",  # noqa: E501
-        "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",  # noqa: E501
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2))
     _console.print()

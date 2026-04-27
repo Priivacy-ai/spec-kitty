@@ -116,6 +116,14 @@ class MigrationRunner:
                 metadata.version = target_version
                 metadata.last_upgraded_at = datetime.now()
                 metadata.save(self.kittify_dir)
+            # Why: even when no schema-changing migrations are needed (e.g. an
+            # idempotent 3.2.0a4 -> 3.2.0a4 re-run on a legacy project), the
+            # schema_version stamp must still land so the gate does not block
+            # the next agent command. Stamping after any save() is required
+            # because ProjectMetadata.save() does not preserve unknown keys.
+            # See FR-002 / #705.
+            if not dry_run and REQUIRED_SCHEMA_VERSION is not None:
+                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
 
             result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
             return result
@@ -157,11 +165,13 @@ class MigrationRunner:
         if not dry_run and result.success:
             metadata.version = target_version
             metadata.last_upgraded_at = datetime.now()
-            # Schema-version-based migration: stamp the new schema_version so the
-            # gate does not block future commands.
+            metadata.save(self.kittify_dir)
+            # Why: MUST run after metadata.save(). ProjectMetadata.save() reconstructs
+            # the YAML from a fixed three-key dict and does not preserve unknown keys,
+            # so stamping schema_version before save() would silently clobber it.
+            # See FR-002 / #705.
             if REQUIRED_SCHEMA_VERSION is not None:
                 self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
-            metadata.save(self.kittify_dir)
 
         # Handle worktrees
         if include_worktrees:

@@ -2,13 +2,13 @@ description = "Materialize work package files"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.tasks-packages - Generate Work Package Files
+# /spec-kitty.tasks-packages - Generate Work Package<!-- glossary:glossary:work-package --> Files
 
 **Version**: 3.2.0
 
 ## Purpose
 
-Generate individual `tasks/WP*.md` prompt files from the manifest in `wps.yaml`.
+Generate individual `tasks/WP<!-- glossary:glossary:wp -->*.md` prompt files from the manifest in `wps.yaml`.
 This step reads `wps.yaml` (written in tasks-outline), updates it with per-WP
 details, then generates the WP prompt files.
 
@@ -16,11 +16,11 @@ This step assumes `wps.yaml` already exists with complete WP definitions.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in the repository root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
 
 **IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -124,7 +124,7 @@ Body sections (in order):
    ```markdown
    ## ⚡ Do This First: Load Agent Profile
 
-   Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
+   Use the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
 
    - **Profile**: `{agent_profile}`
    - **Role**: `{role}`
@@ -176,7 +176,7 @@ Example of a fully-populated entry after this step:
 
 ```yaml
 - id: WP02
-  title: "Build API"
+  title: "Build<!-- glossary:glossary:build --> API"
   dependencies:
     - WP01
   owned_files:
@@ -219,7 +219,7 @@ Include the correct implementation command:
 
 ### 4a. Assign Agent Profiles
 
-After all WP files are written and `wps.yaml` is updated, review all available doctrine-provided and user-created agent profiles and assign the most relevant profile to each work package.
+After all WP files are written and `wps.yaml` is updated, review all available doctrine<!-- glossary:glossary:doctrine -->-provided and user-created agent profiles and assign the most relevant profile to each work package.
 
 List available profiles:
 ```bash

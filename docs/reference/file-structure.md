@@ -89,7 +89,7 @@ kitty-specs/
 | `research.md` | `/spec-kitty.research` | Research findings and evidence (optional) |
 | `tasks.md` | `/spec-kitty.tasks` | Task breakdown with WP groupings |
 | `data-model.md` | `/spec-kitty.plan` | Database schema (software-dev mission) |
-| `checklists/` | `/spec-kitty.checklist` | Validation checklists |
+| `checklists/` | `/spec-kitty.specify` | Validation checklists (canonical `requirements.md` plus optional domain checklists) |
 | `tasks/` | `/spec-kitty.tasks` | Individual WP prompt files |
 
 ---
@@ -163,7 +163,6 @@ my-project/
 │       ├── spec-kitty.dashboard.md
 │       ├── spec-kitty.charter.md
 │       ├── spec-kitty.research.md
-│       ├── spec-kitty.checklist.md
 │       └── spec-kitty.analyze.md
 ├── .cursor/
 │   └── commands/
