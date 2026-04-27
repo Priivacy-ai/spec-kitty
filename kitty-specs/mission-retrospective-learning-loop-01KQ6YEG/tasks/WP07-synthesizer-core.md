@@ -22,6 +22,8 @@ subtasks:
 - T034
 - T035
 - T036
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "11422"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -189,3 +191,7 @@ Recommend implementing `add_glossary_term` and `flag_not_helpful` first (smalles
 ```bash
 spec-kitty agent action implement WP07 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T10:07:02Z – claude:sonnet:implementer:implementer – shell_pid=11422 – Started implementation via action command
