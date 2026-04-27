@@ -24,8 +24,8 @@ subtasks:
 - T036
 - T037
 - T038
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "13127"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "17610"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -179,3 +179,4 @@ spec-kitty agent action implement WP09 --agent <name>
 
 - 2026-04-27T10:10:24Z – claude:sonnet:python-implementer:implementer – shell_pid=13127 – Started implementation via action command
 - 2026-04-27T10:23:48Z – claude:sonnet:python-implementer:implementer – shell_pid=13127 – Ready: new flags + JSON contract emission + 5 FR-023 case integration matrix
+- 2026-04-27T10:24:08Z – claude:opus:python-reviewer:reviewer – shell_pid=17610 – Started review via action command
