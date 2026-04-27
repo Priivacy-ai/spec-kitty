@@ -14,7 +14,8 @@ subtasks:
 - T023
 - T024
 - T025
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "79003"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -279,3 +280,7 @@ This WP also owns one cross-FR cleanup line: remove the deprecated `/spec-kitty.
 ```bash
 spec-kitty agent action implement WP05 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T20:17:25Z – claude:sonnet:implementer-ivan:implementer – shell_pid=79003 – Started implementation via action command
