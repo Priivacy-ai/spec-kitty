@@ -14,6 +14,8 @@ subtasks:
 - T027
 - T028
 - T029
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "169"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -154,3 +156,7 @@ Activate the schema gate by splitting `REQUIRED_SCHEMA_VERSION` into `MIN_SUPPOR
 ```bash
 spec-kitty agent action implement WP07 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:34:06Z – claude:sonnet:python-implementer:implementer – shell_pid=169 – Started implementation via action command
