@@ -14,6 +14,8 @@ subtasks:
 - T039
 - T040
 - T041
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "18392"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -160,3 +162,7 @@ Use `typer.testing.CliRunner` against the agent-retrospect typer app.
 ```bash
 spec-kitty agent action implement WP08 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T10:26:59Z – claude:sonnet:implementer:implementer – shell_pid=18392 – Started implementation via action command
