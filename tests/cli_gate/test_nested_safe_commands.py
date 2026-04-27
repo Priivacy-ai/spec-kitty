@@ -70,9 +70,11 @@ class TestBuildCommandPath:
 
 _NESTED_SAFE_COMMANDS = [
     # (argv_tail, human_label)
+    # NOTE: "setup-plan" is intentionally excluded — it scaffolds plan.md and
+    # commits to the target branch, making it a project mutation.  It is
+    # therefore UNSAFE and must block under schema mismatch.  See FIX A.
     (["agent", "mission", "branch-context"], "agent_mission_branch-context"),
     (["agent", "mission", "check-prerequisites"], "agent_mission_check-prerequisites"),
-    (["agent", "mission", "setup-plan"], "agent_mission_setup-plan"),
     (["agent", "context", "resolve"], "agent_context_resolve"),
     (["agent", "tasks", "status"], "agent_tasks_status"),
 ]
@@ -112,3 +114,39 @@ def test_nested_safe_command_not_blocked_by_stale_project(
     """Nested safe agent commands must pass gate on stale project too."""
     monkeypatch.setattr(sys, "argv", ["spec-kitty"] + argv_tail)
     check_schema_version(fixture_project_stale, invoked_subcommand=argv_tail[0])
+
+
+# ---------------------------------------------------------------------------
+# FIX A (P2): setup-plan is UNSAFE — it must block under schema mismatch
+# ---------------------------------------------------------------------------
+
+
+def test_setup_plan_blocked_by_too_new_project(
+    fixture_project_too_new: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """agent mission setup-plan scaffolds plan.md and commits — it is UNSAFE.
+
+    It must NOT be classified as safe.  Under a too-new schema it should
+    block with exit code 5 (BLOCK_CLI_UPGRADE), not pass through.
+    """
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "agent", "mission", "setup-plan"])
+    with pytest.raises(SystemExit) as exc_info:
+        check_schema_version(fixture_project_too_new, invoked_subcommand="agent")
+    assert exc_info.value.code == 5, (
+        f"Expected exit 5 (BLOCK_CLI_UPGRADE) for setup-plan, got {exc_info.value.code!r}"
+    )
+
+
+def test_setup_plan_blocked_by_stale_project(
+    fixture_project_stale: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """agent mission setup-plan must also block on a stale project (BLOCK_PROJECT_MIGRATION, exit 4)."""
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "agent", "mission", "setup-plan"])
+    with pytest.raises(SystemExit) as exc_info:
+        check_schema_version(fixture_project_stale, invoked_subcommand="agent")
+    assert exc_info.value.code == 4, (
+        f"Expected exit 4 (BLOCK_PROJECT_MIGRATION) for setup-plan on stale project, "
+        f"got {exc_info.value.code!r}"
+    )

@@ -94,10 +94,12 @@ SAFETY_REGISTRY: dict[tuple[str, ...], SafetyPredicate | None] = {
     # the typer-callback wiring package) but registered here for completeness.
     ("help",): None,
     ("version",): None,
-    # Agent sub-commands — all read-only / diagnostic
+    # Agent sub-commands — read-only / diagnostic only.
+    # NOTE: ("agent", "mission", "setup-plan") is intentionally absent — it
+    # scaffolds plan.md and commits to the target branch (project mutation) and
+    # must therefore be treated as UNSAFE under schema mismatch.
     ("agent", "mission", "branch-context"): None,
     ("agent", "mission", "check-prerequisites"): None,
-    ("agent", "mission", "setup-plan"): None,
     ("agent", "context", "resolve"): None,
     ("agent", "tasks", "status"): None,
 }

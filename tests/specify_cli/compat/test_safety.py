@@ -39,7 +39,9 @@ SEEDED_SAFE_PATHS = [
     ("version",),
     ("agent", "mission", "branch-context"),
     ("agent", "mission", "check-prerequisites"),
-    ("agent", "mission", "setup-plan"),
+    # NOTE: ("agent", "mission", "setup-plan") is intentionally absent —
+    # it scaffolds plan.md and commits to the target branch (project mutation)
+    # and must be UNSAFE under schema mismatch (FIX A, P2).
     ("agent", "context", "resolve"),
     ("agent", "tasks", "status"),
 ]
