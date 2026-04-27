@@ -22,6 +22,8 @@ subtasks:
 - T031
 - T032
 - T033
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "2824"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -163,3 +165,7 @@ Add the integration tests for the safe/unsafe command matrix and CI determinism.
 ```bash
 spec-kitty agent action implement WP08 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:48:23Z – claude:sonnet:python-implementer:implementer – shell_pid=2824 – Started implementation via action command
