@@ -143,3 +143,4 @@ If the existing `_check_composed_action_guard()` direct call provides coverage t
 ## Activity Log
 
 - 2026-04-27T05:21:39Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=34764 – Started implementation via action command
+- 2026-04-27T05:26:27Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=34764 – T09-T11 complete; 6-action walk via dispatch + paired trail records + dispatch-level guard
