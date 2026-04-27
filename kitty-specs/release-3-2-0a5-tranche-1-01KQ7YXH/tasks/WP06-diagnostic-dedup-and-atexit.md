@@ -19,7 +19,7 @@ subtasks:
 - T030
 - T031
 - T032
-agent: "claude:sonnet:reviewer-renata:reviewer"
+agent: "reviewer-renata"
 shell_pid: "82312"
 history:
 - at: '2026-04-27T18:00:45Z'
@@ -507,3 +507,4 @@ spec-kitty agent action implement WP06 --agent claude
 - 2026-04-27T20:26:16Z – claude:sonnet:implementer-ivan:implementer – shell_pid=81061 – Started implementation via action command
 - 2026-04-27T20:35:56Z – claude:sonnet:implementer-ivan:implementer – shell_pid=81061 – Ready for review: diagnostics package + dedup wraps + atexit gating + 4 unit tests + 1 e2e contract test; mypy --strict on diagnostics package clean
 - 2026-04-27T20:36:51Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=82312 – Started review via action command
+- 2026-04-27T20:40:11Z – reviewer-renata – shell_pid=82312 – Review passed: T026-T032 all met; mypy --strict clean; 9/9 new tests + 4/4 legacy token-refresh tests pass. Deviation rulings: (1) mission.py flat layout is the actual repo shape and the mark_invocation_succeeded() call sits correctly after the create_payload _emit_json on the JSON success branch; (2) T028 wiring is clean — _emit_user_facing_failure_once is the single emit path, ContextVar via report_once is the source of truth, legacy bool is a documented mirror, reset_user_facing_dedup resets both; (3) T030 invocation_succeeded() consultation in runtime.SyncRuntime.stop is a sensible defensive add that satisfies the contract's atexit-must-consult-the-flag requirement and primes future warning gates without changing today's behavior; (4) T032 in-process source-inspection + dedup-gate exercise correctly verifies the operator-visible contract given the installed-CLI upgrade race noted in WP.
