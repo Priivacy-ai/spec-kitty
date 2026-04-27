@@ -11,7 +11,7 @@
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Define `profile:retrospective-facilitator` shipped artifact | WP01 |  | [D] |
+| T001 | Define `profile:retrospective-facilitator` shipped artifact | WP01 |  | [D] | [D] |
 | T002 | Define `action:retrospect` shipped artifact + scope edges | WP01 |  | [D] |
 | T003 | Wire DRG context (event stream, mission meta, charter, glossary, etc.) onto the retrospect action | WP01 |  | [D] |
 | T004 | DRG resolver + fixture mission test that confirms structured response | WP01 |  | [D] |
