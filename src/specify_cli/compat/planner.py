@@ -780,31 +780,56 @@ def _plan_impl(
     # --- Step 1: Build CliStatus ---
     installed_version = _get_installed_version()
 
-    # Check the nag cache first
+    # Fresh-cache fast path (NFR-001): read cache first; only call the provider
+    # if the cache is stale or absent.  This avoids a network round-trip on every
+    # interactive invocation and keeps the <100 ms latency contract for the common
+    # case where the nag was recently shown.
     cache_record: NagCacheRecord | None = nag_cache.read()
 
     # Invalidate cache if CLI version changed (FR-025)
     if cache_record is not None and cache_record.cli_version_key != installed_version:
         cache_record = None
 
-    latest_result = latest_version_provider.get_latest("spec-kitty-cli")
-    fetched_at = now if latest_result.source == "pypi" else None
-    latest_version = latest_result.version
+    # Check freshness BEFORE touching the provider.
+    cache_is_fresh = NagCache.is_fresh(
+        cache_record,
+        throttle_seconds=config.throttle_seconds,
+        now=now,
+        current_cli_version=installed_version,
+    )
 
-    # If we got a version from the provider, update the cache
-    if latest_result.source == "pypi" and latest_version is not None:
-        new_record = NagCacheRecord(
-            cli_version_key=installed_version,
-            latest_version=latest_version,
-            latest_source="pypi",
-            fetched_at=now,
-            last_shown_at=cache_record.last_shown_at if cache_record is not None else None,
-        )
-        nag_cache.write(new_record)
-    elif cache_record is not None and cache_record.latest_version is not None:
-        # Use cached version
-        latest_version = cache_record.latest_version
-        fetched_at = None  # not fetched this run
+    if cache_is_fresh:
+        # Cache is fresh — trust it; no network call.
+        latest_version: str | None = cache_record.latest_version if cache_record is not None else None  # type: ignore[assignment]
+        cli_source: Literal["pypi", "none"] = cache_record.latest_source if cache_record is not None else "none"  # type: ignore[assignment]
+        fetched_at: datetime | None = None  # not fetched this run
+    else:
+        # Cache stale or missing — fetch from provider.
+        latest_result = latest_version_provider.get_latest("spec-kitty-cli")
+        fetched_at = now if latest_result.source == "pypi" else None
+        latest_version = latest_result.version
+
+        # If we got a version from the provider, update the cache (preserve last_shown_at).
+        if latest_result.source == "pypi" and latest_version is not None:
+            new_record = NagCacheRecord(
+                cli_version_key=installed_version,
+                latest_version=latest_version,
+                latest_source="pypi",
+                fetched_at=now,
+                last_shown_at=cache_record.last_shown_at if cache_record is not None else None,
+            )
+            try:
+                nag_cache.write(new_record)
+            except Exception:  # noqa: BLE001 — cache write failure is non-fatal
+                pass
+        elif cache_record is not None and cache_record.latest_version is not None:
+            # Provider returned nothing useful — fall back to cached version.
+            latest_version = cache_record.latest_version
+            fetched_at = None  # not fetched this run
+
+        cli_source = latest_result.source if latest_result.source == "pypi" else "none"
+        if cache_record is not None and latest_result.source != "pypi":
+            cli_source = cache_record.latest_source
 
     is_outdated = _version_is_outdated(installed_version, latest_version)
 
@@ -812,18 +837,9 @@ def _plan_impl(
     if not config.nag_enabled:
         is_outdated = False
 
-    # Check nag throttle: if fresh cache and nag was recently shown, suppress
-    if NagCache.is_fresh(
-        cache_record,
-        throttle_seconds=config.throttle_seconds,
-        now=now,
-        current_cli_version=installed_version,
-    ):
+    # Fresh cache means nag was recently shown — suppress.
+    if cache_is_fresh:
         is_outdated = False
-
-    cli_source: Literal["pypi", "none"] = latest_result.source if latest_result.source == "pypi" else "none"
-    if cache_record is not None and latest_result.source != "pypi":
-        cli_source = cache_record.latest_source
 
     cli_status = CliStatus(
         installed_version=installed_version,

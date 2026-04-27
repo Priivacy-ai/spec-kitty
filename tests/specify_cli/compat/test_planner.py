@@ -18,7 +18,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any
 
@@ -721,3 +721,155 @@ class TestIsCiEnv:
     def test_ci_unset_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("CI", raising=False)
         assert is_ci_env() is False
+
+
+# ---------------------------------------------------------------------------
+# FIX 3 — Fresh nag cache must skip the provider (NFR-001)
+# ---------------------------------------------------------------------------
+
+
+class _CountingProvider:
+    """Test provider that counts get_latest() calls and returns a preset version."""
+
+    def __init__(self, version: str = "9.9.9") -> None:
+        self.call_count = 0
+        self._version = version
+
+    def get_latest(self, package: str) -> Any:  # noqa: ANN401
+        from specify_cli.compat.provider import LatestVersionResult
+
+        self.call_count += 1
+        return LatestVersionResult(version=self._version, source="pypi", error=None)
+
+
+class TestFreshCacheFastPath:
+    """FIX 3: plan() must NOT call the provider when the nag cache is fresh."""
+
+    def _make_fresh_cache(self, tmp_path: Path, installed: str, latest: str, now: datetime) -> NagCache:
+        """Write a fresh nag cache record (last_shown_at just set) to tmp_path."""
+        from specify_cli.compat.cache import NagCacheRecord
+
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        record = NagCacheRecord(
+            cli_version_key=installed,
+            latest_version=latest,
+            latest_source="pypi",
+            fetched_at=now,
+            last_shown_at=now,  # shown right now → within any reasonable throttle window
+        )
+        cache.write(record)
+        return cache
+
+    def test_fresh_cache_does_not_call_provider(self, tmp_path: Path) -> None:
+        """When the nag cache is fresh, provider.get_latest() must NOT be called."""
+        installed = _INSTALLED
+        latest_cached = "2.0.11"  # same as installed — nag not shown
+
+        cache = self._make_fresh_cache(tmp_path, installed, latest_cached, _NOW)
+        counting_provider = _CountingProvider(version="99.0.0")
+
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        result = plan(
+            inv,
+            latest_version_provider=counting_provider,
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        assert counting_provider.call_count == 0, (
+            f"Provider was called {counting_provider.call_count} time(s) even though cache was fresh. "
+            "FIX 3 requires the fast path to skip the provider when cache is fresh."
+        )
+        # cli_status.latest_version should come from the cache, not the provider
+        assert result.cli_status.latest_version == latest_cached
+
+    def test_stale_cache_calls_provider(self, tmp_path: Path) -> None:
+        """When the nag cache is stale (old last_shown_at), the provider IS called."""
+        from specify_cli.compat.cache import NagCacheRecord
+        from specify_cli.compat.config import UpgradeConfig
+
+        cfg = UpgradeConfig.load()
+        throttle = cfg.throttle_seconds
+        installed = _INSTALLED
+
+        # last_shown_at is older than the throttle window → cache is stale
+        stale_time = _NOW.replace(tzinfo=_NOW.tzinfo) - timedelta(seconds=throttle + 3600)
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        old_record = NagCacheRecord(
+            cli_version_key=installed,
+            latest_version="2.0.11",
+            latest_source="pypi",
+            fetched_at=stale_time,
+            last_shown_at=stale_time,
+        )
+        cache.write(old_record)
+
+        counting_provider = _CountingProvider(version=_INSTALLED)
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        plan(
+            inv,
+            latest_version_provider=counting_provider,
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        assert counting_provider.call_count >= 1, (
+            "Provider should be called when cache is stale."
+        )
+
+    def test_fresh_fetch_updates_cache_preserves_last_shown_at(self, tmp_path: Path) -> None:
+        """After a stale-cache fetch, the written record preserves last_shown_at."""
+        from specify_cli.compat.cache import NagCacheRecord
+        from specify_cli.compat.config import UpgradeConfig
+
+        cfg = UpgradeConfig.load()
+        throttle = cfg.throttle_seconds
+        installed = _INSTALLED
+        # Make a stale record with a known last_shown_at
+        stale_time = _NOW - timedelta(seconds=throttle + 3600)
+        old_last_shown = stale_time
+
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        old_record = NagCacheRecord(
+            cli_version_key=installed,
+            latest_version="2.0.10",
+            latest_source="pypi",
+            fetched_at=stale_time,
+            last_shown_at=old_last_shown,
+        )
+        cache.write(old_record)
+
+        new_latest = "2.0.15"
+        counting_provider = _CountingProvider(version=new_latest)
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        plan(
+            inv,
+            latest_version_provider=counting_provider,
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        # Provider was called (stale cache)
+        assert counting_provider.call_count >= 1
+
+        # The cache should be updated with the new latest_version
+        updated = cache.read()
+        assert updated is not None
+        assert updated.latest_version == new_latest
+        # last_shown_at must be preserved (not overwritten by the fetch)
+        assert updated.last_shown_at == old_last_shown
