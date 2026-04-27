@@ -16,6 +16,11 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+def _unwrapped_output(output: str) -> str:
+    """Normalize Rich line wrapping in CLI output assertions."""
+    return output.replace("\n", "")
+
+
 @pytest.fixture(autouse=True)
 def fake_global_command_dirs(tmp_path, monkeypatch):
     """Keep global command checks isolated from the developer's home directory."""
@@ -67,7 +72,7 @@ class TestListCommand:
 
             assert result.exit_code == 0
             assert "opencode" in result.stdout
-            assert ".opencode/command/" in result.stdout
+            assert ".opencode/command/" in _unwrapped_output(result.stdout)
             assert "✓" in result.stdout  # opencode exists
 
     def test_list_uses_global_command_root_after_init(self, tmp_path):
@@ -81,7 +86,7 @@ class TestListCommand:
 
             assert result.exit_code == 0
             assert "✓ opencode" in result.stdout
-            assert ".opencode/command/" in result.stdout
+            assert ".opencode/command/" in _unwrapped_output(result.stdout)
             assert "(global)" in result.stdout
             assert not (tmp_path / ".opencode").exists()
 
