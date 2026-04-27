@@ -41,12 +41,12 @@
 | T028 | Autonomous auto-invocation path | WP06 |  | [D] |
 | T029 | Compatibility check for custom mission's required `retrospective` marker step | WP06 |  | [D] |
 | T030 | Tests: lifecycle hook integration + custom-mission marker compat regression | WP06 |  | [D] |
-| T031 | `apply_proposals()` API skeleton in `doctrine.synthesizer.apply` | WP07 |  |
-| T032 | Conflict detection per R-006 predicates (`conflict.py`) | WP07 |  |
-| T033 | Staleness check (evidence event reachability) | WP07 |  |
-| T034 | Provenance sidecar writer (`provenance.py`) | WP07 |  |
-| T035 | Idempotency via provenance presence check | WP07 |  |
-| T036 | Tests: apply (per kind), conflict fail-closed, staleness rejection, idempotency | WP07 |  |
+| T031 | `apply_proposals()` API skeleton in `doctrine.synthesizer.apply` | WP07 |  | [D] |
+| T032 | Conflict detection per R-006 predicates (`conflict.py`) | WP07 |  | [D] |
+| T033 | Staleness check (evidence event reachability) | WP07 |  | [D] |
+| T034 | Provenance sidecar writer (`provenance.py`) | WP07 |  | [D] |
+| T035 | Idempotency via provenance presence check | WP07 |  | [D] |
+| T036 | Tests: apply (per kind), conflict fail-closed, staleness rejection, idempotency | WP07 |  | [D] |
 | T037 | `cli/commands/agent_retrospect.py` `synthesize` subcommand | WP08 |  |
 | T038 | Flag parsing (`--apply`, `--proposal-id`, `--json`, `--actor-id`, etc.) | WP08 |  |
 | T039 | Exit codes per `contracts/cli_surfaces.md` (0/1/2/3/4/5) | WP08 |  |
@@ -295,12 +295,12 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-019, FR-020, FR-022, FR-023, NFR-006, C-012.
 
 **Subtasks**:
-- [ ] T031 `apply_proposals()` API skeleton in `doctrine.synthesizer.apply` (WP07)
-- [ ] T032 Conflict detection per R-006 predicates (WP07)
-- [ ] T033 Staleness check (evidence event reachability) (WP07)
-- [ ] T034 Provenance sidecar writer (WP07)
-- [ ] T035 Idempotency via provenance presence check (WP07)
-- [ ] T036 Tests: apply (per kind), conflict fail-closed, staleness rejection, idempotency (WP07)
+- [x] T031 `apply_proposals()` API skeleton in `doctrine.synthesizer.apply` (WP07)
+- [x] T032 Conflict detection per R-006 predicates (WP07)
+- [x] T033 Staleness check (evidence event reachability) (WP07)
+- [x] T034 Provenance sidecar writer (WP07)
+- [x] T035 Idempotency via provenance presence check (WP07)
+- [x] T036 Tests: apply (per kind), conflict fail-closed, staleness rejection, idempotency (WP07)
 
 **Implementation sketch**:
 1. `apply.py` — `apply_proposals(...)` returns `SynthesisResult`.
