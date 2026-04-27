@@ -21,7 +21,7 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
-from specify_cli.intake.brief_writer import atomic_write_text
+from specify_cli.intake.brief_writer import write_brief_atomic
 from specify_cli.intake.errors import (
     IntakeFileMissingError,
     IntakeFileUnreadableError,
@@ -106,8 +106,15 @@ def write_mission_brief(
     # writes are rejected unless explicitly allowed in config.yaml.
     allow_cross_fs = load_allow_cross_fs(repo_root)
     source_yaml = yaml.safe_dump(source_data, default_flow_style=False)
-    atomic_write_text(brief_path, brief_text, allow_cross_fs=allow_cross_fs)
-    atomic_write_text(source_path, source_yaml, allow_cross_fs=allow_cross_fs)
+    write_brief_atomic(
+        scanner_root=repo_root,
+        writer_root=repo_root,
+        brief_path=brief_path,
+        brief_text=brief_text,
+        source_path=source_path,
+        source_yaml=source_yaml,
+        allow_cross_fs=allow_cross_fs,
+    )
 
     return brief_path, source_path
 

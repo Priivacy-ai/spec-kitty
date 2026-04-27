@@ -9,7 +9,7 @@ from specify_cli.intake.brief_writer import (
     _validate_root_consistency,
     write_brief_atomic,
 )
-from specify_cli.intake.errors import IntakeRootInconsistentError
+from specify_cli.intake.errors import IntakePathEscapeError, IntakeRootInconsistentError
 
 
 pytestmark = [pytest.mark.fast]
@@ -76,3 +76,21 @@ def test_write_brief_atomic_succeeds_when_roots_match(tmp_path):
 
     assert brief_path.read_text(encoding="utf-8") == "# brief"
     assert source_path.read_text(encoding="utf-8") == "source_file: x\n"
+
+
+def test_write_brief_atomic_rejects_paths_outside_root(tmp_path):
+    root = tmp_path / "intake-root"
+    root.mkdir()
+    escaped = tmp_path / "escaped-brief.md"
+
+    with pytest.raises(IntakePathEscapeError):
+        write_brief_atomic(
+            scanner_root=root,
+            writer_root=root,
+            brief_path=escaped,
+            brief_text="# brief",
+            source_path=root / ".kittify" / "brief-source.yaml",
+            source_yaml="source_file: x\n",
+        )
+
+    assert not escaped.exists()

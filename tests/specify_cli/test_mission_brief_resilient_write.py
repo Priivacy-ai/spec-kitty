@@ -4,7 +4,13 @@ from __future__ import annotations
 import pytest
 import yaml
 from pathlib import Path
-from specify_cli.mission_brief import write_mission_brief, MISSION_BRIEF_FILENAME, BRIEF_SOURCE_FILENAME
+from specify_cli.mission_brief import (
+    BRIEF_SOURCE_FILENAME,
+    MISSION_BRIEF_FILENAME,
+    read_brief_source,
+    read_mission_brief,
+    write_mission_brief,
+)
 
 
 def test_write_mission_brief_success(tmp_path):
@@ -67,10 +73,13 @@ def test_write_mission_brief_pre_replace_crash_leaves_no_final_files(tmp_path, m
     with pytest.raises(OSError):
         write_mission_brief(tmp_path, "# Test", "test.md")
     kittify = tmp_path / ".kittify"
-    # The brief landed (first replace succeeded) but the source did not.
-    # The atomic-write contract: ``target`` is either fully written or
-    # absent; tmp files are cleaned up on failure.
-    assert not (kittify / BRIEF_SOURCE_FILENAME).exists()
+    # Source lands first and brief.md is the commit marker. A crash during
+    # the second rename leaves source.yaml on disk, but the reader surface
+    # still treats that state as "no brief".
+    assert (kittify / BRIEF_SOURCE_FILENAME).exists()
+    assert not (kittify / MISSION_BRIEF_FILENAME).exists()
+    assert read_mission_brief(tmp_path) is None
+    assert read_brief_source(tmp_path) is None
     # No .tmp leftovers from either write.
     assert not list(kittify.glob("*.tmp"))
 
