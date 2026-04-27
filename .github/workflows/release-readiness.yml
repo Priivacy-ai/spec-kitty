@@ -112,12 +112,11 @@ jobs:
           python -m pytest -v --import-mode=importlib tests/release
           echo "::endgroup::"
 
-      - name: Run full non-Windows suite
+      - name: Run release workflow tests
         if: github.event_name != 'pull_request'
         run: |
-          echo "::group::Running full test suite"
-          # Exclude windows_ci tests — they run on the native windows-latest job (ci-windows.yml).
-          python -m pytest -v --import-mode=importlib -m "not windows_ci"
+          echo "::group::Running targeted release test suite"
+          python -m pytest -v --import-mode=importlib tests/release
           echo "::endgroup::"
 
       - name: Validate release metadata

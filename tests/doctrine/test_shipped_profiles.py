@@ -33,7 +33,10 @@ EXPECTED_PROFILE_IDS = {
     "planner-priti",
     "python-pedro",
     "researcher-robbie",
+    "retrospective-facilitator",
     "reviewer-renata",
+    "frontend-freddy",
+    "node-norris",
 }
 
 # Sentinel profiles are workflow markers, not real agents.  They intentionally
@@ -101,6 +104,8 @@ class TestShippedProfilesRoles:
             ("implementer-ivan", Role.IMPLEMENTER),
             ("python-pedro", Role.IMPLEMENTER),
             ("reviewer-renata", Role.REVIEWER),
+            ("frontend-freddy", Role.IMPLEMENTER),
+            ("node-norris", Role.IMPLEMENTER),
             ("planner-priti", Role.PLANNER),
             ("researcher-robbie", Role.RESEARCHER),
             ("curator-carla", Role.CURATOR),
@@ -182,6 +187,8 @@ class TestShippedProfilesContent:
             ("implementer-ivan", 50),
             ("python-pedro", 80),
             ("reviewer-renata", 50),
+            ("frontend-freddy", 80),
+            ("node-norris", 80),
             ("planner-priti", 50),
             ("researcher-robbie", 40),
             ("curator-carla", 40),
@@ -209,6 +216,8 @@ class TestShippedProfilesContent:
             ("implementer-ivan", 5),
             ("python-pedro", 5),
             ("reviewer-renata", 8),
+            ("frontend-freddy", 5),
+            ("node-norris", 5),
             ("planner-priti", 3),
             ("researcher-robbie", 4),
             ("curator-carla", 6),
@@ -321,7 +330,7 @@ class TestShippedProfilesPerformance:
     """Performance gate: loading all shipped profiles must complete quickly."""
 
     def test_shipped_profile_load_time(self) -> None:
-        """Loading all 11 shipped profiles must complete in under 2 seconds."""
+        """Loading all 12 shipped profiles must complete in under 2 seconds."""
         import time
 
         start = time.perf_counter()

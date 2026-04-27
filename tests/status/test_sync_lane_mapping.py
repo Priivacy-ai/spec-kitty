@@ -82,7 +82,13 @@ class TestCanonicalFanOut:
             actor="test-actor",
             mission_slug="039-test-feature",
             mission_id=None,
+            causation_id="01HXYZ0000000000000000TEST",
             policy_metadata=None,
+            force=False,
+            reason=None,
+            review_ref=None,
+            execution_mode="worktree",
+            evidence=None,
             ensure_daemon=True,
         )
 

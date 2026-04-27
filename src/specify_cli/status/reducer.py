@@ -3,6 +3,10 @@
 Replays a list of StatusEvent records into a StatusSnapshot, applying
 deduplication, deterministic sorting, and rollback-aware conflict
 resolution for concurrent events from parallel worktrees.
+
+WP03 (additive): Also computes a RetrospectiveSnapshot from retrospective.*
+events in the raw event log and attaches it to the StatusSnapshot under the
+``retrospective`` field. Existing consumers see no change (default None).
 """
 
 from __future__ import annotations
@@ -15,8 +19,8 @@ from typing import Any
 
 from specify_cli.mission_metadata import resolve_mission_identity
 
-from .models import Lane, StatusEvent, StatusSnapshot
-from .store import read_events
+from .models import Lane, RetrospectiveSnapshot, StatusEvent, StatusSnapshot
+from .store import read_events, read_events_raw
 
 SNAPSHOT_FILENAME = "status.json"
 
@@ -165,6 +169,95 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     )
 
 
+def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnapshot:
+    """Compute a RetrospectiveSnapshot from raw event-log entries.
+
+    Scans the raw event list for retrospective.* events (identified by the
+    ``event_name`` key) and computes the current snapshot state.
+
+    Logic:
+    - absent: no retrospective.* events at all.
+    - pending: retrospective.requested or .started seen, but no terminal event.
+    - Terminal status (completed/skipped/failed): determined by the latest
+      terminal event, sorted by (at, event_id) descending.
+    - Proposal counts aggregated from proposal.generated/applied/rejected events.
+    - mode: from the most recent retrospective.requested payload.
+    - record_path: from the most recent terminal event payload, if present.
+    """
+    retro_events = [e for e in raw_events if "event_name" in e and str(e.get("event_name", "")).startswith("retrospective.")]
+
+    if not retro_events:
+        return RetrospectiveSnapshot(status="absent")
+
+    # Sort all retro events by (at, event_id) ascending
+    def _sort_key(e: dict[str, Any]) -> tuple[str, str]:
+        return (str(e.get("at", "")), str(e.get("event_id", "")))
+
+    retro_events_sorted = sorted(retro_events, key=_sort_key)
+
+    # Determine terminal status from latest completed/skipped/failed event
+    terminal_names = {"retrospective.completed", "retrospective.skipped", "retrospective.failed"}
+    terminal_events = [e for e in retro_events_sorted if e.get("event_name") in terminal_names]
+
+    # Determine mode from most recent requested event
+    requested_events = [e for e in retro_events_sorted if e.get("event_name") == "retrospective.requested"]
+    mode = None
+    if requested_events:
+        latest_requested = requested_events[-1]
+        payload = latest_requested.get("payload") or {}
+        mode_data = payload.get("mode")
+        if mode_data is not None:
+            try:
+                from specify_cli.retrospective.schema import Mode
+                mode = Mode.model_validate(mode_data)
+            except Exception:
+                mode = None
+
+    # Determine status
+    if terminal_events:
+        latest_terminal = terminal_events[-1]
+        terminal_name: str = str(latest_terminal.get("event_name", ""))
+        if terminal_name == "retrospective.completed":
+            status: str = "completed"
+        elif terminal_name == "retrospective.skipped":
+            status = "skipped"
+        else:
+            status = "failed"
+
+        # Extract record_path from terminal payload
+        record_path: str | None = None
+        payload = latest_terminal.get("payload") or {}
+        rp = payload.get("record_path")
+        if rp is not None:
+            record_path = str(rp)
+    else:
+        # Non-terminal retro events present (requested/started)
+        status = "pending"
+        record_path = None
+
+    # Proposal counts
+    proposals_total = sum(
+        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.generated"
+    )
+    proposals_applied = sum(
+        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.applied"
+    )
+    proposals_rejected = sum(
+        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.rejected"
+    )
+    proposals_pending = max(0, proposals_total - proposals_applied - proposals_rejected)
+
+    return RetrospectiveSnapshot(
+        status=status,  # type: ignore[arg-type]
+        mode=mode,
+        record_path=record_path,
+        proposals_total=proposals_total,
+        proposals_applied=proposals_applied,
+        proposals_rejected=proposals_rejected,
+        proposals_pending=proposals_pending,
+    )
+
+
 def materialize_to_json(snapshot: StatusSnapshot) -> str:
     """Serialize a snapshot to a deterministic JSON string.
 
@@ -190,6 +283,10 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     Writes to a temporary file first, then uses ``os.replace`` for an
     atomic rename to avoid partial writes.
 
+    WP03 (additive): Also scans raw events for retrospective.* entries and
+    attaches a RetrospectiveSnapshot to the snapshot under ``retrospective``.
+    Default is None for missions with no retrospective events (backwards-compat).
+
     Returns the materialized snapshot.
     """
     events = read_events(feature_dir)
@@ -197,6 +294,16 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     identity = resolve_mission_identity(feature_dir)
     snapshot.mission_number = identity.mission_number
     snapshot.mission_type = identity.mission_type
+
+    # Additive WP03: compute RetrospectiveSnapshot from raw events (includes
+    # retrospective.* entries that are not StatusEvent objects).
+    raw_events = read_events_raw(feature_dir)
+    retro_snapshot = _reduce_retrospective(raw_events)
+    # Only attach non-absent snapshots to avoid changing serialized output for
+    # missions that have no retrospective events at all.
+    if retro_snapshot.status != "absent":
+        snapshot.retrospective = retro_snapshot
+
     json_str = materialize_to_json(snapshot)
 
     out_path = feature_dir / SNAPSHOT_FILENAME

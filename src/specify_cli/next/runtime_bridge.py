@@ -69,6 +69,128 @@ class QueryModeValidationError(ValueError):
 _FEATURE_RUNS_FILE = "feature-runs.json"
 
 
+class _BufferingRuntimeEmitter:
+    """Records runtime emit calls in order and replays them on flush.
+
+    Used on the legacy DAG dispatch path when the retrospective gate is
+    opted in: the engine's ``next_step()`` synchronously calls the
+    emitter's ``emit_mission_run_completed`` (and its sync side-effects:
+    remote dispatch, queueing, etc.) the moment a terminal advance lands.
+    A naive rollback that only restores local files would leave those
+    sync events fired and unretractable.
+
+    The buffer captures every emit call in order. After the engine
+    returns, the bridge either flushes the buffer to the real emitter
+    (gate allowed) or drops it (gate blocked). The ``flush`` is a single
+    one-shot replay; subsequent calls flush nothing.
+
+    Implements the ``RuntimeEventEmitter`` Protocol structurally — every
+    emit method records ``(method_name, payload)`` and returns ``None``.
+    """
+
+    def __init__(self) -> None:
+        self._calls: list[tuple[str, Any]] = []
+        self._flushed = False
+
+    def _record(self, method_name: str, payload: Any) -> None:
+        self._calls.append((method_name, payload))
+
+    def emit_mission_run_started(self, payload: Any) -> None:
+        self._record("emit_mission_run_started", payload)
+
+    def emit_next_step_issued(self, payload: Any) -> None:
+        self._record("emit_next_step_issued", payload)
+
+    def emit_next_step_auto_completed(self, payload: Any) -> None:
+        self._record("emit_next_step_auto_completed", payload)
+
+    def emit_decision_input_requested(self, payload: Any) -> None:
+        self._record("emit_decision_input_requested", payload)
+
+    def emit_decision_input_answered(self, payload: Any) -> None:
+        self._record("emit_decision_input_answered", payload)
+
+    def emit_mission_run_completed(self, payload: Any) -> None:
+        self._record("emit_mission_run_completed", payload)
+
+    def emit_significance_evaluated(self, payload: Any) -> None:
+        self._record("emit_significance_evaluated", payload)
+
+    def emit_decision_timeout_expired(self, payload: Any) -> None:
+        self._record("emit_decision_timeout_expired", payload)
+
+    def seed_from_snapshot(self, snapshot: Any) -> None:
+        # Pass-through for SyncRuntimeEventEmitter compatibility; not
+        # buffered because seed is idempotent and side-effect-free.
+        del snapshot
+
+    def call_count(self) -> int:
+        return len(self._calls)
+
+    def discard(self) -> None:
+        """Drop all buffered calls without replaying them."""
+        self._calls.clear()
+        self._flushed = True
+
+    def flush(self, target: Any) -> None:
+        """Replay all buffered calls into ``target`` and mark as flushed.
+
+        Re-flushing is a no-op so the same buffer can safely be passed
+        through multiple paths without double-emitting.
+        """
+        if self._flushed:
+            return
+        for method_name, payload in self._calls:
+            method = getattr(target, method_name, None)
+            if method is None:
+                continue
+            method(payload)
+        # Also seed phase state on the target from any buffered events that
+        # imply phase transitions, since the buffered emitter did not run
+        # the SyncRuntimeEventEmitter's _enter_phase logic.
+        self._calls.clear()
+        self._flushed = True
+
+
+def _rich_hic_prompt() -> tuple[bool, str | None]:
+    """Operator-facing Rich prompt for the HiC retrospective lifecycle.
+
+    Lives in the bridge layer so the ``_internal_runtime/`` package keeps a
+    rich/typer-free import surface (test_internal_runtime_parity).
+    """
+    from rich.prompt import Confirm, Prompt
+
+    run_now: bool = Confirm.ask("Run retrospective now?", default=True)
+    if run_now:
+        return True, None
+
+    skip_reason: str = ""
+    while not skip_reason.strip():
+        skip_reason = Prompt.ask("Skip reason (required, must be non-empty)")
+    return False, skip_reason.strip()
+
+
+def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
+    """Read the canonical ULID mission_id from ``meta.json`` next to the feature.
+
+    Used by the retrospective terminus wiring to identify the mission for
+    event emission and gate consultation. Falls back to the feature_dir name
+    when meta.json is missing or malformed (older missions predating the
+    ULID identity rollout); the gate handles missing identities defensively.
+    """
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        return feature_dir.name
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return feature_dir.name
+    mission_id = meta.get("mission_id") if isinstance(meta, dict) else None
+    if isinstance(mission_id, str) and mission_id.strip():
+        return mission_id
+    return feature_dir.name
+
+
 def _feature_runs_path(repo_root: Path) -> Path:
     return repo_root / ".kittify" / "runtime" / _FEATURE_RUNS_FILE
 
@@ -985,6 +1107,34 @@ def _advance_run_state_after_composition(
             )
             sync_emitter.emit_decision_input_requested(dr_payload)
     elif decision.kind == "terminal" and did_complete_step:
+        # Retrospective lifecycle gate (FR-011..FR-014). Opt-in via charter
+        # ``mode:`` clause or ``SPEC_KITTY_RETROSPECTIVE`` env var; projects
+        # that have not opted in see no behavior change. When opted in,
+        # ``run_terminus`` drives mode detection, prompt/skip/run flow, and
+        # emits the canonical retrospective.* events; ``before_mark_done``
+        # then consults the gate. Any blocking decision propagates as
+        # ``MissionCompletionBlocked`` and prevents ``MissionRunCompleted``
+        # from being emitted, keeping the audit trail honest.
+        from specify_cli.retrospective.config import is_retrospective_enabled
+
+        if is_retrospective_enabled(repo_root):
+            from specify_cli.next._internal_runtime.retrospective_terminus import (
+                run_terminus,
+            )
+            from specify_cli.retrospective.schema import ActorRef
+
+            mission_id = _resolve_mission_id_for_terminus(feature_dir)
+            operator_actor = ActorRef(kind="agent", id=agent, profile_id=None)
+            run_terminus(
+                mission_id=mission_id,
+                mission_type=mission_type,
+                feature_dir=feature_dir,
+                repo_root=repo_root,
+                operator_actor=operator_actor,
+                facilitator_callback=None,  # wiring deferred; gate enforces
+                hic_prompt=_rich_hic_prompt,
+            )
+
         mc_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
         mc_payload = MissionRunCompletedPayload(
             run_id=snapshot.run_id,
@@ -1587,15 +1737,75 @@ def decide_next_via_runtime(
                 step_id=current_step_id,
             )
 
+    # Retrospective lifecycle gate (FR-011..FR-014). The legacy
+    # ``runtime_next_step`` path is a black-box engine call that updates
+    # state.json and emits ``MissionRunCompleted`` synchronously through
+    # the sync emitter (which dispatches to remote queues / SaaS). If we
+    # let the engine run with the real emitter and gate-check afterwards,
+    # both the snapshot AND the sync events are already out the door by
+    # the time the gate blocks — and rolling back local files cannot
+    # retract dispatched sync events.
+    #
+    # Strategy: use a buffering emitter for the speculative engine call.
+    # The buffer records every emit_* call in order without firing them.
+    # After the engine returns:
+    #   * non-terminal → flush buffer to real emitter (normal behavior).
+    #   * terminal + opt-in + gate allows → flush buffer (mission really
+    #     completed).
+    #   * terminal + opt-in + gate blocks → discard buffer (no events
+    #     ever leave the bridge) AND restore state.json + truncate
+    #     run.events.jsonl to pre-call shape.
+    # This mirrors the composition path, which runs the gate before its
+    # ``MissionRunCompleted`` emission.
+    from specify_cli.retrospective.config import is_retrospective_enabled
+
+    retrospective_enabled = is_retrospective_enabled(repo_root)
+
+    pre_state_bytes: bytes | None = None
+    pre_events_size: int | None = None
+    engine_emitter: Any = sync_emitter
+    buffer: _BufferingRuntimeEmitter | None = None
+
+    if retrospective_enabled:
+        run_dir = Path(run_ref.run_dir)
+        state_path = run_dir / "state.json"
+        events_path = run_dir / "run.events.jsonl"
+        try:
+            pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
+            pre_events_size = events_path.stat().st_size if events_path.exists() else 0
+        except OSError:
+            # If we cannot capture pre-state we cannot guarantee a clean
+            # rollback. Surface this as a blocked Decision rather than
+            # advancing into a state we cannot retract.
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=current_step_id or "unknown",
+                timestamp=now,
+                reason=(
+                    "Cannot read run state.json / run.events.jsonl before "
+                    "speculative engine advance; refusing to advance"
+                ),
+                progress=progress,
+                origin=origin,
+            )
+        buffer = _BufferingRuntimeEmitter()
+        engine_emitter = buffer
+
     # Advance via runtime
     try:
         runtime_decision = runtime_next_step(
             run_ref,
             agent_id=agent,
             result=result,
-            emitter=sync_emitter,
+            emitter=engine_emitter,
         )
     except Exception as exc:
+        # Engine raised: discard any buffered events; nothing left to flush.
+        if buffer is not None:
+            buffer.discard()
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
@@ -1607,6 +1817,68 @@ def decide_next_via_runtime(
             progress=progress,
             origin=origin,
         )
+
+    if retrospective_enabled and runtime_decision.kind == "terminal":
+        from specify_cli.next._internal_runtime.retrospective_terminus import (
+            run_terminus,
+        )
+        from specify_cli.retrospective.schema import ActorRef
+
+        mission_id = _resolve_mission_id_for_terminus(feature_dir)
+        operator_actor = ActorRef(kind="agent", id=agent, profile_id=None)
+        try:
+            run_terminus(
+                mission_id=mission_id,
+                mission_type=mission_type,
+                feature_dir=feature_dir,
+                repo_root=repo_root,
+                operator_actor=operator_actor,
+                facilitator_callback=None,
+                hic_prompt=_rich_hic_prompt,
+            )
+        except Exception as exc:
+            # Gate refused. Drop the buffered emit calls (so no
+            # MissionRunCompleted ever reaches the real emitter) and
+            # restore state.json + truncate run.events.jsonl to pre-call.
+            if buffer is not None:
+                buffer.discard()
+            run_dir = Path(run_ref.run_dir)
+            if pre_state_bytes is not None:
+                try:
+                    (run_dir / "state.json").write_bytes(pre_state_bytes)
+                except OSError as restore_exc:
+                    logger.error(
+                        "rollback of state.json failed after gate block: %s",
+                        restore_exc,
+                    )
+            if pre_events_size is not None:
+                events_path = run_dir / "run.events.jsonl"
+                try:
+                    if events_path.exists():
+                        with open(events_path, "r+b") as handle:
+                            handle.truncate(pre_events_size)
+                except OSError as restore_exc:
+                    logger.error(
+                        "rollback of run.events.jsonl failed after gate block: %s",
+                        restore_exc,
+                    )
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=current_step_id or "unknown",
+                timestamp=now,
+                reason=f"Retrospective gate refused completion: {exc}",
+                progress=progress,
+                origin=origin,
+            )
+
+    # Gate either passed (terminal allow) or never ran (non-terminal /
+    # not opted in): flush any buffered emit calls into the real sync
+    # emitter so observers receive them in original order.
+    if buffer is not None:
+        buffer.flush(sync_emitter)
 
     return _map_runtime_decision(
         runtime_decision,

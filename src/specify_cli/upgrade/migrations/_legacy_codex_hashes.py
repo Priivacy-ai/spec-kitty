@@ -45,6 +45,7 @@ LEGACY_CODEX_FILENAMES: frozenset[str] = frozenset(
         "spec-kitty.review.md",
         "spec-kitty.specify.md",
         "spec-kitty.tasks.md",
+        "spec-kitty.tasks-finalize.md",
         "spec-kitty.tasks-outline.md",
         "spec-kitty.tasks-packages.md",
     }

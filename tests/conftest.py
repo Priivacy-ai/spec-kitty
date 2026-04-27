@@ -720,6 +720,7 @@ def test_project(tmp_path: Path) -> Path:
         if "spec_kitty" not in metadata:
             metadata["spec_kitty"] = {}
         metadata["spec_kitty"]["version"] = current_version
+        metadata["spec_kitty"]["schema_version"] = 3
 
         with open(metadata_file, "w", encoding="utf-8") as f:
             yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)

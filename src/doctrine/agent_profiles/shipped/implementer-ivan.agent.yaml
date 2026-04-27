@@ -121,3 +121,10 @@ directive-references:
   - code: "010"
     name: Specification Fidelity Requirement
     rationale: Implementations must faithfully reflect the design specifications without unauthorized deviations
+
+tactic-references:
+  - id: bug-fixing-checklist
+    rationale: >
+      Enforce test-first defect resolution — write a failing reproduction test before
+      modifying production code. All specialist profiles (java-jenny, python-pedro,
+      frontend-freddy, node-norris) inherit this discipline via union merge.

@@ -1,7 +1,8 @@
 {
   "created_at": "2026-04-06T18:24:11.789013+00:00",
   "friendly_name": "Runtime Recovery And Audit Safety",
-  "mission_number": "067",
+  "mission_id": "01KQ47E813PE1WDF9CF3G8K447",
+  "mission_number": 67,
   "mission_slug": "067-runtime-recovery-and-audit-safety",
   "mission_type": "software-dev",
   "slug": "067-runtime-recovery-and-audit-safety",

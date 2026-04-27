@@ -204,11 +204,6 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
         "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
         lambda: colliding_080_repo,
     )
-    # check_version_compatibility reads .kittify/config.yaml; neutralise it.
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.dashboard.check_version_compatibility",
-        lambda *args, **kwargs: None,
-    )
     # Rich's default Console wraps output to the terminal width; replace it
     # with a wide no-wrap Console so the emitted JSON survives as a single
     # parseable string (otherwise linewrap inserts newlines inside quoted
@@ -300,10 +295,6 @@ def test_rendered_json_contains_every_mid8(
     monkeypatch.setattr(
         "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
         lambda: colliding_080_repo,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.dashboard.check_version_compatibility",
-        lambda *args, **kwargs: None,
     )
     wide_console = _Console(width=100_000, soft_wrap=True, no_color=True)
     monkeypatch.setattr(dashboard_mod, "console", wide_console)

@@ -9,13 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased - 3.2.0]
 
+### Added
+
+- **Frontend Freddy agent profile** — browser-side implementer specialising in HTML/CSS/JavaScript/TypeScript, component frameworks (React, Vue, Svelte), WCAG 2.1 accessibility, Core Web Vitals performance, and frontend testing (vitest, Playwright). Specialises from `implementer-ivan`. Self-review protocol enforces lint, type-check, unit/component tests, e2e smoke, axe accessibility gate, and bundle budget. Avoidance boundary explicitly names Node Norris's server-side domain.
+- **Node Norris agent profile** — server-side Node.js implementer specialising in HTTP APIs (Express/Fastify/NestJS), async/Promise discipline, streaming, npm security (`npm audit`), and integration testing (supertest). Specialises from `implementer-ivan`. Avoidance boundary explicitly names Frontend Freddy's browser-rendering domain. The two profiles are mutually exclusive by design.
+- **BDD paradigm** (`behaviour-driven-development`) — encodes BDD as a three-phase collaboration practice: Discovery (Three Amigos conversations), Formulation (Given/When/Then specifications), and Automation (executable living documentation). References `DIRECTIVE_034` and `DIRECTIVE_037`.
+- **BDD Scenario Lifecycle procedure** (`bdd-scenario-lifecycle`) — covers the Formulation → Automation → Maintenance phases that follow an Example Mapping Workshop. Toolchain-agnostic (Cucumber-JVM, Cucumber-JS, Behave, SpecFlow). Encodes four anti-patterns: imperative Gherkin, rubber-stamp scenarios, shared mutable state, and orphaned step definitions.
+- **New tactics:**
+  - `reference-architectural-patterns` — structured selection of named reference patterns (Layered, Hexagonal, Event-Driven, CQRS, Microservices, Modular Monolith) scored against coupling, scalability, and operational complexity constraints.
+  - `development-bdd` — architecture-level BDD tactic for expressing observable behavioral contracts at system boundaries before implementation; distinct from the existing `behavior-driven-development` technique tactic.
+  - `bug-fixing-checklist` — language-agnostic test-first defect resolution: write a reproduction test before touching production code.
+  - `test-readability-clarity-check` — dual-perspective reconstruction check: read only tests, reconstruct system understanding, compare against spec to surface documentation gaps.
+  - `code-documentation-analysis` — brownfield boundary discovery by extracting and clustering domain terminology from code and documentation artifacts. Contributes foundational analysis tactics toward the brownfield investigation skill described in [#666](https://github.com/Priivacy-ai/spec-kitty/issues/666).
+  - `terminology-extraction-mapping` — systematic extraction and relationship mapping of domain terms across multiple sources to produce a maintainable glossary. Complementary artifact to the bounded-context linguistic discovery approach targeted by [#666](https://github.com/Priivacy-ai/spec-kitty/issues/666).
+- **Tactic directory normalization** — shipped tactics reorganised into four category subdirectories: `testing/` (15 tactics), `analysis/` (14), `communication/` (7), `architecture/` (14). Cross-cutting tactics remain in the `shipped/` root. The existing `rglob` loader requires no changes.
+- **`tasks-finalize` command skill** — added to `CANONICAL_COMMANDS` in the agent skills pipeline and deployed to `.agents/skills/spec-kitty.tasks-finalize/`. Closes the gap where this command was missing from Codex/Vibe skill packages.
+
 ### Changed
 
+- **Profile enrichment** — four existing profiles updated with additive tactic and paradigm references:
+  - `implementer-ivan`: `bug-fixing-checklist` tactic reference (propagates to all specialist profiles via `resolve_profile()` union merge).
+  - `reviewer-renata`: `test-readability-clarity-check` and `bdd-scenario-lifecycle` tactic references; `behaviour-driven-development` paradigm in context sources.
+  - `architect-alphonso`: `development-bdd` tactic reference; BDD paradigm, example-mapping-workshop, and bdd-scenario-lifecycle in additional context sources.
+  - `java-jenny`: `behavior-driven-development` and `bdd-scenario-lifecycle` tactic references; `bdd-scenarios` self-review step (Cucumber-JVM + Serenity BDD gate).
+- **`behavior-driven-development` tactic enriched** — extended `notes` with a toolchain landscape section (Cucumber family, Playwright, Selenium, Serenity BDD, custom DSLs; source: `patterns.sddevelopment.be/primers/toolchain-and-automation/bdd`); three new `failure_modes` (rubber-stamp scenarios, shared mutable state between scenarios, orphaned step definitions); cross-references to the new BDD paradigm and procedure.
+- **`tactic-references` union-merged in `resolve_profile()`** — `tactic-references` added to `_LIST_FIELDS` in `src/doctrine/agent_profiles/repository.py`. Specialist profiles now inherit base-profile tactic references via `_union_merge` at resolution time rather than overriding them.
+- **Tactic compliance test extended** — `test_tactic_compliance.py` `ARTIFACT_DIRS` now includes `procedure` and `paradigm` types, enabling cross-type reference validation for tactics that reference procedures or paradigms.
 - **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) — `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](docs/development/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md).
 
 ### Removed
 
 - **`constraints.txt`** — the file existed solely to paper over a transitive pin conflict with the retired `spec-kitty-runtime` package and is no longer needed.
+
+### Fixed
+
+- `spec-kitty agent config list/status` now checks global command roots for slash-command agents instead of reporting missing project-local command directories after `init`.
+- `spec-kitty agent config add/sync --create-missing` no longer recreates retired project-local command directories for globally managed slash-command agents.
+- `spec-kitty agent config remove/sync` now removes only the managed command surface for project-local agent directories, preserving unrelated files such as `.github/workflows/`.
 
 ### Added — Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)
 
@@ -33,6 +63,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Upgrade compatibility planner** — `spec-kitty upgrade` now separates CLI
+  update guidance from current-project schema compatibility. New flags
+  `--cli`, `--project`, `--yes`, and `--no-nag` support CLI-only guidance,
+  project-only migrations, non-interactive confirmation, and explicit nag
+  suppression. `spec-kitty upgrade --dry-run --json` emits the stable
+  compatibility-plan contract for automation.
 - **Host-surface parity matrix** at `docs/host-surface-parity.md` — authoritative record of how each of the 15 supported host surfaces teaches the advise/ask/do governance-injection contract. Closes the remaining `#496` host-surface breadth rollout.
 - **Mode of work runtime derivation** — every `advise`, `ask`, `do` invocation now records its `mode_of_work` (`advisory`, `task_execution`, `mission_step`, `query`) on the `started` event. Derivation is from the CLI entry command.
 - **Correlation links** — `spec-kitty profile-invocation complete` accepts `--artifact <path>` (repeatable) and `--commit <sha>` (singular); each appends an additive event to the invocation JSONL for single-file request→artifact/commit correlation.
@@ -63,6 +99,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Project schema compatibility is now enforced by the centralized compat
+  planner. Out-of-date CLI notices are passive and throttled; incompatible
+  project schemas block unsafe commands with exit codes 4, 5, or 6 and exact
+  remediation guidance.
 - `spec-kitty profile-invocation complete --evidence` is now mode-gated: rejected on `advisory` / `query` invocations with `InvalidModeForEvidenceError`. Rejection occurs before any write; the invocation stays open.
 - `_propagate_one` consults the new projection policy after the sync-gate and authentication lookup. Existing `task_execution` / `mission_step` projection behaviour is preserved exactly.
 - Dashboard user-visible wording: the mission selector, current-mission header, overview heading, analysis heading, and empty-state prompt now read "Mission Run" / "mission" instead of "Feature". Backend identifiers (CSS classes, HTML IDs, cookie keys, API route segments, JSON field names) are unchanged.

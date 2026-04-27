@@ -20,6 +20,12 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep command-unit tests isolated from the checkout's project metadata."""
+    monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
+
+
 def _make_query_decision(mission_state: str = "specify"):
     from specify_cli.next.decision import Decision, DecisionKind
 

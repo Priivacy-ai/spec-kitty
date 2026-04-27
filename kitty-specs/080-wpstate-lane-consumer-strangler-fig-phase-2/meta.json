@@ -2,11 +2,11 @@
   "created_at": "2026-04-09T13:43:53.659678+00:00",
   "friendly_name": "Complete WPState/Lane consumer migration — Strangler Fig phase 2",
   "mission_id": "01KNS7RB1V9R3VSYD910HCAMTR",
-  "mission_number": "080",
+  "mission_number": 80,
   "mission_slug": "080-wpstate-lane-consumer-strangler-fig-phase-2",
   "mission_type": "software-dev",
   "slug": "080-wpstate-lane-consumer-strangler-fig-phase-2",
+  "source_description": "GitHub issue #537 — follow-up to #405. Migrate 7 verified WP lane consumers from raw lane-string comparisons to typed/state semantics via four sequential slices (Strangler Fig pattern). Initial survey identified 15 candidates; scope was reduced during planning — see kitty-specs/080-.../spec.md change log.",
   "target_branch": "main",
-  "vcs": "git",
-  "source_description": "GitHub issue #537 — follow-up to #405. Migrate 7 verified WP lane consumers from raw lane-string comparisons to typed/state semantics via four sequential slices (Strangler Fig pattern). Initial survey identified 15 candidates; scope was reduced during planning — see kitty-specs/080-.../spec.md change log."
+  "vcs": "git"
 }

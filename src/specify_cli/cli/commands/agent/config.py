@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import List
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.core.agent_config import (
     load_agent_config,
     save_agent_config,
     AgentConfig,
     AgentConfigError,
 )
+from specify_cli.runtime.agent_commands import get_global_command_dir
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
@@ -35,6 +36,82 @@ KEY_TO_AGENT_DIR = {
     for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS
     if agent_dir in AGENT_DIR_TO_KEY
 }
+SKILL_ONLY_AGENTS = {"codex", "vibe"}
+GLOBAL_COMMAND_AGENTS = frozenset(AGENT_COMMAND_CONFIG)
+VALID_AGENTS = set(AGENT_DIR_TO_KEY.values()) | SKILL_ONLY_AGENTS
+
+
+def _display_path(path: Path) -> str:
+    """Render paths compactly for CLI output."""
+    try:
+        rel = path.relative_to(Path.home())
+        label = f"~/{rel.as_posix()}"
+    except ValueError:
+        label = path.as_posix()
+    return label.rstrip("/") + "/"
+
+
+def _agent_location(repo_root: Path, agent_key: str) -> tuple[Path | None, str, bool]:
+    """Return the managed command/skill location for an agent."""
+    if agent_key in GLOBAL_COMMAND_AGENTS:
+        path = get_global_command_dir(agent_key)
+        return path, f"{_display_path(path)} (global)", path.exists()
+
+    if agent_key in SKILL_ONLY_AGENTS:
+        path = repo_root / ".agents" / "skills"
+        return path, ".agents/skills/ (project skills)", path.exists()
+
+    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+    if agent_dir_info:
+        agent_dir, subdir = agent_dir_info
+        path = repo_root / agent_dir / subdir
+        return path, f"{agent_dir}/{subdir}/", path.exists()
+
+    return None, "unknown agent", False
+
+
+def _project_agent_root(repo_root: Path, agent_key: str) -> Path | None:
+    """Return the legacy project-local root for command-layer agents."""
+    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+    if agent_dir_info is None:
+        return None
+    agent_root, _ = agent_dir_info
+    return repo_root / agent_root
+
+
+def _project_agent_surface(repo_root: Path, agent_key: str) -> tuple[Path, Path, str] | None:
+    """Return root, managed surface, and display label for a project agent."""
+    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+    if agent_dir_info is None:
+        return None
+    agent_root, subdir = agent_dir_info
+    root = repo_root / agent_root
+    return root, root / subdir, f"{agent_root}/{subdir}/"
+
+
+def _remove_project_agent_surface(repo_root: Path, agent_key: str) -> tuple[bool, str]:
+    """Remove only the managed command surface for an agent."""
+    paths = _project_agent_surface(repo_root, agent_key)
+    if paths is None:
+        return False, f"Unknown agent: {agent_key}"
+
+    root, surface, label = paths
+    if not surface.exists():
+        return False, f"{label} already removed"
+
+    try:
+        if surface.is_dir():
+            shutil.rmtree(surface)
+        else:
+            surface.unlink()
+
+        try:
+            root.rmdir()
+            return True, f"Removed {root.name}/"
+        except OSError:
+            return True, f"Removed {label}"
+    except OSError as exc:
+        return False, f"Failed to remove {label}: {exc}"
 
 
 def _load_config_or_exit(repo_root: Path) -> AgentConfig:
@@ -43,6 +120,130 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
     except AgentConfigError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+
+def _register_skill_agent(repo_root: Path, config: AgentConfig, agent_key: str) -> tuple[bool, str | None]:
+    """Install command skills for Codex/Vibe and update config."""
+    from specify_cli.skills import command_installer  # noqa: PLC0415
+    from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
+
+    try:
+        report = command_installer.install(repo_root, agent_key)
+        if agent_key == "vibe":
+            ensure_project_skill_path(repo_root)
+        installed = len(report.added) + len(report.reused_shared)
+        config.available.append(agent_key)
+        console.print(
+            f"[green]✓[/green] Registered {agent_key} "
+            f"({installed} command skills in .agents/skills/)"
+        )
+        return True, None
+    except Exception as exc:
+        return False, f"Failed to install {agent_key} skills: {exc}"
+
+
+def _register_global_command_agent(config: AgentConfig, agent_key: str) -> None:
+    """Register a slash-command agent whose command files are global."""
+    global_dir = get_global_command_dir(agent_key)
+    config.available.append(agent_key)
+    console.print(
+        f"[green]✓[/green] Registered {agent_key} "
+        f"(global commands at {_display_path(global_dir)})"
+    )
+
+
+def _create_project_agent_dir(repo_root: Path, config: AgentConfig, agent_key: str) -> tuple[bool, str | None]:
+    """Fallback for legacy project-local command agents."""
+    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+    if not agent_dir_info:
+        return False, f"Unknown agent: {agent_key}"
+
+    agent_root, subdir = agent_dir_info
+    agent_dir = repo_root / agent_root / subdir
+
+    try:
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
+
+        if missions_dir.exists():
+            for template_file in missions_dir.glob("*.md"):
+                dest_file = agent_dir / f"spec-kitty.{template_file.name}"
+                shutil.copy2(template_file, dest_file)
+
+        config.available.append(agent_key)
+        console.print(f"[green]✓[/green] Added {agent_root}/{subdir}/")
+        return True, None
+    except OSError as exc:
+        return False, f"Failed to create {agent_root}/{subdir}/: {exc}"
+
+
+def _remove_orphaned_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
+    """Remove project-local command dirs for agents not in config."""
+    console.print("[cyan]Checking for orphaned directories...[/cyan]")
+    changes_made = False
+    all_agent_keys = set(AGENT_DIR_TO_KEY.values())
+    orphaned = [
+        key
+        for key in all_agent_keys
+        if key not in config.available
+        and (surface := _project_agent_surface(repo_root, key)) is not None
+        and surface[1].exists()
+    ]
+
+    for agent_key in orphaned:
+        removed, message = _remove_project_agent_surface(repo_root, agent_key)
+        if removed:
+            removed_label = message.removeprefix("Removed ")
+            console.print(f"  [green]✓[/green] Removed orphaned {removed_label}")
+            changes_made = True
+        else:
+            console.print(f"  [red]✗[/red] {message}")
+
+    return changes_made
+
+
+def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
+    """Check configured managed surfaces and create legacy local dirs if needed."""
+    console.print("\n[cyan]Checking for missing directories...[/cyan]")
+    changes_made = False
+    missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
+
+    for agent_key in config.available:
+        if agent_key in GLOBAL_COMMAND_AGENTS:
+            global_dir = get_global_command_dir(agent_key)
+            if global_dir.exists():
+                console.print(
+                    f"  [green]✓[/green] Global commands present for {agent_key} at {_display_path(global_dir)}"
+                )
+            else:
+                console.print(
+                    f"  [yellow]⚠[/yellow] Global commands missing for {agent_key} at {_display_path(global_dir)}"
+                )
+            continue
+
+        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+        if not agent_dir_info:
+            console.print(f"  [yellow]⚠[/yellow] Unknown agent: {agent_key}")
+            continue
+
+        agent_root, subdir = agent_dir_info
+        agent_dir = repo_root / agent_root / subdir
+        if agent_dir.exists():
+            continue
+
+        try:
+            agent_dir.mkdir(parents=True, exist_ok=True)
+            if missions_dir.exists():
+                for template_file in missions_dir.glob("*.md"):
+                    dest_file = agent_dir / f"spec-kitty.{template_file.name}"
+                    shutil.copy2(template_file, dest_file)
+
+            console.print(f"  [green]✓[/green] Created {agent_root}/{subdir}/")
+            changes_made = True
+        except OSError as exc:
+            console.print(f"  [red]✗[/red] Failed to create {agent_root}/{subdir}/: {exc}")
+
+    return changes_made
 
 
 @app.command(name="list")
@@ -65,14 +266,9 @@ def list_agents():
     # Display configured agents
     console.print("[cyan]Configured agents:[/cyan]")
     for agent_key in config.available:
-        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-        if agent_dir_info:
-            agent_dir, subdir = agent_dir_info
-            agent_path = repo_root / agent_dir / subdir
-            status = "✓" if agent_path.exists() else "⚠"
-            console.print(f"  {status} {agent_key} ({agent_dir}/{subdir}/)")
-        else:
-            console.print(f"  ✗ {agent_key} (unknown agent)")
+        _, location, exists = _agent_location(repo_root, agent_key)
+        status = "✓" if exists else "⚠"
+        console.print(f"  {status} {agent_key} ({location})")
 
     # Show auto-commit setting
     auto_commit_label = "[green]enabled[/green]" if config.auto_commit else "[yellow]disabled[/yellow]"
@@ -82,7 +278,7 @@ def list_agents():
         console.print("[dim]  Override per-command with --auto-commit flag.[/dim]")
 
     # Show available but not configured
-    all_agent_keys = set(AGENT_DIR_TO_KEY.values())
+    all_agent_keys = VALID_AGENTS
     not_configured = all_agent_keys - set(config.available)
 
     if not_configured:
@@ -113,12 +309,10 @@ def add_agents(
 
     # Validate agent keys — command-layer agents come from AGENT_DIR_TO_KEY;
     # skill-only agents (codex, vibe) have their own installer path.
-    _SKILL_ONLY_AGENTS = {"codex", "vibe"}
-    _valid_agents = set(AGENT_DIR_TO_KEY.values()) | _SKILL_ONLY_AGENTS
-    invalid = [a for a in agents if a not in _valid_agents]
+    invalid = [a for a in agents if a not in VALID_AGENTS]
     if invalid:
         console.print(f"[red]Error:[/red] Invalid agent keys: {', '.join(invalid)}")
-        console.print(f"\nValid agents: {', '.join(sorted(_valid_agents))}")
+        console.print(f"\nValid agents: {', '.join(sorted(VALID_AGENTS))}")
         raise typer.Exit(1)
 
     added = []
@@ -131,55 +325,24 @@ def add_agents(
             already_configured.append(agent_key)
             continue
 
-        if agent_key in _SKILL_ONLY_AGENTS:
-            # Skill-only agents (codex, vibe) receive Spec Kitty's slash commands
-            # as Agent Skills packages rendered into .agents/skills/.
-            from specify_cli.skills import command_installer  # noqa: PLC0415
-            from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
-
-            try:
-                report = command_installer.install(repo_root, agent_key)
-                if agent_key == "vibe":
-                    ensure_project_skill_path(repo_root)
-                installed = len(report.added) + len(report.reused_shared)
+        if agent_key in SKILL_ONLY_AGENTS:
+            ok, error = _register_skill_agent(repo_root, config, agent_key)
+            if ok:
                 added.append(agent_key)
-                config.available.append(agent_key)
-                console.print(
-                    f"[green]✓[/green] Registered {agent_key} "
-                    f"({installed} command skills in .agents/skills/)"
-                )
-            except Exception as exc:
-                errors.append(f"Failed to install {agent_key} skills: {exc}")
+            elif error:
+                errors.append(error)
             continue
 
-        # Get directory for this agent
-        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-        if not agent_dir_info:
-            errors.append(f"Unknown agent: {agent_key}")
-            continue
-
-        agent_root, subdir = agent_dir_info
-        agent_dir = repo_root / agent_root / subdir
-
-        # Create directory structure
-        try:
-            agent_dir.mkdir(parents=True, exist_ok=True)
-
-            # Generate templates for this agent
-            # Copy from mission templates
-            missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
-
-            if missions_dir.exists():
-                for template_file in missions_dir.glob("*.md"):
-                    dest_file = agent_dir / f"spec-kitty.{template_file.name}"
-                    shutil.copy2(template_file, dest_file)
-
+        if agent_key in GLOBAL_COMMAND_AGENTS:
+            _register_global_command_agent(config, agent_key)
             added.append(agent_key)
-            config.available.append(agent_key)
-            console.print(f"[green]✓[/green] Added {agent_root}/{subdir}/")
+            continue
 
-        except OSError as e:
-            errors.append(f"Failed to create {agent_root}/{subdir}/: {e}")
+        ok, error = _create_project_agent_dir(repo_root, config, agent_key)
+        if ok:
+            added.append(agent_key)
+        elif error:
+            errors.append(error)
 
     # Save updated config
     if added:
@@ -223,15 +386,14 @@ def remove_agents(
 
     # Validate agent keys — command-layer agents come from AGENT_DIR_TO_KEY;
     # skill-only agents (codex, vibe) have their own installer path.
-    _SKILL_ONLY_AGENTS = {"codex", "vibe"}
-    _valid_agents = set(AGENT_DIR_TO_KEY.values()) | _SKILL_ONLY_AGENTS
-    invalid = [a for a in agents if a not in _valid_agents]
+    invalid = [a for a in agents if a not in VALID_AGENTS]
     if invalid:
         console.print(f"[red]Error:[/red] Invalid agent keys: {', '.join(invalid)}")
-        console.print(f"\nValid agents: {', '.join(sorted(_valid_agents))}")
+        console.print(f"\nValid agents: {', '.join(sorted(VALID_AGENTS))}")
         raise typer.Exit(1)
 
     removed = []
+    removed_from_config = []
     errors = []
 
     for agent_key in agents:
@@ -246,36 +408,25 @@ def remove_agents(
             # Update config (unless --keep-config)
             if not keep_config and agent_key in config.available:
                 config.available.remove(agent_key)
+                removed_from_config.append(agent_key)
             continue
 
-        # Get directory for this agent
-        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-        if not agent_dir_info:
-            errors.append(f"Unknown agent: {agent_key}")
-            continue
-
-        agent_root, subdir = agent_dir_info
-
-        # Delete directory
-        agent_path = repo_root / agent_root
-        if agent_path.exists():
-            try:
-                shutil.rmtree(agent_path)
-                removed.append(agent_key)
-                console.print(f"[green]✓[/green] Removed {agent_root}/")
-            except OSError as e:
-                errors.append(f"Failed to remove {agent_root}/: {e}")
+        surface_removed, message = _remove_project_agent_surface(repo_root, agent_key)
+        if surface_removed:
+            removed.append(agent_key)
+            console.print(f"[green]✓[/green] {message}")
         else:
-            console.print(f"[dim]• {agent_root}/ already removed[/dim]")
+            console.print(f"[dim]• {message}[/dim]")
 
         # Update config (unless --keep-config)
         if not keep_config and agent_key in config.available:
             config.available.remove(agent_key)
+            removed_from_config.append(agent_key)
 
     # Save updated config
-    if not keep_config and (removed or any(a in config.available for a in agents)):
+    if not keep_config and removed_from_config:
         save_agent_config(repo_root, config)
-        console.print(f"\n[cyan]Updated config.yaml:[/cyan] removed {', '.join(removed)}")
+        console.print(f"\n[cyan]Updated config.yaml:[/cyan] removed {', '.join(removed_from_config)}")
 
     if errors:
         console.print("\n[yellow]Warnings:[/yellow]")
@@ -309,29 +460,27 @@ def agent_status():
     table.add_column("Exists", justify="center")
     table.add_column("Status")
 
-    all_agent_keys = sorted(AGENT_DIR_TO_KEY.values())
+    all_agent_keys = sorted(VALID_AGENTS)
 
     for agent_key in all_agent_keys:
-        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-        if not agent_dir_info:
-            continue
-
-        agent_root, subdir = agent_dir_info
-        agent_path = repo_root / agent_root / subdir
-
+        _, location, exists_bool = _agent_location(repo_root, agent_key)
         configured = "✓" if agent_key in config.available else "✗"
-        exists = "✓" if agent_path.exists() else "✗"
+        exists = "✓" if exists_bool else "✗"
 
-        if agent_key in config.available and agent_path.exists():
+        if agent_key in config.available and exists_bool:
             status = "[green]OK[/green]"
-        elif agent_key in config.available and not agent_path.exists():
+        elif agent_key in config.available and not exists_bool:
             status = "[yellow]Missing[/yellow]"
-        elif agent_key not in config.available and agent_path.exists():
+        elif (
+            agent_key not in config.available
+            and (surface := _project_agent_surface(repo_root, agent_key)) is not None
+            and surface[1].exists()
+        ):
             status = "[red]Orphaned[/red]"
         else:
             status = "[dim]Not used[/dim]"
 
-        table.add_row(agent_key, f"{agent_root}/{subdir}", configured, exists, status)
+        table.add_row(agent_key, location, configured, exists, status)
 
     console.print(table)
 
@@ -339,7 +488,9 @@ def agent_status():
     orphaned = [
         key
         for key in all_agent_keys
-        if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
+        if key not in config.available
+        and (surface := _project_agent_surface(repo_root, key)) is not None
+        and surface[1].exists()
     ]
 
     if orphaned:
@@ -381,53 +532,11 @@ def sync_agents(
 
     # Remove orphaned directories
     if remove_orphaned:
-        console.print("[cyan]Checking for orphaned directories...[/cyan]")
-        all_agent_keys = set(AGENT_DIR_TO_KEY.values())
-        orphaned = [
-            key
-            for key in all_agent_keys
-            if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
-        ]
-
-        for agent_key in orphaned:
-            agent_root, _ = KEY_TO_AGENT_DIR[agent_key]
-            agent_path = repo_root / agent_root
-
-            try:
-                shutil.rmtree(agent_path)
-                console.print(f"  [green]✓[/green] Removed orphaned {agent_root}/")
-                changes_made = True
-            except OSError as e:
-                console.print(f"  [red]✗[/red] Failed to remove {agent_root}/: {e}")
+        changes_made = _remove_orphaned_agent_dirs(repo_root, config) or changes_made
 
     # Create missing directories
     if create_missing:
-        console.print("\n[cyan]Checking for missing directories...[/cyan]")
-        missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
-
-        for agent_key in config.available:
-            agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-            if not agent_dir_info:
-                console.print(f"  [yellow]⚠[/yellow] Unknown agent: {agent_key}")
-                continue
-
-            agent_root, subdir = agent_dir_info
-            agent_dir = repo_root / agent_root / subdir
-
-            if not agent_dir.exists():
-                try:
-                    agent_dir.mkdir(parents=True, exist_ok=True)
-
-                    # Copy templates if available
-                    if missions_dir.exists():
-                        for template_file in missions_dir.glob("*.md"):
-                            dest_file = agent_dir / f"spec-kitty.{template_file.name}"
-                            shutil.copy2(template_file, dest_file)
-
-                    console.print(f"  [green]✓[/green] Created {agent_root}/{subdir}/")
-                    changes_made = True
-                except OSError as e:
-                    console.print(f"  [red]✗[/red] Failed to create {agent_root}/{subdir}/: {e}")
+        changes_made = _check_or_create_configured_agent_dirs(repo_root, config) or changes_made
 
     if not changes_made:
         console.print("[dim]No changes needed - filesystem matches config[/dim]")

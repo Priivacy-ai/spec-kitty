@@ -1,11 +1,12 @@
 {
+  "created_at": "2026-03-19T20:17:28.155851+00:00",
   "feature_number": "057",
-  "slug": "057-doctrine-stack-init-and-profile-integration",
   "feature_slug": "057-doctrine-stack-init-and-profile-integration",
   "friendly_name": "Doctrine Stack Init and Profile Integration",
   "mission": "software-dev",
+  "mission_id": "01KQ47E8015C58S164HPC0Y49H",
+  "slug": "057-doctrine-stack-init-and-profile-integration",
   "source_description": "Doctrine Stack Configuration & Agent Profile Integration - Users can opt-in to specify the doctrine stack explicitly using an exhaustive interview OR accept predefined defaults during spec-kitty init. The architect, implementer, and reviewer profiles are fully implemented and accessible via /spec-kitty.profile-context, so implementation missions can close gaps between the doctrine stack vision and actual implementation. Additionally, WP implementation workflows should load relevant agent profiles when specified in WP frontmatter.",
-  "created_at": "2026-03-19T20:17:28.155851+00:00",
   "target_branch": "feature/agent-profile-implementation",
   "vcs": "git"
 }

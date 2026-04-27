@@ -26,6 +26,17 @@ verify_module = importlib.import_module("specify_cli.cli.commands.verify")
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _compatible_project_cwd(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Run full-app command tests from a schema-compatible project root."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    (kittify / "metadata.yaml").write_text("spec_kitty:\n  schema_version: 3\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text("project:\n  name: test\n", encoding="utf-8")
+    (tmp_path / "kitty-specs").mkdir(exist_ok=True)
+    monkeypatch.chdir(tmp_path)
+
+
 def _load_json_from_output(output: str) -> dict[str, object]:
     start = output.find("{")
     end = output.rfind("}")
@@ -64,7 +75,6 @@ def test_verify_setup_command_runs(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(verify_module, "check_tool_for_tracker", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(verify_module, "find_repo_root", lambda: tmp_path)
     monkeypatch.setattr(verify_module, "get_project_root_or_exit", lambda repo_root: repo_root)
-    monkeypatch.setattr(verify_module, "check_version_compatibility", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(verify_module, "run_enhanced_verify", lambda **_kwargs: {})
 
     result = runner.invoke(cli_app, ["verify-setup"])
@@ -88,6 +98,7 @@ def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
         captured["json_output"] = json_output
 
     monkeypatch.setattr(lifecycle_module.agent_feature, "create_mission", fake_create_mission)
+    monkeypatch.setattr(lifecycle_module, "assert_initialized", lambda **_kwargs: None)
 
     result = runner.invoke(cli_app, ["specify", "My Great Feature"])
     assert result.exit_code == 0
@@ -109,6 +120,7 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
 
     monkeypatch.setattr(lifecycle_module.agent_feature, "setup_plan", fake_setup_plan)
     monkeypatch.setattr(lifecycle_module.agent_feature, "finalize_tasks", fake_finalize_tasks)
+    monkeypatch.setattr(lifecycle_module, "assert_initialized", lambda **_kwargs: None)
 
     plan_result = runner.invoke(cli_app, ["plan", "--feature", "001-demo", "--json"])
     tasks_result = runner.invoke(cli_app, ["tasks", "--json"])

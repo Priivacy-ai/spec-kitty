@@ -166,6 +166,33 @@ class DirectiveRef(BaseModel):
     rationale: str
 
 
+class ArtifactRef(BaseModel):
+    """Reference to a doctrine artifact with usage rationale."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    rationale: str
+
+
+class SelfReviewStep(BaseModel):
+    """A single step in the self-review protocol."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    command: str | None = None
+    gate: str
+
+
+class SelfReviewProtocol(BaseModel):
+    """Checklist an agent runs before handing off work."""
+
+    model_config = ConfigDict(frozen=True)
+
+    steps: list[SelfReviewStep] = Field(default_factory=list)
+
+
 # Main Domain Model
 
 
@@ -211,6 +238,10 @@ class AgentProfile(BaseModel):
     specialization_context: SpecializationContext | None = Field(default=None, alias="specialization-context")
     applies_to_languages: list[str] = Field(default_factory=list)
     directive_references: list[DirectiveRef] = Field(default_factory=list, alias="directive-references")
+    tactic_references: list[ArtifactRef] = Field(default_factory=list, alias="tactic-references")
+    toolguide_references: list[ArtifactRef] = Field(default_factory=list, alias="toolguide-references")
+    styleguide_references: list[ArtifactRef] = Field(default_factory=list, alias="styleguide-references")
+    self_review_protocol: SelfReviewProtocol | None = Field(default=None, alias="self-review-protocol")
     # Supports both forms:
     #   excluding: [field_name]            → removes entire field from resolved result
     #   excluding: {field_name: [value]}   → removes specific values from list field

@@ -4,6 +4,7 @@
   "feature_slug": "064-complete-mission-identity-cutover",
   "friendly_name": "Complete Mission Identity Cutover",
   "mission": "software-dev",
+  "mission_id": "01KQ47E80QJG8GTVGDCV67RW7M",
   "slug": "064-complete-mission-identity-cutover",
   "source_description": "Clean up and complete the partially landed mission/build identity cutover on main, aligning to spec-kitty-events 3.0.0 and spec-kitty-saas upstream contracts.",
   "target_branch": "main",

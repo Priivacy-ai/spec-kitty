@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
+  "mission_id": "01KQ48XAGYF876MDHJ62GV0KSM",
+  "mission_branch": "kitty/mission-doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
+  "target_branch": "feature/doctrine-enrichment-bdd-profiles",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/tactic-code-documentation-analysis.import.yaml",
+        "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/tactic-terminology-extraction-mapping.import.yaml",
+        "src/doctrine/tactics/shipped/analysis/ammerse-impact-analysis.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/analysis-extract-before-interpret.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/bounded-context-canvas-fill.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/bounded-context-identification.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/code-documentation-analysis.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/connascence-analysis.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/context-boundary-inference.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/context-mapping-classification.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/entity-value-object-classification.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/premortem-risk-identification.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/requirements-validation-workflow.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/reverse-speccing.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/safe-to-fail-experiment.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/strategic-domain-classification.tactic.yaml",
+        "src/doctrine/tactics/shipped/analysis/terminology-extraction-mapping.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/adr-drafting-workflow.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/decision-marker-capture.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/documentation-curation-audit.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/glossary-curation-interview.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/stakeholder-alignment.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/traceable-decisions.tactic.yaml",
+        "src/doctrine/tactics/shipped/communication/usage-examples-sync.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/tactic-development-bdd.import.yaml",
+        "src/doctrine/agent_profiles/shipped/architect-alphonso.agent.yaml",
+        "src/doctrine/agent_profiles/shipped/frontend-freddy.agent.yaml",
+        "src/doctrine/agent_profiles/shipped/implementer-ivan.agent.yaml",
+        "src/doctrine/agent_profiles/shipped/java-jenny.agent.yaml",
+        "src/doctrine/agent_profiles/shipped/node-norris.agent.yaml",
+        "src/doctrine/agent_profiles/shipped/reviewer-renata.agent.yaml",
+        "src/doctrine/paradigms/shipped/behaviour-driven-development.paradigm.yaml",
+        "src/doctrine/procedures/shipped/bdd-scenario-lifecycle.procedure.yaml",
+        "src/doctrine/tactics/shipped/architecture/aggregate-boundary-design.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/anti-corruption-layer.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/architecture-diagram-review-checklist.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/atomic-design-review-checklist.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/atomic-state-ownership.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/c4-zoom-in-architecture-documentation.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/compositional-stream-boundaries.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/cross-cutting-state-via-store.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/dependency-hygiene.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/development-bdd.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/domain-event-capture.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/language-driven-design.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/problem-decomposition.tactic.yaml",
+        "src/doctrine/tactics/shipped/architecture/reference-architectural-patterns.tactic.yaml",
+        "src/doctrine/tactics/shipped/behavior-driven-development.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/acceptance-test-first.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/atdd-adversarial-acceptance.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/black-box-integration-testing.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/bug-fixing-checklist.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/formalized-constraint-testing.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/function-over-form-testing.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/mutation-testing-workflow.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/no-parallel-duplicate-test-runs.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/quality-gate-verification.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/tdd-red-green-refactor.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/test-boundaries-by-responsibility.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/test-minimisation.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/test-pyramid-progression.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/test-readability-clarity-check.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/test-to-system-reconstruction.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/testing-select-appropriate-level.tactic.yaml",
+        "src/doctrine/tactics/shipped/testing/zombies-tdd.tactic.yaml",
+        "tests/doctrine/test_profile_inheritance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-26T09:42:24.280094+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP03"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP04"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP06"
+      }
+    ],
+    "total_merges": 7,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 7
+    }
+  }
+}

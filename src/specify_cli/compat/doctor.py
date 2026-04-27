@@ -1,4 +1,5 @@
 """Classify shim registry entries and produce a health report."""
+
 from __future__ import annotations
 
 import dataclasses

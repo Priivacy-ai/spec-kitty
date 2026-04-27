@@ -2,7 +2,7 @@
 
 Defines the 9-lane state machine data types: Lane enum, StatusEvent,
 DoneEvidence (with ReviewApproval, RepoEvidence, VerificationResult),
-StatusSnapshot, and AgentAssignment.
+StatusSnapshot, AgentAssignment, and RetrospectiveSnapshot.
 """
 
 from __future__ import annotations
@@ -11,10 +11,13 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Literal, Optional
+
+from pydantic import BaseModel
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_metadata import mission_identity_fields
+from specify_cli.retrospective.schema import Mode
 
 
 class Lane(StrEnum):
@@ -263,22 +266,26 @@ class StatusSnapshot:
     summary: dict[str, int]  # lane -> count
     mission_number: str | None = None
     mission_type: str | None = None
+    # Additive WP03 field: retrospective state derived from retrospective.* events.
+    # Default None → backwards-compatible; existing snapshot consumers see no change.
+    retrospective: RetrospectiveSnapshot | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result: dict[str, Any] = with_tracked_mission_slug_aliases(
-            {
-                **mission_identity_fields(
-                    self.mission_slug,
-                    self.mission_number,
-                    self.mission_type,
-                ),
-                "materialized_at": self.materialized_at,
-                "event_count": self.event_count,
-                "last_event_id": self.last_event_id,
-                "work_packages": self.work_packages,
-                "summary": self.summary,
-            }
-        )
+        d: dict[str, Any] = {
+            **mission_identity_fields(
+                self.mission_slug,
+                self.mission_number,
+                self.mission_type,
+            ),
+            "materialized_at": self.materialized_at,
+            "event_count": self.event_count,
+            "last_event_id": self.last_event_id,
+            "work_packages": self.work_packages,
+            "summary": self.summary,
+        }
+        if self.retrospective is not None:
+            d["retrospective"] = self.retrospective.model_dump(mode="json")
+        result: dict[str, Any] = with_tracked_mission_slug_aliases(d)
         return result
 
     @classmethod
@@ -286,6 +293,10 @@ class StatusSnapshot:
         feature_slug = data.get("mission_slug") or data.get("feature_slug")
         if feature_slug is None:
             raise KeyError("mission_slug")
+        retro_data = data.get("retrospective")
+        retro: RetrospectiveSnapshot | None = None
+        if retro_data is not None:
+            retro = RetrospectiveSnapshot.model_validate(retro_data)
         return cls(
             mission_slug=feature_slug,
             materialized_at=data["materialized_at"],
@@ -295,6 +306,7 @@ class StatusSnapshot:
             summary=data["summary"],
             mission_number=data.get("mission_number"),
             mission_type=data.get("mission_type"),
+            retrospective=retro,
         )
 
 
@@ -381,3 +393,29 @@ class GuardContext:
     force: bool = False
     review_result: Any = None
     current_actor: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# RetrospectiveSnapshot (additive — WP03)
+# ---------------------------------------------------------------------------
+
+
+class RetrospectiveSnapshot(BaseModel):
+    """Materialized retrospective state for a single mission.
+
+    Computed by the status reducer from retrospective.* events in the
+    mission's event log. Surfaced as an additive field on StatusSnapshot.
+
+    status values:
+      absent  — no retrospective.* events seen (legacy / in-flight / no-retro)
+      pending — requested or started, but not yet completed/skipped/failed
+      completed, skipped, failed — terminal states from the latest terminal event
+    """
+
+    status: Literal["completed", "skipped", "failed", "pending", "absent"]
+    mode: Mode | None = None
+    record_path: str | None = None
+    proposals_total: int = 0
+    proposals_applied: int = 0
+    proposals_rejected: int = 0
+    proposals_pending: int = 0

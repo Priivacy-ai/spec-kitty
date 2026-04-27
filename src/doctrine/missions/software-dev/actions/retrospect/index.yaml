@@ -1,0 +1,12 @@
+action: retrospect
+directives:
+  - 003-decision-documentation-requirement
+  - 010-specification-fidelity-requirement
+  - 018-doctrine-versioning-requirement
+tactics:
+  - requirements-validation-workflow
+  - stopping-conditions
+  - autonomous-operation-protocol
+styleguides: []
+toolguides: []
+procedures: []

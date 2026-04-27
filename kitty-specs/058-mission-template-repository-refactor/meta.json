@@ -4,6 +4,7 @@
   "feature_slug": "058-mission-template-repository-refactor",
   "friendly_name": "Mission Repository Encapsulation",
   "mission": "software-dev",
+  "mission_id": "01KQ47E804E3XS632EVFRANAW1",
   "slug": "058-mission-template-repository-refactor",
   "target_branch": "feature/agent-profile-implementation",
   "vcs": "git",

@@ -16,6 +16,7 @@ import pytest
 import yaml
 
 from tests.test_isolation_helpers import get_installed_version
+from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -89,6 +90,8 @@ def e2e_project(tmp_path: Path) -> Path:
         if "spec_kitty" not in metadata:
             metadata["spec_kitty"] = {}
         metadata["spec_kitty"]["version"] = current_version
+        metadata["spec_kitty"]["schema_version"] = MAX_SUPPORTED_SCHEMA
+        metadata["spec_kitty"]["schema_capabilities"] = SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
 
         with open(metadata_file, "w", encoding="utf-8") as f:
             yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)

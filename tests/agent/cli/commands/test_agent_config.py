@@ -8,11 +8,33 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.config import app
+from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.core.agent_config import save_agent_config
 
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+
+def _unwrapped_output(output: str) -> str:
+    """Normalize Rich line wrapping in CLI output assertions."""
+    return output.replace("\n", "")
+
+
+@pytest.fixture(autouse=True)
+def fake_global_command_dirs(tmp_path, monkeypatch):
+    """Keep global command checks isolated from the developer's home directory."""
+    global_root = tmp_path / "global-home"
+
+    def _fake_global_command_dir(agent_key: str):
+        return global_root / AGENT_COMMAND_CONFIG[agent_key]["dir"]
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.config.get_global_command_dir",
+        _fake_global_command_dir,
+    )
+    (global_root / ".opencode" / "command").mkdir(parents=True)
+    return global_root
 
 
 @pytest.fixture
@@ -50,8 +72,23 @@ class TestListCommand:
 
             assert result.exit_code == 0
             assert "opencode" in result.stdout
-            assert ".opencode/command/" in result.stdout
+            assert ".opencode/command/" in _unwrapped_output(result.stdout)
             assert "✓" in result.stdout  # opencode exists
+
+    def test_list_uses_global_command_root_after_init(self, tmp_path):
+        """A fresh 3.1.x project has config but no project-local command dir."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  available:\n    - opencode\n")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["list"])
+
+            assert result.exit_code == 0
+            assert "✓ opencode" in result.stdout
+            assert ".opencode/command/" in _unwrapped_output(result.stdout)
+            assert "(global)" in result.stdout
+            assert not (tmp_path / ".opencode").exists()
 
     def test_list_no_agents_configured(self, tmp_path):
         """Test listing when no agents are configured."""
@@ -79,16 +116,17 @@ class TestAddCommand:
     """Tests for 'spec-kitty agent config add' command."""
 
     def test_add_single_agent(self, mock_project):
-        """Test adding a single agent."""
+        """Adding a slash-command agent registers global commands without local dirs."""
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
             result = runner.invoke(app, ["add", "claude"])
 
             assert result.exit_code == 0
-            assert "Added .claude/commands/" in result.stdout
+            assert "Registered claude" in result.stdout
+            assert "global commands" in result.stdout
             assert "Updated config.yaml" in result.stdout
 
-            # Verify directory was created
-            assert (mock_project / ".claude" / "commands").exists()
+            # Slash-command files are global in 3.1.x, not project-local.
+            assert not (mock_project / ".claude").exists()
 
             # Verify config was updated
             config_file = mock_project / ".kittify" / "config.yaml"
@@ -101,12 +139,12 @@ class TestAddCommand:
             result = runner.invoke(app, ["add", "claude", "codex"])
 
             assert result.exit_code == 0
-            assert "Added .claude/commands/" in result.stdout
+            assert "Registered claude" in result.stdout
             assert "Registered codex" in result.stdout
             assert ".agents/skills/" in result.stdout
 
-            # Verify both directories were created
-            assert (mock_project / ".claude" / "commands").exists()
+            # Claude is globally managed; Codex uses project-local command skills.
+            assert not (mock_project / ".claude").exists()
             assert (mock_project / ".agents" / "skills").exists()
 
     def test_add_already_configured_agent(self, mock_project):
@@ -126,17 +164,15 @@ class TestAddCommand:
             assert "Invalid agent keys: invalid-agent" in result.stdout
             assert "Valid agents:" in result.stdout
 
-    def test_add_creates_templates(self, mock_project):
-        """Test that adding an agent copies templates."""
+    def test_add_does_not_create_project_command_templates(self, mock_project):
+        """Adding a global command agent must not recreate local command files."""
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
             result = runner.invoke(app, ["add", "claude"])
 
             assert result.exit_code == 0
 
-            # Verify templates were copied
             claude_dir = mock_project / ".claude" / "commands"
-            assert (claude_dir / "spec-kitty.implement.md").exists()
-            assert (claude_dir / "spec-kitty.review.md").exists()
+            assert not claude_dir.exists()
 
 
 class TestRemoveCommand:
@@ -187,6 +223,10 @@ class TestRemoveCommand:
 
             assert result.exit_code == 0
             assert "already removed" in result.stdout.lower()
+            assert "Updated config.yaml" in result.stdout
+
+            config = load_agent_config(mock_project)
+            assert "gemini" not in config.available
 
     def test_remove_with_keep_config(self, mock_project):
         """Test removing agent with --keep-config flag."""
@@ -202,6 +242,26 @@ class TestRemoveCommand:
             from specify_cli.core.agent_config import load_agent_config
             config = load_agent_config(mock_project)
             assert "opencode" in config.available
+
+    def test_remove_copilot_preserves_github_workflows(self, tmp_path):
+        """Removing Copilot must not delete unrelated .github content."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  available:\n    - copilot\n")
+        workflows = tmp_path / ".github" / "workflows"
+        prompts = tmp_path / ".github" / "prompts"
+        workflows.mkdir(parents=True)
+        prompts.mkdir(parents=True)
+        (workflows / "ci.yml").write_text("name: ci\n")
+        (prompts / "spec-kitty.example.prompt.md").write_text("# prompt\n")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["remove", "copilot"])
+
+            assert result.exit_code == 0
+            assert "Removed .github/prompts/" in result.stdout
+            assert not prompts.exists()
+            assert (workflows / "ci.yml").exists()
 
 
 class TestStatusCommand:
@@ -225,6 +285,22 @@ class TestStatusCommand:
             assert result.exit_code == 0
             # opencode is configured and present
             assert "OK" in result.stdout
+
+    def test_status_uses_global_command_root_after_init(self, tmp_path):
+        """Configured global command agents should not be missing after init."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  available:\n    - opencode\n")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["status"])
+
+            assert result.exit_code == 0
+            assert "opencode" in result.stdout
+            assert "global" in result.stdout
+            assert "OK" in result.stdout
+            assert "Missing" not in result.stdout
+            assert not (tmp_path / ".opencode").exists()
 
     def test_status_shows_orphaned(self, mock_project):
         """Test status shows orphaned agents (present but not configured)."""
@@ -258,6 +334,26 @@ class TestSyncCommand:
             assert "Removed orphaned .claude/" in result.stdout
             assert not (mock_project / ".claude").exists()
 
+    def test_sync_removes_only_copilot_prompts(self, tmp_path):
+        """Orphan cleanup must preserve unrelated .github files."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  available: []\n")
+        workflows = tmp_path / ".github" / "workflows"
+        prompts = tmp_path / ".github" / "prompts"
+        workflows.mkdir(parents=True)
+        prompts.mkdir(parents=True)
+        (workflows / "ci.yml").write_text("name: ci\n")
+        (prompts / "spec-kitty.example.prompt.md").write_text("# prompt\n")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["sync"])
+
+            assert result.exit_code == 0
+            assert "Removed orphaned .github/prompts/" in result.stdout
+            assert not prompts.exists()
+            assert (workflows / "ci.yml").exists()
+
     def test_sync_keep_orphaned(self, mock_project):
         """Test sync with --keep-orphaned flag."""
         # Create orphaned claude directory (if not exists)
@@ -272,8 +368,8 @@ class TestSyncCommand:
             # Should not remove claude
             assert (mock_project / ".claude" / "commands").exists()
 
-    def test_sync_create_missing(self, mock_project):
-        """Test sync creates missing directories with --create-missing."""
+    def test_sync_create_missing_skips_global_command_dirs(self, mock_project):
+        """Sync should not recreate retired project-local command directories."""
         # Add gemini to config but don't create directory
         from specify_cli.core.agent_config import load_agent_config
 
@@ -285,8 +381,8 @@ class TestSyncCommand:
             result = runner.invoke(app, ["sync", "--create-missing"])
 
             assert result.exit_code == 0
-            assert "Created .gemini/commands/" in result.stdout
-            assert (mock_project / ".gemini" / "commands").exists()
+            assert "Global commands missing for gemini" in result.stdout
+            assert not (mock_project / ".gemini").exists()
 
     def test_sync_no_changes_needed(self, tmp_path):
         """Test sync when filesystem already matches config."""
@@ -312,8 +408,8 @@ class TestSyncCommand:
 class TestAgentKeyMapping:
     """Tests for agent key to directory mapping."""
 
-    def test_special_agent_keys(self, mock_project):
-        """Test that special agent keys map correctly."""
+    def test_special_agent_keys_register_global_commands(self, mock_project):
+        """Special command-layer agent keys still register without local dirs."""
         # copilot -> .github
         # auggie -> .augment
         # q -> .amazonq
@@ -322,14 +418,17 @@ class TestAgentKeyMapping:
             # Test copilot (maps to .github)
             result = runner.invoke(app, ["add", "copilot"])
             assert result.exit_code == 0
-            assert (mock_project / ".github" / "prompts").exists()
+            assert "Registered copilot" in result.stdout
+            assert not (mock_project / ".github" / "prompts").exists()
 
             # Test auggie (maps to .augment)
             result = runner.invoke(app, ["add", "auggie"])
             assert result.exit_code == 0
-            assert (mock_project / ".augment" / "commands").exists()
+            assert "Registered auggie" in result.stdout
+            assert not (mock_project / ".augment" / "commands").exists()
 
             # Test q (maps to .amazonq)
             result = runner.invoke(app, ["add", "q"])
             assert result.exit_code == 0
-            assert (mock_project / ".amazonq" / "prompts").exists()
+            assert "Registered q" in result.stdout
+            assert not (mock_project / ".amazonq" / "prompts").exists()

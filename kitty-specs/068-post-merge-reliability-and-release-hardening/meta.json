@@ -1,11 +1,12 @@
 {
   "created_at": "2026-04-07T07:32:08.633258+00:00",
   "friendly_name": "Post-Merge Reliability And Release Hardening",
-  "mission_number": "068",
+  "mission_id": "01KQ47E815DD7T5KJB0P505MBX",
+  "mission_number": 68,
   "mission_slug": "068-post-merge-reliability-and-release-hardening",
   "mission_type": "software-dev",
   "slug": "068-post-merge-reliability-and-release-hardening",
+  "source_description": "Final workflow-stabilization mission for spec-kitty core. Closes the workflow-stabilization track by finishing four still-current issues (#454 stale test detection, #455 diff-coverage policy cleanup, #456 protected-branch linear-history support, #457 release prep automation) and verifying-or-closing two older recovery issues with substantial code already on main (#415 implementation crash recovery, #416 merge interruption recovery). Validated against fresh clone /tmp/spec-kitty-20260407-090957 at commit 7307389a1f529dae9e90279ea972609bb0b420aa.",
   "target_branch": "main",
-  "vcs": "git",
-  "source_description": "Final workflow-stabilization mission for spec-kitty core. Closes the workflow-stabilization track by finishing four still-current issues (#454 stale test detection, #455 diff-coverage policy cleanup, #456 protected-branch linear-history support, #457 release prep automation) and verifying-or-closing two older recovery issues with substantial code already on main (#415 implementation crash recovery, #416 merge interruption recovery). Validated against fresh clone /tmp/spec-kitty-20260407-090957 at commit 7307389a1f529dae9e90279ea972609bb0b420aa."
+  "vcs": "git"
 }
