@@ -58,13 +58,13 @@
 | T045 | `cli.py` `retrospect summary` subcommand wiring under top-level `retrospect` | WP09 |  | [D] |
 | T046 | Rich + JSON renderers (informational equivalence) | WP09 |  | [D] |
 | T047 | Tests: rich/brief/skipped/missing/malformed corpus tolerance + 200-mission perf bound | WP09 |  | [D] |
-| T048 | §4.5.1 inequality predicate as a calibration helper module | WP10 |  |
-| T049 | Calibration walker: every (profile, action) pair × in-scope missions | WP10 |  |
-| T050 | Per-mission calibration report template + 4 reports (software-dev / research / documentation / ERP custom) | WP10 |  |
-| T051 | DRG edge changes for software-dev and research via project-local overlays | WP10 |  |
-| T052 | DRG edge changes for documentation and ERP custom via project-local overlays | WP10 |  |
-| T053 | Architectural test: no new prompt-builder filtering call sites | WP10 |  |
-| T054 | Tests: §4.5.1 inequality holds for every in-scope step | WP10 |  |
+| T048 | §4.5.1 inequality predicate as a calibration helper module | WP10 |  | [D] |
+| T049 | Calibration walker: every (profile, action) pair × in-scope missions | WP10 |  | [D] |
+| T050 | Per-mission calibration report template + 4 reports (software-dev / research / documentation / ERP custom) | WP10 |  | [D] |
+| T051 | DRG edge changes for software-dev and research via project-local overlays | WP10 |  | [D] |
+| T052 | DRG edge changes for documentation and ERP custom via project-local overlays | WP10 |  | [D] |
+| T053 | Architectural test: no new prompt-builder filtering call sites | WP10 |  | [D] |
+| T054 | Tests: §4.5.1 inequality holds for every in-scope step | WP10 |  | [D] |
 | T055 | Fixture missions for autonomous + HiC paths under `tests/integration/retrospective/fixtures/` | WP11 |  |
 | T056 | Real-runtime integration test: autonomous terminus end-to-end | WP11 |  |
 | T057 | Real-runtime integration test: HiC terminus end-to-end (run + skip) | WP11 |  |
@@ -398,13 +398,13 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-030, FR-031, FR-032, C-011.
 
 **Subtasks**:
-- [ ] T048 §4.5.1 inequality predicate as a calibration helper module (WP10)
-- [ ] T049 Calibration walker: every (profile, action) pair × in-scope missions (WP10)
-- [ ] T050 Per-mission calibration report template + 4 reports (WP10)
-- [ ] T051 DRG edge changes for software-dev and research via project-local overlays (WP10)
-- [ ] T052 DRG edge changes for documentation and ERP custom via project-local overlays (WP10)
-- [ ] T053 Architectural test: no new prompt-builder filtering call sites (WP10)
-- [ ] T054 Tests: §4.5.1 inequality holds for every in-scope step (WP10)
+- [x] T048 §4.5.1 inequality predicate as a calibration helper module (WP10)
+- [x] T049 Calibration walker: every (profile, action) pair × in-scope missions (WP10)
+- [x] T050 Per-mission calibration report template + 4 reports (WP10)
+- [x] T051 DRG edge changes for software-dev and research via project-local overlays (WP10)
+- [x] T052 DRG edge changes for documentation and ERP custom via project-local overlays (WP10)
+- [x] T053 Architectural test: no new prompt-builder filtering call sites (WP10)
+- [x] T054 Tests: §4.5.1 inequality holds for every in-scope step (WP10)
 
 **Implementation sketch**:
 1. `tests/calibration/inequality.py` — `assert_inequality_holds(mission, step) -> Result`.
