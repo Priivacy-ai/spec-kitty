@@ -65,6 +65,11 @@ def _build_command_path(invoked_subcommand: str | None = None) -> tuple[str, ...
     # If sys.argv agrees with the invoked_subcommand (first token matches),
     # trust the full argv path — it has the complete nested structure.
     if invoked_subcommand is not None and argv_path and argv_path[0] == invoked_subcommand:
+        if invoked_subcommand == "orchestrator-api":
+            # The orchestrator API owns JSON error formatting for parse and
+            # usage failures. Keep the top-level command path so its
+            # mode-aware safety predicate can inspect raw_args and decide.
+            return (invoked_subcommand,)
         return tuple(argv_path)
 
     # Otherwise, fall back: use invoked_subcommand as a single-element tuple.
@@ -125,8 +130,8 @@ def check_schema_version(
     inv = Invocation(
         command_path=_build_command_path(invoked_subcommand),
         raw_args=tuple(sys.argv[1:]),
-        is_help=False,
-        is_version=False,
+        is_help="--help" in sys.argv or "-h" in sys.argv,
+        is_version=bool(sys.argv[1:2]) and sys.argv[1] in {"--version", "-v"},
         flag_no_nag="--no-nag" in sys.argv,
         env_ci=is_ci_env(),
         stdout_is_tty=sys.stdout.isatty(),

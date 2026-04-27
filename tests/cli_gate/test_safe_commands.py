@@ -13,7 +13,9 @@ relevant chokepoint for block decisions; the nag path is covered in
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -32,6 +34,7 @@ from specify_cli.migration.gate import check_schema_version
 _SAFE_COMMANDS: list[tuple[str, str]] = [
     # (invoked_subcommand, human_label)
     ("upgrade", "upgrade"),
+    ("migrate", "migrate"),
     ("init", "init"),
     ("status", "status"),
     ("dashboard", "dashboard"),
@@ -99,3 +102,35 @@ def test_no_subcommand_not_blocked_by_compatible_project(
     before the gate is invoked, so we do not need to test that combination here.
     """
     check_schema_version(fixture_project_compatible, invoked_subcommand=None)
+
+
+def test_help_flag_not_blocked_for_unsafe_command_on_stale_project(
+    fixture_project_stale: Path,
+) -> None:
+    """--help must remain available even for unsafe commands in stale projects."""
+    with patch.object(sys, "argv", ["spec-kitty", "next", "--help"]):
+        check_schema_version(fixture_project_stale, invoked_subcommand="next")
+
+
+def test_version_flag_not_blocked_for_unsafe_command_on_stale_project(
+    fixture_project_stale: Path,
+) -> None:
+    """--version must remain available even when the current project is stale."""
+    with patch.object(sys, "argv", ["spec-kitty", "--version"]):
+        check_schema_version(fixture_project_stale, invoked_subcommand="next")
+
+
+def test_orchestrator_contract_version_not_blocked_on_stale_project(
+    fixture_project_stale: Path,
+) -> None:
+    """Read-only orchestrator-api contract negotiation stays available."""
+    with patch.object(sys, "argv", ["spec-kitty", "orchestrator-api", "contract-version"]):
+        check_schema_version(fixture_project_stale, invoked_subcommand="orchestrator-api")
+
+
+def test_orchestrator_usage_errors_not_blocked_on_stale_project(
+    fixture_project_stale: Path,
+) -> None:
+    """Unknown orchestrator-api verbs must reach the JSON usage-error handler."""
+    with patch.object(sys, "argv", ["spec-kitty", "orchestrator-api", "unknown-command"]):
+        check_schema_version(fixture_project_stale, invoked_subcommand="orchestrator-api")

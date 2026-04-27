@@ -256,7 +256,7 @@ class Invocation:
 
         args = list(argv)
         is_help = "--help" in args or "-h" in args
-        is_version = "--version" in args or "-v" in args
+        is_version = bool(args[:1]) and args[0] in {"--version", "-v"}
         flag_no_nag = "--no-nag" in args
         env_ci = is_ci_env()
 
@@ -350,6 +350,11 @@ def decide(
     from specify_cli.compat.safety import Safety
 
     state = project.state
+
+    # Help and version output must remain available for every command path,
+    # including otherwise-unsafe commands in stale or too-new projects.
+    if invocation.is_help or invocation.is_version:
+        return Decision.ALLOW, Fr023Case.NONE
 
     # Row 1: CORRUPT (any safety) → block
     if state == ProjectState.CORRUPT:
@@ -885,7 +890,7 @@ def _plan_impl(
     # --- Step 7/8: Override fr023_case for UNKNOWN install method ---
     from specify_cli.compat._detect.install_method import InstallMethod
 
-    if install_method == InstallMethod.UNKNOWN and decision in (Decision.ALLOW_WITH_NAG, Decision.BLOCK_CLI_UPGRADE, Decision.BLOCK_PROJECT_MIGRATION):
+    if install_method == InstallMethod.UNKNOWN and decision == Decision.ALLOW_WITH_NAG:
         fr023_case = Fr023Case.INSTALL_METHOD_UNKNOWN
 
     # --- Step 9: Pending migrations ---

@@ -200,6 +200,7 @@ This is the contract used by FR-008/FR-011 and AC-008. The full definitive list 
 - `spec-kitty dashboard` *only when invoked in a purely read-only mode*. Any dashboard mode that would initialize missing project state, write cache or config files, start sync, or repair project files is **unsafe** and is blocked under incompatible schema.
 - `spec-kitty doctor` *only in its diagnostic / read-only mode*. Any `doctor` mode that fixes, repairs, or applies changes is **unsafe** and is blocked.
 - All `spec-kitty upgrade …` subcommands and their flags (these are the remediation path and must always be reachable).
+- `spec-kitty migrate` (runtime/project migration remediation must remain reachable before normal schema-sensitive commands run).
 - All `spec-kitty agent …` subcommands that are read-only (for example `agent context resolve`, `agent tasks status`, `agent mission branch-context`).
 
 **Unsafe under incompatible current-project schema** (blocked with explicit guidance):

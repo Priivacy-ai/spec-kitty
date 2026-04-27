@@ -52,6 +52,9 @@ from specify_cli.cli.helpers import console, show_banner
 from specify_cli.git.commit_helpers import safe_commit
 
 
+_PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
+
+
 def _git_status_paths(repo_path: Path) -> set[str] | None:
     """Return git status paths for *repo_path* using porcelain -z output.
 
@@ -303,7 +306,9 @@ def _check_project_not_too_new(
                 from specify_cli.compat.planner import Invocation, plan as _plan
 
                 inv = Invocation(
-                    command_path=("upgrade",),
+                    # This JSON describes current-project compatibility, not
+                    # the safe remediation command itself.
+                    command_path=_PROJECT_COMPAT_CHECK_COMMAND,
                     raw_args=("--project",),
                     is_help=False,
                     is_version=False,
@@ -754,7 +759,10 @@ def _run_planner_json(
     # Read the real environment so that CI=1 spec-kitty upgrade --json
     # correctly suppresses the network call (RISK-3 fix).
     invocation = Invocation(
-        command_path=("upgrade",),
+        # Emit the compatibility plan for normal project-mutating commands.
+        # ``upgrade`` itself is registered SAFE so users can remediate stale
+        # schemas; using it here would hide project_migration_needed.
+        command_path=_PROJECT_COMPAT_CHECK_COMMAND,
         raw_args=raw_args,
         is_help=False,
         is_version=False,

@@ -228,6 +228,7 @@ def test_cli_update_available_dry_run_shows_nag(tmp_path: Path) -> None:
     fake_provider = FakeLatestVersionProvider("999.0.0")
 
     # Direct test: call planner with a fake provider to verify nag is triggered
+    from specify_cli.compat.cache import NagCache
     from specify_cli.compat.planner import plan as compat_plan
 
     old_cwd = os.getcwd()
@@ -245,6 +246,7 @@ def test_cli_update_available_dry_run_shows_nag(tmp_path: Path) -> None:
         result_plan = compat_plan(
             inv,
             latest_version_provider=fake_provider,
+            nag_cache=NagCache(tmp_path / "upgrade-nag-test.json"),
         )
         assert result_plan.cli_status.is_outdated
         assert result_plan.fr023_case.value in ("cli_update_available", "install_method_unknown")
@@ -268,12 +270,15 @@ def test_cli_update_available_json_contract(tmp_path: Path) -> None:
         no_nag: bool,
         latest_version_provider: object = None,
     ) -> None:
-        return original_run_cli_mode(
-            json_output=json_output,
-            dry_run=dry_run,
-            no_nag=no_nag,
-            latest_version_provider=FakeLatestVersionProvider("999.0.0"),
-        )
+        from specify_cli.compat.cache import NagCache
+
+        with patch("specify_cli.compat.cache.NagCache.default", return_value=NagCache(tmp_path / "upgrade-nag-test.json")):
+            return original_run_cli_mode(
+                json_output=json_output,
+                dry_run=dry_run,
+                no_nag=no_nag,
+                latest_version_provider=FakeLatestVersionProvider("999.0.0"),
+            )
 
     with patch.object(upgrade_mod, "_run_cli_mode", patched_run_cli_mode):
         result = _invoke_upgrade(["--cli", "--json"], cwd=tmp_path)
@@ -327,6 +332,29 @@ def test_project_migration_needed_planner_json(tmp_path: Path) -> None:
         os.chdir(old_cwd)
 
 
+def test_project_migration_needed_project_dry_run_json_contract(tmp_path: Path) -> None:
+    """Stale project: upgrade --project --dry-run --json reports the blocking project plan."""
+    from specify_cli.compat._detect.install_method import InstallMethod
+
+    _make_compatible_project(tmp_path, schema_version=1)
+
+    with patch(
+        "specify_cli.compat._detect.install_method.detect_install_method",
+        return_value=InstallMethod.PIPX,
+    ):
+        result = _invoke_upgrade(["--project", "--dry-run", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == 0, f"dry-run JSON should exit 0; output: {result.output}"
+    payload = json.loads(result.output)
+    _validate_json_contract(payload)
+    assert payload["case"] == "project_migration_needed"
+    assert payload["decision"] == "BLOCK_PROJECT_MIGRATION"
+    assert payload["exit_code"] == 4
+    assert payload["project"]["state"] == "stale"
+    assert payload["safety"] == "unsafe"
+    assert payload["pending_migrations"], "stale-project dry-run JSON must list pending migrations"
+
+
 # ---------------------------------------------------------------------------
 # FR-023 case 3: project_too_new_for_cli (CHK037 / A-006)
 # ---------------------------------------------------------------------------
@@ -376,6 +404,9 @@ def test_project_too_new_for_cli_json_contract(tmp_path: Path) -> None:
     except json.JSONDecodeError as e:
         pytest.fail(f"Output is not valid JSON: {e}\nOutput: {result.output!r}")
     _validate_json_contract(payload)
+    assert payload["case"] == "project_too_new_for_cli"
+    assert payload["decision"] == "BLOCK_CLI_UPGRADE"
+    assert payload["exit_code"] == 5
     assert payload["project"]["state"] == "too_new"
 
 
@@ -472,16 +503,10 @@ def test_install_method_unknown_cli_prints_note_not_command(tmp_path: Path) -> N
             env_ci=False,
             stdout_is_tty=True,
         )
-        # Patch the detect_install_method where it is imported inside _plan_impl
         with (
             patch(
                 "specify_cli.compat._detect.install_method.detect_install_method",
                 return_value=InstallMethod.UNKNOWN,
-            ),
-            patch(
-                "specify_cli.compat.planner.detect_install_method",
-                return_value=InstallMethod.UNKNOWN,
-                create=True,
             ),
         ):
             result_plan = compat_plan(inv)

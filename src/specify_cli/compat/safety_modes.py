@@ -112,6 +112,44 @@ def _sparse_checkout_predicate(invocation: _InvocationProtocol) -> Safety:
 
 
 # ---------------------------------------------------------------------------
+# Orchestrator API
+# ---------------------------------------------------------------------------
+# Read-only API verbs and parser/usage errors must keep their JSON contract.
+# Known state-mutating verbs remain unsafe under schema mismatch.
+_ORCHESTRATOR_API_UNSAFE_SUBCOMMANDS: frozenset[str] = frozenset(
+    {
+        "start-implementation",
+        "start-review",
+        "transition",
+        "append-history",
+        "accept-mission",
+        "merge-mission",
+    }
+)
+
+
+def _orchestrator_api_predicate(invocation: _InvocationProtocol) -> Safety:
+    """Classify orchestrator-api by its concrete API verb.
+
+    Unknown or missing verbs are treated as SAFE so the command group can emit
+    its JSON usage-error envelope instead of root prose.
+    """
+    args = list(invocation.raw_args)
+    try:
+        idx = args.index("orchestrator-api")
+    except ValueError:
+        return Safety.SAFE
+
+    if len(args) <= idx + 1:
+        return Safety.SAFE
+
+    if args[idx + 1] in _ORCHESTRATOR_API_UNSAFE_SUBCOMMANDS:
+        return Safety.UNSAFE
+
+    return Safety.SAFE
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -144,12 +182,16 @@ def register_mode_predicates() -> None:
     register_safety(("doctor", "identity"), predicate=None)  # read-only
     register_safety(("doctor", "shim-registry"), predicate=None)  # read-only
     register_safety(("doctor", "sparse-checkout"), predicate=_sparse_checkout_predicate)  # mode-aware
+    # Orchestrator API — JSON parser/read-only paths safe; state transitions unsafe.
+    register_safety(("orchestrator-api",), predicate=_orchestrator_api_predicate)
 
 
 # Public re-exports for callers that want to import from this module directly.
 __all__ = [
     "_DASHBOARD_UNSAFE_FLAGS",
     "_DOCTOR_UNSAFE_FLAGS",
+    "_ORCHESTRATOR_API_UNSAFE_SUBCOMMANDS",
+    "_orchestrator_api_predicate",
     "_sparse_checkout_predicate",
     "register_mode_predicates",
     "SafetyPredicate",

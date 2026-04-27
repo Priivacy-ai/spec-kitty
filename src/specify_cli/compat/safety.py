@@ -53,8 +53,15 @@ class _InvocationProtocol(Protocol):
     the protocol — including SimpleNamespace in tests.
     """
 
-    command_path: tuple[str, ...]
-    raw_args: tuple[str, ...]
+    @property
+    def command_path(self) -> tuple[str, ...]:
+        """Command path segments for safety classification."""
+        ...
+
+    @property
+    def raw_args(self) -> tuple[str, ...]:
+        """Raw CLI arguments for predicate-based classification."""
+        ...
 
 
 if TYPE_CHECKING:
@@ -80,6 +87,7 @@ SafetyPredicate = Callable[[_InvocationProtocol], Safety]
 SAFETY_REGISTRY: dict[tuple[str, ...], SafetyPredicate | None] = {
     # Remediation path — must always be reachable
     ("upgrade",): None,
+    ("migrate",): None,
     # Creates project, no existing metadata to mismatch against
     ("init",): None,
     # Read-only introspection commands

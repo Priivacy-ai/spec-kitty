@@ -164,7 +164,7 @@ class Fr023Case(StrEnum):
     PROJECT_TOO_NEW_FOR_CLI       = "project_too_new_for_cli"         # BLOCK_CLI_UPGRADE
     PROJECT_NOT_INITIALIZED       = "project_not_initialized"         # ProjectState in {NO_PROJECT, UNINITIALIZED}
     PROJECT_METADATA_CORRUPT      = "project_metadata_corrupt"        # BLOCK_PROJECT_CORRUPT
-    INSTALL_METHOD_UNKNOWN        = "install_method_unknown"          # any decision when InstallMethod == UNKNOWN
+    INSTALL_METHOD_UNKNOWN        = "install_method_unknown"          # ALLOW_WITH_NAG when InstallMethod == UNKNOWN
 ```
 
 These tokens are **stable JSON tokens** (CHK057). They appear in `rendered_json["case"]` and in test golden files. Adding new cases requires a minor-version bump and CHANGELOG entry.
