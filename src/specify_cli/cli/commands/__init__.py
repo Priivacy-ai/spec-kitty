@@ -109,5 +109,8 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="do", help="Route a request to the best-matching profile (anonymous dispatch).")(do_cmd_module.do)
     app.add_typer(invocations_cmd_module.app, name="invocations")
 
+    from specify_cli.retrospective.cli import app as retrospect_app  # WP09
+    app.add_typer(retrospect_app, name="retrospect", help="Cross-mission retrospective summary")
+
 
 __all__ = ["register_commands"]

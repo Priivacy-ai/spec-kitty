@@ -468,6 +468,21 @@ nodes:
 - urn: agent_profile:researcher-robbie
   kind: agent_profile
   label: Researcher Robbie
+# ---------------------------------------------------------------------------
+# Retrospective learning loop — WP01 additions
+# ---------------------------------------------------------------------------
+- urn: agent_profile:retrospective-facilitator
+  kind: agent_profile
+  label: Retrospective Facilitator
+- urn: action:software-dev/retrospect
+  kind: action
+  label: retrospect
+- urn: action:research/retrospect
+  kind: action
+  label: retrospect
+- urn: action:documentation/retrospect
+  kind: action
+  label: retrospect
 edges:
 - source: action:software-dev/implement
   target: directive:DIRECTIVE_024
@@ -1704,4 +1719,138 @@ edges:
   relation: scope
 - source: action:software-dev/implement
   target: tactic:function-over-form-testing
+  relation: scope
+
+# ---------------------------------------------------------------------------
+# Retrospective learning loop — WP01: retrospect action scope edges
+# (FR-001 through FR-004)
+#
+# The retrospect action resolves governance context that surfaces:
+#   - charter/doctrine artifacts (DIRECTIVE_003, DIRECTIVE_010, DIRECTIVE_018)
+#   - DRG slice artifacts (DIRECTIVE_018 + adr-drafting-workflow chain)
+#   - glossary artifacts (glossary-curation-interview, kitty-glossary-writing)
+#   - mission event-stream & metadata context (via requirements-validation-workflow)
+#   - mission output context (via stopping-conditions)
+#   - autonomous operation context (autonomous-operation-protocol)
+#
+# Three per-mission action nodes share identical scope since built-in missions
+# (software-dev, research, documentation) have no mission-specific scope
+# differences for the retrospective. Custom missions use a marker step
+# that resolves to this action without redefining it.
+# ---------------------------------------------------------------------------
+
+# agent_profile node edges
+- source: agent_profile:retrospective-facilitator
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: tactic:requirements-validation-workflow
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: tactic:glossary-curation-interview
+  relation: suggests
+- source: agent_profile:retrospective-facilitator
+  target: styleguide:kitty-glossary-writing
+  relation: suggests
+
+# software-dev retrospect action scope edges
+- source: action:software-dev/retrospect
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/retrospect
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/retrospect
+  target: directive:DIRECTIVE_018
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:glossary-curation-interview
+  relation: scope
+- source: action:software-dev/retrospect
+  target: styleguide:kitty-glossary-writing
+  relation: scope
+- source: action:software-dev/retrospect
+  target: agent_profile:retrospective-facilitator
+  relation: scope
+
+# research retrospect action scope edges
+- source: action:research/retrospect
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/retrospect
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/retrospect
+  target: directive:DIRECTIVE_018
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:glossary-curation-interview
+  relation: scope
+- source: action:research/retrospect
+  target: styleguide:kitty-glossary-writing
+  relation: scope
+- source: action:research/retrospect
+  target: agent_profile:retrospective-facilitator
+  relation: scope
+
+# documentation retrospect action scope edges
+- source: action:documentation/retrospect
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/retrospect
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/retrospect
+  target: directive:DIRECTIVE_018
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:glossary-curation-interview
+  relation: scope
+- source: action:documentation/retrospect
+  target: styleguide:kitty-glossary-writing
+  relation: scope
+- source: action:documentation/retrospect
+  target: agent_profile:retrospective-facilitator
   relation: scope
