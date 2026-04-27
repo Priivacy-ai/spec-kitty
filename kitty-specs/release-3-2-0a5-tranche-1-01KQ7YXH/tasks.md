@@ -34,10 +34,10 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T019 | Add aggregate regression `tests/specify_cli/test_no_checklist_surface.py` (recursive grep for `/spec-kitty.checklist` and `checklist*` filenames across src/tests/docs/agent dirs) | WP04 | [D] |
 | T020 | Add artifact-preservation test `tests/missions/test_specify_creates_requirements_checklist.py` proving `kitty-specs/<slug>/checklists/requirements.md` still gets created | WP04 | [D] |
 | T021 | Update doc references: `README.md`, `docs/reference/{slash-commands,file-structure,supported-agents}.md` per occurrence_map (REMOVE surface mentions, KEEP artifact-name mentions) | WP04 | [D] |
-| T022 | Add non-git-target detection in `src/specify_cli/cli/commands/init.py` near the existing `git not detected` branch (~line 360); print one yellow info line containing both "not a git repository" and "git init" | WP05 |          |
-| T023 | Append a "next: run `git init`" item to the post-init quick-start summary in `init.py` when target is not a git repo | WP05 |          |
-| T024 | Remove the `/spec-kitty.checklist` quick-start line at `init.py:723` (FR-003 boundary owned by WP05 to keep `init.py` ownership single-WP) | WP05 |          |
-| T025 | Add `tests/specify_cli/cli/commands/test_init_non_git_message.py` covering both unit assertions and CliRunner-driven smoke | WP05 |          |
+| T022 | Add non-git-target detection in `src/specify_cli/cli/commands/init.py` near the existing `git not detected` branch (~line 360); print one yellow info line containing both "not a git repository" and "git init" | WP05 |          | [D] |
+| T023 | Append a "next: run `git init`" item to the post-init quick-start summary in `init.py` when target is not a git repo | WP05 |          | [D] |
+| T024 | Remove the `/spec-kitty.checklist` quick-start line at `init.py:723` (FR-003 boundary owned by WP05 to keep `init.py` ownership single-WP) | WP05 |          | [D] |
+| T025 | Add `tests/specify_cli/cli/commands/test_init_non_git_message.py` covering both unit assertions and CliRunner-driven smoke | WP05 |          | [D] |
 | T026 | Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` | WP06 |          |
 | T027 | Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate | WP06 |          |
 | T028 | Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` | WP06 |          |
@@ -146,10 +146,10 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P2 — UX polish.
 - **Independent test**: `tests/specify_cli/cli/commands/test_init_non_git_message.py` (new).
 - **Subtasks**:
-  - [ ] T022 Add non-git-target detection in `src/specify_cli/cli/commands/init.py` near the existing `git not detected` branch; print one yellow info line containing both "not a git repository" and "git init" (WP05)
-  - [ ] T023 Append a "next: run `git init`" item to the post-init quick-start summary in `init.py` when target is not a git repo (WP05)
-  - [ ] T024 Remove the `/spec-kitty.checklist` quick-start line at `init.py:723` (FR-003 boundary owned by WP05 to keep `init.py` ownership single-WP) (WP05)
-  - [ ] T025 Add `tests/specify_cli/cli/commands/test_init_non_git_message.py` covering both unit assertions and CliRunner-driven smoke (WP05)
+  - [x] T022 Add non-git-target detection in `src/specify_cli/cli/commands/init.py` near the existing `git not detected` branch; print one yellow info line containing both "not a git repository" and "git init" (WP05)
+  - [x] T023 Append a "next: run `git init`" item to the post-init quick-start summary in `init.py` when target is not a git repo (WP05)
+  - [x] T024 Remove the `/spec-kitty.checklist` quick-start line at `init.py:723` (FR-003 boundary owned by WP05 to keep `init.py` ownership single-WP) (WP05)
+  - [x] T025 Add `tests/specify_cli/cli/commands/test_init_non_git_message.py` covering both unit assertions and CliRunner-driven smoke (WP05)
 - **Implementation sketch**: Single subprocess check using `git rev-parse --is-inside-work-tree`; small UX additions; one new test file.
 - **Parallel opportunities**: T025 can be drafted in parallel with T022/T023/T024 by the same agent.
 - **Dependencies**: none.
