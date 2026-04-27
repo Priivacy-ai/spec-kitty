@@ -3,12 +3,12 @@ work_package_id: WP04
 title: FR-003 + FR-004 /spec-kitty.checklist bulk removal
 dependencies: []
 requirement_refs:
+- C-003
+- C-008
 - FR-003
 - FR-004
 - NFR-003
 - NFR-009
-- C-003
-- C-008
 planning_base_branch: release/3.2.0a5-tranche-1
 merge_target_branch: release/3.2.0a5-tranche-1
 branch_strategy: Planning artifacts for this feature were generated on release/3.2.0a5-tranche-1. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into release/3.2.0a5-tranche-1 unless the human explicitly redirects the landing branch.
