@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-27T05:04:20.052392+00:00",
+  "friendly_name": "Documentation Mission Composition Fix-up",
+  "mission_id": "01KQ6N5X9EHGJPPMZN00X6EVX1",
+  "mission_number": 102,
+  "mission_slug": "documentation-mission-composition-fixup-01KQ6N5X",
+  "mission_type": "software-dev",
+  "purpose_context": "Phase 6 #502 fix-up. The mission-review on commit 1c03e2f4 over-claimed PASS. User review surfaced: (P1-1) prompt templates not shipped — _build_prompt_safe returns None for every documentation step; (P1-2) dogfood smoke captured a query, never dispatched a composed action; (P2-3) integration walk only advances `discover`, not all 6 actions; (P2-4) guard tests bypass _dispatch_via_composition; (P2-5) quickstart references a non-existent JSON field. This mission fixes all five with code-grounded evidence.",
+  "purpose_tldr": "Close the 5 mission-review findings on #502 so the documentation mission is genuinely operator-runnable, smoke-verifiable, and integration-tested across all 6 actions.",
+  "slug": "documentation-mission-composition-fixup-01KQ6N5X",
+  "source_description": "Phase 6 #502 fix-up tranche following user mission-review findings on commit 1c03e2f4. Companion to landed mission 01KQ5M1Y190VANF39KMBWZP6SD.",
+  "target_branch": "main",
+  "vcs": "git"
+}

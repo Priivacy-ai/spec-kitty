@@ -17,6 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`constraints.txt`** — the file existed solely to paper over a transitive pin conflict with the retired `spec-kitty-runtime` package and is no longer needed.
 
+### Added — Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)
+
+- Documentation mission now runs on the StepContractExecutor composition substrate, mirroring research (#504) and software-dev (#503). The runtime resolves the new composed step contracts ahead of the legacy `mission.yaml` workflow via the existing `_resolve_runtime_template_in_root` precedence — no loader changes were required.
+- New runtime sidecar templates: `src/specify_cli/missions/documentation/mission-runtime.yaml` and `src/doctrine/missions/documentation/mission-runtime.yaml`.
+- Six shipped step contracts under `src/doctrine/mission_step_contracts/shipped/documentation-{discover,audit,design,generate,validate,publish}.step-contract.yaml`.
+- Six action doctrine bundles under `src/doctrine/missions/documentation/actions/{discover,audit,design,generate,validate,publish}/` (governance guidelines + directive/tactic indices).
+- DRG action nodes and edges for `action:documentation/{discover,audit,design,generate,validate,publish}` in `src/doctrine/graph.yaml`.
+- Composition wiring in `src/specify_cli/next/runtime_bridge.py`: `_COMPOSED_ACTIONS_BY_MISSION["documentation"]` and a fail-closed guard branch in `_check_composed_action_guard()` raising a structured error for unknown documentation actions. `src/specify_cli/mission_step_contracts/executor.py` adds six `_ACTION_PROFILE_DEFAULTS` entries (`researcher-robbie` for discover/audit, `architect-alphonso` for design, `implementer-ivan` for generate, `reviewer-renata` for validate/publish).
+- Real-runtime integration walk at `tests/integration/test_documentation_runtime_walk.py` proving SC-001 / SC-003 / SC-004 from a freshly initialized temp repo.
+
+#### Backward compatibility
+
+- The legacy `src/specify_cli/missions/documentation/mission.yaml` and `src/doctrine/missions/documentation/mission.yaml` files remain on disk for backward reference. Existing documentation-mission projects that authored against the legacy workflow continue to work; runtime template resolution prefers the new `mission-runtime.yaml` ahead of the legacy file via the existing precedence in `_resolve_runtime_template_in_root` (no loader changes in this PR).
+
 ### Added
 
 - **Host-surface parity matrix** at `docs/host-surface-parity.md` — authoritative record of how each of the 15 supported host surfaces teaches the advise/ask/do governance-injection contract. Closes the remaining `#496` host-surface breadth rollout.

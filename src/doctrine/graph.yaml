@@ -2,6 +2,24 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
+- urn: action:documentation/audit
+  kind: action
+  label: audit
+- urn: action:documentation/design
+  kind: action
+  label: design
+- urn: action:documentation/discover
+  kind: action
+  label: discover
+- urn: action:documentation/generate
+  kind: action
+  label: generate
+- urn: action:documentation/publish
+  kind: action
+  label: publish
+- urn: action:documentation/validate
+  kind: action
+  label: validate
 - urn: action:research/gathering
   kind: action
   label: gathering
@@ -626,6 +644,72 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:research/output
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/audit
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/audit
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/audit
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/design
+  target: directive:DIRECTIVE_001
+  relation: scope
+- source: action:documentation/design
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/design
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/design
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:documentation/design
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/discover
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/discover
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/discover
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:documentation/discover
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/generate
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/generate
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/generate
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/publish
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/publish
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/publish
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/validate
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/validate
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/validate
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:documentation/validate
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: directive:DIRECTIVE_001

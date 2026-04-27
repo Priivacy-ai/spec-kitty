@@ -131,8 +131,8 @@ exclude = [
     "src/specify_cli/**/tests/**",
 ]
 # Include all non-Python files (templates, configs, etc.)
-# Note: specify_cli/missions command-templates and templates were removed in WP12;
-# all mission template content now lives exclusively in doctrine/missions/.
+# Runtime command templates are package assets under specify_cli/missions;
+# doctrine/missions holds the governance/action-bundle side of the surface.
 artifacts = [
     "src/specify_cli/**/*.md",
     "src/specify_cli/**/*.yaml",

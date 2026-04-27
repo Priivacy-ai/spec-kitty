@@ -272,6 +272,7 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 _COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
     "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
     "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
+    "documentation": frozenset({"discover", "audit", "design", "generate", "validate", "publish"}),
 }
 
 # Legacy run snapshots and project-local templates may still contain the old
@@ -512,6 +513,17 @@ def _publication_approved(feature_dir: Path) -> bool:
     return False
 
 
+def _has_generated_docs(feature_dir: Path) -> bool:
+    """Return True iff at least one *.md file exists under feature_dir / 'docs'.
+
+    Used by the documentation `generate` guard branch (D6 of plan.md).
+    """
+    docs_root = feature_dir / "docs"
+    if not docs_root.is_dir():
+        return False
+    return next(docs_root.rglob("*.md"), None) is not None
+
+
 def _check_composed_action_guard(  # noqa: C901
     action: str,
     feature_dir: Path,
@@ -585,6 +597,34 @@ def _check_composed_action_guard(  # noqa: C901
         else:
             failures.append(
                 f"No guard registered for research action: {action}"
+            )
+        return failures
+
+    if mission == "documentation":
+        if action == "discover":
+            if not (feature_dir / "spec.md").is_file():
+                failures.append("Required artifact missing: spec.md")
+        elif action == "audit":
+            if not (feature_dir / "gap-analysis.md").is_file():
+                failures.append("Required artifact missing: gap-analysis.md")
+        elif action == "design":
+            if not (feature_dir / "plan.md").is_file():
+                failures.append("Required artifact missing: plan.md")
+        elif action == "generate":
+            if not _has_generated_docs(feature_dir):
+                failures.append(
+                    "Required artifact missing: docs/**/*.md "
+                    "(no Markdown files found under docs/)"
+                )
+        elif action == "validate":
+            if not (feature_dir / "audit-report.md").is_file():
+                failures.append("Required artifact missing: audit-report.md")
+        elif action == "publish":
+            if not (feature_dir / "release.md").is_file():
+                failures.append("Required artifact missing: release.md")
+        else:
+            failures.append(
+                f"No guard registered for documentation action: {action}"
             )
         return failures
 

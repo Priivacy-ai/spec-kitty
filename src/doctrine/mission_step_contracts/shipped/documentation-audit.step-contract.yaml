@@ -1,0 +1,44 @@
+# Shipped step contract for the documentation/audit action (#502).
+# Mirrors the research-scoping shape (mission spec C-009 forbids new top-level fields
+# and forbids expected_artifacts on contracts or steps).
+schema_version: "1.0"
+id: documentation-audit
+action: audit
+mission: documentation
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action audit --role audit --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: inventory_existing_docs
+    description: Inventory existing documentation surfaces and prior coverage
+    delegates_to:
+      kind: directive
+      candidates:
+        - 037-living-documentation-sync
+
+  - id: identify_gaps
+    description: Identify documentation gaps relative to the spec and current code surfaces
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+
+  - id: write_gap_analysis
+    description: Write gap-analysis.md to kitty-specs/{mission_slug}/
+    command: "Write gap-analysis.md in kitty-specs/{mission_slug}/"
+
+  - id: commit_gap_analysis
+    description: Commit the documentation gap analysis to main branch
+    delegates_to:
+      kind: directive
+      candidates:
+        - 029-agent-commit-signing-policy
+        - 033-targeted-staging-policy

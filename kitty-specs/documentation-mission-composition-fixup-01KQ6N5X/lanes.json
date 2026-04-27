@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "mission_slug": "documentation-mission-composition-fixup-01KQ6N5X",
+  "mission_id": "01KQ6N5X9EHGJPPMZN00X6EVX1",
+  "mission_branch": "kitty/mission-documentation-mission-composition-fixup-01KQ6N5X",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/evidence/smoke-v2.md",
+        "kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/quickstart.md",
+        "src/specify_cli/missions/documentation/templates/accept.md",
+        "src/specify_cli/missions/documentation/templates/audit.md",
+        "src/specify_cli/missions/documentation/templates/design.md",
+        "src/specify_cli/missions/documentation/templates/discover.md",
+        "src/specify_cli/missions/documentation/templates/generate.md",
+        "src/specify_cli/missions/documentation/templates/publish.md",
+        "src/specify_cli/missions/documentation/templates/validate.md",
+        "tests/integration/test_documentation_runtime_walk.py",
+        "tests/specify_cli/test_documentation_prompt_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-27T05:11:54.129641+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

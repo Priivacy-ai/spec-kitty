@@ -418,7 +418,7 @@ class TestNextCommandRuntimeFields:
 
 
 class TestNextCommandKnownBlockedMissions:
-    """Strict reminders for accepted-but-unimplemented mission mappings."""
+    """Regression checks for formerly blocked mission mappings."""
 
     def test_plan_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         # WP04/T024 (FR-021): the plan mission's `mission-runtime.yaml`
@@ -436,10 +436,6 @@ class TestNextCommandKnownBlockedMissions:
         assert decision.kind == DecisionKind.step
         assert decision.action is not None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=("Tracked in docs/development/tracking/next-mission-mappings/issue-documentation-mission-next-mapping.md"),
-    )
     def test_documentation_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(
             tmp_path,

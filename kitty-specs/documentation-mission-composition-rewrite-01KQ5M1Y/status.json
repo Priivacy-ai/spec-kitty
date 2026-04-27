@@ -1,0 +1,70 @@
+{
+  "event_count": 54,
+  "last_event_id": "01KQ5RJSYMFQ5V580HWJBH7XRQ",
+  "materialized_at": "2026-04-26T20:44:33.109003+00:00",
+  "mission_number": "",
+  "mission_slug": "documentation-mission-composition-rewrite-01KQ5M1Y",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KQ5P4NKSGHPQKQB6WRCHJRZ5",
+      "last_transition_at": "2026-04-26T20:01:52.761841+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KQ5PG8F5EZ8JBQC5D7XZ25B4",
+      "last_transition_at": "2026-04-26T20:08:12.517560+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KQ5PVEJQMC0GPGQJEN1WFTDX",
+      "last_transition_at": "2026-04-26T20:14:19.223466+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KQ5Q557HKTFF5CBMRCK5YR2X",
+      "last_transition_at": "2026-04-26T20:19:37.329735+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KQ5QH28V4CRXMHYXF8K689KN",
+      "last_transition_at": "2026-04-26T20:26:07.515741+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KQ5QX4KTFT4KBTCC883RF7YQ",
+      "last_transition_at": "2026-04-26T20:32:43.130951+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KQ5RJSYMFQ5V580HWJBH7XRQ",
+      "last_transition_at": "2026-04-26T20:44:33.109003+00:00"
+    }
+  }
+}
