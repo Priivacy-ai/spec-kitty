@@ -33,12 +33,12 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T018 | Create `compat/_adapters/gate.py` wrapping `migration.gate` | WP05 | [D] |
 | T019 | Create `compat/_adapters/detector.py` wrapping `upgrade.detector` | WP05 | [D] |
 | T020 | Architectural test: shim modules contain only delegation (no logic) | WP05 | [D] |
-| T021 | Implement `Plan`, `Decision`, `CliStatus`, `ProjectStatus`, `MigrationStep`, `Fr023Case`, `Invocation` dataclasses in `compat/planner.py` | WP06 | — |
-| T022 | Implement `messages.py` catalog (FR-023 case → human + JSON) with sanitisation | WP06 | — |
-| T023 | Implement `decide()` table per data-model §2 | WP06 | — |
-| T024 | Implement `plan(...)` entry point wiring providers, cache, safety, adapters; harden YAML load (256 KB cap, integer range) | WP06 | — |
-| T025 | Wire `compat/__init__.py` public API (Plan, Decision, plan, classify, providers, NagCache, InstallMethod) | WP06 | — |
-| T026 | Unit tests covering every Decision × FR-023 case + corrupt metadata, missing project, no-network | WP06 | [P] |
+| T021 | Implement `Plan`, `Decision`, `CliStatus`, `ProjectStatus`, `MigrationStep`, `Fr023Case`, `Invocation` dataclasses in `compat/planner.py` | WP06 | — | [D] |
+| T022 | Implement `messages.py` catalog (FR-023 case → human + JSON) with sanitisation | WP06 | — | [D] |
+| T023 | Implement `decide()` table per data-model §2 | WP06 | — | [D] |
+| T024 | Implement `plan(...)` entry point wiring providers, cache, safety, adapters; harden YAML load (256 KB cap, integer range) | WP06 | — | [D] |
+| T025 | Wire `compat/__init__.py` public API (Plan, Decision, plan, classify, providers, NagCache, InstallMethod) | WP06 | — | [D] |
+| T026 | Unit tests covering every Decision × FR-023 case + corrupt metadata, missing project, no-network | WP06 | [D] |
 | T027 | Add `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to `migration/schema_version.py` (keep `REQUIRED_SCHEMA_VERSION` as deprecated alias) | WP07 | — |
 | T028 | Update `migration/gate.py` to delegate to `compat.planner.plan(...)` (becomes a thin shim) | WP07 | — |
 | T029 | Update existing schema-version tests to assert range semantics; preserve all migration tests (NFR-006) | WP07 | — |
@@ -178,12 +178,12 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~520 lines.
 
 **Included subtasks**:
-- [ ] T021 Implement `Plan`, `Decision`, `CliStatus`, `ProjectStatus`, `MigrationStep`, `Fr023Case`, `Invocation` dataclasses in `compat/planner.py` (WP06)
-- [ ] T022 Implement `messages.py` catalog (FR-023 case → human + JSON) with sanitisation (WP06)
-- [ ] T023 Implement `decide()` table per data-model §2 (WP06)
-- [ ] T024 Implement `plan(...)` entry point wiring providers, cache, safety, adapters; harden YAML load (256 KB cap, integer range) (WP06)
-- [ ] T025 Wire `compat/__init__.py` public API (Plan, Decision, plan, classify, providers, NagCache, InstallMethod) (WP06)
-- [ ] T026 Unit tests covering every Decision × FR-023 case + corrupt metadata, missing project, no-network (WP06)
+- [x] T021 Implement `Plan`, `Decision`, `CliStatus`, `ProjectStatus`, `MigrationStep`, `Fr023Case`, `Invocation` dataclasses in `compat/planner.py` (WP06)
+- [x] T022 Implement `messages.py` catalog (FR-023 case → human + JSON) with sanitisation (WP06)
+- [x] T023 Implement `decide()` table per data-model §2 (WP06)
+- [x] T024 Implement `plan(...)` entry point wiring providers, cache, safety, adapters; harden YAML load (256 KB cap, integer range) (WP06)
+- [x] T025 Wire `compat/__init__.py` public API (Plan, Decision, plan, classify, providers, NagCache, InstallMethod) (WP06)
+- [x] T026 Unit tests covering every Decision × FR-023 case + corrupt metadata, missing project, no-network (WP06)
 
 **Implementation sketch**: Dataclasses match `data-model.md`. `messages.py` catalogs every FR-023 case with `render_human()` and `render_json()`. `decide()` follows the truth table from data-model §2. `plan()` builds CliStatus, ProjectStatus, classifies safety, calls `decide()`, builds rendered output. Test matrix covers every cell of the decision table, including the `dashboard --repair` mode case (uses safety predicate registered in WP04).
 
