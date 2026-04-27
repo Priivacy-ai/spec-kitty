@@ -25,11 +25,11 @@
 | T012 | Reducer integration: surface `RetrospectiveSnapshot` on `StatusSnapshot` | WP03 |  | [D] |
 | T013 | Tests: append-only invariant, retry semantics, name uniqueness vs. existing events | WP03 |  | [D] |
 | T014 | Boundary test (skipped, pending upstream `spec_kitty_events` release) | WP03 |  | [D] |
-| T015 | `Mode` + `ModeSourceSignal` Pydantic models | WP04 | [P] |
-| T016 | `mode.detect()` precedence (charter > flag > env > parent) implementation | WP04 |  |
-| T017 | Charter-override loader integration + structured-error on missing meta/charter | WP04 |  |
-| T018 | Parent-process heuristic w/ conservative non-interactive list | WP04 |  |
-| T019 | Tests: each precedence layer + ambiguous resolution + audit recording | WP04 |  |
+| T015 | `Mode` + `ModeSourceSignal` Pydantic models | WP04 | [D] |
+| T016 | `mode.detect()` precedence (charter > flag > env > parent) implementation | WP04 |  | [D] |
+| T017 | Charter-override loader integration + structured-error on missing meta/charter | WP04 |  | [D] |
+| T018 | Parent-process heuristic w/ conservative non-interactive list | WP04 |  | [D] |
+| T019 | Tests: each precedence layer + ambiguous resolution + audit recording | WP04 |  | [D] |
 | T020 | `gate.is_completion_allowed()` API + `GateDecision`/`GateReason` shapes | WP05 |  |
 | T021 | Decision matrix (8 rows from `contracts/gate_api.md`) | WP05 |  |
 | T022 | Charter-clause resolution for autonomous-skip override path | WP05 |  |
@@ -192,11 +192,11 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-016, C-013.
 
 **Subtasks**:
-- [ ] T015 `Mode` + `ModeSourceSignal` Pydantic models (WP04)
-- [ ] T016 `mode.detect()` precedence (charter > flag > env > parent) implementation (WP04)
-- [ ] T017 Charter-override loader integration + structured-error on missing meta/charter (WP04)
-- [ ] T018 Parent-process heuristic w/ conservative non-interactive list (WP04)
-- [ ] T019 Tests: each precedence layer + ambiguous resolution + audit recording (WP04)
+- [x] T015 `Mode` + `ModeSourceSignal` Pydantic models (WP04)
+- [x] T016 `mode.detect()` precedence (charter > flag > env > parent) implementation (WP04)
+- [x] T017 Charter-override loader integration + structured-error on missing meta/charter (WP04)
+- [x] T018 Parent-process heuristic w/ conservative non-interactive list (WP04)
+- [x] T019 Tests: each precedence layer + ambiguous resolution + audit recording (WP04)
 
 **Implementation sketch**:
 1. `mode.py` — `Mode`, `ModeSourceSignal`, `detect(repo_root, *, flag=None, env=None, parent_process=None)` that allows test injection.
