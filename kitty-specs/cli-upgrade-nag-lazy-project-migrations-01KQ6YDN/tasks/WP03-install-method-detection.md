@@ -13,8 +13,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "70711"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "79727"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -144,3 +144,4 @@ spec-kitty agent action implement WP03 --agent <name>
 
 - 2026-04-27T08:56:07Z – claude:sonnet:python-implementer:implementer – shell_pid=70711 – Started implementation via action command
 - 2026-04-27T09:02:58Z – claude:sonnet:python-implementer:implementer – shell_pid=70711 – Ready: detection chain + hint catalog
+- 2026-04-27T09:03:14Z – claude:opus:python-reviewer:reviewer – shell_pid=79727 – Started review via action command
