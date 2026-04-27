@@ -18,11 +18,11 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T003 | Implement `PyPIProvider` (httpx, 2s timeout, no redirects, 1MB body cap, version sanitisation) | WP01 | — | [D] |
 | T004 | Implement `NoNetworkProvider` and `FakeLatestVersionProvider` (test double) | WP01 | — | [D] |
 | T005 | Unit tests for all three providers with network mocked | WP01 | [D] |
-| T006 | Implement `NagCacheRecord` dataclass + `NagCache` class in `compat/cache.py` | WP02 | — |
-| T007 | Add 0o600 file mode + 0o700 parent dir mode + symlink-resistant lstat checks | WP02 | — |
-| T008 | Implement throttle predicate with clock-skew handling and version-key invalidation | WP02 | — |
-| T009 | Implement throttle/no-nag config loading (env > YAML > default; range-validated) | WP02 | — |
-| T010 | Unit tests for cache with corrupt files, symlinks, oversized state, perm assertions | WP02 | [P] |
+| T006 | Implement `NagCacheRecord` dataclass + `NagCache` class in `compat/cache.py` | WP02 | — | [D] |
+| T007 | Add 0o600 file mode + 0o700 parent dir mode + symlink-resistant lstat checks | WP02 | — | [D] |
+| T008 | Implement throttle predicate with clock-skew handling and version-key invalidation | WP02 | — | [D] |
+| T009 | Implement throttle/no-nag config loading (env > YAML > default; range-validated) | WP02 | — | [D] |
+| T010 | Unit tests for cache with corrupt files, symlinks, oversized state, perm assertions | WP02 | [D] |
 | T011 | Implement `InstallMethod` enum + detection chain in `compat/_detect/install_method.py` | WP03 | — |
 | T012 | Implement `UpgradeHint` builder with sanitised commands per install method | WP03 | — |
 | T013 | Unit tests for each install-method branch (pipx, pip-user, pip-system, brew, system, source, unknown) | WP03 | [P] |
@@ -91,11 +91,11 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~360 lines.
 
 **Included subtasks**:
-- [ ] T006 Implement `NagCacheRecord` dataclass + `NagCache` class in `compat/cache.py` (WP02)
-- [ ] T007 Add 0o600 file mode + 0o700 parent dir mode + symlink-resistant lstat checks (WP02)
-- [ ] T008 Implement throttle predicate with clock-skew handling and version-key invalidation (WP02)
-- [ ] T009 Implement throttle/no-nag config loading (env > YAML > default; range-validated) (WP02)
-- [ ] T010 Unit tests for cache with corrupt files, symlinks, oversized state, perm assertions (WP02)
+- [x] T006 Implement `NagCacheRecord` dataclass + `NagCache` class in `compat/cache.py` (WP02)
+- [x] T007 Add 0o600 file mode + 0o700 parent dir mode + symlink-resistant lstat checks (WP02)
+- [x] T008 Implement throttle predicate with clock-skew handling and version-key invalidation (WP02)
+- [x] T009 Implement throttle/no-nag config loading (env > YAML > default; range-validated) (WP02)
+- [x] T010 Unit tests for cache with corrupt files, symlinks, oversized state, perm assertions (WP02)
 
 **Implementation sketch**: `NagCache.default()` resolves cache path via `platformdirs` if available, manual XDG fallback otherwise. `read()` returns `NagCacheRecord | None`; refuses symlinks, oversized files, mismatched ownership. `write(record)` opens with `O_CREAT|O_WRONLY|O_TRUNC` and mode `0o600`. Throttle predicate handles clock moving backwards (treat as expired). Config loader checks env var first, then YAML at `$XDG_CONFIG_HOME/spec-kitty/upgrade.yaml`.
 
