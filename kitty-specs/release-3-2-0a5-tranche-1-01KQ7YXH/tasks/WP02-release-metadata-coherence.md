@@ -21,7 +21,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "85120"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -215,3 +216,7 @@ CHANGELOG ownership is centralized in this WP because the tranche is composed of
 ```bash
 spec-kitty agent action implement WP02 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T20:56:44Z – claude:sonnet:implementer-ivan:implementer – shell_pid=85120 – Started implementation via action command
