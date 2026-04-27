@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Six shipped step contracts under `src/doctrine/mission_step_contracts/shipped/documentation-{discover,audit,design,generate,validate,publish}.step-contract.yaml`.
 - Six action doctrine bundles under `src/doctrine/missions/documentation/actions/{discover,audit,design,generate,validate,publish}/` (governance guidelines + directive/tactic indices).
 - DRG action nodes and edges for `action:documentation/{discover,audit,design,generate,validate,publish}` in `src/doctrine/graph.yaml`.
-- Composition wiring in `src/specify_cli/mission_step_contracts/executor.py`: `_COMPOSED_ACTIONS_BY_MISSION["documentation"]`, six `_ACTION_PROFILE_DEFAULTS` entries (`researcher-robbie` for discover/audit, `architect-alphonso` for design, `implementer-ivan` for generate, `reviewer-renata` for validate/publish), and a fail-closed guard branch in `_check_composed_action_guard()` raising a structured error for unknown documentation actions.
+- Composition wiring in `src/specify_cli/next/runtime_bridge.py`: `_COMPOSED_ACTIONS_BY_MISSION["documentation"]` and a fail-closed guard branch in `_check_composed_action_guard()` raising a structured error for unknown documentation actions. `src/specify_cli/mission_step_contracts/executor.py` adds six `_ACTION_PROFILE_DEFAULTS` entries (`researcher-robbie` for discover/audit, `architect-alphonso` for design, `implementer-ivan` for generate, `reviewer-renata` for validate/publish).
 - Real-runtime integration walk at `tests/integration/test_documentation_runtime_walk.py` proving SC-001 / SC-003 / SC-004 from a freshly initialized temp repo.
 
 #### Backward compatibility
