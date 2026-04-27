@@ -47,11 +47,11 @@
 | T034 | Provenance sidecar writer (`provenance.py`) | WP07 |  | [D] |
 | T035 | Idempotency via provenance presence check | WP07 |  | [D] |
 | T036 | Tests: apply (per kind), conflict fail-closed, staleness rejection, idempotency | WP07 |  | [D] |
-| T037 | `cli/commands/agent_retrospect.py` `synthesize` subcommand | WP08 |  |
-| T038 | Flag parsing (`--apply`, `--proposal-id`, `--json`, `--actor-id`, etc.) | WP08 |  |
-| T039 | Exit codes per `contracts/cli_surfaces.md` (0/1/2/3/4/5) | WP08 |  |
-| T040 | Rich + JSON output renderers (informational equivalence) | WP08 |  |
-| T041 | Tests: CLI integration tests for synthesize | WP08 |  |
+| T037 | `cli/commands/agent_retrospect.py` `synthesize` subcommand | WP08 |  | [D] |
+| T038 | Flag parsing (`--apply`, `--proposal-id`, `--json`, `--actor-id`, etc.) | WP08 |  | [D] |
+| T039 | Exit codes per `contracts/cli_surfaces.md` (0/1/2/3/4/5) | WP08 |  | [D] |
+| T040 | Rich + JSON output renderers (informational equivalence) | WP08 |  | [D] |
+| T041 | Tests: CLI integration tests for synthesize | WP08 |  | [D] |
 | T042 | `summary.py` reducer + `SummarySnapshot` Pydantic model | WP09 |  |
 | T043 | Streaming corpus reader for `.kittify/missions/*/retrospective.yaml` | WP09 |  |
 | T044 | Tolerance: malformed / missing / legacy / in-flight / terminus_no_retrospective categories | WP09 |  |
@@ -331,11 +331,11 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-021.
 
 **Subtasks**:
-- [ ] T037 `cli/commands/agent_retrospect.py` `synthesize` subcommand (WP08)
-- [ ] T038 Flag parsing (`--apply`, `--proposal-id`, `--json`, `--actor-id`, etc.) (WP08)
-- [ ] T039 Exit codes per `contracts/cli_surfaces.md` (0/1/2/3/4/5) (WP08)
-- [ ] T040 Rich + JSON output renderers (informational equivalence) (WP08)
-- [ ] T041 Tests: CLI integration tests for synthesize (WP08)
+- [x] T037 `cli/commands/agent_retrospect.py` `synthesize` subcommand (WP08)
+- [x] T038 Flag parsing (`--apply`, `--proposal-id`, `--json`, `--actor-id`, etc.) (WP08)
+- [x] T039 Exit codes per `contracts/cli_surfaces.md` (0/1/2/3/4/5) (WP08)
+- [x] T040 Rich + JSON output renderers (informational equivalence) (WP08)
+- [x] T041 Tests: CLI integration tests for synthesize (WP08)
 
 **Implementation sketch**:
 1. New typer subcommand under existing `spec-kitty agent` namespace.
