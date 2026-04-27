@@ -15,8 +15,8 @@ subtasks:
 - T063
 - T064
 - T065
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "55745"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "61505"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -125,3 +125,4 @@ spec-kitty agent action implement WP12 --agent <name>
 
 - 2026-04-27T08:39:26Z – claude:sonnet:implementer:implementer – shell_pid=55745 – Started implementation via action command
 - 2026-04-27T08:43:53Z – claude:sonnet:implementer:implementer – shell_pid=55745 – Ready for review: ADR + operator doc + cutover runbook (T065 deferred to follow-up after WP03)
+- 2026-04-27T08:44:16Z – claude:opus:reviewer:reviewer – shell_pid=61505 – Started review via action command
