@@ -21,6 +21,8 @@ subtasks:
 - T007
 - T008
 - T009
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "76686"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -175,3 +177,7 @@ Performance microbenchmark: a 200-finding fixture validates in < 200 ms. Use `py
 ```bash
 spec-kitty agent action implement WP02 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:00:16Z – claude:sonnet:implementer:implementer – shell_pid=76686 – Started implementation via action command
