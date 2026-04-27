@@ -39,25 +39,42 @@ uv run --project "$SPEC_KITTY_REPO" \
 MISSION_HANDLE="$(python3 -c 'import json; print(json.load(open("create.json"))["mission_slug"])')"
 echo "mission handle: ${MISSION_HANDLE}"
 
-# 5. Drive the runtime forward.
+# 5a. Query mode — read-only probe; no result advances yet.
 uv run --project "$SPEC_KITTY_REPO" \
     spec-kitty next --agent claude --mission "${MISSION_HANDLE}" --json \
     > next.json
 
-# 6. Verify the next decision is documentation-native.
+# 5b. Author spec.md (and the rest of the documentation gate artifacts) so the
+#     discover step's post-execution guard chain has no missing-artifact failure.
+echo "# spec" > "kitty-specs/${MISSION_HANDLE}/spec.md"
+
+# 5c. Issue the action by reporting --result success. The first call issues the
+#     first composed step (discover); a second --result success drives the
+#     composition dispatch and writes paired trail records.
+uv run --project "$SPEC_KITTY_REPO" \
+    spec-kitty next --agent claude --mission "${MISSION_HANDLE}" --result success --json \
+    > next-issue.json
+uv run --project "$SPEC_KITTY_REPO" \
+    spec-kitty next --agent claude --mission "${MISSION_HANDLE}" --result success --json \
+    > next-advance.json
+
+# 6. Verify the decision is documentation-native. Tolerates both kind=query
+#    (with preview_step) and kind=step (with step_id).
 python3 - <<'PY'
 import json
 d = json.load(open("next.json"))
 print("decision_kind:", d.get("kind"))
-print("issued_step:", d.get("issued_step_id"))
+step = d.get("step_id") or d.get("preview_step")
+print("step:", step)
 print("mission:", d.get("mission"))
-assert d["mission"] == "documentation", f"expected documentation mission, got {d['mission']}"
-assert d["issued_step_id"] in {"discover", "audit", "design", "generate", "validate", "publish"}, \
-    f"unexpected step verb: {d['issued_step_id']}"
+assert d["mission"] == "documentation", f"expected documentation, got {d['mission']}"
+assert step in {"discover", "audit", "design", "generate", "validate", "publish"}, \
+    f"unexpected step: {step}"
 PY
 
-# 7. Inspect the invocation trail. The action name MUST be documentation-native.
-ls -la "${HOME}/.kittify/events/profile-invocations/" | head -10
+# 7. Inspect the invocation trail. After issuance, the trail dir holds paired
+#    started+completed records whose action ∈ {discover, ...}.
+ls -la "${TMP_REPO}/.kittify/events/profile-invocations/" | head -10
 
 # 8. Cleanup.
 cd /
@@ -67,8 +84,9 @@ rm -rf "$(dirname "$TMP_REPO")"
 Expected outcomes:
 
 - Step 3 prints JSON ending with `"result": "success"` and a documentation `mission_type`.
-- Step 5 returns a JSON `Decision` whose `mission == "documentation"` and whose `issued_step_id == "discover"` on a fresh feature_dir, OR a `kind == "blocked"` with a `guard_failures` list naming `spec.md` (because the smoke does not author `spec.md`).
-- Step 7 lists at least one `<action>-started.jsonl` event whose `action` field is one of `{discover, audit, design, generate, validate, publish}`.
+- Step 5a returns a JSON `Decision` with `kind == "query"`, `mission == "documentation"`, and `preview_step == "discover"` (no action issued yet — query mode is read-only).
+- Step 5c's first `--result success` returns `kind == "step"` with `step_id == "discover"`; the second `--result success` advances to `step_id == "audit"` and the composition dispatch writes invocation-trail records.
+- Step 7 lists ≥ 1 `*.jsonl` file under `<TMP_REPO>/.kittify/events/profile-invocations/` (NOT under `~/.kittify/`). Each file contains a `started` line paired with a `completed` line whose `outcome` ∈ {`done`, `failed`}, and whose `action` is documentation-native (`discover`, `audit`, ...).
 - No `MissionRuntimeError` anywhere.
 
 ## What the mission-review skill records

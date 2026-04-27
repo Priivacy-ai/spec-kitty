@@ -403,40 +403,122 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 5 — missing artifact blocks advancement with structured guard failure
+# Test 5 — missing artifact blocks advancement at the DISPATCH layer (T11)
 # ---------------------------------------------------------------------------
 
 
 def test_missing_artifact_blocks_with_structured_failure(
     isolated_repo: Path,
 ) -> None:
-    """FR-007 + FR-008 + SC-003: missing spec.md surfaces a structured guard failure.
+    """FR-005 + SC-004 (F-4 closure): the missing-artifact assertion MUST observe
+    a structured **blocked decision** through ``decide_next_via_runtime``
+    rather than calling ``_check_composed_action_guard()`` directly.
 
-    With ``happy_path=False`` the feature directory contains only
-    ``meta.json``; calling ``_check_composed_action_guard("discover", ...)``
-    MUST emit ``"Required artifact missing: spec.md"`` so the composed
-    dispatch path cannot mistake the missing artifact for success.
+    With ``happy_path=False`` the feature_dir holds only ``meta.json`` (no
+    ``spec.md``). Driving the runtime through one issuance + one success
+    record MUST produce:
+
+    * a ``Decision`` whose ``kind`` is ``DecisionKind.blocked``,
+    * ``guard_failures`` mentioning ``spec.md``, and
+    * **no advancement** of the run-state snapshot (read before AND after
+      the dispatch attempt; both are equal — empty ``completed_steps`` and
+      ``issued_step_id`` unchanged at ``"discover"``).
+
+    The legacy helper-level coverage (``_check_composed_action_guard``)
+    survives in :func:`test_unknown_documentation_action_fails_closed`
+    because the unknown-action fail-closed default cannot be exercised
+    through ``decide_next_via_runtime`` (the bridge does not accept
+    arbitrary action input). Per FR-006 / D6 of the fix-up plan, both
+    levels of coverage are intentionally retained.
     """
-    feature_dir = _scaffold_documentation_feature(
+    _scaffold_documentation_feature(
         isolated_repo, "demo-docs-walk", happy_path=False
     )
 
-    failures = _check_composed_action_guard(
-        "discover", feature_dir, mission="documentation"
+    # Issue the first step (discover) — no advance yet.
+    decide_next_via_runtime(
+        "test-operator",
+        "demo-docs-walk",
+        "needs_initialization",
+        isolated_repo,
     )
-    assert any("spec.md" in failure for failure in failures), (
-        f"expected spec.md in failures; got {failures!r}. "
-        "Structured failure surface regressed."
+
+    # Read the run snapshot BEFORE the dispatch attempt.
+    run_ref = get_or_start_run("demo-docs-walk", isolated_repo, "documentation")
+    snapshot_before = _read_snapshot(Path(run_ref.run_dir))
+    assert list(snapshot_before.completed_steps) == [], (
+        f"Pre-dispatch snapshot already advanced; completed_steps="
+        f"{snapshot_before.completed_steps!r}"
+    )
+    assert snapshot_before.issued_step_id == "discover"
+
+    # Drive composition dispatch — guard MUST fire post-execution because
+    # spec.md is absent.
+    decision = decide_next_via_runtime(
+        "test-operator",
+        "demo-docs-walk",
+        "success",
+        isolated_repo,
+    )
+
+    # Surface 1: the Decision is blocked.
+    decision_kind = (
+        decision.kind.value
+        if hasattr(decision.kind, "value")
+        else str(decision.kind)
+    )
+    assert decision_kind == "blocked", (
+        f"Expected blocked decision when spec.md is missing; got "
+        f"{decision.kind!r}"
+    )
+
+    # Surface 2: guard_failures mention spec.md.
+    assert decision.guard_failures, (
+        f"Expected guard_failures populated; got {decision.guard_failures!r}"
+    )
+    assert any("spec.md" in failure for failure in decision.guard_failures), (
+        f"spec.md not mentioned in guard_failures="
+        f"{decision.guard_failures!r}. Structured failure surface "
+        "regressed."
+    )
+
+    # Surface 3: state did NOT advance — snapshot before == snapshot after.
+    snapshot_after = _read_snapshot(Path(run_ref.run_dir))
+    assert list(snapshot_after.completed_steps) == [], (
+        f"Run advanced despite guard failure; completed_steps="
+        f"{snapshot_after.completed_steps!r}"
+    )
+    assert snapshot_after.issued_step_id == "discover", (
+        f"issued_step_id moved off discover despite guard failure: "
+        f"{snapshot_after.issued_step_id!r}"
+    )
+    assert (
+        list(snapshot_after.completed_steps)
+        == list(snapshot_before.completed_steps)
+    ), (
+        "Snapshot advanced through a blocked dispatch — completed_steps "
+        f"changed from {snapshot_before.completed_steps!r} to "
+        f"{snapshot_after.completed_steps!r}"
     )
 
 
 # ---------------------------------------------------------------------------
-# Test 6 — unknown documentation action fails closed at the dispatch surface
+# Test 6 — unknown documentation action fails closed at the helper surface
 # ---------------------------------------------------------------------------
 
 
 def test_unknown_documentation_action_fails_closed(isolated_repo: Path) -> None:
-    """FR-017: ``mission='documentation'`` with an unknown action fails closed.
+    """FR-006 / D6: helper-level fail-closed default for unknown actions.
+
+    This is intentionally a **helper-level** assertion (not a dispatch-level
+    one). The bridge's ``decide_next_via_runtime`` does not accept an
+    arbitrary action string — it always plans the next step from the run
+    state — so the only way to exercise the
+    ``"No guard registered for documentation action: <action>"`` default is
+    by calling ``_check_composed_action_guard()`` directly. Per FR-006 of
+    the fix-up plan, the dispatch-level guard coverage in
+    :func:`test_missing_artifact_blocks_with_structured_failure` and this
+    helper-level coverage are both required.
 
     The bridge's ``_check_composed_action_guard`` chain MUST emit
     ``"No guard registered for documentation action: ghost"`` for any
@@ -455,4 +537,166 @@ def test_unknown_documentation_action_fails_closed(isolated_repo: Path) -> None:
     ], (
         f"Fail-closed default did not fire for unknown documentation action; "
         f"got failures={failures!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 7 — full advancement through all 6 documentation actions (T09 + T10)
+# ---------------------------------------------------------------------------
+
+
+# Documentation actions in DAG order with the gate artifact each one
+# requires before the post-execution guard chain accepts advancement.
+_DOCUMENTATION_WALK: tuple[tuple[str, str], ...] = (
+    ("discover", "spec.md"),
+    ("audit", "gap-analysis.md"),
+    ("design", "plan.md"),
+    ("generate", "docs/index.md"),
+    ("validate", "audit-report.md"),
+    ("publish", "release.md"),
+)
+
+
+def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
+    """FR-003 + FR-004 + SC-003 (F-3 closure): the integration walk MUST drive
+    every one of the 6 composed documentation actions through dispatch and
+    record a paired ``started`` + ``done`` (or ``failed``) trail entry per
+    advancing action.
+
+    Each iteration:
+
+    1. Authors the gate artifact for the current action under the feature
+       directory (creating ``docs/`` for the ``generate`` step) so the
+       post-execution guard chain has nothing to fail on.
+    2. Calls ``decide_next_via_runtime(..., "success", ...)`` to drive the
+       composition dispatch for the currently-issued step.
+    3. Asserts the snapshot's ``completed_steps`` grew to include the
+       expected action and that the dispatch returned a documentation-native
+       ``Decision`` (mission == "documentation"; not blocked).
+
+    After the loop finishes the test cross-checks the per-action paired
+    invocation trail under
+    ``<repo>/.kittify/events/profile-invocations/`` (T10): every advancing
+    action MUST have at least one trail file containing a paired
+    ``started`` + ``completed`` record whose ``action`` is the
+    documentation-native verb. This is a stricter assertion than the
+    single-action :func:`test_paired_invocation_lifecycle_is_recorded`
+    test — it asserts coverage across **all six** advancing actions.
+    """
+    feature_dir = _scaffold_documentation_feature(
+        isolated_repo, "demo-docs-walk", happy_path=False
+    )
+    run_ref = get_or_start_run("demo-docs-walk", isolated_repo, "documentation")
+    run_dir = Path(run_ref.run_dir)
+
+    # Issue the first step (discover) — runtime is now waiting for a
+    # success record on it.
+    first = decide_next_via_runtime(
+        "test-operator",
+        "demo-docs-walk",
+        "needs_initialization",
+        isolated_repo,
+    )
+    assert first.mission == "documentation", (
+        f"Expected mission='documentation'; got {first.mission!r}."
+    )
+    assert first.step_id == "discover", (
+        f"Expected first issued step 'discover'; got {first.step_id!r}."
+    )
+
+    advanced_actions: list[str] = []
+    for action, artifact in _DOCUMENTATION_WALK:
+        # Author the gate artifact for THIS action before reporting success.
+        artifact_path = feature_dir / artifact
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        artifact_path.write_text(f"# {action}\n", encoding="utf-8")
+
+        snapshot_before = _read_snapshot(run_dir)
+        assert snapshot_before.issued_step_id == action, (
+            f"Pre-advance snapshot issued_step_id="
+            f"{snapshot_before.issued_step_id!r}; expected {action!r}."
+        )
+
+        # Report success on the currently-issued step. The bridge runs the
+        # composed dispatch, applies the post-execution guard chain, and
+        # advances the run state when the guard passes.
+        decision = decide_next_via_runtime(
+            "test-operator",
+            "demo-docs-walk",
+            "success",
+            isolated_repo,
+        )
+        assert decision.mission == "documentation", (
+            f"Decision for {action!r} carried wrong mission "
+            f"{decision.mission!r}; expected 'documentation'."
+        )
+        decision_kind = (
+            decision.kind.value
+            if hasattr(decision.kind, "value")
+            else str(decision.kind)
+        )
+        assert decision_kind != "blocked", (
+            f"Action {action!r} produced a blocked decision despite the "
+            f"gate artifact {artifact!r} being authored. "
+            f"guard_failures={decision.guard_failures!r}"
+        )
+
+        snapshot_after = _read_snapshot(run_dir)
+        assert action in snapshot_after.completed_steps, (
+            f"{action!r} not added to completed_steps after dispatch; "
+            f"completed_steps={snapshot_after.completed_steps!r}"
+        )
+        advanced_actions.append(action)
+
+    # All six actions advanced through dispatch in DAG order.
+    assert advanced_actions == [a for a, _ in _DOCUMENTATION_WALK], (
+        f"Action advancement order regressed; got {advanced_actions!r}."
+    )
+
+    # T10: every advancing action MUST have a paired started/completed
+    # trail record under .kittify/events/profile-invocations/ with the
+    # documentation-native action name on the started event.
+    invocations_dir = (
+        isolated_repo / ".kittify" / "events" / "profile-invocations"
+    )
+    assert invocations_dir.is_dir(), (
+        f"Invocations dir missing: {invocations_dir}. Composition dispatch "
+        "did not produce any paired invocation trails."
+    )
+
+    valid_outcomes = {"done", "failed"}
+    paired_actions: set[str] = set()
+    for trail in sorted(invocations_dir.glob("*.jsonl")):
+        events: list[dict[str, object]] = []
+        for raw in trail.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        if not events:
+            continue
+        first_event = events[0]
+        if first_event.get("event") != "started":
+            continue
+        action_name = first_event.get("action")
+        if not isinstance(action_name, str):
+            continue
+        completed = [e for e in events if e.get("event") == "completed"]
+        if not completed:
+            continue
+        outcome = completed[-1].get("outcome")
+        if outcome not in valid_outcomes:
+            continue
+        paired_actions.add(action_name)
+
+    expected_actions = {a for a, _ in _DOCUMENTATION_WALK}
+    missing = expected_actions - paired_actions
+    assert not missing, (
+        f"Missing paired started+completed trail records for documentation "
+        f"actions {sorted(missing)!r}. Recorded paired actions: "
+        f"{sorted(paired_actions)!r}. Expected at least: "
+        f"{sorted(expected_actions)!r}."
     )
