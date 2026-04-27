@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01KQ83NRVP7SRQR4KT1V10BR4Q",
-  "materialized_at": "2026-04-27T18:36:53.494696+00:00",
+  "event_count": 9,
+  "last_event_id": "01KQ83Q5A53K6764H3H3HNCSPD",
+  "materialized_at": "2026-04-27T18:37:39.013736+00:00",
   "mission_number": "",
   "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-27T18:36:53.494696+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ82YF69M20JAQ9PW2NV7GKK",
-      "last_transition_at": "2026-04-27T18:24:09.929650+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ83Q5A53K6764H3H3HNCSPD",
+      "last_transition_at": "2026-04-27T18:37:39.013736+00:00"
     }
   }
 }

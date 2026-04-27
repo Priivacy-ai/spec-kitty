@@ -36,7 +36,8 @@ subtasks:
 - T008
 phase: Phase 2
 assignee: ''
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "52140"
 history:
 - at: '2026-04-27T18:15:53Z'
   actor: spec-kitty.tasks
@@ -558,3 +559,7 @@ spec-kitty agent action implement WP02 --agent <name>
 ```
 
 This resolves the lane workspace and enters it. WP02 depends on WP01; do not start until WP01 is approved and merged into the lane base.
+
+## Activity Log
+
+- 2026-04-27T18:37:39Z – claude:opus-4-7:python-pedro:implementer – shell_pid=52140 – Started implementation via action command
