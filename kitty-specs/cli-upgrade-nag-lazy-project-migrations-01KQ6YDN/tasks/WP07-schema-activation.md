@@ -160,3 +160,4 @@ spec-kitty agent action implement WP07 --agent <name>
 ## Activity Log
 
 - 2026-04-27T09:34:06Z – claude:sonnet:python-implementer:implementer – shell_pid=169 – Started implementation via action command
+- 2026-04-27T09:43:45Z – claude:sonnet:python-implementer:implementer – shell_pid=169 – Ready: MIN=MAX=3 (no-op for existing projects), gate delegates to planner, all 640 migration/compat/arch tests still pass
