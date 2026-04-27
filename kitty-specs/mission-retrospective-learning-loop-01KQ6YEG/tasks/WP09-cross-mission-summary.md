@@ -184,3 +184,4 @@ spec-kitty agent action implement WP09 --agent <name>
 ## Activity Log
 
 - 2026-04-27T10:37:08Z – claude:sonnet:implementer:implementer – shell_pid=20232 – Started implementation via action command
+- 2026-04-27T10:55:37Z – claude:sonnet:implementer:implementer – shell_pid=20232 – Ready for review: cross-mission summary reducer + retrospect summary CLI; 36 tests / mypy strict / 200-mission perf ~1.5s; 3-line registry edit in cli/commands/__init__.py
