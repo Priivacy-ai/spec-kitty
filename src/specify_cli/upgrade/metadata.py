@@ -37,6 +37,7 @@ class ProjectMetadata:
     version: str
     initialized_at: datetime
     last_upgraded_at: datetime | None = None
+    schema_version: int | None = None
     python_version: str = ""
     platform: str = ""
     platform_version: str = ""
@@ -96,10 +97,17 @@ class ProjectMetadata:
         except ValueError:
             last_upgraded_at = None
 
+        raw_schema_version = spec_kitty.get("schema_version")
+        try:
+            schema_version: int | None = int(raw_schema_version) if raw_schema_version is not None else None
+        except (TypeError, ValueError):
+            schema_version = None
+
         metadata = cls(
             version=spec_kitty.get("version", "unknown"),
             initialized_at=initialized_at,
             last_upgraded_at=last_upgraded_at,
+            schema_version=schema_version,
             python_version=env.get("python_version", ""),
             platform=env.get("platform", ""),
             platform_version=env.get("platform_version", ""),
@@ -144,12 +152,16 @@ class ProjectMetadata:
         """
         metadata_path = kittify_dir / "metadata.yaml"
 
+        spec_kitty_section: dict = {
+            "version": self.version,
+            "initialized_at": self.initialized_at.isoformat(),
+            "last_upgraded_at": (self.last_upgraded_at.isoformat() if self.last_upgraded_at else None),
+        }
+        if self.schema_version is not None:
+            spec_kitty_section["schema_version"] = self.schema_version
+
         data = {
-            "spec_kitty": {
-                "version": self.version,
-                "initialized_at": self.initialized_at.isoformat(),
-                "last_upgraded_at": (self.last_upgraded_at.isoformat() if self.last_upgraded_at else None),
-            },
+            "spec_kitty": spec_kitty_section,
             "environment": {
                 "python_version": self.python_version,
                 "platform": self.platform,

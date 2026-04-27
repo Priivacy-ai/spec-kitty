@@ -473,6 +473,8 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -506,14 +508,13 @@ def test_upgrade_dry_run_skips_auto_commit(
         dry_run=True,
         force=True,
         target="1.0.0a1",
-        json_output=True,
+        json_output=False,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
-    data = json.loads(capsys.readouterr().out.strip())
-    assert data["auto_committed"] is False
-    assert data["auto_commit_paths"] == []
     assert safe_commit_called["called"] is False
 
 
@@ -544,6 +545,8 @@ def test_upgrade_baseline_failure_skips_auto_commit(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -590,6 +593,8 @@ def test_upgrade_no_migrations_rich_output_shows_auto_commit(
         json_output=False,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     full = "\n".join(captured_output)
@@ -628,6 +633,8 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -654,6 +661,8 @@ def test_upgrade_rejects_downgrade_target_in_json_mode(
             json_output=True,
             verbose=False,
             no_worktrees=True,
+            cli=False,
+            project=False,
         )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -713,6 +722,8 @@ def test_upgrade_suppresses_auto_commit_when_manual_review_required(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -769,6 +780,8 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())

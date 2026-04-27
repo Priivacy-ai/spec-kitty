@@ -84,6 +84,34 @@ def test_upgrade_dry_run_does_not_update_version(tmp_path):
     assert after_dry_run.version == "0.12.0", "Dry run should not update version"
 
 
+def test_upgrade_preserves_schema_version_in_metadata(tmp_path):
+    """After upgrade, schema_version must survive the metadata.save() call.
+
+    Regression test: previously _stamp_schema_version ran before metadata.save(),
+    which overwrote the file without schema_version, leaving the project gated.
+    """
+    from specify_cli import __version__
+    from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+
+    _init_git_repo(tmp_path)
+
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir()
+
+    metadata = ProjectMetadata(version="0.12.0", initialized_at=datetime.fromisoformat("2026-01-01T00:00:00"))
+    metadata.save(kittify_dir)
+
+    runner = MigrationRunner(tmp_path)
+    runner.upgrade(__version__, dry_run=False, include_worktrees=False)
+
+    import yaml
+    data = yaml.safe_load((kittify_dir / "metadata.yaml").read_text())
+    assert data["spec_kitty"].get("schema_version") == REQUIRED_SCHEMA_VERSION, (
+        "schema_version must be present in metadata.yaml after upgrade; "
+        "metadata.save() must not overwrite the stamp"
+    )
+
+
 def test_cli_version_is_not_fallback():
     """Verify that CLI __version__ is not using the fallback values."""
     from specify_cli import __version__

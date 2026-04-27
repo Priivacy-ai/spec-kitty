@@ -115,6 +115,8 @@ class MigrationRunner:
             if metadata and not dry_run and metadata.version != target_version:
                 metadata.version = target_version
                 metadata.last_upgraded_at = datetime.now()
+                if REQUIRED_SCHEMA_VERSION is not None:
+                    metadata.schema_version = REQUIRED_SCHEMA_VERSION
                 metadata.save(self.kittify_dir)
 
             result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
@@ -157,10 +159,8 @@ class MigrationRunner:
         if not dry_run and result.success:
             metadata.version = target_version
             metadata.last_upgraded_at = datetime.now()
-            # Schema-version-based migration: stamp the new schema_version so the
-            # gate does not block future commands.
             if REQUIRED_SCHEMA_VERSION is not None:
-                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
+                metadata.schema_version = REQUIRED_SCHEMA_VERSION
             metadata.save(self.kittify_dir)
 
         # Handle worktrees
