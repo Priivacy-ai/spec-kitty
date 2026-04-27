@@ -21,7 +21,8 @@ subtasks:
 - T06
 - T07
 - T08
-shell_pid: '30176'
+shell_pid: "30176"
+agent: "claude:opus-4.7:implementer-ivan:implementer"
 history:
 - action: created
   at: '2026-04-27T05:05:00Z'
@@ -113,3 +114,7 @@ If you can also assert via `Decision.prompt_file` from a runtime call (read rese
 - Verify all 7 file paths match the runtime sidecar's `prompt_template:` declarations exactly.
 - Run the test and confirm it PASSes.
 - Verify no edits outside the 8 owned files.
+
+## Activity Log
+
+- 2026-04-27T05:12:08Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=30176 – Assigned agent via action command
