@@ -46,11 +46,11 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T031 | Implement nag rendering (single line) and block rendering (≤4 lines, exit codes 4/5/6) | WP08 | — | [D] |
 | T032 | Suppress nag when `--json`, `--quiet`, no-TTY, or CI predicate holds | WP08 | — | [D] |
 | T033 | Integration tests: safe matrix, unsafe matrix, CI determinism (zero outbound calls) | WP08 | [D] |
-| T034 | Add `--cli`, `--project`, `--yes`, `--no-nag` flags to `cli/commands/upgrade.py`; `--yes` aliases `--force` | WP09 | — |
-| T035 | Implement `--cli` mode: print install-method-specific guidance, succeed outside any project | WP09 | — |
-| T036 | Implement `--project` mode: restrict behavior to current-project compatibility and migrations | WP09 | — |
-| T037 | Implement `--dry-run --json` / `--json` per `contracts/compat-planner.json`; correct exit codes | WP09 | — |
-| T038 | Integration tests for `upgrade` command across all 5 FR-023 cases (matches contract examples) | WP09 | [P] |
+| T034 | Add `--cli`, `--project`, `--yes`, `--no-nag` flags to `cli/commands/upgrade.py`; `--yes` aliases `--force` | WP09 | — | [D] |
+| T035 | Implement `--cli` mode: print install-method-specific guidance, succeed outside any project | WP09 | — | [D] |
+| T036 | Implement `--project` mode: restrict behavior to current-project compatibility and migrations | WP09 | — | [D] |
+| T037 | Implement `--dry-run --json` / `--json` per `contracts/compat-planner.json`; correct exit codes | WP09 | — | [D] |
+| T038 | Integration tests for `upgrade` command across all 5 FR-023 cases (matches contract examples) | WP09 | [D] |
 | T039 | Register dashboard mode-aware safety predicate (read-only safe; write/init/sync/repair unsafe) | WP10 | — |
 | T040 | Register doctor mode-aware safety predicate (diagnostic safe; repair/fix unsafe) | WP10 | — |
 | T041 | Integration tests for dashboard / doctor mode-split under schema mismatch | WP10 | [P] |
@@ -245,11 +245,11 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~470 lines.
 
 **Included subtasks**:
-- [ ] T034 Add `--cli`, `--project`, `--yes`, `--no-nag` flags to `cli/commands/upgrade.py`; `--yes` aliases `--force` (WP09)
-- [ ] T035 Implement `--cli` mode: print install-method-specific guidance, succeed outside any project (WP09)
-- [ ] T036 Implement `--project` mode: restrict behavior to current-project compatibility and migrations (WP09)
-- [ ] T037 Implement `--dry-run --json` / `--json` per `contracts/compat-planner.json`; correct exit codes (WP09)
-- [ ] T038 Integration tests for `upgrade` command across all 5 FR-023 cases (matches contract examples) (WP09)
+- [x] T034 Add `--cli`, `--project`, `--yes`, `--no-nag` flags to `cli/commands/upgrade.py`; `--yes` aliases `--force` (WP09)
+- [x] T035 Implement `--cli` mode: print install-method-specific guidance, succeed outside any project (WP09)
+- [x] T036 Implement `--project` mode: restrict behavior to current-project compatibility and migrations (WP09)
+- [x] T037 Implement `--dry-run --json` / `--json` per `contracts/compat-planner.json`; correct exit codes (WP09)
+- [x] T038 Integration tests for `upgrade` command across all 5 FR-023 cases (matches contract examples) (WP09)
 
 **Implementation sketch**: Existing `upgrade` command keeps its core flow (`--dry-run`, `--force`, `--target`, `--verbose`, `--no-worktrees`). New flags are additive. `--cli` short-circuits the project-side flow; `--project` short-circuits the CLI nag side; `--cli` + `--project` together is a usage error (`BLOCK_INCOMPATIBLE_FLAGS`, exit 2). `--yes` is wired to the existing `--force` confirmation behavior. JSON output is built from `Plan.rendered_json` (already shaped by the planner).
 
