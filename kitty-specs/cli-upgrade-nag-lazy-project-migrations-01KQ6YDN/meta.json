@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-27T07:45:50.886670+00:00",
+  "friendly_name": "cli upgrade nag lazy project migrations",
+  "mission_id": "01KQ6YDNMX2X2AN4WH43R5K2ZS",
+  "mission_number": null,
+  "mission_slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
+  "mission_type": "software-dev",
+  "slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
+  "target_branch": "main"
+}
