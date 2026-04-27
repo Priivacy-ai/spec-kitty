@@ -39,9 +39,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T024 | Implement `plan(...)` entry point wiring providers, cache, safety, adapters; harden YAML load (256 KB cap, integer range) | WP06 | — | [D] |
 | T025 | Wire `compat/__init__.py` public API (Plan, Decision, plan, classify, providers, NagCache, InstallMethod) | WP06 | — | [D] |
 | T026 | Unit tests covering every Decision × FR-023 case + corrupt metadata, missing project, no-network | WP06 | [D] |
-| T027 | Add `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to `migration/schema_version.py` (keep `REQUIRED_SCHEMA_VERSION` as deprecated alias) | WP07 | — |
-| T028 | Update `migration/gate.py` to delegate to `compat.planner.plan(...)` (becomes a thin shim) | WP07 | — |
-| T029 | Update existing schema-version tests to assert range semantics; preserve all migration tests (NFR-006) | WP07 | — |
+| T027 | Add `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to `migration/schema_version.py` (keep `REQUIRED_SCHEMA_VERSION` as deprecated alias) | WP07 | — | [D] |
+| T028 | Update `migration/gate.py` to delegate to `compat.planner.plan(...)` (becomes a thin shim) | WP07 | — | [D] |
+| T029 | Update existing schema-version tests to assert range semantics; preserve all migration tests (NFR-006) | WP07 | — | [D] |
 | T030 | Update `cli/helpers.py` typer callback to call `compat.plan(...)` and render decision via `rich.Console` | WP08 | — |
 | T031 | Implement nag rendering (single line) and block rendering (≤4 lines, exit codes 4/5/6) | WP08 | — |
 | T032 | Suppress nag when `--json`, `--quiet`, no-TTY, or CI predicate holds | WP08 | — |
@@ -202,9 +202,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~270 lines.
 
 **Included subtasks**:
-- [ ] T027 Add `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to `migration/schema_version.py` (keep `REQUIRED_SCHEMA_VERSION` as deprecated alias) (WP07)
-- [ ] T028 Update `migration/gate.py` to delegate to `compat.planner.plan(...)` (becomes a thin shim) (WP07)
-- [ ] T029 Update existing schema-version tests to assert range semantics; preserve all migration tests (NFR-006) (WP07)
+- [x] T027 Add `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to `migration/schema_version.py` (keep `REQUIRED_SCHEMA_VERSION` as deprecated alias) (WP07)
+- [x] T028 Update `migration/gate.py` to delegate to `compat.planner.plan(...)` (becomes a thin shim) (WP07)
+- [x] T029 Update existing schema-version tests to assert range semantics; preserve all migration tests (NFR-006) (WP07)
 
 **Implementation sketch**: Set `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to values matching today's migration registry (read it; pick max as both min and max so the gate is a no-op until a future bump). Keep `REQUIRED_SCHEMA_VERSION` as `MIN_SUPPORTED_SCHEMA` for backward compat. `migration/gate.check_schema_version` becomes: build an `Invocation` from typer context, call `compat.plan(...)`, raise SystemExit with the exit code from the plan.
 
