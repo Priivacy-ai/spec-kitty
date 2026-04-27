@@ -1,7 +1,7 @@
 {
-  "event_count": 16,
-  "last_event_id": "01KQ870H4ZNGERNHB36XNJ38N4",
-  "materialized_at": "2026-04-27T19:35:11.775435+00:00",
+  "event_count": 17,
+  "last_event_id": "01KQ87CE3ARQ710Z2WF4W3FMN6",
+  "materialized_at": "2026-04-27T19:41:41.866673+00:00",
   "mission_number": "",
   "mission_slug": "release-3-2-0a5-tranche-1-01KQ7YXH",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 6
+    "in_review": 0,
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -67,11 +67,11 @@
       "last_transition_at": "2026-04-27T19:29:38.935010+00:00"
     },
     "WP08": {
-      "actor": "claude:sonnet:reviewer-renata:reviewer",
-      "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KQ870H4ZNGERNHB36XNJ38N4",
-      "last_transition_at": "2026-04-27T19:35:11.775435+00:00"
+      "actor": "reviewer-renata",
+      "force_count": 2,
+      "lane": "planned",
+      "last_event_id": "01KQ87CE3ARQ710Z2WF4W3FMN6",
+      "last_transition_at": "2026-04-27T19:41:41.866673+00:00"
     }
   }
 }
