@@ -220,3 +220,4 @@ spec-kitty agent action implement WP02 --agent claude
 ## Activity Log
 
 - 2026-04-27T20:56:44Z – claude:sonnet:implementer-ivan:implementer – shell_pid=85120 – Started implementation via action command
+- 2026-04-27T21:01:14Z – claude:sonnet:implementer-ivan:implementer – shell_pid=85120 – Ready for review: pyproject.toml at 3.2.0a5, CHANGELOG split + consolidated, all 10 tranche issues referenced
