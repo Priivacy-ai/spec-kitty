@@ -118,3 +118,4 @@ If you can also assert via `Decision.prompt_file` from a runtime call (read rese
 ## Activity Log
 
 - 2026-04-27T05:12:08Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=30176 – Assigned agent via action command
+- 2026-04-27T05:19:23Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=30176 – T01-T08 complete; 7 templates + parametrized test; 7/7 PASS
