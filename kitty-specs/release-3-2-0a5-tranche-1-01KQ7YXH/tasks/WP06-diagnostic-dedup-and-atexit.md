@@ -19,7 +19,8 @@ subtasks:
 - T030
 - T031
 - T032
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "81061"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -500,3 +501,7 @@ Both tests fail without T026–T030; both pass after.
 ```bash
 spec-kitty agent action implement WP06 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T20:26:16Z – claude:sonnet:implementer-ivan:implementer – shell_pid=81061 – Started implementation via action command
