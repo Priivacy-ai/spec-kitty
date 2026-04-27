@@ -20,6 +20,8 @@ subtasks:
 - T045
 - T046
 - T047
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "20232"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -178,3 +180,7 @@ For the perf test, generate the fixture once per test session (use `pytest` fixt
 ```bash
 spec-kitty agent action implement WP09 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T10:37:08Z – claude:sonnet:implementer:implementer – shell_pid=20232 – Started implementation via action command
