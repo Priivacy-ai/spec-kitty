@@ -39,6 +39,7 @@ from specify_cli.compat.safety import Safety, classify
 from specify_cli.compat.safety_modes import (
     _DOCTOR_UNSAFE_FLAGS,
     _doctor_predicate,
+    _sparse_checkout_predicate,
     register_mode_predicates,
 )
 from specify_cli.migration.gate import check_schema_version
@@ -196,4 +197,119 @@ class TestDoctorGateIntegration:
         import sys  # noqa: PLC0415
 
         monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "--json"])
+        check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
+
+
+# ---------------------------------------------------------------------------
+# T041-D: Direct predicate tests for _sparse_checkout_predicate (FIX B)
+# ---------------------------------------------------------------------------
+
+
+class TestSparseCheckoutPredicate:
+    """Unit tests for the _sparse_checkout_predicate (FIX B, P2)."""
+
+    def test_no_fix_is_safe(self) -> None:
+        """``doctor sparse-checkout`` (no --fix) must be SAFE."""
+        inv = _inv(command_path=("doctor", "sparse-checkout"))
+        assert _sparse_checkout_predicate(inv) == Safety.SAFE
+
+    def test_fix_is_unsafe(self) -> None:
+        """``doctor sparse-checkout --fix`` must be UNSAFE."""
+        inv = _inv(command_path=("doctor", "sparse-checkout"), raw_args=("--fix",))
+        assert _sparse_checkout_predicate(inv) == Safety.UNSAFE
+
+    def test_other_flag_is_safe(self) -> None:
+        """A random non-mutating flag must be SAFE."""
+        inv = _inv(command_path=("doctor", "sparse-checkout"), raw_args=("--json",))
+        assert _sparse_checkout_predicate(inv) == Safety.SAFE
+
+
+# ---------------------------------------------------------------------------
+# T041-E: Doctor subcommand gate integration tests (FIX B, P2)
+# ---------------------------------------------------------------------------
+
+
+class TestDoctorSubcommandGateIntegration:
+    """End-to-end tests verifying that doctor subcommands are correctly classified.
+
+    Before FIX B, ``("doctor", "identity")`` was not in the registry and fell
+    through to UNSAFE (fail-closed), blocking read-only diagnostics.
+    """
+
+    def setup_method(self) -> None:
+        """Ensure subcommand predicates are registered before each test."""
+        register_mode_predicates()
+
+    def test_doctor_identity_json_not_blocked(
+        self,
+        fixture_project_too_new: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``doctor identity --json`` must NOT be blocked on a too-new project."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "identity", "--json"])
+        # Must not raise SystemExit
+        check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
+
+    def test_doctor_shim_registry_json_not_blocked(
+        self,
+        fixture_project_too_new: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``doctor shim-registry --json`` must NOT be blocked on a too-new project."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "shim-registry", "--json"])
+        check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
+
+    def test_doctor_sparse_checkout_no_fix_not_blocked(
+        self,
+        fixture_project_too_new: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``doctor sparse-checkout`` (no --fix) must NOT be blocked on a too-new project."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "sparse-checkout"])
+        check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
+
+    def test_doctor_sparse_checkout_fix_is_blocked(
+        self,
+        fixture_project_too_new: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``doctor sparse-checkout --fix`` MUST be blocked (exit 5) on a too-new project."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(
+            sys, "argv", ["spec-kitty", "doctor", "sparse-checkout", "--fix"]
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
+        assert exc_info.value.code == 5, (
+            f"Expected exit 5 (BLOCK_CLI_UPGRADE) for sparse-checkout --fix, "
+            f"got {exc_info.value.code!r}"
+        )
+
+    def test_doctor_command_files_not_blocked(
+        self,
+        fixture_project_too_new: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``doctor command-files`` must NOT be blocked on a too-new project."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "command-files"])
+        check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
+
+    def test_doctor_state_roots_not_blocked(
+        self,
+        fixture_project_too_new: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``doctor state-roots`` must NOT be blocked on a too-new project."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "state-roots"])
         check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
