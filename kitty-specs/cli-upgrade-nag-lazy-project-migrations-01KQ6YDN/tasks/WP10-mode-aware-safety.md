@@ -14,6 +14,8 @@ subtasks:
 - T039
 - T040
 - T041
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "18574"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -128,3 +130,7 @@ Register mode-aware safety predicates for `dashboard` and `doctor`. Read-only in
 ```bash
 spec-kitty agent action implement WP10 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T10:27:53Z – claude:sonnet:python-implementer:implementer – shell_pid=18574 – Started implementation via action command
