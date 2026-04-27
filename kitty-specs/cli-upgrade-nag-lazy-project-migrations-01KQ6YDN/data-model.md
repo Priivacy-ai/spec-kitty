@@ -115,6 +115,16 @@ class MigrationStep:
 
 Sourced from the existing `upgrade.registry`. The planner does not invent migrations; it lists what the registry already knows about.
 
+> **Implementation note (DRIFT-3):**
+> `target_schema_version` is currently **inferred** from the migration's semver `target_version`
+> major component (e.g. `"3.0.0"` → `3`) rather than declared explicitly on the migration class.
+> Future migrations may add an explicit `target_schema_version` attribute; the planner already
+> reads it via `getattr(m, "target_schema_version", None)` with a fallback to the inference path.
+>
+> `files_modified` is currently always `null` because the migration registry does not expose
+> this metadata at registration time. Future migrations may declare it; the JSON contract
+> will surface it when available.
+
 ### 1.7 `InstallMethod`
 
 ```python
