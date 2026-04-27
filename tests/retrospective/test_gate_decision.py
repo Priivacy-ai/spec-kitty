@@ -957,10 +957,11 @@ class TestCharterEdgeCases:
 class TestSilentAutoRunEdgeCases:
     """Edge cases for _is_silent_auto_run predicate."""
 
-    def test_completed_without_preceding_requested_allows(self, tmp_path: Path) -> None:
-        """HiC: completed with no preceding requested event is NOT treated as silent.
+    def test_completed_without_preceding_requested_blocks(self, tmp_path: Path) -> None:
+        """HiC: completed with no preceding requested event is treated as silent (fail closed).
 
-        We do not block without evidence — the predicate returns False (not silent).
+        Missing provenance MUST NOT pass the gate; HiC completion requires
+        positive evidence of operator initiation via a preceding requested event.
         """
         feature_dir = tmp_path / "feature"
         # completed event with NO preceding requested event
@@ -975,15 +976,15 @@ class TestSilentAutoRunEdgeCases:
             mode_override=_mode_hic(),
         )
 
-        assert decision.allow_completion is True
-        assert decision.reason.code == "completed_present_hic"
+        assert decision.allow_completion is False
+        assert decision.reason.code == "silent_auto_run_attempted"
 
-    def test_completed_with_only_later_requested_not_silent(self, tmp_path: Path) -> None:
-        """HiC: requested event AFTER completed event is not considered preceding."""
+    def test_completed_with_only_later_requested_blocks(self, tmp_path: Path) -> None:
+        """HiC: requested event AFTER completed event is not preceding (fail closed)."""
         feature_dir = tmp_path / "feature"
         _write_events(feature_dir, [
             _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            # requested comes AFTER completed — should not count
+            # requested comes AFTER completed — should not count, fail closed
             _requested_envelope(_EID_2, "2026-04-27T09:10:00+00:00", actor_kind="runtime"),
         ])
 
@@ -994,11 +995,11 @@ class TestSilentAutoRunEdgeCases:
             mode_override=_mode_hic(),
         )
 
-        assert decision.allow_completion is True
-        assert decision.reason.code == "completed_present_hic"
+        assert decision.allow_completion is False
+        assert decision.reason.code == "silent_auto_run_attempted"
 
-    def test_completed_with_malformed_actor_in_requested_not_silent(self, tmp_path: Path) -> None:
-        """HiC: malformed actor in requested event → conservative (not silent)."""
+    def test_completed_with_malformed_actor_in_requested_blocks(self, tmp_path: Path) -> None:
+        """HiC: malformed actor in requested event → fail closed (cannot verify operator)."""
         feature_dir = tmp_path / "feature"
         # Inject a requested event with a non-dict actor (malformed).
         bad_requested: dict[str, object] = {
@@ -1023,9 +1024,9 @@ class TestSilentAutoRunEdgeCases:
             mode_override=_mode_hic(),
         )
 
-        # Malformed actor → conservative (not silent) → allow
-        assert decision.allow_completion is True
-        assert decision.reason.code == "completed_present_hic"
+        # Malformed actor → cannot verify operator-driven → fail closed → block
+        assert decision.allow_completion is False
+        assert decision.reason.code == "silent_auto_run_attempted"
 
 
 # ---------------------------------------------------------------------------

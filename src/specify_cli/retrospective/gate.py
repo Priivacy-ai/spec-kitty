@@ -268,18 +268,19 @@ def _is_silent_auto_run(
     completed_event: dict[str, object],
     events: list[dict[str, object]],
 ) -> bool:
-    """Return True if the completed event was preceded by a runtime-driven request.
+    """Return True if the completed event lacks a verifiable operator-driven request.
 
-    A ``retrospective.completed`` event is "silent" in HiC mode if its
-    upstream ``retrospective.requested`` event was emitted by an actor whose
-    ``kind == "runtime"`` (not a human operator).
+    A ``retrospective.completed`` event is "silent" in HiC mode unless the
+    log carries a preceding ``retrospective.requested`` event whose top-level
+    ``actor.kind`` is anything other than ``"runtime"`` (i.e., an operator).
 
     The gate finds the latest ``retrospective.requested`` event whose ``at``
-    timestamp is at or before the completed event's ``at`` timestamp and
-    inspects its top-level ``actor.kind``.
+    timestamp is at or before the completed event's ``at`` timestamp.
 
-    Returns ``False`` (not silent) when no preceding requested event is found
-    — we do not block without evidence.
+    Fail-closed semantics: when there is no preceding requested event — or
+    when the requested event's actor is malformed or is ``"runtime"`` — the
+    predicate returns ``True``. Missing provenance MUST NOT pass the gate;
+    HiC completion requires positive evidence of operator initiation.
     """
     completed_at = str(completed_event.get("at", ""))
 
@@ -291,16 +292,19 @@ def _is_silent_auto_run(
     ]
 
     if not preceding_requested:
-        # No preceding requested event — cannot confirm runtime-driven; not silent.
-        return False
+        # No preceding requested event — fail closed.
+        return True
 
     latest_req = max(preceding_requested, key=_sort_key)
 
     actor = latest_req.get("actor")
     if not isinstance(actor, dict):
-        return False
+        # Malformed actor — cannot verify operator-driven; fail closed.
+        return True
 
-    return str(actor.get("kind", "")) == "runtime"
+    actor_kind = str(actor.get("kind", ""))
+    # Only operator-kind actors satisfy the HiC operator-driven contract.
+    return actor_kind == "runtime" or actor_kind == ""
 
 
 # ---------------------------------------------------------------------------
