@@ -26,9 +26,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T011 | Implement `InstallMethod` enum + detection chain in `compat/_detect/install_method.py` | WP03 | — | [D] |
 | T012 | Implement `UpgradeHint` builder with sanitised commands per install method | WP03 | — | [D] |
 | T013 | Unit tests for each install-method branch (pipx, pip-user, pip-system, brew, system, source, unknown) | WP03 | [D] |
-| T014 | Implement `Safety` enum + `SAFETY_REGISTRY` seeded from `_EXEMPT_COMMANDS` baseline in `compat/safety.py` | WP04 | — |
-| T015 | Implement `register_safety()` API (for mode predicates) and `classify(invocation)` with fail-closed default | WP04 | — |
-| T016 | Architectural test: enumerate every typer command and assert unregistered commands are observably unsafe | WP04 | [P] |
+| T014 | Implement `Safety` enum + `SAFETY_REGISTRY` seeded from `_EXEMPT_COMMANDS` baseline in `compat/safety.py` | WP04 | — | [D] |
+| T015 | Implement `register_safety()` API (for mode predicates) and `classify(invocation)` with fail-closed default | WP04 | — | [D] |
+| T016 | Architectural test: enumerate every typer command and assert unregistered commands are observably unsafe | WP04 | [D] |
 | T017 | Create `compat/_adapters/version_checker.py` wrapping `core.version_checker` | WP05 | [P] |
 | T018 | Create `compat/_adapters/gate.py` wrapping `migration.gate` | WP05 | [P] |
 | T019 | Create `compat/_adapters/detector.py` wrapping `upgrade.detector` | WP05 | [P] |
@@ -135,9 +135,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~310 lines.
 
 **Included subtasks**:
-- [ ] T014 Implement `Safety` enum + `SAFETY_REGISTRY` seeded from `_EXEMPT_COMMANDS` baseline in `compat/safety.py` (WP04)
-- [ ] T015 Implement `register_safety()` API (for mode predicates) and `classify(invocation)` with fail-closed default (WP04)
-- [ ] T016 Architectural test: enumerate every typer command and assert unregistered commands are observably unsafe (WP04)
+- [x] T014 Implement `Safety` enum + `SAFETY_REGISTRY` seeded from `_EXEMPT_COMMANDS` baseline in `compat/safety.py` (WP04)
+- [x] T015 Implement `register_safety()` API (for mode predicates) and `classify(invocation)` with fail-closed default (WP04)
+- [x] T016 Architectural test: enumerate every typer command and assert unregistered commands are observably unsafe (WP04)
 
 **Implementation sketch**: Seed registry centrally — extends today's `{"upgrade", "init"}`. Safe baseline = `{upgrade, init, status, doctor, dashboard, --help, --version}` plus known read-only `agent` subcommands. `register_safety(command_path, predicate=None)` — predicate=None means flat-safe; predicate=callable means mode-aware. `classify(invocation)` looks up by `invocation.command_path`; unmatched → UNSAFE. Architectural test discovers all typer commands and checks each is either in the registry or treated unsafe.
 
