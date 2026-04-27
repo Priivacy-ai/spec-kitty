@@ -1,16 +1,16 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KQ85D8X3ZFMWDCTS35DVZ2M8",
-  "materialized_at": "2026-04-27T19:07:12.163122+00:00",
-  "mission_number": "",
+  "event_count": 14,
+  "last_event_id": "01KQ85FW58TS5B2P2MKJP3EDP9",
+  "materialized_at": "2026-04-27T19:08:37.417000+00:00",
+  "mission_number": "104",
   "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,18 +18,18 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KQ83NRVP7SRQR4KT1V10BR4Q",
-      "last_transition_at": "2026-04-27T18:36:53.494696+00:00"
+      "lane": "done",
+      "last_event_id": "01KQ85FS04ZQA6VZAHTXFFG90Z",
+      "last_transition_at": "2026-04-27T19:08:34.180122+00:00"
     },
     "WP02": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KQ85D8X3ZFMWDCTS35DVZ2M8",
-      "last_transition_at": "2026-04-27T19:07:12.163122+00:00"
+      "lane": "done",
+      "last_event_id": "01KQ85FW58TS5B2P2MKJP3EDP9",
+      "last_transition_at": "2026-04-27T19:08:37.417000+00:00"
     }
   }
 }
