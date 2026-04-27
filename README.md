@@ -59,7 +59,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 | **Charter and compatibility governance** | Harness-owned charter synthesis, provenance reporting, `charter bundle validate`, `charter resynthesize --list-topics`, and `doctor shim-registry` |
 | **Review resilience** | Persisted versioned review artifacts, focused fix prompts, dirty-state classification, and arbiter checklists |
 | **Execution resilience** | Interrupted merge recovery (`merge --resume`), crash recovery (`implement --recover`), stale-claim diagnostics, sparse-checkout repair, and stricter release validation |
-| **Multi-agent support** | 15 AI integrations: 13 project-local slash/prompt surfaces plus Codex CLI and Mistral Vibe via shared Agent Skills |
+| **Multi-agent support** | 15 AI integrations: 13 user-global slash/prompt surfaces plus Codex CLI and Mistral Vibe via shared Agent Skills |
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
@@ -116,7 +116,7 @@ graph LR
 - **Charter synthesis is harness-owned and inspectable** — generated-artifact adapters, `charter status --provenance`, `charter resynthesize --list-topics`, bundle validation, and stronger neutrality rules make synthesis auditable
 - **Compatibility and release governance are stricter** — `doctor shim-registry`, mutation-testing guidance, shared-package drift checks, SBOM-attached prereleases, and safer publish validation harden upgrades and releases
 - **Review and runtime recovery keep improving** — sparse-checkout defenses, offline/auth refresh fixes, provider-aware tracker readiness, action-routing hardening, and post-merge fixes to the profile-invocation flow reduce recovery work
-- **15 AI integrations are supported** — 13 project-local slash/prompt surfaces plus Codex CLI and Mistral Vibe via shared Agent Skills, with Kiro fully documented and legacy `q` retained for compatibility
+- **15 AI integrations are supported** — 13 user-global slash/prompt surfaces plus Codex CLI and Mistral Vibe via shared Agent Skills, with Kiro fully documented and legacy `q` retained for compatibility
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -305,7 +305,7 @@ spec-kitty dashboard  # Opens http://localhost:3000-5000
 ```
 
 **What just happened:**
-- ✅ Created project-local command or prompt files for the selected integrations, or shared Agent Skills under `.agents/skills/` for Codex / Vibe
+- ✅ Registered selected integrations; slash/prompt commands are installed globally, while Codex / Vibe use shared Agent Skills under `.agents/skills/`
 - ✅ Created `.kittify/` with templates, scripts, and mission scaffolding
 - ✅ Prepared the project for verification, mission creation, and on-demand dashboard use
 - ✅ Wrote project files only — `spec-kitty init` does not initialize Git for you
@@ -748,7 +748,7 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 
 ## 🤖 Supported AI Tools
 
-Spec Kitty integrates with 15 AI tools. Thirteen tools receive project-local **slash commands or prompt files** written to an agent-specific directory (for example `.claude/commands/` or `.kiro/prompts/`). Two tools — Codex CLI and Mistral Vibe — use the **Agent Skills** pipeline: Spec Kitty installs shared skills under `.agents/skills/spec-kitty.<command>/`, and Vibe also registers that shared root through project-local `.vibe/config.toml` `skill_paths`.
+Spec Kitty integrates with 15 AI tools. Thirteen tools receive user-global **slash commands or prompt files** written to an agent-specific directory (for example `~/.claude/commands/` or `~/.kiro/prompts/`). Two tools — Codex CLI and Mistral Vibe — use the **Agent Skills** pipeline: Spec Kitty installs shared skills under `.agents/skills/spec-kitty.<command>/`, and Vibe also registers that shared root through project-local `.vibe/config.toml` `skill_paths`.
 
 | Tool                                                      | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|

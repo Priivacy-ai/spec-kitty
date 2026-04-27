@@ -8,7 +8,7 @@ Spec-kitty supports 12 AI agents, including Claude Code, GitHub Codex, Google Ge
 
 This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../tutorials/getting-started.md) guide.
 
-Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitty agent config` command family. The config file acts as the single source of truth - agent directories on your filesystem are derived from this configuration. This ensures migrations respect your agent selections and prevents unwanted directory recreation.
+Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitty agent config` command family. The config file acts as the single source of truth for which agents are active in the project. Slash-command agents use user-global command roots such as `~/.opencode/command/`; Codex and Vibe use project-local command skills under `.agents/skills/`.
 
 This guide shows you how to add agents to enable multi-agent workflows, remove agents you don't use, list configured agents, check sync status, and synchronize your filesystem with the config file.
 
@@ -47,7 +47,7 @@ Before using agent config commands, ensure:
 
 `.kittify/config.yaml` is the single source of truth for agent configuration. All agent management commands read from and write to this file, and the filesystem is automatically synchronized to match it.
 
-This means agent directories on your filesystem (like `.claude/commands/` or `.codex/prompts/`) are derived from the config file. When you add an agent using `spec-kitty agent config add`, the command creates the directory and updates the config. When you remove an agent, the directory is deleted and the config is updated.
+This means the config records active agents, while the command surface depends on the agent class. For slash-command agents such as Claude, Gemini, OpenCode, and Kiro, commands are installed globally at CLI startup. When you add one of these agents using `spec-kitty agent config add`, the command updates the config and points at the global command root. For Codex and Vibe, Spec Kitty writes project-local command skills under `.agents/skills/`.
 
 Do not manually edit agent directories or config.yaml directly - use the `spec-kitty agent config` commands instead. This ensures consistency and prevents sync issues.
 
@@ -63,14 +63,14 @@ agents:
     - opencode
 ```
 
-The `available` field contains a list of active agent keys. Each key corresponds to a specific directory:
-- `claude` → `.claude/commands/`
-- `codex` → `.codex/prompts/`
-- `opencode` → `.opencode/command/`
+The `available` field contains a list of active agent keys. Each key corresponds to a managed command surface:
+- `claude` → `~/.claude/commands/` (global)
+- `codex` → `.agents/skills/spec-kitty.<command>/` (project-local Agent Skills)
+- `opencode` → `~/.opencode/command/` (global)
 
-When you run `spec-kitty agent config add` or `remove`, this list is automatically updated. Each configured agent has a directory containing slash command templates (like `spec-kitty.specify.md`, `spec-kitty.plan.md`, etc.).
+When you run `spec-kitty agent config add` or `remove`, this list is automatically updated. Global slash-command files are refreshed by normal CLI startup; Codex and Vibe command skills are managed inside the project.
 
-Agent directories are created and removed automatically by CLI commands. You should never need to manually create or delete these directories.
+Managed command surfaces are created and refreshed by CLI commands. You should never need to manually create or delete them.
 
 > **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](install-and-upgrade.md) for details.
 
@@ -89,8 +89,8 @@ spec-kitty agent config list
 The output shows two sections: configured agents and available agents you can add.
 
 Configured agents display a status indicator:
-- ✓ = Agent directory exists on filesystem
-- ⚠ = Configured in config.yaml but directory is missing (rare, indicates sync issue)
+- ✓ = Managed command surface exists
+- ⚠ = Configured in config.yaml but the managed command surface is missing
 
 Available agents show which agents you can add to your project.
 
@@ -98,8 +98,8 @@ Example output:
 
 ```
 Configured agents:
-  ✓ opencode (.opencode/command/)
-  ✓ claude (.claude/commands/)
+  ✓ opencode (~/.opencode/command/ (global))
+  ✓ claude (~/.claude/commands/ (global))
 
 Available but not configured:
   - codex
@@ -116,10 +116,10 @@ Available but not configured:
 
 Use `list` to:
 - See which agents are active in your project
-- Check if configured agents have directories on filesystem
+- Check if configured agents have their managed command surfaces
 - Discover available agents you can add
 
-**Troubleshooting**: If you see ⚠ next to a configured agent, the directory is missing from filesystem. Run `spec-kitty agent config sync --create-missing` to restore it.
+**Troubleshooting**: If you see ⚠ next to a configured slash-command agent, run any `spec-kitty` command to refresh global commands. For Codex or Vibe, run `spec-kitty agent config add <agent>` again or `spec-kitty upgrade`.
 
 ## Adding Agents
 
@@ -142,16 +142,16 @@ spec-kitty agent config add codex gemini cursor
 ```
 
 When you add an agent, spec-kitty:
-1. Creates the agent directory (e.g., `.claude/commands/`)
-2. Copies slash command templates to the directory
+1. Registers slash-command agents against their global command root
+2. Installs project-local command skills for Codex and Vibe
 3. Adds the agent key to `.kittify/config.yaml` under `agents.available`
 4. Displays success message for each agent added
 
 Example output:
 
 ```
-✓ Added .claude/commands/
-✓ Added .codex/prompts/
+✓ Registered claude (global commands at ~/.claude/commands/)
+✓ Registered codex (11 command skills in .agents/skills/)
 Updated .kittify/config.yaml
 ```
 
@@ -304,18 +304,11 @@ Example output:
 ```
 Agent Key  Directory                Configured  Exists  Status
 ──────────────────────────────────────────────────────────────────
-claude     .claude/commands/        ✓           ✓       OK
-codex      .codex/prompts/          ✗           ✓       Orphaned
-gemini     .gemini/commands/        ✓           ✗       Missing
-cursor     .cursor/commands/        ✗           ✗       Not used
-qwen       .qwen/commands/          ✗           ✗       Not used
-opencode   .opencode/command/       ✓           ✓       OK
-windsurf   .windsurf/workflows/     ✗           ✗       Not used
-kilocode   .kilocode/workflows/     ✗           ✗       Not used
-roo        .roo/commands/           ✗           ✗       Not used
-copilot    .github/prompts/         ✗           ✗       Not used
-auggie     .augment/commands/       ✗           ✗       Not used
-q          .amazonq/prompts/        ✗           ✗       Not used
+claude     ~/.claude/commands/ (global)      ✓  ✓  OK
+codex      .agents/skills/ (project skills)  ✗  ✓  Orphaned
+gemini     ~/.gemini/commands/ (global)      ✓  ✗  Missing
+cursor     ~/.cursor/commands/ (global)      ✗  ✗  Not used
+opencode   ~/.opencode/command/ (global)     ✓  ✓  OK
 
 ⚠ Found 1 orphaned directory
 Run 'spec-kitty agent config sync --remove-orphaned' to clean up
@@ -336,10 +329,10 @@ Use `status` to:
 spec-kitty agent config sync --remove-orphaned
 ```
 
-**Missing directories** (yellow "Missing" status):
+**Missing managed surfaces** (yellow "Missing" status):
 
 ```bash
-# Restore missing configured agents
+# Re-check global command roots and restore supported project-local skill roots
 spec-kitty agent config sync --create-missing
 ```
 
@@ -365,23 +358,23 @@ spec-kitty agent config sync
 - Does NOT create missing directories
 - Reports actions taken or "No changes needed"
 
-### Create Missing Configured Agents
+### Check Missing Configured Agents
 
-To restore directories for configured agents that are missing from filesystem:
+To check configured agents whose managed command surface is missing:
 
 ```bash
 spec-kitty agent config sync --create-missing
 ```
 
 **What this does**:
-- Creates directories for agents in `config.yaml` but missing from filesystem
-- Copies slash command templates to each created directory
+- Reports global command roots for slash-command agents
+- Creates/restores supported project-local skill roots where applicable
 - Also removes orphaned directories (default behavior)
 
 **Example output**:
 
 ```
-✓ Created .claude/commands/
+✓ Global commands present for claude at ~/.claude/commands/
 ✓ Removed orphaned .gemini/
 ```
 
@@ -395,7 +388,7 @@ spec-kitty agent config sync --keep-orphaned
 
 **What this does**:
 - Does NOT remove orphaned directories
-- Still creates missing directories if `--create-missing` is used
+- Still checks missing managed surfaces if `--create-missing` is used
 
 **Use case**: You have agent directories not in config.yaml but want to keep them (rare).
 
@@ -417,7 +410,7 @@ To fully sync filesystem with config (create missing AND remove orphaned):
 spec-kitty agent config sync --create-missing --remove-orphaned
 ```
 
-This ensures filesystem exactly matches `config.yaml`.
+This removes orphaned project-local command directories and verifies configured managed surfaces.
 
 ### When Filesystem Matches Config
 
@@ -432,11 +425,11 @@ No changes needed - filesystem matches config
 **After manual directory deletion** (not recommended, but happens):
 
 ```bash
-# You manually deleted .gemini/ but forgot to update config.yaml
+# The global command root for gemini is missing
 spec-kitty agent config status
 # Shows "Missing" status for gemini
 
-# Option 1: Restore directory
+# Option 1: Re-run any spec-kitty command to refresh global commands, then check again
 spec-kitty agent config sync --create-missing
 
 # Option 2: Remove from config properly
