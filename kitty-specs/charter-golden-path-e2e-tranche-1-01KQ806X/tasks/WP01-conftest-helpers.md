@@ -350,3 +350,7 @@ spec-kitty agent action implement WP01 --agent <name>
 ```
 
 This resolves the lane workspace and enters it. Do not branch manually.
+
+## Activity Log
+
+- 2026-04-27T18:31:59Z – claude – shell_pid=49552 – Ready for review: three additive helpers in tests/e2e/conftest.py per WP01 prompt; ruff + mypy --strict + pytest --collect-only all green
