@@ -42,10 +42,10 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T027 | Add `MIN_SUPPORTED_SCHEMA` and `MAX_SUPPORTED_SCHEMA` to `migration/schema_version.py` (keep `REQUIRED_SCHEMA_VERSION` as deprecated alias) | WP07 | — | [D] |
 | T028 | Update `migration/gate.py` to delegate to `compat.planner.plan(...)` (becomes a thin shim) | WP07 | — | [D] |
 | T029 | Update existing schema-version tests to assert range semantics; preserve all migration tests (NFR-006) | WP07 | — | [D] |
-| T030 | Update `cli/helpers.py` typer callback to call `compat.plan(...)` and render decision via `rich.Console` | WP08 | — |
-| T031 | Implement nag rendering (single line) and block rendering (≤4 lines, exit codes 4/5/6) | WP08 | — |
-| T032 | Suppress nag when `--json`, `--quiet`, no-TTY, or CI predicate holds | WP08 | — |
-| T033 | Integration tests: safe matrix, unsafe matrix, CI determinism (zero outbound calls) | WP08 | [P] |
+| T030 | Update `cli/helpers.py` typer callback to call `compat.plan(...)` and render decision via `rich.Console` | WP08 | — | [D] |
+| T031 | Implement nag rendering (single line) and block rendering (≤4 lines, exit codes 4/5/6) | WP08 | — | [D] |
+| T032 | Suppress nag when `--json`, `--quiet`, no-TTY, or CI predicate holds | WP08 | — | [D] |
+| T033 | Integration tests: safe matrix, unsafe matrix, CI determinism (zero outbound calls) | WP08 | [D] |
 | T034 | Add `--cli`, `--project`, `--yes`, `--no-nag` flags to `cli/commands/upgrade.py`; `--yes` aliases `--force` | WP09 | — |
 | T035 | Implement `--cli` mode: print install-method-specific guidance, succeed outside any project | WP09 | — |
 | T036 | Implement `--project` mode: restrict behavior to current-project compatibility and migrations | WP09 | — |
@@ -223,10 +223,10 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~430 lines.
 
 **Included subtasks**:
-- [ ] T030 Update `cli/helpers.py` typer callback to call `compat.plan(...)` and render decision via `rich.Console` (WP08)
-- [ ] T031 Implement nag rendering (single line) and block rendering (≤4 lines, exit codes 4/5/6) (WP08)
-- [ ] T032 Suppress nag when `--json`, `--quiet`, no-TTY, or CI predicate holds (WP08)
-- [ ] T033 Integration tests: safe matrix, unsafe matrix, CI determinism (zero outbound calls) (WP08)
+- [x] T030 Update `cli/helpers.py` typer callback to call `compat.plan(...)` and render decision via `rich.Console` (WP08)
+- [x] T031 Implement nag rendering (single line) and block rendering (≤4 lines, exit codes 4/5/6) (WP08)
+- [x] T032 Suppress nag when `--json`, `--quiet`, no-TTY, or CI predicate holds (WP08)
+- [x] T033 Integration tests: safe matrix, unsafe matrix, CI determinism (zero outbound calls) (WP08)
 
 **Implementation sketch**: typer callback consults the planner once per invocation. If `decision == ALLOW`: pass through. If `ALLOW_WITH_NAG` and not suppressed: print `plan.rendered_human` to stderr (so it doesn't pollute stdout/JSON), then pass through. Block decisions: print to stderr, raise `SystemExit(plan.exit_code)`. Tests use a fixture project + injected `LatestVersionProvider` and `NagCache`.
 
