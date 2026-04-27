@@ -893,3 +893,154 @@ class TestFreshCacheFastPath:
         assert updated.latest_version == new_latest
         # last_shown_at must be preserved (not overwritten by the fetch)
         assert updated.last_shown_at == old_last_shown
+
+
+# ---------------------------------------------------------------------------
+# FIX C (P2) — No-update-known fast path must also skip provider
+# ---------------------------------------------------------------------------
+
+
+class TestNoUpdateFastPath:
+    """FIX C: plan() must NOT call the provider when installed == latest
+    and the cached version data is fresh (has_fresh_data), even when
+    last_shown_at is None (nag never shown because no update is available).
+
+    Before this fix, the planner used is_fresh() for the provider-skip
+    decision.  is_fresh() returns False when last_shown_at is None, which
+    caused every invocation to hit the provider even when the version data
+    was perfectly fresh.
+    """
+
+    def _make_no_update_cache(
+        self,
+        tmp_path: Path,
+        installed: str,
+        now: datetime,
+        throttle_seconds: int = 86400,
+        fetched_offset_seconds: int = 3600,
+    ) -> NagCache:
+        """Write a cache record representing "no update available" state."""
+        from specify_cli.compat.cache import NagCacheRecord
+
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        fetched = now - timedelta(seconds=fetched_offset_seconds)
+        record = NagCacheRecord(
+            cli_version_key=installed,
+            latest_version=installed,   # installed == latest → no update
+            latest_source="pypi",
+            fetched_at=fetched,
+            last_shown_at=None,          # nag never shown (no update to show)
+        )
+        cache.write(record)
+        return cache
+
+    def test_no_update_fresh_data_skips_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No-update cache with recent fetched_at must skip the provider.
+
+        is_fresh() returns False (last_shown_at=None), but has_fresh_data()
+        returns True (fetched 1 hour ago, within 24h throttle).  The provider
+        must NOT be called (FIX C).
+        """
+        import specify_cli.compat.planner as planner_mod
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
+
+        cache = self._make_no_update_cache(tmp_path, _INSTALLED, _NOW)
+        counting_provider = _CountingProvider(version="99.0.0")
+
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        result = plan(
+            inv,
+            latest_version_provider=counting_provider,
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        assert counting_provider.call_count == 0, (
+            f"Provider was called {counting_provider.call_count} time(s) even though "
+            "no-update cache data is fresh.  FIX C requires has_fresh_data() to gate "
+            "the provider call, not is_fresh()."
+        )
+        # Version must come from cache (installed == latest)
+        assert result.cli_status.latest_version == _INSTALLED
+
+    def test_stale_fetched_at_calls_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When fetched_at is outside the throttle window, the provider IS called."""
+        import specify_cli.compat.planner as planner_mod
+        from specify_cli.compat.config import UpgradeConfig
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
+
+        cfg = UpgradeConfig.load()
+        throttle = cfg.throttle_seconds
+
+        cache = self._make_no_update_cache(
+            tmp_path, _INSTALLED, _NOW,
+            throttle_seconds=throttle,
+            fetched_offset_seconds=throttle + 3600,  # older than throttle
+        )
+        counting_provider = _CountingProvider(version=_INSTALLED)
+
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        plan(
+            inv,
+            latest_version_provider=counting_provider,
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        assert counting_provider.call_count >= 1, (
+            "Provider should be called when fetched_at is outside the throttle window."
+        )
+
+    def test_version_key_mismatch_calls_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When cli_version_key mismatches installed version (FR-025), provider IS called."""
+        import specify_cli.compat.planner as planner_mod
+        from specify_cli.compat.cache import NagCacheRecord
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
+
+        # Write a cache record with a different CLI version key
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        old_record = NagCacheRecord(
+            cli_version_key="1.0.0",     # mismatch → FR-025 invalidation
+            latest_version="1.0.0",
+            latest_source="pypi",
+            fetched_at=_NOW,
+            last_shown_at=None,
+        )
+        cache.write(old_record)
+
+        counting_provider = _CountingProvider(version=_INSTALLED)
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        plan(
+            inv,
+            latest_version_provider=counting_provider,
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        assert counting_provider.call_count >= 1, (
+            "Provider should be called when cli_version_key mismatches (FR-025)."
+        )

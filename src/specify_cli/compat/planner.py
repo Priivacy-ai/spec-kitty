@@ -782,16 +782,34 @@ def _plan_impl(
     installed_version = _get_installed_version()
 
     # Fresh-cache fast path (NFR-001): read cache first; only call the provider
-    # if the cache is stale or absent.  This avoids a network round-trip on every
-    # interactive invocation and keeps the <100 ms latency contract for the common
-    # case where the nag was recently shown.
+    # if the version data in the cache is stale or absent.  This avoids a
+    # network round-trip on every interactive invocation.
+    #
+    # Two separate predicates are used:
+    # - has_fresh_data: "should we skip the provider call?" (uses fetched_at)
+    # - is_fresh: "should we suppress the nag display?" (uses last_shown_at)
+    #
+    # The distinction matters for the "fully up-to-date" case: when
+    # installed == latest there is no nag to show, so last_shown_at stays None
+    # forever.  The old is_fresh predicate would return False (never shown →
+    # not fresh), causing every invocation to hit the provider even though the
+    # cached version data was recent.  has_fresh_data checks fetched_at instead
+    # and correctly returns True in that case (FIX C, P2).
     cache_record: NagCacheRecord | None = nag_cache.read()
 
     # Invalidate cache if CLI version changed (FR-025)
     if cache_record is not None and cache_record.cli_version_key != installed_version:
         cache_record = None
 
-    # Check freshness BEFORE touching the provider.
+    # Check whether the cached VERSION DATA is fresh enough to trust (skip provider).
+    cache_data_fresh = NagCache.has_fresh_data(
+        cache_record,
+        throttle_seconds=config.throttle_seconds,
+        now=now,
+        current_cli_version=installed_version,
+    )
+
+    # Separately, check whether the NAG should be suppressed (throttle display).
     cache_is_fresh = NagCache.is_fresh(
         cache_record,
         throttle_seconds=config.throttle_seconds,
@@ -799,8 +817,8 @@ def _plan_impl(
         current_cli_version=installed_version,
     )
 
-    if cache_is_fresh:
-        # Cache is fresh — trust it; no network call.
+    if cache_data_fresh:
+        # Cache data is fresh — trust it; no network call.
         latest_version: str | None = cache_record.latest_version if cache_record is not None else None
         cli_source: Literal["pypi", "none"] = cache_record.latest_source if cache_record is not None else "none"
         fetched_at: datetime | None = None  # not fetched this run

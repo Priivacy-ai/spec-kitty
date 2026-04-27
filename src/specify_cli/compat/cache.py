@@ -296,8 +296,62 @@ class NagCache:
             _write_posix(path, payload)
 
     # ------------------------------------------------------------------
-    # Pure predicate (no I/O)
+    # Pure predicates (no I/O)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def has_fresh_data(
+        record: NagCacheRecord | None,
+        *,
+        throttle_seconds: int,
+        now: datetime,
+        current_cli_version: str,
+    ) -> bool:
+        """Return True iff the cached version data is recent enough to trust.
+
+        Used by the planner to decide whether to skip the provider call.
+        Distinct from :meth:`is_fresh`, which gates nag display via
+        ``last_shown_at``.
+
+        Cache data is considered fresh when:
+        - ``record`` is not ``None``, AND
+        - ``record.cli_version_key`` matches ``current_cli_version`` (FR-025
+          invalidation when the CLI is upgraded), AND
+        - ``(now - record.fetched_at)`` is in ``[0, throttle_seconds)``
+          (negative delta treated as expired for clock-skew safety; CHK044).
+
+        This predicate answers "should we skip the network call?", whereas
+        :meth:`is_fresh` answers "should we suppress the nag display?".  The
+        two are intentionally separate:
+
+        * A user who is fully up-to-date has no nag to show and
+          ``last_shown_at`` stays ``None`` forever — yet the version data
+          is still fresh enough to skip the provider.
+        * :meth:`has_fresh_data` checks ``fetched_at``; :meth:`is_fresh`
+          checks ``last_shown_at``.
+
+        This is a pure function: it performs no I/O.  Inject ``now`` for
+        deterministic testing.
+
+        Args:
+            record: The cache record to evaluate, or ``None``.
+            throttle_seconds: The configured throttle window in seconds.
+            now: The current UTC datetime (caller-supplied for testability).
+            current_cli_version: The currently installed CLI version string.
+
+        Returns:
+            ``True`` if the cached version data is fresh and the provider
+            call can be skipped; ``False`` otherwise.
+        """
+        if record is None:
+            return False
+        if record.cli_version_key != current_cli_version:
+            return False
+        delta = (now - record.fetched_at).total_seconds()
+        if delta < 0:
+            # Clock skew — treat as expired (CHK044).
+            return False
+        return delta < throttle_seconds
 
     @staticmethod
     def is_fresh(

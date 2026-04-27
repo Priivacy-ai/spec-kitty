@@ -402,6 +402,90 @@ class TestIsFresh:
 
 
 # ---------------------------------------------------------------------------
+# has_fresh_data predicate table (FIX C, P2)
+# ---------------------------------------------------------------------------
+
+
+class TestHasFreshData:
+    """Unit table for NagCache.has_fresh_data (FIX C, P2).
+
+    This predicate answers "should we skip the network call?" using
+    ``fetched_at`` rather than ``last_shown_at``.  It is intentionally
+    distinct from ``is_fresh`` so that "no update available" hits
+    (where ``last_shown_at`` stays None) also benefit from the fast path.
+    """
+
+    def test_none_record_returns_false(self) -> None:
+        """None record → False."""
+        assert NagCache.has_fresh_data(None, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
+
+    def test_version_key_mismatch_returns_false(self) -> None:
+        """Different cli_version_key → False (FR-025 invalidation)."""
+        record = _make_record(cli_version_key="1.0.0", last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
+
+    def test_just_fetched_at_now_returns_true(self) -> None:
+        """Record with matching version key fetched at exactly now → True."""
+        # NagCacheRecord.fetched_at is typed as datetime (not Optional), so
+        # there is no None-fetched_at branch to test at runtime.  This test
+        # confirms the happy path: a freshly-fetched record is considered fresh.
+        record = _make_record(fetched_at=_NOW, last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
+
+    def test_just_fetched_returns_true(self) -> None:
+        """Fetched 1 second ago with 86400 throttle → True (fresh data)."""
+        from datetime import timedelta
+        fetched = _NOW - timedelta(seconds=1)
+        record = _make_record(fetched_at=fetched, last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
+
+    def test_no_update_available_last_shown_none_but_fresh(self) -> None:
+        """Key scenario (FIX C): installed==latest, last_shown_at=None, fetched recently.
+
+        is_fresh() returns False (last_shown_at is None).
+        has_fresh_data() must return True (fetched_at is recent).
+        This is what enables the no-update fast path.
+        """
+        from datetime import timedelta
+        fetched = _NOW - timedelta(hours=1)
+        record = _make_record(
+            latest_version=_VERSION,   # installed == latest, no update
+            fetched_at=fetched,
+            last_shown_at=None,        # nag never shown
+        )
+        # is_fresh should be False (nag never shown)
+        assert NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
+        # has_fresh_data should be True (fetched 1 hour ago, within 24h throttle)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
+
+    def test_stale_fetch_returns_false(self) -> None:
+        """Fetched longer than throttle_seconds ago → False (stale data)."""
+        from datetime import timedelta
+        fetched = _NOW - timedelta(seconds=86401)
+        record = _make_record(fetched_at=fetched, last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
+
+    def test_exactly_at_throttle_boundary_returns_false(self) -> None:
+        """Fetched exactly throttle_seconds ago → False (delta == throttle → expired)."""
+        from datetime import timedelta
+        fetched = _NOW - timedelta(seconds=86400)
+        record = _make_record(fetched_at=fetched, last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
+
+    def test_clock_skew_negative_delta_returns_false(self) -> None:
+        """fetched_at in the future (clock skew) → False (CHK044)."""
+        from datetime import timedelta
+        fetched = _NOW + timedelta(seconds=3600)
+        record = _make_record(fetched_at=fetched, last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
+
+    def test_delta_zero_returns_true(self) -> None:
+        """Fetched at exactly now (delta==0) → True (within window)."""
+        record = _make_record(fetched_at=_NOW, last_shown_at=None)
+        assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
+
+
+# ---------------------------------------------------------------------------
 # Serialisation helpers
 # ---------------------------------------------------------------------------
 
