@@ -23,6 +23,8 @@ subtasks:
 - T023
 - T024
 - T025
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "108"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -168,3 +170,7 @@ Use a fake event-log builder (a small helper in the test file or `tests/retrospe
 ```bash
 spec-kitty agent action implement WP05 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:33:57Z – claude:sonnet:implementer:implementer – shell_pid=108 – Started implementation via action command
