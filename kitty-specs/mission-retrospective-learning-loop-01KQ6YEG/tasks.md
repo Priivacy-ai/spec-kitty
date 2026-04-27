@@ -65,13 +65,13 @@
 | T052 | DRG edge changes for documentation and ERP custom via project-local overlays | WP10 |  | [D] |
 | T053 | Architectural test: no new prompt-builder filtering call sites | WP10 |  | [D] |
 | T054 | Tests: §4.5.1 inequality holds for every in-scope step | WP10 |  | [D] |
-| T055 | Fixture missions for autonomous + HiC paths under `tests/integration/retrospective/fixtures/` | WP11 |  |
-| T056 | Real-runtime integration test: autonomous terminus end-to-end | WP11 |  |
-| T057 | Real-runtime integration test: HiC terminus end-to-end (run + skip) | WP11 |  |
-| T058 | Real-runtime integration test: silent skip blocked (autonomous) | WP11 |  |
-| T059 | Real-runtime integration test: silent auto-run blocked (HiC) | WP11 |  |
-| T060 | Real-runtime integration test: next mission sees an applied proposal | WP11 |  |
-| T061 | Verify NFR-009/010 + existing built-in/custom mission tests pass | WP11 |  |
+| T055 | Fixture missions for autonomous + HiC paths under `tests/integration/retrospective/fixtures/` | WP11 |  | [D] |
+| T056 | Real-runtime integration test: autonomous terminus end-to-end | WP11 |  | [D] |
+| T057 | Real-runtime integration test: HiC terminus end-to-end (run + skip) | WP11 |  | [D] |
+| T058 | Real-runtime integration test: silent skip blocked (autonomous) | WP11 |  | [D] |
+| T059 | Real-runtime integration test: silent auto-run blocked (HiC) | WP11 |  | [D] |
+| T060 | Real-runtime integration test: next mission sees an applied proposal | WP11 |  | [D] |
+| T061 | Verify NFR-009/010 + existing built-in/custom mission tests pass | WP11 |  | [D] |
 | T062 | ADR for AD-001 (gate-shared-module) under `architecture/2.x/adr/` | WP12 |  | [D] |
 | T063 | Operator overview doc `docs/retrospective-learning-loop.md` | WP12 |  | [D] |
 | T064 | Cutover runbook `docs/migration/retrospective-events-upstream.md` | WP12 |  | [D] |
@@ -434,13 +434,13 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-033, NFR-009, NFR-010, plus regression coverage for C-001…C-010.
 
 **Subtasks**:
-- [ ] T055 Fixture missions for autonomous + HiC paths (WP11)
-- [ ] T056 Real-runtime integration test: autonomous terminus end-to-end (WP11)
-- [ ] T057 Real-runtime integration test: HiC terminus end-to-end (run + skip) (WP11)
-- [ ] T058 Real-runtime integration test: silent skip blocked (autonomous) (WP11)
-- [ ] T059 Real-runtime integration test: silent auto-run blocked (HiC) (WP11)
-- [ ] T060 Real-runtime integration test: next mission sees an applied proposal (WP11)
-- [ ] T061 Verify NFR-009/010 + existing built-in/custom mission tests pass (WP11)
+- [x] T055 Fixture missions for autonomous + HiC paths (WP11)
+- [x] T056 Real-runtime integration test: autonomous terminus end-to-end (WP11)
+- [x] T057 Real-runtime integration test: HiC terminus end-to-end (run + skip) (WP11)
+- [x] T058 Real-runtime integration test: silent skip blocked (autonomous) (WP11)
+- [x] T059 Real-runtime integration test: silent auto-run blocked (HiC) (WP11)
+- [x] T060 Real-runtime integration test: next mission sees an applied proposal (WP11)
+- [x] T061 Verify NFR-009/010 + existing built-in/custom mission tests pass (WP11)
 
 **Implementation sketch**:
 1. Fixture missions live under `tests/integration/retrospective/fixtures/`. Use the smallest mission shape that exercises the terminus.
