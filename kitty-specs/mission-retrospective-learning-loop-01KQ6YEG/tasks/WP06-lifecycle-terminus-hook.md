@@ -19,6 +19,8 @@ subtasks:
 - T028
 - T029
 - T030
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "6424"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -159,3 +161,7 @@ Mock `Prompt.ask` for HiC tests; otherwise use real runtime path so the test exe
 ```bash
 spec-kitty agent action implement WP06 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T10:00:02Z – claude:sonnet:implementer:implementer – shell_pid=6424 – Started implementation via action command
