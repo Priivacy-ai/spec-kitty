@@ -15,6 +15,8 @@ subtasks:
 - T063
 - T064
 - T065
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "55745"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -118,3 +120,7 @@ If WP03 has already merged: this WP issues a small `events.py` and `test_retrosp
 ```bash
 spec-kitty agent action implement WP12 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T08:39:26Z – claude:sonnet:implementer:implementer – shell_pid=55745 – Started implementation via action command
