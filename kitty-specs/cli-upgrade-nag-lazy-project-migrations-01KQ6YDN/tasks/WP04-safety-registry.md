@@ -12,6 +12,8 @@ subtasks:
 - T014
 - T015
 - T016
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "82236"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -151,3 +153,7 @@ Cover:
 ```bash
 spec-kitty agent action implement WP04 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:05:39Z – claude:sonnet:python-implementer:implementer – shell_pid=82236 – Started implementation via action command
