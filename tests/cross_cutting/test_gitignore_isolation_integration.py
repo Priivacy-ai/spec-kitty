@@ -16,8 +16,24 @@ from pathlib import Path
 import pytest
 from tests.utils import REPO_ROOT
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
+from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
 
 pytestmark = pytest.mark.git_repo
+
+
+def _write_compatible_project_metadata(repo_root: Path) -> None:
+    capabilities = "\n".join(
+        f"    - {capability}"
+        for capability in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
+    )
+    repo_root.joinpath(".kittify", "metadata.yaml").write_text(
+        f"""spec_kitty:
+  schema_version: {MAX_SUPPORTED_SCHEMA}
+  schema_capabilities:
+{capabilities}
+""",
+        encoding="utf-8",
+    )
 
 
 def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
@@ -39,7 +55,7 @@ def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
     )
 
 
-def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProcess:
+def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     src_root = str(REPO_ROOT / "src")
     existing = env.get("PYTHONPATH")
@@ -63,7 +79,8 @@ def _current_branch(repo_root: Path) -> str:
     )
     return result.stdout.strip()
 
-def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
+
+def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path) -> None:
     """Test that worktree creation doesn't modify tracked .gitignore file.
 
     Bug #120: Worktree .gitignore mutation pollutes planning branch history.
@@ -87,7 +104,7 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     # Create .kittify structure
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("vcs:\n  type: git\nagents:\n  available: [claude]\n  auto_commit: true\n")
-    (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
+    _write_compatible_project_metadata(tmp_path)
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -180,7 +197,8 @@ dependencies: []
         "Worktree .gitignore should not be modified (no git status changes in worktree)"
     )
 
-def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
+
+def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path) -> None:
     """Test that merging a worktree doesn't pollute history with .gitignore changes.
 
     Bug #120: .gitignore modifications in worktree leak into planning branch commits.
@@ -203,7 +221,7 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
     # Create .kittify structure
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("vcs:\n  type: git\nagents:\n  available: [claude]\n  auto_commit: true\n")
-    (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
+    _write_compatible_project_metadata(tmp_path)
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -310,7 +328,8 @@ dependencies: []
         f"Found commits: {gitignore_commits}"
     )
 
-def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
+
+def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path) -> None:
     """Test that .git/info/exclude contains the exclusion patterns.
 
     Bug #120: Fix uses .git/info/exclude instead of .gitignore for local ignores.
@@ -333,7 +352,7 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
     # Create .kittify structure
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("vcs:\n  type: git\nagents:\n  available: [claude]\n  auto_commit: true\n")
-    (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
+    _write_compatible_project_metadata(tmp_path)
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
