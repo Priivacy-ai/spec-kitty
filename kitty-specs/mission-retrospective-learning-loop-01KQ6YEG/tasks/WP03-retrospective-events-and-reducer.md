@@ -15,8 +15,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "88719"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "91656"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -185,3 +185,4 @@ spec-kitty agent action implement WP03 --agent <name>
 
 - 2026-04-27T09:10:22Z – claude:sonnet:implementer:implementer – shell_pid=88719 – Started implementation via action command
 - 2026-04-27T09:18:24Z – claude:sonnet:implementer:implementer – shell_pid=88719 – Ready for review: 8 events + emission helper + additive RetrospectiveSnapshot on StatusSnapshot
+- 2026-04-27T09:18:48Z – claude:opus:reviewer:reviewer – shell_pid=91656 – Started review via action command
