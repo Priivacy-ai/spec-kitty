@@ -14,7 +14,7 @@ subtasks:
 - T023
 - T024
 - T025
-agent: "claude:sonnet:reviewer-renata:reviewer"
+agent: "reviewer-renata"
 shell_pid: "80527"
 history:
 - at: '2026-04-27T18:00:45Z'
@@ -286,3 +286,4 @@ spec-kitty agent action implement WP05 --agent claude
 - 2026-04-27T20:17:25Z – claude:sonnet:implementer-ivan:implementer – shell_pid=79003 – Started implementation via action command
 - 2026-04-27T20:23:27Z – claude:sonnet:implementer-ivan:implementer – shell_pid=79003 – Ready for review: non-git detection + 2 unit tests; init.py:723 deprecated line removed; canonical invariant 'non-git init is allowed; silent non-git init is not' verified
 - 2026-04-27T20:24:03Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=80527 – Started review via action command
+- 2026-04-27T20:25:45Z – reviewer-renata – shell_pid=80527 – Review passed: canonical invariant verified — non-git init allowed but loud (yellow info line + top quick-start bullet, both contain 'not a git repository' + 'git init'); no auto git init, exit 0, scaffold completes. T022 _is_inside_git_work_tree helper has docstring noting is_git_available() precondition and returns False on FileNotFoundError/OSError. T023 'Run git init' bullet prepended to steps_lines. T024 init.py:723 /spec-kitty.checklist line removed (grep returns 0). T025: 2/2 tests pass; fixture pattern matches sibling test_init_integration.py. Pre-existing ARG001 on activate_mission confirmed against base branch — not introduced. Scope clean (init.py + new test only).
