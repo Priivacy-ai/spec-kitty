@@ -16,8 +16,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
-shell_pid: '63270'
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "66749"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -302,3 +302,4 @@ spec-kitty agent action implement WP01 --agent claude
 ## Activity Log
 
 - 2026-04-27T19:23:23Z – claude – shell_pid=63270 – Ready for review: schema_version clobber fix + unit + e2e regressions; mypy --strict + ruff clean
+- 2026-04-27T19:25:35Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=66749 – Started review via action command
