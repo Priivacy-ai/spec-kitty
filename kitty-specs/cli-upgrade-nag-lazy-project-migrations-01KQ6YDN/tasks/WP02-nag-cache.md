@@ -17,6 +17,8 @@ subtasks:
 - T008
 - T009
 - T010
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "63261"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -175,3 +177,7 @@ Implement the per-user `NagCache` that throttles the upgrade nag, invalidates on
 ```bash
 spec-kitty agent action implement WP02 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T08:46:56Z – claude:sonnet:python-implementer:implementer – shell_pid=63261 – Started implementation via action command
