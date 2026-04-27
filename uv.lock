@@ -2184,14 +2184,14 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-tracker"
-version = "0.4.2"
+version = "0.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/93/46/bef0812a23993f50b9f496d6ffb185f7967ebf0c4b6dc51e13f6d2349468/spec_kitty_tracker-0.4.2.tar.gz", hash = "sha256:1b9bb9149191096d62325410916d6edec6c0623e8538e9bb43821943f0391c40", size = 81633 }
+sdist = { url = "https://files.pythonhosted.org/packages/39/1c/f3bd23a116b65874a0f4a360dc3249dad4b78c6ee9384a75e099b5b69b3c/spec_kitty_tracker-0.4.3.tar.gz", hash = "sha256:c7086ad782164ba069663b2a8f78972834b056ce99985be2d7b4f8245cf9e5f2", size = 81815 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2c/c9/9c8358fe802e266d30ad873eacbe6a832f15f78abf538d5f44f35373fdea/spec_kitty_tracker-0.4.2-py3-none-any.whl", hash = "sha256:2f985380ca3e7f56c83769051e17e9ac7a56e3f8a6b9eeffeeb8dfad04a3638c", size = 66526 },
+    { url = "https://files.pythonhosted.org/packages/0e/0f/ca2ca110757e851bafc783ad2528a33bdf8a11ad094ce50b252a37ce16ca/spec_kitty_tracker-0.4.3-py3-none-any.whl", hash = "sha256:2c393e767af33fa9ff3aaa98b1d97648966712ebcdf8fce1f6178548eacb4810", size = 66524 },
 ]
 
 [[package]]
