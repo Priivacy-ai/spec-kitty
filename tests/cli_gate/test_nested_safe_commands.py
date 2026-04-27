@@ -27,29 +27,41 @@ from specify_cli.migration.gate import _build_command_path, check_schema_version
 
 class TestBuildCommandPath:
     def test_nested_command_with_flag(self) -> None:
-        """Nested command path stops at first flag."""
+        """Nested command path stops at first flag; argv agrees with invoked_subcommand."""
         with patch.object(sys, "argv", ["spec-kitty", "agent", "mission", "branch-context", "--json"]):
-            assert _build_command_path() == ("agent", "mission", "branch-context")
+            assert _build_command_path("agent") == ("agent", "mission", "branch-context")
 
     def test_simple_command(self) -> None:
         with patch.object(sys, "argv", ["spec-kitty", "upgrade"]):
-            assert _build_command_path() == ("upgrade",)
+            assert _build_command_path("upgrade") == ("upgrade",)
 
-    def test_flag_only_invocation(self) -> None:
+    def test_flag_only_invocation_falls_back(self) -> None:
+        """When argv has only flags, falls back to invoked_subcommand."""
         with patch.object(sys, "argv", ["spec-kitty", "--help"]):
-            assert _build_command_path() == ()
+            assert _build_command_path("dashboard") == ("dashboard",)
 
-    def test_no_args(self) -> None:
+    def test_no_args_no_subcommand(self) -> None:
         with patch.object(sys, "argv", ["spec-kitty"]):
-            assert _build_command_path() == ()
+            assert _build_command_path(None) == ()
 
     def test_three_level_no_flags(self) -> None:
         with patch.object(sys, "argv", ["spec-kitty", "agent", "context", "resolve"]):
-            assert _build_command_path() == ("agent", "context", "resolve")
+            assert _build_command_path("agent") == ("agent", "context", "resolve")
 
     def test_stops_before_short_flag(self) -> None:
         with patch.object(sys, "argv", ["spec-kitty", "agent", "tasks", "status", "-q"]):
-            assert _build_command_path() == ("agent", "tasks", "status")
+            assert _build_command_path("agent") == ("agent", "tasks", "status")
+
+    def test_argv_mismatch_falls_back_to_invoked_subcommand(self) -> None:
+        """When argv[1] disagrees (pytest context), falls back to invoked_subcommand."""
+        with patch.object(sys, "argv", ["/usr/bin/pytest", "tests/cli_gate/foo.py"]):
+            assert _build_command_path("dashboard") == ("dashboard",)
+            assert _build_command_path("status") == ("status",)
+
+    def test_no_invoked_subcommand_no_argv_subcommand(self) -> None:
+        """No subcommand in either sys.argv or invoked_subcommand → empty tuple."""
+        with patch.object(sys, "argv", ["spec-kitty", "--version"]):
+            assert _build_command_path(None) == ()
 
 
 # ---------------------------------------------------------------------------

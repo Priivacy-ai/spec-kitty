@@ -16,6 +16,7 @@ Design notes
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 from dataclasses import dataclass
@@ -800,8 +801,8 @@ def _plan_impl(
 
     if cache_is_fresh:
         # Cache is fresh — trust it; no network call.
-        latest_version: str | None = cache_record.latest_version if cache_record is not None else None  # type: ignore[assignment]
-        cli_source: Literal["pypi", "none"] = cache_record.latest_source if cache_record is not None else "none"  # type: ignore[assignment]
+        latest_version: str | None = cache_record.latest_version if cache_record is not None else None
+        cli_source: Literal["pypi", "none"] = cache_record.latest_source if cache_record is not None else "none"
         fetched_at: datetime | None = None  # not fetched this run
     else:
         # Cache stale or missing — fetch from provider.
@@ -818,10 +819,8 @@ def _plan_impl(
                 fetched_at=now,
                 last_shown_at=cache_record.last_shown_at if cache_record is not None else None,
             )
-            try:
+            with contextlib.suppress(Exception):
                 nag_cache.write(new_record)
-            except Exception:  # noqa: BLE001 — cache write failure is non-fatal
-                pass
         elif cache_record is not None and cache_record.latest_version is not None:
             # Provider returned nothing useful — fall back to cached version.
             latest_version = cache_record.latest_version

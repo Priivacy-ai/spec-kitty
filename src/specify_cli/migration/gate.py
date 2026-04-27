@@ -18,30 +18,62 @@ from pathlib import Path
 import typer
 
 
-def _build_command_path() -> tuple[str, ...]:
+def _build_command_path(invoked_subcommand: str | None = None) -> tuple[str, ...]:
     """Build the full command path from sys.argv, e.g. ('agent', 'mission', 'branch-context').
 
-    Stops at the first flag (--something or -x). Returns an empty tuple when
-    the program was invoked with no subcommand.
+    Uses ``sys.argv[1:]`` to construct the full path by collecting positional
+    tokens until the first flag (``--something`` or ``-x``).  When
+    ``invoked_subcommand`` is given and *does not match* the first positional
+    token in ``sys.argv`` (e.g. tests invoke the gate directly without setting
+    ``sys.argv``), the function falls back to ``(invoked_subcommand,)`` so that
+    the safety registry can still classify single-level commands correctly.
 
-    sys.argv[0] is the program name and is excluded. Only positional tokens
-    before the first flag are included; everything from the first flag onward
-    is ignored.
+    This two-phase approach guarantees that:
+    - Real CLI runs with nested subcommands (``spec-kitty agent mission
+      branch-context``) produce the full tuple ``("agent", "mission",
+      "branch-context")``, which the registry can match.
+    - Direct gate-function calls in tests (or typer callbacks that only know
+      the top-level ``invoked_subcommand``) still work without requiring every
+      caller to monkeypatch ``sys.argv``.
+
+    Args:
+        invoked_subcommand: The top-level subcommand name reported by typer's
+            ``ctx.invoked_subcommand``, or ``None`` when no subcommand was
+            given (e.g. bare ``spec-kitty`` invocation).
+
+    Returns:
+        A tuple of positional command-path segments, e.g.
+        ``("agent", "mission", "branch-context")``.  Empty when no subcommand
+        is present.
 
     Examples::
 
         sys.argv = ["spec-kitty", "agent", "mission", "branch-context", "--json"]
-        _build_command_path() -> ("agent", "mission", "branch-context")
+        _build_command_path("agent") -> ("agent", "mission", "branch-context")
 
         sys.argv = ["spec-kitty", "--help"]
-        _build_command_path() -> ()
+        _build_command_path("dashboard") -> ("dashboard",)  # fallback to invoked_subcommand
+
+        _build_command_path(None) -> ()
     """
-    path: list[str] = []
+    argv_path: list[str] = []
     for arg in sys.argv[1:]:
         if arg.startswith("-"):
             break
-        path.append(arg)
-    return tuple(path)
+        argv_path.append(arg)
+
+    # If sys.argv agrees with the invoked_subcommand (first token matches),
+    # trust the full argv path — it has the complete nested structure.
+    if invoked_subcommand is not None and argv_path and argv_path[0] == invoked_subcommand:
+        return tuple(argv_path)
+
+    # Otherwise, fall back: use invoked_subcommand as a single-element tuple.
+    if invoked_subcommand is not None:
+        return (invoked_subcommand,)
+
+    # No subcommand at all.
+    return ()
+
 
 # Commands that are allowed to run even when the schema version is incompatible.
 # Kept for backward compatibility (some tests may import _EXEMPT_COMMANDS).
@@ -91,7 +123,7 @@ def check_schema_version(
     from specify_cli.compat import plan as compat_plan  # noqa: PLC0415
 
     inv = Invocation(
-        command_path=_build_command_path(),
+        command_path=_build_command_path(invoked_subcommand),
         raw_args=tuple(sys.argv[1:]),
         is_help=False,
         is_version=False,

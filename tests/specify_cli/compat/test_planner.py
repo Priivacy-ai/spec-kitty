@@ -760,8 +760,16 @@ class TestFreshCacheFastPath:
         cache.write(record)
         return cache
 
-    def test_fresh_cache_does_not_call_provider(self, tmp_path: Path) -> None:
+    def test_fresh_cache_does_not_call_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When the nag cache is fresh, provider.get_latest() must NOT be called."""
+        import specify_cli.compat.planner as planner_mod
+
+        # Ensure the installed version matches the cache key so FR-025 doesn't
+        # invalidate the cache and force a provider call.
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
+
         installed = _INSTALLED
         latest_cached = "2.0.11"  # same as installed — nag not shown
 
@@ -788,10 +796,16 @@ class TestFreshCacheFastPath:
         # cli_status.latest_version should come from the cache, not the provider
         assert result.cli_status.latest_version == latest_cached
 
-    def test_stale_cache_calls_provider(self, tmp_path: Path) -> None:
+    def test_stale_cache_calls_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When the nag cache is stale (old last_shown_at), the provider IS called."""
+        import specify_cli.compat.planner as planner_mod
+
         from specify_cli.compat.cache import NagCacheRecord
         from specify_cli.compat.config import UpgradeConfig
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
 
         cfg = UpgradeConfig.load()
         throttle = cfg.throttle_seconds
@@ -827,10 +841,16 @@ class TestFreshCacheFastPath:
             "Provider should be called when cache is stale."
         )
 
-    def test_fresh_fetch_updates_cache_preserves_last_shown_at(self, tmp_path: Path) -> None:
+    def test_fresh_fetch_updates_cache_preserves_last_shown_at(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """After a stale-cache fetch, the written record preserves last_shown_at."""
+        import specify_cli.compat.planner as planner_mod
+
         from specify_cli.compat.cache import NagCacheRecord
         from specify_cli.compat.config import UpgradeConfig
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
 
         cfg = UpgradeConfig.load()
         throttle = cfg.throttle_seconds
