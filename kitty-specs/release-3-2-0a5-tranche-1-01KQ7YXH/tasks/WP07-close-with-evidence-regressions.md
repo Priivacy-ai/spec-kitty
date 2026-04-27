@@ -15,7 +15,8 @@ subtasks:
 - T033
 - T034
 - T035
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "82876"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -349,3 +350,7 @@ Three independent test files, each enforcing one slice of NFR-007 (FR-006) or NF
 ```bash
 spec-kitty agent action implement WP07 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T20:40:48Z – claude:sonnet:implementer-ivan:implementer – shell_pid=82876 – Started implementation via action command
