@@ -376,3 +376,4 @@ spec-kitty agent action implement WP08 --agent claude
 ## Activity Log
 
 - 2026-04-27T19:30:13Z – claude:sonnet:implementer-ivan:implementer – shell_pid=67890 – Started implementation via action command
+- 2026-04-27T19:34:30Z – claude:sonnet:implementer-ivan:implementer – shell_pid=67890 – Ready for review: event_type-presence guard + 4 unit tests + mypy/ruff clean
