@@ -23,9 +23,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T008 | Implement throttle predicate with clock-skew handling and version-key invalidation | WP02 | — | [D] |
 | T009 | Implement throttle/no-nag config loading (env > YAML > default; range-validated) | WP02 | — | [D] |
 | T010 | Unit tests for cache with corrupt files, symlinks, oversized state, perm assertions | WP02 | [D] |
-| T011 | Implement `InstallMethod` enum + detection chain in `compat/_detect/install_method.py` | WP03 | — |
-| T012 | Implement `UpgradeHint` builder with sanitised commands per install method | WP03 | — |
-| T013 | Unit tests for each install-method branch (pipx, pip-user, pip-system, brew, system, source, unknown) | WP03 | [P] |
+| T011 | Implement `InstallMethod` enum + detection chain in `compat/_detect/install_method.py` | WP03 | — | [D] |
+| T012 | Implement `UpgradeHint` builder with sanitised commands per install method | WP03 | — | [D] |
+| T013 | Unit tests for each install-method branch (pipx, pip-user, pip-system, brew, system, source, unknown) | WP03 | [D] |
 | T014 | Implement `Safety` enum + `SAFETY_REGISTRY` seeded from `_EXEMPT_COMMANDS` baseline in `compat/safety.py` | WP04 | — |
 | T015 | Implement `register_safety()` API (for mode predicates) and `classify(invocation)` with fail-closed default | WP04 | — |
 | T016 | Architectural test: enumerate every typer command and assert unregistered commands are observably unsafe | WP04 | [P] |
@@ -114,9 +114,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~290 lines.
 
 **Included subtasks**:
-- [ ] T011 Implement `InstallMethod` enum + detection chain in `compat/_detect/install_method.py` (WP03)
-- [ ] T012 Implement `UpgradeHint` builder with sanitised commands per install method (WP03)
-- [ ] T013 Unit tests for each install-method branch (pipx, pip-user, pip-system, brew, system, source, unknown) (WP03)
+- [x] T011 Implement `InstallMethod` enum + detection chain in `compat/_detect/install_method.py` (WP03)
+- [x] T012 Implement `UpgradeHint` builder with sanitised commands per install method (WP03)
+- [x] T013 Unit tests for each install-method branch (pipx, pip-user, pip-system, brew, system, source, unknown) (WP03)
 
 **Implementation sketch**: Detection chain per research §R-03. Each step inspects `sys.executable`, `importlib.metadata.distribution(...)`, or shells out (only for `brew --prefix` with 1s timeout). `UpgradeHint` builder maps `InstallMethod` → command (regex-sanitised) or multi-line note (for `source` / `unknown`).
 
