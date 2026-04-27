@@ -1,7 +1,7 @@
 {
-  "event_count": 15,
-  "last_event_id": "01KQ6PJV87PTKDERA774X6PKD9",
-  "materialized_at": "2026-04-27T05:28:51.719211+00:00",
+  "event_count": 17,
+  "last_event_id": "01KQ6PKK817DMQ1AZPQEYKG3HN",
+  "materialized_at": "2026-04-27T05:29:16.289269+00:00",
   "mission_number": "",
   "mission_slug": "documentation-mission-composition-fixup-01KQ6N5X",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-27T05:28:51.719211+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4.7:reviewer-renata:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ6NKSG98DT2CYGF95H255BR",
-      "last_transition_at": "2026-04-27T05:11:54.121683+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ6PKK817DMQ1AZPQEYKG3HN",
+      "last_transition_at": "2026-04-27T05:29:16.289269+00:00"
     }
   }
 }
