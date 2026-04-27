@@ -1,7 +1,7 @@
 {
-  "event_count": 59,
-  "last_event_id": "01KQ763CVD3Q75Z7VTDGCRPY24",
-  "materialized_at": "2026-04-27T10:00:02.669986+00:00",
+  "event_count": 60,
+  "last_event_id": "01KQ76CCCDY34B39TA0EC8YPGC",
+  "materialized_at": "2026-04-27T10:04:57.101872+00:00",
   "mission_number": "",
   "mission_slug": "mission-retrospective-learning-loop-01KQ6YEG",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 5
   },
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-04-27T09:59:42.590887+00:00"
     },
     "WP06": {
-      "actor": "claude:sonnet:implementer:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KQ763CVD3Q75Z7VTDGCRPY24",
-      "last_transition_at": "2026-04-27T10:00:02.669986+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KQ76CCCDY34B39TA0EC8YPGC",
+      "last_transition_at": "2026-04-27T10:04:57.101872+00:00"
     },
     "WP07": {
       "actor": "finalize-tasks",

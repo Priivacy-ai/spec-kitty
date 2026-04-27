@@ -165,3 +165,4 @@ spec-kitty agent action implement WP06 --agent <name>
 ## Activity Log
 
 - 2026-04-27T10:00:02Z – claude:sonnet:implementer:implementer – shell_pid=6424 – Started implementation via action command
+- 2026-04-27T10:04:57Z – claude:sonnet:implementer:implementer – shell_pid=6424 – Ready for review: run_terminus() with autonomous + HiC paths and gate consultation; runtime wiring deferred (TODO documented; WP11 integration tests will exercise wired path)
