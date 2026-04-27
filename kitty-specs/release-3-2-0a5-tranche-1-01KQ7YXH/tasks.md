@@ -41,14 +41,14 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T026 | Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` | WP06 |          |
 | T027 | Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate | WP06 |          |
 | T028 | Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` | WP06 |          |
-| T029 | In the `agent mission create` JSON-payload writer, call `mark_invocation_succeeded()` after the final `print(json.dumps(...))`. Audit other JSON-output commands and add the same call. | WP06 |          |
+| T029 | In the `agent mission create` JSON-payload writer ONLY, call `mark_invocation_succeeded()` immediately after the final `print(json.dumps(...))`. Auditing other JSON-emitting commands is explicitly out of scope. | WP06 |          |
 | T030 | Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success | WP06 |          |
 | T031 | Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior | WP06 | [P]      |
 | T032 | Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success | WP06 | [P]      |
 | T033 | Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) | WP07 | [P]      |
 | T034 | Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) | WP07 | [P]      |
 | T035 | Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) | WP07 | [P]      |
-| T036 | Add a duck-type guard in `read_events()` (`src/specify_cli/status/store.py:209` per-line loop) that skips any event lacking `wp_id`, with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer | WP08 |          |
+| T036 | Add an `event_type`-presence guard in `read_events()` (`src/specify_cli/status/store.py:209` per-line loop) that skips events carrying a top-level `event_type` field (the wire-format discriminator for mission-level events), with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. | WP08 |          |
 | T037 | Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs | WP08 | [P]      |
 | T038 | Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (no bypass needed) | WP08 |          |
 | T039 | Run `mypy --strict src/specify_cli/status/store.py` and `ruff check src/specify_cli/status/ tests/status/test_read_events_tolerates_decision_events.py` | WP08 | [P]      |
@@ -168,7 +168,7 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
   - [ ] T026 Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` (WP06)
   - [ ] T027 Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate (WP06)
   - [ ] T028 Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` (WP06)
-  - [ ] T029 In the `agent mission create` JSON-payload writer, call `mark_invocation_succeeded()` after the final `print(json.dumps(...))`. Audit other JSON-output commands and add the same call. (WP06)
+  - [ ] T029 In the `agent mission create` JSON-payload writer ONLY, call `mark_invocation_succeeded()` immediately after the final `print(json.dumps(...))`. Auditing other JSON-emitting commands is explicitly out of scope. (WP06)
   - [ ] T030 Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success (WP06)
   - [ ] T031 Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior (WP06)
   - [ ] T032 Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success (WP06)
@@ -205,7 +205,7 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P0 — currently blocks `finalize-tasks` (and every other reader) for any mission that has used the Decision Moment Protocol. Discovered live during this very `/spec-kitty.tasks` run; the mission's own DecisionPoint event triggered the bug.
 - **Independent test**: `tests/status/test_read_events_tolerates_decision_events.py` (new).
 - **Subtasks**:
-  - [ ] T036 Add a duck-type guard in `read_events()` (per-line loop) that skips any event lacking `wp_id`, with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer (WP08)
+  - [ ] T036 Add an `event_type`-presence guard in `read_events()` (per-line loop) that skips events carrying a top-level `event_type` field, with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. (WP08)
   - [ ] T037 Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs (WP08)
   - [ ] T038 Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (WP08)
   - [ ] T039 Run `mypy --strict src/specify_cli/status/store.py` and `ruff check src/specify_cli/status/ tests/status/test_read_events_tolerates_decision_events.py` (WP08)

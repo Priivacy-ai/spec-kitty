@@ -131,7 +131,7 @@ CHANGELOG ownership is centralized in this WP because the tranche is composed of
 
 **Steps**:
 
-1. For each merged WP (WP01, WP03, WP04, WP05, WP06, WP07), open its PR description and copy the proposed CHANGELOG entry line.
+1. For each merged WP (WP01, WP03, WP04, WP05, WP06, WP07, WP08), open its PR description and copy the proposed CHANGELOG entry line.
 2. File each line under the correct sub-heading inside `[3.2.0a5]`. Suggested mapping (verify against actual PR text):
 
    - **Fixed**:
@@ -139,6 +139,7 @@ CHANGELOG ownership is centralized in this WP because the tranche is composed of
      - `Suppress misleading "shutdown / final-sync" red error lines after a successful \`spec-kitty agent mission create --json\` payload (#735, WP06).`
      - `Deduplicate "Not authenticated, skipping sync" / "token refresh failed" diagnostics to at most once per CLI invocation (#717, WP06).`
      - `\`spec-kitty init\` in a non-git directory now prints an actionable "run \`git init\`" message (#636, WP05).`
+     - `Fix \`read_events()\` raising \`KeyError('wp_id')\` on \`DecisionPointOpened\` / \`DecisionPointResolved\` events that share \`status.events.jsonl\` with lane-transition events. Restores \`finalize-tasks\` / \`materialize\` / dashboard for any mission that uses the Decision Moment Protocol (#830, WP08).`
    - **Changed**:
      - `Loosen \`.python-version\` from a hard \`3.13\` pin to \`3.11\` (the floor declared by \`pyproject.toml\`) and restore \`mypy --strict\` cleanliness on \`mission_step_contracts/executor.py\` (#805, WP03).`
    - **Removed**:
@@ -150,7 +151,7 @@ CHANGELOG ownership is centralized in this WP because the tranche is composed of
 3. Where a sub-heading would have no entries, leave it empty rather than removing it (consistency with prior versions).
 
 **Validation**:
-- [ ] Every issue from `start-here.md` (#805, #705, #815, #635, #636, #790, #774, #735, #717) appears at least once in the `[3.2.0a5]` block.
+- [ ] Every issue from the tranche (#805, #705, #815, #635, #636, #790, #774, #735, #717, #830) appears at least once in the `[3.2.0a5]` block.
 - [ ] No entry references a WP that did not actually land.
 
 ### T008 — Run release-prep tests; update fixtures if drifted

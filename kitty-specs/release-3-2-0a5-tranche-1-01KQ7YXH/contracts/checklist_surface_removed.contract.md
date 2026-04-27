@@ -10,23 +10,33 @@ greps the repository for the deprecated command surface.
 
 ## Required behavior
 
-1. **Surface removal**: Across the repository AND across every per-agent
-   rendered surface for every supported agent (per `CLAUDE.md`
-   "Supported AI Agents" table — currently 13 slash-command agents +
-   2 skills agents):
-   - Zero files named `checklist.md`, `checklist.prompt.md`,
-     `checklist.SKILL.md`, or `spec-kitty.checklist.md`.
-   - Zero remaining textual references to the literal token
-     `/spec-kitty.checklist` (with or without leading slash) inside
-     source templates, generated agent copies, registry/manifest entries,
-     test fixtures, regression baselines, snapshots, README, or `docs/`
-     reference pages.
-2. **Artifact preservation**: After running `/spec-kitty.specify` against
+1. **Slash-command surface removal**: Across the repository AND across
+   every per-agent rendered surface for every supported agent (per
+   `CLAUDE.md` "Supported AI Agents" table — currently 13 slash-command
+   agents + 2 skills agents), zero remaining textual references to the
+   literal token `/spec-kitty.checklist` (with or without leading slash)
+   inside source templates, generated agent copies, registry/manifest
+   entries, test fixtures, regression baselines, snapshots, README, or
+   `docs/` reference pages.
+2. **Deprecated artifact removal (allowlisted)**: Zero files named
+   `checklist.md`, `checklist.prompt.md`, `checklist.SKILL.md`, or
+   `spec-kitty.checklist.md` inside the **scan boundary** below. The scan
+   boundary explicitly EXCLUDES paths that are reserved for legitimate
+   "checklist" concepts:
+   - `kitty-specs/**/checklists/**` — canonical mission-level checklists
+     (requirements checklist, future task / review / release checklists
+     scoped to a mission).
+   - `RELEASE_CHECKLIST.md` (and any `**/RELEASE_CHECKLIST.md`) — the
+     project release process artifact.
+   - `**/release_checklist*` and `**/review_checklist*` (case-insensitive)
+     — release-process and review-process artifacts unrelated to the
+     retired slash command.
+3. **Artifact preservation**: After running `/spec-kitty.specify` against
    a fresh project, the file
    `kitty-specs/<mission_slug>/checklists/requirements.md` MUST still be
    created with the same content shape as today (Specification Quality
    Checklist).
-3. **Bulk-edit gate**: The diff produced by FR-003 work MUST exactly
+4. **Bulk-edit gate**: The diff produced by FR-003 work MUST exactly
    match the REMOVE/KEEP classification in
    [`occurrence_map.yaml`](../occurrence_map.yaml). Anything extra
    triggers a DIRECTIVE_035 violation.

@@ -114,7 +114,7 @@ See [contracts/status_event_reader_tolerates_decision_events.contract.md](../con
 **Steps**:
 
 1. Open `src/specify_cli/status/store.py` and locate `read_events()` around lines 194–217.
-2. Immediately after the existing `retrospective.*` skip, add the new duck-type guard:
+2. Immediately after the existing `retrospective.*` skip, add the new `event_type`-presence guard:
 
    ```python
    event_name = obj.get("event_name")
@@ -123,11 +123,15 @@ See [contracts/status_event_reader_tolerates_decision_events.contract.md](../con
 
    # Skip mission-level events (DecisionPointOpened, DecisionPointResolved,
    # DecisionPointDeferred, DecisionPointCanceled, DecisionPointWidened, and
-   # any future event-type with no wp_id) that share status.events.jsonl with
-   # lane-transition events. The duck-type check on wp_id is preferred over
-   # an event_type allowlist so the reader stays correct as new mission-level
-   # event types are introduced. See FR-010.
-   if "wp_id" not in obj:
+   # any future event-type written by a non-status-emitter subsystem) that
+   # share status.events.jsonl with lane-transition events. Mission-level
+   # events carry a top-level `event_type` field; lane-transition events do
+   # not. Discriminating on event_type PRESENCE (not a specific value
+   # allowlist) is future-proof AND preserves the existing "raise on
+   # malformed lane-transition event" contract — a corrupted lane event
+   # missing wp_id but ALSO missing event_type still hits StatusEvent.from_dict
+   # below and raises as today. See FR-010.
+   if "event_type" in obj:
        continue
 
    try:
@@ -138,12 +142,12 @@ See [contracts/status_event_reader_tolerates_decision_events.contract.md](../con
 3. The `# Why:` comment is required by the global "comments" rule — the WHY is non-obvious here (the cooperating subsystems and the schema-collision) and survives reviewer scrutiny.
 
 **Validation**:
-- [ ] `read_events()` per-line loop now has a `if "wp_id" not in obj: continue` guard immediately after the `retrospective.*` skip.
+- [ ] `read_events()` per-line loop now has a `if "event_type" in obj: continue` guard immediately after the `retrospective.*` skip.
 - [ ] No other code paths in `store.py` are touched.
 - [ ] `git diff src/specify_cli/status/store.py` shows exactly the new guard + comment.
 
 **Edge Cases / Risks**:
-- A malformed lane-transition event that's MISSING `wp_id` (someone wrote a buggy event) would also be silently skipped. Acceptable: the existing behavior was to raise on it, but raising silently breaks every downstream reader. Skipping degrades gracefully and surfaces the malformed line at write time (where it can be caught by writer-side validation).
+- A malformed lane-transition event that's MISSING `wp_id` (someone wrote a buggy event) WITHOUT also having `event_type` will still raise `Invalid event structure on line N: 'wp_id'` — preserving the existing fail-loud contract for corrupted lane events. The discriminator only skips events whose wire format explicitly identifies them as non-lane-transition.
 
 ### T037 — Add `tests/status/test_read_events_tolerates_decision_events.py`
 
@@ -259,10 +263,34 @@ See [contracts/status_event_reader_tolerates_decision_events.contract.md](../con
    def test_read_events_still_raises_on_malformed_lane_event(tmp_path: Path) -> None:
        feature_dir = tmp_path / "feature"
 
-       # has wp_id (so passes the duck-type guard) but bad lane name
+       # has wp_id (so passes any guard) but bad lane name
        bad = _make_lane_event("01EVT0005", "WP03")
        bad["from_lane"] = "not_a_lane"
        _write_events_jsonl(feature_dir, [bad])
+
+       from specify_cli.status.store import StoreError
+
+       with pytest.raises(StoreError, match="Invalid event structure on line 1"):
+           read_events(feature_dir)
+
+
+   def test_read_events_still_raises_on_event_missing_wp_id_AND_event_type(
+       tmp_path: Path,
+   ) -> None:
+       """A corrupted lane-transition event missing wp_id MUST still raise.
+
+       The event_type-presence guard intentionally only skips events whose
+       wire format identifies them as non-lane-transition. A lane-transition
+       event missing wp_id but ALSO missing event_type is corrupted and
+       must surface, not silently disappear. Preserves the contract that
+       malformed lane events fail loudly.
+       """
+       feature_dir = tmp_path / "feature"
+
+       # Has neither wp_id nor event_type — a corrupted lane event.
+       corrupted = _make_lane_event("01EVT0006", "WP04")
+       del corrupted["wp_id"]
+       _write_events_jsonl(feature_dir, [corrupted])
 
        from specify_cli.status.store import StoreError
 

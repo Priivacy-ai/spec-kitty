@@ -131,12 +131,18 @@ evidence-backed against the current tree on
   `mission create` will work.
 - **Alternatives considered**:
   1. Restore auto `git init` — rejected by existing T001 design decision.
-  2. Hard-fail when target is not a git repo — rejected as too aggressive;
-     the user might be deliberately scaffolding a future repo.
+  2. Hard-fail (exit non-zero, no scaffold) when target is not a git repo
+     — **explicitly rejected** by Decision Moment
+     `01KQ84P1AJ8H3FPJN9J5C12CBY` (user resolved option B over option A).
+     Rationale: would break the legitimate "scaffold then init later"
+     workflow, and #636's verb is "tell users to run `git init`"
+     (informational), not "block them".
   3. Print one informational line near the existing `git not detected`
      branch when the target dir is not in a git work tree, plus a single
-     trailing line in the success summary that says "next: run `git init`".
-     **Selected.**
+     trailing line in the success summary that says "next: run `git init`",
+     while completing the full scaffold and exiting 0 as today.
+     **Selected.** Canonical invariant: non-git init is allowed; silent
+     non-git init is not.
 - **Impact on tests**: New unit test in
   `tests/specify_cli/cli/commands/test_init_non_git_message.py` (file does
   not exist yet) that drives `init` against a tmp dir without `.git/` and
@@ -280,19 +286,23 @@ evidence-backed against the current tree on
   the Decision Moment Protocol becomes unable to run any command that
   calls `read_events()` (`finalize-tasks`, `materialize`, `reduce`,
   dashboard scanner, doctor).
-- **Fix shape**: Add a duck-type discriminator at the top of
+- **Fix shape**: Add an `event_type`-presence discriminator at the top of
   `read_events()`'s per-line loop:
-  - If the parsed JSON object lacks a `wp_id` field, skip it and continue.
+  - If the parsed JSON object has a top-level `event_type` field, skip it
+    and continue. Lane-transition events have no `event_type`; mission-level
+    events (DecisionPoint family, etc.) always do.
   - Document the WHY in a code comment that names the cooperating
     subsystems (status emitter and Decision Moment Protocol).
   - The existing `if event_name.startswith("retrospective."): continue`
     skip stays as-is.
-- **Why duck-type, not event_type-allowlist**: An allowlist would need to
-  stay in sync with every new mission-level event type that any future
-  subsystem starts writing into `status.events.jsonl`. A duck-type check on
-  `wp_id` only declares "this reader handles WP-scoped events; everything
-  else is for somebody else's reader". Future-proof and easier to keep
-  correct.
+- **Why `event_type`-presence, not absence-of-`wp_id`** (correction after
+  external code review): A `if "wp_id" not in obj: continue` duck-type
+  guard would also silently swallow corrupted lane-transition events that
+  happen to be missing `wp_id`, breaking the existing fail-loud contract for
+  malformed lane events. The `event_type`-presence discriminator is just as
+  future-proof (no allowlist to maintain) AND preserves the invariant that
+  a lane event missing `wp_id` but ALSO missing `event_type` still raises
+  `Invalid event structure on line N`.
 - **Alternatives considered**:
   1. Change the writer (Decision Moment Protocol) to write to a separate
      file like `decisions.events.jsonl`. Rejected: bigger blast radius

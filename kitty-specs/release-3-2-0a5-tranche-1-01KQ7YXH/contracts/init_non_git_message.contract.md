@@ -10,6 +10,9 @@ filesystem path is **not** inside a git work tree (i.e. neither
 
 ## Required behavior
 
+**Canonical invariant** (Decision Moment `01KQ84P1AJ8H3FPJN9J5C12CBY`):
+non-git init is allowed; silent non-git init is not.
+
 1. The command MUST emit exactly one informational line, on stdout or
    stderr, that includes BOTH:
    - The phrase "not a git repository" (or substring "not.*git.*repo",
@@ -17,20 +20,26 @@ filesystem path is **not** inside a git work tree (i.e. neither
    - The phrase "git init" as the suggested remediation.
 2. The line MUST be styled at "info" level (not red, not bold-red). Yellow
    or cyan styling is acceptable.
-3. The command MUST otherwise complete successfully (exit code `0`)
-   when no other failure occurs — populating `.kittify/`,
-   `.gitignore`, agent directories, etc., as it does today.
+3. The command MUST complete the scaffold successfully and exit code `0`
+   when no other failure occurs — populating `.kittify/`, `.gitignore`,
+   agent directories, etc., as it does today.
 4. The command MUST NOT auto-run `git init` on the target. The "git not
    initialized" condition is informational only.
+5. The command MUST NOT bail out before writing files just because the
+   target is not a git work tree. Fail-fast semantics are explicitly
+   rejected (see Decision Moment record).
 
 ## Forbidden behavior
 
 - Multiple repetitions of the same message in one invocation.
-- Hard-failing the command solely because the target is not a git
-  repository (this would regress legitimate "scaffold then init later"
-  workflows).
+- Hard-failing the command (any non-zero exit) solely because the target
+  is not a git repository — Decision Moment `01KQ84P1AJ8H3FPJN9J5C12CBY`
+  rejected fail-fast semantics; the "scaffold then init later" workflow
+  is the canonical path.
+- Skipping any normal scaffold step because the target lacks `.git/`.
 - Silently writing files into the target without any indication that the
-  user must run `git init` before downstream `agent` commands will work.
+  user must run `git init` before downstream `agent` commands will work
+  (the "silent non-git init" case the canonical invariant forbids).
 
 ## Implementation hint (informative, not normative)
 

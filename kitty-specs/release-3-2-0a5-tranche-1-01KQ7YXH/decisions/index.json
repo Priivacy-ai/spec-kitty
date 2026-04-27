@@ -23,6 +23,29 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-04-27T18:54:30.739325Z",
+      "decision_id": "01KQ84P1AJ8H3FPJN9J5C12CBY",
+      "final_answer": "B: warn loudly and complete scaffold. spec-kitty init may scaffold a non-git target successfully (exit 0, full scaffold written, no auto-git-init), but it must loudly tell the user to run 'git init' before using agent/workflow commands. The canonical invariant: 'non-git init is allowed; silent non-git init is not.' Remove 'before retrying' language from FR-005 and from the related exception scenario because that implies fail-fast semantics, which is rejected.",
+      "input_key": "init_non_git_semantics",
+      "mission_id": "01KQ7YXHA5AMZHJT3HQ8XPTZ6B",
+      "mission_slug": "release-3-2-0a5-tranche-1-01KQ7YXH",
+      "options": [
+        "A: fail fast with NO scaffold; user must run git init then retry",
+        "B: warn loudly and complete scaffold; user can run git init later before agent commands",
+        "C: other (you specify)"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-005 init non-git semantics: when spec-kitty init runs in a non-git directory, should it (A) fail fast with no scaffold, or (B) warn loudly and complete the scaffold? The spec wording 'MUST NOT silently corrupt or partially populate' + 'before retrying' is ambiguous; the current contract chose (B), the reviewer reads spec as (A).",
+      "rationale": null,
+      "resolved_at": "2026-04-27T19:07:16.637020Z",
+      "resolved_by": null,
+      "slot_key": "plan.init.non-git-semantics",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01KQ7YXHA5AMZHJT3HQ8XPTZ6B",

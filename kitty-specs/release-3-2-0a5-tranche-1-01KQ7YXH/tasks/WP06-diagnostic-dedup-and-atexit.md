@@ -245,18 +245,17 @@ See [contracts/mission_create_clean_output.contract.md](../contracts/mission_cre
 **Validation**:
 - [ ] All token-refresh warnings in `src/specify_cli/auth/` are wrapped in `report_once(...)` with stable cause keys.
 
-### T029 — Call `mark_invocation_succeeded()` from JSON-emitting command success paths
+### T029 — Call `mark_invocation_succeeded()` from `agent mission create` success path ONLY
 
-**Purpose**: Tell the atexit layer "this invocation succeeded".
+**Purpose**: Tell the atexit layer "this invocation succeeded" for the one command the contract names. No other command paths are widened in this WP.
 
 **Files**:
 - `src/specify_cli/cli/commands/agent/mission/create.py` (or wherever the `agent mission create` JSON write lives — locate during the WP)
-- Any other JSON-output command that has the same shutdown-noise risk (audit during the WP — e.g. `branch-context`, `setup-plan`, `check-prerequisites`)
 
 **Steps**:
 
-1. `grep -rn "json.dumps" src/specify_cli/cli/commands/agent/` to enumerate JSON-emitting commands.
-2. For `agent mission create`: locate the final `print(json.dumps(payload))` (or `console.print_json(...)`) and add immediately AFTER it:
+1. Locate the final `print(json.dumps(payload))` (or `console.print_json(...)`) inside the `agent mission create` success path.
+2. Add immediately AFTER it:
 
    ```python
    from specify_cli.diagnostics import mark_invocation_succeeded
@@ -264,14 +263,22 @@ See [contracts/mission_create_clean_output.contract.md](../contracts/mission_cre
    ...
 
    print(json.dumps(payload))  # existing line
-   mark_invocation_succeeded()  # new line
+   mark_invocation_succeeded()  # new line — see FR-008 / [contracts/mission_create_clean_output.contract.md]
    ```
 
-3. Do the same for every other JSON-emitting agent command that has a clear "JSON written, exiting normally" point. (Conservative: prioritize commands cited in `start-here.md` "First Checks" — `branch-context`, `setup-plan`, `mission create`.)
+3. **Do NOT** widen the success-flag pattern to other JSON-emitting agent commands in this WP. The contract
+   ([`contracts/mission_create_clean_output.contract.md`](../contracts/mission_create_clean_output.contract.md))
+   only requires clean output for `agent mission create`. Auditing other
+   JSON-emitting commands (`branch-context`, `setup-plan`,
+   `check-prerequisites`, etc.) for the same pattern is **out of scope** —
+   if their atexit noise becomes a problem, file a new issue and address
+   in a follow-on tranche with proper failure-path tests for each new
+   call site.
 
 **Validation**:
-- [ ] `grep -rn "mark_invocation_succeeded" src/specify_cli/cli/commands/agent/` shows at least one call per JSON-emitting agent command.
-- [ ] No `mark_invocation_succeeded()` call appears on a failure path (e.g. inside a `raise` handler or after `sys.exit(1)` would be set).
+- [ ] Exactly one call to `mark_invocation_succeeded()` exists, inside the `agent mission create` success path.
+- [ ] The call appears AFTER the JSON write, never on a failure path (not inside a `raise` handler, not after `sys.exit(1)`).
+- [ ] `grep -rn "mark_invocation_succeeded" src/specify_cli/cli/commands/` returns exactly one line.
 
 ### T030 — Update atexit handlers to consult `invocation_succeeded()`
 

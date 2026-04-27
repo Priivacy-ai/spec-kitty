@@ -194,11 +194,16 @@ Closes #815. Supersedes #635 — close #635 with a comment linking to #815.
 
 
    REPO_ROOT = Path(__file__).resolve().parents[2]
+
+   # The slash-command identifier itself — must be gone everywhere.
    CHECKLIST_CMD_RE = re.compile(r"/?spec-kitty\.checklist\b")
+
+   # Deprecated agent-surface filenames. The allowlist below carves out
+   # legitimate "checklist" concepts (mission requirements checklist,
+   # release checklist, review checklist) so the scanner only flags the
+   # retired command surface.
    CHECKLIST_FILENAME_RE = re.compile(r"(^|[/\\])checklist(\.SKILL|\.prompt)?\.md$")
 
-   # Directories to scan. Excludes the canonical artifact path
-   # kitty-specs/<mission>/checklists/requirements.md (different filename, different intent).
    SCAN_ROOTS = [
        "src/specify_cli/missions",
        "tests/specify_cli/regression",
@@ -206,7 +211,7 @@ Closes #815. Supersedes #635 — close #635 with a comment linking to #815.
        "docs",
    ]
 
-   # Per-agent rendered surfaces under the project root (rendered into the dev project itself).
+   # Per-agent rendered surfaces (rendered into the dev project itself).
    AGENT_DIRS = [
        ".claude/commands",
        ".codex/prompts",
@@ -225,6 +230,23 @@ Closes #815. Supersedes #635 — close #635 with a comment linking to #815.
        ".agents/skills",
    ]
 
+   # Allowlist: reserved for legitimate "checklist" concepts unrelated to
+   # the retired slash command. Anything matching is skipped by the scanner.
+   ALLOWLIST_PREFIXES = (
+       "kitty-specs/",  # mission-level checklists/ directory is canonical
+   )
+
+   ALLOWLIST_FILENAMES = (
+       "RELEASE_CHECKLIST.md",
+   )
+
+   ALLOWLIST_SUBSTRINGS = (
+       "release_checklist",
+       "release-checklist",
+       "review_checklist",
+       "review-checklist",
+   )
+
 
    def _walk(root: Path):
        if not root.exists():
@@ -234,10 +256,22 @@ Closes #815. Supersedes #635 — close #635 with a comment linking to #815.
                yield p
 
 
+   def _is_allowlisted(path: Path) -> bool:
+       posix = path.relative_to(REPO_ROOT).as_posix()
+       if any(posix.startswith(p) for p in ALLOWLIST_PREFIXES):
+           return True
+       if path.name in ALLOWLIST_FILENAMES:
+           return True
+       lowered = path.name.lower()
+       return any(s in lowered for s in ALLOWLIST_SUBSTRINGS)
+
+
    def test_no_checklist_filenames_in_scan_roots():
        offenders = []
        for rel in SCAN_ROOTS + AGENT_DIRS:
            for path in _walk(REPO_ROOT / rel):
+               if _is_allowlisted(path):
+                   continue
                if CHECKLIST_FILENAME_RE.search(str(path)):
                    offenders.append(str(path.relative_to(REPO_ROOT)))
        assert not offenders, (
@@ -249,6 +283,8 @@ Closes #815. Supersedes #635 — close #635 with a comment linking to #815.
        offenders = []
        for rel in SCAN_ROOTS + AGENT_DIRS:
            for path in _walk(REPO_ROOT / rel):
+               if _is_allowlisted(path):
+                   continue
                try:
                    text = path.read_text(encoding="utf-8", errors="ignore")
                except OSError:

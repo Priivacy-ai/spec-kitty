@@ -46,7 +46,9 @@ This loads your identity, governance scope, and self-review checklist. The bug-f
 
 ## Objective
 
-When `spec-kitty init` runs in a directory that is **not** inside a git work tree, surface a single actionable line guiding the user to run `git init` before downstream `agent` commands will work. Do NOT auto-init the repo (existing T001 design decision in `init.py` says init is file-creation-only).
+When `spec-kitty init` runs in a directory that is **not** inside a git work tree, surface a single actionable line guiding the user to run `git init` before downstream `agent` commands will work, then **complete the scaffold and exit 0** as today. Do NOT auto-init the repo (existing T001 design decision in `init.py` says init is file-creation-only). Do NOT bail out before writing files.
+
+**Canonical invariant** (Decision Moment `01KQ84P1AJ8H3FPJN9J5C12CBY` resolved by user): non-git init is allowed; silent non-git init is not. Fail-fast semantics were considered and rejected.
 
 This WP also owns one cross-FR cleanup line: remove the deprecated `/spec-kitty.checklist` reference from `init.py:723`. That line falls under FR-003's bulk-edit scope but is housed here so `init.py` ownership stays single-WP (avoids a false DIRECTIVE_035 collision with WP04).
 

@@ -194,10 +194,14 @@ scope. Keep them in mind during planning and implementation:
 
 1. New user runs `spec-kitty init` in `~/my-project` which is not a git
    repository.
-2. Today, the failure mode is unclear.
-3. After this tranche, the command tells them: "This directory is not a git
-   repository. Run `git init` and try again." (Wording approved during
-   plan.)
+2. Today, init scaffolds the project silently — no hint that the user
+   needs `git init` before downstream `spec-kitty agent ...` commands
+   will work.
+3. After this tranche, the command STILL completes the scaffold (exit 0)
+   AND tells them loudly: "This directory is not a git repository. Run
+   `git init` here before using `spec-kitty agent ...` commands."
+   (Wording approved during plan.) Canonical invariant: non-git init is
+   allowed; silent non-git init is not.
 
 ### Exception scenario C — Operator looks up `spec-kitty agent decision`
 
@@ -244,12 +248,12 @@ scope. Keep them in mind during planning and implementation:
 | FR-002 | Fix the dev-worktree `spec-kitty upgrade` version-mismatch behavior so that the CLI binary version, `.kittify/metadata.yaml` `spec_kitty.version`, and `spec_kitty.schema_version` are mutually consistent after a successful `upgrade` run, and so that downstream `spec-kitty agent ...` commands stop being blocked by `PROJECT_MIGRATION_NEEDED` when `upgrade` reported success. | [#705](https://github.com/Priivacy-ai/spec-kitty/issues/705) | Proposed |
 | FR-003 | Remove the `/spec-kitty.checklist` slash command from every generated user-facing command surface (slash-command and skills agents), from source templates, from the registry/command renderer/command installer, from the shim registry, from upgrade migrations that recreate it, and from regression baselines and snapshot fixtures. The `kitty-specs/<mission>/checklists/requirements.md` artifact MUST still be created by `/spec-kitty.specify`. | [#815](https://github.com/Priivacy-ai/spec-kitty/issues/815) | Proposed |
 | FR-004 | Resolve the older `/spec-kitty.checklist` deprecation ticket as superseded by FR-003 (or close as resolved when FR-003 lands), with an explicit comment linking the two issues. | [#635](https://github.com/Priivacy-ai/spec-kitty/issues/635) | Proposed |
-| FR-005 | When `spec-kitty init` is run in a directory that is not a git repository, the command MUST instruct the user to run `git init` (or equivalent) before retrying, with the exact wording approved during plan. The command MUST NOT silently corrupt or partially populate the directory in this case. | [#636](https://github.com/Priivacy-ai/spec-kitty/issues/636) | Proposed |
+| FR-005 | When `spec-kitty init` is run in a directory that is not a git repository, the command MUST loudly tell the user to run `git init` (or equivalent) before invoking any `spec-kitty agent ...` or workflow command, with the exact wording approved during plan. The command MAY complete the file scaffold successfully and exit 0; it MUST NOT auto-run `git init`. **Canonical invariant**: non-git init is allowed; silent non-git init is not. (Decision Moment `01KQ84P1AJ8H3FPJN9J5C12CBY` resolved by user as option B; "before retrying" / "MUST NOT partially populate" fail-fast semantics explicitly rejected.) | [#636](https://github.com/Priivacy-ai/spec-kitty/issues/636) | Proposed |
 | FR-006 | Hide legacy `--feature` aliases from `--help` output across all CLI subcommands while preserving their accept-and-route behavior unchanged. | [#790](https://github.com/Priivacy-ai/spec-kitty/issues/790) | Proposed |
 | FR-007 | Clarify the `spec-kitty agent decision` command shape so that the path documented in `docs/reference/missions.md`, `docs/reference/slash-commands.md`, the `specify`/`plan` skill snapshots, and `--help` output all match the canonical command path. EITHER add an alias for the documented shape OR update the docs/help to point at the existing canonical path; one consistent answer end-to-end. | [#774](https://github.com/Priivacy-ai/spec-kitty/issues/774) | Proposed |
 | FR-008 | Suppress misleading final-sync / shutdown error lines printed after a successful `spec-kitty agent mission create` JSON payload. Successful invocation MUST end with the JSON payload (and any explicitly informational lines), not with red error output. | [#735](https://github.com/Priivacy-ai/spec-kitty/issues/735) | Proposed |
 | FR-009 | Deduplicate repeated token-refresh / "not authenticated, skipping sync" failure messages so that each distinct cause prints at most once per command invocation. | [#717](https://github.com/Priivacy-ai/spec-kitty/issues/717) | Proposed |
-| FR-010 | `read_events()` in `src/specify_cli/status/store.py` MUST tolerate non-lane-transition events (e.g. `DecisionPointOpened`, `DecisionPointResolved`, and any other top-level `event_type`-discriminated mission-level event) in `status.events.jsonl` instead of raising `KeyError('wp_id')`. Effect: every CLI command that reads the event log (`finalize-tasks`, `materialize`, `reduce`, dashboard, doctor) keeps working on missions that have used the Decision Moment Protocol. Discovered live during `/spec-kitty.tasks` for this mission; new GitHub issue to be filed at PR time. | (new issue, file at PR time) | Proposed |
+| FR-010 | `read_events()` in `src/specify_cli/status/store.py` MUST tolerate non-lane-transition events (e.g. `DecisionPointOpened`, `DecisionPointResolved`, and any other top-level `event_type`-discriminated mission-level event) in `status.events.jsonl` instead of raising `KeyError('wp_id')`. Effect: every CLI command that reads the event log (`finalize-tasks`, `materialize`, `reduce`, dashboard, doctor) keeps working on missions that have used the Decision Moment Protocol. Discovered live during `/spec-kitty.tasks` for this mission. | [#830](https://github.com/Priivacy-ai/spec-kitty/issues/830) | Proposed |
 
 ## Non-Functional Requirements
 
@@ -341,10 +345,11 @@ scope. Keep them in mind during planning and implementation:
   `spec-kitty agent ...` command succeeds with no `PROJECT_MIGRATION_NEEDED`
   block, in 100% of regression-suite invocations.
 - **SC-005** — A new user attempting `spec-kitty init` in a non-git
-  directory sees an actionable "run `git init`" message within one CLI
-  invocation, with no partially-populated `.kittify/` left behind.
+  directory sees an actionable "run `git init`" message at info level
+  AND ends up with a fully-populated `.kittify/` (exit 0). Canonical
+  invariant: non-git init is allowed; silent non-git init is not.
 - **SC-006** — Each issue in the tranche (#805, #705, #815, #635, #636,
-  #790, #774, #735, #717) is closed with a link either to (a) a regression
+  #790, #774, #735, #717, #830) is closed with a link either to (a) a regression
   test added in this tranche, or (b) explicit "already fixed on `main` —
   regression test added at `<path>`" evidence per `start-here.md` "Done
   Criteria".

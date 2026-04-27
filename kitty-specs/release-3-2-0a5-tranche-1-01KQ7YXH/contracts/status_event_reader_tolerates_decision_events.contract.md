@@ -39,19 +39,33 @@ Any caller of `specify_cli.status.store.read_events(feature_dir)` against a
 
 ## Implementation hint (informative, not normative)
 
-Add a duck-type guard at the top of `read_events()`'s per-line loop, right
-after the `event_name.startswith("retrospective.")` skip:
+Add an `event_type`-presence guard at the top of `read_events()`'s per-line
+loop, right after the `event_name.startswith("retrospective.")` skip:
 
 ```python
 # Skip mission-level events (DecisionPointOpened, DecisionPointResolved,
-# etc.) that share status.events.jsonl with lane-transition events. These
-# events have a top-level `event_type` field and no `wp_id`. The duck-type
-# check on `wp_id` is preferred over an event_type allowlist so the reader
-# stays correct as new mission-level event types are introduced. See
-# FR-010.
-if "wp_id" not in obj:
+# DecisionPointDeferred, DecisionPointCanceled, DecisionPointWidened, and
+# any future event-type written by a non-status-emitter subsystem) that
+# share status.events.jsonl with lane-transition events. Mission-level
+# events carry a top-level `event_type` field; lane-transition events do
+# not. Discriminating on `event_type` PRESENCE (not on a specific value
+# allowlist) is future-proof against new mission-level event types AND
+# preserves the existing "raise on malformed lane-transition event"
+# contract: a corrupted lane event missing wp_id but also missing
+# event_type still surfaces as `Invalid event structure on line N`.
+# See FR-010.
+if "event_type" in obj:
     continue
 ```
+
+**Why presence-of-`event_type`, not absence-of-`wp_id`**: a duck-type
+"skip if no `wp_id`" guard would also silently swallow corrupted
+lane-transition events that happen to be missing `wp_id`, which violates
+the existing contract that malformed lane events still raise. The
+`event_type` discriminator only skips events whose wire format
+explicitly identifies them as non-lane-transition; a malformed lane event
+that lacks `event_type` will still hit the existing
+`StatusEvent.from_dict()` path and raise as today.
 
 ## Verifying tests
 
