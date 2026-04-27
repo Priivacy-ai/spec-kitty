@@ -21,8 +21,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: "55038"
-agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "61216"
+agent: "claude:opus:python-reviewer:reviewer"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -191,3 +191,4 @@ This WP has no dependencies; it can run as soon as `lanes.json` is computed by `
 
 - 2026-04-27T08:38:43Z – claude:sonnet:python-implementer:implementer – shell_pid=55038 – Assigned agent via action command
 - 2026-04-27T08:43:42Z – claude:sonnet:python-implementer:implementer – shell_pid=55038 – WP01 ready: provider.py implemented, tests green, mypy/ruff clean
+- 2026-04-27T08:44:01Z – claude:opus:python-reviewer:reviewer – shell_pid=61216 – Started review via action command
