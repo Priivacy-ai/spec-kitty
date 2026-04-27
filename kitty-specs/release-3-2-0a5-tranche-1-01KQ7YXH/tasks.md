@@ -27,13 +27,13 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T012 | Add new test `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` invoking mypy in-process and asserting clean exit | WP03 | [D] |
 | T013 | Re-run `tests/cross_cutting/` and `tests/missions/` to confirm no regressions from python-version change | WP03 |          | [D] |
 | T014 | Run `ruff check .python-version pyproject.toml src/specify_cli/mission_step_contracts/` | WP03 | [D] |
-| T015 | Delete deprecated `/spec-kitty.checklist` source template AND its override copy | WP04 |          |
-| T016 | Remove `/spec-kitty.checklist` entries from `.kittify/command-skills-manifest.json` and `_legacy_codex_hashes.py` | WP04 | [P]      |
-| T017 | Delete every deprecated checklist snapshot, regression baseline, and upgrade fixture per `occurrence_map.yaml` | WP04 |          |
-| T018 | Update `tests/specify_cli/skills/{test_registry,test_command_renderer,test_installer}.py` and `tests/missions/test_command_templates_canonical_path.py` to drop checklist expectations | WP04 |          |
-| T019 | Add aggregate regression `tests/specify_cli/test_no_checklist_surface.py` (recursive grep for `/spec-kitty.checklist` and `checklist*` filenames across src/tests/docs/agent dirs) | WP04 | [P]      |
-| T020 | Add artifact-preservation test `tests/missions/test_specify_creates_requirements_checklist.py` proving `kitty-specs/<slug>/checklists/requirements.md` still gets created | WP04 | [P]      |
-| T021 | Update doc references: `README.md`, `docs/reference/{slash-commands,file-structure,supported-agents}.md` per occurrence_map (REMOVE surface mentions, KEEP artifact-name mentions) | WP04 | [P]      |
+| T015 | Delete deprecated `/spec-kitty.checklist` source template AND its override copy | WP04 |          | [D] |
+| T016 | Remove `/spec-kitty.checklist` entries from `.kittify/command-skills-manifest.json` and `_legacy_codex_hashes.py` | WP04 | [D] |
+| T017 | Delete every deprecated checklist snapshot, regression baseline, and upgrade fixture per `occurrence_map.yaml` | WP04 |          | [D] |
+| T018 | Update `tests/specify_cli/skills/{test_registry,test_command_renderer,test_installer}.py` and `tests/missions/test_command_templates_canonical_path.py` to drop checklist expectations | WP04 |          | [D] |
+| T019 | Add aggregate regression `tests/specify_cli/test_no_checklist_surface.py` (recursive grep for `/spec-kitty.checklist` and `checklist*` filenames across src/tests/docs/agent dirs) | WP04 | [D] |
+| T020 | Add artifact-preservation test `tests/missions/test_specify_creates_requirements_checklist.py` proving `kitty-specs/<slug>/checklists/requirements.md` still gets created | WP04 | [D] |
+| T021 | Update doc references: `README.md`, `docs/reference/{slash-commands,file-structure,supported-agents}.md` per occurrence_map (REMOVE surface mentions, KEEP artifact-name mentions) | WP04 | [D] |
 | T022 | Add non-git-target detection in `src/specify_cli/cli/commands/init.py` near the existing `git not detected` branch (~line 360); print one yellow info line containing both "not a git repository" and "git init" | WP05 |          |
 | T023 | Append a "next: run `git init`" item to the post-init quick-start summary in `init.py` when target is not a git repo | WP05 |          |
 | T024 | Remove the `/spec-kitty.checklist` quick-start line at `init.py:723` (FR-003 boundary owned by WP05 to keep `init.py` ownership single-WP) | WP05 |          |
@@ -123,13 +123,13 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P1 — largest WP; bulk-edit gated by [`occurrence_map.yaml`](./occurrence_map.yaml).
 - **Independent test**: `tests/specify_cli/test_no_checklist_surface.py` (new) + `tests/missions/test_specify_creates_requirements_checklist.py` (new).
 - **Subtasks**:
-  - [ ] T015 Delete deprecated `/spec-kitty.checklist` source template AND its override copy (WP04)
-  - [ ] T016 Remove `/spec-kitty.checklist` entries from `.kittify/command-skills-manifest.json` and `_legacy_codex_hashes.py` (WP04)
-  - [ ] T017 Delete every deprecated checklist snapshot, regression baseline, and upgrade fixture per `occurrence_map.yaml` (WP04)
-  - [ ] T018 Update `tests/specify_cli/skills/{test_registry,test_command_renderer,test_installer}.py` and `tests/missions/test_command_templates_canonical_path.py` to drop checklist expectations (WP04)
-  - [ ] T019 Add aggregate regression `tests/specify_cli/test_no_checklist_surface.py` (WP04)
-  - [ ] T020 Add artifact-preservation test `tests/missions/test_specify_creates_requirements_checklist.py` (WP04)
-  - [ ] T021 Update doc references per `occurrence_map.yaml` (WP04)
+  - [x] T015 Delete deprecated `/spec-kitty.checklist` source template AND its override copy (WP04)
+  - [x] T016 Remove `/spec-kitty.checklist` entries from `.kittify/command-skills-manifest.json` and `_legacy_codex_hashes.py` (WP04)
+  - [x] T017 Delete every deprecated checklist snapshot, regression baseline, and upgrade fixture per `occurrence_map.yaml` (WP04)
+  - [x] T018 Update `tests/specify_cli/skills/{test_registry,test_command_renderer,test_installer}.py` and `tests/missions/test_command_templates_canonical_path.py` to drop checklist expectations (WP04)
+  - [x] T019 Add aggregate regression `tests/specify_cli/test_no_checklist_surface.py` (WP04)
+  - [x] T020 Add artifact-preservation test `tests/missions/test_specify_creates_requirements_checklist.py` (WP04)
+  - [x] T021 Update doc references per `occurrence_map.yaml` (WP04)
 - **Implementation sketch**: Mechanical removal driven by `occurrence_map.yaml`. Implementing agent MUST load the `spec-kitty-bulk-edit-classification` skill before starting and verify the diff against the occurrence map before commit.
 - **Parallel opportunities**: T016, T019, T020, T021 can be done in parallel after T015 lands.
 - **Dependencies**: none.
