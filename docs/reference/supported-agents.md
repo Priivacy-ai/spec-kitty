@@ -1,28 +1,28 @@
 # Supported AI Agents Reference
 
-Spec Kitty currently exposes **13 slash-command agent surfaces**. This page documents the agents that get project command directories such as `.claude/commands/` or `.codex/prompts/`.
+Spec Kitty currently exposes **13 slash-command agent surfaces**. This page documents the agents that get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`.
 
-Related assistant integrations such as `vibe` use shared skill roots rather than project slash-command directories, so they are intentionally out of scope for this specific table.
+Related assistant integrations such as Codex CLI and Vibe use shared skill roots rather than slash-command directories, so they are intentionally out of scope for this specific table.
 
 ---
 
 ## Agent Overview
 
-| Agent | Directory | Commands Subdirectory | Slash Commands |
-|-------|-----------|----------------------|----------------|
-| Claude Code | `.claude/` | `commands/` | `/spec-kitty.*` |
-| GitHub Copilot | `.github/` | `prompts/` | `/spec-kitty.*` |
-| Google Gemini | `.gemini/` | `commands/` | `/spec-kitty.*` |
-| Cursor | `.cursor/` | `commands/` | `/spec-kitty.*` |
-| Qwen Code | `.qwen/` | `commands/` | `/spec-kitty.*` |
-| OpenCode | `.opencode/` | `command/` | `/spec-kitty.*` |
-| Windsurf | `.windsurf/` | `workflows/` | `/spec-kitty.*` |
-| GitHub Codex | `.codex/` | `prompts/` | `/spec-kitty.*` |
-| Kilocode | `.kilocode/` | `workflows/` | `/spec-kitty.*` |
-| Augment Code | `.augment/` | `commands/` | `/spec-kitty.*` |
-| Roo Cline | `.roo/` | `commands/` | `/spec-kitty.*` |
-| Amazon Q (legacy) | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
-| Kiro | `.kiro/` | `prompts/` | `/spec-kitty.*` |
+| Agent | Global Directory | Commands Subdirectory | Slash Commands |
+|-------|------------------|----------------------|----------------|
+| Claude Code | `~/.claude/` | `commands/` | `/spec-kitty.*` |
+| GitHub Copilot | `~/.github/` | `prompts/` | `/spec-kitty.*` |
+| Google Gemini | `~/.gemini/` | `commands/` | `/spec-kitty.*` |
+| Cursor | `~/.cursor/` | `commands/` | `/spec-kitty.*` |
+| Qwen Code | `~/.qwen/` | `commands/` | `/spec-kitty.*` |
+| OpenCode | `~/.opencode/` | `command/` | `/spec-kitty.*` |
+| Windsurf | `~/.windsurf/` | `workflows/` | `/spec-kitty.*` |
+| Google Antigravity | `~/.agent/` | `workflows/` | `/spec-kitty.*` |
+| Kilocode | `~/.kilocode/` | `workflows/` | `/spec-kitty.*` |
+| Augment Code | `~/.augment/` | `commands/` | `/spec-kitty.*` |
+| Roo Cline | `~/.roo/` | `commands/` | `/spec-kitty.*` |
+| Amazon Q (legacy) | `~/.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Kiro | `~/.kiro/` | `prompts/` | `/spec-kitty.*` |
 
 ---
 
@@ -296,7 +296,7 @@ spec-kitty init my-project --ai claude,codex
 spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,augment,roo,q
 ```
 
-This creates command directories for all specified agents, allowing team members to use their preferred tool.
+This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup.
 
 ---
 
@@ -305,17 +305,11 @@ This creates command directories for all specified agents, allowing team members
 To add agent support to an existing project:
 
 ```bash
-# Upgrade regenerates all agent directories
+# Upgrade refreshes global command files and project-local skill packages
 spec-kitty upgrade
 ```
 
-Or manually create the directory structure:
-
-```bash
-mkdir -p .cursor/commands
-# Copy command files from another agent
-cp .claude/commands/*.md .cursor/commands/
-```
+For project configuration, use `spec-kitty agent config add <agent>` rather than manually copying command files.
 
 ---
 
@@ -360,9 +354,9 @@ See [Slash Commands](slash-commands.md) for complete documentation.
 
 ### Slash commands not appearing
 
-1. Verify the agent directory exists:
+1. Verify the global agent directory exists:
    ```bash
-   ls -la .claude/commands/
+   ls -la ~/.claude/commands/
    ```
 
 2. Regenerate commands:

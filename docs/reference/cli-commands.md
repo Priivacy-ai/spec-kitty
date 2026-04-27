@@ -671,7 +671,7 @@ Manage project AI agent configuration (add, remove, list agents).
 spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
 ```
 
-**Description**: The `config` subcommand provides tools for managing which AI agents are active in your project. Agent configuration is stored in `.kittify/config.yaml` and controls which agent directories are present on the filesystem.
+**Description**: The `config` subcommand provides tools for managing which AI agents are active in your project. Agent configuration is stored in `.kittify/config.yaml`; slash-command agents use user-global command roots, while Codex and Vibe use project-local command skills under `.agents/skills/`.
 
 **Subcommands**:
 
@@ -709,8 +709,8 @@ Lists agents currently configured in your project (from `.kittify/config.yaml`) 
 
 Two sections:
 - **Configured agents**: Agents in `config.yaml` with status indicators:
-  - ✓ (green) - Directory exists
-  - ⚠ (yellow) - Configured but directory missing
+  - ✓ (green) - Managed command surface exists
+  - ⚠ (yellow) - Configured but managed command surface missing
 - **Available but not configured**: Agents you can add
 
 **Examples**:
@@ -723,8 +723,8 @@ spec-kitty agent config list
 Example output:
 ```
 Configured agents:
-  ✓ opencode (.opencode/command/)
-  ✓ claude (.claude/commands/)
+  ✓ opencode (~/.opencode/command/ (global))
+  ✓ claude (~/.claude/commands/ (global))
 
 Available but not configured:
   - codex
@@ -744,7 +744,7 @@ spec-kitty agent config add <agent1> [agent2] [agent3] ...
 
 **Description**:
 
-Adds specified agents to your project by creating agent directories, copying slash command templates, and updating `.kittify/config.yaml`.
+Adds specified agents to your project by registering slash-command agents against their global command roots, installing Codex/Vibe command skills where applicable, and updating `.kittify/config.yaml`.
 
 **Arguments**:
 
@@ -754,14 +754,14 @@ Adds specified agents to your project by creating agent directories, copying sla
 
 **Output**:
 
-- Success: `✓ Added <agent-dir>/<subdir>/` for each agent
+- Success: `✓ Registered <agent>` for slash-command agents or `✓ Registered <agent> (... command skills in .agents/skills/)` for skill-based agents
 - Already configured: `Already configured: <agent>` (informational, not an error)
 - Error: `Error: Invalid agent keys: <keys>` with list of valid keys
 
 **Side Effects**:
 
-- Creates agent directory (e.g., `.claude/commands/`)
-- Copies slash command templates from mission templates
+- Uses the global command root for slash-command agents (e.g., `~/.claude/commands/`)
+- Creates project-local command skills for Codex and Vibe
 - Adds agent key to `.kittify/config.yaml` under `agents.available`
 
 **Examples**:
@@ -778,9 +778,9 @@ spec-kitty agent config add codex gemini cursor
 
 Example output:
 ```
-✓ Added .codex/prompts/
-✓ Added .gemini/commands/
-✓ Added .cursor/commands/
+✓ Registered codex (11 command skills in .agents/skills/)
+✓ Registered gemini (global commands at ~/.gemini/commands/)
+✓ Registered cursor (global commands at ~/.cursor/commands/)
 Updated .kittify/config.yaml
 ```
 
@@ -888,9 +888,9 @@ Rich table with columns:
 - **Status**: Colored status indicator
 
 **Status values**:
-- `[green]OK[/green]`: Configured and directory exists (normal state)
-- `[yellow]Missing[/yellow]`: Configured but directory doesn't exist (needs sync)
-- `[red]Orphaned[/red]`: Directory exists but not configured (should be cleaned up)
+- `[green]OK[/green]`: Configured and managed command surface exists (normal state)
+- `[yellow]Missing[/yellow]`: Configured but managed command surface doesn't exist
+- `[red]Orphaned[/red]`: Project-local directory exists but is not configured (should be cleaned up)
 - `[dim]Not used[/dim]`: Neither configured nor present (available to add)
 
 **Actionable message**: If orphaned directories detected, shows: `"Run 'spec-kitty agent config sync --remove-orphaned' to clean up"`
@@ -906,11 +906,11 @@ Example output:
 ```
 Agent Key  Directory                Configured  Exists  Status
 ──────────────────────────────────────────────────────────────────
-claude     .claude/commands/        ✓           ✓       OK
-codex      .codex/prompts/          ✗           ✓       Orphaned
-gemini     .gemini/commands/        ✓           ✗       Missing
-cursor     .cursor/commands/        ✗           ✗       Not used
-qwen       .qwen/commands/          ✓           ✓       OK
+claude     ~/.claude/commands/ (global)      ✓  ✓  OK
+codex      .agents/skills/ (project skills)  ✗  ✓  Orphaned
+gemini     ~/.gemini/commands/ (global)      ✓  ✗  Missing
+cursor     ~/.cursor/commands/ (global)      ✗  ✗  Not used
+qwen       ~/.qwen/commands/ (global)        ✓  ✓  OK
 ...
 
 ⚠ Found 1 orphaned directory
@@ -928,26 +928,26 @@ spec-kitty agent config sync [OPTIONS]
 
 **Description**:
 
-Automatically aligns filesystem with `.kittify/config.yaml` by creating missing directories and/or removing orphaned directories.
+Automatically aligns filesystem with `.kittify/config.yaml` by checking configured managed command surfaces and/or removing orphaned project-local directories.
 
 **Arguments**: None
 
 **Options**:
 
-- `--create-missing`: Create directories for configured agents that are missing from filesystem (default: False)
+- `--create-missing`: Check configured managed command surfaces and restore supported project-local skill roots (default: False)
 - `--remove-orphaned` / `--keep-orphaned`: Remove orphaned directories (directories present but not configured). Default: `--remove-orphaned` (True)
 
 **Default behavior** (no flags): Removes orphaned directories only. Does NOT create missing directories.
 
 **Output**:
 
-- Creating: `✓ Created <agent-dir>/<subdir>/`
+- Present global commands: `✓ Global commands present for <agent> at <global-dir>/`
 - Removing: `✓ Removed orphaned <agent-dir>/`
 - No changes: `No changes needed - filesystem matches config`
 
 **Side Effects**:
 
-- Creates agent directories with slash command templates (if `--create-missing`)
+- Checks global command roots or creates supported project-local skill roots (if `--create-missing`)
 - Deletes orphaned agent directories (if `--remove-orphaned`, default)
 
 **Examples**:
@@ -974,7 +974,7 @@ spec-kitty agent config sync --keep-orphaned
 
 Example output:
 ```
-✓ Created .claude/commands/
+✓ Global commands present for claude at ~/.claude/commands/
 ✓ Removed orphaned .gemini/
 ```
 
