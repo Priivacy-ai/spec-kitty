@@ -21,8 +21,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "76686"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "83863"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -182,3 +182,4 @@ spec-kitty agent action implement WP02 --agent <name>
 
 - 2026-04-27T09:00:16Z – claude:sonnet:implementer:implementer – shell_pid=76686 – Started implementation via action command
 - 2026-04-27T09:06:30Z – claude:sonnet:implementer:implementer – shell_pid=76686 – Ready for review: schema + writer + reader + tests; 31 tests, 96% coverage, mypy --strict passes
+- 2026-04-27T09:06:53Z – claude:opus:reviewer:reviewer – shell_pid=83863 – Started review via action command
