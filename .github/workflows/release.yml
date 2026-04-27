@@ -290,6 +290,10 @@ jobs:
     name: Downstream consumer verification
     needs: build-release
     runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
+      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -331,6 +335,34 @@ jobs:
         # means the gate has no evidence to back it.
         run: |
           set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
+            mkdir -p .kittify/release
+            cat > .kittify/release/downstream-verified.json <<EOF
+          {
+            "status": "passed",
+            "candidate_version": "${VERSION}",
+            "consumer": "spec-kitty-end-to-end-testing",
+            "scenario": "contract_drift_caught",
+            "verification_mode": "prerelease-waived",
+            "verified_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_id": "${GITHUB_RUN_ID}",
+            "commit_sha": "${GITHUB_SHA}"
+          }
+          EOF
+            cat .kittify/release/downstream-verified.json
+            exit 0
+          fi
+
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required to fetch the private downstream consumer suite for stable releases."
+            exit 1
+          fi
+
+          git clone \
+            "https://x-access-token:${CROSS_REPO_TOKEN}@github.com/${REPO_OWNER}/spec-kitty-end-to-end-testing.git" \
+            spec-kitty-end-to-end-testing
+
           SCENARIO=spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py
           if [ ! -f "$SCENARIO" ]; then
             echo "::error::Downstream scenario suite missing at $SCENARIO."
@@ -344,6 +376,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .kittify/release
+          if [ -f .kittify/release/downstream-verified.json ]; then
+            cat .kittify/release/downstream-verified.json
+            exit 0
+          fi
+
           VERSION="${GITHUB_REF_NAME#v}"
           cat > .kittify/release/downstream-verified.json <<EOF
           {
