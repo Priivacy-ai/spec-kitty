@@ -11,10 +11,10 @@
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Define `profile:retrospective-facilitator` shipped artifact | WP01 |  |
-| T002 | Define `action:retrospect` shipped artifact + scope edges | WP01 |  |
-| T003 | Wire DRG context (event stream, mission meta, charter, glossary, etc.) onto the retrospect action | WP01 |  |
-| T004 | DRG resolver + fixture mission test that confirms structured response | WP01 |  |
+| T001 | Define `profile:retrospective-facilitator` shipped artifact | WP01 |  | [D] |
+| T002 | Define `action:retrospect` shipped artifact + scope edges | WP01 |  | [D] |
+| T003 | Wire DRG context (event stream, mission meta, charter, glossary, etc.) onto the retrospect action | WP01 |  | [D] |
+| T004 | DRG resolver + fixture mission test that confirms structured response | WP01 |  | [D] |
 | T005 | Pydantic schema models for `RetrospectiveRecord`, `Finding`, `Proposal`, `Mode`, `RecordProvenance`, `RetrospectiveFailure` | WP02 | [P] |
 | T006 | Atomic round-trip writer (`writer.py`): tempfile + `os.replace`, schema validation upstream | WP02 |  |
 | T007 | Schema-validating reader (`reader.py`) with structured-error result type | WP02 |  |
@@ -94,10 +94,10 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-001, FR-002, FR-003, FR-004, FR-028 (built-in mission integration prerequisite).
 
 **Subtasks**:
-- [ ] T001 Define `profile:retrospective-facilitator` shipped artifact (WP01)
-- [ ] T002 Define `action:retrospect` shipped artifact + scope edges (WP01)
-- [ ] T003 Wire DRG context (event stream, mission meta, charter, glossary, etc.) onto the retrospect action (WP01)
-- [ ] T004 DRG resolver + fixture mission test that confirms structured response (WP01)
+- [x] T001 Define `profile:retrospective-facilitator` shipped artifact (WP01)
+- [x] T002 Define `action:retrospect` shipped artifact + scope edges (WP01)
+- [x] T003 Wire DRG context (event stream, mission meta, charter, glossary, etc.) onto the retrospect action (WP01)
+- [x] T004 DRG resolver + fixture mission test that confirms structured response (WP01)
 
 **Implementation sketch**:
 1. Add a profile YAML under `src/doctrine/agent_profiles/shipped/retrospective-facilitator.yaml` following existing profile shape.
