@@ -38,13 +38,13 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T023 | Append a "next: run `git init`" item to the post-init quick-start summary in `init.py` when target is not a git repo | WP05 |          | [D] |
 | T024 | Remove the `/spec-kitty.checklist` quick-start line at `init.py:723` (FR-003 boundary owned by WP05 to keep `init.py` ownership single-WP) | WP05 |          | [D] |
 | T025 | Add `tests/specify_cli/cli/commands/test_init_non_git_message.py` covering both unit assertions and CliRunner-driven smoke | WP05 |          | [D] |
-| T026 | Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` | WP06 |          |
-| T027 | Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate | WP06 |          |
-| T028 | Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` | WP06 |          |
-| T029 | In the `agent mission create` JSON-payload writer ONLY, call `mark_invocation_succeeded()` immediately after the final `print(json.dumps(...))`. Auditing other JSON-emitting commands is explicitly out of scope. | WP06 |          |
-| T030 | Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success | WP06 |          |
-| T031 | Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior | WP06 | [P]      |
-| T032 | Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success | WP06 | [P]      |
+| T026 | Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` | WP06 |          | [D] |
+| T027 | Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate | WP06 |          | [D] |
+| T028 | Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` | WP06 |          | [D] |
+| T029 | In the `agent mission create` JSON-payload writer ONLY, call `mark_invocation_succeeded()` immediately after the final `print(json.dumps(...))`. Auditing other JSON-emitting commands is explicitly out of scope. | WP06 |          | [D] |
+| T030 | Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success | WP06 |          | [D] |
+| T031 | Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior | WP06 | [D] |
+| T032 | Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success | WP06 | [D] |
 | T033 | Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) | WP07 | [P]      |
 | T034 | Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) | WP07 | [P]      |
 | T035 | Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) | WP07 | [P]      |
@@ -165,13 +165,13 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P2 — visible noise but not blocking.
 - **Independent test**: `tests/sync/test_diagnostic_dedup.py` (new) + `tests/e2e/test_mission_create_clean_output.py` (new).
 - **Subtasks**:
-  - [ ] T026 Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` (WP06)
-  - [ ] T027 Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate (WP06)
-  - [ ] T028 Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` (WP06)
-  - [ ] T029 In the `agent mission create` JSON-payload writer ONLY, call `mark_invocation_succeeded()` immediately after the final `print(json.dumps(...))`. Auditing other JSON-emitting commands is explicitly out of scope. (WP06)
-  - [ ] T030 Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success (WP06)
-  - [ ] T031 Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior (WP06)
-  - [ ] T032 Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success (WP06)
+  - [x] T026 Create `src/specify_cli/diagnostics/__init__.py` and `src/specify_cli/diagnostics/dedup.py` exposing `report_once`, `mark_invocation_succeeded`, `invocation_succeeded`, `reset_for_invocation` (WP06)
+  - [x] T027 Wrap `Not authenticated, skipping sync` callsites at `sync/background.py:270` and `:325` with `report_once("sync.unauthenticated")` gate (WP06)
+  - [x] T028 Locate the token-refresh-failed logger in `src/specify_cli/auth/` and wrap with `report_once("auth.token_refresh_failed")` (WP06)
+  - [x] T029 In the `agent mission create` JSON-payload writer ONLY, call `mark_invocation_succeeded()` immediately after the final `print(json.dumps(...))`. Auditing other JSON-emitting commands is explicitly out of scope. (WP06)
+  - [x] T030 Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success (WP06)
+  - [x] T031 Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior (WP06)
+  - [x] T032 Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success (WP06)
 - **Implementation sketch**: New `diagnostics` package using `contextvars.ContextVar` for dedup + module-level boolean for success flag. Wrap two existing log sites; call `mark_invocation_succeeded()` from JSON-emitting command paths; consult `invocation_succeeded()` from atexit handlers.
 - **Parallel opportunities**: T031 and T032 (test-only) can run in parallel after T026 + T030 land.
 - **Dependencies**: none.
