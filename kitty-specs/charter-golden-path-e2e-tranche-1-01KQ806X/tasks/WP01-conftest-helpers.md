@@ -21,8 +21,8 @@ subtasks:
 - T003
 phase: Phase 1
 assignee: ''
-agent: claude
-shell_pid: '49552'
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "50884"
 history:
 - at: '2026-04-27T18:15:53Z'
   actor: spec-kitty.tasks
@@ -354,3 +354,4 @@ This resolves the lane workspace and enters it. Do not branch manually.
 ## Activity Log
 
 - 2026-04-27T18:31:59Z – claude – shell_pid=49552 – Ready for review: three additive helpers in tests/e2e/conftest.py per WP01 prompt; ruff + mypy --strict + pytest --collect-only all green
+- 2026-04-27T18:33:08Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=50884 – Started review via action command
