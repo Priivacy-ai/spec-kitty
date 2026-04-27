@@ -14,8 +14,8 @@ subtasks:
 - T037
 - T038
 - T039
-agent: "reviewer-renata"
-shell_pid: "68759"
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "69724"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -379,3 +379,4 @@ spec-kitty agent action implement WP08 --agent claude
 - 2026-04-27T19:34:30Z – claude:sonnet:implementer-ivan:implementer – shell_pid=67890 – Ready for review: event_type-presence guard + 4 unit tests + mypy/ruff clean
 - 2026-04-27T19:35:13Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=68759 – Started review via action command
 - 2026-04-27T19:41:44Z – reviewer-renata – shell_pid=68759 – Rejected: dropped T037 malformed-lane test based on incorrect Lane permissiveness claim; Lane is strict StrEnum and contract requires this regression coverage
+- 2026-04-27T19:42:40Z – claude:sonnet:implementer-ivan:implementer – shell_pid=69724 – Started implementation via action command
