@@ -21,7 +21,7 @@ subtasks:
 - T019
 - T020
 - T021
-agent: "claude:sonnet:reviewer-renata:reviewer"
+agent: "reviewer-renata"
 shell_pid: "78401"
 history:
 - at: '2026-04-27T18:00:45Z'
@@ -381,3 +381,4 @@ spec-kitty agent action implement WP04 --agent claude
 - 2026-04-27T19:59:35Z – claude:sonnet:implementer-ivan:implementer – shell_pid=75468 – Started implementation via action command
 - 2026-04-27T20:12:28Z – claude:sonnet:implementer-ivan:implementer – shell_pid=75468 – Ready for review: 27 REMOVE per occurrence_map (2 additional gemini+qwen baselines per R1, to be appended to occurrence_map by reviewer if accepted), baselines regenerated, no init.py touched, two new regression tests cover surface absence + artifact preservation
 - 2026-04-27T20:13:38Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=78401 – Started review via action command
+- 2026-04-27T20:16:24Z – reviewer-renata – shell_pid=78401 – Review passed: 27 REMOVE per occurrence_map (extended to 29 with occurrence_map updated in-commit for gemini+qwen baselines and backlog.html allowlist). Deviation rulings: 1=ACCEPT (deletions correct, occurrence_map properly updated by implementer), 2=ACCEPT (minimal transitive cleanup required for tests to pass), 3=ACCEPT (minimal, paired with new exclusion regression test), 4=ACCEPT (baseline regen drift is glossary annotations + new tasks-finalize baselines only, no legitimate content removal), 5=ACCEPT (static template + mission.yaml assertions are stronger contract lock than runtime mission create), 6=ACCEPT (T018 test files contain zero checklist literals, parametrize dynamically off source dir), 7=ACCEPT (backlog.html is descriptive prose, properly allowlisted and noted in occurrence_map). Tests: 393 passed. Grep checks: all empty. WP05 still owns init.py:723 line removal (T024).
