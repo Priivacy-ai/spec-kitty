@@ -45,9 +45,9 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T030 | Update atexit handlers at `sync/background.py:456` and `sync/runtime.py:381` to consult `invocation_succeeded()` and downgrade warnings on success | WP06 |          | [D] |
 | T031 | Add `tests/sync/test_diagnostic_dedup.py` covering ContextVar gate + reset behavior | WP06 | [D] |
 | T032 | Add `tests/e2e/test_mission_create_clean_output.py` covering JSON cleanup + dedup + no-red-after-success | WP06 | [D] |
-| T033 | Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) | WP07 | [P]      |
-| T034 | Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) | WP07 | [P]      |
-| T035 | Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) | WP07 | [P]      |
+| T033 | Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) | WP07 | [D] |
+| T034 | Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) | WP07 | [D] |
+| T035 | Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) | WP07 | [D] |
 | T036 | Add an `event_type`-presence guard in `read_events()` (`src/specify_cli/status/store.py:209` per-line loop) that skips events carrying a top-level `event_type` field (the wire-format discriminator for mission-level events), with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. | WP08 |          | [D] |
 | T037 | Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs | WP08 | [D] |
 | T038 | Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (no bypass needed) | WP08 |          | [D] |
@@ -187,9 +187,9 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P3 — close-with-evidence per `start-here.md` "Done Criteria".
 - **Independent test**: the three new test files themselves.
 - **Subtasks**:
-  - [ ] T033 Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) (WP07)
-  - [ ] T034 Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) (WP07)
-  - [ ] T035 Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) (WP07)
+  - [x] T033 Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) (WP07)
+  - [x] T034 Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) (WP07)
+  - [x] T035 Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) (WP07)
 - **Implementation sketch**: Three new test files; no production code changes. Each test introspects the typer app and grep-checks docs/snapshots/templates.
 - **Parallel opportunities**: All three tests are independent — agent can implement in any order.
 - **Dependencies**: none.
