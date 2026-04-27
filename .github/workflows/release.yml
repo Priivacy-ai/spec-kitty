@@ -428,7 +428,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: downstream-verified
-          path: .kittify/release/
+          path: .
 
       - name: Verify downstream-consumer-verify produced a passing artifact
         # Defense in depth: even if `needs:` were ever loosened, refuse to
@@ -437,8 +437,11 @@ jobs:
           set -euo pipefail
           ARTIFACT=.kittify/release/downstream-verified.json
           if [ ! -f "$ARTIFACT" ]; then
-            echo "::error::Missing downstream verification artifact at $ARTIFACT."
-            exit 1
+            ARTIFACT=$(find . -path '*/downstream-verified.json' -type f | head -n 1 || true)
+            if [ -z "$ARTIFACT" ]; then
+              echo "::error::Missing downstream verification artifact at .kittify/release/downstream-verified.json."
+              exit 1
+            fi
           fi
           STATUS=$(python -c "import json,sys;print(json.load(open('$ARTIFACT')).get('status',''))")
           if [ "$STATUS" != "passed" ]; then
