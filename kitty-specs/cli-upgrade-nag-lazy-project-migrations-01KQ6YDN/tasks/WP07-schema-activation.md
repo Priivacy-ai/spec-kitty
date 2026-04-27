@@ -14,8 +14,8 @@ subtasks:
 - T027
 - T028
 - T029
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "169"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "1964"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -161,3 +161,4 @@ spec-kitty agent action implement WP07 --agent <name>
 
 - 2026-04-27T09:34:06Z – claude:sonnet:python-implementer:implementer – shell_pid=169 – Started implementation via action command
 - 2026-04-27T09:43:45Z – claude:sonnet:python-implementer:implementer – shell_pid=169 – Ready: MIN=MAX=3 (no-op for existing projects), gate delegates to planner, all 640 migration/compat/arch tests still pass
+- 2026-04-27T09:44:15Z – claude:opus:python-reviewer:reviewer – shell_pid=1964 – Started review via action command
