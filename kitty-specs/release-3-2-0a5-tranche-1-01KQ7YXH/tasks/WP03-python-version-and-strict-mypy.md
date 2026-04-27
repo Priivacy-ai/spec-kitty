@@ -15,7 +15,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "70758"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -220,3 +221,7 @@ Two coordinated fixes in one WP:
 ```bash
 spec-kitty agent action implement WP03 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T19:47:51Z – claude:sonnet:implementer-ivan:implementer – shell_pid=70758 – Started implementation via action command
