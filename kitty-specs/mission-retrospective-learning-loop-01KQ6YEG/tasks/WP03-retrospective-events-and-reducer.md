@@ -15,6 +15,8 @@ subtasks:
 - T012
 - T013
 - T014
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "88719"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -178,3 +180,7 @@ Document in a top-of-file comment that the test will become active when the upst
 ```bash
 spec-kitty agent action implement WP03 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:10:22Z – claude:sonnet:implementer:implementer – shell_pid=88719 – Started implementation via action command
