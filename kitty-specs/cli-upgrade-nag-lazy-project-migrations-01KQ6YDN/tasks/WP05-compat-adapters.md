@@ -12,6 +12,8 @@ subtasks:
 - T018
 - T019
 - T020
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "89202"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -133,3 +135,7 @@ The architectural test in this WP enforces the "no logic in adapters" property s
 ```bash
 spec-kitty agent action implement WP05 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:13:06Z – claude:sonnet:python-implementer:implementer – shell_pid=89202 – Started implementation via action command
