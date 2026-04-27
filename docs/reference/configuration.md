@@ -270,24 +270,24 @@ VCS Backend: git
 
 ## Agent Configuration
 
-Spec Kitty supports 12 AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands.
+Spec Kitty supports AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands. Slash-command agents use user-global command roots; Codex and Vibe use project-local command skills under `.agents/skills/`.
 
 ### Supported Agents
 
-| Agent Key | Directory | Platform |
-|-----------|-----------|----------|
-| `claude` | `.claude/commands/` | Claude (Anthropic) |
-| `copilot` | `.github/prompts/` | GitHub Copilot |
-| `gemini` | `.gemini/commands/` | Google Gemini |
-| `cursor` | `.cursor/commands/` | Cursor AI |
-| `qwen` | `.qwen/commands/` | Qwen Code |
-| `opencode` | `.opencode/command/` | OpenCode |
-| `windsurf` | `.windsurf/workflows/` | Windsurf |
-| `codex` | `.codex/prompts/` | GitHub Codex |
-| `kilocode` | `.kilocode/workflows/` | Kilocode |
-| `auggie` | `.augment/commands/` | Augment Code |
-| `roo` | `.roo/commands/` | Roo Cline |
-| `q` | `.amazonq/prompts/` | Amazon Q |
+| Agent Key | Managed Surface | Platform |
+|-----------|-----------------|----------|
+| `claude` | `~/.claude/commands/` | Claude (Anthropic) |
+| `copilot` | `~/.github/prompts/` | GitHub Copilot |
+| `gemini` | `~/.gemini/commands/` | Google Gemini |
+| `cursor` | `~/.cursor/commands/` | Cursor AI |
+| `qwen` | `~/.qwen/commands/` | Qwen Code |
+| `opencode` | `~/.opencode/command/` | OpenCode |
+| `windsurf` | `~/.windsurf/workflows/` | Windsurf |
+| `codex` | `.agents/skills/spec-kitty.<command>/` | Codex CLI |
+| `kilocode` | `~/.kilocode/workflows/` | Kilocode |
+| `auggie` | `~/.augment/commands/` | Augment Code |
+| `roo` | `~/.roo/commands/` | Roo Cline |
+| `q` | `~/.amazonq/prompts/` | Amazon Q |
 
 ### Configuration File
 
@@ -309,7 +309,9 @@ agents:
 Starting in spec-kitty 0.12.0, agent configuration follows a config-driven model where `.kittify/config.yaml` is the single source of truth for which agents are active in your project.
 
 **Key principles**:
-- Agent directories on filesystem (e.g., `.claude/commands/`) are derived from `config.yaml`
+- Active agents are derived from `config.yaml`
+- Slash-command files are installed globally at CLI startup
+- Codex and Vibe command skills are project-local under `.agents/skills/`
 - Migrations respect `config.yaml` - only process configured agents
 - Use `spec-kitty agent config` commands to manage agents (not manual editing)
 
@@ -343,8 +345,8 @@ spec-kitty agent config list
 Output:
 ```
 Configured agents:
-  ✓ opencode (.opencode/command/)
-  ✓ claude (.claude/commands/)
+  ✓ opencode (~/.opencode/command/ (global))
+  ✓ claude (~/.claude/commands/ (global))
 
 Available but not configured:
   - codex, copilot, gemini, ...
@@ -357,8 +359,8 @@ spec-kitty agent config add claude codex
 ```
 
 This command:
-1. Creates agent directories (`.claude/commands/`, `.codex/prompts/`)
-2. Copies slash command templates from mission templates
+1. Registers slash-command agents against their global command roots
+2. Installs project-local command skills for Codex and Vibe
 3. Updates `config.yaml` to include new agents
 
 #### Remove Agents
@@ -381,8 +383,8 @@ spec-kitty agent config status
 ```
 
 Shows a table of all agents with their status:
-- **OK**: Configured and directory exists
-- **Missing**: Configured but directory doesn't exist
+- **OK**: Configured and managed command surface exists
+- **Missing**: Configured but managed command surface doesn't exist
 - **Orphaned**: Directory exists but not configured
 - **Not used**: Neither configured nor present
 
@@ -391,9 +393,9 @@ Example output:
 ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓
 ┃ Agent Key ┃ Directory           ┃ Configured ┃ Exists ┃ Status   ┃
 ┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩
-│ opencode  │ .opencode/command   │     ✓      │   ✓    │ OK       │
-│ claude    │ .claude/commands    │     ✓      │   ✓    │ OK       │
-│ codex     │ .codex/prompts      │     ✗      │   ✓    │ Orphaned │
+│ opencode  │ ~/.opencode/command/ (global)     │ ✓ │ ✓ │ OK       │
+│ claude    │ ~/.claude/commands/ (global)      │ ✓ │ ✓ │ OK       │
+│ codex     │ .agents/skills/ (project skills)  │ ✗ │ ✓ │ Orphaned │
 └───────────┴─────────────────────┴────────────┴────────┴──────────┘
 
 ⚠ 1 orphaned directory found (present but not configured)
@@ -407,7 +409,7 @@ spec-kitty agent config sync
 
 Synchronizes filesystem with `config.yaml`:
 - By default, removes orphaned directories (present but not configured)
-- Use `--create-missing` to create directories for configured agents
+- Use `--create-missing` to check configured managed surfaces and restore supported project-local skill roots
 - Use `--keep-orphaned` to keep orphaned directories
 
 **Examples:**
