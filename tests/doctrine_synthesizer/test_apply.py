@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.doctrine_synthesizer.apply import apply_proposals
-from specify_cli.doctrine_synthesizer.provenance import load_provenance, provenance_path
+from specify_cli.doctrine_synthesizer.provenance import load_provenance
 from specify_cli.retrospective.schema import (
     ActorRef,
     AddEdgePayload,
@@ -65,6 +65,7 @@ PIDS = [
 # ---------------------------------------------------------------------------
 # Repo fixture helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_repo(
     tmp_path: Path,
@@ -114,16 +115,20 @@ def _proposal(pid: str, payload: object) -> Proposal:  # type: ignore[type-arg]
 # dry_run=True default
 # ---------------------------------------------------------------------------
 
+
 class TestDryRunDefault:
     def test_default_is_dry_run(self, tmp_path: Path) -> None:
         """apply_proposals must default to dry_run=True."""
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="foo",
-            definition="Foo definition.",
-            definition_hash="hash-foo",
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="foo",
+                definition="Foo definition.",
+                definition_hash="hash-foo",
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -141,12 +146,15 @@ class TestDryRunDefault:
 
     def test_dry_run_no_files_written(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="foo",
-            definition="Foo definition.",
-            definition_hash="hash-foo",
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="foo",
+                definition="Foo definition.",
+                definition_hash="hash-foo",
+            ),
+        )
         apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -162,15 +170,19 @@ class TestDryRunDefault:
 # add_glossary_term
 # ---------------------------------------------------------------------------
 
+
 class TestAddGlossaryTerm:
     def test_apply_success(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="doctrine",
-            definition="Core principles.",
-            definition_hash="hash-doc",
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="doctrine",
+                definition="Core principles.",
+                definition_hash="hash-doc",
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -185,12 +197,15 @@ class TestAddGlossaryTerm:
 
     def test_provenance_sidecar_written(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="doctrine",
-            definition="Core principles.",
-            definition_hash="hash-doc",
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="doctrine",
+                definition="Core principles.",
+                definition_hash="hash-doc",
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -210,12 +225,15 @@ class TestAddGlossaryTerm:
 
     def test_event_emitted(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="doctrine",
-            definition="Core principles.",
-            definition_hash="hash-doc",
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="doctrine",
+                definition="Core principles.",
+                definition_hash="hash-doc",
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -229,12 +247,15 @@ class TestAddGlossaryTerm:
     def test_idempotent_rerun_re_applied_true(self, tmp_path: Path) -> None:
         """Re-running with same approved set → applied with re_applied=True, no new event."""
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="doctrine",
-            definition="Core principles.",
-            definition_hash="hash-doc",
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="doctrine",
+                definition="Core principles.",
+                definition_hash="hash-doc",
+            ),
+        )
 
         # First run
         result1 = apply_proposals(
@@ -267,13 +288,17 @@ class TestAddGlossaryTerm:
 # flag_not_helpful
 # ---------------------------------------------------------------------------
 
+
 class TestFlagNotHelpful:
     def test_apply_success(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], FlagNotHelpfulPayload(
-            kind="flag_not_helpful",
-            target=TargetReference(kind="drg_node", urn="drg:node:context-artifact"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            FlagNotHelpfulPayload(
+                kind="flag_not_helpful",
+                target=TargetReference(kind="drg_node", urn="drg:node:context-artifact"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -288,10 +313,13 @@ class TestFlagNotHelpful:
     def test_auto_include_without_approved_ids(self, tmp_path: Path) -> None:
         """flag_not_helpful is auto-included even if not in approved_proposal_ids (FR-020)."""
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], FlagNotHelpfulPayload(
-            kind="flag_not_helpful",
-            target=TargetReference(kind="drg_node", urn="drg:node:foo"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            FlagNotHelpfulPayload(
+                kind="flag_not_helpful",
+                target=TargetReference(kind="drg_node", urn="drg:node:foo"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -304,10 +332,13 @@ class TestFlagNotHelpful:
 
     def test_provenance_written(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], FlagNotHelpfulPayload(
-            kind="flag_not_helpful",
-            target=TargetReference(kind="drg_node", urn="drg:node:foo"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            FlagNotHelpfulPayload(
+                kind="flag_not_helpful",
+                target=TargetReference(kind="drg_node", urn="drg:node:foo"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -322,18 +353,47 @@ class TestFlagNotHelpful:
         assert data is not None
         assert data["source"] == "retrospective"
 
+    def test_target_urn_cannot_escape_flags_or_provenance_dir(self, tmp_path: Path) -> None:
+        repo_root = _make_repo(tmp_path, [EVT_A])
+        p = _proposal(
+            PIDS[0],
+            FlagNotHelpfulPayload(
+                kind="flag_not_helpful",
+                target=TargetReference(kind="drg_node", urn="drg:node:../../outside\\escape"),
+            ),
+        )
+        result = apply_proposals(
+            mission_id=MISSION_ID,
+            repo_root=repo_root,
+            proposals=[p],
+            approved_proposal_ids=set(),
+            actor=ACTOR,
+            dry_run=False,
+        )
+
+        flag_path = Path(result.applied[0].artifact_path).resolve()
+        sidecar = Path(result.applied[0].provenance_path).resolve()
+        flags_dir = (repo_root / ".kittify" / "doctrine" / ".flags").resolve()
+        assert flag_path.is_relative_to(flags_dir)
+        assert sidecar.is_relative_to(flags_dir / ".provenance")
+        assert not (repo_root / "outside").exists()
+
 
 # ---------------------------------------------------------------------------
 # add_edge
 # ---------------------------------------------------------------------------
 
+
 class TestAddEdge:
     def test_apply_success(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddEdgePayload(
-            kind="add_edge",
-            edge=EdgeSpec(from_node="NodeA", to_node="NodeB", kind="uses"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddEdgePayload(
+                kind="add_edge",
+                edge=EdgeSpec(from_node="NodeA", to_node="NodeB", kind="uses"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -347,10 +407,13 @@ class TestAddEdge:
 
     def test_provenance_and_event(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], AddEdgePayload(
-            kind="add_edge",
-            edge=EdgeSpec(from_node="NodeA", to_node="NodeB", kind="uses"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddEdgePayload(
+                kind="add_edge",
+                edge=EdgeSpec(from_node="NodeA", to_node="NodeB", kind="uses"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -363,20 +426,47 @@ class TestAddEdge:
         assert sidecar.exists()
         assert len(result.events_emitted) == 1
 
+    def test_edge_values_cannot_escape_provenance_dir(self, tmp_path: Path) -> None:
+        repo_root = _make_repo(tmp_path, [EVT_A])
+        p = _proposal(
+            PIDS[0],
+            AddEdgePayload(
+                kind="add_edge",
+                edge=EdgeSpec(from_node="../../outside", to_node="NodeB", kind="uses\\rel"),
+            ),
+        )
+        result = apply_proposals(
+            mission_id=MISSION_ID,
+            repo_root=repo_root,
+            proposals=[p],
+            approved_proposal_ids={PIDS[0]},
+            actor=ACTOR,
+            dry_run=False,
+        )
+
+        sidecar = Path(result.applied[0].provenance_path).resolve()
+        provenance_dir = (repo_root / ".kittify" / "drg" / ".provenance").resolve()
+        assert sidecar.is_relative_to(provenance_dir)
+        assert not (repo_root / "outside-uses").exists()
+
 
 # ---------------------------------------------------------------------------
 # update_glossary_term
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateGlossaryTerm:
     def test_apply_success(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], UpdateGlossaryTermPayload(
-            kind="update_glossary_term",
-            term_key="existing-term",
-            definition="Updated definition.",
-            definition_hash="hash-upd",
-        ))
+        p = _proposal(
+            PIDS[0],
+            UpdateGlossaryTermPayload(
+                kind="update_glossary_term",
+                term_key="existing-term",
+                definition="Updated definition.",
+                definition_hash="hash-upd",
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -393,16 +483,20 @@ class TestUpdateGlossaryTerm:
 # synthesize_directive / tactic / procedure
 # ---------------------------------------------------------------------------
 
+
 class TestSynthesizeKinds:
     def test_synthesize_directive(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], SynthesizeDirectivePayload(
-            kind="synthesize_directive",
-            artifact_id="dir-001",
-            body="Do the thing.",
-            body_hash="hash-dir",
-            scope=_EMPTY_SCOPE,
-        ))
+        p = _proposal(
+            PIDS[0],
+            SynthesizeDirectivePayload(
+                kind="synthesize_directive",
+                artifact_id="dir-001",
+                body="Do the thing.",
+                body_hash="hash-dir",
+                scope=_EMPTY_SCOPE,
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -419,13 +513,16 @@ class TestSynthesizeKinds:
 
     def test_synthesize_tactic(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], SynthesizeTacticPayload(
-            kind="synthesize_tactic",
-            artifact_id="tac-001",
-            body="Use the tactic.",
-            body_hash="hash-tac",
-            scope=_EMPTY_SCOPE,
-        ))
+        p = _proposal(
+            PIDS[0],
+            SynthesizeTacticPayload(
+                kind="synthesize_tactic",
+                artifact_id="tac-001",
+                body="Use the tactic.",
+                body_hash="hash-tac",
+                scope=_EMPTY_SCOPE,
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -439,13 +536,16 @@ class TestSynthesizeKinds:
 
     def test_synthesize_procedure(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], SynthesizeProcedurePayload(
-            kind="synthesize_procedure",
-            artifact_id="proc-001",
-            body="Follow the procedure.",
-            body_hash="hash-proc",
-            scope=_EMPTY_SCOPE,
-        ))
+        p = _proposal(
+            PIDS[0],
+            SynthesizeProcedurePayload(
+                kind="synthesize_procedure",
+                artifact_id="proc-001",
+                body="Follow the procedure.",
+                body_hash="hash-proc",
+                scope=_EMPTY_SCOPE,
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -461,6 +561,7 @@ class TestSynthesizeKinds:
 # ---------------------------------------------------------------------------
 # Staleness check (T033)
 # ---------------------------------------------------------------------------
+
 
 class TestStalenessCheck:
     def test_stale_evidence_rejected(self, tmp_path: Path) -> None:
@@ -569,6 +670,7 @@ class TestStalenessCheck:
 # Multiple proposals in one batch (deterministic order)
 # ---------------------------------------------------------------------------
 
+
 class TestBatchApply:
     def test_deterministic_order_by_proposal_id(self, tmp_path: Path) -> None:
         """Applied changes are in sorted proposal_id order."""
@@ -576,18 +678,24 @@ class TestBatchApply:
 
         # PID[1] < PID[0] lexicographically (they are the same length so compare char)
         # Use PIDS[0] (ends 4A) and PIDS[1] (ends 4B)
-        p1 = _proposal(PIDS[1], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="alpha",
-            definition="Alpha.",
-            definition_hash="hash-alpha",
-        ))
-        p0 = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="beta",
-            definition="Beta.",
-            definition_hash="hash-beta",
-        ))
+        p1 = _proposal(
+            PIDS[1],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="alpha",
+                definition="Alpha.",
+                definition_hash="hash-alpha",
+            ),
+        )
+        p0 = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="beta",
+                definition="Beta.",
+                definition_hash="hash-beta",
+            ),
+        )
 
         result = apply_proposals(
             mission_id=MISSION_ID,
@@ -607,21 +715,28 @@ class TestBatchApply:
 # Proposals not in approved_ids and not flag_not_helpful are excluded
 # ---------------------------------------------------------------------------
 
+
 class TestEffectiveBatch:
     def test_unapproved_proposal_excluded(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        approved = _proposal(PIDS[0], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="approved",
-            definition="Approved.",
-            definition_hash="hash-app",
-        ))
-        unapproved = _proposal(PIDS[1], AddGlossaryTermPayload(
-            kind="add_glossary_term",
-            term_key="unapproved",
-            definition="Not approved.",
-            definition_hash="hash-unapp",
-        ))
+        approved = _proposal(
+            PIDS[0],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="approved",
+                definition="Approved.",
+                definition_hash="hash-app",
+            ),
+        )
+        unapproved = _proposal(
+            PIDS[1],
+            AddGlossaryTermPayload(
+                kind="add_glossary_term",
+                term_key="unapproved",
+                definition="Not approved.",
+                definition_hash="hash-unapp",
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -638,16 +753,20 @@ class TestEffectiveBatch:
 # rewire_edge apply
 # ---------------------------------------------------------------------------
 
+
 class TestRewireEdge:
     def test_apply_rewire_success(self, tmp_path: Path) -> None:
         from specify_cli.retrospective.schema import RewireEdgePayload
 
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], RewireEdgePayload(
-            kind="rewire_edge",
-            edge_old=EdgeSpec(from_node="A", to_node="B", kind="uses"),
-            edge_new=EdgeSpec(from_node="A", to_node="C", kind="uses"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            RewireEdgePayload(
+                kind="rewire_edge",
+                edge_old=EdgeSpec(from_node="A", to_node="B", kind="uses"),
+                edge_new=EdgeSpec(from_node="A", to_node="C", kind="uses"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -672,11 +791,14 @@ class TestRewireEdge:
         with edges_path.open("w") as fh:
             _yaml.safe_dump(existing, fh)
 
-        p = _proposal(PIDS[0], RewireEdgePayload(
-            kind="rewire_edge",
-            edge_old=EdgeSpec(from_node="A", to_node="B", kind="uses"),
-            edge_new=EdgeSpec(from_node="A", to_node="C", kind="uses"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            RewireEdgePayload(
+                kind="rewire_edge",
+                edge_old=EdgeSpec(from_node="A", to_node="B", kind="uses"),
+                edge_new=EdgeSpec(from_node="A", to_node="C", kind="uses"),
+            ),
+        )
         apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -697,6 +819,7 @@ class TestRewireEdge:
 # add_edge with existing edges.yaml (load path)
 # ---------------------------------------------------------------------------
 
+
 class TestAddEdgeExisting:
     def test_add_edge_appends_to_existing(self, tmp_path: Path) -> None:
         import yaml as _yaml
@@ -710,10 +833,13 @@ class TestAddEdgeExisting:
         with edges_path.open("w") as fh:
             _yaml.safe_dump(existing, fh)
 
-        p = _proposal(PIDS[0], AddEdgePayload(
-            kind="add_edge",
-            edge=EdgeSpec(from_node="A", to_node="B", kind="uses"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            AddEdgePayload(
+                kind="add_edge",
+                edge=EdgeSpec(from_node="A", to_node="B", kind="uses"),
+            ),
+        )
         apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -731,6 +857,7 @@ class TestAddEdgeExisting:
 # ---------------------------------------------------------------------------
 # _load_event_ids edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestLoadEventIdsEdgeCases:
     def test_empty_lines_skipped(self, tmp_path: Path) -> None:
@@ -765,6 +892,7 @@ class TestLoadEventIdsEdgeCases:
 # ---------------------------------------------------------------------------
 # _resolve_source_event_ids: missing kitty-specs dir
 # ---------------------------------------------------------------------------
+
 
 class TestResolveSourceEventIds:
     def test_missing_kitty_specs_returns_empty(self, tmp_path: Path) -> None:
@@ -802,16 +930,20 @@ class TestResolveSourceEventIds:
 # dry_run planned list for rewire / synthesize kinds
 # ---------------------------------------------------------------------------
 
+
 class TestPlannedDryRun:
     def test_rewire_edge_in_planned(self, tmp_path: Path) -> None:
         from specify_cli.retrospective.schema import RewireEdgePayload
 
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], RewireEdgePayload(
-            kind="rewire_edge",
-            edge_old=EdgeSpec(from_node="A", to_node="B", kind="uses"),
-            edge_new=EdgeSpec(from_node="A", to_node="C", kind="uses"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            RewireEdgePayload(
+                kind="rewire_edge",
+                edge_old=EdgeSpec(from_node="A", to_node="B", kind="uses"),
+                edge_new=EdgeSpec(from_node="A", to_node="C", kind="uses"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -825,13 +957,16 @@ class TestPlannedDryRun:
 
     def test_synthesize_directive_in_planned(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], SynthesizeDirectivePayload(
-            kind="synthesize_directive",
-            artifact_id="dir-plan-001",
-            body="Body.",
-            body_hash="h",
-            scope=_EMPTY_SCOPE,
-        ))
+        p = _proposal(
+            PIDS[0],
+            SynthesizeDirectivePayload(
+                kind="synthesize_directive",
+                artifact_id="dir-plan-001",
+                body="Body.",
+                body_hash="h",
+                scope=_EMPTY_SCOPE,
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,
@@ -845,10 +980,13 @@ class TestPlannedDryRun:
 
     def test_flag_not_helpful_in_planned(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
-        p = _proposal(PIDS[0], FlagNotHelpfulPayload(
-            kind="flag_not_helpful",
-            target=TargetReference(kind="drg_node", urn="drg:node:foo"),
-        ))
+        p = _proposal(
+            PIDS[0],
+            FlagNotHelpfulPayload(
+                kind="flag_not_helpful",
+                target=TargetReference(kind="drg_node", urn="drg:node:foo"),
+            ),
+        )
         result = apply_proposals(
             mission_id=MISSION_ID,
             repo_root=repo_root,

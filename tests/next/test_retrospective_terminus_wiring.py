@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -91,6 +92,26 @@ def test_buffering_emitter_flush_replays_in_order_then_clears() -> None:
     assert buffer.call_count() == 0
 
 
+def test_buffering_emitter_flush_skips_missing_target_methods() -> None:
+    from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
+
+    buffer = _BufferingRuntimeEmitter()
+    p_start, p_completed = object(), object()
+    buffer.emit_mission_run_started(p_start)
+    buffer.emit_mission_run_completed(p_completed)
+
+    received: list[tuple[str, Any]] = []
+
+    class _PartialRecorder:
+        def emit_mission_run_started(self, payload: Any) -> None:
+            received.append(("emit_mission_run_started", payload))
+
+    buffer.flush(_PartialRecorder())
+
+    assert received == [("emit_mission_run_started", p_start)]
+    assert buffer.call_count() == 0
+
+
 def test_buffering_emitter_discard_drops_calls_without_replaying() -> None:
     from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
 
@@ -128,29 +149,65 @@ def test_buffering_emitter_implements_full_runtime_protocol() -> None:
     assert buffer.call_count() == 8
 
 
+def test_rich_hic_prompt_returns_run_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rich.prompt import Confirm
+    from specify_cli.next.runtime_bridge import _rich_hic_prompt
+
+    monkeypatch.setattr(Confirm, "ask", lambda *args, **kwargs: True)
+
+    assert _rich_hic_prompt() == (True, None)
+
+
+def test_rich_hic_prompt_requires_non_empty_skip_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rich.prompt import Confirm, Prompt
+    from specify_cli.next.runtime_bridge import _rich_hic_prompt
+
+    answers = iter(["", "  needs operator review  "])
+    monkeypatch.setattr(Confirm, "ask", lambda *args, **kwargs: False)
+    monkeypatch.setattr(Prompt, "ask", lambda *args, **kwargs: next(answers))
+
+    assert _rich_hic_prompt() == (False, "needs operator review")
+
+
+def test_resolve_mission_id_for_terminus_falls_back_on_missing_or_bad_meta(
+    tmp_path: Path,
+) -> None:
+    from specify_cli.next.runtime_bridge import _resolve_mission_id_for_terminus
+
+    feature_dir = tmp_path / "mission-slug"
+    feature_dir.mkdir()
+
+    assert _resolve_mission_id_for_terminus(feature_dir) == "mission-slug"
+
+    (feature_dir / "meta.json").write_text("{not-json", encoding="utf-8")
+    assert _resolve_mission_id_for_terminus(feature_dir) == "mission-slug"
+
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_id": "  "}), encoding="utf-8")
+    assert _resolve_mission_id_for_terminus(feature_dir) == "mission-slug"
+
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_id": "01KQMISSION"}), encoding="utf-8")
+    assert _resolve_mission_id_for_terminus(feature_dir) == "01KQMISSION"
+
+
 # ---------------------------------------------------------------------------
 # Real-bridge integration: decide_next_via_runtime + opt-in + gate block
 # ---------------------------------------------------------------------------
 
 
 def _init_git_repo(path: Path) -> None:
-    subprocess.run(
-        ["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True
-    )
+    subprocess.run(["git", "init", "--initial-branch=main"], cwd=path, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=path,
         capture_output=True,
         check=True,
     )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"], cwd=path, capture_output=True, check=True
-    )
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, capture_output=True, check=True)
     (path / "README.md").write_text("# test", encoding="utf-8")
     subprocess.run(["git", "add", "README.md"], cwd=path, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "init"], cwd=path, capture_output=True, check=True
-    )
+    subprocess.run(["git", "commit", "-m", "init"], cwd=path, capture_output=True, check=True)
 
 
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
@@ -249,9 +306,7 @@ class _RecordingSyncEmitter:
         return _recorded
 
 
-def test_legacy_path_blocks_and_rolls_back_on_terminal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Driving the real bridge to terminal with opt-in must:
 
     1. return ``Decision(blocked, reason="Retrospective gate refused...")``,
@@ -275,44 +330,23 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(
         recorders.append(recorder)
         return recorder
 
-    monkeypatch.setattr(
-        bridge.SyncRuntimeEventEmitter, "for_feature", _wrapped_for_feature
-    )
+    monkeypatch.setattr(bridge.SyncRuntimeEventEmitter, "for_feature", _wrapped_for_feature)
 
     decision = None
     for _ in range(40):
-        decision = bridge.decide_next_via_runtime(
-            "test-agent", "test-mission-01KQ6YEG", "success", repo_root
-        )
-        if decision.kind == DecisionKind.blocked and "Retrospective gate" in (
-            decision.reason or ""
-        ):
+        decision = bridge.decide_next_via_runtime("test-agent", "test-mission-01KQ6YEG", "success", repo_root)
+        if decision.kind == DecisionKind.blocked and "Retrospective gate" in (decision.reason or ""):
             break
         if decision.kind == DecisionKind.terminal:
-            pytest.fail(
-                "Bridge reached terminal without the retrospective gate firing — "
-                "the wire-in is not active or rollback failed."
-            )
+            pytest.fail("Bridge reached terminal without the retrospective gate firing — the wire-in is not active or rollback failed.")
 
     assert decision is not None
-    assert decision.kind == DecisionKind.blocked, (
-        f"Expected blocked decision after gate; got {decision.kind} ({decision.reason!r})"
-    )
-    assert "Retrospective gate" in (decision.reason or ""), (
-        f"Expected retrospective-gate reason; got {decision.reason!r}"
-    )
+    assert decision.kind == DecisionKind.blocked, f"Expected blocked decision after gate; got {decision.kind} ({decision.reason!r})"
+    assert "Retrospective gate" in (decision.reason or ""), f"Expected retrospective-gate reason; got {decision.reason!r}"
 
     # Sync emitter MUST NOT have dispatched MissionRunCompleted.
-    completed_dispatches = [
-        (name, payload)
-        for recorder in recorders
-        for (name, payload) in recorder.calls
-        if name == "emit_mission_run_completed"
-    ]
-    assert completed_dispatches == [], (
-        "MissionRunCompleted was dispatched to the sync emitter despite the "
-        f"gate blocking; calls observed: {completed_dispatches!r}"
-    )
+    completed_dispatches = [(name, payload) for recorder in recorders for (name, payload) in recorder.calls if name == "emit_mission_run_completed"]
+    assert completed_dispatches == [], f"MissionRunCompleted was dispatched to the sync emitter despite the gate blocking; calls observed: {completed_dispatches!r}"
 
     # run.events.jsonl must not carry MissionRunCompleted from the blocked attempt.
     feature_runs = repo_root / ".kittify" / "runtime" / "feature-runs.json"
@@ -322,14 +356,126 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(
     events_path = run_dir / "run.events.jsonl"
     assert events_path.exists()
     events_text = events_path.read_text(encoding="utf-8")
-    assert "MissionRunCompleted" not in events_text, (
-        "run.events.jsonl carries MissionRunCompleted after gate block; "
-        "rollback did not truncate properly"
-    )
+    assert "MissionRunCompleted" not in events_text, "run.events.jsonl carries MissionRunCompleted after gate block; rollback did not truncate properly"
 
     # state.json must not be in a fully-completed terminal shape.
     state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
     assert state.get("issued_step_id") is not None, (
-        "state.json shows issued_step_id=None (terminal-ish) after gate block; "
-        "rollback did not restore the pre-call snapshot"
+        "state.json shows issued_step_id=None (terminal-ish) after gate block; rollback did not restore the pre-call snapshot"
     )
+
+
+def test_legacy_path_blocks_when_prestate_cannot_be_captured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+
+    repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "state.json").mkdir()
+
+    monkeypatch.setattr(
+        bridge.SyncRuntimeEventEmitter,
+        "for_feature",
+        lambda **kwargs: SimpleNamespace(seed_from_snapshot=lambda snapshot: None),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "get_or_start_run",
+        lambda *args, **kwargs: SimpleNamespace(run_dir=run_dir, run_id="run-1"),
+    )
+
+    decision = bridge.decide_next_via_runtime("test-agent", "test-mission-01KQ6YEG", "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert "Cannot read run state.json" in (decision.reason or "")
+
+
+def test_legacy_path_discards_buffer_when_runtime_engine_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+
+    repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "run.events.jsonl").write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(
+        bridge.SyncRuntimeEventEmitter,
+        "for_feature",
+        lambda **kwargs: SimpleNamespace(seed_from_snapshot=lambda snapshot: None),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "get_or_start_run",
+        lambda *args, **kwargs: SimpleNamespace(run_dir=run_dir, run_id="run-1"),
+    )
+
+    def _raise_runtime_error(*args: Any, **kwargs: Any) -> Any:
+        emitter = kwargs["emitter"]
+        emitter.emit_mission_run_completed(object())
+        raise RuntimeError("engine failed")
+
+    monkeypatch.setattr(bridge, "runtime_next_step", _raise_runtime_error)
+
+    decision = bridge.decide_next_via_runtime("test-agent", "test-mission-01KQ6YEG", "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason == "Runtime engine error: engine failed"
+
+
+def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+    from specify_cli.next._internal_runtime import retrospective_terminus
+    from specify_cli.next._internal_runtime.schema import NextDecision
+
+    repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    state_path = run_dir / "state.json"
+    events_path = run_dir / "run.events.jsonl"
+    state_path.write_text("pre-state", encoding="utf-8")
+    events_path.write_text("pre-events", encoding="utf-8")
+
+    monkeypatch.setattr(
+        bridge.SyncRuntimeEventEmitter,
+        "for_feature",
+        lambda **kwargs: SimpleNamespace(seed_from_snapshot=lambda snapshot: None),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "get_or_start_run",
+        lambda *args, **kwargs: SimpleNamespace(run_dir=run_dir, run_id="run-1"),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "runtime_next_step",
+        lambda *args, **kwargs: NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev"),
+    )
+    monkeypatch.setattr(
+        retrospective_terminus,
+        "run_terminus",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("gate blocked")),
+    )
+
+    original_write_bytes = Path.write_bytes
+    original_open = open
+
+    def _write_bytes(path: Path, data: bytes) -> int:
+        if path == state_path:
+            raise OSError("state restore failed")
+        return original_write_bytes(path, data)
+
+    def _open(file: Any, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        if Path(file) == events_path and mode == "r+b":
+            raise OSError("events truncate failed")
+        return original_open(file, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_bytes", _write_bytes)
+    monkeypatch.setattr("builtins.open", _open)
+
+    decision = bridge.decide_next_via_runtime("test-agent", "test-mission-01KQ6YEG", "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason == "Retrospective gate refused completion: gate blocked"
+    assert "rollback of state.json failed after gate block" in caplog.text
+    assert "rollback of run.events.jsonl failed after gate block" in caplog.text

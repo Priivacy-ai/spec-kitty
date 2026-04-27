@@ -18,20 +18,14 @@ from pathlib import Path
 import pytest
 
 from specify_cli.retrospective.events import (
-    RETROSPECTIVE_EVENT_NAMES,
     CompletedPayload,
-    FailedPayload,
-    ProposalAppliedPayload,
-    ProposalGeneratedPayload,
-    ProposalRejectedPayload,
     RequestedPayload,
-    SkippedPayload,
     StartedPayload,
     emit_retrospective_event,
 )
 from specify_cli.retrospective.schema import ActorRef, Mode, ModeSourceSignal
 from specify_cli.status.models import RetrospectiveSnapshot, StatusSnapshot
-from specify_cli.status.reducer import _reduce_retrospective, materialize, reduce
+from specify_cli.status.reducer import _reduce_retrospective, materialize
 from specify_cli.status.store import read_events_raw
 
 pytestmark = pytest.mark.fast
@@ -399,6 +393,23 @@ class TestReduceRetrospectiveMode:
         assert result.mode.value == "human_in_command"
         assert result.status == "completed"
 
+    def test_invalid_requested_mode_is_ignored(self) -> None:
+        events = [
+            _make_retro_event(
+                "retrospective.requested",
+                {
+                    "mode": {"value": "bogus", "source_signal": {"kind": "environment"}},
+                    "terminus_step_id": "step-final",
+                    "requested_by": _RUNTIME_ACTOR.model_dump(mode="json"),
+                },
+            )
+        ]
+
+        result = _reduce_retrospective(events)
+
+        assert result.status == "pending"
+        assert result.mode is None
+
 
 # ---------------------------------------------------------------------------
 # emit_retrospective_event + append-only invariant
@@ -646,6 +657,85 @@ class TestStatusSnapshotRetrospectiveField:
         assert first_id in event_ids
         assert second_id in event_ids
         assert len(event_ids) == 2
+
+    def test_status_snapshot_round_trips_retrospective(self) -> None:
+        snap = StatusSnapshot(
+            mission_slug=_MISSION_SLUG,
+            materialized_at="2026-04-27T10:00:00+00:00",
+            event_count=1,
+            last_event_id="01KQ73CS2CCFY8BYYTTFV58001",
+            work_packages={},
+            summary={},
+            retrospective=RetrospectiveSnapshot(
+                status="completed",
+                mode=_MODE_AUTO,
+                record_path="/retro.yaml",
+                proposals_total=2,
+                proposals_applied=1,
+                proposals_rejected=0,
+                proposals_pending=1,
+            ),
+        )
+
+        data = snap.to_dict()
+        loaded = StatusSnapshot.from_dict(data)
+
+        assert data["retrospective"]["status"] == "completed"
+        assert loaded.retrospective is not None
+        assert loaded.retrospective.status == "completed"
+        assert loaded.retrospective.mode is not None
+        assert loaded.retrospective.mode.value == "autonomous"
+
+    def test_materialize_attaches_non_absent_retrospective_snapshot(self, tmp_path: Path) -> None:
+        from specify_cli.status.models import Lane, StatusEvent
+        from specify_cli.status.store import append_event
+
+        feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": _MISSION_ID,
+                    "mission_slug": _MISSION_SLUG,
+                    "mission_type": "software-dev",
+                }
+            ),
+            encoding="utf-8",
+        )
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="01KQ73CS2CCFY8BYYTTFV58001",
+                mission_slug=_MISSION_SLUG,
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.DONE,
+                at="2026-04-27T09:00:00+00:00",
+                actor="claude",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+        emit_retrospective_event(
+            feature_dir=feature_dir,
+            mission_slug=_MISSION_SLUG,
+            mission_id=_MISSION_ID,
+            mid8=_MID8,
+            actor=_RUNTIME_ACTOR,
+            event_name="retrospective.completed",
+            payload=CompletedPayload(
+                record_path="/retro.yaml",
+                record_hash="abc",
+                findings_summary={},
+                proposals_count=0,
+            ),
+        )
+
+        snapshot = materialize(feature_dir)
+
+        assert snapshot.retrospective is not None
+        assert snapshot.retrospective.status == "completed"
+        assert snapshot.retrospective.record_path == "/retro.yaml"
 
 
 class TestRetrospectiveSnapshotModel:

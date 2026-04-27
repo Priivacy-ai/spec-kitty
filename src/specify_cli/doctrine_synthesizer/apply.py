@@ -48,7 +48,7 @@ from specify_cli.retrospective.schema import (
 )
 
 from .conflict import ConflictGroup, detect_conflicts
-from .provenance import is_already_applied, provenance_path, write_provenance
+from .provenance import _safe_path_component, is_already_applied, provenance_path, write_provenance
 
 logger = logging.getLogger(__name__)
 
@@ -179,9 +179,7 @@ def _assert_within(base: Path, target: Path) -> Path:
     try:
         resolved_target.relative_to(resolved_base)
     except ValueError as exc:
-        raise ValueError(
-            f"refusing to write outside artifact base: target={resolved_target} base={resolved_base}"
-        ) from exc
+        raise ValueError(f"refusing to write outside artifact base: target={resolved_target} base={resolved_base}") from exc
     return resolved_target
 
 
@@ -258,11 +256,11 @@ def _apply_flag_not_helpful(
     The annotation is written to .kittify/doctrine/.flags/<urn-slug>.yaml.
     """
     urn = payload.target.urn
-    urn_slug = urn.replace(":", "_").replace("/", "_")
+    urn_slug = _safe_path_component(urn)
     flags_dir = repo_root / _DOCTRINE_BASE / ".flags"
     flags_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_path = flags_dir / f"{urn_slug}.yaml"
+    artifact_path = _assert_within(flags_dir, flags_dir / f"{urn_slug}.yaml")
     target_urn = urn
 
     flag_data: dict[str, object] = {
@@ -339,20 +337,15 @@ def _apply_rewire_edge(
                 edges = loaded
 
     # Remove old edge
-    edges = [
-        e for e in edges
-        if not (
-            e.get("from_node") == old_edge.from_node
-            and e.get("to_node") == old_edge.to_node
-            and e.get("kind") == old_edge.kind
-        )
-    ]
+    edges = [e for e in edges if not (e.get("from_node") == old_edge.from_node and e.get("to_node") == old_edge.to_node and e.get("kind") == old_edge.kind)]
     # Add new edge
-    edges.append({
-        "from_node": new_edge.from_node,
-        "to_node": new_edge.to_node,
-        "kind": new_edge.kind,
-    })
+    edges.append(
+        {
+            "from_node": new_edge.from_node,
+            "to_node": new_edge.to_node,
+            "kind": new_edge.kind,
+        }
+    )
 
     with artifact_path.open("w", encoding="utf-8") as fh:
         _yaml.safe_dump(edges, fh, allow_unicode=True)
@@ -446,9 +439,7 @@ def apply_proposals(
                     RejectedProposal(
                         proposal_id=p.id,
                         reason="conflict",
-                        detail=next(
-                            cg.reason for cg in conflicts if p.id in cg.proposal_ids
-                        ),
+                        detail=next(cg.reason for cg in conflicts if p.id in cg.proposal_ids),
                     )
                 )
 
@@ -483,20 +474,13 @@ def apply_proposals(
     surviving: list[Proposal] = []
 
     for p in effective:
-        unreachable = [
-            eid
-            for eid in p.provenance.source_evidence_event_ids
-            if eid not in source_event_ids
-        ]
+        unreachable = [eid for eid in p.provenance.source_evidence_event_ids if eid not in source_event_ids]
         if unreachable:
             stale_rejected.append(
                 RejectedProposal(
                     proposal_id=p.id,
                     reason="stale_evidence",
-                    detail=(
-                        f"Evidence event ids not reachable in source mission event log: "
-                        f"{unreachable}"
-                    ),
+                    detail=(f"Evidence event ids not reachable in source mission event log: {unreachable}"),
                 )
             )
         else:
@@ -630,9 +614,7 @@ def _plan_application(proposal: Proposal) -> PlannedApplication:
     elif isinstance(payload, RewireEdgePayload):
         e = payload.edge_new
         targets = [f"drg:edge:{e.from_node}-{e.kind}-{e.to_node}"]
-        diff_preview = (
-            f"rewire DRG edge to {e.from_node!r} --[{e.kind}]--> {e.to_node!r}"
-        )
+        diff_preview = f"rewire DRG edge to {e.from_node!r} --[{e.kind}]--> {e.to_node!r}"
     elif isinstance(
         payload,
         (SynthesizeDirectivePayload, SynthesizeTacticPayload, SynthesizeProcedurePayload),
@@ -676,40 +658,27 @@ def _apply_one(
 
     # Dispatch to per-kind handler
     if isinstance(payload, AddGlossaryTermPayload):
-        target_urn, artifact_path_str = _apply_add_glossary_term(
-            payload, repo_root, proposal, actor
-        )
+        target_urn, artifact_path_str = _apply_add_glossary_term(payload, repo_root, proposal, actor)
         artifact_id = payload.term_key
     elif isinstance(payload, UpdateGlossaryTermPayload):
-        target_urn, artifact_path_str = _apply_update_glossary_term(
-            payload, repo_root, proposal, actor
-        )
+        target_urn, artifact_path_str = _apply_update_glossary_term(payload, repo_root, proposal, actor)
         artifact_id = payload.term_key
     elif isinstance(payload, FlagNotHelpfulPayload):
-        target_urn, artifact_path_str = _apply_flag_not_helpful(
-            payload, repo_root, proposal, actor
-        )
-        urn_slug = payload.target.urn.replace(":", "_").replace("/", "_")
-        artifact_id = urn_slug
+        target_urn, artifact_path_str = _apply_flag_not_helpful(payload, repo_root, proposal, actor)
+        artifact_id = payload.target.urn
     elif isinstance(payload, AddEdgePayload):
-        target_urn, artifact_path_str = _apply_add_edge(
-            payload, repo_root, proposal, actor
-        )
+        target_urn, artifact_path_str = _apply_add_edge(payload, repo_root, proposal, actor)
         e = payload.edge
         artifact_id = f"{e.from_node}-{e.kind}-{e.to_node}"
     elif isinstance(payload, RewireEdgePayload):
-        target_urn, artifact_path_str = _apply_rewire_edge(
-            payload, repo_root, proposal, actor
-        )
+        target_urn, artifact_path_str = _apply_rewire_edge(payload, repo_root, proposal, actor)
         e = payload.edge_new
         artifact_id = f"{e.from_node}-{e.kind}-{e.to_node}"
     elif isinstance(
         payload,
         (SynthesizeDirectivePayload, SynthesizeTacticPayload, SynthesizeProcedurePayload),
     ):
-        target_urn, artifact_path_str = _apply_synthesize(
-            payload, repo_root, proposal, actor
-        )
+        target_urn, artifact_path_str = _apply_synthesize(payload, repo_root, proposal, actor)
         artifact_id = payload.artifact_id
     else:
         raise NotImplementedError(f"No apply handler for proposal kind {proposal.kind!r}")

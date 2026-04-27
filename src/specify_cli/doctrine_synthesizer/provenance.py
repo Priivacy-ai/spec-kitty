@@ -22,7 +22,9 @@ Minimum field set required by FR-022 / synthesizer_hook.md:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import hashlib
 from pathlib import Path
+import re
 from typing import Any
 
 from ruamel.yaml import YAML
@@ -34,14 +36,30 @@ from specify_cli.retrospective.schema import ActorRef, Proposal
 # ---------------------------------------------------------------------------
 
 _PROVENANCE_SUBDIR = ".provenance"
+_SAFE_PATH_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _safe_path_component(value: str) -> str:
+    """Return a deterministic, traversal-safe filename stem for an artifact id."""
+    cleaned = _SAFE_PATH_COMPONENT_RE.sub("_", value).strip("._")
+    while ".." in cleaned:
+        cleaned = cleaned.replace("..", "__")
+    if not cleaned:
+        cleaned = "artifact"
+    if cleaned != value or len(cleaned) > 128:
+        digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+        cleaned = f"{cleaned[:115]}-{digest}"
+    return cleaned
 
 
 def provenance_path(artifact_path: Path, artifact_id: str) -> Path:
     """Return the canonical provenance sidecar path for *artifact_id*.
 
     The sidecar lives in a ``.provenance/`` sub-directory of the artifact's
-    parent directory.  This is deterministic given only the artifact_path and
-    artifact_id, which is the idempotency key (T035).
+    parent directory.  ``artifact_id`` is preserved in the YAML body, but the
+    filename is sanitized because DRG node ids and target URNs can contain
+    path separators, colons, or other characters that are valid identifiers
+    but unsafe as path components.
 
     Args:
         artifact_path: The path to the primary artifact on disk.
@@ -50,7 +68,7 @@ def provenance_path(artifact_path: Path, artifact_id: str) -> Path:
     Returns:
         Absolute path to the ``.provenance/<artifact_id>.yaml`` sidecar.
     """
-    return artifact_path.parent / _PROVENANCE_SUBDIR / f"{artifact_id}.yaml"
+    return artifact_path.parent / _PROVENANCE_SUBDIR / f"{_safe_path_component(artifact_id)}.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -100,10 +118,7 @@ def is_already_applied(
     data = load_provenance(sidecar_path)
     if data is None:
         return False
-    return (
-        data.get("source_mission_id") == source_mission_id
-        and data.get("source_proposal_id") == proposal_id
-    )
+    return data.get("source_mission_id") == source_mission_id and data.get("source_proposal_id") == proposal_id
 
 
 # ---------------------------------------------------------------------------
