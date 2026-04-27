@@ -242,3 +242,23 @@ The most important output of this mission is the **5 FR-021 product findings** t
 11. **Pre-existing contract-test pin drift** — `spec_kitty_events` 4.0.0 vs uv.lock 4.1.0. Not this mission's responsibility but blocks Gate 1 in any future review until resolved.
 
 These items are recorded in `kitty-specs/<slug>/issue-matrix.md` with verdicts.
+
+---
+
+## Post-review test tightenings (2026-04-27, after independent code-review feedback)
+
+After this report's first draft was committed (`2010e449`), an independent code review flagged that several FR-021 workarounds in the test were claiming proven coverage while silently absorbing the underlying regressions. Per the reviewer's recommendation that the E2E "either fail on them, mark a narrow expected failure, or scope them out explicitly", four tightenings were applied to `tests/e2e/test_charter_epic_golden_path.py`:
+
+- **A — JSON parser strictness.** `_parse_first_json_object` now captures the trailing remainder after `JSONDecoder.raw_decode` and validates each non-empty trailing line against an inline allow-list regex matching the documented F4 SaaS-sync pollution patterns. A NEW pollution mode (different from F4) now trips the test instead of being silently absorbed.
+- **B — Real synthesize calls.** The test now calls `charter synthesize --adapter fixture --dry-run --json` and `charter synthesize --adapter fixture --json` (the public-CLI surface FR-004 lists) BEFORE the `--dry-run-evidence` workaround. F1 mode is recognized by an inline matcher; if real synthesize succeeds, the workaround is skipped; if it fails with a NON-F1 mode, the test fails loudly. This proves the test actually invokes the real CLI surface.
+- **C — Lifecycle records narrow expected failure.** The silent return at the F5 gate is replaced with `pytest.xfail("F5 / FR-016 / FR-021: …")` so the test now reports the F5 regression as an expected failure (xfail) rather than passing through it. When F5 is fixed, the implementer must update the test (per the inline FIXME). The records-present branch (paired records + tight `action == issued_step_id`) is preserved.
+- **D — Prompt-file presence.** The test now asserts the `prompt_file` (or `prompt_path`) **key** is present in the live `next --json` envelope; a missing key raises `AssertionError`. The truthy check on advance is preserved; query-mode `prompt_file: null` is tolerated as documented in the live-envelope shape block.
+
+Post-tightening verification:
+- `uv run pytest tests/e2e/test_charter_epic_golden_path.py -q -s` → exit 0; **1 xfailed in 15.31s**.
+- `uv run ruff check` → clean.
+- `uv run mypy --strict --follow-imports=silent` → clean (1 pre-existing `import yaml` stubs gap unchanged from baseline).
+
+Issue-matrix verdict for P1 (uv.lock pin drift) corrected from `verified-already-fixed` to `deferred-with-followup` per the same review feedback, since the failure persists at HEAD and the resolution is operator action, not "already fixed".
+
+After tightenings, the test is more honest: it surfaces F5 as a tripwire (xfail-strict eligible in a future refactor), proves real synthesize CLI invocation, catches new JSON-stdout pollution modes, and asserts prompt-file key presence. The test still completes in ~15s wall-clock (well within NFR-001's 180 s).

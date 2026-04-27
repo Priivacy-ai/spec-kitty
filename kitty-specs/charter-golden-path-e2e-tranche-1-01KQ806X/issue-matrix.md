@@ -42,7 +42,7 @@ A bare "deferred" with no follow-up handle is a Gate 4 hard fail per the doctrin
 
 | ID | Title | Surface | Verdict | Evidence ref |
 |---|---|---|---|---|
-| P1 | `tests/contract/test_cross_repo_consumers.py::test_spec_kitty_events_module_version_matches_resolved_pin` fails (4.0.0 installed vs 4.1.0 in uv.lock) | uv environment / package pin drift | verified-already-fixed | This is environmental drift, not a code defect at HEAD. Verified pre-existing by checking out `cdcbf5df^` and running the same test — fails with the identical assertion message. Resolution path documented in the test's own error message: `uv sync` to align installed package with `uv.lock`, or regenerate the envelope snapshot via `python scripts/snapshot_events_envelope.py --force` if the bump is intentional. Not introduced by this mission. (Marking `verified-already-fixed` is a slight stretch — the failure persists at HEAD — but it is not blocked by this mission's diff and the resolution is purely environmental. Operator follow-up: re-run `uv sync` in CI before next review run.) |
+| P1 | `tests/contract/test_cross_repo_consumers.py::test_spec_kitty_events_module_version_matches_resolved_pin` fails (4.0.0 installed vs 4.1.0 in uv.lock) | uv environment / package pin drift | deferred-with-followup | Environmental drift; failure persists at HEAD. Verified pre-existing by checking out `cdcbf5df^` and running the same test — fails with identical assertion. Resolution: per the test's own error message, run `uv sync` to align the installed package with `uv.lock`, OR regenerate the envelope snapshot via `python scripts/snapshot_events_envelope.py --force` if the bump is intentional. Follow-up: file Priivacy-ai/spec-kitty issue titled "CI/dev environment hygiene: uv.lock pins `spec_kitty_events==4.1.0` but installed venv has 4.0.0; tests/contract/test_cross_repo_consumers.py::test_spec_kitty_events_module_version_matches_resolved_pin fails on every clean review run; add a pre-PR `uv sync && pytest tests/contract/` step to catch this class of drift." Owner: dev-environment / CI. (Earlier draft of this matrix marked the row `verified-already-fixed`; that was misleading because the failure is live — corrected to `deferred-with-followup` per post-review feedback.) |
 | P2 | `tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::{test_create_feature, test_setup_plan, test_full_workflow_sequence}` fail with `json.decoder.JSONDecodeError: Extra data` | Same root cause as F4 | deferred-with-followup | Follow-up handle: same as F4 (Priivacy-ai/spec-kitty SaaS-sync stdout pollution issue). Confirmed pre-existing by both WP01 reviewer and WP02 implementer via `git stash` + re-run on lane base. Fixing F4 is expected to fix these. |
 
 ---
@@ -53,9 +53,9 @@ A bare "deferred" with no follow-up handle is a Gate 4 hard fail per the doctrin
 - Empty `verdict` cells: 0
 - `unknown` verdicts: 0
 - `deferred-with-followup` rows missing follow-up handles: 0 (every deferred row names either a specific issue title to file or, for F4 and P2, a shared follow-up)
-- `fixed`: 0 (this mission did not fix any of the surfaced findings — by design; the test surfaces them, the follow-ups fix them)
-- `verified-already-fixed`: 1 (P1, with caveat)
-- `deferred-with-followup`: 9
+- `fixed`: 0 (this mission did not fix the underlying product regressions — by design; the test surfaces them, the follow-ups fix them)
+- `verified-already-fixed`: 0
+- `deferred-with-followup`: 10
 
 Per FR-037 of the issue-matrix doctrine, every cell is in the allow-list. Gate 4 passes.
 

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -99,20 +100,48 @@ def _maybe_dump_envelope(label: str, payload: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
+# F4 / FR-021 trailing-data allow-list. Documented SaaS-sync stdout
+# pollution we tolerate today: "Connection failed: Forbidden: ..." and
+# "Could not acquire sync lock within 5 s; skipping final sync" lines.
+# Any OTHER trailing text after the JSON envelope is an unexpected new
+# pollution mode and the test must fail loudly so it's surfaced as a
+# regression rather than silently absorbed. See issue-matrix.md F4.
+_F4_ALLOWED_TRAILING_LINE_RE = re.compile(
+    r"(?i)^[\s\W]*(connection failed|forbidden|sync lock|skipping (?:final )?sync).*$"
+)
+
+
 def _parse_first_json_object(stdout: str) -> dict[str, Any]:
     """Parse the first complete JSON object from stdout.
 
     Some `--json` commands write the JSON envelope to stdout but ALSO
     append non-JSON status / error lines (e.g. "Connection failed:
     Forbidden: Direct sync ingress must target Private Teamspace." from
-    a SaaS sync hook). We tolerate trailing garbage by parsing only up to
-    the first balanced top-level object.
+    a SaaS sync hook). We parse the first balanced top-level object,
+    then match the trailing remainder against the documented F4 /
+    FR-021 SaaS-sync allow-list. Any trailing line that does NOT match
+    that allow-list is a NEW pollution mode and raises -- the test
+    must not silently absorb arbitrary trailing data.
     """
     decoder = json.JSONDecoder()
     stripped = stdout.lstrip()
-    obj, _end = decoder.raw_decode(stripped)
+    obj, end = decoder.raw_decode(stripped)
     if not isinstance(obj, dict):
         raise json.JSONDecodeError("expected dict", stripped, 0)
+    # F4 / FR-021: validate the trailing remainder.
+    remainder = stripped[end:]
+    if remainder.strip():
+        for line in remainder.splitlines():
+            if not line.strip():
+                continue
+            if not _F4_ALLOWED_TRAILING_LINE_RE.match(line):
+                raise AssertionError(
+                    "FR-021 / F4: unexpected trailing data after JSON envelope. "
+                    "The documented F4 SaaS-sync pollution allow-list did not match "
+                    f"this line: {line!r}\n"
+                    "  full remainder (verbatim):\n"
+                    f"{remainder!r}"
+                )
     return obj
 
 
@@ -453,7 +482,17 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
 
     # FR-011 / FR-012: synthesize.
     #
-    # Documented FR-021 finding (extends research.md R-002): in a fresh
+    # FR-004 lists `charter synthesize --dry-run --json` and
+    # `charter synthesize --json` as the recommended flow. We invoke
+    # those PUBLIC surfaces first, asserting the documented F1 failure
+    # mode (FixtureAdapterMissingError / "fixture not found" /
+    # "adapter missing" / "could not find fixture") in a fresh
+    # project. If they unexpectedly SUCCEED (a future bugfix lands and
+    # F1 is gone), we proceed to the success path. If they fail with a
+    # DIFFERENT error message, that's an unrelated regression and the
+    # test fails loudly.
+    #
+    # Documented F1 finding (extends research.md R-002): in a fresh
     # project with no LLM harness, neither `--adapter generated` nor
     # `--adapter fixture` succeeds end-to-end:
     #   * `--adapter generated` requires LLM-authored YAML under
@@ -464,55 +503,136 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
     #     a fresh project's interview snapshot produces different hashes
     #     and the adapter raises FixtureAdapterMissingError.
     #
-    # The closest unattended-safe public surface is `--dry-run-evidence`,
-    # which prints an evidence summary and exits 0 without touching the
-    # adapter. We use that for FR-011 (verifies the command runs and does
-    # not write .kittify/doctrine/).
-    #
-    # For FR-012 (post-synthesize state), we record the gap and seed a
-    # minimal `.kittify/doctrine/` directory by hand so the downstream
-    # `next` flow can proceed. This is explicitly a FR-021 deviation —
-    # documented inline AND in the PR description.
+    # When real synthesize fails with the documented F1 mode, we fall
+    # back to `--dry-run-evidence` (FR-011) and a hand-seeded doctrine
+    # tree (FR-012) so the downstream `next` flow can proceed. This is
+    # explicitly a FR-021 deviation -- documented inline AND in the PR
+    # description.
     doctrine_path = project / ".kittify" / "doctrine"
-    doctrine_existed_before_dryrun = doctrine_path.exists()
+
+    # F1 matcher: case-insensitive substring match against the
+    # documented FixtureAdapterMissingError surfaces. Tune by running
+    # the test once and reading stderr if the message changes.
+    f1_patterns = (
+        "fixtureadaptermissingerror",
+        "fixture not found",
+        "adapter missing",
+        "could not find fixture",
+    )
+
+    def _matches_f1(completed: subprocess.CompletedProcess[str]) -> bool:
+        haystack = (completed.stderr + "\n" + completed.stdout).lower()
+        return any(pat in haystack for pat in f1_patterns)
+
+    real_synthesize_succeeded = True
+
+    # FR-004 step: real `charter synthesize --adapter fixture --dry-run --json`.
     cmd = [
         "charter", "synthesize",
         "--adapter", "fixture",
-        "--dry-run-evidence",
+        "--dry-run", "--json",
     ]
     completed = run_cli(project, *cmd)
-    if completed.returncode != 0:
-        raise AssertionError(
-            "FR-011 / FR-021 finding: `charter synthesize --adapter fixture "
-            "--dry-run-evidence` failed unexpectedly. The fixture-corpus gap "
-            "for fresh projects (R-002 / R-021 finding) was meant to be "
-            "side-stepped via --dry-run-evidence; if that path also fails, "
-            "the gap is wider than this WP can paper over.\n"
-            f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-        )
-    if not doctrine_existed_before_dryrun:
-        assert not doctrine_path.exists(), (
-            "FR-011: charter synthesize --dry-run-evidence created "
-            ".kittify/doctrine/ (it must not write any artifacts)"
-        )
+    if completed.returncode == 0:
+        # Happy surprise: real dry-run succeeded.
+        try:
+            payload = _parse_first_json_object(completed.stdout)
+        except (json.JSONDecodeError, AssertionError) as err:
+            raise AssertionError(
+                "FR-004: real `charter synthesize --adapter fixture --dry-run --json` "
+                "exited 0 but its --json output was not parseable: "
+                f"{err}\n"
+                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+            ) from err
+        _maybe_dump_envelope("charter synthesize --dry-run", payload)
+    else:
+        real_synthesize_succeeded = False
+        if not _matches_f1(completed):
+            raise AssertionError(
+                "FR-004 / FR-021: real `charter synthesize --adapter fixture "
+                "--dry-run --json` failed with an UNEXPECTED error message. The "
+                "documented F1 mode (FixtureAdapterMissingError / 'fixture not "
+                "found' / 'adapter missing' / 'could not find fixture') did not "
+                "match -- this is an unrelated regression.\n"
+                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+            )
 
-    # FR-012 finding: real synthesize cannot complete in a fresh project
-    # under either adapter (see comment above). We seed a minimal
-    # .kittify/doctrine/ so downstream charter status / lint / next can
-    # proceed. This satisfies the structural FR-012 invariant (doctrine
-    # tree exists) while explicitly NOT claiming the synthesize CLI
-    # produced it. Documented in PR description as FR-021 finding.
-    if not doctrine_path.exists():
-        doctrine_path.mkdir(parents=True, exist_ok=True)
-        (doctrine_path / "PROVENANCE.md").write_text(
-            "# Doctrine seeded by E2E test\n\n"
-            "Synthesize was unable to run end-to-end against a fresh "
-            "project (FR-021 finding); this directory is a hand-seeded "
-            "stub so the downstream `next` flow can proceed.\n",
-            encoding="utf-8",
-        )
+    # FR-004 step: real `charter synthesize --adapter fixture --json`.
+    cmd = [
+        "charter", "synthesize",
+        "--adapter", "fixture",
+        "--json",
+    ]
+    completed = run_cli(project, *cmd)
+    if completed.returncode == 0:
+        try:
+            payload = _parse_first_json_object(completed.stdout)
+        except (json.JSONDecodeError, AssertionError) as err:
+            raise AssertionError(
+                "FR-004: real `charter synthesize --adapter fixture --json` "
+                "exited 0 but its --json output was not parseable: "
+                f"{err}\n"
+                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+            ) from err
+        _maybe_dump_envelope("charter synthesize", payload)
+    else:
+        real_synthesize_succeeded = False
+        if not _matches_f1(completed):
+            raise AssertionError(
+                "FR-004 / FR-021: real `charter synthesize --adapter fixture "
+                "--json` failed with an UNEXPECTED error message. The "
+                "documented F1 mode (FixtureAdapterMissingError / 'fixture not "
+                "found' / 'adapter missing' / 'could not find fixture') did "
+                "not match -- this is an unrelated regression.\n"
+                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+            )
+
+    if not real_synthesize_succeeded:
+        # F1 / FR-021 workaround: real synthesize failed with the
+        # documented FixtureAdapterMissingError mode. Fall back to
+        # `--dry-run-evidence` (FR-011) and a hand-seeded doctrine
+        # tree (FR-012) so the downstream `next` flow can proceed.
+        doctrine_existed_before_dryrun = doctrine_path.exists()
+        cmd = [
+            "charter", "synthesize",
+            "--adapter", "fixture",
+            "--dry-run-evidence",
+        ]
+        completed = run_cli(project, *cmd)
+        if completed.returncode != 0:
+            raise AssertionError(
+                "FR-011 / FR-021 finding: `charter synthesize --adapter fixture "
+                "--dry-run-evidence` failed unexpectedly. The fixture-corpus gap "
+                "for fresh projects (R-002 / F1 finding) was meant to be "
+                "side-stepped via --dry-run-evidence; if that path also fails, "
+                "the gap is wider than this WP can paper over.\n"
+                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+            )
+        if not doctrine_existed_before_dryrun:
+            assert not doctrine_path.exists(), (
+                "FR-011: charter synthesize --dry-run-evidence created "
+                ".kittify/doctrine/ (it must not write any artifacts)"
+            )
+
+        # FR-012 hand-seed: real synthesize cannot complete in a fresh
+        # project under either adapter (F1). Seed a minimal
+        # .kittify/doctrine/ so downstream charter status / lint / next
+        # can proceed. This satisfies the structural FR-012 invariant
+        # (doctrine tree exists) while explicitly NOT claiming the
+        # synthesize CLI produced it.
+        if not doctrine_path.exists():
+            doctrine_path.mkdir(parents=True, exist_ok=True)
+            (doctrine_path / "PROVENANCE.md").write_text(
+                "# Doctrine seeded by E2E test\n\n"
+                "Synthesize was unable to run end-to-end against a fresh "
+                "project (F1 / FR-021 finding); this directory is a "
+                "hand-seeded stub so the downstream `next` flow can proceed.\n",
+                encoding="utf-8",
+            )
+
     assert doctrine_path.is_dir(), (
-        "FR-012: .kittify/doctrine/ missing (seed step did not create it)"
+        "FR-012: .kittify/doctrine/ missing (synthesize did not create it "
+        "and seed step did not create it either)"
     )
 
     # FR-013: status reports non-error state.
@@ -650,9 +770,25 @@ def _run_next_and_assert_lifecycle(
     _maybe_dump_envelope("next (query)", payload)
     assert payload is not None
     issued_step_id = _extract_step_id(payload)
+    # FR-014 / FR-021 (reviewer P2.1): the live envelope MUST expose a
+    # prompt-file key. The query-mode envelope documents that the value
+    # is null until advance mode populates it (see "Live-envelope shape"
+    # block above), so a null VALUE in query mode is acceptable, but a
+    # MISSING key is a regression and we fail loudly. The presence
+    # check uses raw key membership (not _extract_prompt_file, which
+    # only returns strings) so a null value still counts as "exposed".
+    if "prompt_file" not in payload and "prompt_path" not in payload:
+        raise AssertionError(
+            "FR-014 / FR-021: `next --json` envelope is missing the "
+            "prompt-file key. Expected one of `prompt_file` / "
+            "`prompt_path` to be present in the envelope (null is OK in "
+            "query mode; key absence is a regression). Live envelope keys "
+            f"observed: {sorted(payload.keys())!r}\n"
+            f"  payload: {json.dumps(payload, indent=2, default=str)}"
+        )
     prompt_file = _extract_prompt_file(payload)
     if prompt_file is not None:
-        # FR-014: when exposed, prompt-file path must be non-empty.
+        # FR-014: when populated, prompt-file path must be non-empty.
         assert prompt_file, "FR-014: prompt-file path is empty"
 
     # Advance mode.
@@ -673,22 +809,39 @@ def _run_next_and_assert_lifecycle(
 
     # FR-016: lifecycle records under .kittify/events/profile-invocations/.
     #
-    # FR-021 finding: against a freshly-finalized software-dev mission,
-    # the first composed action (`step_id=discovery` → `action=research`)
-    # does NOT produce paired records under
+    # F5 / FR-021 finding: against a freshly-finalized software-dev
+    # mission, the first composed action (`step_id=discovery` ->
+    # `action=research`) does NOT produce paired records under
     # `.kittify/events/profile-invocations/` in this CLI build. The
     # `step_id != action` mismatch and the missing pi_dir together
     # indicate the legacy single-dispatch path is being taken, not the
-    # composition path that writes profile-invocation records. Surfaced
-    # as FR-021 finding in the PR description.
+    # composition path that writes profile-invocation records.
     #
-    # The test still enforces the regression-sensitive assertion when
-    # records ARE present (so a future build that DOES write them gets
-    # the tight `action == issued_step_id` guard FR-016 demands).
+    # Reviewer P1.3: the previous silent `return` masked this core
+    # #827 acceptance. Approach picked: `pytest.xfail()` IN-PLACE
+    # (rather than refactoring into a second test function).
+    # Rationale: the full operator-path setup is expensive (single
+    # slow e2e); duplicating it for one assertion would roughly
+    # double the suite wall-clock for marginal gain. The brief
+    # explicitly accepts this interim measure; refactor into a
+    # standalone `test_charter_epic_lifecycle_records_paired` xfail
+    # test is a recommended follow-up when the full setup becomes a
+    # session-scoped fixture.
+    #
+    # The tight `action == issued_step_id` regression assertion below
+    # MUST keep firing once F5 is fixed and records become present,
+    # so we still execute the paired-records and action-name checks
+    # unconditionally when the directory IS present.
     pi_dir = project / ".kittify" / "events" / "profile-invocations"
     if not pi_dir.is_dir():
-        # Documented finding: skip the paired-records check.
-        return
+        pytest.xfail(
+            "F5 / FR-016 / FR-021: `next --result success` for the first "
+            "composed action (step_id=discovery -> action=research) does "
+            "not create .kittify/events/profile-invocations/. When F5 is "
+            "fixed, remove this xfail and the matrix gate (see "
+            "kitty-specs/charter-golden-path-e2e-tranche-1-01KQ806X/"
+            "issue-matrix.md F5)."
+        )
     started: list[dict[str, Any]] = []
     completed_records: list[dict[str, Any]] = []
     for jsonl_file in sorted(pi_dir.glob("*.jsonl")):
