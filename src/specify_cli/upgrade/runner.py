@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import platform
 import sys
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ from typing import Any
 
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
+
+logger = logging.getLogger(__name__)
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
@@ -401,12 +404,28 @@ class MigrationRunner:
 
         metadata_path = kittify_dir / "metadata.yaml"
         if not metadata_path.exists():
+            # Why: every spec-kitty project has metadata.yaml after init, so this
+            # branch is unreachable in normal operation. Log instead of raising
+            # so a corrupted dev environment surfaces a diagnostic. See FU-4 in
+            # kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/follow-ups.md.
+            logger.warning(
+                "schema_version stamp skipped: %s does not exist", metadata_path
+            )
             return
 
         try:
             with open(metadata_path, encoding="utf-8-sig") as fh:
                 data = yaml.safe_load(fh)
-        except (OSError, yaml.YAMLError):
+        except (OSError, yaml.YAMLError) as exc:
+            # Why: a parse failure here means the metadata file became corrupt
+            # between the upgrade entry point and this stamp call. Surface the
+            # cause so operators can repair it. See FU-4 in
+            # kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/follow-ups.md.
+            logger.warning(
+                "schema_version stamp skipped: failed to read %s (%s)",
+                metadata_path,
+                exc,
+            )
             return
 
         if not isinstance(data, dict):
