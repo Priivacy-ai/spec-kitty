@@ -2,186 +2,208 @@
 # Required because meta.json::change_mode == "bulk_edit".
 # Implementing agents MUST consult this before touching any matching reference.
 
-mission_id: "01KQ7YXHA5AMZHJT3HQ8XPTZ6B"
-mission_slug: "release-3-2-0a5-tranche-1-01KQ7YXH"
-target_string: "/spec-kitty.checklist"
-related_strings:
-  - "checklist.md"                # source template / snapshot filename
-  - "spec-kitty.checklist.md"     # generated agent copy filename
-  - "spec-kitty.checklist"        # bare command identifier
-generated_at: "2026-04-27T17:30:00+00:00"
-
-# All paths are relative to the repo root:
-# /Users/robert/spec-kitty-dev/spec-kitty-20260427-190321-KGr7VE/spec-kitty
+target:
+  term: "/spec-kitty.checklist"
+  operation: remove
+  replacement: null
 
 categories:
 
   code_symbols:
-    remove:
+    action: rename
+    notes: |
+      One occurrence: legacy hash catalog entry in
+      `src/specify_cli/upgrade/migrations/_legacy_codex_hashes.py:~40`
+      keyed on `spec-kitty.checklist.md`. Remove the entry.
+    occurrences:
       - path: src/specify_cli/upgrade/migrations/_legacy_codex_hashes.py
         line: ~40
-        reason: "Legacy hash-catalog entry for the deprecated checklist command file."
-    keep: []
+        decision: REMOVE
+        reason: Legacy hash-catalog entry for the deprecated checklist command file.
 
   import_paths:
-    remove: []
-    keep: []
+    action: do_not_change
+    notes: No import-path occurrences of the deprecated command.
 
   filesystem_paths:
-    remove:
+    action: manual_review
+    notes: |
+      Mixed REMOVE and KEEP occurrences. Implementing agent MUST consult
+      this list per file. REMOVE entries are deprecated agent-surface files;
+      KEEP entries are this mission's own planning artifacts that describe
+      the removal initiative.
+    occurrences:
       - path: src/specify_cli/missions/software-dev/command-templates/checklist.md
-        line: 1
-        reason: "Source template for the deprecated /spec-kitty.checklist command. Removing this stops the renderer from generating the per-agent copies."
+        decision: REMOVE
+        reason: Source template for /spec-kitty.checklist; removing this stops the renderer from generating per-agent copies.
       - path: .kittify/overrides/missions/software-dev/command-templates/checklist.md
-        line: 1
-        reason: "Override copy of the deprecated source template. Removing this prevents reintroduction during upgrade."
+        decision: REMOVE
+        reason: Override copy of the deprecated source template.
       - path: tests/specify_cli/upgrade/fixtures/codex_legacy/mixed/.codex/prompts/spec-kitty.checklist.md
-        line: 1
-        reason: "Legacy upgrade-fixture file representing the codex-era checklist command surface."
+        decision: REMOVE
+        reason: Legacy upgrade-fixture file (codex-era).
       - path: tests/specify_cli/upgrade/fixtures/codex_legacy/owned_unedited_only/.codex/prompts/spec-kitty.checklist.md
-        line: 1
-        reason: "As above, owned-unedited variant of the legacy fixture."
+        decision: REMOVE
+        reason: Legacy upgrade-fixture (owned-unedited variant).
       - path: tests/specify_cli/skills/__snapshots__/codex/checklist.SKILL.md
-        line: 1
-        reason: "Snapshot fixture for the deprecated checklist skill (codex variant)."
+        decision: REMOVE
+        reason: Snapshot fixture for the deprecated checklist skill (codex variant).
       - path: tests/specify_cli/skills/__snapshots__/vibe/checklist.SKILL.md
-        line: 1
-        reason: "Snapshot fixture for the deprecated checklist skill (vibe variant)."
+        decision: REMOVE
+        reason: Snapshot fixture for the deprecated checklist skill (vibe variant).
       - path: tests/specify_cli/regression/_twelve_agent_baseline/claude/checklist.md
-        line: 1
-        reason: "Regression baseline for the claude agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the claude agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/cursor/checklist.md
-        line: 1
-        reason: "Regression baseline for the cursor agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the cursor agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/opencode/checklist.md
-        line: 1
-        reason: "Regression baseline for the opencode agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the opencode agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/windsurf/checklist.md
-        line: 1
-        reason: "Regression baseline for the windsurf agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the windsurf agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/kilocode/checklist.md
-        line: 1
-        reason: "Regression baseline for the kilocode agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the kilocode agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/auggie/checklist.md
-        line: 1
-        reason: "Regression baseline for the augment agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the augment agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/roo/checklist.md
-        line: 1
-        reason: "Regression baseline for the roo agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the roo agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/q/checklist.md
-        line: 1
-        reason: "Regression baseline for the amazon-q agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the amazon-q agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/kiro/checklist.md
-        line: 1
-        reason: "Regression baseline for the kiro agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the kiro agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/antigravity/checklist.md
-        line: 1
-        reason: "Regression baseline for the antigravity agent's deprecated checklist command surface."
+        decision: REMOVE
+        reason: Regression baseline for the antigravity agent.
       - path: tests/specify_cli/regression/_twelve_agent_baseline/copilot/checklist.prompt.md
-        line: 1
-        reason: "Regression baseline for the github-copilot agent's deprecated checklist prompt surface."
-    keep:
+        decision: REMOVE
+        reason: Regression baseline for the github-copilot agent.
       - path: kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/spec.md
-        line: ~ALL
-        keep_reason: "This mission's own spec.md describes the removal initiative; the references are descriptive, not prescriptive surfaces."
+        decision: KEEP
+        reason: This mission's own spec.md describes the removal initiative; the references are descriptive, not prescriptive surfaces.
       - path: kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/occurrence_map.yaml
-        line: ~ALL
-        keep_reason: "This file IS the occurrence map; references are unavoidable and required for DIRECTIVE_035 enforcement."
+        decision: KEEP
+        reason: This file IS the occurrence map; references are unavoidable and required for DIRECTIVE_035 enforcement.
 
   serialized_keys:
-    remove:
+    action: rename
+    notes: |
+      One occurrence: command-skills-manifest entry. Removing the JSON
+      object referencing `.agents/skills/spec-kitty.checklist/SKILL.md`.
+    occurrences:
       - path: .kittify/command-skills-manifest.json
         line: ~36
-        reason: "Manifest registry entry for .agents/skills/spec-kitty.checklist/SKILL.md."
-    keep: []
+        decision: REMOVE
+        reason: Manifest registry entry for spec-kitty.checklist.
 
   cli_commands:
-    remove:
+    action: manual_review
+    notes: |
+      Mixed REMOVE and KEEP occurrences. The REMOVE is the post-init
+      quick-start line; the KEEP is wording inside /spec-kitty.specify
+      template prose that names the requirements *checklist artifact*
+      (kitty-specs/<m>/checklists/requirements.md) by purpose, not the
+      deprecated /spec-kitty.checklist command.
+    occurrences:
       - path: src/specify_cli/cli/commands/init.py
         line: 723
-        reason: "Post-init quick-start prints '○ /spec-kitty.checklist' as part of the suggested workflow. With the command retired, this line must be removed."
-    keep:
+        decision: REMOVE
+        reason: Post-init quick-start prints '○ /spec-kitty.checklist' as part of the suggested workflow. With the command retired, this line must be removed.
       - path: src/specify_cli/missions/software-dev/command-templates/specify.md
-        line: ~ALL
-        keep_reason: "/spec-kitty.specify template references the requirements *checklist* artifact (kitty-specs/<mission>/checklists/requirements.md) by purpose, not the deprecated /spec-kitty.checklist command. Wording must be reviewed during implementation to ensure no leftover references to the deprecated command surface — only purpose-mode mentions of the checklist artifact survive."
+        decision: KEEP
+        reason: References the requirements *checklist* artifact path by purpose. Wording must be reviewed during implementation to confirm no leftover references to the deprecated command surface — only purpose-mode mentions of the checklist artifact survive.
 
   user_facing_strings:
-    remove:
+    action: manual_review
+    notes: |
+      Mixed REMOVE and KEEP occurrences in public-facing docs and README.
+      REMOVE the slash-command references; KEEP references to the canonical
+      requirements.md artifact and to release/review checklist concepts.
+    occurrences:
       - path: README.md
-        line: ~3
-        reason: "Public-facing README references the deprecated command surface."
-      - path: README.md
-        line: ~7
-        reason: "Second occurrence in the README quick-start section."
+        decision: REMOVE
+        reason: Public-facing README references the deprecated command surface (multiple lines).
       - path: docs/reference/slash-commands.md
-        line: ~2
-        reason: "Reference documentation for the deprecated /spec-kitty.checklist command."
-      - path: docs/reference/slash-commands.md
-        line: ~3
-        reason: "Second occurrence inside the same reference page."
+        decision: REMOVE
+        reason: Reference documentation for the deprecated command.
       - path: docs/reference/file-structure.md
-        line: ~2
-        reason: "File-structure documentation references the deprecated command surface."
-      - path: docs/reference/file-structure.md
-        line: ~3
-        reason: "Second occurrence inside the same reference page."
+        decision: REMOVE
+        reason: File-structure documentation references the deprecated command surface.
       - path: docs/reference/supported-agents.md
-        line: ~1
-        reason: "Supported-agents table lists the deprecated /spec-kitty.checklist command."
-    keep:
+        decision: REMOVE
+        reason: Supported-agents table lists the deprecated /spec-kitty.checklist command.
       - path: README.md
-        line: "see KEEP rationale"
-        keep_reason: "Any README reference to kitty-specs/<mission>/checklists/requirements.md (canonical artifact) MUST stay. Implementing agent must distinguish surface-command references (REMOVE) from artifact-name references (KEEP)."
+        decision: KEEP
+        reason: Any README reference to kitty-specs/<m>/checklists/requirements.md (canonical artifact) MUST stay.
       - path: docs/reference/file-structure.md
-        line: "see KEEP rationale"
-        keep_reason: "References to the kitty-specs/<mission>/checklists/ directory and to requirements.md as a Spec Kitty artifact MUST stay; they describe the artifact path, not the deprecated command."
+        decision: KEEP
+        reason: References to the kitty-specs/<m>/checklists/ directory and to requirements.md as a Spec Kitty artifact MUST stay.
       - path: RELEASE_CHECKLIST.md
-        line: ~ALL
-        keep_reason: "Project release checklist file; unrelated to the deprecated /spec-kitty.checklist command."
+        decision: KEEP
+        reason: Project release checklist file; unrelated to the deprecated command.
 
   tests_fixtures:
-    remove:
+    action: manual_review
+    notes: |
+      Existing skills/registry/installer tests reference the deprecated
+      checklist surface in their expected sets. Update each to drop
+      checklist; add new aggregate scanner test (`test_no_checklist_surface.py`)
+      and new artifact-preservation test
+      (`test_specify_creates_requirements_checklist.py`).
+    occurrences:
       - path: tests/specify_cli/skills/test_registry.py
-        line: ~ALL
-        reason: "Tests that reference the deprecated checklist skill must be updated; if any test exists solely to verify checklist presence, it must be removed. Updates land in the same WP as FR-003."
+        decision: REMOVE
+        reason: Drop checklist from expected sets.
       - path: tests/specify_cli/skills/test_command_renderer.py
-        line: ~ALL
-        reason: "Renderer tests that produce checklist.md outputs must be updated to expect zero such files."
+        decision: REMOVE
+        reason: Assert checklist is NOT among rendered outputs.
       - path: tests/specify_cli/skills/test_installer.py
-        line: ~ALL
-        reason: "Installer tests that install the checklist skill must be updated."
+        decision: REMOVE
+        reason: Assert checklist is NOT installed.
       - path: tests/missions/test_command_templates_canonical_path.py
-        line: ~ALL
-        reason: "Canonical-path test must drop checklist.md from its expected set."
-    keep:
+        decision: REMOVE
+        reason: Drop checklist from canonical path enumeration.
       - path: tests/specify_cli/cli/commands/test_init_manifest_coexistence.py
-        line: ~ALL
-        keep_reason: "Test references the canonical kitty-specs/<mission>/checklists/requirements.md artifact — must continue passing."
+        decision: KEEP
+        reason: Test references the canonical kitty-specs/<m>/checklists/requirements.md artifact; must continue passing.
 
   logs_telemetry:
-    remove:
+    action: manual_review
+    notes: |
+      Historical migration ledger notes in .kittify/metadata.yaml record
+      past deletions ("Removed: .claude/commands/spec-kitty.checklist.md").
+      These represent historical truth; default policy is KEEP. Implementer
+      may flip to REMOVE if a documentation-history cleanup pass is
+      explicitly authorized in this tranche.
+    occurrences:
       - path: .kittify/metadata.yaml
         line: ~4
-        reason: "Historical migration ledger note 'Removed: .claude/commands/spec-kitty.checklist.md'. Already past tense; can stay if it represents historical truth, but classified as REMOVE if a future cleanup pass strips superseded notes. Implementing agent must decide based on the tranche's documentation-history policy. Default: keep as historical record (move to KEEP if explicit policy says so)."
+        decision: KEEP
+        reason: Historical migration ledger note (past tense). Preserve unless explicitly directed otherwise.
       - path: .kittify/metadata.yaml
         line: ~5
-        reason: "Second historical migration ledger note. Same treatment as above."
-    keep: []
+        decision: KEEP
+        reason: Second historical migration ledger note. Same treatment.
 
-totals:
-  remove_count: 27
-  keep_count: 6
+exceptions: []
+
+status:
+  totals:
+    remove_count: 27
+    keep_count: 8
   remove_categories_used: 6   # of 8
   keep_categories_used: 4
-
-# Audit notes:
-# - All REMOVE entries are deprecated surfaces or fixtures that must go to satisfy
-#   FR-003 / NFR-003 ("zero references to /spec-kitty.checklist across all 15
-#   supported agents").
-# - All KEEP entries either describe the canonical
-#   kitty-specs/<mission>/checklists/requirements.md artifact (which spec.md C-003
-#   forbids removing) or are this mission's own planning artifacts.
-# - The implementing agent for WP04 MUST regenerate the per-agent baseline
-#   directories under tests/specify_cli/regression/_twelve_agent_baseline/ after
-#   the source template is removed, to ensure the baselines reflect the new
-#   reduced surface for every agent (not just the ones explicitly named above).
+  notes: |
+    Generated 2026-04-27 by /spec-kitty.plan and revised 2026-04-27 to fit
+    the OccurrenceMap schema validator (target.term/operation + per-category
+    action keys + occurrences[] under each category). The implementing
+    agent for WP04 MUST regenerate the per-agent baseline directories
+    under tests/specify_cli/regression/_twelve_agent_baseline/ after the
+    source template is removed, so baselines reflect the new reduced
+    surface for every agent.
