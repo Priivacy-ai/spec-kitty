@@ -1,7 +1,7 @@
 {
-  "event_count": 3,
-  "last_event_id": "01KQ6NKSG98DT2CYGF95H255BR",
-  "materialized_at": "2026-04-27T05:11:54.121683+00:00",
+  "event_count": 5,
+  "last_event_id": "01KQ6NM6CSE6FNHAB97TC9B957",
+  "materialized_at": "2026-04-27T05:12:07.321822+00:00",
   "mission_number": "",
   "mission_slug": "documentation-mission-composition-fixup-01KQ6N5X",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ6NKS8S95KCQG2KQF7AF9JA",
-      "last_transition_at": "2026-04-27T05:11:53.881225+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ6NM6CSE6FNHAB97TC9B957",
+      "last_transition_at": "2026-04-27T05:12:07.321822+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
