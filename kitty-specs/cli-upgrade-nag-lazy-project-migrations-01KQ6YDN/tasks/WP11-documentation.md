@@ -11,8 +11,8 @@ merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T042
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "20347"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "20703"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -146,3 +146,4 @@ spec-kitty agent action implement WP11 --agent <name>
 
 - 2026-04-27T10:37:33Z – claude:sonnet:python-implementer:implementer – shell_pid=20347 – Started implementation via action command
 - 2026-04-27T10:40:17Z – claude:sonnet:python-implementer:implementer – shell_pid=20347 – Ready: install-and-upgrade rewritten with all 9 sections, end-user voice, cross-linked
+- 2026-04-27T10:40:40Z – claude:opus:python-reviewer:reviewer – shell_pid=20703 – Started review via action command
