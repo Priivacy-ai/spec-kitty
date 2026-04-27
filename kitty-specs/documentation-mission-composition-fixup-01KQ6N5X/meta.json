@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-27T05:04:20.052392+00:00",
+  "friendly_name": "documentation mission composition fixup",
+  "mission_id": "01KQ6N5X9EHGJPPMZN00X6EVX1",
+  "mission_number": null,
+  "mission_slug": "documentation-mission-composition-fixup-01KQ6N5X",
+  "mission_type": "software-dev",
+  "slug": "documentation-mission-composition-fixup-01KQ6N5X",
+  "target_branch": "main"
+}
