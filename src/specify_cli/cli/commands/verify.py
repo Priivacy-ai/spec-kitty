@@ -12,7 +12,7 @@ from rich.table import Table
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_selector
-from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
+from specify_cli.cli.helpers import console, get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
@@ -121,7 +121,6 @@ def verify_setup(
         raise typer.Exit(1) from exc
 
     project_root = get_project_root_or_exit(repo_root)
-    check_version_compatibility(project_root, "verify")
     cwd = Path.cwd()
 
     # Detect feature directory from --mission flag or current context

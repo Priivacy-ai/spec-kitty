@@ -339,7 +339,6 @@ def check_version_compatibility(project_root: Path, command_name: str) -> None:
 __all__ = [
     "BannerGroup",
     "callback",
-    "check_version_compatibility",
     "console",
     "get_project_root_or_exit",
     "show_banner",
