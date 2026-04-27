@@ -1,4 +1,5 @@
 """Load and validate the shim registry YAML."""
+
 from __future__ import annotations
 
 import dataclasses

@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "mission_slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
+  "mission_id": "01KQ6YDNMX2X2AN4WH43R5K2ZS",
+  "mission_branch": "kitty/mission-cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11"
+      ],
+      "write_scope": [
+        "docs/how-to/install-and-upgrade.md",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/cli/helpers.py",
+        "src/specify_cli/compat/__init__.py",
+        "src/specify_cli/compat/_adapters/__init__.py",
+        "src/specify_cli/compat/_adapters/detector.py",
+        "src/specify_cli/compat/_adapters/gate.py",
+        "src/specify_cli/compat/_adapters/version_checker.py",
+        "src/specify_cli/compat/_detect/__init__.py",
+        "src/specify_cli/compat/_detect/install_method.py",
+        "src/specify_cli/compat/_init_exports.py",
+        "src/specify_cli/compat/cache.py",
+        "src/specify_cli/compat/config.py",
+        "src/specify_cli/compat/messages.py",
+        "src/specify_cli/compat/planner.py",
+        "src/specify_cli/compat/provider.py",
+        "src/specify_cli/compat/safety.py",
+        "src/specify_cli/compat/safety_modes.py",
+        "src/specify_cli/compat/upgrade_hint.py",
+        "src/specify_cli/migration/gate.py",
+        "src/specify_cli/migration/schema_version.py",
+        "tests/architectural/test_compat_shims.py",
+        "tests/architectural/test_safety_registry_completeness.py",
+        "tests/cli_gate/__init__.py",
+        "tests/cli_gate/conftest.py",
+        "tests/cli_gate/test_ci_determinism.py",
+        "tests/cli_gate/test_dashboard_modes.py",
+        "tests/cli_gate/test_doctor_modes.py",
+        "tests/cli_gate/test_safe_commands.py",
+        "tests/cli_gate/test_unsafe_commands.py",
+        "tests/specify_cli/cli/commands/test_upgrade_command.py",
+        "tests/specify_cli/compat/__init__.py",
+        "tests/specify_cli/compat/test_cache.py",
+        "tests/specify_cli/compat/test_config.py",
+        "tests/specify_cli/compat/test_install_method.py",
+        "tests/specify_cli/compat/test_messages.py",
+        "tests/specify_cli/compat/test_planner.py",
+        "tests/specify_cli/compat/test_provider_fake.py",
+        "tests/specify_cli/compat/test_provider_no_network.py",
+        "tests/specify_cli/compat/test_provider_pypi.py",
+        "tests/specify_cli/compat/test_safety.py",
+        "tests/specify_cli/compat/test_upgrade_hint.py",
+        "tests/specify_cli/migration/test_schema_version_range.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-27T08:33:40.357567+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP03"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP06"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP04"
+      },
+      {
+        "wp_a": "WP11",
+        "wp_b": "WP08",
+        "rule": "dependency",
+        "evidence": "WP11 depends on WP08"
+      }
+    ],
+    "total_merges": 10,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 10
+    }
+  }
+}

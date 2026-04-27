@@ -140,7 +140,6 @@ def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission_type.check_version_compatibility"),
         patch("specify_cli.cli.commands.mission_type._detect_current_feature", return_value=None),
     ):
         result = runner.invoke(app, ["current"])
@@ -317,7 +316,6 @@ def test_verify_setup_passes_feature_dir_to_run_enhanced_verify(tmp_path: Path) 
     with (
         patch("specify_cli.cli.commands.verify.find_repo_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.verify.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.verify.check_version_compatibility"),
         patch("specify_cli.cli.commands.verify.run_enhanced_verify", side_effect=fake_run_enhanced_verify),
     ):
         # Call with json_output to avoid console rendering issues, and skip tool checks

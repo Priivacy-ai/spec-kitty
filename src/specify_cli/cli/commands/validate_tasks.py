@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_selector
-from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
+from specify_cli.cli.helpers import console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
@@ -48,7 +48,6 @@ def validate_tasks(
         raise typer.Exit(1)
 
     project_root = get_project_root_or_exit(repo_root)
-    check_version_compatibility(project_root, "validate-tasks")
 
     # Get agent and shell_pid from environment if not provided
     if not agent:

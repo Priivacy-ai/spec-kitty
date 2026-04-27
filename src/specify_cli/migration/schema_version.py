@@ -9,16 +9,22 @@ version does not match ``REQUIRED_SCHEMA_VERSION``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 import yaml
 
 
-# The schema version this build of the CLI requires.
-# Set to None during development to disable the gate until 3.0.0 ships.
-# Change to 3 when the one-shot migration (m_3_0_0) is part of a release.
-REQUIRED_SCHEMA_VERSION: int | None = None
+# Inclusive range of project schema versions this CLI build supports.
+# Both endpoints set to the same value during the no-op activation phase
+# (no project is currently blocked by the gate). A later release will bump
+# MIN after the migration that retires schemas <MIN ships.
+MIN_SUPPORTED_SCHEMA: int = 3
+MAX_SUPPORTED_SCHEMA: int = 3
+
+# DEPRECATED: kept for backward-compatible imports. New code should read
+# MIN_SUPPORTED_SCHEMA / MAX_SUPPORTED_SCHEMA directly.
+REQUIRED_SCHEMA_VERSION: int | None = MIN_SUPPORTED_SCHEMA
 
 # Capabilities introduced by each schema version.
 SCHEMA_CAPABILITIES: dict[int, list[str]] = {
@@ -26,7 +32,7 @@ SCHEMA_CAPABILITIES: dict[int, list[str]] = {
 }
 
 
-class CompatibilityStatus(str, Enum):
+class CompatibilityStatus(StrEnum):
     """Outcome of a schema-version compatibility check."""
 
     COMPATIBLE = "compatible"

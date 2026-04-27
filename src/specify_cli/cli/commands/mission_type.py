@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
+from specify_cli.cli.helpers import console, get_project_root_or_exit
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.mission import (
     Mission,
@@ -143,7 +143,6 @@ def _print_available_missions(project_root: Path) -> None:
 def list_cmd() -> None:
     """List all available missions with their source (project/built-in)."""
     project_root = get_project_root_or_exit()
-    check_version_compatibility(project_root, "mission")
     kittify_dir = project_root / ".kittify"
     if not kittify_dir.exists():
         console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
@@ -183,7 +182,6 @@ def current_cmd(
 ) -> None:
     """Show currently active mission for a mission (auto-detects mission from cwd)."""
     project_root = get_project_root_or_exit()
-    check_version_compatibility(project_root, "mission")
 
     detected_mission = _detect_current_feature(project_root)
 
@@ -258,7 +256,6 @@ def info_cmd(
 ) -> None:
     """Show details for a specific mission without switching."""
     project_root = get_project_root_or_exit()
-    check_version_compatibility(project_root, "mission")
     kittify_dir = project_root / ".kittify"
 
     try:

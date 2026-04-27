@@ -20,6 +20,7 @@ import pytest
 import yaml
 
 from specify_cli.migration.schema_version import (
+    MIN_SUPPORTED_SCHEMA,
     REQUIRED_SCHEMA_VERSION,
     CompatibilityStatus,
     check_compatibility,
@@ -27,8 +28,8 @@ from specify_cli.migration.schema_version import (
 )
 from specify_cli.migration.gate import check_schema_version
 
-# Use a concrete version for testing (REQUIRED_SCHEMA_VERSION may be None during dev)
-_TEST_SCHEMA_VERSION: int = 3
+# The current production schema version (equals MIN_SUPPORTED_SCHEMA = MAX_SUPPORTED_SCHEMA = 3).
+_TEST_SCHEMA_VERSION: int = MIN_SUPPORTED_SCHEMA
 
 
 # ---------------------------------------------------------------------------
@@ -99,36 +100,36 @@ def test_check_compatibility_cli_outdated():
 # ---------------------------------------------------------------------------
 # T058-5: gate raises SystemExit for incompatible projects
 # ---------------------------------------------------------------------------
+# WP07 note: gate now delegates to compat.planner which uses exit codes
+# 4 (BLOCK_PROJECT_MIGRATION) and 5 (BLOCK_CLI_UPGRADE) rather than 1.
+# The intent of these tests is preserved: incompatible projects are blocked.
 
 
-def test_gate_raises_on_unmigrated(tmp_path, monkeypatch):
-    """Gate raises SystemExit(1) when schema_version is missing."""
-    monkeypatch.setattr("specify_cli.migration.gate.REQUIRED_SCHEMA_VERSION", _TEST_SCHEMA_VERSION)
+def test_gate_raises_on_unmigrated(tmp_path):
+    """Gate raises SystemExit when schema_version is missing (LEGACY → BLOCK_PROJECT_MIGRATION, code 4)."""
     _write_metadata(tmp_path, schema_version=None)  # no schema_version field
 
     with pytest.raises(SystemExit) as exc_info:
         check_schema_version(tmp_path, invoked_subcommand="plan")
-    assert exc_info.value.code == 1
+    assert exc_info.value.code == 4
 
 
-def test_gate_raises_on_outdated(tmp_path, monkeypatch):
-    """Gate raises SystemExit(1) when project schema is behind CLI."""
-    monkeypatch.setattr("specify_cli.migration.gate.REQUIRED_SCHEMA_VERSION", _TEST_SCHEMA_VERSION)
+def test_gate_raises_on_outdated(tmp_path):
+    """Gate raises SystemExit when project schema is behind CLI (STALE → BLOCK_PROJECT_MIGRATION, code 4)."""
     _write_metadata(tmp_path, schema_version=_TEST_SCHEMA_VERSION - 1)
 
     with pytest.raises(SystemExit) as exc_info:
         check_schema_version(tmp_path, invoked_subcommand="specify")
-    assert exc_info.value.code == 1
+    assert exc_info.value.code == 4
 
 
-def test_gate_raises_on_cli_outdated(tmp_path, monkeypatch):
-    """Gate raises SystemExit(1) when project schema is ahead of CLI."""
-    monkeypatch.setattr("specify_cli.migration.gate.REQUIRED_SCHEMA_VERSION", _TEST_SCHEMA_VERSION)
+def test_gate_raises_on_cli_outdated(tmp_path):
+    """Gate raises SystemExit when project schema is ahead of CLI (TOO_NEW → BLOCK_CLI_UPGRADE, code 5)."""
     _write_metadata(tmp_path, schema_version=_TEST_SCHEMA_VERSION + 1)
 
     with pytest.raises(SystemExit) as exc_info:
         check_schema_version(tmp_path, invoked_subcommand="specify")
-    assert exc_info.value.code == 1
+    assert exc_info.value.code == 5
 
 
 # ---------------------------------------------------------------------------
