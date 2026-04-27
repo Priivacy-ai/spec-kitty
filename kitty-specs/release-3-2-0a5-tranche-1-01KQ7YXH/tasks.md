@@ -17,11 +17,11 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T002 | Extend `tests/cross_cutting/versioning/test_upgrade_version_update.py` with schema_version persistence assertion | WP01 | [D] |
 | T003 | New `tests/e2e/test_upgrade_post_state.py` smoke covering upgrade → branch-context | WP01 | [D] |
 | T004 | Run `mypy --strict` and `ruff check` on changed surfaces; address any drift | WP01 |          | [D] |
-| T005 | Bump `pyproject.toml::[project].version` from `3.2.0a4` → `3.2.0a5`         | WP02 |          |
-| T006 | Split `CHANGELOG.md` heading: convert `[Unreleased - 3.2.0]` → `[3.2.0a5] — <date>` and insert new `[Unreleased]` placeholder above | WP02 |          |
-| T007 | Consolidate per-FR CHANGELOG entries under `[3.2.0a5]` (collected from each landed WP's PR description) | WP02 |          |
-| T008 | Run `tests/release/test_dogfood_command_set.py` and `tests/release/test_release_prep.py`; update fixtures if drifted | WP02 |          |
-| T009 | Verify `spec-kitty --version` reports `3.2.0a5` after editable reinstall   | WP02 |          |
+| T005 | Bump `pyproject.toml::[project].version` from `3.2.0a4` → `3.2.0a5`         | WP02 |          | [D] |
+| T006 | Split `CHANGELOG.md` heading: convert `[Unreleased - 3.2.0]` → `[3.2.0a5] — <date>` and insert new `[Unreleased]` placeholder above | WP02 |          | [D] |
+| T007 | Consolidate per-FR CHANGELOG entries under `[3.2.0a5]` (collected from each landed WP's PR description) | WP02 |          | [D] |
+| T008 | Run `tests/release/test_dogfood_command_set.py` and `tests/release/test_release_prep.py`; update fixtures if drifted | WP02 |          | [D] |
+| T009 | Verify `spec-kitty --version` reports `3.2.0a5` after editable reinstall   | WP02 |          | [D] |
 | T010 | Replace `.python-version` contents with `3.11`                              | WP03 |          | [D] |
 | T011 | Run `mypy --strict src/specify_cli/mission_step_contracts/executor.py`; triage and fix any errors | WP03 |          | [D] |
 | T012 | Add new test `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` invoking mypy in-process and asserting clean exit | WP03 | [D] |
@@ -82,11 +82,11 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P0 — gates `tests/release/`; lands LAST so per-WP CHANGELOG entries can be consolidated.
 - **Independent test**: `tests/release/test_dogfood_command_set.py` and `tests/release/test_release_prep.py` pass.
 - **Subtasks**:
-  - [ ] T005 Bump `pyproject.toml::[project].version` from `3.2.0a4` → `3.2.0a5` (WP02)
-  - [ ] T006 Split `CHANGELOG.md` heading: convert `[Unreleased - 3.2.0]` → `[3.2.0a5] — <date>` and insert new `[Unreleased]` placeholder above (WP02)
-  - [ ] T007 Consolidate per-FR CHANGELOG entries under `[3.2.0a5]` (collected from each landed WP's PR description) (WP02)
-  - [ ] T008 Run `tests/release/test_dogfood_command_set.py` and `tests/release/test_release_prep.py`; update fixtures if drifted (WP02)
-  - [ ] T009 Verify `spec-kitty --version` reports `3.2.0a5` after editable reinstall (WP02)
+  - [x] T005 Bump `pyproject.toml::[project].version` from `3.2.0a4` → `3.2.0a5` (WP02)
+  - [x] T006 Split `CHANGELOG.md` heading: convert `[Unreleased - 3.2.0]` → `[3.2.0a5] — <date>` and insert new `[Unreleased]` placeholder above (WP02)
+  - [x] T007 Consolidate per-FR CHANGELOG entries under `[3.2.0a5]` (collected from each landed WP's PR description) (WP02)
+  - [x] T008 Run `tests/release/test_dogfood_command_set.py` and `tests/release/test_release_prep.py`; update fixtures if drifted (WP02)
+  - [x] T009 Verify `spec-kitty --version` reports `3.2.0a5` after editable reinstall (WP02)
 - **Implementation sketch**: Mechanical edits + run release-prep tests + add CHANGELOG entries summarizing each WP01/WP03..WP08 fix.
 - **Parallel opportunities**: none — single-file consolidator.
 - **Dependencies**: WP01, WP03, WP04, WP05, WP06, WP07, WP08 (lands last).
