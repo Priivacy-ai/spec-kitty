@@ -1,7 +1,7 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.1.3
+> Version: 1.1.4
 
 ## Purpose
 
@@ -155,6 +155,11 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 - Do **not** use **`main repository`**, **`main repo`**, or **`main repository root`** in user-facing docs or prompts.
 - Do **not** use **`main`** as a generic default branch name. Only use `main` when the actual branch is `main`.
 - When a document needs to talk about location and branch in the same sentence, name both explicitly instead of implying one from the other.
+
+### Identifier Safety Rules
+
+1. Database names, lane identifiers, and other storage-facing slugs generated from user, branch, lane, mission, or tracker input must remain ASCII-only and deterministic. Sanitizers must use an explicit ASCII allowlist such as `[A-Za-z0-9_]` or opt Python regular expressions into ASCII semantics with `re.ASCII`; do not rely on default Unicode `\w` or `\W` behavior for database-safe identifiers.
+2. Any change to identifier normalization or slug sanitization must include regression coverage for non-ASCII input, including at least one accented Latin example and one case that proves the produced storage identifier is `.isascii()`.
 
 ---
 
