@@ -20,6 +20,52 @@ from specify_cli.core.project_resolver import locate_project_root
 console = Console()
 TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec Kit)"
 
+# ---------------------------------------------------------------------------
+# Nag-suppression helper (T032)
+# ---------------------------------------------------------------------------
+
+
+def _should_suppress_nag(argv: list[str] | None = None) -> bool:
+    """Return True when nag output should be suppressed for this invocation.
+
+    Suppression conditions (any one is sufficient):
+    - ``--no-nag`` in argv.
+    - ``--json`` in argv.
+    - ``--quiet`` in argv.
+    - ``--help`` / ``-h`` in argv.
+    - ``--version`` / ``-v`` in argv.
+    - ``CI`` environment variable is truthy.
+    - ``SPEC_KITTY_NO_NAG`` environment variable is truthy.
+    - stdout is not a TTY.
+
+    Note: This function intentionally re-evaluates the suppression criteria
+    from raw argv/env rather than delegating entirely to Invocation.suppresses_nag()
+    in order to catch ``--json`` and ``--quiet`` which are command-level flags
+    that Invocation.suppresses_nag() does not check (belt-and-suspenders per T032).
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+
+    suppress_flags = frozenset({"--no-nag", "--json", "--quiet", "--help", "-h", "--version", "-v"})
+    if any(tok in suppress_flags for tok in argv):
+        return True
+
+    ci_val = os.environ.get("CI", "")
+    if ci_val and ci_val.lower() not in ("0", "false", "no", "off"):
+        return True
+
+    no_nag_val = os.environ.get("SPEC_KITTY_NO_NAG", "")
+    if no_nag_val and no_nag_val.lower() not in ("0", "false", "no", "off"):
+        return True
+
+    try:
+        if not sys.stdout.isatty():
+            return True
+    except Exception:  # noqa: BLE001
+        return True
+
+    return False
+
 
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
@@ -122,6 +168,101 @@ def show_banner(force: bool = False) -> None:
     console.print()
 
 
+def _render_nag_if_needed(ctx: typer.Context) -> None:
+    """Consult the compat planner and render a nag message when appropriate.
+
+    This is the WP08 hook.  It is called once per CLI invocation from
+    ``callback()`` (the single chokepoint) *before* the schema gate runs.
+
+    Design choice (Option C from WP08 spec): we make a separate planner call
+    here specifically for nag rendering.  The schema gate (migration/gate.py)
+    makes its own planner call for block enforcement.  The cost of two planner
+    calls per invocation is low; the gain is clean separation of concerns and
+    no disruption to the gate's existing contract.
+
+    Key invariants:
+    - Only renders for ALLOW_WITH_NAG decisions.
+    - Never updates last_shown_at when the nag is suppressed (preserves the
+      user's throttle window across CI/non-interactive runs).
+    - Uses stderr so stdout consumers (``--json``) see clean output.
+    - Color disabled when stderr is not a TTY.
+    """
+    # Fast-path: suppress early to avoid the planner call cost.
+    if _should_suppress_nag():
+        return
+
+    try:
+        # Deferred imports to avoid circular imports at module load time.
+        from datetime import UTC, datetime  # noqa: PLC0415
+
+        from specify_cli.compat import Decision  # noqa: PLC0415
+        from specify_cli.compat import Invocation  # noqa: PLC0415
+        from specify_cli.compat import NagCache  # noqa: PLC0415
+        from specify_cli.compat import NagCacheRecord  # noqa: PLC0415
+        from specify_cli.compat import plan as compat_plan  # noqa: PLC0415
+
+        # Build Invocation from argv (best-effort; never raises).
+        inv = Invocation.from_argv()
+
+        # If Invocation itself says suppress, honour it (belt-and-suspenders).
+        if inv.suppresses_nag():
+            return
+
+        result = compat_plan(inv)
+
+        # Stash on ctx.obj so subcommands can read it without re-planning.
+        if ctx.obj is None:
+            ctx.obj = {}
+        if isinstance(ctx.obj, dict):
+            ctx.obj["compat_plan_result"] = result
+
+        if result.decision != Decision.ALLOW_WITH_NAG:
+            # ALLOW → nothing to render.
+            # BLOCK_* → handled by the schema gate (migration/gate.py).
+            return
+
+        # Render the nag to stderr.
+        # Use Literal "auto" when stderr is a TTY, None (no color) otherwise.
+        from typing import Literal  # noqa: PLC0415
+
+        _color: Literal["auto"] | None = "auto" if sys.stderr.isatty() else None
+        stderr_console = Console(stderr=True, color_system=_color)
+        message = result.rendered_human.rstrip()
+        if message:
+            stderr_console.print(message)
+
+        # Update last_shown_at in the nag cache so the throttle window starts.
+        # This is intentionally NOT done when the nag is suppressed (CI / no-TTY).
+        try:
+            nag_cache = NagCache.default()
+            existing = nag_cache.read()
+            now = datetime.now(UTC)
+            if existing is not None:
+                updated_record = NagCacheRecord(
+                    cli_version_key=existing.cli_version_key,
+                    latest_version=existing.latest_version,
+                    latest_source=existing.latest_source,
+                    fetched_at=existing.fetched_at,
+                    last_shown_at=now,
+                )
+            else:
+                # No existing record — write a minimal one to record the show time.
+                updated_record = NagCacheRecord(
+                    cli_version_key=result.cli_status.installed_version,
+                    latest_version=result.cli_status.latest_version,
+                    latest_source=result.cli_status.latest_source,
+                    fetched_at=now,
+                    last_shown_at=now,
+                )
+            nag_cache.write(updated_record)
+        except Exception:  # noqa: BLE001
+            pass  # Cache update failure is non-fatal.
+
+    except Exception:  # noqa: BLE001
+        # Fail open for nag rendering: if the planner errors, don't block the CLI.
+        pass
+
+
 def callback(ctx: typer.Context) -> None:
     """Display the banner when CLI is invoked without a subcommand."""
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
@@ -129,15 +270,16 @@ def callback(ctx: typer.Context) -> None:
         console.print(Align.center("[dim]Run 'spec-kitty --help' for usage information[/dim]"))
         console.print()
 
+    # WP08: render upgrade nag through planner if needed.
+    _render_nag_if_needed(ctx)
+
 
 def get_project_root_or_exit(start: Path | None = None) -> Path:
     """Return the project root or exit when .kittify cannot be located."""
     project_root = locate_project_root(start)
     if project_root is None:
         console.print("[red]Error:[/red] Unable to locate the Spec Kitty project root (.kittify directory not found).")
-        console.print(
-            "[dim]Run this command from the project root or from a feature worktree under .worktrees/<feature>/.[/dim]"
-        )
+        console.print("[dim]Run this command from the project root or from a feature worktree under .worktrees/<feature>/.[/dim]")
         console.print("[dim]Tip: Initialize a project with 'spec-kitty init <name>' if one does not exist.[/dim]")
         raise typer.Exit(1)
     return project_root
@@ -200,4 +342,6 @@ __all__ = [
     "console",
     "get_project_root_or_exit",
     "show_banner",
+    "_render_nag_if_needed",
+    "_should_suppress_nag",
 ]

@@ -2,7 +2,7 @@
   "created_at": "2026-04-27T07:45:50.886670+00:00",
   "friendly_name": "CLI Upgrade Nag and Lazy Project Migration",
   "mission_id": "01KQ6YDNMX2X2AN4WH43R5K2ZS",
-  "mission_number": null,
+  "mission_number": 103,
   "mission_slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
   "mission_type": "software-dev",
   "purpose_context": "Spec Kitty's CLI today conflates installed-runtime updates with per-project schema migrations. Users get noisy or misleading guidance and there is no reliable way to know whether a command is safe to run. This mission introduces a passive throttled CLI-update nag plus a lazy current-project compatibility check, with no global registry, no upgrade-all-projects workflow, and no silent self-update. The outcome is that users always know exactly what to do next and never lose work to an unexpected upgrade.",

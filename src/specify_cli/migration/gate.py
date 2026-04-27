@@ -1,8 +1,8 @@
 """Schema version gate for the Spec Kitty CLI.
 
 ``check_schema_version`` is called as a typer callback before every command
-dispatch.  It refuses operation when the project schema is incompatible with
-this CLI build (too old → upgrade project; too new → upgrade CLI).
+dispatch.  It delegates to ``compat.planner.plan()`` which decides whether the
+project is compatible with this CLI build.
 
 Exempted commands that always pass through:
   - ``upgrade``  (fixes the problem)
@@ -12,17 +12,15 @@ Exempted commands that always pass through:
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 import typer
 
-from .schema_version import (
-    REQUIRED_SCHEMA_VERSION,
-    check_compatibility,
-    get_project_schema_version,
-)
-
 # Commands that are allowed to run even when the schema version is incompatible.
+# Kept for backward compatibility (some tests may import _EXEMPT_COMMANDS).
+# The compat.safety registry is the authoritative source for exemption logic.
 _EXEMPT_COMMANDS: frozenset[str] = frozenset({"upgrade", "init"})
 
 
@@ -35,9 +33,11 @@ def check_schema_version(
     Behaviour:
     - If ``.kittify/`` does not exist: skip (uninitialized project, let ``init``
       handle it).
-    - If the invoked subcommand is in ``_EXEMPT_COMMANDS``: skip.
-    - Otherwise: read schema version, call ``check_compatibility``, and raise
-      ``SystemExit(1)`` with an actionable message when incompatible.
+    - If the invoked subcommand is in ``_EXEMPT_COMMANDS``: skip (defense-in-depth;
+      these are also SAFE in the compat.safety registry).
+    - Otherwise: build an Invocation and delegate to ``compat.planner.plan()``.
+      Block if the decision is BLOCK_PROJECT_MIGRATION, BLOCK_CLI_UPGRADE, or
+      BLOCK_PROJECT_CORRUPT.
 
     Args:
         repo_root: Root of the project (parent of ``.kittify/``).
@@ -45,7 +45,7 @@ def check_schema_version(
             ``None`` when running without a subcommand (shows help).
 
     Raises:
-        SystemExit: With exit code 1 when the schema version is incompatible.
+        SystemExit: When the planner returns a blocking decision.
     """
     # Uninitialized project — no .kittify/ yet.  Let `init` run freely.
     kittify_dir = repo_root / ".kittify"
@@ -53,18 +53,39 @@ def check_schema_version(
         return
 
     # Exempt upgrade / init so users can always fix or bootstrap the project.
+    # Defense-in-depth: the compat.safety registry also marks these as SAFE.
     if invoked_subcommand in _EXEMPT_COMMANDS:
         return
 
-    # Gate disabled when REQUIRED_SCHEMA_VERSION is None (pre-release development).
-    if REQUIRED_SCHEMA_VERSION is None:
-        return
+    # Deferred import to avoid circular imports at module load time.
+    # compat.planner imports from migration.schema_version (not from gate),
+    # so the cycle only occurs if we import at the top level.
+    from specify_cli.compat import Decision  # noqa: PLC0415
+    from specify_cli.compat import Invocation  # noqa: PLC0415
+    from specify_cli.compat import plan as compat_plan  # noqa: PLC0415
 
-    project_version = get_project_schema_version(repo_root)
-    result = check_compatibility(project_version, REQUIRED_SCHEMA_VERSION)
+    inv = Invocation(
+        command_path=(invoked_subcommand,) if invoked_subcommand else (),
+        raw_args=tuple(sys.argv[1:]),
+        is_help=False,
+        is_version=False,
+        flag_no_nag="--no-nag" in sys.argv,
+        env_ci=bool(os.environ.get("CI")),
+        stdout_is_tty=sys.stdout.isatty(),
+    )
 
-    if not result.is_compatible:
-        # Use typer.echo so output respects --no-color and goes to stderr-friendly
-        # channel; then raise SystemExit directly (no typer.Abort) for clarity.
-        typer.echo(f"Error: {result.message}", err=True)
-        raise SystemExit(result.exit_code)
+    # Provide the known repo_root directly so the planner does not walk from cwd.
+    _root = repo_root
+
+    def _resolver(_cwd: Path) -> Path | None:
+        return _root
+
+    result = compat_plan(inv, project_root_resolver=_resolver)
+
+    if result.decision in {
+        Decision.BLOCK_PROJECT_MIGRATION,
+        Decision.BLOCK_CLI_UPGRADE,
+        Decision.BLOCK_PROJECT_CORRUPT,
+    }:
+        typer.echo(result.rendered_human, err=True)
+        raise SystemExit(int(result.exit_code))
