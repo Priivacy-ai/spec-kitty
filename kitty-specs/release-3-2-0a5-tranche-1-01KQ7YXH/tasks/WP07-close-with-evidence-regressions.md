@@ -15,7 +15,7 @@ subtasks:
 - T033
 - T034
 - T035
-agent: "claude:sonnet:reviewer-renata:reviewer"
+agent: "reviewer-renata"
 shell_pid: "84538"
 history:
 - at: '2026-04-27T18:00:45Z'
@@ -356,3 +356,4 @@ spec-kitty agent action implement WP07 --agent claude
 - 2026-04-27T20:40:48Z – claude:sonnet:implementer-ivan:implementer – shell_pid=82876 – Started implementation via action command
 - 2026-04-27T20:52:31Z – claude:sonnet:implementer-ivan:implementer – shell_pid=82876 – Ready for review: 3 new test files; --feature stays hidden, agent decision shape consistent
 - 2026-04-27T20:53:40Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=84538 – Started review via action command
+- 2026-04-27T20:55:44Z – reviewer-renata – shell_pid=84538 – Review passed: 3 new test files (T033/T034/T035) all green, ruff clean, regex zero false-positives across docs/skills/snapshots/templates. Deviation rulings: (1) param.opts inspection is correct - the contract polices the --feature CLI flag, not Python param names; (2) filtering hidden=True from decision subgroup equality check is correct - widen is correctly registered hidden, contract polices visible surface; (3) in-process CliRunner exercises both --mission and --feature on agent tasks status with JSON equivalence; (4) status/WP03 working-tree dirt is unrelated artifact, WP07 commit a46ce144 touches only the 3 new test files; (5) move-task --force standard for gitignored dossier file.
