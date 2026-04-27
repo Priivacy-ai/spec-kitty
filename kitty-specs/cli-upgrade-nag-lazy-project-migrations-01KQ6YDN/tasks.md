@@ -29,10 +29,10 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T014 | Implement `Safety` enum + `SAFETY_REGISTRY` seeded from `_EXEMPT_COMMANDS` baseline in `compat/safety.py` | WP04 | — | [D] |
 | T015 | Implement `register_safety()` API (for mode predicates) and `classify(invocation)` with fail-closed default | WP04 | — | [D] |
 | T016 | Architectural test: enumerate every typer command and assert unregistered commands are observably unsafe | WP04 | [D] |
-| T017 | Create `compat/_adapters/version_checker.py` wrapping `core.version_checker` | WP05 | [P] |
-| T018 | Create `compat/_adapters/gate.py` wrapping `migration.gate` | WP05 | [P] |
-| T019 | Create `compat/_adapters/detector.py` wrapping `upgrade.detector` | WP05 | [P] |
-| T020 | Architectural test: shim modules contain only delegation (no logic) | WP05 | [P] |
+| T017 | Create `compat/_adapters/version_checker.py` wrapping `core.version_checker` | WP05 | [D] |
+| T018 | Create `compat/_adapters/gate.py` wrapping `migration.gate` | WP05 | [D] |
+| T019 | Create `compat/_adapters/detector.py` wrapping `upgrade.detector` | WP05 | [D] |
+| T020 | Architectural test: shim modules contain only delegation (no logic) | WP05 | [D] |
 | T021 | Implement `Plan`, `Decision`, `CliStatus`, `ProjectStatus`, `MigrationStep`, `Fr023Case`, `Invocation` dataclasses in `compat/planner.py` | WP06 | — |
 | T022 | Implement `messages.py` catalog (FR-023 case → human + JSON) with sanitisation | WP06 | — |
 | T023 | Implement `decide()` table per data-model §2 | WP06 | — |
@@ -156,10 +156,10 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~280 lines.
 
 **Included subtasks**:
-- [ ] T017 Create `compat/_adapters/version_checker.py` wrapping `core.version_checker` (WP05)
-- [ ] T018 Create `compat/_adapters/gate.py` wrapping `migration.gate` (WP05)
-- [ ] T019 Create `compat/_adapters/detector.py` wrapping `upgrade.detector` (WP05)
-- [ ] T020 Architectural test: shim modules contain only delegation (no logic) (WP05)
+- [x] T017 Create `compat/_adapters/version_checker.py` wrapping `core.version_checker` (WP05)
+- [x] T018 Create `compat/_adapters/gate.py` wrapping `migration.gate` (WP05)
+- [x] T019 Create `compat/_adapters/detector.py` wrapping `upgrade.detector` (WP05)
+- [x] T020 Architectural test: shim modules contain only delegation (no logic) (WP05)
 
 **Implementation sketch**: Each adapter file in `compat/_adapters/` re-exports the public symbols of the corresponding existing module under a stable internal API. The existing modules remain unchanged in WP05; later WPs (WP07 for `migration.gate`) modify them to delegate. Architectural test asserts adapters are pure re-exports.
 
