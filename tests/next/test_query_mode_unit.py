@@ -17,6 +17,12 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep command-unit tests isolated from the checkout's project metadata."""
+    monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
+
+
 def test_derive_mission_state_imports_legacy_events_lazily(tmp_path: Path) -> None:
     """Legacy state derivation keeps event-log imports off the package import path."""
     from specify_cli.next.decision import derive_mission_state

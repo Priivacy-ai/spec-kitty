@@ -101,8 +101,7 @@ class _SlugResolver:
                     )
             else:
                 logger.warning(
-                    "No meta.json found for mission_slug %r (orphaned event); "
-                    "mission_id will be None for these events",
+                    "No meta.json found for mission_slug %r (orphaned event); mission_id will be None for these events",
                     mission_slug,
                 )
 
@@ -201,6 +200,9 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
                 raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+            event_name = obj.get("event_name")
+            if isinstance(event_name, str) and event_name.startswith("retrospective."):
+                continue
             try:
                 # Resolve mission_id from the raw dict before parsing,
                 # so that from_dict() receives it even for legacy events.

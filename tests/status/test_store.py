@@ -19,6 +19,7 @@ from specify_cli.status.store import (
 
 pytestmark = pytest.mark.fast
 
+
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",
@@ -68,6 +69,33 @@ def test_multiple_appends_preserve_order(tmp_path: Path) -> None:
     assert events[0].wp_id == "WP01"
     assert events[1].wp_id == "WP02"
     assert events[2].wp_id == "WP03"
+
+
+def test_read_events_skips_retrospective_events(tmp_path: Path) -> None:
+    event = _make_event()
+    events_file = tmp_path / EVENTS_FILENAME
+    events_file.write_text(
+        "\n".join(
+            [
+                json.dumps(event.to_dict(), sort_keys=True),
+                json.dumps(
+                    {
+                        "event_id": "01RETRO000000000000000000",
+                        "event_name": "retrospective.completed",
+                        "payload": {"record_path": "/retro.yaml"},
+                    },
+                    sort_keys=True,
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    events = read_events(tmp_path)
+
+    assert len(events) == 1
+    assert events[0].wp_id == "WP01"
 
 
 # --- empty / nonexistent ---
@@ -125,9 +153,7 @@ def test_corruption_reports_line_number(tmp_path: Path) -> None:
     good_line = json.dumps(event.to_dict(), sort_keys=True)
 
     events_file = tmp_path / EVENTS_FILENAME
-    events_file.write_text(
-        f"{good_line}\n{good_line}\n{{bad json}}\n", encoding="utf-8"
-    )
+    events_file.write_text(f"{good_line}\n{good_line}\n{{bad json}}\n", encoding="utf-8")
 
     with pytest.raises(StoreError, match="line 3"):
         read_events(tmp_path)
@@ -179,9 +205,7 @@ def test_blank_lines_skipped(tmp_path: Path) -> None:
     good_line = json.dumps(event.to_dict(), sort_keys=True)
 
     events_file = tmp_path / EVENTS_FILENAME
-    events_file.write_text(
-        f"\n{good_line}\n\n{good_line}\n\n", encoding="utf-8"
-    )
+    events_file.write_text(f"\n{good_line}\n\n{good_line}\n\n", encoding="utf-8")
 
     events = read_events(tmp_path)
     assert len(events) == 2

@@ -33,6 +33,7 @@ EXPECTED_PROFILE_IDS = {
     "planner-priti",
     "python-pedro",
     "researcher-robbie",
+    "retrospective-facilitator",
     "reviewer-renata",
     "frontend-freddy",
     "node-norris",
@@ -329,7 +330,7 @@ class TestShippedProfilesPerformance:
     """Performance gate: loading all shipped profiles must complete quickly."""
 
     def test_shipped_profile_load_time(self) -> None:
-        """Loading all 11 shipped profiles must complete in under 2 seconds."""
+        """Loading all 12 shipped profiles must complete in under 2 seconds."""
         import time
 
         start = time.perf_counter()

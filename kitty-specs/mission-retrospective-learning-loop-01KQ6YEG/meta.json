@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-27T07:46:18.715532+00:00",
+  "friendly_name": "Mission Retrospective Learning Loop",
+  "mission_id": "01KQ6YEGT4YBZ3GZF7X680KQ3V",
+  "mission_number": 103,
+  "mission_slug": "mission-retrospective-learning-loop-01KQ6YEG",
+  "mission_type": "software-dev",
+  "slug": "mission-retrospective-learning-loop-01KQ6YEG",
+  "source_description": "Phase 6 FR4 retrospective learning loop tranche covering issues #507, #506, #508, #509, #511, #510 under epic #468. Captured from start-here.md brief.",
+  "target_branch": "main",
+  "vcs": "git"
+}
