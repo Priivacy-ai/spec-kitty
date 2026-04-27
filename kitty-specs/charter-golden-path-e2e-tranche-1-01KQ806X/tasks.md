@@ -28,11 +28,11 @@ WP02 depends on WP01.
 | T001 | Add `fresh_e2e_project` fixture to `tests/e2e/conftest.py` | WP01 | — | [D] |
 | T002 | Add source-checkout pollution-guard helpers (`capture_source_pollution_baseline`, `assert_no_source_pollution`) to `tests/e2e/conftest.py` | WP01 | [D] |
 | T003 | Add subprocess-failure diagnostic helper (`format_subprocess_failure`) to `tests/e2e/conftest.py` | WP01 | [D] |
-| T004 | Scaffold `tests/e2e/test_charter_epic_golden_path.py` (module docstring, markers, baseline capture, fixture wiring) | WP02 | — |
-| T005 | Implement Step 1 + Step 2 — project bootstrap (`git init` → `spec-kitty init`) and Charter governance flow (interview → generate → bundle validate → synthesize `--adapter fixture --dry-run` → synthesize `--adapter fixture` → status → lint) with all FR-009..FR-013 assertions | WP02 | — |
-| T006 | Implement Step 3 — mission scaffolding (`agent mission create` → `setup-plan` → seed minimal `software-dev` mission → `finalize-tasks`) with FR-005 assertions | WP02 | — |
-| T007 | Implement Step 4 — `spec-kitty next` issue + advance with paired-lifecycle-record assertions (FR-006, FR-014, FR-015, FR-016) | WP02 | — |
-| T008 | Implement Step 5 + Step 6 — `retrospect summary --project <temp-project> --json` and final source-pollution-guard assertion (FR-017, FR-018), then run quickstart verification (ruff, mypy --strict, pytest) | WP02 | — |
+| T004 | Scaffold `tests/e2e/test_charter_epic_golden_path.py` (module docstring, markers, baseline capture, fixture wiring) | WP02 | — | [D] |
+| T005 | Implement Step 1 + Step 2 — project bootstrap (`git init` → `spec-kitty init`) and Charter governance flow (interview → generate → bundle validate → synthesize `--adapter fixture --dry-run` → synthesize `--adapter fixture` → status → lint) with all FR-009..FR-013 assertions | WP02 | — | [D] |
+| T006 | Implement Step 3 — mission scaffolding (`agent mission create` → `setup-plan` → seed minimal `software-dev` mission → `finalize-tasks`) with FR-005 assertions | WP02 | — | [D] |
+| T007 | Implement Step 4 — `spec-kitty next` issue + advance with paired-lifecycle-record assertions (FR-006, FR-014, FR-015, FR-016) | WP02 | — | [D] |
+| T008 | Implement Step 5 + Step 6 — `retrospect summary --project <temp-project> --json` and final source-pollution-guard assertion (FR-017, FR-018), then run quickstart verification (ruff, mypy --strict, pytest) | WP02 | — | [D] |
 
 `[P]` denotes a subtask that is internally parallel-safe with sibling subtasks in the same WP (different functions/concerns in the same file). Cross-WP parallelism is governed by `dependencies` and the lane allocator.
 
@@ -112,11 +112,11 @@ After WP02:
 
 ### Included subtasks
 
-- [ ] T004 Scaffold the test module (WP02)
-- [ ] T005 Project bootstrap + Charter governance flow (WP02)
-- [ ] T006 Mission scaffolding (WP02)
-- [ ] T007 `next` issue + advance + lifecycle-record assertions (WP02)
-- [ ] T008 `retrospect summary` + final pollution-guard assertion + verification commands (WP02)
+- [x] T004 Scaffold the test module (WP02)
+- [x] T005 Project bootstrap + Charter governance flow (WP02)
+- [x] T006 Mission scaffolding (WP02)
+- [x] T007 `next` issue + advance + lifecycle-record assertions (WP02)
+- [x] T008 `retrospect summary` + final pollution-guard assertion + verification commands (WP02)
 
 ### Implementation sketch
 
