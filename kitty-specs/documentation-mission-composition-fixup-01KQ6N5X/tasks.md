@@ -16,9 +16,9 @@
 | T06 | Author `templates/publish.md` | WP01 | [D] |
 | T07 | Author `templates/accept.md` | WP01 | [D] |
 | T08 | Author `tests/specify_cli/test_documentation_prompt_resolution.py` parametrized over 7 step ids | WP01 | [D] |
-| T09 | Extend integration walk: full-advancement test through 6 actions via `decide_next_via_runtime` | WP02 |
-| T10 | Extend integration walk: per-action paired-trail-record assertions | WP02 |
-| T11 | Replace direct `_check_composed_action_guard` call with `decide_next_via_runtime` blocked-decision assertion | WP02 |
+| T09 | Extend integration walk: full-advancement test through 6 actions via `decide_next_via_runtime` | WP02 | [D] |
+| T10 | Extend integration walk: per-action paired-trail-record assertions | WP02 | [D] |
+| T11 | Replace direct `_check_composed_action_guard` call with `decide_next_via_runtime` blocked-decision assertion | WP02 | [D] |
 | T12 | Fix `quickstart.md` JSON field references (use `step_id` / `preview_step`, never `issued_step_id`) | WP03 |
 | T13 | Run dogfood smoke that issues a composed action; capture paired trail records; commit `evidence/smoke-v2.md` | WP03 |
 
@@ -47,9 +47,9 @@
 **Independent test**: the new tests in `tests/integration/test_documentation_runtime_walk.py`.
 **Dependencies**: WP01 (so the walk gets non-null prompt_files when it advances actions).
 
-- [ ] T09 Add `test_full_advancement_through_six_actions` — drive 6 sequential advances via `decide_next_via_runtime`, write happy-path artifacts before each, assert each succeeds.
-- [ ] T10 Add `test_paired_trail_records_per_action` — after the full walk, inspect `<repo>/.kittify/events/profile-invocations/` and assert one paired `started`/`done` record per advancing action.
-- [ ] T11 Refactor `test_missing_artifact_blocks_with_structured_failure` to call `decide_next_via_runtime` (not `_check_composed_action_guard()` directly); assert `Decision.kind == "blocked"`, failures naming `spec.md`, and snapshot before/after equal.
+- [x] T09 Add `test_full_advancement_through_six_actions` — drive 6 sequential advances via `decide_next_via_runtime`, write happy-path artifacts before each, assert each succeeds.
+- [x] T10 Add `test_paired_trail_records_per_action` — after the full walk, inspect `<repo>/.kittify/events/profile-invocations/` and assert one paired `started`/`done` record per advancing action.
+- [x] T11 Refactor `test_missing_artifact_blocks_with_structured_failure` to call `decide_next_via_runtime` (not `_check_composed_action_guard()` directly); assert `Decision.kind == "blocked"`, failures naming `spec.md`, and snapshot before/after equal.
 
 ## WP03 — Quickstart fix + real dogfood smoke
 
