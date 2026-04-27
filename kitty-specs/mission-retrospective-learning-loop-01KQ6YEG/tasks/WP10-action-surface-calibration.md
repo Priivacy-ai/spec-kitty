@@ -196,3 +196,4 @@ spec-kitty agent action implement WP10 --agent <name>
 ## Activity Log
 
 - 2026-04-27T10:57:38Z – claude:sonnet:implementer:implementer – shell_pid=22798 – Started implementation via action command
+- 2026-04-27T11:09:34Z – claude:sonnet:implementer:implementer – shell_pid=22798 – Ready for review: calibration reports + project-local overlays; 30 tests / mypy strict / 94% cov; all 4 missions pass §4.5.1 with no edge changes needed
