@@ -284,3 +284,4 @@ spec-kitty agent action implement WP05 --agent claude
 ## Activity Log
 
 - 2026-04-27T20:17:25Z – claude:sonnet:implementer-ivan:implementer – shell_pid=79003 – Started implementation via action command
+- 2026-04-27T20:23:27Z – claude:sonnet:implementer-ivan:implementer – shell_pid=79003 – Ready for review: non-git detection + 2 unit tests; init.py:723 deprecated line removed; canonical invariant 'non-git init is allowed; silent non-git init is not' verified
