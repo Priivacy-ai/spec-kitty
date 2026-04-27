@@ -563,3 +563,4 @@ This resolves the lane workspace and enters it. WP02 depends on WP01; do not sta
 ## Activity Log
 
 - 2026-04-27T18:37:39Z – claude:opus-4-7:python-pedro:implementer – shell_pid=52140 – Started implementation via action command
+- 2026-04-27T19:00:44Z – claude:opus-4-7:python-pedro:implementer – shell_pid=52140 – Ready for review: golden-path E2E driving public CLI from fresh project; --adapter fixture deviation documented inline; pollution guard in finally; ruff + mypy --strict + pytest all green
