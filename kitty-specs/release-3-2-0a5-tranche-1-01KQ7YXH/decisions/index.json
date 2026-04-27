@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-27T17:29:08.987421Z",
+      "decision_id": "01KQ7ZSQKT9DVH7B4GGXWS8DTW",
+      "final_answer": "B: floor at 3.11. Replace .python-version contents with '3.11' so it aligns with pyproject.toml's requires-python = '>=3.11' and stops imposing a higher implicit contributor floor than packaging does. Avoids broken patch-level pin behavior on 3.13/3.14 dev environments while leaving the contributor minimum unchanged.",
+      "input_key": "python_version_shape",
+      "mission_id": "01KQ7YXHA5AMZHJT3HQ8XPTZ6B",
+      "mission_slug": "release-3-2-0a5-tranche-1-01KQ7YXH",
+      "options": [
+        "A: remove .python-version entirely (let uv resolve from pyproject requires-python >=3.11)",
+        "B: loosen to a floor like 3.11 or 3.12",
+        "C: keep a single pin but bump it to 3.14 to match active dev",
+        "D: other (you specify)"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-001 .python-version loosening shape: which form should the new .python-version take so it stops blocking local agents on 3.14 while keeping CI predictable?",
+      "rationale": null,
+      "resolved_at": "2026-04-27T17:31:47.178729Z",
+      "resolved_by": null,
+      "slot_key": "plan.release.python-version-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQ7YXHA5AMZHJT3HQ8XPTZ6B",
+  "version": 1
+}
