@@ -72,10 +72,10 @@
 | T059 | Real-runtime integration test: silent auto-run blocked (HiC) | WP11 |  |
 | T060 | Real-runtime integration test: next mission sees an applied proposal | WP11 |  |
 | T061 | Verify NFR-009/010 + existing built-in/custom mission tests pass | WP11 |  |
-| T062 | ADR for AD-001 (gate-shared-module) under `architecture/2.x/adr/` | WP12 |  |
-| T063 | Operator overview doc `docs/retrospective-learning-loop.md` | WP12 |  |
-| T064 | Cutover runbook `docs/migration/retrospective-events-upstream.md` | WP12 |  |
-| T065 | Open upstream `spec_kitty_events` issue + record link in code TODO | WP12 |  |
+| T062 | ADR for AD-001 (gate-shared-module) under `architecture/2.x/adr/` | WP12 |  | [D] |
+| T063 | Operator overview doc `docs/retrospective-learning-loop.md` | WP12 |  | [D] |
+| T064 | Cutover runbook `docs/migration/retrospective-events-upstream.md` | WP12 |  | [D] |
+| T065 | Open upstream `spec_kitty_events` issue + record link in code TODO | WP12 |  | [D] |
 
 The `[P]` markers indicate parallel-safe items: schema models (T005), event models (T010), and `Mode` models (T015) are independent shapes that can be drafted concurrently. Within a WP, subtasks remain sequential.
 
@@ -469,10 +469,10 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: cross-cutting; charter directives (DIRECTIVE_003, DIRECTIVE_010).
 
 **Subtasks**:
-- [ ] T062 ADR for AD-001 (gate-shared-module) under `architecture/2.x/adr/` (WP12)
-- [ ] T063 Operator overview doc `docs/retrospective-learning-loop.md` (WP12)
-- [ ] T064 Cutover runbook `docs/migration/retrospective-events-upstream.md` (WP12)
-- [ ] T065 Open upstream `spec_kitty_events` issue + record link in code TODO (WP12)
+- [x] T062 ADR for AD-001 (gate-shared-module) under `architecture/2.x/adr/` (WP12)
+- [x] T063 Operator overview doc `docs/retrospective-learning-loop.md` (WP12)
+- [x] T064 Cutover runbook `docs/migration/retrospective-events-upstream.md` (WP12)
+- [x] T065 Open upstream `spec_kitty_events` issue + record link in code TODO (WP12)
 
 **Implementation sketch**:
 1. ADR uses the project's existing ADR template.
