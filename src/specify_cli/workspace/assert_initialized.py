@@ -29,6 +29,9 @@ __all__ = [
 ]
 
 SPEC_KITTY_REPO_NOT_INITIALIZED = "SPEC_KITTY_REPO_NOT_INITIALIZED"
+KITTIFY_DIRNAME = ".kittify"
+CONFIG_FILENAME = "config.yaml"
+SPECS_DIRNAME = "kitty-specs"
 
 
 class SpecKittyNotInitialized(Exception):
@@ -94,16 +97,16 @@ def assert_initialized(root: Path | None = None, *, require_specs: bool = True) 
             raise SpecKittyNotInitialized(
                 cwd,
                 missing=(
-                    [cwd / ".kittify" / "config.yaml", cwd / "kitty-specs"]
+                    [cwd / KITTIFY_DIRNAME / CONFIG_FILENAME, cwd / SPECS_DIRNAME]
                     if require_specs
-                    else [cwd / ".kittify" / "config.yaml"]
+                    else [cwd / KITTIFY_DIRNAME / CONFIG_FILENAME]
                 ),
             ) from exc
     else:
         resolved_root = Path(root).resolve()
 
-    config_path = resolved_root / ".kittify" / "config.yaml"
-    specs_dir = resolved_root / "kitty-specs"
+    config_path = resolved_root / KITTIFY_DIRNAME / CONFIG_FILENAME
+    specs_dir = resolved_root / SPECS_DIRNAME
 
     missing: list[Path] = []
     if not config_path.exists():

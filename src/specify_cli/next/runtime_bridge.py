@@ -302,6 +302,14 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
+SPEC_ARTIFACT = "spec.md"
+PLAN_ARTIFACT = "plan.md"
+TASKS_ARTIFACT = "tasks.md"
+TASKS_GLOB = "WP*.md"
+MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
+MISSING_TASK_FILES_MESSAGE = f"Required: at least one tasks/{TASKS_GLOB} file"
+
+
 def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C901
     """Check CLI-level guard conditions before completing a step.
 
@@ -310,30 +318,30 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C9
     failures: list[str] = []
 
     if step_id == "specify":
-        if not (feature_dir / "spec.md").exists():
-            failures.append("Required artifact missing: spec.md")
+        if not (feature_dir / SPEC_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
 
     elif step_id == "plan":
-        if not (feature_dir / "plan.md").exists():
-            failures.append("Required artifact missing: plan.md")
+        if not (feature_dir / PLAN_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
 
     elif step_id == "tasks_outline":
-        if not (feature_dir / "tasks.md").exists():
-            failures.append("Required artifact missing: tasks.md")
+        if not (feature_dir / TASKS_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
 
     elif step_id == "tasks_packages":
         tasks_dir = feature_dir / "tasks"
-        if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
-            failures.append("Required: at least one tasks/WP*.md file")
+        if not tasks_dir.is_dir() or not list(tasks_dir.glob(TASKS_GLOB)):
+            failures.append(MISSING_TASK_FILES_MESSAGE)
 
     elif step_id == "tasks_finalize":
         tasks_dir = feature_dir / "tasks"
         if not tasks_dir.is_dir():
             failures.append("Required: tasks/ directory with finalized WP files")
         else:
-            wp_files = sorted(tasks_dir.glob("WP*.md"))
+            wp_files = sorted(tasks_dir.glob(TASKS_GLOB))
             if not wp_files:
-                failures.append("Required: at least one tasks/WP*.md file")
+                failures.append(MISSING_TASK_FILES_MESSAGE)
             else:
                 for wp_file in wp_files:
                     if not _has_raw_dependencies_field(wp_file):

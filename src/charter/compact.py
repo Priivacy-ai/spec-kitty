@@ -15,10 +15,9 @@ bootstrap view. Only long-form prose may be elided in compact mode.
 
 from __future__ import annotations
 
-import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
 
 from charter._doctrine_paths import resolve_project_root
 from charter.language_scope import infer_repo_languages
@@ -33,10 +32,6 @@ __all__ = [
 
 NONE_LABEL = "(none)"
 KITTIFY_DIRNAME = ".kittify"
-
-# Markdown headings start with one or more `#` plus a space; we
-# capture everything after the leading hashes as the anchor text.
-_SECTION_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
 @dataclass(frozen=True)
@@ -72,15 +67,32 @@ def extract_section_anchors(charter_text: str) -> list[str]:
     seen: set[str] = set()
     anchors: list[str] = []
     for line in charter_text.splitlines():
-        match = _SECTION_HEADING_RE.match(line.rstrip())
-        if not match:
+        anchor = _extract_markdown_heading(line)
+        if not anchor:
             continue
-        anchor = match.group(2).strip()
-        if not anchor or anchor in seen:
+        if anchor in seen:
             continue
         seen.add(anchor)
         anchors.append(anchor)
     return anchors
+
+
+def _extract_markdown_heading(line: str) -> str | None:
+    """Return heading text from an ATX Markdown heading line."""
+    stripped = line.strip()
+    if not stripped.startswith("#"):
+        return None
+
+    level = 0
+    while level < len(stripped) and stripped[level] == "#":
+        level += 1
+    if level == 0 or level > 6:
+        return None
+    if level == len(stripped) or stripped[level] != " ":
+        return None
+
+    anchor = stripped[level + 1 :].strip()
+    return anchor or None
 
 
 def render_compact_view(
@@ -151,27 +163,13 @@ def _render_text(
     FR-034 contract is "no IDs are silently dropped", so a degraded
     governance block must not erase the IDs the caller already knows.
     """
-    paradigms = NONE_LABEL
-    tools = NONE_LABEL
-    template_set = NONE_LABEL
-    diagnostics: list[str] = []
-    resolver_directives: list[str] = []
-
-    try:
-        resolution = resolve_governance(repo_root)
-    except GovernanceResolutionError as exc:
-        diagnostics.append(f"governance unresolved ({exc})")
-        resolution = None
-    except Exception as exc:  # pragma: no cover - defensive degrade
-        diagnostics.append(f"governance unavailable ({exc})")
-        resolution = None
-
-    if resolution is not None:
-        paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else NONE_LABEL
-        tools = ", ".join(resolution.tools) if resolution.tools else NONE_LABEL
-        template_set = resolution.template_set
-        diagnostics.extend(list(resolution.diagnostics))
-        resolver_directives = list(resolution.directives)
+    (
+        template_set,
+        paradigms,
+        tools,
+        diagnostics,
+        resolver_directives,
+    ) = _resolve_governance_summary(repo_root)
 
     merged_directive_ids = tuple(
         dict.fromkeys(list(directive_ids) + resolver_directives)
@@ -184,26 +182,9 @@ def _render_text(
         f"  - Tools: {tools}",
     ]
 
-    lines.append("Directive IDs:")
-    if merged_directive_ids:
-        for did in merged_directive_ids:
-            lines.append(f"  - {did}")
-    else:
-        lines.append(f"  - {NONE_LABEL}")
-
-    lines.append("Tactic IDs:")
-    if tactic_ids:
-        for tid in tactic_ids:
-            lines.append(f"  - {tid}")
-    else:
-        lines.append(f"  - {NONE_LABEL}")
-
-    lines.append("Section Anchors:")
-    if section_anchors:
-        for anchor in section_anchors:
-            lines.append(f"  - {anchor}")
-    else:
-        lines.append(f"  - {NONE_LABEL}")
+    _append_section(lines, "Directive IDs:", merged_directive_ids)
+    _append_section(lines, "Tactic IDs:", tactic_ids)
+    _append_section(lines, "Section Anchors:", section_anchors)
 
     if diagnostics:
         lines.append(f"  - Diagnostics: {' | '.join(diagnostics)}")
@@ -225,3 +206,40 @@ def _render_text(
         pass
 
     return "\n".join(lines)
+
+
+def _resolve_governance_summary(
+    repo_root: Path,
+) -> tuple[str, str, str, list[str], list[str]]:
+    template_set = NONE_LABEL
+    paradigms = NONE_LABEL
+    tools = NONE_LABEL
+    diagnostics: list[str] = []
+    resolver_directives: list[str] = []
+
+    try:
+        resolution = resolve_governance(repo_root)
+    except GovernanceResolutionError as exc:
+        diagnostics.append(f"governance unresolved ({exc})")
+        return template_set, paradigms, tools, diagnostics, resolver_directives
+    except Exception as exc:  # pragma: no cover - defensive degrade
+        diagnostics.append(f"governance unavailable ({exc})")
+        return template_set, paradigms, tools, diagnostics, resolver_directives
+
+    if resolution.paradigms:
+        paradigms = ", ".join(resolution.paradigms)
+    if resolution.tools:
+        tools = ", ".join(resolution.tools)
+    diagnostics.extend(list(resolution.diagnostics))
+    resolver_directives = list(resolution.directives)
+    return resolution.template_set, paradigms, tools, diagnostics, resolver_directives
+
+
+def _append_section(lines: list[str], title: str, values: Iterable[str]) -> None:
+    lines.append(title)
+    entries = list(values)
+    if not entries:
+        lines.append(f"  - {NONE_LABEL}")
+        return
+    for entry in entries:
+        lines.append(f"  - {entry}")

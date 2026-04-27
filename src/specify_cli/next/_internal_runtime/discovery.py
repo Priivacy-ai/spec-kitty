@@ -25,6 +25,7 @@ _KITTIFY_DIRNAME = ".kittify"
 _MISSION_FILENAME = "mission.yaml"
 _MISSIONS_DIRNAME = "missions"
 _OVERRIDES_DIRNAME = "overrides"
+_USER_GLOBAL_MISSIONS = "missions"
 
 
 # ---------------------------------------------------------------------------
@@ -226,8 +227,8 @@ def _build_tiers(context: DiscoveryContext) -> list[tuple[str, str, list[Path]]]
     tiers.append(
         (
             "user_global",
-            str(context.user_home / ".kittify" / "missions"),
-            [context.user_home / ".kittify" / "missions"],
+            str(context.user_home / _KITTIFY_DIRNAME / _USER_GLOBAL_MISSIONS),
+            [context.user_home / _KITTIFY_DIRNAME / _USER_GLOBAL_MISSIONS],
         )
     )
 
