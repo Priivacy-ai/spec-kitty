@@ -184,3 +184,4 @@ spec-kitty agent action implement WP03 --agent <name>
 ## Activity Log
 
 - 2026-04-27T09:10:22Z – claude:sonnet:implementer:implementer – shell_pid=88719 – Started implementation via action command
+- 2026-04-27T09:18:24Z – claude:sonnet:implementer:implementer – shell_pid=88719 – Ready for review: 8 events + emission helper + additive RetrospectiveSnapshot on StatusSnapshot
