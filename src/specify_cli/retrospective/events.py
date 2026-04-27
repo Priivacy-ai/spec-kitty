@@ -1,10 +1,9 @@
-"""Pydantic v2 payload models for the eight retrospective events (local definitions).
+"""Pydantic v2 payload models for retrospective runtime events.
 
-These models are defined locally per the Q4-C cutover plan. They will be replaced
-by imports from the upstream ``spec_kitty_events`` package when that release ships.
-
-# TODO: Replace local definitions with upstream imports once the spec_kitty_events
-# package is released. Tracking issue: <TODO: WP12 issue link>
+The event-name registry is imported from ``spec_kitty_events`` when the 4.1+
+surface is installed. A local fallback keeps the CLI importable if a downstream
+test harness or package index temporarily supplies an older package; the
+project lock pins the upstream 4.1+ registry for development and CI.
 
 Source-of-truth: kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md
 """
@@ -13,9 +12,10 @@ from __future__ import annotations
 
 import json
 import logging
+from importlib import import_module
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import ulid as _ulid_mod
 from pydantic import BaseModel, ConfigDict
@@ -24,11 +24,20 @@ from specify_cli.retrospective.schema import ActorRef, Mode
 
 logger = logging.getLogger(__name__)
 
+try:
+    _upstream_retrospective = import_module("spec_kitty_events.retrospective")
+    _UPSTREAM_RETROSPECTIVE_EVENT_NAMES = cast(
+        "frozenset[str] | None",
+        getattr(_upstream_retrospective, "RETROSPECTIVE_EVENT_NAMES", None),
+    )
+except ImportError:  # pragma: no cover - exercised only with pre-4.1 package pins
+    _UPSTREAM_RETROSPECTIVE_EVENT_NAMES = None
+
 # ---------------------------------------------------------------------------
 # Stable event name registry
 # ---------------------------------------------------------------------------
 
-RETROSPECTIVE_EVENT_NAMES: frozenset[str] = frozenset(
+_LOCAL_RETROSPECTIVE_EVENT_NAMES: frozenset[str] = frozenset(
     [
         "retrospective.requested",
         "retrospective.started",
@@ -39,6 +48,10 @@ RETROSPECTIVE_EVENT_NAMES: frozenset[str] = frozenset(
         "retrospective.proposal.applied",
         "retrospective.proposal.rejected",
     ]
+)
+
+RETROSPECTIVE_EVENT_NAMES: frozenset[str] = (
+    _UPSTREAM_RETROSPECTIVE_EVENT_NAMES or _LOCAL_RETROSPECTIVE_EVENT_NAMES
 )
 
 # ---------------------------------------------------------------------------

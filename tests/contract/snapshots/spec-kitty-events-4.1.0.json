@@ -1,0 +1,160 @@
+{
+  "envelope_class": "spec_kitty_events.models.Event",
+  "field_names": [
+    "aggregate_id",
+    "build_id",
+    "causation_id",
+    "correlation_id",
+    "data_tier",
+    "event_id",
+    "event_type",
+    "lamport_clock",
+    "node_id",
+    "payload",
+    "project_slug",
+    "project_uuid",
+    "schema_version",
+    "timestamp"
+  ],
+  "package": "spec-kitty-events",
+  "required_fields": [
+    "aggregate_id",
+    "build_id",
+    "correlation_id",
+    "event_id",
+    "event_type",
+    "lamport_clock",
+    "node_id",
+    "project_uuid",
+    "timestamp"
+  ],
+  "resolved_version": "4.1.0",
+  "schema": {
+    "description": "Immutable event with causal metadata for distributed conflict detection.",
+    "properties": {
+      "aggregate_id": {
+        "description": "Identifier of the entity this event modifies",
+        "minLength": 1,
+        "title": "Aggregate Id",
+        "type": "string"
+      },
+      "build_id": {
+        "description": "Canonical checkout or worktree identity that produced this event",
+        "minLength": 1,
+        "title": "Build Id",
+        "type": "string"
+      },
+      "causation_id": {
+        "anyOf": [
+          {
+            "maxLength": 36,
+            "minLength": 26,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Event ID of the parent event (26-char ULID or UUID accepted, None for root events)",
+        "pattern": "^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$|^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        "title": "Causation Id"
+      },
+      "correlation_id": {
+        "description": "Correlation identifier (26-char ULID or UUID accepted)",
+        "maxLength": 36,
+        "minLength": 26,
+        "pattern": "^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$|^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        "title": "Correlation Id",
+        "type": "string"
+      },
+      "data_tier": {
+        "default": 0,
+        "description": "Progressive data sharing tier (0=local, 4=telemetry)",
+        "maximum": 4,
+        "minimum": 0,
+        "title": "Data Tier",
+        "type": "integer"
+      },
+      "event_id": {
+        "description": "Unique event identifier (26-char ULID or UUID accepted)",
+        "maxLength": 36,
+        "minLength": 26,
+        "pattern": "^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$|^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        "title": "Event Id",
+        "type": "string"
+      },
+      "event_type": {
+        "description": "Event type identifier (e.g., 'WPStatusChanged', 'TagAdded')",
+        "minLength": 1,
+        "title": "Event Type",
+        "type": "string"
+      },
+      "lamport_clock": {
+        "description": "Lamport logical clock value (monotonically increasing)",
+        "minimum": 0,
+        "title": "Lamport Clock",
+        "type": "integer"
+      },
+      "node_id": {
+        "description": "Required causal emitter identity used for Lamport ordering and deterministic tie-breaking",
+        "minLength": 1,
+        "title": "Node Id",
+        "type": "string"
+      },
+      "payload": {
+        "additionalProperties": true,
+        "description": "Event-specific data (opaque to library)",
+        "title": "Payload",
+        "type": "object"
+      },
+      "project_slug": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Human-readable project identifier (optional)",
+        "title": "Project Slug"
+      },
+      "project_uuid": {
+        "description": "UUID of the project this event belongs to",
+        "format": "uuid",
+        "title": "Project Uuid",
+        "type": "string"
+      },
+      "schema_version": {
+        "default": "3.0.0",
+        "description": "Envelope schema version (semver)",
+        "pattern": "^\\d+\\.\\d+\\.\\d+$",
+        "title": "Schema Version",
+        "type": "string"
+      },
+      "timestamp": {
+        "description": "Wall-clock timestamp (human-readable, not used for ordering)",
+        "format": "date-time",
+        "title": "Timestamp",
+        "type": "string"
+      }
+    },
+    "required": [
+      "event_id",
+      "event_type",
+      "aggregate_id",
+      "timestamp",
+      "build_id",
+      "node_id",
+      "lamport_clock",
+      "project_uuid",
+      "correlation_id"
+    ],
+    "title": "Event",
+    "type": "object"
+  },
+  "schema_title": "Event",
+  "version_source": "uv.lock"
+}
