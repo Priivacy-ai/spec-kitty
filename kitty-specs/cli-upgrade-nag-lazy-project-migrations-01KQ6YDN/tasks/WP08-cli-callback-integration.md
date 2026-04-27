@@ -22,8 +22,8 @@ subtasks:
 - T031
 - T032
 - T033
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "2824"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "9471"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -170,3 +170,4 @@ spec-kitty agent action implement WP08 --agent <name>
 
 - 2026-04-27T09:48:23Z – claude:sonnet:python-implementer:implementer – shell_pid=2824 – Started implementation via action command
 - 2026-04-27T10:04:12Z – claude:sonnet:python-implementer:implementer – shell_pid=2824 – Ready: helpers.py renders nag through planner + integration test matrix (safe/unsafe/CI)
+- 2026-04-27T10:04:33Z – claude:opus:python-reviewer:reviewer – shell_pid=9471 – Started review via action command
