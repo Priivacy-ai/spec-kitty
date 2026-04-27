@@ -19,8 +19,8 @@
 | T09 | Extend integration walk: full-advancement test through 6 actions via `decide_next_via_runtime` | WP02 | [D] |
 | T10 | Extend integration walk: per-action paired-trail-record assertions | WP02 | [D] |
 | T11 | Replace direct `_check_composed_action_guard` call with `decide_next_via_runtime` blocked-decision assertion | WP02 | [D] |
-| T12 | Fix `quickstart.md` JSON field references (use `step_id` / `preview_step`, never `issued_step_id`) | WP03 |
-| T13 | Run dogfood smoke that issues a composed action; capture paired trail records; commit `evidence/smoke-v2.md` | WP03 |
+| T12 | Fix `quickstart.md` JSON field references (use `step_id` / `preview_step`, never `issued_step_id`) | WP03 | [D] |
+| T13 | Run dogfood smoke that issues a composed action; capture paired trail records; commit `evidence/smoke-v2.md` | WP03 | [D] |
 
 ---
 
@@ -58,8 +58,8 @@
 **Independent test**: `evidence/smoke-v2.md` shows `kind: success` (or `step_id`) and a paired-trail-record section.
 **Dependencies**: WP01 (smoke needs templates to actually dispatch with a usable prompt) and WP02 (so the integration tests prove the same path the smoke walks).
 
-- [ ] T12 Edit `kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/quickstart.md`: replace `d['issued_step_id']` with `d.get('step_id') or d.get('preview_step')`; update the "Expected outcomes" prose to match the actual `Decision` schema.
-- [ ] T13 Run a real smoke that issues an action: temp repo outside spec-kitty tree, `uv --project`, `spec-kitty next` followed by an action issuance (read predecessor smoke transcript and research walk to find the correct flag/sequence to issue an action). Capture stdout to `evidence/smoke-v2.md` including: command sequence, `next.json`, action-issuance JSON, contents of `<temp_repo>/.kittify/events/profile-invocations/` (paired records), grep showing zero substantive `--directory` uses. Cleanup the temp repo.
+- [x] T12 Edit `kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/quickstart.md`: replace `d['issued_step_id']` with `d.get('step_id') or d.get('preview_step')`; update the "Expected outcomes" prose to match the actual `Decision` schema.
+- [x] T13 Run a real smoke that issues an action: temp repo outside spec-kitty tree, `uv --project`, `spec-kitty next` followed by an action issuance (read predecessor smoke transcript and research walk to find the correct flag/sequence to issue an action). Capture stdout to `evidence/smoke-v2.md` including: command sequence, `next.json`, action-issuance JSON, contents of `<temp_repo>/.kittify/events/profile-invocations/` (paired records), grep showing zero substantive `--directory` uses. Cleanup the temp repo.
 
 ## Branch Strategy
 
