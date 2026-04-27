@@ -124,3 +124,4 @@ spec-kitty agent action implement WP12 --agent <name>
 ## Activity Log
 
 - 2026-04-27T08:39:26Z – claude:sonnet:implementer:implementer – shell_pid=55745 – Started implementation via action command
+- 2026-04-27T08:43:53Z – claude:sonnet:implementer:implementer – shell_pid=55745 – Ready for review: ADR + operator doc + cutover runbook (T065 deferred to follow-up after WP03)
