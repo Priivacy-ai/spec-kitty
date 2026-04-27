@@ -12,8 +12,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "82236"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "88877"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -158,3 +158,4 @@ spec-kitty agent action implement WP04 --agent <name>
 
 - 2026-04-27T09:05:39Z – claude:sonnet:python-implementer:implementer – shell_pid=82236 – Started implementation via action command
 - 2026-04-27T09:10:37Z – claude:sonnet:python-implementer:implementer – shell_pid=82236 – Ready: safety registry seeded + fail-closed + arch test
+- 2026-04-27T09:10:58Z – claude:opus:python-reviewer:reviewer – shell_pid=88877 – Started review via action command
