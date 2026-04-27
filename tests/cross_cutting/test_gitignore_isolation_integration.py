@@ -22,6 +22,7 @@ pytestmark = pytest.mark.git_repo
 
 
 def _write_compatible_project_metadata(repo_root: Path) -> None:
+    """Write the current project schema; these tests do not exercise migrations."""
     capabilities = "\n".join(
         f"    - {capability}"
         for capability in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
