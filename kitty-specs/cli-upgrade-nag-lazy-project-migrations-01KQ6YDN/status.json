@@ -1,18 +1,18 @@
 {
-  "event_count": 79,
-  "last_event_id": "01KQ78DSD7N2GME7E5TT4F3F3S",
-  "materialized_at": "2026-04-27T10:40:40.359406+00:00",
+  "event_count": 82,
+  "last_event_id": "01KQ78GKFVS9C8JRJVTK5BPEA3",
+  "materialized_at": "2026-04-27T10:42:12.603042+00:00",
   "mission_number": "",
   "mission_slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 10,
+    "approved": 11,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -88,11 +88,11 @@
       "last_transition_at": "2026-04-27T10:37:07.576275+00:00"
     },
     "WP11": {
-      "actor": "claude:opus:python-reviewer:reviewer",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KQ78DSD7N2GME7E5TT4F3F3S",
-      "last_transition_at": "2026-04-27T10:40:40.359406+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQ78GKFVS9C8JRJVTK5BPEA3",
+      "last_transition_at": "2026-04-27T10:42:12.603042+00:00"
     }
   }
 }
