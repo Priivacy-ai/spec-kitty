@@ -20,6 +20,8 @@ subtasks:
 - T052
 - T053
 - T054
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "22798"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -190,3 +192,7 @@ In `tests/calibration/test_walker.py` and `tests/calibration/test_inequality.py`
 ```bash
 spec-kitty agent action implement WP10 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T10:57:38Z – claude:sonnet:implementer:implementer – shell_pid=22798 – Started implementation via action command
