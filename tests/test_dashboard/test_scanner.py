@@ -123,6 +123,38 @@ def test_scan_all_features_display_name_avoids_duplicate_prefix(tmp_path):
     assert features[0]["display_name"] == "001 - Demo Feature"
 
 
+def test_scan_all_features_orders_selector_rows_by_recency(tmp_path):
+    older = _create_feature(tmp_path, "aaa-older-mission")
+    newer = _create_feature(tmp_path, "zzz-newer-mission")
+    (older / "meta.json").write_text(
+        json.dumps(
+            {
+                "friendly_name": "Older Mission",
+                "created_at": "2026-04-01T10:00:00+00:00",
+                "mission_id": "01KOLDER000000000000000000",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (newer / "meta.json").write_text(
+        json.dumps(
+            {
+                "friendly_name": "Newer Mission",
+                "created_at": "2026-04-02T10:00:00+00:00",
+                "mission_id": "01KNEWER000000000000000000",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert [feature["id"] for feature in features[:2]] == [
+        "zzz-newer-mission",
+        "aaa-older-mission",
+    ]
+
+
 def test_scan_all_features_keeps_purpose_summary_in_meta_only(tmp_path):
     feature_dir = _create_feature(tmp_path)
     (feature_dir / "meta.json").write_text(
