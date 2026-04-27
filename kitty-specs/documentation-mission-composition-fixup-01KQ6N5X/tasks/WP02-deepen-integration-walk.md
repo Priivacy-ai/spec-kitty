@@ -16,6 +16,8 @@ subtasks:
 - T09
 - T10
 - T11
+agent: "claude:opus-4.7:implementer-ivan:implementer"
+shell_pid: "34764"
 history:
 - action: created
   at: '2026-04-27T05:05:00Z'
@@ -137,3 +139,7 @@ If the existing `_check_composed_action_guard()` direct call provides coverage t
 - Verify per-action trail records: 6 paired `started`/`done` records, each with documentation-native action name.
 - Verify T11 uses dispatch path (`decide_next_via_runtime`) not the helper directly.
 - C-007 grep must remain clean.
+
+## Activity Log
+
+- 2026-04-27T05:21:39Z – claude:opus-4.7:implementer-ivan:implementer – shell_pid=34764 – Started implementation via action command
