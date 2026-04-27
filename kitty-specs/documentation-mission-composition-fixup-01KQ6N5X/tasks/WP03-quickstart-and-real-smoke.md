@@ -120,3 +120,4 @@ If you cannot find a way to issue an action via the CLI (e.g. if every `spec-kit
 ## Activity Log
 
 - 2026-04-27T05:29:16Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=43317 – Started implementation via action command
+- 2026-04-27T05:38:07Z – claude:opus-4.7:reviewer-renata:implementer – shell_pid=43317 – T12-T13 complete; quickstart fields corrected; smoke-v2 shows action issuance + paired trail records (--force: WP03 owned_files include kitty-specs/<predecessor-mission>/quickstart.md and evidence/smoke-v2.md per spec C-004)
