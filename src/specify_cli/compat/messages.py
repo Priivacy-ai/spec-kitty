@@ -66,7 +66,7 @@ MESSAGES: dict[Fr023Case, str] = {
     Fr023Case.PROJECT_TOO_NEW_FOR_CLI: (
         "This project uses Spec Kitty project schema {schema_version}, but this CLI supports up to schema {max_supported}.\nUpgrade the CLI: {hint_command_or_note}"
     ),
-    Fr023Case.PROJECT_NOT_INITIALIZED: "",
+    Fr023Case.PROJECT_NOT_INITIALIZED: "This directory is not a Spec Kitty project. Run: spec-kitty init",
     Fr023Case.PROJECT_METADATA_CORRUPT: ("This project's .kittify/metadata.yaml is unreadable: {metadata_error}.\nRun: spec-kitty doctor"),
     Fr023Case.INSTALL_METHOD_UNKNOWN: ("Spec Kitty {latest} is available; you have {installed}.\n{hint_command_or_note}"),
 }
