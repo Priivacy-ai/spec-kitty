@@ -48,10 +48,10 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T033 | Add `tests/specify_cli/cli/test_no_visible_feature_alias.py` (typer walk + `--help` grep + `hidden=True` assertion) | WP07 | [P]      |
 | T034 | Add `tests/e2e/test_feature_alias_smoke.py` (passing `--feature` to one historically-accepting command behaves identically to `--mission`) | WP07 | [P]      |
 | T035 | Add `tests/specify_cli/cli/test_decision_command_shape_consistency.py` (typer walk + multi-source grep + `--help` listing assertion) | WP07 | [P]      |
-| T036 | Add an `event_type`-presence guard in `read_events()` (`src/specify_cli/status/store.py:209` per-line loop) that skips events carrying a top-level `event_type` field (the wire-format discriminator for mission-level events), with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. | WP08 |          |
-| T037 | Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs | WP08 | [P]      |
-| T038 | Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (no bypass needed) | WP08 |          |
-| T039 | Run `mypy --strict src/specify_cli/status/store.py` and `ruff check src/specify_cli/status/ tests/status/test_read_events_tolerates_decision_events.py` | WP08 | [P]      |
+| T036 | Add an `event_type`-presence guard in `read_events()` (`src/specify_cli/status/store.py:209` per-line loop) that skips events carrying a top-level `event_type` field (the wire-format discriminator for mission-level events), with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. | WP08 |          | [D] |
+| T037 | Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs | WP08 | [D] |
+| T038 | Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (no bypass needed) | WP08 |          | [D] |
+| T039 | Run `mypy --strict src/specify_cli/status/store.py` and `ruff check src/specify_cli/status/ tests/status/test_read_events_tolerates_decision_events.py` | WP08 | [D] |
 
 ## Work Packages
 
@@ -205,10 +205,10 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P0 — currently blocks `finalize-tasks` (and every other reader) for any mission that has used the Decision Moment Protocol. Discovered live during this very `/spec-kitty.tasks` run; the mission's own DecisionPoint event triggered the bug.
 - **Independent test**: `tests/status/test_read_events_tolerates_decision_events.py` (new).
 - **Subtasks**:
-  - [ ] T036 Add an `event_type`-presence guard in `read_events()` (per-line loop) that skips events carrying a top-level `event_type` field, with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. (WP08)
-  - [ ] T037 Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs (WP08)
-  - [ ] T038 Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (WP08)
-  - [ ] T039 Run `mypy --strict src/specify_cli/status/store.py` and `ruff check src/specify_cli/status/ tests/status/test_read_events_tolerates_decision_events.py` (WP08)
+  - [x] T036 Add an `event_type`-presence guard in `read_events()` (per-line loop) that skips events carrying a top-level `event_type` field, with a `# Why:` comment naming Decision Moment Protocol as the cooperating writer. Preserves the existing fail-loud contract for malformed lane-transition events. (WP08)
+  - [x] T037 Add `tests/status/test_read_events_tolerates_decision_events.py` exercising mixed lane-transition + DecisionPoint event logs (WP08)
+  - [x] T038 Re-run this mission's `finalize-tasks` against the fixed reader to confirm the live regression is closed (WP08)
+  - [x] T039 Run `mypy --strict src/specify_cli/status/store.py` and `ruff check src/specify_cli/status/ tests/status/test_read_events_tolerates_decision_events.py` (WP08)
 - **Implementation sketch**: ~5 LOC inside `read_events()` per-line loop + a sibling unit test. Uses the duck-type approach instead of an event-type allowlist for future-proofing.
 - **Parallel opportunities**: T037 and T039 can be drafted in parallel after T036.
 - **Dependencies**: none.
