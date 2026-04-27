@@ -21,7 +21,7 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:sonnet:reviewer-renata:reviewer"
+agent: "reviewer-renata"
 shell_pid: "86393"
 history:
 - at: '2026-04-27T18:00:45Z'
@@ -222,3 +222,4 @@ spec-kitty agent action implement WP02 --agent claude
 - 2026-04-27T20:56:44Z – claude:sonnet:implementer-ivan:implementer – shell_pid=85120 – Started implementation via action command
 - 2026-04-27T21:01:14Z – claude:sonnet:implementer-ivan:implementer – shell_pid=85120 – Ready for review: pyproject.toml at 3.2.0a5, CHANGELOG split + consolidated, all 10 tranche issues referenced
 - 2026-04-27T21:02:10Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=86393 – Started review via action command
+- 2026-04-27T21:03:40Z – reviewer-renata – shell_pid=86393 – Review passed: pyproject.toml=3.2.0a5, CHANGELOG split + 10 issues consolidated, release-prep tests green (72 passed, 7 skipped), deviations 1-5 ruled in
