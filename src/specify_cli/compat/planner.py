@@ -30,6 +30,44 @@ from enum import StrEnum
 if TYPE_CHECKING:
     pass
 
+
+# ---------------------------------------------------------------------------
+# CI environment helper (single source of truth for all call sites)
+# ---------------------------------------------------------------------------
+
+
+def is_ci_env() -> bool:
+    """Return True if the current environment indicates CI / non-interactive mode.
+
+    Used by the planner, the typer callback, and the gate. Single source of truth
+    so all call sites agree on what 'CI' means.
+    """
+    raw = os.environ.get("CI", "")
+    return bool(raw and raw.strip().lower() not in ("0", "false", "no", "off", ""))
+
+
+# ---------------------------------------------------------------------------
+# Migration registry auto-load guard
+# ---------------------------------------------------------------------------
+
+_REGISTRY_AUTOLOADED = False
+
+
+def _ensure_registry_loaded() -> None:
+    """Auto-discover migrations once per process, fail-open on any error."""
+    global _REGISTRY_AUTOLOADED
+    if _REGISTRY_AUTOLOADED:
+        return
+    try:
+        from specify_cli.upgrade.migrations import auto_discover_migrations
+
+        auto_discover_migrations()
+    except Exception:  # noqa: BLE001 — fail-open: empty pending_migrations is preferable to crash
+        pass
+    finally:
+        _REGISTRY_AUTOLOADED = True
+
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -219,8 +257,7 @@ class Invocation:
         is_help = "--help" in args or "-h" in args
         is_version = "--version" in args or "-v" in args
         flag_no_nag = "--no-nag" in args
-        env_ci_raw = os.environ.get("CI", "")
-        env_ci = bool(env_ci_raw and env_ci_raw.lower() not in ("0", "false", "no", "off"))
+        env_ci = is_ci_env()
 
         try:
             stdout_is_tty = sys.stdout.isatty()
@@ -325,8 +362,11 @@ def decide(
     if state in (ProjectState.STALE, ProjectState.LEGACY) and safety == Safety.UNSAFE:
         return Decision.BLOCK_PROJECT_MIGRATION, Fr023Case.PROJECT_MIGRATION_NEEDED
 
-    # Row 4: UNINITIALIZED or NO_PROJECT + UNSAFE → allow (safe commands always work)
-    # (falls through to allow/nag check below)
+    # Row 4: UNINITIALIZED or NO_PROJECT + UNSAFE → allow with PROJECT_NOT_INITIALIZED label.
+    # Decision stays ALLOW (do not block — the user can still init or use --cli);
+    # the case label lets JSON consumers distinguish this from a generic ALLOW.
+    if state in (ProjectState.NO_PROJECT, ProjectState.UNINITIALIZED) and safety == Safety.UNSAFE:
+        return Decision.ALLOW, Fr023Case.PROJECT_NOT_INITIALIZED
 
     # Row 5: nag / allow check
     if cli.is_outdated and not invocation.suppresses_nag():
@@ -532,6 +572,7 @@ def _pending_migrations_for(project: ProjectStatus) -> tuple[MigrationStep, ...]
     Returns:
         Tuple of :class:`MigrationStep` instances.
     """
+    _ensure_registry_loaded()
     try:
         from specify_cli.upgrade.registry import MigrationRegistry
 
@@ -868,4 +909,5 @@ __all__ = [
     "Invocation",
     "decide",
     "plan",
+    "is_ci_env",
 ]

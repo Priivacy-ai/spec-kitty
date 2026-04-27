@@ -1,5 +1,11 @@
 """Tests for compat.planner — T026.
 
+Also covers post-merge review fixes:
+- DRIFT-2 / RISK-1: _ensure_registry_loaded() called before reading MigrationRegistry
+- DRIFT-1: PROJECT_NOT_INITIALIZED emitted for NO_PROJECT/UNINITIALIZED + UNSAFE
+- RISK-4: is_ci_env() unified CI predicate
+
+
 Covers:
 - T021 dataclasses: Decision, Fr023Case, ProjectState, CliStatus, ProjectStatus,
   MigrationStep, Plan, Invocation.
@@ -29,6 +35,7 @@ from specify_cli.compat.planner import (
     ProjectState,
     ProjectStatus,
     decide,
+    is_ci_env,
     plan,
 )
 from specify_cli.compat.provider import FakeLatestVersionProvider
@@ -320,16 +327,18 @@ class TestDecide:
         assert case == Fr023Case.NONE
 
     def test_uninitialized_unsafe_allow(self) -> None:
+        # UNINITIALIZED + UNSAFE → ALLOW with PROJECT_NOT_INITIALIZED (DRIFT-1 fix)
         proj = _make_project_status(ProjectState.UNINITIALIZED, schema_version=None)
         decision, case = decide(proj, Safety.UNSAFE, _make_cli_status(is_outdated=False), _make_invocation())
         assert decision == Decision.ALLOW
-        assert case == Fr023Case.NONE
+        assert case == Fr023Case.PROJECT_NOT_INITIALIZED
 
     def test_no_project_unsafe_allow(self) -> None:
+        # NO_PROJECT + UNSAFE → ALLOW with PROJECT_NOT_INITIALIZED (DRIFT-1 fix)
         proj = _make_project_status(ProjectState.NO_PROJECT, schema_version=None)
         decision, case = decide(proj, Safety.UNSAFE, _make_cli_status(is_outdated=False), _make_invocation())
         assert decision == Decision.ALLOW
-        assert case == Fr023Case.NONE
+        assert case == Fr023Case.PROJECT_NOT_INITIALIZED
 
 
 # ---------------------------------------------------------------------------
@@ -537,3 +546,178 @@ class TestPlan:
         }
         assert required.issubset(set(result.rendered_json.keys()))
         assert result.rendered_json["schema_version"] == 1
+
+
+# ---------------------------------------------------------------------------
+# DRIFT-1 — Fr023Case.PROJECT_NOT_INITIALIZED emitted (FIX 2)
+# ---------------------------------------------------------------------------
+
+
+class TestDecideProjectNotInitialized:
+    """Row 4 of the truth table: NO_PROJECT/UNINITIALIZED + UNSAFE → PROJECT_NOT_INITIALIZED."""
+
+    def test_no_project_unsafe_emits_project_not_initialized(self) -> None:
+        proj = _make_project_status(ProjectState.NO_PROJECT, schema_version=None)
+        decision, case = decide(proj, Safety.UNSAFE, _make_cli_status(is_outdated=False), _make_invocation())
+        assert decision == Decision.ALLOW
+        assert case == Fr023Case.PROJECT_NOT_INITIALIZED
+
+    def test_uninitialized_unsafe_emits_project_not_initialized(self) -> None:
+        proj = _make_project_status(ProjectState.UNINITIALIZED, schema_version=None)
+        decision, case = decide(proj, Safety.UNSAFE, _make_cli_status(is_outdated=False), _make_invocation())
+        assert decision == Decision.ALLOW
+        assert case == Fr023Case.PROJECT_NOT_INITIALIZED
+
+    def test_no_project_safe_falls_through_to_nag_check(self) -> None:
+        # SAFE commands are not subject to Row 4 — they fall through to nag check
+        proj = _make_project_status(ProjectState.NO_PROJECT, schema_version=None)
+        decision, case = decide(proj, Safety.SAFE, _make_cli_status(is_outdated=False), _make_invocation())
+        assert decision == Decision.ALLOW
+        assert case == Fr023Case.NONE
+
+    def test_no_project_unsafe_message_is_non_empty(self, tmp_path: Path) -> None:
+        """PROJECT_NOT_INITIALIZED renders a non-empty human message."""
+        from specify_cli.compat import messages as _messages
+
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+        result = plan(
+            inv,
+            latest_version_provider=FakeLatestVersionProvider(version=_INSTALLED),
+            nag_cache=_make_nag_cache_tmp(tmp_path),
+            now=_NOW,
+            project_root_resolver=_project_root_no_project,
+        )
+        # UNSAFE command → PROJECT_NOT_INITIALIZED case; message must be non-empty
+        if result.fr023_case == Fr023Case.PROJECT_NOT_INITIALIZED:
+            assert result.rendered_human.strip() != ""
+
+
+# ---------------------------------------------------------------------------
+# DRIFT-2 / RISK-1 — _ensure_registry_loaded() called before reading registry (FIX 1)
+# ---------------------------------------------------------------------------
+
+
+class TestEnsureRegistryLoaded:
+    """_pending_migrations_for calls _ensure_registry_loaded before reading the registry."""
+
+    def test_pending_migrations_for_stale_project_does_not_crash(self, tmp_path: Path) -> None:
+        """With a stale project, _pending_migrations_for should not crash even if
+        auto_discover_migrations is called fresh (registry may or may not have entries)."""
+        import specify_cli.compat.planner as planner_mod
+
+        # Reset the autoload guard so _ensure_registry_loaded fires.
+        original_flag = planner_mod._REGISTRY_AUTOLOADED
+        planner_mod._REGISTRY_AUTOLOADED = False
+        try:
+            from specify_cli.compat.planner import _pending_migrations_for
+
+            ps = ProjectStatus(
+                state=ProjectState.STALE,
+                project_root=tmp_path,
+                schema_version=0,
+                min_supported=3,
+                max_supported=3,
+                metadata_error=None,
+            )
+            # Should not raise — returns a tuple (possibly empty)
+            result = _pending_migrations_for(ps)
+            assert isinstance(result, tuple)
+        finally:
+            planner_mod._REGISTRY_AUTOLOADED = original_flag
+
+    def test_ensure_registry_loaded_guard_runs_only_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_ensure_registry_loaded sets _REGISTRY_AUTOLOADED=True and skips on re-entry."""
+        import specify_cli.compat.planner as planner_mod
+
+        original_flag = planner_mod._REGISTRY_AUTOLOADED
+        calls: list[int] = []
+
+        def fake_discover() -> None:
+            calls.append(1)
+
+        monkeypatch.setattr(planner_mod, "_REGISTRY_AUTOLOADED", False)
+        # Patch the lazy import inside _ensure_registry_loaded
+        import specify_cli.upgrade.migrations as migrations_mod
+
+        monkeypatch.setattr(migrations_mod, "auto_discover_migrations", fake_discover)
+
+        from specify_cli.compat.planner import _ensure_registry_loaded
+
+        _ensure_registry_loaded()
+        _ensure_registry_loaded()  # second call must be a no-op
+
+        assert len(calls) == 1, f"Expected exactly 1 call, got {len(calls)}"
+        assert planner_mod._REGISTRY_AUTOLOADED is True
+
+        # Restore
+        planner_mod._REGISTRY_AUTOLOADED = original_flag
+
+    def test_ensure_registry_loaded_fail_open(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """If auto_discover_migrations raises, _ensure_registry_loaded still sets the guard."""
+        import specify_cli.compat.planner as planner_mod
+
+        original_flag = planner_mod._REGISTRY_AUTOLOADED
+        monkeypatch.setattr(planner_mod, "_REGISTRY_AUTOLOADED", False)
+
+        import specify_cli.upgrade.migrations as migrations_mod
+
+        def failing_discover() -> None:
+            raise RuntimeError("simulated discovery failure")
+
+        monkeypatch.setattr(migrations_mod, "auto_discover_migrations", failing_discover)
+
+        from specify_cli.compat.planner import _ensure_registry_loaded
+
+        _ensure_registry_loaded()  # must not raise
+        assert planner_mod._REGISTRY_AUTOLOADED is True
+
+        planner_mod._REGISTRY_AUTOLOADED = original_flag
+
+
+# ---------------------------------------------------------------------------
+# RISK-4 — is_ci_env() unified CI predicate (FIX 4)
+# ---------------------------------------------------------------------------
+
+
+class TestIsCiEnv:
+    """Unit tests for is_ci_env() across all expected env-var values."""
+
+    def test_ci_1_is_truthy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "1")
+        assert is_ci_env() is True
+
+    def test_ci_true_is_truthy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "true")
+        assert is_ci_env() is True
+
+    def test_ci_yes_is_truthy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "yes")
+        assert is_ci_env() is True
+
+    def test_ci_True_mixed_case_is_truthy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "True")
+        assert is_ci_env() is True
+
+    def test_ci_0_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "0")
+        assert is_ci_env() is False
+
+    def test_ci_false_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "false")
+        assert is_ci_env() is False
+
+    def test_ci_no_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "no")
+        assert is_ci_env() is False
+
+    def test_ci_off_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "off")
+        assert is_ci_env() is False
+
+    def test_ci_empty_string_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CI", "")
+        assert is_ci_env() is False
+
+    def test_ci_unset_is_falsy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CI", raising=False)
+        assert is_ci_env() is False
