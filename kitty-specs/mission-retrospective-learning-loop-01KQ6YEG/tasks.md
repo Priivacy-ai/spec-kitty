@@ -15,11 +15,11 @@
 | T002 | Define `action:retrospect` shipped artifact + scope edges | WP01 |  | [D] |
 | T003 | Wire DRG context (event stream, mission meta, charter, glossary, etc.) onto the retrospect action | WP01 |  | [D] |
 | T004 | DRG resolver + fixture mission test that confirms structured response | WP01 |  | [D] |
-| T005 | Pydantic schema models for `RetrospectiveRecord`, `Finding`, `Proposal`, `Mode`, `RecordProvenance`, `RetrospectiveFailure` | WP02 | [P] |
-| T006 | Atomic round-trip writer (`writer.py`): tempfile + `os.replace`, schema validation upstream | WP02 |  |
-| T007 | Schema-validating reader (`reader.py`) with structured-error result type | WP02 |  |
-| T008 | Required vs. optional + status-conditional cross-field validation | WP02 |  |
-| T009 | Tests: schema round-trip; writer atomicity; reader malformed/missing/legacy tolerance | WP02 |  |
+| T005 | Pydantic schema models for `RetrospectiveRecord`, `Finding`, `Proposal`, `Mode`, `RecordProvenance`, `RetrospectiveFailure` | WP02 | [D] |
+| T006 | Atomic round-trip writer (`writer.py`): tempfile + `os.replace`, schema validation upstream | WP02 |  | [D] |
+| T007 | Schema-validating reader (`reader.py`) with structured-error result type | WP02 |  | [D] |
+| T008 | Required vs. optional + status-conditional cross-field validation | WP02 |  | [D] |
+| T009 | Tests: schema round-trip; writer atomicity; reader malformed/missing/legacy tolerance | WP02 |  | [D] |
 | T010 | Pydantic event models for the eight retrospective events (`events.py`) | WP03 | [P] |
 | T011 | Event factory + emission helpers wired through `specify_cli.status.emit` (or sibling) | WP03 |  |
 | T012 | Reducer integration: surface `RetrospectiveSnapshot` on `StatusSnapshot` | WP03 |  |
@@ -126,11 +126,11 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-005, FR-006, FR-007, FR-008, FR-009, NFR-001, NFR-002, NFR-005, C-014.
 
 **Subtasks**:
-- [ ] T005 Pydantic schema models per data-model.md (WP02)
-- [ ] T006 Atomic round-trip writer: tempfile + `os.replace`, schema validation upstream (WP02)
-- [ ] T007 Schema-validating reader with structured-error result type (WP02)
-- [ ] T008 Required vs optional + status-conditional cross-field validation (WP02)
-- [ ] T009 Tests: schema round-trip; writer atomicity; reader malformed/missing/legacy tolerance (WP02)
+- [x] T005 Pydantic schema models per data-model.md (WP02)
+- [x] T006 Atomic round-trip writer: tempfile + `os.replace`, schema validation upstream (WP02)
+- [x] T007 Schema-validating reader with structured-error result type (WP02)
+- [x] T008 Required vs optional + status-conditional cross-field validation (WP02)
+- [x] T009 Tests: schema round-trip; writer atomicity; reader malformed/missing/legacy tolerance (WP02)
 
 **Implementation sketch**:
 1. `schema.py` — Pydantic v2 models per data-model.md. Per-proposal-kind payload union via `Annotated[..., Field(discriminator="kind")]`.
