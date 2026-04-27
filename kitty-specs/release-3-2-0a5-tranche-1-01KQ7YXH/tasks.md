@@ -22,11 +22,11 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 | T007 | Consolidate per-FR CHANGELOG entries under `[3.2.0a5]` (collected from each landed WP's PR description) | WP02 |          |
 | T008 | Run `tests/release/test_dogfood_command_set.py` and `tests/release/test_release_prep.py`; update fixtures if drifted | WP02 |          |
 | T009 | Verify `spec-kitty --version` reports `3.2.0a5` after editable reinstall   | WP02 |          |
-| T010 | Replace `.python-version` contents with `3.11`                              | WP03 |          |
-| T011 | Run `mypy --strict src/specify_cli/mission_step_contracts/executor.py`; triage and fix any errors | WP03 |          |
-| T012 | Add new test `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` invoking mypy in-process and asserting clean exit | WP03 | [P]      |
-| T013 | Re-run `tests/cross_cutting/` and `tests/missions/` to confirm no regressions from python-version change | WP03 |          |
-| T014 | Run `ruff check .python-version pyproject.toml src/specify_cli/mission_step_contracts/` | WP03 | [P]      |
+| T010 | Replace `.python-version` contents with `3.11`                              | WP03 |          | [D] |
+| T011 | Run `mypy --strict src/specify_cli/mission_step_contracts/executor.py`; triage and fix any errors | WP03 |          | [D] |
+| T012 | Add new test `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` invoking mypy in-process and asserting clean exit | WP03 | [D] |
+| T013 | Re-run `tests/cross_cutting/` and `tests/missions/` to confirm no regressions from python-version change | WP03 |          | [D] |
+| T014 | Run `ruff check .python-version pyproject.toml src/specify_cli/mission_step_contracts/` | WP03 | [D] |
 | T015 | Delete deprecated `/spec-kitty.checklist` source template AND its override copy | WP04 |          |
 | T016 | Remove `/spec-kitty.checklist` entries from `.kittify/command-skills-manifest.json` and `_legacy_codex_hashes.py` | WP04 | [P]      |
 | T017 | Delete every deprecated checklist snapshot, regression baseline, and upgrade fixture per `occurrence_map.yaml` | WP04 |          |
@@ -102,11 +102,11 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P1 — local agent productivity.
 - **Independent test**: `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` (new).
 - **Subtasks**:
-  - [ ] T010 Replace `.python-version` contents with `3.11` (WP03)
-  - [ ] T011 Run `mypy --strict src/specify_cli/mission_step_contracts/executor.py`; triage and fix any errors (WP03)
-  - [ ] T012 Add new test `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` invoking mypy in-process and asserting clean exit (WP03)
-  - [ ] T013 Re-run `tests/cross_cutting/` and `tests/missions/` to confirm no regressions from python-version change (WP03)
-  - [ ] T014 Run `ruff check .python-version pyproject.toml src/specify_cli/mission_step_contracts/` (WP03)
+  - [x] T010 Replace `.python-version` contents with `3.11` (WP03)
+  - [x] T011 Run `mypy --strict src/specify_cli/mission_step_contracts/executor.py`; triage and fix any errors (WP03)
+  - [x] T012 Add new test `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` invoking mypy in-process and asserting clean exit (WP03)
+  - [x] T013 Re-run `tests/cross_cutting/` and `tests/missions/` to confirm no regressions from python-version change (WP03)
+  - [x] T014 Run `ruff check .python-version pyproject.toml src/specify_cli/mission_step_contracts/` (WP03)
 - **Implementation sketch**: One-byte file change for `.python-version`; minor type-annotation cleanups; one new test file.
 - **Parallel opportunities**: T012 and T014 can be drafted in parallel after T011.
 - **Dependencies**: none.
