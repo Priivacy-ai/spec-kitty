@@ -25,6 +25,9 @@ context-sources:
   additional:
     - architecture-decision-records
     - design-pattern-catalog
+    - behaviour-driven-development-paradigm
+    - example-mapping-workshop-procedure
+    - bdd-scenario-lifecycle-procedure
 
 purpose: >
   Design and validate system architectures for scalability, maintainability, and correctness.
@@ -127,3 +130,10 @@ directive-references:
   - code: "032"
     name: Conceptual Alignment
     rationale: Domain terminology in any design task must be confirmed with the requester before proceeding to avoid misaligned implementations
+
+tactic-references:
+  - id: development-bdd
+    rationale: >
+      Use BDD behavioral contract definition during architecture design to express
+      observable system boundaries in stakeholder-readable terms. Behavioral contracts
+      precede implementation and shape system component boundaries.

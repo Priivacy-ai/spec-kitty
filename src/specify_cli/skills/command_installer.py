@@ -54,6 +54,7 @@ CANONICAL_COMMANDS: tuple[str, ...] = (
     "review",
     "specify",
     "tasks",
+    "tasks-finalize",
     "tasks-outline",
     "tasks-packages",
 )

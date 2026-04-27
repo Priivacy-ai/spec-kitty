@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-26T08:41:15.619455Z",
+      "decision_id": "01KQ4F6DK3GSA844KR3H62CQTQ",
+      "final_answer": null,
+      "input_key": "normalization_order",
+      "mission_id": "01KQ48XAGYF876MDHJ62GV0KSM",
+      "mission_slug": "doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
+      "options": [
+        "Gate first (WP01 completes before any other WP begins)",
+        "Parallel (new-content WPs create directly in target subdirs, WP01 moves only existing files)"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Tactic normalization (WP01, moving ~40 existing files to subdirs) will touch git history for many files. Should it gate all other WPs (simpler merges, but forces sequential start) or run in parallel with the new-content WPs (faster overall, but new tactics must be created in their final subdirectory locations from the start)?",
+      "rationale": "Pausing plan to create feature branch first; will re-open after branch setup",
+      "resolved_at": "2026-04-26T08:41:50.679914Z",
+      "resolved_by": null,
+      "slot_key": "plan.sequencing.normalization-order",
+      "status": "canceled",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQ48XAGYF876MDHJ62GV0KSM",
+  "version": 1
+}

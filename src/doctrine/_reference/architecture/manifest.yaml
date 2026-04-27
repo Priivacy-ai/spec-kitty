@@ -1,6 +1,0 @@
-version: 1
-source_id: architecture
-source_name: "Spec Kitty Architecture Docs"
-source_type: "repository-doc"
-owner: "governance"
-notes: "Git/commit workflow and quality-gate practices from architecture ADRs and journeys."

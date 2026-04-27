@@ -1,12 +1,12 @@
 {
   "created_at": "2026-04-10T16:20:05.773895+00:00",
   "friendly_name": "Canonical Baseline and Repository Boundary",
-  "source_description": "Define the canonical 3-tier terminology boundary (project/repository/build), establish invariants, and catalog representative drift to guide convergence.",
-  "vcs": "git",
   "mission_id": "01KNW332GD2V6C1WWANMQZ9D8D",
-  "mission_number": "081",
+  "mission_number": 81,
   "mission_slug": "081-canonical-baseline-and-repository-boundary",
   "mission_type": "software-dev",
   "slug": "081-canonical-baseline-and-repository-boundary",
-  "target_branch": "main"
+  "source_description": "Define the canonical 3-tier terminology boundary (project/repository/build), establish invariants, and catalog representative drift to guide convergence.",
+  "target_branch": "main",
+  "vcs": "git"
 }

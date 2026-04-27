@@ -1,7 +1,8 @@
 {
   "created_at": "2026-04-06T13:13:39.241970+00:00",
   "friendly_name": "Tasks And Lane Stabilization",
-  "mission_number": "065",
+  "mission_id": "01KQ47E80T035KY1V597KT4BZX",
+  "mission_number": 65,
   "mission_slug": "065-tasks-and-lane-stabilization",
   "mission_type": "software-dev",
   "slug": "065-tasks-and-lane-stabilization",

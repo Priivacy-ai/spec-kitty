@@ -4,6 +4,7 @@
   "feature_slug": "061-ticket-first-mission-origin-binding",
   "friendly_name": "Ticket-First Mission Origin Binding",
   "mission": "software-dev",
+  "mission_id": "01KQ47E80C1ZXCAP7SWSQ3ZFVT",
   "slug": "ticket-first-mission-origin-binding",
   "source_description": "Add a service-layer workflow for starting a mission from an existing Jira or Linear ticket via SaaS-backed search, confirmation, and local provenance persistence.",
   "target_branch": "main",

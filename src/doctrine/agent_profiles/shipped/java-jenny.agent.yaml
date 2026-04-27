@@ -161,6 +161,9 @@ self-review-protocol:
     - name: static-analysis
       command: "mvn spotbugs:check"
       gate: no SpotBugs bugs at configured severity threshold
+    - name: bdd-scenarios
+      command: "mvn verify -Pcucumber"
+      gate: all Cucumber/Serenity BDD scenarios in scope pass; no scenario in @wip state
     - name: acceptance-review
       gate: each acceptance criterion from the specification has a corresponding passing test
     - name: locality-review
@@ -182,3 +185,12 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Tests define the contract before production code — ATDD/TDD red-green-refactor is the default implementation rhythm
+tactic-references:
+  - id: behavior-driven-development
+    rationale: >
+      BDD scenarios define acceptance criteria for Java features. Wire Gherkin
+      scenarios via Cucumber-JVM as acceptance tests before implementing production code.
+  - id: bdd-scenario-lifecycle
+    rationale: >
+      Apply the Formulation to Automation lifecycle: write Gherkin first, run red,
+      implement minimal production code, run green, publish Serenity BDD report.

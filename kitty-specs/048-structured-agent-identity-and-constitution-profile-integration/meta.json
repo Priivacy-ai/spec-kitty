@@ -1,11 +1,12 @@
 {
+  "created_at": "2026-03-08T09:34:54.089481+00:00",
   "feature_number": "048",
-  "slug": "048-structured-agent-identity-and-constitution-profile-integration",
   "feature_slug": "048-structured-agent-identity-and-constitution-profile-integration",
   "friendly_name": "structured agent identity and constitution profile integration",
   "mission": "software-dev",
+  "mission_id": "01KQ47E7ZAZ1RMZB84C04RAECB",
+  "slug": "048-structured-agent-identity-and-constitution-profile-integration",
   "target_branch": "feature/agent-profile-implementation",
-  "created_at": "2026-03-08T09:34:54.089481+00:00",
   "vcs": "git",
   "vcs_locked_at": "2026-03-09T04:31:42.827119+00:00"
 }

@@ -1,11 +1,12 @@
 {
+  "created_at": "2026-04-14T08:46:38.473253+00:00",
   "feature_number": "083",
-  "slug": "083-agent-skills-codex-vibe",
   "feature_slug": "083-agent-skills-codex-vibe",
   "friendly_name": "Agent Skills Support for Codex and Vibe",
   "mission": "software-dev",
+  "mission_id": "01KQ47E820PCSYX1WYMX53VCW0",
+  "slug": "083-agent-skills-codex-vibe",
   "source_description": "GitHub issue #624 - design spike + implementation: add Mistral Vibe as a supported coding agent, and modernize Codex onto the same Agent Skills integration model (validated via P0 research showing Codex custom-prompts are deprecated in favor of .agents/skills/).",
-  "vcs": "git",
   "target_branch": "main",
-  "created_at": "2026-04-14T08:46:38.473253+00:00"
+  "vcs": "git"
 }

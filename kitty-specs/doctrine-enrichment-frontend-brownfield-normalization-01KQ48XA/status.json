@@ -1,0 +1,84 @@
+{
+  "event_count": 72,
+  "last_event_id": "01KQ4YKREMATPKG5D4JHTGAGVW",
+  "materialized_at": "2026-04-26T13:10:41.364334+00:00",
+  "mission_number": "100",
+  "mission_slug": "doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YJXMSTV5CP288H1F0EDN6",
+      "last_transition_at": "2026-04-26T13:10:13.913812+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YK1320AJCATVP5AYHPM5Y",
+      "last_transition_at": "2026-04-26T13:10:17.442140+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YK4FQ3DENTF8ATVCSGTB9",
+      "last_transition_at": "2026-04-26T13:10:20.919359+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YK7T6N211XV47CR1F0QMX",
+      "last_transition_at": "2026-04-26T13:10:24.326950+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YKB2X0KC6A77DRH0NJSSQ",
+      "last_transition_at": "2026-04-26T13:10:27.677893+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YKEC3X97NBBS86JSCCA7M",
+      "last_transition_at": "2026-04-26T13:10:31.043457+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YKHQNYTP7WS5A87K69VCR",
+      "last_transition_at": "2026-04-26T13:10:34.485220+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YKN2NERRPEP4J963MF04A",
+      "last_transition_at": "2026-04-26T13:10:37.909168+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQ4YKREMATPKG5D4JHTGAGVW",
+      "last_transition_at": "2026-04-26T13:10:41.364334+00:00"
+    }
+  }
+}

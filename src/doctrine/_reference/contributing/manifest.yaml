@@ -1,6 +1,0 @@
-version: 1
-source_id: contributing
-source_name: "Spec Kitty CONTRIBUTING"
-source_type: "repository-doc"
-owner: "governance"
-notes: "Git workflow and commit/release conventions from CONTRIBUTING.md."

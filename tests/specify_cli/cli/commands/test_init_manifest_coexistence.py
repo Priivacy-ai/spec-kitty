@@ -70,7 +70,7 @@ def test_mixed_install_keeps_both_manifests_intact(tmp_path: Path) -> None:
     # Simulate the order init.py uses: per-agent loop first, then the
     # legacy save_manifest at the bottom. Write the new manifest first.
     report = command_installer.install(project, "vibe")
-    assert len(report.added) == 11, f"vibe install should create 11 entries, got {len(report.added)}"
+    assert len(report.added) == 12, f"vibe install should create 12 entries, got {len(report.added)}"
 
     # Now simulate the legacy path writing its manifest.
     _write_claude_like_legacy_manifest(project)
@@ -93,7 +93,7 @@ def test_mixed_install_keeps_both_manifests_intact(tmp_path: Path) -> None:
     new_data = json.loads(new_path.read_text(encoding="utf-8"))
     assert new_data["schema_version"] == 1, "New manifest must carry schema_version: 1"
     assert "version" not in new_data, "New manifest must not carry legacy version field"
-    assert len(new_data["entries"]) == 11, f"Expected 11 vibe entries, got {len(new_data['entries'])}"
+    assert len(new_data["entries"]) == 12, f"Expected 12 vibe entries, got {len(new_data['entries'])}"
     for entry in new_data["entries"]:
         assert entry["agents"] == ["vibe"], entry
         assert entry["path"].startswith(".agents/skills/spec-kitty."), entry["path"]
@@ -116,8 +116,8 @@ def test_subsequent_installer_ops_succeed_after_mixed_install(tmp_path: Path) ->
     # the rename, because manifest_store.load would have seen the legacy
     # file and rejected its schema.
     report = command_installer.install(project, "codex")
-    assert len(report.reused_shared) == 11, (
-        f"codex install should reuse the 11 existing vibe entries, got {len(report.reused_shared)}"
+    assert len(report.reused_shared) == 12, (
+        f"codex install should reuse the 12 existing vibe entries, got {len(report.reused_shared)}"
     )
 
     # Manifest now reflects both agents.
@@ -127,8 +127,8 @@ def test_subsequent_installer_ops_succeed_after_mixed_install(tmp_path: Path) ->
 
     # And remove(codex) works — leaving vibe entries intact.
     remove_report = command_installer.remove(project, "codex")
-    assert len(remove_report.kept) == 11, (
-        f"vibe should still need all 11 entries, got kept={remove_report.kept}"
+    assert len(remove_report.kept) == 12, (
+        f"vibe should still need all 12 entries, got kept={remove_report.kept}"
     )
     final = json.loads(_new_manifest_path(project).read_text(encoding="utf-8"))
     for entry in final["entries"]:
