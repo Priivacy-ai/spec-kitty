@@ -362,24 +362,16 @@ def test_resolved_specialist_profiles_include_base_tactic_references(
 ) -> None:
     """
     Generic invariant: for every shipped profile P that specializes-from base B,
-    applying _union_merge(base_raw, specialist_raw) — the exact merge semantics
-    that resolve_profile() uses internally — must include every tactic reference
-    that B declares.
+    resolve_profile(P) must include every tactic reference that B declares.
 
     This is a genuine regression guard: if 'tactic-references' is removed from
-    _LIST_FIELDS, _union_merge will fall through to the 'child overrides parent'
-    branch, and specialists that declare their own tactic refs will silently drop
-    the base's refs. This test catches that regression.
+    _LIST_FIELDS, specialists that declare their own tactic refs will silently
+    drop the base's refs. If the runtime AgentProfile model stops carrying
+    tactic_references, this test also fails instead of passing by inspecting raw
+    YAML only.
 
     Passes with zero specialization pairs. Does NOT hardcode profile or tactic IDs.
     """
-    import yaml  # type: ignore[import-untyped]
-    import doctrine.agent_profiles.repository as _repo_module
-
-    # _union_merge is the private merge function resolve_profile() calls internally.
-    # We access it here intentionally to test the production merge path.
-    _union_merge = _repo_module._union_merge  # noqa: SLF001
-
     profiles = {p.profile_id: p for p in shipped_repo.list_all()}
 
     violations: list[str] = []
@@ -388,36 +380,20 @@ def test_resolved_specialist_profiles_include_base_tactic_references(
         if not base_id or base_id not in profiles:
             continue
 
-        base_yaml_path = _SHIPPED_PROFILE_DIR / f"{base_id}.agent.yaml"
-        if not base_yaml_path.exists():
-            continue
-
-        with base_yaml_path.open() as fh:
-            base_raw: dict = yaml.safe_load(fh) or {}
+        base = shipped_repo.resolve_profile(base_id)
         base_tactic_ids = {
-            ref["id"] for ref in (base_raw.get("tactic-references") or []) if "id" in ref
+            ref.id for ref in base.tactic_references
         }
         if not base_tactic_ids:
             continue
 
-        specialist_yaml_path = _SHIPPED_PROFILE_DIR / f"{profile_id}.agent.yaml"
-        if not specialist_yaml_path.exists():
-            continue
-        with specialist_yaml_path.open() as fh:
-            specialist_raw: dict = yaml.safe_load(fh) or {}
+        resolved = shipped_repo.resolve_profile(profile_id)
+        resolved_tactic_ids = {ref.id for ref in resolved.tactic_references}
 
-        # Apply the same union merge resolve_profile() uses internally.
-        # If tactic-references is in _LIST_FIELDS, the result is the union of both sets.
-        # If it is NOT in _LIST_FIELDS, child overrides parent and base refs are dropped.
-        merged = _union_merge(base_raw, specialist_raw)
-        merged_tactic_ids = {
-            ref["id"] for ref in (merged.get("tactic-references") or []) if "id" in ref
-        }
-
-        for missing_id in base_tactic_ids - merged_tactic_ids:
+        for missing_id in base_tactic_ids - resolved_tactic_ids:
             violations.append(
                 f"Profile '{profile_id}' (specializes-from '{base_id}'): "
-                f"tactic '{missing_id}' absent after _union_merge — "
+                f"tactic '{missing_id}' absent after resolve_profile() — "
                 f"verify 'tactic-references' is in _LIST_FIELDS in repository.py"
             )
 
@@ -509,6 +485,8 @@ specialization:
 tactic-references:
   - id: specialist-tactic
     rationale: specialist adds this
+  - id: base-tactic
+    rationale: specialist repeats the base tactic with a narrower rationale
 """,
         encoding="utf-8",
     )
@@ -516,26 +494,7 @@ tactic-references:
     repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
     resolved = repo.resolve_profile("specialist-impl")
 
-    import yaml  # type: ignore[import-untyped]
-    # read the resolved profile's tactic-references via the repo's internal dict
-    # (AgentProfile model may not expose tactic_references directly)
-    specialist_yaml = shipped / "specialist-impl.agent.yaml"
-    with specialist_yaml.open() as fh:
-        raw = yaml.safe_load(fh)
-
-    specialist_tactic_ids = {ref["id"] for ref in (raw.get("tactic-references") or [])}
-    base_yaml = shipped / "base-impl.agent.yaml"
-    with base_yaml.open() as fh:
-        base_raw = yaml.safe_load(fh)
-    base_tactic_ids = {ref["id"] for ref in (base_raw.get("tactic-references") or [])}
-
-    # After union merge, the resolved profile must include BOTH
-    # We verify this by checking the _union_merge behavior directly
-    import doctrine.agent_profiles.repository as _repo_module
-    _union_merge = _repo_module._union_merge  # noqa: SLF001
-
-    merged = _union_merge(base_raw, raw)
-    merged_tactic_ids = {ref["id"] for ref in (merged.get("tactic-references") or [])}
+    merged_tactic_ids = {ref.id for ref in resolved.tactic_references}
 
     assert "base-tactic" in merged_tactic_ids, (
         "base-tactic must survive union merge — check that tactic-references is in _LIST_FIELDS"
@@ -543,3 +502,4 @@ tactic-references:
     assert "specialist-tactic" in merged_tactic_ids, (
         "specialist-tactic must be in merged profile"
     )
+    assert [ref.id for ref in resolved.tactic_references].count("base-tactic") == 1

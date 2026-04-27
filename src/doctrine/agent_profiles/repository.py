@@ -140,12 +140,15 @@ _LIST_FIELDS: frozenset[str] = frozenset({
 def _item_key(item: Any) -> str:
     """Extract a stable identity key for deduplication and exclusion matching.
 
-    For DirectiveRef dicts, uses the 'code' field.
+    For DirectiveRef dicts, uses the 'code' field. For artifact refs, uses
+    the 'id' field.
     For other dicts, falls back to full string repr.
     For plain values, uses str().
     """
     if isinstance(item, dict) and "code" in item:
         return str(item["code"])
+    if isinstance(item, dict) and "id" in item:
+        return str(item["id"])
     return str(item)
 
 
