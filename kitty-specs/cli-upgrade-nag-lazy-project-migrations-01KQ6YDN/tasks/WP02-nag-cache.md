@@ -17,8 +17,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "63261"
+agent: "claude:opus:python-reviewer:reviewer"
+shell_pid: "67644"
 history:
 - at: '2026-04-27T08:19:12Z'
   actor: planner
@@ -182,3 +182,4 @@ spec-kitty agent action implement WP02 --agent <name>
 
 - 2026-04-27T08:46:56Z – claude:sonnet:python-implementer:implementer – shell_pid=63261 – Started implementation via action command
 - 2026-04-27T08:53:27Z – claude:sonnet:python-implementer:implementer – shell_pid=63261 – Ready for review: cache + config + security tests
+- 2026-04-27T08:53:54Z – claude:opus:python-reviewer:reviewer – shell_pid=67644 – Started review via action command
