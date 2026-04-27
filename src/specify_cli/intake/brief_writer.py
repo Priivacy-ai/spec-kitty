@@ -16,7 +16,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .errors import IntakeError, IntakeRootInconsistentError
+from .errors import (
+    IntakeError,
+    IntakePathEscapeError,
+    IntakeRootInconsistentError,
+)
 
 
 def _validate_root_consistency(scanner_root: Path, writer_root: Path) -> None:
@@ -39,6 +43,20 @@ def _validate_root_consistency(scanner_root: Path, writer_root: Path) -> None:
             scanner_root=s_resolved,
             writer_root=w_resolved,
         )
+
+
+def _validate_target_within_root(root: Path, candidate: Path) -> Path:
+    """Return the resolved candidate when it stays inside ``root``."""
+    resolved_root = Path(root).resolve(strict=False)
+    resolved_candidate = Path(candidate).resolve(strict=False)
+    try:
+        resolved_candidate.relative_to(resolved_root)
+    except ValueError as exc:
+        raise IntakePathEscapeError(
+            candidate=resolved_candidate,
+            intake_root=resolved_root,
+        ) from exc
+    return resolved_candidate
 
 
 class CrossFilesystemWriteError(IntakeError):
@@ -172,6 +190,8 @@ def write_brief_atomic(
     crashed predecessors never collide on the same temp filename.
     """
     _validate_root_consistency(scanner_root, writer_root)
+    _validate_target_within_root(writer_root, brief_path)
+    _validate_target_within_root(writer_root, source_path)
     # Source first so brief.md remains the canonical "commit marker"
     # for the pair. The reader treats source-without-brief as no brief.
     atomic_write_text(source_path, source_yaml, allow_cross_fs=allow_cross_fs)
