@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import UTC, datetime
 from kernel._safe_re import re
 from pathlib import Path
 from typing import Any
@@ -162,6 +163,59 @@ def format_feature_display_name(feature_id: str, friendly_name: str) -> str:
         return label
 
     return f"{feature_number} - {label}"
+
+
+def _parse_created_at(value: object) -> float | None:
+    """Return a comparable timestamp for ISO-8601 meta.json created_at values."""
+    if not isinstance(value, str):
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.timestamp()
+
+
+def _coerce_sort_mission_number(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
+def _feature_recency_sort_key(feature: dict[str, Any]) -> tuple[bool, float, bool, str, bool, int, str]:
+    """Sort dashboard selector rows newest-first with deterministic legacy fallbacks."""
+    meta = feature.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+
+    created_at = _parse_created_at(meta.get("created_at"))
+    mission_id = meta.get("mission_id")
+    mission_id_key = mission_id.strip() if isinstance(mission_id, str) else ""
+    mission_number = _coerce_sort_mission_number(meta.get("mission_number"))
+
+    return (
+        created_at is not None,
+        created_at if created_at is not None else float("-inf"),
+        bool(mission_id_key),
+        mission_id_key,
+        mission_number is not None,
+        mission_number if mission_number is not None else -1,
+        str(feature.get("id", "")),
+    )
 
 
 def work_package_sort_key(task: dict[str, Any]) -> tuple:
@@ -443,10 +497,101 @@ def _count_wps_by_lane(tasks_dir: Path) -> dict[str, int]:
     return counts
 
 
-def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
-    """Scan all features and return metadata."""
+def _read_dashboard_feature_meta(feature_dir: Path) -> tuple[str, dict[str, Any] | None]:
+    """Return the display name and sanitized meta.json fields for a dashboard row."""
+    friendly_name = feature_dir.name
+    meta_data: dict[str, Any] | None = None
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        return friendly_name, meta_data
+
+    try:
+        loaded_meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError:
+        return friendly_name, meta_data
+
+    if not isinstance(loaded_meta, dict):
+        return friendly_name, meta_data
+
+    meta_data = loaded_meta
+    potential_name = meta_data.get("friendly_name")
+    if isinstance(potential_name, str) and potential_name.strip():
+        friendly_name = potential_name.strip()
+
+    # Keep purpose summary data inside meta so the dashboard can render it
+    # without widening the typed feature payload.
+    for key in ("purpose_tldr", "purpose_context"):
+        value = meta_data.get(key)
+        if isinstance(value, str) and value.strip():
+            meta_data[key] = " ".join(value.split())
+
+    return friendly_name, meta_data
+
+
+def _build_legacy_kanban_stats(tasks_dir: Path) -> dict[str, int]:
+    kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+    for lane in ["planned", "doing", "for_review", "done"]:
+        lane_dir = tasks_dir / lane
+        if lane_dir.exists():
+            count = len(list(lane_dir.rglob("WP*.md")))
+            kanban_stats[lane] = count
+            kanban_stats["total"] += count
+    return kanban_stats
+
+
+def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[str, Any]:
+    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
     from specify_cli.status.store import StoreError
 
+    kanban_stats: dict[str, Any] = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+    try:
+        lane_counts = _count_wps_by_lane(tasks_dir)
+        for lane, count in lane_counts.items():
+            kanban_stats[lane] = count
+            kanban_stats["total"] += count
+
+        try:
+            from specify_cli.status.progress import compute_weighted_progress
+            from specify_cli.status.reducer import materialize
+
+            snap = materialize(feature_dir)
+            progress = compute_weighted_progress(snap)
+            kanban_stats["weighted_percentage"] = round(progress.percentage, 1)
+        except Exception:
+            logger.debug(
+                "Could not compute weighted progress for '%s'",
+                feature_dir.name,
+            )
+    except CanonicalStatusNotFoundError:
+        logger.warning(
+            "No event log for feature '%s' — skipping kanban counts",
+            feature_dir.name,
+        )
+        kanban_stats["error"] = f"Event log not found. Run: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}"
+    except StoreError as exc:
+        logger.warning(
+            "Unreadable event log for feature '%s' — dashboard counts unavailable: %s",
+            feature_dir.name,
+            exc,
+        )
+        kanban_stats["error"] = f"Event log unreadable. Run: spec-kitty upgrade (feature {feature_dir.name})"
+
+    return kanban_stats
+
+
+def _build_kanban_stats(feature_dir: Path, artifacts: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    kanban_stats: dict[str, Any] = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+    if not artifacts["kanban"]:
+        return kanban_stats
+
+    tasks_dir = feature_dir / "tasks"
+    if is_legacy_format(feature_dir):
+        return _build_legacy_kanban_stats(tasks_dir)
+    return _build_event_log_kanban_stats(feature_dir, tasks_dir)
+
+
+def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
+    """Scan all features and return metadata."""
     features: list[dict[str, Any]] = []
     feature_paths = gather_feature_paths(project_dir)
 
@@ -454,70 +599,10 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
         if not (re.match(r"^\d+", feature_dir.name) or (feature_dir / "tasks").exists()):
             continue
 
-        friendly_name = feature_dir.name
-        meta_data: dict[str, Any] | None = None
-        meta_path = feature_dir / "meta.json"
-        if meta_path.exists():
-            try:
-                meta_data = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-                potential_name = meta_data.get("friendly_name")
-                if isinstance(potential_name, str) and potential_name.strip():
-                    friendly_name = potential_name.strip()
-            except json.JSONDecodeError:
-                meta_data = None
-
+        friendly_name, meta_data = _read_dashboard_feature_meta(feature_dir)
         artifacts = get_feature_artifacts(feature_dir, project_dir)
         workflow = get_workflow_status(artifacts)
-
-        kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
-        if artifacts["kanban"]:
-            tasks_dir = feature_dir / "tasks"
-            use_legacy = is_legacy_format(feature_dir)
-
-            if use_legacy:
-                # Legacy format: count WPs in lane subdirectories
-                for lane in ["planned", "doing", "for_review", "done"]:
-                    lane_dir = tasks_dir / lane
-                    if lane_dir.exists():
-                        count = len(list(lane_dir.rglob("WP*.md")))
-                        kanban_stats[lane] = count
-                        kanban_stats["total"] += count
-            else:
-                # New format: count WPs by canonical event log lane
-                from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-
-                try:
-                    lane_counts = _count_wps_by_lane(tasks_dir)
-                    for lane, count in lane_counts.items():
-                        kanban_stats[lane] = count
-                        kanban_stats["total"] += count
-
-                    # Pre-compute weighted progress for dashboard JS
-                    try:
-                        from specify_cli.status.progress import compute_weighted_progress
-                        from specify_cli.status.reducer import materialize
-
-                        snap = materialize(feature_dir)
-                        progress = compute_weighted_progress(snap)
-                        kanban_stats["weighted_percentage"] = round(progress.percentage, 1)
-                    except Exception:
-                        logger.debug(
-                            "Could not compute weighted progress for '%s'",
-                            feature_dir.name,
-                        )
-                except CanonicalStatusNotFoundError:
-                    logger.warning(
-                        "No event log for feature '%s' — skipping kanban counts",
-                        feature_dir.name,
-                    )
-                    kanban_stats["error"] = f"Event log not found. Run: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}"
-                except StoreError as exc:
-                    logger.warning(
-                        "Unreadable event log for feature '%s' — dashboard counts unavailable: %s",
-                        feature_dir.name,
-                        exc,
-                    )
-                    kanban_stats["error"] = f"Event log unreadable. Run: spec-kitty upgrade (feature {feature_dir.name})"
+        kanban_stats = _build_kanban_stats(feature_dir, artifacts)
 
         worktree_root = project_dir / ".worktrees"
         worktree_path = worktree_root / feature_dir.name
@@ -541,7 +626,7 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
             }
         )
 
-    features.sort(key=lambda f: f["id"], reverse=True)
+    features.sort(key=_feature_recency_sort_key, reverse=True)
     return features
 
 
