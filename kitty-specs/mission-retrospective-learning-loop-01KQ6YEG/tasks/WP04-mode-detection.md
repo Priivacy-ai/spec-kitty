@@ -151,3 +151,4 @@ spec-kitty agent action implement WP04 --agent <name>
 ## Activity Log
 
 - 2026-04-27T09:21:42Z – claude:sonnet:implementer:implementer – shell_pid=93389 – Started implementation via action command
+- 2026-04-27T09:31:04Z – claude:sonnet:implementer:implementer – shell_pid=93389 – Ready for review: mode.detect() with charter > flag > env > parent precedence
