@@ -36,11 +36,11 @@
 | T023 | Operational predicates for "silent auto-run" and "silent skip" | WP05 |  | [D] |
 | T024 | Thin caller in `next/_internal_runtime/retrospective_hook.py` | WP05 |  | [D] |
 | T025 | Tests: every decision-matrix row + determinism replay | WP05 |  | [D] |
-| T026 | Lifecycle terminus hook in `next` (built-in mission flow) | WP06 |  |
-| T027 | HiC offer/skip prompt UX in `next` | WP06 |  |
-| T028 | Autonomous auto-invocation path | WP06 |  |
-| T029 | Compatibility check for custom mission's required `retrospective` marker step | WP06 |  |
-| T030 | Tests: lifecycle hook integration + custom-mission marker compat regression | WP06 |  |
+| T026 | Lifecycle terminus hook in `next` (built-in mission flow) | WP06 |  | [D] |
+| T027 | HiC offer/skip prompt UX in `next` | WP06 |  | [D] |
+| T028 | Autonomous auto-invocation path | WP06 |  | [D] |
+| T029 | Compatibility check for custom mission's required `retrospective` marker step | WP06 |  | [D] |
+| T030 | Tests: lifecycle hook integration + custom-mission marker compat regression | WP06 |  | [D] |
 | T031 | `apply_proposals()` API skeleton in `doctrine.synthesizer.apply` | WP07 |  |
 | T032 | Conflict detection per R-006 predicates (`conflict.py`) | WP07 |  |
 | T033 | Staleness check (evidence event reachability) | WP07 |  |
@@ -261,11 +261,11 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-013, FR-014, FR-028, FR-029.
 
 **Subtasks**:
-- [ ] T026 Lifecycle terminus hook in `next` (built-in mission flow) (WP06)
-- [ ] T027 HiC offer/skip prompt UX in `next` (WP06)
-- [ ] T028 Autonomous auto-invocation path (WP06)
-- [ ] T029 Compatibility check for custom mission's required `retrospective` marker step (WP06)
-- [ ] T030 Tests: lifecycle hook integration + custom-mission marker compat regression (WP06)
+- [x] T026 Lifecycle terminus hook in `next` (built-in mission flow) (WP06)
+- [x] T027 HiC offer/skip prompt UX in `next` (WP06)
+- [x] T028 Autonomous auto-invocation path (WP06)
+- [x] T029 Compatibility check for custom mission's required `retrospective` marker step (WP06)
+- [x] T030 Tests: lifecycle hook integration + custom-mission marker compat regression (WP06)
 
 **Implementation sketch**:
 1. Identify the spot in `next/` where built-in mission terminus is recognized; insert a hook that invokes `action:retrospect`.
