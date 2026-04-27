@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -223,20 +224,22 @@ def _run_cli_mode(
         no_nag: When True, set flag_no_nag in the Invocation.
         latest_version_provider: Optional override for tests.
     """
-    from specify_cli.compat.planner import Invocation, plan
+    from specify_cli.compat.planner import Invocation, is_ci_env, plan
 
     raw_args: tuple[str, ...] = ("--cli",)
     if dry_run:
         raw_args = raw_args + ("--dry-run",)
 
+    # Read the real environment so that CI=1 spec-kitty upgrade --cli
+    # correctly suppresses the network call (RISK-3 fix).
     invocation = Invocation(
         command_path=("upgrade",),
         raw_args=raw_args,
         is_help=False,
         is_version=False,
         flag_no_nag=no_nag,
-        env_ci=False,
-        stdout_is_tty=True,  # --cli is always interactive / stdout
+        env_ci=is_ci_env(),
+        stdout_is_tty=sys.stdout.isatty(),
     )
 
     kwargs: dict[str, object] = {}
@@ -415,13 +418,15 @@ def upgrade(  # noqa: C901
                 console.print("[dim]Tip: use 'spec-kitty upgrade --cli' for CLI guidance outside a project.[/dim]")
             raise typer.Exit(1)
         else:
-            # Default mode (neither --cli nor --project): existing behaviour
-            if json_output:
-                print(json.dumps({"error": "Not a Spec Kitty project"}))
-            else:
-                console.print("[red]Error:[/red] Not a Spec Kitty project.")
-                console.print("[dim]Run 'spec-kitty init' to initialize a project.[/dim]")
-            raise typer.Exit(1)
+            # Default mode (bare `spec-kitty upgrade` outside any project):
+            # FR-014 says this should fall through to CLI guidance behavior
+            # rather than erroring.  Only error when --project is explicit.
+            _run_cli_mode(
+                json_output=json_output,
+                dry_run=dry_run,
+                no_nag=no_nag,
+            )
+            return  # _run_cli_mode always raises typer.Exit; belt-and-suspenders
 
     # CHK037 / A-006 — Check if project is too new for this CLI.
     # This check runs BEFORE the existing upgrade flow so that
@@ -740,20 +745,22 @@ def _run_planner_json(
         no_nag: Suppress nag flag passed to the Invocation.
         latest_version_provider: Optional override for tests.
     """
-    from specify_cli.compat.planner import Invocation, plan
+    from specify_cli.compat.planner import Invocation, is_ci_env, plan
 
     raw_args: tuple[str, ...] = ("--project",)
     if dry_run:
         raw_args = raw_args + ("--dry-run",)
 
+    # Read the real environment so that CI=1 spec-kitty upgrade --json
+    # correctly suppresses the network call (RISK-3 fix).
     invocation = Invocation(
         command_path=("upgrade",),
         raw_args=raw_args,
         is_help=False,
         is_version=False,
         flag_no_nag=no_nag,
-        env_ci=False,
-        stdout_is_tty=True,
+        env_ci=is_ci_env(),
+        stdout_is_tty=sys.stdout.isatty(),
     )
 
     kwargs: dict[str, object] = {}

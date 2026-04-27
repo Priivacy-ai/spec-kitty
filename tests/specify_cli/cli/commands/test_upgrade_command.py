@@ -546,6 +546,82 @@ def test_dry_run_json_no_project_exits_0(tmp_path: Path) -> None:
     _validate_json_contract(payload)
 
 
+# ---------------------------------------------------------------------------
+# FIX 5 — RISK-3: --cli mode respects real CI environment (no network call)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_mode_ci_env_suppresses_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CI=1 spec-kitty upgrade --cli must not make a network call (RISK-3 fix).
+
+    Verifies that when CI=1, the Invocation built in _run_cli_mode has env_ci=True,
+    which causes suppresses_network() to return True, which selects NoNetworkProvider.
+    """
+    import httpx
+
+    monkeypatch.setenv("CI", "1")
+
+    network_calls: list[str] = []
+
+    def _blocking_request(self: object, *args: object, **kwargs: object) -> None:  # type: ignore[misc]
+        network_calls.append("network_call_made")
+        raise RuntimeError("network call made in CI mode")
+
+    monkeypatch.setattr(httpx.Client, "get", _blocking_request)
+
+    result = _invoke_upgrade(["--cli"], cwd=tmp_path)
+    # Should exit 0 and not raise (network was not called)
+    assert result.exit_code == 0, f"Exit {result.exit_code}; output: {result.output}"
+    assert not network_calls, "No network calls should be made when CI=1"
+
+
+def test_cli_mode_no_ci_env_does_not_suppress_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without CI, --cli mode builds an Invocation with env_ci=False (RISK-3 fix).
+
+    We verify the env_ci field by inspecting is_ci_env() directly — not by making
+    a real network call (which would be fragile in test environments).
+    """
+    from specify_cli.compat.planner import is_ci_env
+
+    monkeypatch.delenv("CI", raising=False)
+    assert is_ci_env() is False
+
+
+# ---------------------------------------------------------------------------
+# FIX 6 — RISK-6 / FR-014: bare upgrade outside project falls through to --cli
+# ---------------------------------------------------------------------------
+
+
+def test_bare_upgrade_outside_project_exits_0(tmp_path: Path) -> None:
+    """Bare 'spec-kitty upgrade' outside a project exits 0 (FR-014 fall-through to --cli)."""
+    # tmp_path has no .kittify
+    result = _invoke_upgrade([], cwd=tmp_path)
+    assert result.exit_code == 0, (
+        f"Expected exit 0 for bare upgrade outside project (FR-014), got {result.exit_code}. "
+        f"Output: {result.output}"
+    )
+
+
+def test_bare_upgrade_outside_project_no_error_message(tmp_path: Path) -> None:
+    """Bare 'spec-kitty upgrade' outside a project must NOT print 'Not a Spec Kitty project'."""
+    result = _invoke_upgrade([], cwd=tmp_path)
+    assert "not a spec kitty project" not in result.output.lower(), (
+        f"Bare upgrade should not show project-error message. Output: {result.output}"
+    )
+
+
+def test_project_flag_outside_project_still_errors(tmp_path: Path) -> None:
+    """--project outside a project still errors (existing behavior must be preserved)."""
+    result = _invoke_upgrade(["--project"], cwd=tmp_path)
+    assert result.exit_code != 0, "Expected non-zero exit for --project outside a project"
+    combined = (result.output or "") + (result.stderr or "")
+    assert (
+        "not a spec kitty project" in combined.lower()
+        or "no project" in combined.lower()
+        or "init" in combined.lower()
+    )
+
+
 def test_planner_json_too_new_project_has_exit_code_5_in_payload(tmp_path: Path) -> None:
     """Direct planner call: too-new project produces exit_code=5 in the JSON payload."""
     _make_compatible_project(tmp_path, schema_version=7)
