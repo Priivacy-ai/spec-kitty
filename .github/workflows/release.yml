@@ -78,9 +78,11 @@ jobs:
 
       - name: Run tests
         run: |
-          # Exclude windows_ci tests — they run on the native windows-latest
-          # job (ci-windows.yml) and deliberately assume sys.platform == 'win32'.
-          python -m pytest -v --tb=short -m "not windows_ci" 2>&1 | tee pytest-output.txt
+          # Main CI owns the broad module matrix. The tag-time release workflow
+          # exercises release-specific behavior, then gates publication on
+          # metadata validation, build integrity, exact wheel installability,
+          # shared-package drift checks, and downstream verification.
+          python -m pytest -v --import-mode=importlib tests/release 2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
 
       - name: Validate release metadata
