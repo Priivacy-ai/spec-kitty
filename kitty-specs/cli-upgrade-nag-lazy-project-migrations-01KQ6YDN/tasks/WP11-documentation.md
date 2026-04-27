@@ -145,3 +145,4 @@ spec-kitty agent action implement WP11 --agent <name>
 ## Activity Log
 
 - 2026-04-27T10:37:33Z – claude:sonnet:python-implementer:implementer – shell_pid=20347 – Started implementation via action command
+- 2026-04-27T10:40:17Z – claude:sonnet:python-implementer:implementer – shell_pid=20347 – Ready: install-and-upgrade rewritten with all 9 sections, end-user voice, cross-linked
