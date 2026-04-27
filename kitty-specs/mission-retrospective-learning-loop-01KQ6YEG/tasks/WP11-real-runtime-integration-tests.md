@@ -30,6 +30,8 @@ subtasks:
 - T059
 - T060
 - T061
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "24932"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -169,3 +171,7 @@ If the project already has CI configuration that runs these, this WP can be a do
 ```bash
 spec-kitty agent action implement WP11 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T11:11:15Z – claude:sonnet:implementer:implementer – shell_pid=24932 – Started implementation via action command
