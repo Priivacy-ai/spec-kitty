@@ -50,8 +50,9 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     if any(tok in suppress_flags for tok in argv):
         return True
 
-    ci_val = os.environ.get("CI", "")
-    if ci_val and ci_val.lower() not in ("0", "false", "no", "off"):
+    from specify_cli.compat.planner import is_ci_env  # noqa: PLC0415
+
+    if is_ci_env():
         return True
 
     no_nag_val = os.environ.get("SPEC_KITTY_NO_NAG", "")

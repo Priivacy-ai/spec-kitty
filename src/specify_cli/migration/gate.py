@@ -12,7 +12,6 @@ Exempted commands that always pass through:
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -62,6 +61,7 @@ def check_schema_version(
     # so the cycle only occurs if we import at the top level.
     from specify_cli.compat import Decision  # noqa: PLC0415
     from specify_cli.compat import Invocation  # noqa: PLC0415
+    from specify_cli.compat import is_ci_env  # noqa: PLC0415
     from specify_cli.compat import plan as compat_plan  # noqa: PLC0415
 
     inv = Invocation(
@@ -70,7 +70,7 @@ def check_schema_version(
         is_help=False,
         is_version=False,
         flag_no_nag="--no-nag" in sys.argv,
-        env_ci=bool(os.environ.get("CI")),
+        env_ci=is_ci_env(),
         stdout_is_tty=sys.stdout.isatty(),
     )
 

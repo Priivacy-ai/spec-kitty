@@ -25,6 +25,7 @@ Do not confuse the two packages.
 # Baseline audit (2026-04-19): zero modules under src/specify_cli/ carry
 # __deprecated__ = True at mission start. Registry begins empty.
 """
+
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
@@ -79,6 +80,7 @@ from specify_cli.compat.planner import (
     Invocation,
     decide,
     plan,
+    is_ci_env,
 )
 
 # ---------------------------------------------------------------------------
@@ -129,4 +131,6 @@ __all__ = [
     "Invocation",
     "decide",
     "plan",
+    # CI predicate (unified helper)
+    "is_ci_env",
 ]
