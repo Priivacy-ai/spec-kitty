@@ -13,10 +13,10 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 
 | ID   | Description                                                                 | WP   | Parallel |
 |------|-----------------------------------------------------------------------------|------|----------|
-| T001 | Swap call order in `runner.py:163-164` so `metadata.save()` precedes `_stamp_schema_version()` | WP01 |          |
-| T002 | Extend `tests/cross_cutting/versioning/test_upgrade_version_update.py` with schema_version persistence assertion | WP01 | [P]      |
-| T003 | New `tests/e2e/test_upgrade_post_state.py` smoke covering upgrade → branch-context | WP01 | [P]      |
-| T004 | Run `mypy --strict` and `ruff check` on changed surfaces; address any drift | WP01 |          |
+| T001 | Swap call order in `runner.py:163-164` so `metadata.save()` precedes `_stamp_schema_version()` | WP01 |          | [D] |
+| T002 | Extend `tests/cross_cutting/versioning/test_upgrade_version_update.py` with schema_version persistence assertion | WP01 | [D] |
+| T003 | New `tests/e2e/test_upgrade_post_state.py` smoke covering upgrade → branch-context | WP01 | [D] |
+| T004 | Run `mypy --strict` and `ruff check` on changed surfaces; address any drift | WP01 |          | [D] |
 | T005 | Bump `pyproject.toml::[project].version` from `3.2.0a4` → `3.2.0a5`         | WP02 |          |
 | T006 | Split `CHANGELOG.md` heading: convert `[Unreleased - 3.2.0]` → `[3.2.0a5] — <date>` and insert new `[Unreleased]` placeholder above | WP02 |          |
 | T007 | Consolidate per-FR CHANGELOG entries under `[3.2.0a5]` (collected from each landed WP's PR description) | WP02 |          |
@@ -63,10 +63,10 @@ Eight work packages, 39 subtasks total. Seven WPs are independent and lane-paral
 - **Priority**: P0 — foundational; the dev-experience blocker every other WP would hit.
 - **Independent test**: `tests/e2e/test_upgrade_post_state.py` (new) drives a tmp project end-to-end.
 - **Subtasks**:
-  - [ ] T001 Swap call order in `runner.py:163-164` so `metadata.save()` precedes `_stamp_schema_version()` (WP01)
-  - [ ] T002 Extend `tests/cross_cutting/versioning/test_upgrade_version_update.py` with schema_version persistence assertion (WP01)
-  - [ ] T003 New `tests/e2e/test_upgrade_post_state.py` smoke covering upgrade → branch-context (WP01)
-  - [ ] T004 Run `mypy --strict` and `ruff check` on changed surfaces; address any drift (WP01)
+  - [x] T001 Swap call order in `runner.py:163-164` so `metadata.save()` precedes `_stamp_schema_version()` (WP01)
+  - [x] T002 Extend `tests/cross_cutting/versioning/test_upgrade_version_update.py` with schema_version persistence assertion (WP01)
+  - [x] T003 New `tests/e2e/test_upgrade_post_state.py` smoke covering upgrade → branch-context (WP01)
+  - [x] T004 Run `mypy --strict` and `ruff check` on changed surfaces; address any drift (WP01)
 - **Implementation sketch**: One-line code change (move `_stamp_schema_version` call below `metadata.save`) plus two test files. Read-modify-atomic-write in `_stamp_schema_version` already handles the post-save file safely.
 - **Parallel opportunities**: T002 and T003 can be drafted in parallel by the same agent after T001.
 - **Dependencies**: none.
