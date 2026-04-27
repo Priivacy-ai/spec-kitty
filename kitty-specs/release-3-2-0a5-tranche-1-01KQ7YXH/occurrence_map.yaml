@@ -22,7 +22,7 @@ categories:
         reason: Legacy hash-catalog entry for the deprecated checklist command file.
 
   import_paths:
-    action: do_not_change
+    action: manual_review
     notes: No import-path occurrences of the deprecated command.
 
   filesystem_paths:
@@ -191,7 +191,41 @@ categories:
         decision: KEEP
         reason: Second historical migration ledger note. Same treatment.
 
-exceptions: []
+exceptions:
+  # Spec-kitty bookkeeping files that auto-commit during normal mark-status /
+  # move-task / merge operations. These are mission-internal state, never
+  # user-facing surfaces, and have no relationship to the /spec-kitty.checklist
+  # removal. Exempted from the bulk-edit diff check.
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/status.events.jsonl"
+    action: manual_review
+    reason: "Spec-kitty event log; auto-managed by mark-status/move-task."
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/status.json"
+    action: manual_review
+    reason: "Spec-kitty derived snapshot; materialized from status.events.jsonl."
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/tasks.md"
+    action: manual_review
+    reason: "Mission task index; auto-updated by mark-status."
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/tasks/**"
+    action: manual_review
+    reason: "WP prompt files; updated by mark-status / move-task to record progress and review feedback."
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/.kittify/**"
+    action: manual_review
+    reason: "Mission-internal dossiers, snapshots, and config; not user-facing surfaces."
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/decisions/**"
+    action: manual_review
+    reason: "Decision Moment ledger; mission-internal."
+  - path: "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/checklists/requirements.md"
+    action: manual_review
+    reason: "Canonical requirements quality checklist; explicitly preserved by C-003."
+  # Per-WP environmental fixup committed in WP01 (see WP01 deviations report):
+  # the host CLI 3.2.0a4 needs schema_version stamped in the worktree's
+  # .kittify/metadata.yaml before mark-status / move-task can run. This is
+  # the same workaround the spec.md "Live Evidence" section documents and
+  # the same FR-002 surface WP01 fixes; the chore commit can be dropped
+  # during merge if reviewers prefer.
+  - path: ".kittify/metadata.yaml"
+    action: manual_review
+    reason: "FR-002 environmental workaround; orthogonal to /spec-kitty.checklist surface removal."
 
 status:
   totals:
