@@ -15,6 +15,8 @@ subtasks:
 - T017
 - T018
 - T019
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "93389"
 history:
 - at: '2026-04-27T08:18:00Z'
   actor: claude
@@ -145,3 +147,7 @@ Test the audit-recording aspect: every detected `Mode` carries a non-None `sourc
 ```bash
 spec-kitty agent action implement WP04 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-27T09:21:42Z – claude:sonnet:implementer:implementer – shell_pid=93389 – Started implementation via action command
