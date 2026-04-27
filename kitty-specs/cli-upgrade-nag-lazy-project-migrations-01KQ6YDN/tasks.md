@@ -51,9 +51,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T036 | Implement `--project` mode: restrict behavior to current-project compatibility and migrations | WP09 | — | [D] |
 | T037 | Implement `--dry-run --json` / `--json` per `contracts/compat-planner.json`; correct exit codes | WP09 | — | [D] |
 | T038 | Integration tests for `upgrade` command across all 5 FR-023 cases (matches contract examples) | WP09 | [D] |
-| T039 | Register dashboard mode-aware safety predicate (read-only safe; write/init/sync/repair unsafe) | WP10 | — |
-| T040 | Register doctor mode-aware safety predicate (diagnostic safe; repair/fix unsafe) | WP10 | — |
-| T041 | Integration tests for dashboard / doctor mode-split under schema mismatch | WP10 | [P] |
+| T039 | Register dashboard mode-aware safety predicate (read-only safe; write/init/sync/repair unsafe) | WP10 | — | [D] |
+| T040 | Register doctor mode-aware safety predicate (diagnostic safe; repair/fix unsafe) | WP10 | — | [D] |
+| T041 | Integration tests for dashboard / doctor mode-split under schema mismatch | WP10 | [D] |
 | T042 | Rewrite `docs/how-to/install-and-upgrade.md`: CLI vs project upgrade, all FR-023 cases worked, new flags, env vars, exit codes, link to JSON contract | WP11 | — |
 
 ---
@@ -268,9 +268,9 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~250 lines.
 
 **Included subtasks**:
-- [ ] T039 Register dashboard mode-aware safety predicate (read-only safe; write/init/sync/repair unsafe) (WP10)
-- [ ] T040 Register doctor mode-aware safety predicate (diagnostic safe; repair/fix unsafe) (WP10)
-- [ ] T041 Integration tests for dashboard / doctor mode-split under schema mismatch (WP10)
+- [x] T039 Register dashboard mode-aware safety predicate (read-only safe; write/init/sync/repair unsafe) (WP10)
+- [x] T040 Register doctor mode-aware safety predicate (diagnostic safe; repair/fix unsafe) (WP10)
+- [x] T041 Integration tests for dashboard / doctor mode-split under schema mismatch (WP10)
 
 **Implementation sketch**: Inspect existing flag schemas in `cli/commands/dashboard.py` and `cli/commands/doctor.py`. Build predicate functions that inspect `Invocation.raw_args` for write-mode flags (e.g. `--repair`, `--fix`, `--init`, `--sync`) and return `Safety.UNSAFE` when present, else `Safety.SAFE`. Register predicates via `compat.safety.register_safety("dashboard", predicate=...)`. Integration tests use the fixture-project gate.
 
