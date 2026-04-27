@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.dev/contracts/cli-upgrade-nag-lazy-project-migrations/compat-planner.json",
+  "title": "spec-kitty upgrade --json output",
+  "description": "Stable JSON contract for the compatibility planner output emitted by `spec-kitty upgrade --json` and `spec-kitty upgrade --dry-run --json`. Stable across patch releases of spec-kitty-cli; minor releases may add fields with sensible defaults; major releases may break the contract with CHANGELOG notice.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "case",
+    "decision",
+    "exit_code",
+    "cli",
+    "project",
+    "safety",
+    "install_method",
+    "upgrade_hint",
+    "pending_migrations",
+    "rendered_human"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "JSON contract schema version. Bumped on backward-incompatible change."
+    },
+    "case": {
+      "type": "string",
+      "enum": [
+        "none",
+        "cli_update_available",
+        "project_migration_needed",
+        "project_too_new_for_cli",
+        "project_not_initialized",
+        "project_metadata_corrupt",
+        "install_method_unknown"
+      ],
+      "description": "Stable FR-023 case token. See data-model.md §1.9."
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "ALLOW",
+        "ALLOW_WITH_NAG",
+        "BLOCK_PROJECT_MIGRATION",
+        "BLOCK_CLI_UPGRADE",
+        "BLOCK_PROJECT_CORRUPT",
+        "BLOCK_INCOMPATIBLE_FLAGS"
+      ],
+      "description": "Planner decision."
+    },
+    "exit_code": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255,
+      "description": "Exit code the CLI will use for the invoked unsafe command. Always 0 for --dry-run regardless of payload."
+    },
+    "cli": {
+      "type": "object",
+      "required": ["installed_version", "is_outdated", "latest_source"],
+      "additionalProperties": false,
+      "properties": {
+        "installed_version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9.\\-+]{1,64}$",
+          "description": "The CLI version reported by importlib.metadata."
+        },
+        "latest_version": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9.\\-+]{1,64}$",
+          "description": "Latest known CLI version. null when unknown / network suppressed / fail-open."
+        },
+        "latest_source": {
+          "type": "string",
+          "enum": ["pypi", "none"],
+          "description": "Where the latest_version came from. 'none' means no fetch happened or fetch failed."
+        },
+        "is_outdated": {
+          "type": "boolean",
+          "description": "True iff parse(latest_version) > parse(installed_version)."
+        },
+        "fetched_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp of the fetch that produced latest_version. null when not fetched this run."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["state", "min_supported", "max_supported"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "no_project",
+            "uninitialized",
+            "legacy",
+            "stale",
+            "compatible",
+            "too_new",
+            "corrupt"
+          ],
+          "description": "ProjectState. See data-model.md §1.4."
+        },
+        "project_root": {
+          "type": ["string", "null"],
+          "description": "Absolute path to the current project root, or null."
+        },
+        "schema_version": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Detected schema_version from .kittify/metadata.yaml, or null."
+        },
+        "min_supported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "max_supported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "metadata_error": {
+          "type": ["string", "null"],
+          "description": "Short human description when state == corrupt. Never contains user paths beyond the project root."
+        }
+      }
+    },
+    "safety": {
+      "type": "string",
+      "enum": ["safe", "unsafe"],
+      "description": "Safety classification of the invoked command. Unregistered commands are 'unsafe' (fail-closed)."
+    },
+    "install_method": {
+      "type": "string",
+      "enum": [
+        "pipx",
+        "pip-user",
+        "pip-system",
+        "brew",
+        "system-package",
+        "source",
+        "unknown"
+      ],
+      "description": "Detected install method for the running CLI."
+    },
+    "upgrade_hint": {
+      "type": "object",
+      "required": ["install_method"],
+      "additionalProperties": false,
+      "properties": {
+        "install_method": {
+          "type": "string",
+          "enum": [
+            "pipx",
+            "pip-user",
+            "pip-system",
+            "brew",
+            "system-package",
+            "source",
+            "unknown"
+          ]
+        },
+        "command": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9 .\\-+_/=:]{1,128}$",
+          "description": "Copy-pasteable upgrade command, when known. Sanitised against ANSI / shell metacharacters. Null for source / unknown install methods."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Multi-line manual instructions, when no single-line command applies. Null when 'command' is non-null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Exactly one of command or note must be non-null.",
+          "oneOf": [
+            { "required": ["command"], "properties": { "command": { "type": "string" }, "note": { "type": "null" } } },
+            { "required": ["note"], "properties": { "note": { "type": "string" }, "command": { "type": "null" } } }
+          ]
+        }
+      ]
+    },
+    "pending_migrations": {
+      "type": "array",
+      "description": "Ordered list of project migrations the planner would apply for the current project. Empty unless decision == BLOCK_PROJECT_MIGRATION (or --dry-run for a stale project).",
+      "items": {
+        "type": "object",
+        "required": ["migration_id", "target_schema_version", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "migration_id": { "type": "string", "pattern": "^[a-z0-9_]{1,128}$" },
+          "target_schema_version": { "type": "integer", "minimum": 0, "maximum": 1000 },
+          "description": { "type": "string", "maxLength": 256 },
+          "files_modified": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "description": "List of repo-relative paths the migration would modify. null when the migration cannot compute the list without side effects."
+          }
+        }
+      }
+    },
+    "rendered_human": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "The exact text the CLI would print to a human user (one-to-four lines). Stable for golden-file tests."
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "case": "none",
+      "decision": "ALLOW",
+      "exit_code": 0,
+      "cli": {
+        "installed_version": "2.0.14",
+        "latest_version": "2.0.14",
+        "latest_source": "pypi",
+        "is_outdated": false,
+        "fetched_at": "2026-04-27T07:45:00Z"
+      },
+      "project": {
+        "state": "compatible",
+        "project_root": "/home/me/work/myproj",
+        "schema_version": 3,
+        "min_supported": 3,
+        "max_supported": 3,
+        "metadata_error": null
+      },
+      "safety": "unsafe",
+      "install_method": "pipx",
+      "upgrade_hint": {
+        "install_method": "pipx",
+        "command": "pipx upgrade spec-kitty-cli",
+        "note": null
+      },
+      "pending_migrations": [],
+      "rendered_human": ""
+    },
+    {
+      "schema_version": 1,
+      "case": "cli_update_available",
+      "decision": "ALLOW_WITH_NAG",
+      "exit_code": 0,
+      "cli": {
+        "installed_version": "2.0.11",
+        "latest_version": "2.0.14",
+        "latest_source": "pypi",
+        "is_outdated": true,
+        "fetched_at": "2026-04-27T07:45:00Z"
+      },
+      "project": {
+        "state": "compatible",
+        "project_root": "/home/me/work/myproj",
+        "schema_version": 3,
+        "min_supported": 3,
+        "max_supported": 3,
+        "metadata_error": null
+      },
+      "safety": "unsafe",
+      "install_method": "pipx",
+      "upgrade_hint": {
+        "install_method": "pipx",
+        "command": "pipx upgrade spec-kitty-cli",
+        "note": null
+      },
+      "pending_migrations": [],
+      "rendered_human": "Spec Kitty 2.0.14 is available; you have 2.0.11.\nUpgrade with: pipx upgrade spec-kitty-cli"
+    },
+    {
+      "schema_version": 1,
+      "case": "project_migration_needed",
+      "decision": "BLOCK_PROJECT_MIGRATION",
+      "exit_code": 4,
+      "cli": {
+        "installed_version": "2.0.14",
+        "latest_version": "2.0.14",
+        "latest_source": "pypi",
+        "is_outdated": false,
+        "fetched_at": "2026-04-27T07:45:00Z"
+      },
+      "project": {
+        "state": "stale",
+        "project_root": "/home/me/work/oldproj",
+        "schema_version": 1,
+        "min_supported": 3,
+        "max_supported": 3,
+        "metadata_error": null
+      },
+      "safety": "unsafe",
+      "install_method": "pipx",
+      "upgrade_hint": {
+        "install_method": "pipx",
+        "command": "pipx upgrade spec-kitty-cli",
+        "note": null
+      },
+      "pending_migrations": [
+        {
+          "migration_id": "m_3_0_0_canonical_context",
+          "target_schema_version": 3,
+          "description": "Adopt canonical context layout",
+          "files_modified": [
+            ".kittify/metadata.yaml",
+            ".kittify/charter/charter.md"
+          ]
+        }
+      ],
+      "rendered_human": "This project needs Spec Kitty project migrations before this command can run.\nRun: spec-kitty upgrade\nPreview first: spec-kitty upgrade --dry-run"
+    },
+    {
+      "schema_version": 1,
+      "case": "project_too_new_for_cli",
+      "decision": "BLOCK_CLI_UPGRADE",
+      "exit_code": 5,
+      "cli": {
+        "installed_version": "2.0.11",
+        "latest_version": null,
+        "latest_source": "none",
+        "is_outdated": false,
+        "fetched_at": null
+      },
+      "project": {
+        "state": "too_new",
+        "project_root": "/home/me/work/futureproj",
+        "schema_version": 7,
+        "min_supported": 3,
+        "max_supported": 6,
+        "metadata_error": null
+      },
+      "safety": "unsafe",
+      "install_method": "pipx",
+      "upgrade_hint": {
+        "install_method": "pipx",
+        "command": "pipx upgrade spec-kitty-cli",
+        "note": null
+      },
+      "pending_migrations": [],
+      "rendered_human": "This project uses Spec Kitty project schema 7, but this CLI supports up to schema 6.\nUpgrade the CLI: pipx upgrade spec-kitty-cli"
+    }
+  ]
+}
