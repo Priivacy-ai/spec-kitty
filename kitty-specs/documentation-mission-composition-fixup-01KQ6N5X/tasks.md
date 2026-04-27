@@ -8,14 +8,14 @@
 
 | ID | Description | WP |
 |---|---|---|
-| T01 | Author `templates/discover.md` (governance prose for discover phase) | WP01 |
-| T02 | Author `templates/audit.md` | WP01 |
-| T03 | Author `templates/design.md` | WP01 |
-| T04 | Author `templates/generate.md` | WP01 |
-| T05 | Author `templates/validate.md` | WP01 |
-| T06 | Author `templates/publish.md` | WP01 |
-| T07 | Author `templates/accept.md` | WP01 |
-| T08 | Author `tests/specify_cli/test_documentation_prompt_resolution.py` parametrized over 7 step ids | WP01 |
+| T01 | Author `templates/discover.md` (governance prose for discover phase) | WP01 | [D] |
+| T02 | Author `templates/audit.md` | WP01 | [D] |
+| T03 | Author `templates/design.md` | WP01 | [D] |
+| T04 | Author `templates/generate.md` | WP01 | [D] |
+| T05 | Author `templates/validate.md` | WP01 | [D] |
+| T06 | Author `templates/publish.md` | WP01 | [D] |
+| T07 | Author `templates/accept.md` | WP01 | [D] |
+| T08 | Author `tests/specify_cli/test_documentation_prompt_resolution.py` parametrized over 7 step ids | WP01 | [D] |
 | T09 | Extend integration walk: full-advancement test through 6 actions via `decide_next_via_runtime` | WP02 |
 | T10 | Extend integration walk: per-action paired-trail-record assertions | WP02 |
 | T11 | Replace direct `_check_composed_action_guard` call with `decide_next_via_runtime` blocked-decision assertion | WP02 |
@@ -31,14 +31,14 @@
 **Independent test**: `tests/specify_cli/test_documentation_prompt_resolution.py` parametrized over 7 step ids.
 **Dependencies**: none.
 
-- [ ] T01 Author `src/specify_cli/missions/documentation/templates/discover.md` (≥30 lines governance prose)
-- [ ] T02 Author `src/specify_cli/missions/documentation/templates/audit.md`
-- [ ] T03 Author `src/specify_cli/missions/documentation/templates/design.md`
-- [ ] T04 Author `src/specify_cli/missions/documentation/templates/generate.md`
-- [ ] T05 Author `src/specify_cli/missions/documentation/templates/validate.md`
-- [ ] T06 Author `src/specify_cli/missions/documentation/templates/publish.md`
-- [ ] T07 Author `src/specify_cli/missions/documentation/templates/accept.md`
-- [ ] T08 Author `tests/specify_cli/test_documentation_prompt_resolution.py` (parametrize 7 steps; assert `Decision.prompt_file` resolves to an existing non-empty file)
+- [x] T01 Author `src/specify_cli/missions/documentation/templates/discover.md` (≥30 lines governance prose)
+- [x] T02 Author `src/specify_cli/missions/documentation/templates/audit.md`
+- [x] T03 Author `src/specify_cli/missions/documentation/templates/design.md`
+- [x] T04 Author `src/specify_cli/missions/documentation/templates/generate.md`
+- [x] T05 Author `src/specify_cli/missions/documentation/templates/validate.md`
+- [x] T06 Author `src/specify_cli/missions/documentation/templates/publish.md`
+- [x] T07 Author `src/specify_cli/missions/documentation/templates/accept.md`
+- [x] T08 Author `tests/specify_cli/test_documentation_prompt_resolution.py` (parametrize 7 steps; assert `Decision.prompt_file` resolves to an existing non-empty file)
 
 ## WP02 — Deepen integration walk
 
