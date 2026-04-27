@@ -20,11 +20,11 @@
 | T007 | Schema-validating reader (`reader.py`) with structured-error result type | WP02 |  | [D] |
 | T008 | Required vs. optional + status-conditional cross-field validation | WP02 |  | [D] |
 | T009 | Tests: schema round-trip; writer atomicity; reader malformed/missing/legacy tolerance | WP02 |  | [D] |
-| T010 | Pydantic event models for the eight retrospective events (`events.py`) | WP03 | [P] |
-| T011 | Event factory + emission helpers wired through `specify_cli.status.emit` (or sibling) | WP03 |  |
-| T012 | Reducer integration: surface `RetrospectiveSnapshot` on `StatusSnapshot` | WP03 |  |
-| T013 | Tests: append-only invariant, retry semantics, name uniqueness vs. existing events | WP03 |  |
-| T014 | Boundary test (skipped, pending upstream `spec_kitty_events` release) | WP03 |  |
+| T010 | Pydantic event models for the eight retrospective events (`events.py`) | WP03 | [D] |
+| T011 | Event factory + emission helpers wired through `specify_cli.status.emit` (or sibling) | WP03 |  | [D] |
+| T012 | Reducer integration: surface `RetrospectiveSnapshot` on `StatusSnapshot` | WP03 |  | [D] |
+| T013 | Tests: append-only invariant, retry semantics, name uniqueness vs. existing events | WP03 |  | [D] |
+| T014 | Boundary test (skipped, pending upstream `spec_kitty_events` release) | WP03 |  | [D] |
 | T015 | `Mode` + `ModeSourceSignal` Pydantic models | WP04 | [P] |
 | T016 | `mode.detect()` precedence (charter > flag > env > parent) implementation | WP04 |  |
 | T017 | Charter-override loader integration + structured-error on missing meta/charter | WP04 |  |
@@ -159,11 +159,11 @@ The `[P]` markers indicate parallel-safe items: schema models (T005), event mode
 **Spec coverage**: FR-017, FR-018, NFR-005.
 
 **Subtasks**:
-- [ ] T010 Pydantic event models for the eight retrospective events (WP03)
-- [ ] T011 Event factory + emission helpers wired through `specify_cli.status.emit` (or sibling) (WP03)
-- [ ] T012 Reducer integration: surface `RetrospectiveSnapshot` on `StatusSnapshot` (WP03)
-- [ ] T013 Tests: append-only invariant, retry semantics, name uniqueness vs existing events (WP03)
-- [ ] T014 Boundary test (skipped, pending upstream `spec_kitty_events` release) (WP03)
+- [x] T010 Pydantic event models for the eight retrospective events (WP03)
+- [x] T011 Event factory + emission helpers wired through `specify_cli.status.emit` (or sibling) (WP03)
+- [x] T012 Reducer integration: surface `RetrospectiveSnapshot` on `StatusSnapshot` (WP03)
+- [x] T013 Tests: append-only invariant, retry semantics, name uniqueness vs existing events (WP03)
+- [x] T014 Boundary test (skipped, pending upstream `spec_kitty_events` release) (WP03)
 
 **Implementation sketch**:
 1. `events.py` — eight Pydantic models with payload shapes from `contracts/retrospective_events_v1.md`.
