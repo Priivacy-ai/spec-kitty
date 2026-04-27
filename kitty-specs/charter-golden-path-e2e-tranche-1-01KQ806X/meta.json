@@ -2,7 +2,7 @@
   "created_at": "2026-04-27T17:36:21.282813+00:00",
   "friendly_name": "Charter Golden-Path E2E (Tranche 1)",
   "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
-  "mission_number": null,
+  "mission_number": 104,
   "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
   "mission_type": "software-dev",
   "purpose_context": "Issue #827 needs a deterministic operator-path E2E spine before the rest of the P0/P1/P2 matrix can be built on top. This tranche delivers one product-repo test that drives Charter setup, bundle validation, synthesis, status, lint, mission advancement via spec-kitty next, and retrospect summary — all through public commands — and asserts the source checkout is unchanged afterward, so future tranches can extend the spine without fighting hidden helpers.",
