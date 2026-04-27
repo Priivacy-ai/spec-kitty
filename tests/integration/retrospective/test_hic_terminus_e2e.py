@@ -88,6 +88,7 @@ def test_hic_run_emits_correct_event_sequence(
     # Must not raise — gate allows operator-driven completion.
     run_terminus(
         mission_id=mission_id,
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,
@@ -143,6 +144,7 @@ def test_hic_skip_emits_skipped_event_and_persists_record(
     # Must not raise — HiC mode permits explicit skip.
     run_terminus(
         mission_id=mission_id,
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,

@@ -141,6 +141,7 @@ def test_autonomous_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     # Should not raise.
     run_terminus(
         mission_id=_MISSION_ID,
+            mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -182,6 +183,7 @@ def test_autonomous_facilitator_failure(tmp_path: Path, monkeypatch: pytest.Monk
     with pytest.raises(MissionCompletionBlocked) as exc_info:
         run_terminus(
             mission_id=_MISSION_ID,
+            mission_type="software-dev",
             feature_dir=feature_dir,
             repo_root=tmp_path,
             operator_actor=_HUMAN_ACTOR,
@@ -223,6 +225,7 @@ def test_hic_operator_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     # Should not raise.
     run_terminus(
         mission_id=_MISSION_ID,
+            mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -266,6 +269,7 @@ def test_hic_operator_skips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     # Should not raise (gate allows skips in HiC mode).
     run_terminus(
         mission_id=_MISSION_ID,
+            mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -334,6 +338,7 @@ def test_hic_skip_empty_reason_loops(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     run_terminus(
         mission_id=_MISSION_ID,
+            mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -375,6 +380,7 @@ def test_autonomous_no_callback_blocks(tmp_path: Path, monkeypatch: pytest.Monke
     with pytest.raises(MissionCompletionBlocked):
         run_terminus(
             mission_id=_MISSION_ID,
+            mission_type="software-dev",
             feature_dir=feature_dir,
             repo_root=tmp_path,
             operator_actor=_HUMAN_ACTOR,

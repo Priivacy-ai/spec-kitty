@@ -118,6 +118,7 @@ def test_autonomous_terminus_emits_correct_event_sequence(
     # Call the real runtime entry point.
     run_terminus(
         mission_id=mission_id,
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,
@@ -224,6 +225,7 @@ def test_autonomous_terminus_proposal_events(
 
     run_terminus(
         mission_id=mission_id,
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,

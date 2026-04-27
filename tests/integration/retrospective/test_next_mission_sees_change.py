@@ -198,6 +198,7 @@ def test_next_mission_sees_applied_glossary_term(
     # Run mission A's terminus.
     run_terminus(
         mission_id=mission_id_a,
+            mission_type="software-dev",
         feature_dir=feature_dir_a,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,
@@ -271,6 +272,7 @@ def test_next_mission_sees_applied_glossary_term(
     # at repo_root/.kittify/glossary/ for B's context loading.
     run_terminus(
         mission_id=mission_id_b,
+            mission_type="software-dev",
         feature_dir=feature_dir_b,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,

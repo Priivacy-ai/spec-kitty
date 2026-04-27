@@ -21,8 +21,6 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rich.prompt import Confirm, Prompt
-
 from specify_cli.next._internal_runtime.retrospective_hook import (
     MissionCompletionBlocked,
     before_mark_done,
@@ -94,27 +92,6 @@ def _findings_summary(record: RetrospectiveRecord) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
-# Default HiC prompt
-# ---------------------------------------------------------------------------
-
-
-def _default_hic_prompt() -> tuple[bool, str | None]:
-    """Rich console prompt for human-in-command mode.
-
-    Returns (run_now, skip_reason).
-    """
-    run_now: bool = Confirm.ask("Run retrospective now?", default=True)
-    if run_now:
-        return True, None
-
-    skip_reason: str = ""
-    while not skip_reason.strip():
-        skip_reason = Prompt.ask("Skip reason (required, must be non-empty)")
-
-    return False, skip_reason.strip()
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -122,6 +99,7 @@ def _default_hic_prompt() -> tuple[bool, str | None]:
 def run_terminus(
     *,
     mission_id: str,
+    mission_type: str,
     feature_dir: Path,
     repo_root: Path,
     operator_actor: ActorRef,
@@ -210,6 +188,7 @@ def run_terminus(
     else:
         _run_hic(
             mission_id=mission_id,
+            mission_type=mission_type,
             feature_dir=feature_dir,
             repo_root=repo_root,
             mission_slug=mission_slug,
@@ -254,13 +233,32 @@ def _run_autonomous(
         ),
     )
 
-    # Invoke facilitator.
+    # Invoke facilitator. When no callback is wired (deferred runtime
+    # integration), emit ``retrospective.failed`` with a structured failure
+    # code so the gate blocks completion and the operator sees a clear
+    # diagnostic. Do not raise: the gate is the source of truth for
+    # blocking, and emitting an event keeps the audit trail intact.
+    if facilitator_callback is None:
+        emit_retrospective_event(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            mid8=mid,
+            actor=_RUNTIME_ACTOR,
+            event_name="retrospective.failed",
+            payload=FailedPayload(
+                failure_code="facilitator_not_configured",
+                message=(
+                    "Autonomous retrospective requested but no facilitator_callback "
+                    "is wired into the runtime. Configure a facilitator or set "
+                    "the charter clause permitting autonomous skip."
+                ),
+                record_path=None,
+            ),
+        )
+        return
+
     try:
-        if facilitator_callback is None:
-            raise RuntimeError(
-                "No facilitator_callback provided to run_terminus in autonomous mode. "
-                "The runtime must supply a facilitator_callback before wiring is complete."
-            )
         record = facilitator_callback(
             mission_id=mission_id,
             feature_dir=feature_dir,
@@ -313,6 +311,7 @@ def _run_autonomous(
 def _run_hic(
     *,
     mission_id: str,
+    mission_type: str,
     feature_dir: Path,
     repo_root: Path,
     mission_slug: str,
@@ -321,11 +320,33 @@ def _run_hic(
     facilitator_callback: Callable[..., RetrospectiveRecord] | None,
     hic_prompt: Callable[[], tuple[bool, str | None]] | None,
 ) -> None:
-    """Human-in-command retrospective path: prompt operator then act."""
-    # Resolve prompt callable.
-    prompt_fn = hic_prompt if hic_prompt is not None else _default_hic_prompt
+    """Human-in-command retrospective path: prompt operator then act.
 
-    run_now, skip_reason = prompt_fn()
+    When ``hic_prompt`` is None, no operator-side prompt is wired.  We emit
+    ``retrospective.failed`` with code ``prompt_not_configured`` so the gate
+    produces a structured blocked decision; the bridge supplies a real
+    Rich-backed prompt on interactive paths.
+    """
+    if hic_prompt is None:
+        emit_retrospective_event(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            mid8=mid,
+            actor=operator_actor,
+            event_name="retrospective.failed",
+            payload=FailedPayload(
+                failure_code="prompt_not_configured",
+                message=(
+                    "Human-in-command retrospective requires an interactive "
+                    "prompt callback; none was supplied to run_terminus."
+                ),
+                record_path=None,
+            ),
+        )
+        return
+
+    run_now, skip_reason = hic_prompt()
 
     if run_now:
         # Run branch: emit started → invoke → persist → emit completed.
@@ -342,12 +363,30 @@ def _run_hic(
             ),
         )
 
+        if facilitator_callback is None:
+            # No facilitator wired — emit failed instead of raising so the
+            # event log carries an honest record of the deferred wiring and
+            # the gate produces a clear blocked decision.
+            emit_retrospective_event(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                mission_id=mission_id,
+                mid8=mid,
+                actor=operator_actor,
+                event_name="retrospective.failed",
+                payload=FailedPayload(
+                    failure_code="facilitator_not_configured",
+                    message=(
+                        "Operator chose to run the retrospective but no "
+                        "facilitator_callback is wired into the runtime. "
+                        "Skip the retrospective or configure a facilitator."
+                    ),
+                    record_path=None,
+                ),
+            )
+            return
+
         try:
-            if facilitator_callback is None:
-                raise RuntimeError(
-                    "No facilitator_callback provided to run_terminus in HiC run path. "
-                    "The runtime must supply a facilitator_callback before wiring is complete."
-                )
             record = facilitator_callback(
                 mission_id=mission_id,
                 feature_dir=feature_dir,
@@ -407,7 +446,7 @@ def _run_hic(
                 mission_id=mission_id,
                 mid8=mid,
                 mission_slug=mission_slug,
-                mission_type="software-dev",
+                mission_type=mission_type,
                 mission_started_at=now_ts,
                 mission_completed_at=None,
             ),
