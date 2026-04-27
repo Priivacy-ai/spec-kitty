@@ -54,7 +54,7 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 | T039 | Register dashboard mode-aware safety predicate (read-only safe; write/init/sync/repair unsafe) | WP10 | — | [D] |
 | T040 | Register doctor mode-aware safety predicate (diagnostic safe; repair/fix unsafe) | WP10 | — | [D] |
 | T041 | Integration tests for dashboard / doctor mode-split under schema mismatch | WP10 | [D] |
-| T042 | Rewrite `docs/how-to/install-and-upgrade.md`: CLI vs project upgrade, all FR-023 cases worked, new flags, env vars, exit codes, link to JSON contract | WP11 | — |
+| T042 | Rewrite `docs/how-to/install-and-upgrade.md`: CLI vs project upgrade, all FR-023 cases worked, new flags, env vars, exit codes, link to JSON contract | WP11 | — | [D] |
 
 ---
 
@@ -289,7 +289,7 @@ This document is the canonical work-package breakdown for the mission. Per-WP pr
 **Estimated prompt size**: ~220 lines.
 
 **Included subtasks**:
-- [ ] T042 Rewrite `docs/how-to/install-and-upgrade.md`: CLI vs project upgrade, all FR-023 cases worked, new flags, env vars, exit codes, link to JSON contract (WP11)
+- [x] T042 Rewrite `docs/how-to/install-and-upgrade.md`: CLI vs project upgrade, all FR-023 cases worked, new flags, env vars, exit codes, link to JSON contract (WP11)
 
 **Implementation sketch**: Use the quickstart's structure as a starting point; adapt for end-user prose. Document `SPEC_KITTY_NO_NAG`, `SPEC_KITTY_NAG_THROTTLE_SECONDS`, exit codes 4/5/6/2, the `--cli` / `--project` / `--yes` / `--no-nag` flags, and link to `kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json` for tooling consumers.
 
