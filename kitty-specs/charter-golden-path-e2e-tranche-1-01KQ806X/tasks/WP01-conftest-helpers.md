@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: test/charter-e2e-827-tranche-1
 merge_target_branch: test/charter-e2e-827-tranche-1
 branch_strategy: Planning artifacts for this feature were generated on test/charter-e2e-827-tranche-1. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into test/charter-e2e-827-tranche-1 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-golden-path-e2e-tranche-1-01KQ806X
+base_commit: dbfae30a977c7e0451290b206274430b465452f4
+created_at: '2026-04-27T18:27:35.534603+00:00'
 subtasks:
 - T001
 - T002
@@ -19,6 +22,7 @@ subtasks:
 phase: Phase 1
 assignee: ''
 agent: claude
+shell_pid: '49552'
 history:
 - at: '2026-04-27T18:15:53Z'
   actor: spec-kitty.tasks
