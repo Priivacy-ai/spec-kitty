@@ -21,7 +21,8 @@ subtasks:
 - T019
 - T020
 - T021
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "75468"
 history:
 - at: '2026-04-27T18:00:45Z'
   actor: claude
@@ -374,3 +375,7 @@ Closes #815. Supersedes #635 — close #635 with a comment linking to #815.
 ```bash
 spec-kitty agent action implement WP04 --agent claude
 ```
+
+## Activity Log
+
+- 2026-04-27T19:59:35Z – claude:sonnet:implementer-ivan:implementer – shell_pid=75468 – Started implementation via action command
