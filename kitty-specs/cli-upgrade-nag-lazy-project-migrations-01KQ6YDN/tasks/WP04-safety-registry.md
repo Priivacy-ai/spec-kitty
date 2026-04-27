@@ -7,7 +7,7 @@ requirement_refs:
 - FR-011
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Worktree branch derived from lanes.json by spec-kitty implement; final merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T014
 - T015
@@ -61,9 +61,9 @@ Implement the central safety registry that classifies each CLI invocation as `Sa
    - `("upgrade",)` → None (always safe — remediation path)
    - `("init",)` → None (creates project, no metadata yet)
    - `("status",)` → None (read-only)
-   - `("dashboard",)` → None *initially* — WP10 replaces this with a mode predicate.
-   - `("doctor",)` → None *initially* — WP10 replaces this with a mode predicate.
-   - `("--help",)` and `("--version",)` are short-circuited *before* the planner runs (handled in `cli/helpers.py` in WP08). Still register `("help",)` and `("version",)` for completeness.
+   - `("dashboard",)` → None *initially* — a later mission package replaces this with a mode predicate.
+   - `("doctor",)` → None *initially* — a later mission package replaces this with a mode predicate.
+   - `("--help",)` and `("--version",)` are short-circuited *before* the planner runs (handled in the typer-callback wiring package). Still register `("help",)` and `("version",)` for completeness.
    - `("agent", "mission", "branch-context")` → None (read-only).
    - `("agent", "mission", "check-prerequisites")` → None (read-only).
    - `("agent", "mission", "setup-plan")` → None (read-only — does not mutate project).
@@ -81,13 +81,13 @@ Implement the central safety registry that classifies each CLI invocation as `Sa
 1. `register_safety(command_path: str | tuple[str, ...], predicate: SafetyPredicate | None = None) -> None`:
    - Accepts either a string (single command name like `"dashboard"`) or a tuple (multi-level path).
    - String form is normalised to `(string,)`.
-   - Updating an existing entry replaces the prior predicate (predictable for WP10's overrides).
+   - Updating an existing entry replaces the prior predicate (predictable for later mode-predicate overrides).
 2. `classify(invocation: "Invocation") -> Safety`:
    - Look up `invocation.command_path` in `SAFETY_REGISTRY`.
    - If not found: return `Safety.UNSAFE` (fail-closed).
    - If found and value is `None`: return `Safety.SAFE`.
    - If found and value is callable: return `predicate(invocation)`. Wrap the call in try/except; any exception from a predicate falls through to `Safety.UNSAFE` (defensive).
-3. Typing: `Invocation` is defined in WP06's `compat/planner.py`. To avoid an import cycle, declare a `Protocol` locally in `safety.py` describing the fields `safety.classify` actually reads (`command_path: tuple[str, ...]`, `raw_args: tuple[str, ...]`). Or use a `TYPE_CHECKING` guard on the import. Either is fine; document the choice.
+3. Typing: `Invocation` is defined in the planner package (later mission package). To avoid an import cycle, declare a `Protocol` locally in `safety.py` describing the fields `safety.classify` actually reads (`command_path: tuple[str, ...]`, `raw_args: tuple[str, ...]`). Or use a `TYPE_CHECKING` guard on the import. Either is fine; document the choice.
 
 **Files**: `src/specify_cli/compat/safety.py` (extend).
 
@@ -133,9 +133,9 @@ Cover:
 ## Risks
 
 - The typer app structure may differ from what's assumed — inspect `src/specify_cli/cli/` to discover the actual entry point and command tree before writing the architectural test.
-- `dashboard` and `doctor` are seeded as unconditionally safe in this WP. WP10 will override them with mode predicates. This is fine because:
-  - With WP04 alone, the gate is no stricter than today (dashboard/doctor were not gated before).
-  - With WP10, the predicates make them mode-aware.
+- `dashboard` and `doctor` are seeded as unconditionally safe in this package. A later mission package will override them with mode predicates. This is fine because:
+  - With this package alone, the gate is no stricter than today (dashboard/doctor were not gated before).
+  - With the later predicate package, the registrations become mode-aware.
   - At no point are these commands made unsafe-by-default (which would be a regression).
 
 ## Reviewer Guidance
