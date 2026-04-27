@@ -8,7 +8,14 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 # ---------------------------------------------------------------------------
 # Identity primitives
@@ -170,11 +177,50 @@ class SynthesizeScope(BaseModel):
     profiles: list[str] = Field(default_factory=list)
 
 
+# Validator applied to filesystem-bound identifiers (term_key, artifact_id).
+# The contract uses both lowercase glossary terms (e.g. ``mission-id``) and
+# mixed-case doctrine artifact ids (e.g. ``DIRECTIVE_001``,
+# ``TACTIC_phase_2``, ``PROCEDURE-v2``), so the alphabet must accept both.
+# The security shape is what matters:
+#   * length 1-128 (rules out empty)
+#   * alphabet limited to [A-Za-z0-9._-] (no path separators, no spaces, no
+#     control characters or shell meta)
+#   * no leading dot (no hidden file)
+#   * no ``..`` substring anywhere (no traversal)
+# Pydantic v2 uses the Rust regex engine, which has no look-around, so the
+# composite check is split into a regex (alphabet + length) plus an
+# AfterValidator for the structural ``..``/leading-dot rules.
+# ``_assert_within`` in apply.py adds defense in depth at write time.
+_SLUG_REGEX = r"^[A-Za-z0-9._-]{1,128}$"
+
+
+def _validate_safe_slug(value: str) -> str:
+    if value.startswith("."):
+        raise ValueError(
+            "identifier must not start with '.': leading-dot names are reserved"
+        )
+    if ".." in value:
+        raise ValueError(
+            "identifier must not contain '..': path-traversal sequences are forbidden"
+        )
+    return value
+
+
+# A reusable Annotated type so all filesystem-bound identifier fields share
+# one definition. AfterValidator runs after the regex pattern validates the
+# alphabet + length.
+SafeSlug = Annotated[
+    str,
+    Field(pattern=_SLUG_REGEX),
+    AfterValidator(_validate_safe_slug),
+]
+
+
 class SynthesizeDirectivePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["synthesize_directive"]
-    artifact_id: str
+    artifact_id: SafeSlug
     body: str
     body_hash: str
     scope: SynthesizeScope
@@ -184,7 +230,7 @@ class SynthesizeTacticPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["synthesize_tactic"]
-    artifact_id: str
+    artifact_id: SafeSlug
     body: str
     body_hash: str
     scope: SynthesizeScope
@@ -194,7 +240,7 @@ class SynthesizeProcedurePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["synthesize_procedure"]
-    artifact_id: str
+    artifact_id: SafeSlug
     body: str
     body_hash: str
     scope: SynthesizeScope
@@ -234,7 +280,7 @@ class AddGlossaryTermPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["add_glossary_term"]
-    term_key: str
+    term_key: SafeSlug
     definition: str
     definition_hash: str
     related_terms: list[str] = Field(default_factory=list)
@@ -244,7 +290,7 @@ class UpdateGlossaryTermPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["update_glossary_term"]
-    term_key: str
+    term_key: SafeSlug
     definition: str
     definition_hash: str
     related_terms: list[str] = Field(default_factory=list)

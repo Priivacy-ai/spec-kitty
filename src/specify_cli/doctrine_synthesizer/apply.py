@@ -161,6 +161,30 @@ _DRG_BASE = Path(".kittify") / "drg"
 _DOCTRINE_BASE = Path(".kittify") / "doctrine"
 
 
+def _assert_within(base: Path, target: Path) -> Path:
+    """Resolve ``target`` and confirm it stays inside ``base``.
+
+    Defense-in-depth against path traversal even after schema validation:
+    schema rejects unsafe identifiers via ``_SLUG_PATTERN``, and this check
+    catches any future regression that could let a slug escape its bucket
+    (symlinks, drive letters, etc.).
+
+    Returns the resolved target path.
+
+    Raises:
+        ValueError: if the resolved target is not contained in ``base``.
+    """
+    resolved_base = base.resolve()
+    resolved_target = target.resolve()
+    try:
+        resolved_target.relative_to(resolved_base)
+    except ValueError as exc:
+        raise ValueError(
+            f"refusing to write outside artifact base: target={resolved_target} base={resolved_base}"
+        ) from exc
+    return resolved_target
+
+
 def _apply_add_glossary_term(
     payload: AddGlossaryTermPayload,
     repo_root: Path,
@@ -179,7 +203,7 @@ def _apply_add_glossary_term(
     glossary_dir = repo_root / _GLOSSARY_BASE
     glossary_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_path = glossary_dir / f"{term_key}.yaml"
+    artifact_path = _assert_within(glossary_dir, glossary_dir / f"{term_key}.yaml")
     target_urn = f"glossary:term:{term_key}"
 
     term_data: dict[str, object] = {
@@ -205,7 +229,7 @@ def _apply_update_glossary_term(
     glossary_dir = repo_root / _GLOSSARY_BASE
     glossary_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_path = glossary_dir / f"{term_key}.yaml"
+    artifact_path = _assert_within(glossary_dir, glossary_dir / f"{term_key}.yaml")
     target_urn = f"glossary:term:{term_key}"
 
     term_data: dict[str, object] = {
@@ -351,7 +375,7 @@ def _apply_synthesize(
     doctrine_dir = repo_root / _DOCTRINE_BASE / kind_slug
     doctrine_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_path = doctrine_dir / f"{payload.artifact_id}.md"
+    artifact_path = _assert_within(doctrine_dir, doctrine_dir / f"{payload.artifact_id}.md")
     with artifact_path.open("w", encoding="utf-8") as fh:
         fh.write(payload.body)
 
