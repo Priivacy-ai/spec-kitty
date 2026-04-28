@@ -200,3 +200,4 @@ GitHub issue #676. Today, re-running `agent action implement` (e.g., to refresh 
 ## Activity Log
 
 - 2026-04-28T09:58:47Z – claude:opus-4-7:default:implementer – shell_pid=28781 – Started implementation via action command
+- 2026-04-28T10:06:44Z – claude:opus-4-7:default:implementer – shell_pid=28781 – WP04 ready: counter advancement gated to rejection handler only; idempotent implement reruns; tests
