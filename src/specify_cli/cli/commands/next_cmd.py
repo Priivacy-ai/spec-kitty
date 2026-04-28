@@ -98,12 +98,138 @@ def next_step(
         print("Error: --agent is required when --result is provided", file=sys.stderr)
         raise typer.Exit(1)
 
+    # WP05 (#843): pair the previous issuance's `started` lifecycle record
+    # BEFORE we advance the runtime. This must run before decide_next so the
+    # pair is observable even if decide_next raises.
+    _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root)
+
     decision = decide_next(agent, mission_slug, result, repo_root)
     _emit_mission_next_invoked(agent, result, mission_slug, repo_root, decision)
+
+    # WP05 (#843): write the `started` lifecycle record AFTER the decision is
+    # finalised but BEFORE returning to the agent, so the record exists iff
+    # the agent actually saw the issued action.
+    _write_issuance_lifecycle_record(agent, mission_slug, repo_root, decision)
+
     _print_decision(decision, json_output, answered_id, answer)
 
     if decision.kind == "blocked":
         raise typer.Exit(1)
+
+
+def _pair_previous_lifecycle_record(
+    agent: str,
+    mission_slug: str,
+    result: str,
+    repo_root: object,
+) -> None:
+    """Write the paired ``completed`` / ``failed`` record for the prior issuance.
+
+    Matches the most recent unpaired ``started`` for ``(agent, mission_id)``
+    in the local lifecycle store and appends a partner record carrying the
+    SAME ``canonical_action_id``. The id is propagated, never re-computed
+    (FR-011 / contract: "no rewriting at completion time").
+
+    Best-effort: a missing meta.json or empty store is silently a no-op so
+    new missions / first issuance behave naturally.
+    """
+    from pathlib import Path
+
+    from specify_cli.invocation.lifecycle import (
+        find_latest_unpaired_started,
+        read_lifecycle_records,
+        write_paired_completion,
+    )
+    from specify_cli.mission_metadata import resolve_mission_identity
+
+    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+    feature_dir = repo_root_path / "kitty-specs" / mission_slug
+
+    try:
+        identity = resolve_mission_identity(feature_dir)
+    except (FileNotFoundError, ValueError, TypeError):
+        return
+    mission_id = identity.mission_id or identity.mission_slug
+
+    records = read_lifecycle_records(repo_root_path)
+    started = find_latest_unpaired_started(
+        records,
+        agent=agent,
+        mission_id=mission_id,
+    )
+    if started is None:
+        return
+
+    if result == "success":
+        phase: str = "completed"
+        reason: str | None = None
+    else:
+        phase = "failed"
+        reason = result  # "failed" or "blocked" — preserves caller intent
+
+    write_paired_completion(
+        repo_root_path,
+        started=started,
+        phase=phase,  # type: ignore[arg-type]
+        reason=reason,
+    )
+
+
+def _write_issuance_lifecycle_record(
+    agent: str,
+    mission_slug: str,
+    repo_root: object,
+    decision: object,
+) -> None:
+    """Write a ``started`` lifecycle record for the action just issued.
+
+    The canonical action id is ``f"{decision.mission_state}::{decision.action}"``
+    — the mission step + action that the runtime actually issued. This
+    value is read once here and never re-derived at completion time.
+
+    No-op when the decision did not issue a public action (e.g. terminal,
+    blocked, decision_required). Failures to write are swallowed: the
+    lifecycle log is observability, not a hard runtime dependency.
+    """
+    from pathlib import Path
+
+    from specify_cli.invocation.lifecycle import (
+        make_canonical_action_id,
+        write_started,
+    )
+    from specify_cli.mission_metadata import resolve_mission_identity
+
+    action = getattr(decision, "action", None)
+    mission_state = getattr(decision, "mission_state", None)
+    kind = getattr(decision, "kind", None)
+    if not action or not mission_state or kind != "step":
+        return
+
+    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+    feature_dir = repo_root_path / "kitty-specs" / mission_slug
+
+    try:
+        identity = resolve_mission_identity(feature_dir)
+    except (FileNotFoundError, ValueError, TypeError):
+        return
+    mission_id = identity.mission_id or identity.mission_slug
+
+    try:
+        canonical_id = make_canonical_action_id(mission_state, action)
+    except ValueError:
+        return
+
+    try:
+        write_started(
+            repo_root_path,
+            canonical_action_id=canonical_id,
+            agent=agent,
+            mission_id=mission_id,
+            wp_id=getattr(decision, "wp_id", None),
+        )
+    except OSError:
+        # Lifecycle log is observability; failures must not break `next`.
+        return
 
 
 def _maybe_emit_runtime_notice(json_output: bool) -> None:

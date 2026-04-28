@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "mission_slug": "release-3-2-0a6-tranche-2-01KQ9MKP",
+  "mission_id": "01KQ9MKPYMT1528C6VH6B8BT67",
+  "mission_branch": "kitty/mission-release-3-2-0a6-tranche-2-01KQ9MKP",
+  "target_branch": "release/3.2.0a6-tranche-2",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/**/*.md",
+        "src/specify_cli/auth/transport.py",
+        "src/specify_cli/cli/commands/advise.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/charter_bundle.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/record.py",
+        "src/specify_cli/invocation/writer.py",
+        "src/specify_cli/migration/schema_version.py",
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/sync/diagnose.py",
+        "tests/e2e/test_charter_epic_golden_path.py",
+        "tests/integration/test_charter_synthesize_fresh.py",
+        "tests/integration/test_init_fresh_project_chain.py",
+        "tests/integration/test_json_envelope_strict.py",
+        "tests/integration/test_next_lifecycle_records.py",
+        "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py",
+        "tests/specify_cli/cli/commands/test_init_schema_stamp.py",
+        "tests/specify_cli/invocation/test_lifecycle_pairing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "tests/integration/test_agent_identity_prompt.py",
+        "tests/integration/test_review_cycle_rejection_only.py",
+        "tests/specify_cli/cli/commands/agent/test_review_cycle_counter.py",
+        "tests/specify_cli/status/test_wp_metadata_resolved_agent.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-28T09:37:27.232642+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP02"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP05"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}

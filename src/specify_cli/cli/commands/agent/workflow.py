@@ -1,4 +1,36 @@
-"""Action commands for AI agents - display prompts and instructions."""
+"""Action commands for AI agents - display prompts and instructions.
+
+WP04 (#676) — Review-cycle counter inventory
+============================================
+The ``review-cycle-N.md`` artifact and the implicit counter ``N`` (computed
+from ``len(glob("review-cycle-*.md")) + 1``) are mutated in **exactly one**
+place across the runtime: ``_persist_review_feedback`` in
+``src/specify_cli/cli/commands/agent/tasks.py`` (currently lines 403-456).
+That helper is invoked from a single call site —
+``move-task ... --to planned --review-feedback-file <path>`` — which is the
+canonical reviewer-rejection event (``tasks.py`` ~line 1233).
+
+Sites in this module that **mention** ``review-cycle-*`` artifacts but do
+**not** mutate the counter or write any artifact:
+
+* line ~112-113 — docstring of ``_resolve_review_feedback_pointer`` describing
+  the canonical pointer scheme.
+* line ~279 — ``_has_prior_rejection`` performs a read-only ``glob`` check.
+* line ~798-807 — fix-mode prompt rendering reads the latest artifact via
+  ``ReviewCycleArtifact.from_file`` / ``.latest``; no write.
+* line ~1729-1731 — review-prompt rendering computes a *placeholder* path
+  ``review-cycle-{next_cycle}.md`` for inclusion in instructional output to
+  the human reviewer. Nothing is written; the file only materialises when
+  the reviewer subsequently runs ``move-task --to planned``.
+
+Re-running ``spec-kitty agent action implement WPNN`` is therefore a
+counter-no-op by construction: this module never calls
+``ReviewCycleArtifact.write`` or ``ReviewCycleArtifact.next_cycle_number``.
+The unit and integration tests under
+``tests/specify_cli/cli/commands/agent/test_review_cycle_counter.py`` and
+``tests/integration/test_review_cycle_rejection_only.py`` lock in this
+contract.
+"""
 
 from __future__ import annotations
 
@@ -23,7 +55,7 @@ from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.models import Lane, TransitionRequest
+from specify_cli.status.models import AgentAssignment, Lane, TransitionRequest
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.tasks_support import (
     append_activity_log,
@@ -59,6 +91,26 @@ def _write_prompt_to_file(
     prompt_file = Path(tempfile.gettempdir()) / f"spec-kitty-{command_type}-{wp_id}.md"
     prompt_file.write_text(content, encoding="utf-8")
     return prompt_file
+
+
+def _render_resolved_agent_identity(
+    assignment: AgentAssignment,
+) -> list[str]:
+    """Render the resolved agent 4-tuple for inclusion in implement/review prompts.
+
+    Surfaces ``tool``, ``model``, ``profile_id`` and ``role`` so the implement
+    and review prompt-render path no longer silently drops the trailing fields
+    of a colon-formatted ``--agent`` string. See WP03 / GitHub issue #833.
+    """
+    profile_display = assignment.profile_id if assignment.profile_id else "(default)"
+    role_display = assignment.role if assignment.role else "(default)"
+    return [
+        "Resolved agent identity:",
+        f"  tool       : {assignment.tool}",
+        f"  model      : {assignment.model}",
+        f"  profile_id : {profile_display}",
+        f"  role       : {role_display}",
+    ]
 
 
 def _resolve_git_common_dir(repo_root: Path) -> Path | None:
@@ -853,6 +905,10 @@ def implement(
         lines.append(f"Workspace: {workspace_path}")
         lines.append(_workspace_contract_description(workspace, normalized_wp_id))
         lines.append("")
+        # WP03 (#833): surface the resolved agent 4-tuple so model / profile_id /
+        # role flow into the rendered prompt instead of being silently discarded.
+        lines.extend(_render_resolved_agent_identity(_wp_agent_assignment))
+        lines.append("")
         lines.append(_render_charter_context(repo_root, "implement"))
         lines.append("")
 
@@ -1555,6 +1611,15 @@ def review(
                 dependents_warning.append(f"⚠️  Dependency Alert: {dependents_list} depend on {normalized_wp_id} (not yet done)")
                 dependents_warning.append("   If you request changes, notify those agents to rebase.")
 
+        # WP03 (#833): resolve the agent identity 4-tuple so the review prompt
+        # surfaces model / profile_id / role rather than silently dropping them.
+        try:
+            _review_wp_meta, _ = read_wp_frontmatter(wp.path)
+            _review_agent_assignment = _review_wp_meta.resolved_agent()
+        except Exception as _agent_err:
+            logger.warning("Could not resolve agent identity for review prompt: %s", _agent_err)
+            _review_agent_assignment = None
+
         # Build full prompt content for file
         lines = []
         lines.append("=" * 80)
@@ -1566,6 +1631,9 @@ def review(
         lines.append(f"Workspace: {workspace_path}")
         lines.append(_workspace_contract_description(workspace, normalized_wp_id))
         lines.append("")
+        if _review_agent_assignment is not None:
+            lines.extend(_render_resolved_agent_identity(_review_agent_assignment))
+            lines.append("")
         lines.append(_render_charter_context(repo_root, "review"))
         lines.append("")
 

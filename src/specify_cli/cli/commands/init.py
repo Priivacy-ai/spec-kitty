@@ -105,6 +105,109 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
     return True
 
 
+def _stamp_schema_metadata(kittify_dir: Path) -> bool:
+    """Stamp ``schema_version`` and ``schema_capabilities`` into ``metadata.yaml``.
+
+    Behavior (issue #840):
+
+    - If ``metadata.yaml`` does not exist, create a minimal file containing
+      both fields under the ``spec_kitty`` mapping.
+    - If the file exists and lacks ``spec_kitty.schema_version``, insert it.
+    - If the file exists and lacks ``spec_kitty.schema_capabilities``, insert it.
+    - **Never** overwrite an existing ``schema_version`` or any existing key
+      inside an existing ``schema_capabilities`` mapping. Operator-authored
+      keys (top-level or nested) are preserved byte-identical via
+      ``ruamel.yaml`` round-trip mode.
+    - If both fields are already present, the file is not rewritten and this
+      function returns ``False`` (idempotency guard).
+
+    Args:
+        kittify_dir: Path to the project's ``.kittify`` directory.
+
+    Returns:
+        ``True`` if the file was created or modified, ``False`` if it was
+        left untouched.
+    """
+    from specify_cli.migration.schema_version import (
+        CURRENT_SCHEMA_CAPABILITIES,
+        CURRENT_SCHEMA_VERSION,
+    )
+
+    metadata_path = kittify_dir / "metadata.yaml"
+
+    yaml_rt = YAML()
+    yaml_rt.preserve_quotes = True
+    yaml_rt.width = 4096
+
+    # Case 1: file does not exist — create a minimal stamped document.
+    if not metadata_path.exists():
+        kittify_dir.mkdir(parents=True, exist_ok=True)
+        from ruamel.yaml.comments import CommentedMap
+
+        data: CommentedMap = CommentedMap()
+        spec_kitty_map: CommentedMap = CommentedMap()
+        spec_kitty_map["schema_version"] = CURRENT_SCHEMA_VERSION
+        caps_map: CommentedMap = CommentedMap()
+        for cap, enabled in CURRENT_SCHEMA_CAPABILITIES.items():
+            caps_map[cap] = enabled
+        spec_kitty_map["schema_capabilities"] = caps_map
+        data["spec_kitty"] = spec_kitty_map
+        with metadata_path.open("w", encoding="utf-8") as fh:
+            yaml_rt.dump(data, fh)
+        return True
+
+    # Case 2: file exists — round-trip parse, additive merge.
+    with metadata_path.open("r", encoding="utf-8") as fh:
+        data = yaml_rt.load(fh)
+
+    # If the file is empty or holds something that isn't a mapping, treat it
+    # as empty for the purpose of stamping (we still preserve nothing-to-keep).
+    if data is None:
+        from ruamel.yaml.comments import CommentedMap
+
+        data = CommentedMap()
+
+    if not isinstance(data, dict):
+        # Operator authored a non-mapping document. Refuse to mutate it; the
+        # additive stamp only makes sense on mappings.
+        return False
+
+    spec_kitty_node = data.get("spec_kitty")
+    if not isinstance(spec_kitty_node, dict):
+        from ruamel.yaml.comments import CommentedMap
+
+        spec_kitty_node = CommentedMap()
+        # Insert spec_kitty at the top to keep the schema header visible.
+        data.insert(0, "spec_kitty", spec_kitty_node)
+
+    changed = False
+
+    # schema_version: insert only if missing; never overwrite.
+    if "schema_version" not in spec_kitty_node:
+        # Insert at position 0 of the spec_kitty map for visibility.
+        spec_kitty_node.insert(0, "schema_version", CURRENT_SCHEMA_VERSION)
+        changed = True
+
+    # schema_capabilities: insert the canonical map only if entirely missing.
+    # If a map already exists, do NOT merge into it — the operator owns it.
+    if "schema_capabilities" not in spec_kitty_node:
+        from ruamel.yaml.comments import CommentedMap
+
+        caps_map = CommentedMap()
+        for cap, enabled in CURRENT_SCHEMA_CAPABILITIES.items():
+            caps_map[cap] = enabled
+        spec_kitty_node["schema_capabilities"] = caps_map
+        changed = True
+
+    if not changed:
+        # Idempotency: nothing missing — leave the file untouched.
+        return False
+
+    with metadata_path.open("w", encoding="utf-8") as fh:
+        yaml_rt.dump(data, fh)
+    return True
+
+
 def _get_package_templates_root() -> Path | None:
     """Return the package-bundled templates directory (read-only).
 
@@ -832,6 +935,15 @@ def init(  # noqa: C901
     except Exception as e:
         # Don't fail init if metadata creation fails
         _console.print(f"[dim]Note: Could not create project metadata: {e}[/dim]")
+
+    # Stamp schema_version + schema_capabilities into metadata.yaml so
+    # downstream commands (charter setup, next, etc.) work without operators
+    # hand-editing the file. See issue #840.
+    try:
+        _stamp_schema_metadata(project_path / ".kittify")
+    except Exception as e:
+        # Stamp is additive and best-effort: never fail init.
+        _console.print(f"[dim]Note: Could not stamp schema metadata: {e}[/dim]")
 
     # Save VCS preference to config.yaml
     if selected_vcs:

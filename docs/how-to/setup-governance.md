@@ -129,6 +129,14 @@ This does two things in sequence:
 
 After generation, your `.kittify/charter/` directory contains the full governance bundle.
 
+> **Note (3.2.0a6+):** `charter generate` auto-tracks the produced
+> `charter.md` (it stages the file via `git add` and ensures the required
+> `.gitignore` entries exist for the derived artifacts). You do **not**
+> need to run `git add charter.md` before `spec-kitty charter bundle
+> validate` — the bundle is accepted immediately. If `generate` is run
+> outside a git working tree it fails fast with an actionable error
+> naming `git init` as the remediation.
+
 ### Overwrite an Existing Charter
 
 If you already have a charter and want to regenerate from scratch:
