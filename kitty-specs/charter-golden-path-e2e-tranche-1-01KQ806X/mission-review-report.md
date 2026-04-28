@@ -164,21 +164,22 @@ No other drift findings.
 
 **Type**: BOUNDARY-CONDITION (intentional softening, fully documented)
 **Severity**: LOW
-**Location**: `tests/e2e/test_charter_epic_golden_path.py:674-687`
+**Location**: `tests/e2e/test_charter_epic_golden_path.py:761-908`
 **Trigger condition**: Whenever `next --result success` for `step_id=discovery → action=research` does not write `.kittify/events/profile-invocations/`.
 
-**Analysis**: Per F5 (open finding), the discovery action does not currently produce profile-invocation records when advanced via `next --result success`. The test gates the FR-016 paired-records assertion on `pi_dir.is_dir()`. When records ARE present, the action-name comparison is tight (`action == issued_step_id`, no substring or `in` match). When the directory is absent, the test continues without raising — softening the FR-016 assertion until F5 is fixed in follow-up.
+**Analysis**: Per F5 (open finding), the discovery action does not currently produce profile-invocation records when advanced via `next --result success`. The test gates the FR-016 paired-records assertion on `pi_dir.is_dir()`. When records ARE present, the action-name comparison is tight (`action == issued_step_id`, no substring or `in` match). When the directory is absent, the test preserves the expected-failure signal but defers `pytest.xfail()` until after later golden-path phases run, so `retrospect summary` is still exercised before the test is reported xfailed.
 
-The risk is that **a future regression that breaks the lifecycle writer in some other way** (still creating the dir but writing wrong records, or creating the dir but with stale data) might pass. The current gate only protects against the specific F5 case (dir absent).
+The risk is that **a future regression that breaks the lifecycle writer in some other way** (still creating the dir but writing wrong records, or creating the dir but with stale data) might pass. The current gate only protects against the specific F5 case (dir absent); other phases still run and can fail normally before the deferred xfail.
 
 The implementer mitigated this by:
-- Inline comment at lines 676–687 explicitly stating the gate is conditional on a documented FR-021 finding.
+- Inline comment near `_run_next_and_assert_lifecycle` explicitly stating the gate is conditional on a documented FR-021 finding.
 - Tight action-name comparison when records ARE present.
+- Deferred xfail in `_run_golden_path` so downstream `retrospect summary` coverage is not skipped while F5 is unresolved.
 - Pull-out narrative in the open-items list (this report) tracking the gate's removal.
 
 This is acceptable for tranche 1 but should be tightened in a follow-up tranche once F5 is fixed.
 
-**Recommendation**: Add a `# FIXME(post-F5): tighten this gate` line near the conditional, or — better — file a follow-up issue and link the issue ID inline so the gate is greppable and removable when F5 lands.
+**Recommendation**: File a follow-up issue and link the issue ID inline so the gate is greppable and removable when F5 lands.
 
 ### RISK-2: NFR-002 (deterministic across 20 runs) not stress-verified
 
@@ -196,10 +197,10 @@ This is acceptable for tranche 1 but should be tightened in a follow-up tranche 
 
 | Location | Condition | Silent result | Spec impact |
 |---|---|---|---|
-| `tests/e2e/test_charter_epic_golden_path.py:687` | `pi_dir.is_dir()` is False | Test returns from inner block without checking lifecycle records | FR-016 partial coverage; F5-gated |
+| `tests/e2e/test_charter_epic_golden_path.py:835` | `pi_dir.is_dir()` is False | Test records a narrow F5 xfail reason, continues through later phases, then reports xfailed at the end | FR-016 partial coverage; F5-gated without skipping FR-007 |
 | `tests/e2e/conftest.py:91-95` | Watched root not present at baseline time | Records empty inventory `{}` for that root | If a watched root is created mid-test, the diff is detected; if a root is destroyed, the diff is detected. The empty-baseline case is correct. (Not a silent failure.) |
 
-Only one true silent-failure candidate (the F5 gate), already documented under RISK-1.
+Only one true soft-failure candidate (the F5 gate), already documented under RISK-1.
 
 ---
 
@@ -233,7 +234,7 @@ The most important output of this mission is the **5 FR-021 product findings** t
 2. **F2** — `spec-kitty init` doesn't stamp `.kittify/metadata.yaml.spec_kitty.{schema_version,schema_capabilities}`. File as upstream issue.
 3. **F3** — `charter generate` writes `charter.md` but doesn't `git add` it; `bundle validate` then refuses untracked. File as upstream issue (or as a contradicting-invariant finding).
 4. **F4** — `agent mission create --json` (and other agent commands) appends a non-JSON SaaS-sync error line to stdout, breaking strict JSON parsing. Same root cause as 3 pre-existing `tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::*` failures. File as upstream issue.
-5. **F5** — `next --result success` for `step_id=discovery → action=research` does NOT create `.kittify/events/profile-invocations/`. Suggests the legacy single-dispatch path is taken instead of the composition path. File as upstream issue. When fixed, remove the F5 gate at `test_charter_epic_golden_path.py:687`.
+5. **F5** — `next --result success` for `step_id=discovery → action=research` does NOT create `.kittify/events/profile-invocations/`. Suggests the legacy single-dispatch path is taken instead of the composition path. File as upstream issue. When fixed, remove the deferred F5 xfail gate in `_run_next_and_assert_lifecycle` / `_run_golden_path`.
 6. **W1** — Dossier-snapshot blocks `move-task` repeatedly (gitignored but pre-flight requires committed). 3 occurrences during the run. Workflow papercut.
 7. **W2** — `/spec-kitty.specify` and `/spec-kitty.plan` auto-commits don't pick up post-create edits. Workflow papercut.
 8. **W3** — Decision events (`DecisionPointOpened`/`Resolved`) collide with WP-state schema in `status.events.jsonl`. Workflow papercut. Worked around by archiving to `_archive/`.
@@ -251,7 +252,7 @@ After this report's first draft was committed (`2010e449`), an independent code 
 
 - **A — JSON parser strictness.** `_parse_first_json_object` now captures the trailing remainder after `JSONDecoder.raw_decode` and validates each non-empty trailing line against an inline allow-list regex matching the documented F4 SaaS-sync pollution patterns. A NEW pollution mode (different from F4) now trips the test instead of being silently absorbed.
 - **B — Real synthesize calls.** The test now calls `charter synthesize --adapter fixture --dry-run --json` and `charter synthesize --adapter fixture --json` (the public-CLI surface FR-004 lists) BEFORE the `--dry-run-evidence` workaround. F1 mode is recognized by an inline matcher; if real synthesize succeeds, the workaround is skipped; if it fails with a NON-F1 mode, the test fails loudly. This proves the test actually invokes the real CLI surface.
-- **C — Lifecycle records narrow expected failure.** The silent return at the F5 gate is replaced with `pytest.xfail("F5 / FR-016 / FR-021: …")` so the test now reports the F5 regression as an expected failure (xfail) rather than passing through it. When F5 is fixed, the implementer must update the test (per the inline FIXME). The records-present branch (paired records + tight `action == issued_step_id`) is preserved.
+- **C — Lifecycle records narrow expected failure.** The silent return at the F5 gate is replaced with a deferred `pytest.xfail("F5 / FR-016 / FR-021: …")` so the test reports the F5 regression as an expected failure (xfail) without skipping later golden-path phases such as `retrospect summary`. When F5 is fixed, the implementer must update the test. The records-present branch (paired records + tight `action == issued_step_id`) is preserved.
 - **D — Prompt-file presence.** The test now asserts the `prompt_file` (or `prompt_path`) **key** is present in the live `next --json` envelope; a missing key raises `AssertionError`. The truthy check on advance is preserved; query-mode `prompt_file: null` is tolerated as documented in the live-envelope shape block.
 
 Post-tightening verification:

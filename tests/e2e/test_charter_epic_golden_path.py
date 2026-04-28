@@ -407,7 +407,7 @@ def _bootstrap_schema_version(project: Path) -> None:
     We import yaml + the schema constants from the source checkout —
     that's reading public module surface, not private runtime helpers.
     """
-    import yaml  # local import keeps the test file mostly stdlib
+    import yaml  # type: ignore[import-untyped]  # local import keeps the test file mostly stdlib
 
     from specify_cli.migration.schema_version import (
         MAX_SUPPORTED_SCHEMA,
@@ -760,7 +760,7 @@ def _scaffold_minimal_mission(
 
 def _run_next_and_assert_lifecycle(
     project: Path, run_cli: RunCli, mission_handle: str
-) -> None:
+) -> str | None:
     """T007: issue + advance via `next` + lifecycle record assertions."""
     # Query mode: issue exactly one composed action.
     cmd = ["next", "--agent", "test-agent", "--mission", mission_handle, "--json"]
@@ -818,15 +818,12 @@ def _run_next_and_assert_lifecycle(
     # composition path that writes profile-invocation records.
     #
     # Reviewer P1.3: the previous silent `return` masked this core
-    # #827 acceptance. Approach picked: `pytest.xfail()` IN-PLACE
-    # (rather than refactoring into a second test function).
-    # Rationale: the full operator-path setup is expensive (single
-    # slow e2e); duplicating it for one assertion would roughly
-    # double the suite wall-clock for marginal gain. The brief
-    # explicitly accepts this interim measure; refactor into a
-    # standalone `test_charter_epic_lifecycle_records_paired` xfail
-    # test is a recommended follow-up when the full setup becomes a
-    # session-scoped fixture.
+    # #827 acceptance. We keep the expected-failure signal, but defer
+    # calling `pytest.xfail()` until after later phases run so the same
+    # golden-path test still verifies `retrospect summary` while F5 is
+    # unresolved. Refactor into a standalone
+    # `test_charter_epic_lifecycle_records_paired` xfail test once the
+    # full setup becomes a session-scoped fixture.
     #
     # The tight `action == issued_step_id` regression assertion below
     # MUST keep firing once F5 is fixed and records become present,
@@ -834,7 +831,7 @@ def _run_next_and_assert_lifecycle(
     # unconditionally when the directory IS present.
     pi_dir = project / ".kittify" / "events" / "profile-invocations"
     if not pi_dir.is_dir():
-        pytest.xfail(
+        return (
             "F5 / FR-016 / FR-021: `next --result success` for the first "
             "composed action (step_id=discovery -> action=research) does "
             "not create .kittify/events/profile-invocations/. When F5 is "
@@ -880,6 +877,7 @@ def _run_next_and_assert_lifecycle(
             f"FR-016: lifecycle record action {action!r} does not equal "
             f"issued step id {issued_step_id!r}. A role-default verb leak."
         )
+    return None
 
 
 def _run_retrospect(project: Path, run_cli: RunCli) -> None:
@@ -904,8 +902,10 @@ def _run_golden_path(project: Path, run_cli: RunCli) -> None:
     """Body of the golden path. Split into phase helpers for readability."""
     _run_charter_flow(project, run_cli)
     mission_handle, _feature_dir = _scaffold_minimal_mission(project, run_cli)
-    _run_next_and_assert_lifecycle(project, run_cli, mission_handle)
+    lifecycle_xfail = _run_next_and_assert_lifecycle(project, run_cli, mission_handle)
     _run_retrospect(project, run_cli)
+    if lifecycle_xfail is not None:
+        pytest.xfail(lifecycle_xfail)
 
 
 def test_charter_epic_golden_path(
