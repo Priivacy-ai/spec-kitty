@@ -22,7 +22,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: claude
+agent: "claude:sonnet:researcher-robbie:researcher"
+shell_pid: "28424"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -237,3 +238,7 @@ Reviewer should verify:
 ```bash
 spec-kitty agent action implement WP01 --agent <your-agent-key>
 ```
+
+## Activity Log
+
+- 2026-04-28T09:57:59Z – claude:sonnet:researcher-robbie:researcher – shell_pid=28424 – Started implementation via action command
