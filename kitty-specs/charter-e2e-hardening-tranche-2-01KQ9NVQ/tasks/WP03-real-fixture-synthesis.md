@@ -163,3 +163,4 @@ spec-kitty agent action implement WP03 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T10:21:21Z – claude:sonnet:implementer-ivan:implementer – shell_pid=47137 – Started implementation via action command
+- 2026-04-28T10:31:30Z – claude:sonnet:implementer-ivan:implementer – shell_pid=47137 – Direction A: env-var stub mode for fixture adapter; tests for dry-run envelope and on-disk artifacts; doctrine_synthesizer + charter test trees green
