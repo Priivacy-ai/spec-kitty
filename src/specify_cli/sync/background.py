@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import contextlib
 import logging
 import threading
 from dataclasses import dataclass, field
@@ -23,6 +24,7 @@ from typing import TYPE_CHECKING, Optional
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
+from specify_cli.diagnostics import invocation_succeeded, report_once
 
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
@@ -38,6 +40,20 @@ logger = logging.getLogger(__name__)
 # Maximum seconds the stop() best-effort sync may run before being
 # abandoned.  Events stay in the durable queue for the daemon to drain.
 _STOP_SYNC_TIMEOUT_SECONDS = 5
+
+
+def _safe_optional_queue_size(queue_obj: object | None) -> int:
+    """Best-effort queue size lookup that tolerates test doubles."""
+    if queue_obj is None:
+        return 0
+    try:
+        raw = queue_obj.size()
+    except Exception:
+        return 0
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _fetch_access_token_sync() -> str | None:
@@ -76,10 +92,8 @@ def _fetch_access_token_sync() -> str | None:
                 asyncio.set_event_loop(new_loop)
                 return new_loop.run_until_complete(tm.get_access_token())
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     asyncio.set_event_loop(None)
-                except Exception:
-                    pass
                 new_loop.close()
     except AuthenticationError as exc:
         logger.debug("Background sync token fetch failed: %s", exc)
@@ -150,18 +164,21 @@ class BackgroundSyncService:
             if acquired:
                 self._lock.release()
 
+        succeeded = invocation_succeeded()
+
         if not acquired:
             # Timer thread is stuck holding the lock; skip the final sync
             # rather than blocking shutdown.
-            logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
+            if succeeded:
+                logger.debug("Could not acquire sync lock within 5 s; skipping final sync (post-success)")
+            else:
+                logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
             return
 
         # Best-effort final sync with a bounded timeout so atexit never
         # hangs the process.  Events stay in the durable queue and will
         # be drained on the next daemon tick.
-        body_queue_has_work = (
-            self._body_queue is not None and self._body_queue.size() > 0
-        )
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             sync_thread = threading.Thread(
                 target=self._guarded_final_sync, daemon=True,
@@ -169,11 +186,16 @@ class BackgroundSyncService:
             sync_thread.start()
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
-                logger.warning(
-                    "Final sync did not complete within %ds; "
-                    "queued events will be drained by the daemon",
-                    _STOP_SYNC_TIMEOUT_SECONDS,
-                )
+                if succeeded:
+                    logger.debug(
+                        "Final sync did not complete within %ds (post-success); queued events will be drained by the daemon",
+                        _STOP_SYNC_TIMEOUT_SECONDS,
+                    )
+                else:
+                    logger.warning(
+                        "Final sync did not complete within %ds; queued events will be drained by the daemon",
+                        _STOP_SYNC_TIMEOUT_SECONDS,
+                    )
         logger.debug("Background sync service stopped")
 
     def _guarded_final_sync(self) -> None:
@@ -226,9 +248,7 @@ class BackgroundSyncService:
         """Timer callback: sync if queue is non-empty, then reschedule."""
         if not self._running:
             return
-        body_queue_has_work = (
-            self._body_queue is not None and self._body_queue.size() > 0
-        )
+        body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             self._perform_sync()
         self._schedule_next_sync()
@@ -259,7 +279,8 @@ class BackgroundSyncService:
         with self._lock:
             access_token = _fetch_access_token_sync()
             if access_token is None:
-                logger.warning("Not authenticated, skipping sync")
+                if report_once("sync.unauthenticated"):
+                    logger.warning("Not authenticated, skipping sync")
                 return BatchSyncResult()
 
             try:
@@ -314,7 +335,8 @@ class BackgroundSyncService:
 
         access_token = _fetch_access_token_sync()
         if access_token is None:
-            logger.warning("Not authenticated, skipping sync")
+            if report_once("sync.unauthenticated"):
+                logger.warning("Not authenticated, skipping sync")
             return BatchSyncResult()
 
         event_sync_succeeded = False

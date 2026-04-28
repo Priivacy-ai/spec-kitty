@@ -49,6 +49,7 @@ from specify_cli.core.wps_manifest import (
     dependencies_are_explicit,
     generate_tasks_md_from_manifest,
 )
+from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace_context import resolve_feature_worktree
@@ -647,6 +648,7 @@ def create_mission(
                 current_branch=result.current_branch,
             )
         )
+        mark_invocation_succeeded()
     else:
         console.print(f"[green]\u2713[/green] Mission created: {result.mission_slug}")
         console.print(f"   Directory: {result.feature_dir}")

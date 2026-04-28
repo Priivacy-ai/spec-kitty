@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import platform
 import sys
 from dataclasses import dataclass, field
@@ -13,12 +14,14 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
-from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION, get_project_schema_version
+from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
 from .detector import VersionDetector
 from .metadata import ProjectMetadata
 from .migrations.base import BaseMigration, MigrationResult
 from .registry import MigrationRegistry
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -116,6 +119,12 @@ class MigrationRunner:
                 metadata.version = target_version
                 metadata.last_upgraded_at = datetime.now()
                 metadata.save(self.kittify_dir)
+            # Even when no schema-changing migrations are needed, the schema
+            # stamp must still land so the gate does not block the next command.
+            # Stamp after any save because ProjectMetadata.save() does not
+            # preserve unknown keys.
+            if not dry_run and REQUIRED_SCHEMA_VERSION is not None:
+                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
 
             result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
             return result
@@ -157,11 +166,12 @@ class MigrationRunner:
         if not dry_run and result.success:
             metadata.version = target_version
             metadata.last_upgraded_at = datetime.now()
-            # Schema-version-based migration: stamp the new schema_version so the
-            # gate does not block future commands.
+            metadata.save(self.kittify_dir)
+            # ProjectMetadata.save() reconstructs metadata.yaml from a fixed
+            # schema and would clobber the schema_version stamp if this ran
+            # before save().
             if REQUIRED_SCHEMA_VERSION is not None:
                 self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
-            metadata.save(self.kittify_dir)
 
         # Handle worktrees
         if include_worktrees:
@@ -391,12 +401,20 @@ class MigrationRunner:
 
         metadata_path = kittify_dir / "metadata.yaml"
         if not metadata_path.exists():
+            logger.warning(
+                "schema_version stamp skipped: %s does not exist", metadata_path
+            )
             return
 
         try:
             with open(metadata_path, encoding="utf-8-sig") as fh:
                 data = yaml.safe_load(fh)
-        except (OSError, yaml.YAMLError):
+        except (OSError, yaml.YAMLError) as exc:
+            logger.warning(
+                "schema_version stamp skipped: failed to read %s (%s)",
+                metadata_path,
+                exc,
+            )
             return
 
         if not isinstance(data, dict):

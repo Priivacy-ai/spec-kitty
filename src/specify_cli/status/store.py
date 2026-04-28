@@ -201,6 +201,18 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
                 raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+            event_name = obj.get("event_name")
+            if isinstance(event_name, str) and event_name.startswith("retrospective."):
+                continue
+
+            # status.events.jsonl also carries mission-level events from
+            # adjacent subsystems. Those events identify themselves with
+            # top-level event_type and do not have StatusEvent lane fields.
+            # Skip by event_type presence so future mission-level event
+            # names remain compatible while malformed lane events still fail.
+            if "event_type" in obj:
+                continue
+
             try:
                 # Resolve mission_id from the raw dict before parsing,
                 # so that from_dict() receives it even for legacy events.
