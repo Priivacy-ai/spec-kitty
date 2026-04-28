@@ -353,3 +353,7 @@ spec-kitty agent action implement WP04 --agent claude --mission charter-e2e-827-
 - **FR-016** (PR closeout language — informational; the implementer ensures commit messages match the FR-016 closeout style).
 - **C-007** (no silent deletion/rewrite of existing content).
 - Contributes to **NFR-003** (verification matrix).
+
+## Activity Log
+
+- 2026-04-28T20:50:48Z – claude – shell_pid=73767 – WP04 ready for review: mission-create no-empty-spec + setup-plan entry/exit gates + templates + 5 regression scenarios
