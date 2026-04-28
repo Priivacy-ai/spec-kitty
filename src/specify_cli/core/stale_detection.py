@@ -16,7 +16,7 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace.context import resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
 

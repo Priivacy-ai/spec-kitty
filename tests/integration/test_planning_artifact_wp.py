@@ -60,7 +60,7 @@ class TestPlanningArtifactWorkspaceResolution:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """resolve_workspace_for_wp -> resolution_kind='repo_root'."""
-        from specify_cli.workspace_context import (
+        from specify_cli.workspace.context import (
             ResolvedWorkspace,
             resolve_workspace_for_wp,
         )

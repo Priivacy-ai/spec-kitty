@@ -28,7 +28,7 @@ from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, 
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace.context import resolve_workspace_for_wp
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
 console = Console()

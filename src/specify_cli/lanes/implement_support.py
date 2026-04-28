@@ -17,8 +17,8 @@ from specify_cli.ownership.models import ExecutionMode
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
-from specify_cli.workspace_context import ResolvedWorkspace
-from specify_cli.workspace_context import WorkspaceContext, save_context
+from specify_cli.workspace.context import ResolvedWorkspace
+from specify_cli.workspace.context import WorkspaceContext, save_context
 
 
 @dataclass
@@ -111,7 +111,7 @@ def create_lane_workspace(
         lanes_manifest.mission_branch,
     )
 
-    from specify_cli.workspace_context import load_context
+    from specify_cli.workspace.context import load_context
 
     base_branch = lanes_manifest.mission_branch
 

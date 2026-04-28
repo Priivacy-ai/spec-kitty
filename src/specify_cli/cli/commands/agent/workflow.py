@@ -65,7 +65,7 @@ from specify_cli.task_utils import (
     set_scalar,
     split_frontmatter,
 )
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace.context import resolve_workspace_for_wp
 
 logger = logging.getLogger(__name__)
 

@@ -38,7 +38,7 @@ from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.core.utils import write_text_within_directory
-from specify_cli.workspace_context import get_normalized_wp, resolve_workspace_for_wp
+from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
 
 
 def resolve_primary_branch(repo_root: Path) -> str:

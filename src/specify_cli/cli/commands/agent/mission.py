@@ -52,7 +52,7 @@ from specify_cli.core.wps_manifest import (
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
-from specify_cli.workspace_context import resolve_feature_worktree
+from specify_cli.workspace.context import resolve_feature_worktree
 from specify_cli.merge.config import MergeStrategy
 
 app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents", no_args_is_help=True)

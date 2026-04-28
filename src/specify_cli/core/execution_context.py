@@ -16,7 +16,7 @@ from specify_cli.core.paths import get_feature_target_branch, require_explicit_f
 from specify_cli.status.models import Lane
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.task_utils import locate_work_package
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
 ActionName = Literal[
