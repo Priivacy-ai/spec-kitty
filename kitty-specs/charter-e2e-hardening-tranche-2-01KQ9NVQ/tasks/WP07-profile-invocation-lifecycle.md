@@ -143,3 +143,4 @@ spec-kitty agent action implement WP07 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T11:24:55Z – claude:sonnet:implementer-ivan:implementer – shell_pid=202 – Started implementation via action command
+- 2026-04-28T13:26:34Z – claude:sonnet:implementer-ivan:implementer – shell_pid=202 – Composed actions issued by next now write paired started/completed lifecycle records with canonical outcome (done|failed|abandoned); integration test added; existing runtime walks regression-free
