@@ -14,8 +14,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "62162"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "72649"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -158,3 +158,4 @@ spec-kitty agent action implement WP05 --agent <your-agent-key>
 
 - 2026-04-28T10:43:20Z – claude:sonnet:implementer-ivan:implementer – shell_pid=62162 – Started implementation via action command
 - 2026-04-28T10:58:47Z – claude:sonnet:implementer-ivan:implementer – shell_pid=62162 – Strict --json stdout: mark_invocation_succeeded wired into four CLI paths; new test asserts strict json.loads(stdout) for all four; charter/next/specify_cli green
+- 2026-04-28T10:59:17Z – claude:opus:reviewer-renata:reviewer – shell_pid=72649 – Started review via action command
