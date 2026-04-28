@@ -191,3 +191,4 @@ spec-kitty agent action implement WP08 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T13:29:20Z – claude:sonnet:implementer-ivan:implementer – shell_pid=11674 – Started implementation via action command
+- 2026-04-28T13:46:57Z – claude:sonnet:implementer-ivan:implementer – shell_pid=11674 – All 6 bypasses removed; narrow gate green; targeted gates clean
