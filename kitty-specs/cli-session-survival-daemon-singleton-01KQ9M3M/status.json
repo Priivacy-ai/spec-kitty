@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01KQ9Q656X0ATN8EN8CDK4H0N2",
-  "materialized_at": "2026-04-28T09:37:07.805114+00:00",
+  "event_count": 10,
+  "last_event_id": "01KQ9Q7454RK43Y6E947Z5PGMC",
+  "materialized_at": "2026-04-28T09:37:39.492044+00:00",
   "mission_number": "",
   "mission_slug": "cli-session-survival-daemon-singleton-01KQ9M3M",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-04-28T09:28:49.129612+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ9PPY8SCM6DQ8Q4JB6G0YQG",
-      "last_transition_at": "2026-04-28T09:28:49.177596+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ9Q7454RK43Y6E947Z5PGMC",
+      "last_transition_at": "2026-04-28T09:37:39.492044+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
