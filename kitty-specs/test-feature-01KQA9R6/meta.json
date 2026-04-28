@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-28T15:01:33.117233+00:00",
+  "friendly_name": "123 test feature",
+  "mission_id": "01KQA9R65ATB2ASJRJ10310KC3",
+  "mission_number": null,
+  "mission_slug": "test-feature-01KQA9R6",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances 123 test feature on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "123 test feature",
+  "slug": "test-feature-01KQA9R6",
+  "target_branch": "main"
+}
