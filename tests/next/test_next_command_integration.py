@@ -89,6 +89,23 @@ def _write_runtime_input_mission(repo_root: Path, mission_type: str) -> None:
         ),
         encoding="utf-8",
     )
+    _write_command_templates(repo_root, ["collect_input", "execute"])
+
+
+def _write_command_templates(repo_root: Path, action_names: list[str]) -> None:
+    """Create minimal command templates for synthetic runtime steps.
+
+    The next runtime now guarantees that emitted ``kind=step`` decisions carry
+    a resolvable prompt file. Integration fixtures that expect runnable custom
+    steps must therefore provide command templates in the resolver override tier.
+    """
+    template_dir = repo_root / ".kittify" / "overrides" / "command-templates"
+    template_dir.mkdir(parents=True, exist_ok=True)
+    for action in action_names:
+        (template_dir / f"{action}.md").write_text(
+            f"# {action}\n\nRun the synthetic {action} step for this integration test.\n",
+            encoding="utf-8",
+        )
 
 
 def _write_invalid_runtime_mission(repo_root: Path, mission_type: str) -> None:
@@ -429,6 +446,7 @@ class TestNextCommandKnownBlockedMissions:
             mission_slug="043-plan-feature",
             mission_type="plan",
         )
+        _write_command_templates(repo_root, ["specify"])
 
         from specify_cli.next.decision import decide_next
 
@@ -442,6 +460,7 @@ class TestNextCommandKnownBlockedMissions:
             mission_slug="044-docs-feature",
             mission_type="documentation",
         )
+        _write_command_templates(repo_root, ["discover"])
 
         from specify_cli.next.decision import decide_next
 
