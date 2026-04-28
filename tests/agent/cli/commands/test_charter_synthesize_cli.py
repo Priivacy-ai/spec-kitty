@@ -117,7 +117,12 @@ class TestSynthesizeHappyPath:
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
             "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-            return_value=["directive:test-directive"],
+            return_value=[
+                {
+                    "path": ".kittify/doctrine/directives/PROJECT_001-test-directive.directive.yaml",
+                    "kind": "directive",
+                }
+            ],
         ):
             result = runner.invoke(app, ["synthesize", "--dry-run"])
 
@@ -152,7 +157,12 @@ class TestSynthesizeHappyPath:
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
             "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-            return_value=["directive:test-directive"],
+            return_value=[
+                {
+                    "path": ".kittify/doctrine/directives/PROJECT_001-test-directive.directive.yaml",
+                    "kind": "directive",
+                }
+            ],
         ):
             result = runner.invoke(
                 app,
