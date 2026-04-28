@@ -45,11 +45,11 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T017 | Add or update tests covering generate→bundle-validate operator path in a fresh git project | WP04 |  | [D] |
 | T018 | Verify `tests/charter/` regression-free | WP04 |  | [D] |
 | T019 | Cross-check the operator path against `kitty-specs/<mission>/quickstart.md` Step 2; update if direction differed from default | WP04 |  | [D] |
-| T020 | Audit SaaS sync / auth / background diagnostic emission sites that leak into `--json` stdout | WP05 |  |
-| T021 | Route diagnostics to stderr or into structured `warnings` envelope inside the JSON document | WP05 |  |
-| T022 | Add per-command test asserting strict full-stream `json.loads(stdout)` for `charter generate`, `charter bundle validate`, `charter synthesize`, `next` (new file: `tests/specify_cli/test_json_output_discipline.py`) | WP05 |  |
-| T023 | Verify SaaS-touching tests still pass; update assertions only where they tolerated broken behavior | WP05 |  |
-| T024 | Verify `tests/charter/`, `tests/next/`, `tests/specify_cli/` regression-free | WP05 |  |
+| T020 | Audit SaaS sync / auth / background diagnostic emission sites that leak into `--json` stdout | WP05 |  | [D] |
+| T021 | Route diagnostics to stderr or into structured `warnings` envelope inside the JSON document | WP05 |  | [D] |
+| T022 | Add per-command test asserting strict full-stream `json.loads(stdout)` for `charter generate`, `charter bundle validate`, `charter synthesize`, `next` (new file: `tests/specify_cli/test_json_output_discipline.py`) | WP05 |  | [D] |
+| T023 | Verify SaaS-touching tests still pass; update assertions only where they tolerated broken behavior | WP05 |  | [D] |
+| T024 | Verify `tests/charter/`, `tests/next/`, `tests/specify_cli/` regression-free | WP05 |  | [D] |
 | T025 | Ensure `next --json` issued steps always carry non-empty resolvable `prompt_file` per `contracts/next-issue.json`; structured blocked decision when no prompt resolvable | WP06 |  |
 | T026 | Add per-step-kind tests (discovery, research, doc, composed actions) asserting prompt-file presence/resolvability | WP06 |  |
 | T027 | Edit SOURCE skill `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` to remove the `prompt_file == null` workaround text | WP06 |  |
@@ -192,11 +192,11 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T020 Audit diagnostic emission sites that leak into --json stdout (WP05)
-- [ ] T021 Route diagnostics to stderr or structured warnings envelope (WP05)
-- [ ] T022 Add per-command strict-parse test (new file) (WP05)
-- [ ] T023 Verify SaaS-touching tests still pass (WP05)
-- [ ] T024 Verify charter/next/specify_cli test trees regression-free (WP05)
+- [x] T020 Audit diagnostic emission sites that leak into --json stdout (WP05)
+- [x] T021 Route diagnostics to stderr or structured warnings envelope (WP05)
+- [x] T022 Add per-command strict-parse test (new file) (WP05)
+- [x] T023 Verify SaaS-touching tests still pass (WP05)
+- [x] T024 Verify charter/next/specify_cli test trees regression-free (WP05)
 
 **Implementation sketch**: Per WP01 R3, identify the SaaS sync / auth emission sites (likely `src/specify_cli/saas/` or `src/specify_cli/sync/` if present, plus per-command diagnostic logging). Route via stderr or fold into envelope. Owner of shared plumbing: this WP. Per-command JSON cleanup that requires the per-command file is owned by that command's WP — coordinate via PR review.
 
