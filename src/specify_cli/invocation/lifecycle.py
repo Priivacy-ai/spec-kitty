@@ -100,9 +100,15 @@ def read_lifecycle_records(repo_root: Path) -> list[ProfileInvocationRecord]:
 
 @dataclass(frozen=True)
 class LifecycleGroup:
-    """All records sharing one ``canonical_action_id``, in insertion order."""
+    """All records sharing one ``(mission_id, canonical_action_id)`` key.
+
+    Records are stored in insertion order. The group key includes
+    ``mission_id`` so two missions issuing the same ``mission_state::action``
+    cannot cross-pair (which would silently mask a real orphan).
+    """
 
     canonical_action_id: str
+    mission_id: str
     records: tuple[ProfileInvocationRecord, ...]
 
     @property
@@ -125,14 +131,26 @@ class LifecycleGroup:
 
 
 def group_by_action(records: Iterable[ProfileInvocationRecord]) -> list[LifecycleGroup]:
-    """Group records by ``canonical_action_id`` preserving insertion order."""
-    buckets: dict[str, list[ProfileInvocationRecord]] = defaultdict(list)
-    order: list[str] = []
+    """Group records by ``(mission_id, canonical_action_id)`` preserving order.
+
+    Mission identity participates in the group key so cross-mission collisions
+    on the same ``mission_state::action`` string cannot balance each other.
+    """
+    buckets: dict[tuple[str, str], list[ProfileInvocationRecord]] = defaultdict(list)
+    order: list[tuple[str, str]] = []
     for r in records:
-        if r.canonical_action_id not in buckets:
-            order.append(r.canonical_action_id)
-        buckets[r.canonical_action_id].append(r)
-    return [LifecycleGroup(cid, tuple(buckets[cid])) for cid in order]
+        key = (r.mission_id, r.canonical_action_id)
+        if key not in buckets:
+            order.append(key)
+        buckets[key].append(r)
+    return [
+        LifecycleGroup(
+            canonical_action_id=cid,
+            mission_id=mid,
+            records=tuple(buckets[(mid, cid)]),
+        )
+        for (mid, cid) in order
+    ]
 
 
 def find_orphans(

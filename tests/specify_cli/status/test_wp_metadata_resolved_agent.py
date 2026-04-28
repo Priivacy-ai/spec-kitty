@@ -49,10 +49,19 @@ def test_one_segment_uses_all_defaults() -> None:
 
 
 def test_two_segments_preserves_model() -> None:
-    """``tool:model`` preserves *model* and fills the trailing slots from defaults."""
+    """``tool:model`` preserves *model* and fills the trailing slots from defaults.
+
+    FR-006 regression: the partial colon string ``claude:opus-4-7`` MUST NOT
+    leave ``profile_id`` as ``None``. Spec scenario (spec.md line 59) says the
+    exception path "preserves tool and model and falls back to default
+    profile_id and role, with no silent discard." The deterministic synthetic
+    default fills the slot when no registry/frontmatter value exists.
+    """
     result = _make_wp("claude:opus-4-7").resolved_agent()
     assert result.tool == "claude"
     assert result.model == "opus-4-7"
+    # FR-006: profile_id has a deterministic non-empty default.
+    assert result.profile_id == "claude-default"
     # Per data-model.md §2, role default is the documented constant
     # "implementer" once the user opts into the colon format.
     assert result.role == "implementer"
@@ -101,16 +110,20 @@ def test_empty_positional_segment_falls_back() -> None:
 
 
 def test_trailing_empty_segments_fall_back() -> None:
-    """Trailing missing/empty segments fall back to defaults.
+    """Trailing missing/empty segments fall back to documented defaults (FR-006).
 
     ``claude:opus-4-7:::`` is equivalent to supplying ``tool`` and ``model``
-    with empty trailing positions for ``profile_id`` and ``role``.
+    with empty trailing positions for ``profile_id`` and ``role``. Per
+    data-model.md §2 invariant, colon-formatted inputs always produce a
+    non-empty ``profile_id`` — when no registry entry and no frontmatter
+    fallback exist, the deterministic synthetic default ``f"{tool}-default"``
+    is used.
     """
     result = _make_wp("claude:opus-4-7:::").resolved_agent()
     assert result.tool == "claude"
     assert result.model == "opus-4-7"
-    # No registry default → profile_id stays None.
-    assert result.profile_id is None
+    # No registry default + no frontmatter → synthetic ``claude-default``.
+    assert result.profile_id == "claude-default"
     # role default per the documented table.
     assert result.role == "implementer"
 
@@ -120,7 +133,9 @@ def test_two_empty_middle_segments_use_defaults() -> None:
     result = _make_wp("claude:::reviewer").resolved_agent()
     assert result.tool == "claude"
     assert result.model == "unknown-model"
-    assert result.profile_id is None
+    # FR-006: no silent discard — profile_id falls back to the deterministic
+    # synthetic default rather than ``None``.
+    assert result.profile_id == "claude-default"
     assert result.role == "reviewer"
 
 

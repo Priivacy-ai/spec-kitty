@@ -43,7 +43,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -114,49 +113,20 @@ def _maybe_dump_envelope(label: str, payload: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-# F4 / FR-021 trailing-data allow-list. Documented SaaS-sync stdout
-# pollution we tolerate today: "Connection failed: Forbidden: ..." and
-# "Could not acquire sync lock within 5 s; skipping final sync" lines.
-# Any OTHER trailing text after the JSON envelope is an unexpected new
-# pollution mode and the test must fail loudly so it's surfaced as a
-# regression rather than silently absorbed.
-_F4_ALLOWED_TRAILING_LINE_RE = re.compile(
-    r"(?i)^[\s\W]*(connection failed|forbidden|sync lock|skipping (?:final )?sync).*$"
-)
-
-
 def _parse_first_json_object(stdout: str) -> dict[str, Any]:
-    """Parse the first complete JSON object from stdout.
+    """Parse stdout under the strict ``json-envelope.md`` contract.
 
-    Some `--json` commands write the JSON envelope to stdout but ALSO
-    append non-JSON status / error lines (e.g. "Connection failed:
-    Forbidden: Direct sync ingress must target Private Teamspace." from
-    a SaaS sync hook). We parse the first balanced top-level object,
-    then match the trailing remainder against the documented F4 /
-    FR-021 SaaS-sync allow-list. Any trailing line that does NOT match
-    that allow-list is a NEW pollution mode and raises -- the test
-    must not silently absorb arbitrary trailing data.
+    The contract (``contracts/json-envelope.md``) is unconditional:
+    ``json.loads(stdout)`` MUST succeed without preprocessing. Trailing
+    text after the JSON envelope is a contract violation regardless of
+    what the SaaS-sync hook is trying to communicate — diagnostics belong
+    on stderr. Any trailing data therefore fails the test loudly so the
+    contract is upheld at every covered surface.
     """
-    decoder = json.JSONDecoder()
-    stripped = stdout.lstrip()
-    obj, end = decoder.raw_decode(stripped)
-    if not isinstance(obj, dict):
-        raise json.JSONDecodeError("expected dict", stripped, 0)
-    # F4 / FR-021: validate the trailing remainder.
-    remainder = stripped[end:]
-    if remainder.strip():
-        for line in remainder.splitlines():
-            if not line.strip():
-                continue
-            if not _F4_ALLOWED_TRAILING_LINE_RE.match(line):
-                raise AssertionError(
-                    "FR-021 / F4: unexpected trailing data after JSON envelope. "
-                    "The documented F4 SaaS-sync pollution allow-list did not match "
-                    f"this line: {line!r}\n"
-                    "  full remainder (verbatim):\n"
-                    f"{remainder!r}"
-                )
-    return obj
+    parsed = json.loads(stdout)
+    if not isinstance(parsed, dict):
+        raise json.JSONDecodeError("expected top-level JSON object", stdout, 0)
+    return parsed
 
 
 def _expect_success(

@@ -1990,6 +1990,19 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     ]
 
 
+def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
+    """Return the repo-relative paths a fresh-project synthesize would write.
+
+    Used by ``--dry-run`` on a fresh project (#839 follow-up): callers preview
+    the materialization without touching the filesystem. Must mirror the
+    output of :func:`_materialize_fresh_doctrine` exactly.
+    """
+    doctrine_dir = repo_root / ".kittify" / "doctrine"
+    return [
+        str((doctrine_dir / "PROVENANCE.md").relative_to(repo_root)),
+    ]
+
+
 @app.command("synthesize")
 def charter_synthesize(
     adapter: str = typer.Option(
@@ -2093,11 +2106,36 @@ def charter_synthesize(
             adapter == "generated"
             and not _has_generated_artifacts(repo_root)
             and not dry_run_evidence
-            and not dry_run
             and charter_md.is_file()
         )
 
         if is_fresh_project_synthesize:
+            # Dry-run on a fresh project must NOT fall through to the production
+            # adapter (which would raise GeneratedArtifactMissingError). Report
+            # what would be materialized, write nothing, exit 0. (#839 follow-up)
+            if dry_run:
+                planned = _planned_fresh_doctrine_paths(repo_root)
+                if json_output:
+                    print(json.dumps({
+                        "result": "success",
+                        "success": True,
+                        "mode": "fresh_project_seed_dry_run",
+                        "files_planned": planned,
+                        "note": (
+                            "Fresh project + --dry-run: would materialize "
+                            "minimal .kittify/doctrine/ (no files written). "
+                            "See issue #839."
+                        ),
+                    }, indent=2))
+                    return
+                console.print(
+                    "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
+                    "would materialize minimal .kittify/doctrine/ (no files written)."
+                )
+                for f in planned:
+                    console.print(f"  • {f}")
+                return
+
             written = _materialize_fresh_doctrine(repo_root)
 
             if json_output:

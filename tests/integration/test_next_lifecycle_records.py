@@ -187,6 +187,80 @@ class TestNextLifecycleRecordsPairingRate:
         assert set(completion_ids).issubset(set(started_ids))
 
 
+class TestNextLifecycleRecordsFullyPairedRun:
+    """≥ 5 issuances with no orphan — overall pairing rate MUST clear NFR-006.
+
+    NFR-006 requires the overall lifecycle store to demonstrate ≥ 95% pairing
+    across ≥ 5 issued actions. The mixed-orphan scenario above intentionally
+    sits at 80% to verify orphan visibility; this test covers the canonical
+    healthy run so the release evidence is not satisfied solely by the
+    non-orphan-subset calculation.
+    """
+
+    def test_five_issuances_all_paired_pairing_rate_at_threshold(
+        self, tmp_path: Path
+    ) -> None:
+        mission_slug = "release-3-2-0a6-tranche-2-test"
+        mission_id = "01HMISSIONULID00000000000C"
+        _setup_mission(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
+
+        agent = "claude"
+        actions = ["implement", "review", "merge", "accept", "verify"]
+        # Six step-decisions: each cycle pairs the prior issuance and emits
+        # a fresh started; the final cycle pairs the fifth started without
+        # emitting a sixth issuance.
+        decisions = [
+            _FakeDecision(
+                kind="step",
+                mission_state=f"mission_step_{i}",
+                action=actions[i % len(actions)],
+                wp_id=f"WP{(i % 4) + 1:02d}",
+            )
+            for i in range(6)
+        ]
+
+        # Issuance 0 — first cycle, no prior to pair.
+        _drive_issuance_and_advance(
+            tmp_path,
+            agent=agent,
+            mission_slug=mission_slug,
+            decision=decisions[0],
+            advance_result=None,
+        )
+
+        # Issuances 1..4 — each cycle pairs the prior and emits a fresh
+        # started. Four pairs created across these four cycles.
+        for decision in decisions[1:5]:
+            _drive_issuance_and_advance(
+                tmp_path,
+                agent=agent,
+                mission_slug=mission_slug,
+                decision=decision,
+                advance_result="success",
+            )
+
+        # Final advance: pair the fifth started without issuing a new
+        # started record (terminal-like cycle). This balances every
+        # started with exactly one completion — no orphans.
+        from specify_cli.cli.commands import next_cmd
+        next_cmd._pair_previous_lifecycle_record(
+            agent, mission_slug, "success", tmp_path
+        )
+
+        records = read_lifecycle_records(tmp_path)
+        starteds = [r for r in records if r.phase == "started"]
+        completions = [r for r in records if r.phase in ("completed", "failed")]
+
+        # ≥ 5 issued actions (NFR-006 floor) and zero orphans.
+        assert len(starteds) >= 5
+        assert len(completions) == len(starteds)
+
+        overall = compute_pairing_rate(records)
+        assert overall >= 0.95, (
+            f"NFR-006 floor not met on canonical healthy run: {overall=}"
+        )
+
+
 class TestOrphanListedByDoctor:
     """The orphan from a partial cycle MUST appear in the doctor surface."""
 

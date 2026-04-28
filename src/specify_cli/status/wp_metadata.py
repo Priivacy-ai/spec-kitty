@@ -86,18 +86,29 @@ def _default_model_for(tool: str, fallback: str | None) -> str:
     return fallback or "unknown-model"
 
 
-def _default_profile_for(tool: str, fallback: str | None) -> str | None:
+def _default_profile_for(tool: str, fallback: str | None) -> str:
     """Return the agent registry's default profile_id for *tool*.
 
-    Falls back to *fallback* (typically ``WPMetadata.agent_profile``) and
-    finally to ``None`` to preserve historical behavior for callers that
-    treat ``profile_id`` as optional.
+    Resolution order:
+      1. Per-tool registry value in ``_AGENT_DEFAULTS`` (when populated).
+      2. The supplied *fallback* (typically ``WPMetadata.agent_profile``).
+      3. The deterministic synthetic default ``f"{tool}-default"``.
+
+    FR-006 (issue #833) requires partial colon strings like ``claude:opus-4-7``
+    to fall back to a *documented default* profile_id with no silent discard.
+    Returning ``None`` here would re-introduce the original bug whenever the
+    frontmatter ``agent_profile`` field is absent. The synthetic
+    ``f"{tool}-default"`` form is stable, parseable, and surfaces clearly in
+    rendered prompts so reviewers can tell defaulting apart from authored
+    values.
     """
     if tool in _AGENT_DEFAULTS:
         registry_default = _AGENT_DEFAULTS[tool][1]
         if registry_default is not None:
             return registry_default
-    return fallback
+    if fallback:
+        return fallback
+    return f"{tool}-default"
 
 
 def _resolve_agent_from_colon_string(
@@ -405,9 +416,12 @@ class WPMetadata(BaseModel):
 
         Returns:
             AgentAssignment with all four identity fields resolved.
-            ``tool``, ``model`` and ``role`` are always non-empty for
-            colon-formatted inputs. ``profile_id`` may be ``None`` when no
-            registry default is available and the WP did not supply one.
+            For colon-formatted inputs, all four fields (``tool``, ``model``,
+            ``profile_id``, ``role``) are non-empty: missing positions fall
+            back to per-tool registry defaults, then to frontmatter, then to
+            the deterministic synthetic default ``f"{tool}-default"`` for
+            ``profile_id`` (FR-006). ``profile_id`` may still be ``None`` for
+            non-colon-formatted inputs that explicitly opt out.
         """
         if isinstance(self.agent, AgentAssignment):
             return _resolve_agent_from_assignment(self.agent)

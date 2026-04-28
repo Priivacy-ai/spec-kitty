@@ -40,6 +40,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent.context import app as context_app
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.sync.diagnose import emit_diagnostic
 
@@ -79,6 +80,24 @@ _COVERED_COMMANDS: list[tuple[str, Any, list[str], bool]] = [
         mission_app,
         ["branch-context", "--json"],
         False,  # exit code may be non-zero in temp dir; we only assert JSON parse
+    ),
+    # mission setup-plan: SaaS-touching planner-setup; in a tmp dir with no
+    # mission selected it returns a structured error envelope on stdout.
+    (
+        "mission_setup_plan",
+        mission_app,
+        ["setup-plan", "--mission", "nonexistent-mission", "--json"],
+        False,
+    ),
+    # agent context resolve: invokes the SaaS-touching action-context resolver
+    # path. With no mission in the temp dir it returns a MISSING_MISSION /
+    # MISSION_NOT_FOUND error envelope — still strict JSON, still on stdout.
+    # Typer collapses single-command apps so we omit the "resolve" prefix.
+    (
+        "agent_context_resolve",
+        context_app,
+        ["--action", "specify", "--mission", "nonexistent-mission", "--json"],
+        False,
     ),
 ]
 

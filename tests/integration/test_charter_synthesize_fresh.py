@@ -153,6 +153,44 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# #839 follow-up: --dry-run on a fresh project is covered by the intercept
+# ---------------------------------------------------------------------------
+
+
+def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
+    tmp_path: Path,
+) -> None:
+    """``--dry-run --json`` on a fresh project MUST report would-write paths
+    and exit 0 without touching the filesystem. Falling through to the
+    production adapter would raise ``GeneratedArtifactMissingError`` because
+    no agent YAMLs exist yet — that is the bug this guard prevents.
+    """
+    _git_init(tmp_path)
+    _write_minimal_interview(tmp_path)
+    _run_generate(tmp_path)
+
+    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    # Pre-condition: doctrine tree does NOT exist (verifying fresh state).
+    assert not doctrine_dir.exists()
+
+    result = _run_synthesize(tmp_path, "--dry-run", "--json")
+    assert result.exit_code == 0, (
+        f"dry-run synthesize failed on fresh project: {result.stdout!r}"
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload.get("result") == "success"
+    assert payload.get("success") is True
+    assert payload.get("mode") == "fresh_project_seed_dry_run"
+    assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_planned", [])
+
+    # Dry-run MUST NOT write anything to disk.
+    assert not doctrine_dir.exists(), (
+        "dry-run on fresh project must not materialize .kittify/doctrine/"
+    )
+
+
+# ---------------------------------------------------------------------------
 # T035b — synthesize is idempotent (T033)
 # ---------------------------------------------------------------------------
 

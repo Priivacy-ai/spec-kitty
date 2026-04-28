@@ -62,7 +62,12 @@ ResolvedAgent = (tool: str, model: str, profile_id: str, role: str)
 **Defaults table** (illustrative; existing values from the agent registry):
 
 - `default_model[claude]` = the agent registry's current Claude default
-- `default_profile_id[<tool>]` = the agent registry's current default profile for that tool
+  (when not in `_AGENT_DEFAULTS`, falls back to frontmatter `model`, then to
+  the constant `"unknown-model"`)
+- `default_profile_id[<tool>]` = the agent registry's current default profile
+  for that tool (when not in `_AGENT_DEFAULTS`, falls back to frontmatter
+  `agent_profile`, then to the deterministic synthetic default
+  `f"{tool}-default"`)
 - `role` default = `implementer`
 
 ---
@@ -125,11 +130,16 @@ ProfileInvocationRecord:
 **Pair-matching rule** (validation):
 
 ```
-match(records) = group records by canonical_action_id
+match(records) = group records by (mission_id, canonical_action_id)
   for each group:
     expect 1 "started" + (0 or 1) "completed_or_failed"
     flag groups missing a partner record
 ```
+
+The group key includes `mission_id` so two missions issuing the same
+`mission_state::action` cannot cross-pair (a started in mission `m1` and a
+completion in mission `m2` would otherwise balance globally and silently
+hide the `m1` orphan).
 
 ---
 

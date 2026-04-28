@@ -479,3 +479,110 @@ def test_doctor_orphan_report_handles_naive_datetimes(tmp_path: Path) -> None:
     assert isinstance(started_at_field, str)
     # naive datetime is stored normalised; the surface emits an ISO string.
     assert "2026-04-28T12:00:00" in started_at_field
+
+
+# ---------------------------------------------------------------------------
+# Cross-mission isolation (regression for #843 follow-up)
+# ---------------------------------------------------------------------------
+
+
+class TestCrossMissionIsolation:
+    """Two missions issuing the same ``mission_state::action`` MUST NOT cross-pair.
+
+    Group key includes ``mission_id`` so a started in mission ``m1`` and a
+    completion in mission ``m2`` (same canonical_action_id) leave the m1
+    started observably orphaned. Without mission-scoped grouping the global
+    started/completion counts would balance and hide the orphan.
+    """
+
+    def test_same_canonical_id_in_two_missions_does_not_cross_pair(
+        self, tmp_path: Path
+    ) -> None:
+        # Mission m1 issues a started, agent crashes (no completion).
+        m1_started = ProfileInvocationRecord(
+            canonical_action_id="implement::do",
+            phase="started",
+            at=_at(0),
+            agent="claude",
+            mission_id="m1",
+            wp_id="WP01",
+        )
+        # Mission m2 (separate operator session) issues + completes the
+        # SAME canonical_action_id string.
+        m2_started = ProfileInvocationRecord(
+            canonical_action_id="implement::do",
+            phase="started",
+            at=_at(10),
+            agent="claude",
+            mission_id="m2",
+            wp_id="WP01",
+        )
+        m2_completed = ProfileInvocationRecord(
+            canonical_action_id="implement::do",
+            phase="completed",
+            at=_at(15),
+            agent="claude",
+            mission_id="m2",
+            wp_id="WP01",
+        )
+        for r in (m1_started, m2_started, m2_completed):
+            append_lifecycle_record(tmp_path, r)
+
+        records = read_lifecycle_records(tmp_path)
+        groups = group_by_action(records)
+        # Two distinct groups — one per mission_id.
+        assert len(groups) == 2
+        m1_group = next(g for g in groups if g.mission_id == "m1")
+        m2_group = next(g for g in groups if g.mission_id == "m2")
+        # m1 has an unpaired started; m2 is fully paired.
+        assert m1_group.is_orphan is True
+        assert m2_group.is_orphan is False
+
+        orphans = find_orphans(records)
+        assert len(orphans) == 1
+        assert orphans[0].mission_id == "m1"
+
+        # Doctor surface lists the m1 orphan and never silently absorbs it
+        # into m2's completion.
+        report = doctor_orphan_report(tmp_path)
+        assert report["orphan_count"] == 1
+        orphan_list = report["orphans"]
+        assert isinstance(orphan_list, list)
+        assert orphan_list[0]["mission_id"] == "m1"
+
+    def test_find_latest_unpaired_started_filters_by_mission(
+        self, tmp_path: Path
+    ) -> None:
+        for r in (
+            ProfileInvocationRecord(
+                canonical_action_id="implement::do",
+                phase="started",
+                at=_at(0),
+                agent="claude",
+                mission_id="m1",
+            ),
+            ProfileInvocationRecord(
+                canonical_action_id="implement::do",
+                phase="started",
+                at=_at(10),
+                agent="claude",
+                mission_id="m2",
+            ),
+            ProfileInvocationRecord(
+                canonical_action_id="implement::do",
+                phase="completed",
+                at=_at(15),
+                agent="claude",
+                mission_id="m2",
+            ),
+        ):
+            append_lifecycle_record(tmp_path, r)
+
+        records = read_lifecycle_records(tmp_path)
+        # Asking for m1's orphan returns the m1 started (m2 is paired).
+        m1_orphan = find_latest_unpaired_started(records, mission_id="m1")
+        assert m1_orphan is not None
+        assert m1_orphan.mission_id == "m1"
+        # m2 has no orphan.
+        m2_orphan = find_latest_unpaired_started(records, mission_id="m2")
+        assert m2_orphan is None
