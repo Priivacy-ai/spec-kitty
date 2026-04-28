@@ -62,7 +62,7 @@ dependencies = [
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
     "spec-kitty-events==3.0.0",
     "spec-kitty-runtime==0.4.3",
-    "spec-kitty-tracker==0.4.1",
+    "spec-kitty-tracker==0.4.3",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
     "filelock>=3.13.0",  # Credential storage locking
