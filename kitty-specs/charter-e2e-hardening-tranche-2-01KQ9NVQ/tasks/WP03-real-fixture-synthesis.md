@@ -15,7 +15,8 @@ subtasks:
 - T013
 - T014
 - T015
-agent: claude
+agent: "claude:sonnet:implementer-ivan:implementer"
+shell_pid: "47137"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -158,3 +159,7 @@ Closes (with strict E2E gate): `#839`. Satisfies: `FR-003`, `FR-004`, `NFR-006`.
 ```bash
 spec-kitty agent action implement WP03 --agent <your-agent-key>
 ```
+
+## Activity Log
+
+- 2026-04-28T10:21:21Z – claude:sonnet:implementer-ivan:implementer – shell_pid=47137 – Started implementation via action command
