@@ -35,7 +35,7 @@ def test_resolved_agent_string_agent():
     assignment = meta.resolved_agent()
     assert assignment.tool == "claude"
     assert assignment.model == "claude-opus-4-6"
-    assert assignment.profile_id is None
+    assert assignment.profile_id == "generic-agent"
     assert assignment.role is None
 
 

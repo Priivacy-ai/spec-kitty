@@ -194,10 +194,16 @@ class TestReviewTemplateDocumentsDecomposedFlags:
 
 
 class TestImplementSkillDocumentsDecomposedFlags:
-    """Generated spec-kitty.implement SKILL.md must mention specific flags."""
+    """Generated spec-kitty.implement SKILL.md must mention specific flags.
+
+    Skipped when the skill file is absent — it is gitignored and only present
+    after ``spec-kitty upgrade`` has been run locally.
+    """
 
     @pytest.mark.parametrize("flag", _DECOMPOSED_FLAGS)
     def test_implement_skill_mentions_flag(self, flag: str) -> None:
+        if not _SKILL_IMPLEMENT.exists():
+            pytest.skip("spec-kitty.implement SKILL.md not installed (run spec-kitty upgrade)")
         content = _SKILL_IMPLEMENT.read_text(encoding="utf-8")
         assert flag in content, (
             f"spec-kitty.implement/SKILL.md does not document {flag!r}"
@@ -205,10 +211,16 @@ class TestImplementSkillDocumentsDecomposedFlags:
 
 
 class TestReviewSkillDocumentsDecomposedFlags:
-    """Generated spec-kitty.review SKILL.md must mention specific flags."""
+    """Generated spec-kitty.review SKILL.md must mention specific flags.
+
+    Skipped when the skill file is absent — it is gitignored and only present
+    after ``spec-kitty upgrade`` has been run locally.
+    """
 
     @pytest.mark.parametrize("flag", _DECOMPOSED_FLAGS)
     def test_review_skill_mentions_flag(self, flag: str) -> None:
+        if not _SKILL_REVIEW.exists():
+            pytest.skip("spec-kitty.review SKILL.md not installed (run spec-kitty upgrade)")
         content = _SKILL_REVIEW.read_text(encoding="utf-8")
         assert flag in content, (
             f"spec-kitty.review/SKILL.md does not document {flag!r}"

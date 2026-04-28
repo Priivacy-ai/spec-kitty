@@ -19,6 +19,19 @@ compliance with any applicable guardrails (e.g., bulk edit occurrence maps).
 allocated by `spec-kitty agent action review WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
+**Agent identity flags** — pass these to `spec-kitty agent action review` and `spec-kitty next`
+to fully populate `AgentAssignment` without relying on colon-concatenation:
+
+| Flag | Maps to | Example |
+|------|---------|---------|
+| `--tool <id>` | `AgentAssignment.tool` | `--tool claude` |
+| `--profile <id>` | `AgentAssignment.model` | `--profile claude-opus-4-7` |
+| `--profile-id <id>` | `AgentAssignment.profile_id` | `--profile-id reviewer-renata` |
+| `--role <role>` | `AgentAssignment.role` | `--role reviewer` |
+
+Omitting `--profile-id` defaults to `generic-agent`.
+The shorthand colon format `--agent tool:model:profile_id:role` is also accepted.
+
 **In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input

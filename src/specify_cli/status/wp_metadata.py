@@ -21,6 +21,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from specify_cli.status.models import AgentAssignment, Lane
 
 
+_DEFAULT_PROFILE = "generic-agent"
+
+
 def _resolve_agent_fallback(
     model: str | None,
     agent_profile: str | None,
@@ -30,7 +33,7 @@ def _resolve_agent_fallback(
     return AgentAssignment(
         tool="unknown",
         model=model or "unknown-model",
-        profile_id=agent_profile or None,
+        profile_id=agent_profile or _DEFAULT_PROFILE,
         role=role or None,
     )
 
@@ -40,19 +43,40 @@ def _resolve_agent_from_assignment(agent: AgentAssignment) -> AgentAssignment:
     return agent
 
 
+def _parse_agent_string(value: str) -> tuple[str, str | None, str | None, str | None]:
+    """Split a colon-separated agent string into (tool, model, profile_id, role).
+
+    Wire format: <tool>[:<model>[:<profile_id>[:<role>]]]
+    Unspecified trailing parts are returned as None.
+    """
+    parts = value.split(":", 3)
+    tool = parts[0]
+    model = parts[1] if len(parts) > 1 else None
+    profile_id = parts[2] if len(parts) > 2 else None
+    role = parts[3] if len(parts) > 3 else None
+    return tool, model, profile_id, role
+
+
 def _resolve_agent_from_string(
-    tool: str,
+    value: str,
     model: str | None,
     agent_profile: str | None,
     role: str | None,
 ) -> AgentAssignment:
-    """Resolve agent metadata when the agent field is a non-empty string."""
+    """Resolve agent metadata when the agent field is a non-empty string.
+
+    If the string contains colons it is treated as a wire-format
+    ``tool:model:profile_id:role`` tuple; unspecified trailing parts
+    fall back to the separate frontmatter fields or the module defaults.
+    A plain string without colons is used as-is for ``tool``.
+    """
+    parsed_tool, parsed_model, parsed_profile, parsed_role = _parse_agent_string(value)
     fallback = _resolve_agent_fallback(model, agent_profile, role)
     return AgentAssignment(
-        tool=tool,
-        model=fallback.model,
-        profile_id=fallback.profile_id,
-        role=fallback.role,
+        tool=parsed_tool,
+        model=parsed_model or fallback.model,
+        profile_id=parsed_profile or fallback.profile_id,
+        role=parsed_role or fallback.role,
     )
 
 
