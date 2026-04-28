@@ -49,6 +49,7 @@ from specify_cli.status.wp_state import wp_state_for
 from specify_cli.next.decision import (
     Decision,
     DecisionKind,
+    InvalidStepDecision,
     _build_prompt_safe,
     _compute_wp_progress,
     _state_to_action,
@@ -1581,23 +1582,46 @@ def decide_next_via_runtime(
                 if action
                 else None
             )
-            return Decision(
-                kind=DecisionKind.step,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id,
-                timestamp=now,
-                action=action,
-                wp_id=wp_id,
-                workspace_path=workspace_path,
-                prompt_file=prompt_file,
-                guard_failures=guard_failures,
-                progress=progress,
-                origin=origin,
-                run_id=run_ref.run_id,
-                step_id=current_step_id,
-            )
+            try:
+                return Decision(
+                    kind=DecisionKind.step,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    action=action,
+                    wp_id=wp_id,
+                    workspace_path=workspace_path,
+                    prompt_file=prompt_file,
+                    guard_failures=guard_failures,
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
+            except InvalidStepDecision:
+                # C-005: do not weaken the kind=step contract. When the
+                # guard-failure branch cannot resolve a real prompt_file,
+                # surface the same guard failures under kind=blocked so the
+                # operator still sees them, with a structured reason.
+                return Decision(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason="prompt_file_not_resolvable",
+                    action=action,
+                    wp_id=wp_id,
+                    workspace_path=workspace_path,
+                    guard_failures=guard_failures,
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
 
     # Composition dispatch (mission `software-dev-composition-rewrite-01KQ26CY`).
     #
@@ -2125,23 +2149,45 @@ def _build_wp_iteration_decision(
         mission_type,
     )
 
-    return Decision(
-        kind=DecisionKind.step,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=step_id,
-        timestamp=timestamp,
-        action=action,
-        wp_id=wp_id,
-        workspace_path=workspace_path,
-        prompt_file=prompt_file,
-        guard_failures=guard_failures or [],
-        progress=progress,
-        origin=origin,
-        run_id=run_ref.run_id,
-        step_id=step_id,
-    )
+    try:
+        return Decision(
+            kind=DecisionKind.step,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id,
+            timestamp=timestamp,
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            guard_failures=guard_failures or [],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=step_id,
+        )
+    except InvalidStepDecision:
+        # C-005: prompt_builder failed to produce a usable prompt for this
+        # WP iteration. Route to kind=blocked rather than emitting a
+        # kind=step with a null/unresolvable prompt_file.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id,
+            timestamp=timestamp,
+            reason="prompt_file_not_resolvable",
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            guard_failures=guard_failures or [],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=step_id,
+        )
 
 
 def _map_runtime_decision(
@@ -2258,22 +2304,42 @@ def _map_runtime_decision(
             repo_root,
             mission_type,
         )
-        return Decision(
-            kind=DecisionKind.step,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id,
-            timestamp=timestamp,
-            action=action,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            prompt_file=prompt_file,
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
-        )
+        try:
+            return Decision(
+                kind=DecisionKind.step,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                prompt_file=prompt_file,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
+        except InvalidStepDecision:
+            # C-005: prompt_builder failed for this WP iteration. Route to
+            # kind=blocked rather than emit kind=step with a null prompt.
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                reason="prompt_file_not_resolvable",
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
 
     # Non-WP step: map step_id to action via template resolution
     action, wp_id, workspace_path = _state_to_action(
@@ -2297,19 +2363,40 @@ def _map_runtime_decision(
         else None
     )
 
-    return Decision(
-        kind=DecisionKind.step,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=step_id or "unknown",
-        timestamp=timestamp,
-        action=action or step_id,
-        wp_id=wp_id,
-        workspace_path=workspace_path,
-        prompt_file=prompt_file,
-        progress=progress,
-        origin=origin,
-        run_id=run_id,
-        step_id=step_id,
-    )
+    try:
+        return Decision(
+            kind=DecisionKind.step,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )
+    except InvalidStepDecision:
+        # C-005: non-WP step path — prompt resolution failed (no template,
+        # build error, or null step_id with no action). Surface as blocked
+        # rather than emit kind=step with a null/unresolvable prompt.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            reason="prompt_file_not_resolvable",
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )

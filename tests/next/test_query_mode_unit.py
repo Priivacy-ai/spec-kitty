@@ -688,6 +688,12 @@ class TestResultSuccessStillAdvances:
         """C-005: --result success retains its advancing behavior."""
         from specify_cli.next.decision import Decision, DecisionKind
 
+        # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
+        # prompt_file at construction time (C1/C2). Materialize a real prompt
+        # under tmp_path so the validator passes.
+        prompt = tmp_path / "step.md"
+        prompt.write_text("# step", encoding="utf-8")
+
         mock_decision = Decision(
             kind=DecisionKind.step,
             agent="claude",
@@ -695,6 +701,7 @@ class TestResultSuccessStillAdvances:
             mission="069-test",
             mission_state="plan",
             timestamp="2026-04-07T00:00:00+00:00",
+            prompt_file=str(prompt),
         )
 
         with (

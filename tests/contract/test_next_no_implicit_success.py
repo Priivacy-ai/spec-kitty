@@ -130,6 +130,11 @@ class TestBareNextDoesNotAdvance:
         """When --result success is provided, decide_next runs (advance path)."""
         from specify_cli.next.decision import Decision, DecisionKind
 
+        # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
+        # prompt_file (C1/C2). Materialize one under tmp_path.
+        prompt = tmp_path / "implement.md"
+        prompt.write_text("# implement", encoding="utf-8")
+
         decision = Decision(
             kind=DecisionKind.step,
             agent="claude",
@@ -139,6 +144,7 @@ class TestBareNextDoesNotAdvance:
             timestamp="2026-04-26T00:00:00+00:00",
             mission_type="software-dev",
             action="implement",
+            prompt_file=str(prompt),
         )
 
         with (

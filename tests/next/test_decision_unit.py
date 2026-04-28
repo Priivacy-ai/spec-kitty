@@ -519,7 +519,11 @@ class TestDecideNext:
             assert decision.wp_id == "WP01"
             assert decision.workspace_path is not None
 
-    def test_to_dict_roundtrip(self) -> None:
+    def test_to_dict_roundtrip(self, tmp_path: Path) -> None:
+        # WP02 / #844: kind=step requires a real prompt_file at construction
+        # time (C1/C2). Stage one under tmp_path so the validator passes.
+        prompt = tmp_path / "specify.md"
+        prompt.write_text("# specify", encoding="utf-8")
         decision = Decision(
             kind=DecisionKind.step,
             agent="test",
@@ -531,6 +535,7 @@ class TestDecideNext:
             progress={"total_wps": 3, "done_wps": 1},
             run_id="abc123",
             step_id="specify",
+            prompt_file=str(prompt),
         )
         d = decision.to_dict()
         assert d["kind"] == "step"
@@ -623,8 +628,11 @@ class TestDecisionQuestionOptions:
         assert d["options"] == ["Option A", "Option B", "Option C"]
         assert d["decision_id"] == "test-decision-1"
 
-    def test_decision_question_options_default_none(self) -> None:
+    def test_decision_question_options_default_none(self, tmp_path: Path) -> None:
         """Decision without question/options defaults to None."""
+        # WP02 / #844: kind=step requires a real prompt_file (C1/C2).
+        prompt = tmp_path / "specify.md"
+        prompt.write_text("# specify", encoding="utf-8")
         decision = Decision(
             kind=DecisionKind.step,
             agent="test",
@@ -632,6 +640,7 @@ class TestDecisionQuestionOptions:
             mission="software-dev",
             mission_state="specify",
             timestamp="2026-02-18T00:00:00+00:00",
+            prompt_file=str(prompt),
         )
         d = decision.to_dict()
         assert d["question"] is None
