@@ -18,8 +18,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: "18929"
-agent: "claude:opus-4-7:default:implementer"
+shell_pid: "23248"
+agent: "claude:opus-4-7:default:reviewer"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -207,3 +207,4 @@ GitHub issue #840. Without these fields, fresh projects fail with "missing schem
 
 - 2026-04-28T09:42:50Z – claude:opus-4-7:default:implementer – shell_pid=18929 – Assigned agent via action command
 - 2026-04-28T09:49:18Z – claude:opus-4-7:default:implementer – shell_pid=18929 – WP01 ready: additive schema stamp + idempotency + tests
+- 2026-04-28T09:49:53Z – claude:opus-4-7:default:reviewer – shell_pid=23248 – Started review via action command
