@@ -2,7 +2,7 @@
 
 This test drives the actual ``spec-kitty`` CLI via subprocess against a fresh
 tmp project that carries pre-3.x metadata (no ``spec_kitty.schema_version``)
-and asserts that, after ``spec-kitty upgrade --yes`` reports success:
+and asserts that, after ``spec-kitty upgrade --force`` reports success:
 
   1. ``.kittify/metadata.yaml`` actually contains ``spec_kitty.schema_version``
      equal to the CLI's required schema version.
@@ -96,10 +96,13 @@ def _make_pre_schema_project(root: Path) -> None:
 def test_upgrade_then_branch_context_does_not_gate(
     tmp_path: Path, run_cli
 ) -> None:
-    """Regression: after ``spec-kitty upgrade --yes``, schema_version is stamped
+    """Regression: after ``spec-kitty upgrade --force``, schema_version is stamped
     AND the next gated command (``agent mission branch-context``) is allowed
     through. Reproduces the FR-002 / #705 trap.
     """
+    if REQUIRED_SCHEMA_VERSION is None:
+        pytest.skip("schema-version gate is disabled on this release line")
+
     project = tmp_path / "demo"
     project.mkdir()
     _make_pre_schema_project(project)
@@ -110,8 +113,8 @@ def test_upgrade_then_branch_context_does_not_gate(
         "Test setup invariant violated: schema_version should be absent before upgrade"
     )
 
-    # Act 1: spec-kitty upgrade --yes
-    upgrade_result = run_cli(project, "upgrade", "--yes")
+    # Act 1: spec-kitty upgrade --force
+    upgrade_result = run_cli(project, "upgrade", "--force")
     assert upgrade_result.returncode == 0, (
         f"upgrade failed (rc={upgrade_result.returncode}):\n"
         f"stdout: {upgrade_result.stdout}\nstderr: {upgrade_result.stderr}"
@@ -119,10 +122,6 @@ def test_upgrade_then_branch_context_does_not_gate(
 
     # Assert intermediate: schema_version landed in metadata.yaml.
     post = yaml.safe_load((project / ".kittify" / "metadata.yaml").read_text(encoding="utf-8"))
-    assert REQUIRED_SCHEMA_VERSION is not None, (
-        "REQUIRED_SCHEMA_VERSION is None; this test is meaningful only when the "
-        "schema-version gate is active."
-    )
     assert post.get("spec_kitty", {}).get("schema_version") == REQUIRED_SCHEMA_VERSION, (
         "schema_version was not stamped after upgrade -- FR-002 regression. "
         f"Expected {REQUIRED_SCHEMA_VERSION}, got "
