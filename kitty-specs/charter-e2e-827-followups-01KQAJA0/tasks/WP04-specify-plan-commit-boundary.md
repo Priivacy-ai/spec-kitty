@@ -20,8 +20,8 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
-shell_pid: '73767'
+agent: "claude:sonnet:python-pedro:reviewer"
+shell_pid: "86584"
 history:
 - at: '2026-04-28T19:59:16Z'
   actor: planner
@@ -357,3 +357,4 @@ spec-kitty agent action implement WP04 --agent claude --mission charter-e2e-827-
 ## Activity Log
 
 - 2026-04-28T20:50:48Z – claude – shell_pid=73767 – WP04 ready for review: mission-create no-empty-spec + setup-plan entry/exit gates + templates + 5 regression scenarios
+- 2026-04-28T20:51:30Z – claude:sonnet:python-pedro:reviewer – shell_pid=86584 – Started review via action command
