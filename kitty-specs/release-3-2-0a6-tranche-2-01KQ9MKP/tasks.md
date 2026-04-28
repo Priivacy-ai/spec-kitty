@@ -55,13 +55,13 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 | T026 | Surface orphan started records via doctor                                | WP05  |          | [D] |
 | T027 | Unit tests: pair-matching, orphan observability                          | WP05  | [D] |
 | T028 | Integration test: ≥5 issuances yield ≥95% pairing                        | WP05  |          | [D] |
-| T029 | charter generate auto-tracks charter.md on success in git repo           | WP06  |          |
-| T030 | charter generate fails fast in non-git environment with actionable error | WP06  |          |
-| T031 | charter synthesize: identify minimal doctrine artifact set               | WP06  |          |
-| T032 | charter synthesize: produce artifacts from canonical inputs              | WP06  |          |
-| T033 | Idempotency: synthesize twice yields identical output set                | WP06  |          |
-| T034 | Integration test: fresh repo, generate→bundle validate succeeds          | WP06  | [P]      |
-| T035 | Integration test: synthesize on fresh project produces expected set      | WP06  | [P]      |
+| T029 | charter generate auto-tracks charter.md on success in git repo           | WP06  |          | [D] |
+| T030 | charter generate fails fast in non-git environment with actionable error | WP06  |          | [D] |
+| T031 | charter synthesize: identify minimal doctrine artifact set               | WP06  |          | [D] |
+| T032 | charter synthesize: produce artifacts from canonical inputs              | WP06  |          | [D] |
+| T033 | Idempotency: synthesize twice yields identical output set                | WP06  |          | [D] |
+| T034 | Integration test: fresh repo, generate→bundle validate succeeds          | WP06  | [D] |
+| T035 | Integration test: synthesize on fresh project produces expected set      | WP06  | [D] |
 | T036 | Update test_charter_epic_golden_path.py: no doctrine seed, no metadata edit | WP07 |       |
 | T037 | Verify under-120s budget on CI for golden-path E2E                       | WP07  |          |
 | T038 | Update governance setup docs to remove redundant git add (FR-017)        | WP07  | [P]      |
@@ -183,13 +183,13 @@ Dependencies: none. Risks: orphan flood on agent crashes; mitigated by NFR-006 p
 
 Subtasks:
 
-- [ ] T029 charter generate auto-tracks charter.md on success in git repo (WP06)
-- [ ] T030 charter generate fails fast in non-git environment with actionable error (WP06)
-- [ ] T031 charter synthesize: identify minimal doctrine artifact set (WP06)
-- [ ] T032 charter synthesize: produce artifacts from canonical inputs (WP06)
-- [ ] T033 Idempotency: synthesize twice yields identical output set (WP06)
-- [ ] T034 Integration test: fresh repo, generate→bundle validate succeeds (WP06) [P]
-- [ ] T035 Integration test: synthesize on fresh project produces expected set (WP06) [P]
+- [x] T029 charter generate auto-tracks charter.md on success in git repo (WP06)
+- [x] T030 charter generate fails fast in non-git environment with actionable error (WP06)
+- [x] T031 charter synthesize: identify minimal doctrine artifact set (WP06)
+- [x] T032 charter synthesize: produce artifacts from canonical inputs (WP06)
+- [x] T033 Idempotency: synthesize twice yields identical output set (WP06)
+- [x] T034 Integration test: fresh repo, generate→bundle validate succeeds (WP06) [P]
+- [x] T035 Integration test: synthesize on fresh project produces expected set (WP06) [P]
 
 Dependencies: WP01 (fresh-project init is the precondition for fresh-project charter flow). Risks: scope creep into doctrine subsystem; mitigated by Risk Map rule "do not introduce new doctrine subsystems" + escalation gate.
 
