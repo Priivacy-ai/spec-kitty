@@ -16,6 +16,8 @@ subtasks:
 - T020
 - T021
 - T022
+agent: "claude:opus-4-7:default:implementer"
+shell_pid: "28781"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -194,3 +196,7 @@ GitHub issue #676. Today, re-running `agent action implement` (e.g., to refresh 
 - Changes to the review pipeline's rejection-event protocol.
 - New CLI flags or commands.
 - Schema migration for projects with already-inflated counters (operators can correct manually if needed; not in this tranche).
+
+## Activity Log
+
+- 2026-04-28T09:58:47Z – claude:opus-4-7:default:implementer – shell_pid=28781 – Started implementation via action command
