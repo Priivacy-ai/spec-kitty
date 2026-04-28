@@ -21,8 +21,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: claude
-shell_pid: '17188'
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "21356"
 history:
 - at: '2026-04-28T09:17:32Z'
   actor: claude
@@ -217,3 +217,4 @@ Verify:
 ## Activity Log
 
 - 2026-04-28T09:47:05Z – claude – shell_pid=17188 – Ready for review: file lock helper, 21 tests passing (1 win32-skipif), mypy --strict + ruff clean, 97% coverage
+- 2026-04-28T09:47:53Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=21356 – Started review via action command
