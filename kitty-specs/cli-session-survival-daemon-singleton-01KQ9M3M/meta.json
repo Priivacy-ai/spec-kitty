@@ -8,5 +8,7 @@
   "purpose_context": "Spec Kitty users routinely clone the CLI into temp directories and run several sync daemons against one shared auth store. A real incident showed an orphan daemon's stale invalid_grant response deleting a still-valid local session. Tranche 1 makes refresh a machine-wide transaction, lets temp checkouts converge on one user-level daemon, sweeps orphans, and adds an auth doctor diagnostic so users only lose CLI auth for legitimate reasons.",
   "purpose_tldr": "Stop multi-process refresh races and orphan sync daemons from silently logging the CLI user out.",
   "slug": "cli-session-survival-daemon-singleton-01KQ9M3M",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-28T09:37:08.914218+00:00"
 }
