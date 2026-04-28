@@ -18,8 +18,8 @@ subtasks:
 - T038
 - T039
 - T040
-agent: "claude:opus-4-7:default:implementer"
-shell_pid: "63926"
+agent: "claude:opus-4-7:default:reviewer"
+shell_pid: "72407"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -215,3 +215,4 @@ This is the capstone WP. It does not introduce new behavior; it certifies that t
 
 - 2026-04-28T10:46:08Z – claude:opus-4-7:default:implementer – shell_pid=63926 – Started implementation via action command
 - 2026-04-28T10:58:05Z – claude:opus-4-7:default:implementer – shell_pid=63926 – WP07 ready: golden-path E2E uses public CLI only, docs sync, tranche CHANGELOG, SC-001..SC-008 acceptance pass
+- 2026-04-28T10:58:49Z – claude:opus-4-7:default:reviewer – shell_pid=72407 – Started review via action command
