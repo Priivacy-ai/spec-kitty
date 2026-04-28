@@ -39,11 +39,11 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 | T010 | Parametrised integration test across 4 SaaS states                       | WP02  | [P]      |
 | T011 | Bare-string regression scan of stdout                                    | WP02  | [P]      |
 | T012 | CHANGELOG entry + update contracts/json-envelope.md cross-refs           | WP02  | [P]      |
-| T013 | Update WPMetadata.resolved_agent() to support 1/2/3/4 colon segments     | WP03  |          |
-| T014 | Document defaults table for missing trailing fields                      | WP03  |          |
-| T015 | Wire 4-tuple through implement/review prompt context surface             | WP03  |          |
-| T016 | Unit tests: 4 arities + empty-positional-segment cases                   | WP03  | [P]      |
-| T017 | Integration test: rendered prompt contains supplied model/profile/role   | WP03  |          |
+| T013 | Update WPMetadata.resolved_agent() to support 1/2/3/4 colon segments     | WP03  |          | [D] |
+| T014 | Document defaults table for missing trailing fields                      | WP03  |          | [D] |
+| T015 | Wire 4-tuple through implement/review prompt context surface             | WP03  |          | [D] |
+| T016 | Unit tests: 4 arities + empty-positional-segment cases                   | WP03  | [D] |
+| T017 | Integration test: rendered prompt contains supplied model/profile/role   | WP03  |          | [D] |
 | T018 | Identify rejection event handler and reclaim/regenerate code path        | WP04  |          |
 | T019 | Move counter advancement into rejection event handler exclusively        | WP04  |          |
 | T020 | Make reclaim/regenerate idempotent (no counter delta, no new artifact)   | WP04  |          |
@@ -122,11 +122,11 @@ Dependencies: none. Risks: changing diagnostic surface for human users; mitigate
 
 Subtasks:
 
-- [ ] T013 Update WPMetadata.resolved_agent() to support 1/2/3/4 colon segments (WP03)
-- [ ] T014 Document defaults table for missing trailing fields (WP03)
-- [ ] T015 Wire 4-tuple through implement/review prompt context surface (WP03)
-- [ ] T016 Unit tests: 4 arities + empty-positional-segment cases (WP03) [P]
-- [ ] T017 Integration test: rendered prompt contains supplied model/profile/role (WP03)
+- [x] T013 Update WPMetadata.resolved_agent() to support 1/2/3/4 colon segments (WP03)
+- [x] T014 Document defaults table for missing trailing fields (WP03)
+- [x] T015 Wire 4-tuple through implement/review prompt context surface (WP03)
+- [x] T016 Unit tests: 4 arities + empty-positional-segment cases (WP03) [P]
+- [x] T017 Integration test: rendered prompt contains supplied model/profile/role (WP03)
 
 Dependencies: none. Risks: shifting implicit defaults for partial strings; mitigated by NFR-004 regression tests at every arity.
 
