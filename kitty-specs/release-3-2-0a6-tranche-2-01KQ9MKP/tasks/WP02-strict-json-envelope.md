@@ -15,8 +15,8 @@ subtasks:
 - T010
 - T011
 - T012
-agent: "claude:opus-4-7:default:implementer"
-shell_pid: "26424"
+agent: "claude:opus-4-7:default:reviewer"
+shell_pid: "36320"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -245,3 +245,4 @@ GitHub issue #842. Today, lines like `Not authenticated, skipping sync` are prin
 
 - 2026-04-28T09:53:41Z – claude:opus-4-7:default:implementer – shell_pid=26424 – Started implementation via action command
 - 2026-04-28T10:03:54Z – claude:opus-4-7:default:implementer – shell_pid=26424 – WP02 ready: emit_diagnostic helper + auth refactor + strict-JSON tests across 4 SaaS states
+- 2026-04-28T10:04:37Z – claude:opus-4-7:default:reviewer – shell_pid=36320 – Started review via action command
