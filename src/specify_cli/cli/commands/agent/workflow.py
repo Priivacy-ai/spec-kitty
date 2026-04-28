@@ -57,7 +57,7 @@ from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import AgentAssignment, Lane, TransitionRequest
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.tasks_support import (
+from specify_cli.task_utils import (
     append_activity_log,
     build_document,
     extract_scalar,

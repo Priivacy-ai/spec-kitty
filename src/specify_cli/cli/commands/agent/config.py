@@ -21,7 +21,7 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
 )
-from specify_cli.tasks_support import find_repo_root
+from specify_cli.task_utils import find_repo_root
 
 app = typer.Typer(
     name="config",

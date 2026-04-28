@@ -19,7 +19,7 @@ from specify_cli.acceptance import (
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
-from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
+from specify_cli.task_utils import LANES, TaskCliError, find_repo_root
 from specify_cli.sync.events import emit_wp_status_changed
 
 

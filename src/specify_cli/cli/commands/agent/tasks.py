@@ -54,7 +54,7 @@ def resolve_primary_branch(repo_root: Path) -> str:
     return _resolve(repo_root)
 
 
-from specify_cli.tasks_support import (
+from specify_cli.task_utils import (
     append_activity_log,
     build_document,
     ensure_lane,

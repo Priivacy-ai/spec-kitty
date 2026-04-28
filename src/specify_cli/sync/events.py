@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 def _resolve_repo_root() -> Path | None:
     """Resolve the current repo root, or None outside project context."""
     try:
-        from specify_cli.tasks_support import TaskCliError, find_repo_root
+        from specify_cli.task_utils import TaskCliError, find_repo_root
 
         return find_repo_root()
     except TaskCliError:

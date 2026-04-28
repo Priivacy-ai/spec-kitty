@@ -20,7 +20,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.models import Lane
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.wp_state import wp_state_for
-from specify_cli.tasks_support import extract_scalar, split_frontmatter
+from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 console = Console()
 

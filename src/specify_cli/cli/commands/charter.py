@@ -20,7 +20,7 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
 
 logger = logging.getLogger(__name__)

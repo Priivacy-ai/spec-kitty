@@ -20,7 +20,7 @@ from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 
-from .tasks_support import (
+from specify_cli.task_utils import (
     LANES,
     TaskCliError,
     WorkPackage,

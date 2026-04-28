@@ -15,7 +15,7 @@ from typing import Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+from specify_cli.identity.aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.retrospective.schema import Mode
 

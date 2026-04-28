@@ -15,7 +15,7 @@ from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
 from specify_cli.status.models import Lane
 from specify_cli.status.transitions import resolve_lane_alias
-from specify_cli.tasks_support import locate_work_package
+from specify_cli.task_utils import locate_work_package
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
@@ -149,7 +149,7 @@ def _resolve_wp_id(
             from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
             from specify_cli.status.lane_reader import get_wp_lane
             from specify_cli.status.store import read_events
-            from specify_cli.tasks_support import extract_scalar, split_frontmatter
+            from specify_cli.task_utils import extract_scalar, split_frontmatter
 
             tasks_dir = feature_dir / "tasks"
             if not tasks_dir.is_dir():
