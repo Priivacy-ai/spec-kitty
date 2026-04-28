@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "charter-synthesize-dry-run",
+  "title": "charter synthesize --adapter fixture --dry-run --json (envelope)",
+  "description": "Strict envelope emitted by `spec-kitty charter synthesize --adapter fixture --dry-run --json`. Must be exactly one JSON document on stdout. Locks behavior for FR-003. Field set is illustrative — WP01 research must confirm against current CLI output and update before WP03 commits.",
+  "type": "object",
+  "required": ["result", "adapter", "planned_artifacts"],
+  "properties": {
+    "result": {
+      "type": "string",
+      "enum": ["success", "blocked", "error"],
+      "description": "Outcome marker. `success` indicates the dry-run plan was produced without errors."
+    },
+    "adapter": {
+      "type": "string",
+      "description": "Adapter identity, e.g. `fixture`. Echoed from the invocation."
+    },
+    "planned_artifacts": {
+      "type": "array",
+      "description": "List of paths the non-dry-run synthesize would write.",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Project-relative path under .kittify/doctrine/ that synthesize would create."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Artifact kind, e.g. `manifest`, `provenance`, `doctrine_unit`."
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Optional structured diagnostics. Used to fold SaaS sync warnings INTO the envelope instead of leaking them to stdout (FR-005).",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "result": "success",
+      "adapter": "fixture",
+      "planned_artifacts": [
+        {"path": ".kittify/doctrine/manifest.yaml", "kind": "manifest"},
+        {"path": ".kittify/doctrine/provenance.yaml", "kind": "provenance"}
+      ],
+      "warnings": []
+    }
+  ]
+}

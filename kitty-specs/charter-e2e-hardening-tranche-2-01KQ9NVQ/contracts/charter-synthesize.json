@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "charter-synthesize",
+  "title": "charter synthesize --adapter fixture --json (envelope + on-disk artifacts)",
+  "description": "Strict envelope emitted by `spec-kitty charter synthesize --adapter fixture --json` PLUS the on-disk artifacts the call must produce. Locks behavior for FR-004. Field set and artifact list are illustrative — WP01 research must confirm against current behavior and update before WP03 commits.",
+  "type": "object",
+  "required": ["result", "adapter", "written_artifacts"],
+  "properties": {
+    "result": {
+      "type": "string",
+      "enum": ["success", "blocked", "error"],
+      "description": "Outcome marker. `success` indicates synthesis completed and artifacts were written."
+    },
+    "adapter": {
+      "type": "string",
+      "description": "Adapter identity, e.g. `fixture`. Echoed from the invocation."
+    },
+    "written_artifacts": {
+      "type": "array",
+      "description": "Paths actually written by this invocation.",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind"],
+        "properties": {
+          "path": {"type": "string"},
+          "kind": {"type": "string"}
+        }
+      },
+      "minItems": 1
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Optional structured diagnostics (FR-005).",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  },
+  "x-on-disk-artifacts": {
+    "description": "After a successful invocation, the following must exist on disk under the project root. WP01 research must confirm exact filenames against current synthesizer output.",
+    "required_paths": [
+      ".kittify/doctrine/",
+      ".kittify/doctrine/manifest.yaml",
+      ".kittify/doctrine/provenance.yaml"
+    ],
+    "policy": "The E2E asserts these paths exist after `synthesize --json` returns success. The test must NOT seed any of these paths beforehand (FR-004, C-001)."
+  }
+}

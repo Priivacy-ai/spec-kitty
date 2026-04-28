@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "charter-bundle-validate",
+  "title": "charter bundle validate --json + companion charter generate tracking instruction",
+  "description": "Locks behavior for FR-002. Two related shapes: (1) the `charter bundle validate --json` envelope; (2) the optional tracking instruction that `charter generate --json` must emit when generated output is not yet tracked, so the E2E can follow it without out-of-band knowledge. WP01 research determines whether option (2) is needed; if `bundle validate` is changed to accept the generated path directly instead, the tracking-instruction shape is unused.",
+  "definitions": {
+    "validate_envelope": {
+      "type": "object",
+      "required": ["result"],
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["success", "invalid", "error"]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {"type": "string"},
+              "message": {"type": "string"},
+              "path": {"type": "string"}
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {"type": "string"},
+              "message": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "generate_tracking_instruction": {
+      "description": "Optional field on `charter generate --json` output. Present when generated charter requires tracking before `bundle validate` will accept it. The E2E reads this and follows it verbatim.",
+      "type": "object",
+      "required": ["next_step"],
+      "properties": {
+        "next_step": {
+          "type": "object",
+          "required": ["action"],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["git_add", "no_action_required"]
+            },
+            "paths": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Project-relative paths to stage when action == git_add."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Operator-facing rationale, e.g. `bundle validate requires charter.md to be tracked`."
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "next-issue",
+  "title": "spec-kitty next --json (issue or blocked envelope)",
+  "description": "Locks behavior for FR-006 / FR-011. When `spec-kitty next --json` issues a step, every issued step MUST carry a non-empty, on-disk-resolvable `prompt_file`. When no prompt is resolvable, the call MUST return a structured blocked decision instead of issuing a partial step.",
+  "oneOf": [
+    {"$ref": "#/definitions/issued"},
+    {"$ref": "#/definitions/blocked"}
+  ],
+  "definitions": {
+    "issued": {
+      "type": "object",
+      "required": ["status", "step"],
+      "properties": {
+        "status": {"type": "string", "const": "issued"},
+        "step": {
+          "type": "object",
+          "required": ["step_id", "action", "prompt_file"],
+          "properties": {
+            "step_id": {"type": "string", "minLength": 1},
+            "action": {"type": "string", "minLength": 1},
+            "prompt_file": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Project-relative or absolute path to the prompt the agent should execute. MUST be non-empty and MUST resolve to an existing file on disk."
+            },
+            "context": {
+              "type": "object",
+              "description": "Optional additional context for the step."
+            }
+          }
+        }
+      }
+    },
+    "blocked": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {
+        "status": {"type": "string", "const": "blocked"},
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation of why no step can be issued."
+        },
+        "blocker_code": {
+          "type": "string",
+          "description": "Optional machine-readable blocker code, e.g. `no_prompt_template`, `awaiting_review`."
+        }
+      }
+    }
+  }
+}

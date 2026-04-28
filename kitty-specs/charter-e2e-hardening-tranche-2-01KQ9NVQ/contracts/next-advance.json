@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "next-advance",
+  "title": "spec-kitty next --result success --json + on-disk profile-invocation lifecycle",
+  "description": "Locks behavior for FR-007 / FR-010. After `spec-kitty next --result <outcome> --json` advances a previously issued action, the on-disk lifecycle records under `.kittify/events/profile-invocations/` MUST contain a paired `started`/`completed` entry whose `action` matches the issued step and whose `outcome` is in the canonical vocabulary.",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["advanced", "blocked", "complete"]
+    },
+    "advanced_action": {
+      "type": "string",
+      "description": "Action identity that was advanced; matches the previously issued step's `action`."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  },
+  "x-on-disk-lifecycle": {
+    "description": "Files that must exist under `.kittify/events/profile-invocations/` after a successful advance.",
+    "directory": ".kittify/events/profile-invocations/",
+    "must_contain_paired_records": true,
+    "record_shape": {
+      "type": "object",
+      "required": ["event", "action", "at"],
+      "properties": {
+        "event": {
+          "type": "string",
+          "enum": ["started", "completed"]
+        },
+        "action": {
+          "type": "string",
+          "description": "Must match the issued step's `action` (FR-007 identity match)."
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "Required when event == 'completed'. Must be in the accepted vocabulary.",
+          "enum": ["done", "failed", "skipped", "blocked"]
+        }
+      }
+    },
+    "policy": "The E2E asserts paired `started` + `completed` records exist for every action it issues and advances. Absence of the directory or any required record fails the test (FR-010)."
+  }
+}
