@@ -13,8 +13,8 @@ subtasks:
 - T042
 - T043
 - T044
-agent: "claude:sonnet:curator-carla:curator"
-shell_pid: "28017"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "28788"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -149,3 +149,4 @@ spec-kitty agent action implement WP09 --agent <your-agent-key>
 
 - 2026-04-28T13:52:43Z – claude:sonnet:curator-carla:curator – shell_pid=28017 – Started implementation via action command
 - 2026-04-28T13:57:24Z – claude:sonnet:curator-carla:curator – shell_pid=28017 – PR body, #827 comment, partial-fix notes prepared. Actual gh pr create runs after mission merge to fix/charter-e2e-827-tranche-2.
+- 2026-04-28T13:58:01Z – claude:opus:reviewer-renata:reviewer – shell_pid=28788 – Started review via action command
