@@ -232,3 +232,4 @@ Combines GitHub issues #841 and #839 because both target the same fresh-project 
 ## Activity Log
 
 - 2026-04-28T10:26:38Z – claude:opus-4-7:default:implementer – shell_pid=48813 – Started implementation via action command
+- 2026-04-28T10:41:29Z – claude:opus-4-7:default:implementer – shell_pid=48813 – WP06 ready: charter generate auto-tracks + non-git fail-fast + synthesize on fresh project + idempotency + tests
