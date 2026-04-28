@@ -6,28 +6,41 @@ refresh call. This is the central guarantee WP08 and every subsequent WP
 depends on.
 
 TokenManager's refresh path imports ``auth.flows.refresh.TokenRefreshFlow``
-lazily — that module doesn't exist yet (WP04 creates it). These tests
-inject a fake ``flows.refresh`` module into ``sys.modules`` so the lazy
-import picks up our mock.
+lazily — these tests inject a fake ``flows.refresh`` module into
+``sys.modules`` so the lazy import picks up our mock.
+
+WP02 (cli-session-survival-daemon-singleton) extends the suite with
+coverage for every :class:`RefreshOutcome` branch, the stale-grant
+preservation invariant (FR-006 — the actual incident fix), and the
+machine-wide lock-timeout escape hatches (FR-016/FR-017).
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 import types
 from datetime import datetime, timedelta, UTC
 
 import pytest
 
+from specify_cli.auth import refresh_transaction as rtx
 from specify_cli.auth.errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SessionInvalidError,
 )
+from specify_cli.auth.refresh_transaction import (
+    RefreshLockTimeoutError,
+    RefreshOutcome,
+)
 from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth import token_manager as tm_module
 from specify_cli.auth.token_manager import TokenManager
+from specify_cli.core import file_lock as file_lock_module
+from specify_cli.core.file_lock import LockAcquireTimeout
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +140,19 @@ class FakeRefreshFlow:
             last_used_at=_now(),
             auth_method=session.auth_method,
         )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_refresh_lock(monkeypatch, tmp_path):
+    """Redirect the machine-wide refresh lock to ``tmp_path``.
+
+    Without this every test in this suite would touch the real
+    ``~/.spec-kitty/auth/refresh.lock`` file, which is unsafe for parallel
+    workers and pollutes the developer's home directory.
+    """
+    lock_path = tmp_path / "refresh.lock"
+    monkeypatch.setattr(tm_module, "_refresh_lock_path", lambda: lock_path)
+    yield lock_path
 
 
 @pytest.fixture
@@ -363,3 +389,307 @@ async def test_second_burst_after_refresh_does_not_re_refresh(
     # Second burst: token is fresh now, no further refreshes.
     await asyncio.gather(*[tm.get_access_token() for _ in range(5)])
     assert install_fake_refresh_flow.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# WP02 — refresh transaction with stale-grant preservation
+# ---------------------------------------------------------------------------
+
+
+def _replace(session: StoredSession, **changes: object) -> StoredSession:
+    """Return a copy of ``session`` with selected fields replaced."""
+    fields: dict[str, object] = {
+        "user_id": session.user_id,
+        "email": session.email,
+        "name": session.name,
+        "teams": list(session.teams),
+        "default_team_id": session.default_team_id,
+        "access_token": session.access_token,
+        "refresh_token": session.refresh_token,
+        "session_id": session.session_id,
+        "issued_at": session.issued_at,
+        "access_token_expires_at": session.access_token_expires_at,
+        "refresh_token_expires_at": session.refresh_token_expires_at,
+        "scope": session.scope,
+        "storage_backend": session.storage_backend,
+        "last_used_at": session.last_used_at,
+        "auth_method": session.auth_method,
+    }
+    fields.update(changes)
+    return StoredSession(**fields)  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_adopts_newer_persisted_material_skips_network(
+    install_fake_refresh_flow,
+):
+    """FR-004: when persisted material is newer-and-valid, skip the refresh."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    # In-memory session has expired access token and rotation-token "v1".
+    in_memory = _make_session(access_expires_in=-1, refresh_token="rot-v1")
+    tm._session = in_memory  # bypass set_session so storage stays "newer" only
+    # Persisted material: a different refresh token that is still valid.
+    persisted = _replace(
+        in_memory,
+        access_token="fresh",
+        refresh_token="rot-v2",
+        access_token_expires_at=_now() + timedelta(seconds=900),
+    )
+    storage._session = persisted
+
+    refreshed = await tm.refresh_if_needed()
+
+    assert install_fake_refresh_flow.call_count == 0
+    assert refreshed is False
+    current = tm.get_current_session()
+    assert current is not None
+    assert current.refresh_token == "rot-v2"
+
+
+@pytest.mark.asyncio
+async def test_stale_grant_with_expired_persisted_preserves_session(
+    install_fake_refresh_flow,
+):
+    """Direct stale-rejection path: persisted is expired so we DO call network.
+
+    The flow then rejects with invalid_grant; a third party has already
+    rotated the persisted material between our re-read and the rejection
+    return. Identity comparison sees the rejected token differs from the
+    now-persisted token, so we preserve the session.
+    """
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, refresh_token="rot-v1")
+    tm._session = in_memory
+    # Persisted has the SAME refresh token (not rotated yet) so the FR-004
+    # adoption branch does not fire — we go straight to the network refresh.
+    storage._session = _replace(in_memory)
+
+    # Capture call count to detect the moment the flow is invoked, then
+    # mutate storage and raise.
+    rejected_during_refresh: dict[str, StoredSession] = {}
+
+    class StaleRotatingFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            # Simulate another process rotating the refresh token while we
+            # were on the wire, then having the SaaS reject our (stale) one.
+            rejected_during_refresh["sent_with_rt"] = session
+            storage._session = _replace(
+                session, refresh_token="rot-v2-rotated-by-other-process"
+            )
+            raise RefreshTokenExpiredError("stale token rejected")
+
+    refresh_module = sys.modules["specify_cli.auth.flows.refresh"]
+    refresh_module.TokenRefreshFlow = StaleRotatingFlow  # type: ignore[attr-defined]
+
+    refreshed = await tm.refresh_if_needed()
+
+    assert refreshed is False
+    current = tm.get_current_session()
+    assert current is not None
+    # The freshly persisted session must be adopted; bug-fix invariant:
+    # storage.delete must NOT have been called.
+    assert current.refresh_token == "rot-v2-rotated-by-other-process"
+    assert storage.deletes == 0
+    assert rejected_during_refresh["sent_with_rt"].refresh_token == "rot-v1"
+
+
+@pytest.mark.asyncio
+async def test_current_grant_rejection_clears_and_propagates(
+    install_fake_refresh_flow,
+):
+    """FR-005: rejection of current persisted material clears + raises."""
+    install_fake_refresh_flow.raise_refresh_expired = True
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    tm.set_session(_make_session(access_expires_in=-1))
+
+    with pytest.raises(RefreshTokenExpiredError):
+        await tm.refresh_if_needed()
+
+    assert tm.get_current_session() is None
+    assert storage.deletes >= 1
+
+
+@pytest.mark.asyncio
+async def test_current_grant_session_invalid_propagates_session_invalid(
+    install_fake_refresh_flow,
+):
+    """The original SessionInvalidError must propagate (not collapsed into RefreshTokenExpiredError)."""
+    install_fake_refresh_flow.raise_session_invalid = True
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    tm.set_session(_make_session(access_expires_in=-1))
+
+    with pytest.raises(SessionInvalidError):
+        await tm.refresh_if_needed()
+
+    assert tm.get_current_session() is None
+    assert storage.deletes >= 1
+
+
+@pytest.mark.asyncio
+async def test_lock_timeout_adopts_when_persisted_is_fresh(
+    install_fake_refresh_flow, monkeypatch
+):
+    """FR-017: lock contention with usable persisted material is non-fatal."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, access_token="stale")
+    tm._session = in_memory
+    # Persisted has a fresh access token (e.g. another process already refreshed).
+    persisted = _replace(
+        in_memory,
+        access_token="fresh",
+        access_token_expires_at=_now() + timedelta(seconds=900),
+    )
+    storage._session = persisted
+
+    class _ImmediateTimeoutLock:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            self._path = kwargs.get("path") or (args[0] if args else "")
+
+        async def __aenter__(self):
+            raise LockAcquireTimeout(path=str(self._path))
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(rtx, "MachineFileLock", _ImmediateTimeoutLock)
+
+    refreshed = await tm.refresh_if_needed()
+
+    assert refreshed is False
+    assert install_fake_refresh_flow.call_count == 0
+    current = tm.get_current_session()
+    assert current is not None
+    assert current.access_token == "fresh"
+
+
+@pytest.mark.asyncio
+async def test_lock_timeout_error_when_persisted_is_unusable(
+    install_fake_refresh_flow, monkeypatch
+):
+    """FR-016: lock contention with unusable persisted material raises retry hint."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, access_token="stale")
+    tm._session = in_memory
+    # Persisted is also expired — adoption is unsafe.
+    storage._session = _replace(in_memory)
+
+    class _ImmediateTimeoutLock:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            self._path = kwargs.get("path") or (args[0] if args else "")
+
+        async def __aenter__(self):
+            raise LockAcquireTimeout(path=str(self._path))
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+    monkeypatch.setattr(rtx, "MachineFileLock", _ImmediateTimeoutLock)
+
+    with pytest.raises(RefreshLockTimeoutError):
+        await tm.refresh_if_needed()
+    assert install_fake_refresh_flow.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_refresh_logs_outcome_at_info(install_fake_refresh_flow, caplog):
+    """FR-019: every transaction emits a single INFO log line keyed by outcome."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    tm.set_session(_make_session(access_expires_in=-1))
+
+    with caplog.at_level(logging.INFO, logger="specify_cli.auth.token_manager"):
+        await tm.refresh_if_needed()
+
+    matching = [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and "refresh_transaction outcome=" in r.getMessage()
+    ]
+    assert len(matching) == 1
+    assert "outcome=refreshed" in matching[0].getMessage()
+    assert "network_call=True" in matching[0].getMessage()
+
+
+@pytest.mark.asyncio
+async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(
+    install_fake_refresh_flow, monkeypatch
+):
+    """T007 edge case: persisted is None mid-transaction → LOCK_TIMEOUT_ERROR."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1)
+    tm._session = in_memory
+    # storage is empty even though tm holds an in-memory session.
+    assert storage._session is None
+
+    with pytest.raises(RefreshLockTimeoutError):
+        await tm.refresh_if_needed()
+    assert install_fake_refresh_flow.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_network_timeout_raises_lock_timeout_error(
+    install_fake_refresh_flow, monkeypatch
+):
+    """``asyncio.wait_for`` enforces NFR-002's 10 s ceiling on the network leg."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1)
+    tm.set_session(in_memory)
+
+    class _HangingFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            await asyncio.sleep(60)  # never returns within max_hold_s
+            raise AssertionError("unreachable")
+
+    refresh_module = sys.modules["specify_cli.auth.flows.refresh"]
+    refresh_module.TokenRefreshFlow = _HangingFlow  # type: ignore[attr-defined]
+
+    # Patch max-hold to a tiny value so the test runs quickly.
+    monkeypatch.setattr(tm_module, "_REFRESH_MAX_HOLD_S", 0.05)
+
+    with pytest.raises(RefreshLockTimeoutError):
+        await tm.refresh_if_needed()
+
+
+@pytest.mark.asyncio
+async def test_refresh_outcome_enum_has_six_canonical_members():
+    """Documented contract: the state machine has exactly the six members we ship."""
+    members = {m.value for m in RefreshOutcome}
+    assert members == {
+        "adopted_newer",
+        "refreshed",
+        "stale_rejection_preserved",
+        "current_rejection_cleared",
+        "lock_timeout_adopted",
+        "lock_timeout_error",
+    }
+
+
+def test_refresh_lock_path_is_under_spec_kitty_home():
+    """The default (non-test) lock path lands under ``~/.spec-kitty/auth/``.
+
+    The autouse fixture redirects ``_refresh_lock_path`` to a tmp path; here
+    we inspect the original source so the documented production contract
+    (``~/.spec-kitty/auth/refresh.lock`` on POSIX) stays under test.
+    """
+    import inspect  # noqa: PLC0415
+
+    source = inspect.getsource(tm_module)
+    # Locate the production helper definition.
+    assert "def _refresh_lock_path" in source
+    body = source.split("def _refresh_lock_path", 1)[1].split("\n\nclass", 1)[0]
+    assert "refresh.lock" in body
+    assert ".spec-kitty" in body
+    assert "auth" in body
+
+
+def test_file_lock_module_exposes_lock_acquire_timeout():
+    """Smoke check on the WP01 dependency surface this WP relies on."""
+    assert hasattr(file_lock_module, "LockAcquireTimeout")
+    assert hasattr(file_lock_module, "MachineFileLock")

@@ -12,17 +12,36 @@ Per decision D-9 the client never hardcodes a refresh-token TTL; the
 :class:`StoredSession` may carry ``refresh_token_expires_at = None`` and
 ``refresh_if_needed`` only treats the refresh token as expired when the
 session explicitly says so.
+
+WP02 (cli-session-survival-daemon-singleton mission) introduces a
+machine-wide lock around the refresh transaction. The in-process
+``asyncio.Lock`` is preserved as the same-process fast path (FR-003); the
+machine-wide ``MachineFileLock`` (WP01) serialises across processes
+(FR-002). Inside the machine lock,
+:func:`specify_cli.auth.refresh_transaction.run_refresh_transaction`
+implements the read-decide-refresh-reconcile sequence that distinguishes
+stale-token rejection (preserve local session, FR-006) from current-token
+rejection (clear local session, FR-005). That guard is the actual incident
+fix.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import sys
+from pathlib import Path
 
 from .errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SessionInvalidError,
+)
+from .refresh_transaction import (
+    RefreshLockTimeoutError,
+    RefreshOutcome,
+    RefreshRejectionCause,
+    run_refresh_transaction,
 )
 from .secure_storage import SecureStorage
 from .session import StoredSession
@@ -31,6 +50,26 @@ log = logging.getLogger(__name__)
 
 # Refresh when the access token is within this window of expiry.
 _REFRESH_BUFFER_SECONDS = 5
+
+# Hard ceiling for the bounded refresh transaction (NFR-002).
+_REFRESH_MAX_HOLD_S = 10.0
+
+_SPEC_KITTY_DIRNAME = ".spec-kitty"
+
+
+def _refresh_lock_path() -> Path:
+    """Return the machine-wide refresh-lock file path.
+
+    Mirrors the ``_daemon_root()`` pattern from ``sync/daemon.py``. On
+    POSIX the file lives at ``~/.spec-kitty/auth/refresh.lock``; on Windows
+    it is routed through :class:`specify_cli.paths.RuntimeRoot.auth_dir`
+    so it lands beside the platform's encrypted session file.
+    """
+    if sys.platform == "win32":  # pragma: no cover - platform-specific
+        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+
+        return get_runtime_root().auth_dir / "refresh.lock"
+    return Path.home() / _SPEC_KITTY_DIRNAME / "auth" / "refresh.lock"
 
 
 class TokenManager:
@@ -113,6 +152,9 @@ class TokenManager:
             NotAuthenticatedError: No session is loaded.
             RefreshTokenExpiredError: Refresh token is known-expired.
             SessionInvalidError: SaaS reported ``session_invalid`` during refresh.
+            RefreshLockTimeoutError: Lock contention exceeded the bounded
+                wait and persisted material is unusable. The caller should
+                retry once the holding process completes.
         """
         if self._session is None:
             raise NotAuthenticatedError(
@@ -122,21 +164,35 @@ class TokenManager:
             await self.refresh_if_needed()
         # After refresh, _session is still non-None (refresh_if_needed raises on failure).
         assert self._session is not None
-        return self._session.access_token
+        token: str = self._session.access_token
+        return token
 
     async def refresh_if_needed(self) -> bool:
         """Refresh the access token if it's near expiry. Single-flight.
 
+        WP02: the body delegates to
+        :func:`specify_cli.auth.refresh_transaction.run_refresh_transaction`,
+        which acquires the machine-wide :class:`MachineFileLock`, reloads
+        persisted material, performs the network refresh inside the lock,
+        and reconciles any rejection against freshly persisted state.
+
+        The in-process ``asyncio.Lock`` is preserved (FR-003) so a burst of
+        concurrent callers in one process still produces a single transaction.
+
         Returns:
-            True if a refresh was performed, False if another concurrent
-            caller already refreshed the token.
+            True if a network refresh was performed, False if persisted
+            material was adopted, no refresh was needed, or another caller
+            already refreshed inside this process.
 
         Raises:
             NotAuthenticatedError: The session was cleared before we acquired
                 the lock.
-            RefreshTokenExpiredError: The refresh token is known-expired.
-            SessionInvalidError: SaaS reported ``session_invalid``; the
-                session has been cleared and the caller must re-login.
+            RefreshTokenExpiredError: SaaS rejected the **current** persisted
+                refresh token (FR-005). Local session is cleared.
+            SessionInvalidError: SaaS reports ``session_invalid`` against the
+                **current** persisted session (FR-005). Local session is cleared.
+            RefreshLockTimeoutError: Could not acquire the machine-wide lock
+                within the bounded wait and persisted material is unusable.
         """
         lock = self._get_lock()
         async with lock:
@@ -154,24 +210,58 @@ class TokenManager:
                 )
 
             # Lazy import to avoid circular dependencies: auth.flows.refresh
-            # imports from specify_cli.auth (session/errors/config), and is
-            # introduced by WP04. WP01 tests mock TokenRefreshFlow, so the
-            # missing module is only a runtime concern once refresh fires.
-            from .flows.refresh import TokenRefreshFlow
+            # imports from specify_cli.auth (session/errors/config).
+            from .flows.refresh import TokenRefreshFlow  # noqa: PLC0415
 
             flow = TokenRefreshFlow()
-            try:
-                updated = await flow.refresh(self._session)
-            except RefreshTokenExpiredError:
-                # The server rejected the stored refresh token. Clear the
-                # local session so follow-up status/diagnostics do not report
-                # stale credentials as still authenticated.
-                self.clear_session()
-                raise
-            except SessionInvalidError:
-                # Server-side invalidation: clear local state and propagate.
-                self.clear_session()
-                raise
-            self._session = updated
-            self._storage.write(updated)
-            return True
+            current_session = self._session
+            result = await run_refresh_transaction(
+                storage=self._storage,
+                in_memory_session=current_session,
+                refresh_flow=flow,
+                lock_path=_refresh_lock_path(),
+                max_hold_s=_REFRESH_MAX_HOLD_S,
+            )
+            log.info(
+                "refresh_transaction outcome=%s network_call=%s",
+                result.outcome.value,
+                result.network_call_made,
+            )
+
+            outcome = result.outcome
+            if outcome is RefreshOutcome.REFRESHED:
+                # storage.write happened inside the transaction.
+                assert result.session is not None
+                self._session = result.session
+                return True
+            if outcome is RefreshOutcome.ADOPTED_NEWER:
+                assert result.session is not None
+                self._session = result.session
+                return False
+            if outcome is RefreshOutcome.LOCK_TIMEOUT_ADOPTED:
+                assert result.session is not None
+                self._session = result.session
+                return False
+            if outcome is RefreshOutcome.STALE_REJECTION_PRESERVED:
+                # FR-006: another process rotated; preserve the freshly
+                # persisted session, do NOT clear.
+                assert result.session is not None
+                self._session = result.session
+                return False
+            if outcome is RefreshOutcome.CURRENT_REJECTION_CLEARED:
+                # FR-005: storage.delete already happened inside the
+                # transaction. Surface to existing callers in transport.py
+                # by re-raising the canonical exception that matches the
+                # original rejection — preserves FR-020 (auth status output
+                # unchanged) and the existing pattern at auth/transport.py.
+                self._session = None
+                if result.rejection_cause is RefreshRejectionCause.SESSION_INVALID:
+                    raise SessionInvalidError(
+                        "Session has been invalidated server-side. "
+                        "Run `spec-kitty auth login` to re-authenticate."
+                    )
+                raise RefreshTokenExpiredError(
+                    "Refresh token expired. Run `spec-kitty auth login` to log in again."
+                )
+            # outcome is RefreshOutcome.LOCK_TIMEOUT_ERROR
+            raise RefreshLockTimeoutError()

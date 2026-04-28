@@ -98,6 +98,11 @@ DAEMON_PORT_MAX_ATTEMPTS = 50
 # compares this against the running daemon and restarts it on mismatch.
 DAEMON_PROTOCOL_VERSION = 1
 
+# Self-retirement tick interval (seconds).  Each running daemon re-checks
+# DAEMON_STATE_FILE this often; if the recorded port is held by a different
+# live process, the daemon retires itself.  See FR-008 / FR-010.
+DAEMON_TICK_SECONDS: int = 30
+
 
 def _is_daemon_lock_contention(exc: OSError) -> bool:
     """Return True when a non-blocking lock failed due to normal contention."""
@@ -428,6 +433,112 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         threading.Thread(target=shutdown_server, args=(self.server,), daemon=True).start()
 
 
+def _decide_self_retire(server: HTTPServer, my_port: int) -> None:
+    """Inspect ``DAEMON_STATE_FILE`` and retire the running daemon if it is no
+    longer the recorded singleton.
+
+    State-file ownership belongs exclusively to
+    ``_ensure_sync_daemon_running_locked``: this function MUST NOT call
+    ``_write_daemon_file`` or ``DAEMON_STATE_FILE.unlink``.  When the recorded
+    record is missing, malformed, or matches our own port we simply continue.
+    When the recorded port differs and the recorded PID is still alive we are
+    by definition the orphan and call ``server.shutdown()``.  When the
+    recorded PID is dead, the file is stale; the next ``ensure_running`` call
+    will reconcile it, so we keep running.
+    """
+    try:
+        _url, parsed_port, _token, parsed_pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    except Exception:
+        logger.debug("self-check tick: parse error, skipping")
+        return
+
+    if parsed_port is None:
+        logger.debug("self-check tick: no recorded port, skipping")
+        return
+
+    if parsed_port == my_port:
+        logger.debug("self-check tick: port matches (%d), continuing", my_port)
+        return
+
+    if parsed_pid is None or not _is_process_alive(parsed_pid):
+        logger.debug(
+            "self-check tick: recorded port=%d but pid=%s not alive; not retiring",
+            parsed_port,
+            parsed_pid,
+        )
+        return
+
+    logger.info(
+        "self-retiring (state file points at port=%d, our port=%d)",
+        parsed_port,
+        my_port,
+    )
+    server.shutdown()
+
+
+class _ChainedTimer(threading.Timer):
+    """A self-rearming ``threading.Timer`` that retires on ``cancel()``.
+
+    Mirrors ``threading.Timer``'s surface so callers can keep treating the
+    return value of ``_start_self_check_tick`` as a ``Timer``.  Each tick
+    calls the action and then schedules the next tick; ``cancel()`` flips a
+    flag and cancels the currently armed timer, breaking the chain.
+    """
+
+    def __init__(self, interval_s: float, action: Any) -> None:
+        super().__init__(interval_s, self._fire)
+        self.daemon = True
+        self._interval_s = interval_s
+        self._action = action
+        self._chain_lock = threading.Lock()
+        self._cancelled = False
+        self._next: threading.Timer | None = None
+
+    def _fire(self) -> None:
+        if self._cancelled:
+            return
+        try:
+            self._action()
+        except Exception:  # pragma: no cover - defensive: never let a tick raise
+            logger.exception("self-check tick raised; continuing")
+        with self._chain_lock:
+            if self._cancelled:
+                return
+            next_timer = threading.Timer(self._interval_s, self._fire)
+            next_timer.daemon = True
+            self._next = next_timer
+            next_timer.start()
+
+    def cancel(self) -> None:
+        with self._chain_lock:
+            self._cancelled = True
+            if self._next is not None:
+                self._next.cancel()
+        super().cancel()
+
+
+def _start_self_check_tick(
+    server: HTTPServer,
+    my_port: int,
+    *,
+    interval_s: float = float(DAEMON_TICK_SECONDS),
+) -> threading.Timer:
+    """Schedule the periodic self-retirement check.
+
+    Returns a ``threading.Timer`` (concretely a ``_ChainedTimer``) whose
+    ``.cancel()`` stops the recurring tick.  The underlying timer threads
+    are always created with ``daemon=True`` so they cannot block process
+    exit.
+    """
+
+    def _action() -> None:
+        _decide_self_retire(server, my_port)
+
+    timer = _ChainedTimer(interval_s, _action)
+    timer.start()
+    return timer
+
+
 def run_sync_daemon(port: int, daemon_token: str | None) -> None:
     """Run the machine-global sync daemon forever."""
     from specify_cli.sync.runtime import get_runtime
@@ -439,7 +550,11 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         {"daemon_token": daemon_token},
     )
     server = HTTPServer(("127.0.0.1", port), handler_class)
-    server.serve_forever()
+    tick = _start_self_check_tick(server, my_port=port)
+    try:
+        server.serve_forever()
+    finally:
+        tick.cancel()
 
 
 def _background_script(port: int, daemon_token: str | None) -> str:

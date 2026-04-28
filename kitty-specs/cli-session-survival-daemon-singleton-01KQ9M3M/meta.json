@@ -2,7 +2,7 @@
   "created_at": "2026-04-28T08:43:19.346862+00:00",
   "friendly_name": "CLI Session Survival and Daemon Singleton",
   "mission_id": "01KQ9M3M91HND8QRPQNJVQAFH5",
-  "mission_number": null,
+  "mission_number": 105,
   "mission_slug": "cli-session-survival-daemon-singleton-01KQ9M3M",
   "mission_type": "software-dev",
   "purpose_context": "Spec Kitty users routinely clone the CLI into temp directories and run several sync daemons against one shared auth store. A real incident showed an orphan daemon's stale invalid_grant response deleting a still-valid local session. Tranche 1 makes refresh a machine-wide transaction, lets temp checkouts converge on one user-level daemon, sweeps orphans, and adds an auth doctor diagnostic so users only lose CLI auth for legitimate reasons.",
