@@ -600,8 +600,9 @@ async def test_stale_grant_with_repersisted_access_token_expired_raises_lock_tim
     with pytest.raises(RefreshLockTimeoutError):
         await tm.refresh_if_needed()
 
-    # Storage must be preserved: the refresh token is still good and a
-    # retry will adopt it via ADOPTED_NEWER.
+    # Storage must be preserved: the refresh token is still good, so a
+    # retry will refresh the persisted material under the lock and rotate
+    # the access token cleanly.
     assert storage.deletes == 0
     assert storage._session is not None
     assert storage._session.refresh_token == "rot-v2"
