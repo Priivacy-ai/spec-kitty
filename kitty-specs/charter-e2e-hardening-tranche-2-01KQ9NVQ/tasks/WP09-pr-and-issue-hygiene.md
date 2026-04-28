@@ -13,7 +13,8 @@ subtasks:
 - T042
 - T043
 - T044
-agent: claude
+agent: "claude:sonnet:curator-carla:curator"
+shell_pid: "28017"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -143,3 +144,7 @@ Satisfies: `FR-014`, `C-004`, `C-005`.
 ```bash
 spec-kitty agent action implement WP09 --agent <your-agent-key>
 ```
+
+## Activity Log
+
+- 2026-04-28T13:52:43Z – claude:sonnet:curator-carla:curator – shell_pid=28017 – Started implementation via action command
