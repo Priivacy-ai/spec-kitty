@@ -101,9 +101,11 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current release: `3.1.6` on GitHub Releases and PyPI)
+**Current stable release line:** `v3.1.x` (current release: `3.1.7` on GitHub Releases and PyPI)
 
 **3.1.x highlights:**
+- **Compact charter context now keeps charter anchors in LLM context** — follow-on agent prompts retain charter section anchors plus directive and tactic IDs after bootstrap.
+- **Stability fixes for review, intake, auth, tracker sync, and dashboard selection** — 3.1.7 is a quality hotfix for the stable 3.1 line.
 - **`agent action implement` now honors the bulk-edit acknowledgement override** — false-positive bulk-edit inference warnings no longer block workspace creation when the mission is not actually a bulk edit and the user explicitly acknowledges that.
 - **Maintainer governance now documents the ownership boundary for user customizations** — Spec Kitty's internal charter records that package-owned mutation flows must not clobber user-authored custom commands, custom skills, or project overrides without explicit ownership proof.
 

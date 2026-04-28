@@ -28,7 +28,7 @@ spec-kitty --version
 Expected output (abridged):
 
 ```
-spec-kitty-cli version 3.1.6
+spec-kitty-cli version 3.1.7
 ```
 
 ## Step 2: Initialize a Project

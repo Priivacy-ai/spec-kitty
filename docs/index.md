@@ -11,12 +11,12 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Latest Release: 3.1.6
+## Latest Release: 3.1.7
 
-Spec Kitty 3.1.6 (released 2026-04-20) is a focused `3.1.x` hotfix:
+Spec Kitty 3.1.7 (released 2026-04-28) is a focused `3.1.x` stability hotfix:
 
-- **`agent action implement` now exposes `--acknowledge-not-bulk-edit`** — the wrapper forwards the override to the underlying workspace-allocation command, so non-bulk-edit missions can proceed past false-positive bulk-edit inference warnings.
-- **The internal maintainer charter now codifies the user-customization ownership boundary** — package-owned mutation flows must preserve user-authored custom commands, custom skills, and project overrides unless ownership is proven by a managed-path or manifest contract.
+- **Compact charter context now keeps charter anchors in LLM context** — follow-on agent prompts retain charter section anchors plus directive and tactic IDs after bootstrap.
+- **Review, intake, auth, tracker, dashboard, and sync stability fixes** — 3.1.7 backports targeted quality fixes from HEAD without taking the larger 3.2 feature tranche.
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 
