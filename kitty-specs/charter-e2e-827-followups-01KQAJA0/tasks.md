@@ -29,11 +29,11 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 | T011 | Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) | WP03 |  | [D] |
 | T012 | Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) | WP03 |  | [D] |
 | T013 | Verify `tests/integration -k 'dossier or move_task or dirty or transition'` runs clean | WP03 |  | [D] |
-| T014 | Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) | WP04 |  |
-| T015 | `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time | WP04 |  |
-| T016 | `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure | WP04 |  |
-| T017 | Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` AND author `tests/integration/test_specify_plan_commit_boundary.py` covering the five contract scenarios | WP04 | [P] |
-| T018 | Verify `tests/integration -k 'specify or plan or auto_commit or mission'` and `tests/specify_cli/cli/commands/agent` run clean | WP04 |  |
+| T014 | Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) | WP04 |  | [D] |
+| T015 | `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time | WP04 |  | [D] |
+| T016 | `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure | WP04 |  | [D] |
+| T017 | Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` AND author `tests/integration/test_specify_plan_commit_boundary.py` covering the five contract scenarios | WP04 | [D] |
+| T018 | Verify `tests/integration -k 'specify or plan or auto_commit or mission'` and `tests/specify_cli/cli/commands/agent` run clean | WP04 |  | [D] |
 
 `[P]` in this index marks parallel-safe items per file/concern. The per-WP checkbox lists below are the tracking surface for `agent tasks mark-status`.
 
@@ -151,11 +151,11 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 
 **Subtasks**:
 
-- [ ] T014 Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) (WP04)
-- [ ] T015 `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time (WP04)
-- [ ] T016 `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure (WP04)
-- [ ] T017 [P] Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` AND author `tests/integration/test_specify_plan_commit_boundary.py` covering the five contract scenarios (WP04)
-- [ ] T018 Verify `tests/integration -k 'specify or plan or auto_commit or mission'` and `tests/specify_cli/cli/commands/agent` run clean (WP04)
+- [x] T014 Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) (WP04)
+- [x] T015 `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time (WP04)
+- [x] T016 `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure (WP04)
+- [x] T017 [P] Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` AND author `tests/integration/test_specify_plan_commit_boundary.py` covering the five contract scenarios (WP04)
+- [x] T018 Verify `tests/integration -k 'specify or plan or auto_commit or mission'` and `tests/specify_cli/cli/commands/agent` run clean (WP04)
 
 **Implementation sketch**:
 
