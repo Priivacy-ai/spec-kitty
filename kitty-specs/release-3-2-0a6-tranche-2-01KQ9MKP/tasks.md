@@ -33,12 +33,12 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 | T004 | Unit tests: empty dir, hand-edited file, idempotency                     | WP01  | [D] |
 | T005 | Integration test: init then next runs without missing-schema errors      | WP01  |          | [D] |
 | T006 | CHANGELOG entry for #840                                                 | WP01  | [D] |
-| T007 | Inventory covered --json commands and their stdout writers               | WP02  |          |
-| T008 | Add diagnostic-routing helper (default stderr, optional envelope nest)   | WP02  |          |
-| T009 | Refactor sync/auth/tracker print sites to use the helper                 | WP02  |          |
-| T010 | Parametrised integration test across 4 SaaS states                       | WP02  | [P]      |
-| T011 | Bare-string regression scan of stdout                                    | WP02  | [P]      |
-| T012 | CHANGELOG entry + update contracts/json-envelope.md cross-refs           | WP02  | [P]      |
+| T007 | Inventory covered --json commands and their stdout writers               | WP02  |          | [D] |
+| T008 | Add diagnostic-routing helper (default stderr, optional envelope nest)   | WP02  |          | [D] |
+| T009 | Refactor sync/auth/tracker print sites to use the helper                 | WP02  |          | [D] |
+| T010 | Parametrised integration test across 4 SaaS states                       | WP02  | [D] |
+| T011 | Bare-string regression scan of stdout                                    | WP02  | [D] |
+| T012 | CHANGELOG entry + update contracts/json-envelope.md cross-refs           | WP02  | [D] |
 | T013 | Update WPMetadata.resolved_agent() to support 1/2/3/4 colon segments     | WP03  |          | [D] |
 | T014 | Document defaults table for missing trailing fields                      | WP03  |          | [D] |
 | T015 | Wire 4-tuple through implement/review prompt context surface             | WP03  |          | [D] |
@@ -101,12 +101,12 @@ Dependencies: none. Risks: overwriting operator-authored fields; mitigated by FR
 
 Subtasks:
 
-- [ ] T007 Inventory covered --json commands and their stdout writers (WP02)
-- [ ] T008 Add diagnostic-routing helper (default stderr, optional envelope nest) (WP02)
-- [ ] T009 Refactor sync/auth/tracker print sites to use the helper (WP02)
-- [ ] T010 Parametrised integration test across 4 SaaS states (WP02) [P]
-- [ ] T011 Bare-string regression scan of stdout (WP02) [P]
-- [ ] T012 CHANGELOG entry + update contracts/json-envelope.md cross-refs (WP02) [P]
+- [x] T007 Inventory covered --json commands and their stdout writers (WP02)
+- [x] T008 Add diagnostic-routing helper (default stderr, optional envelope nest) (WP02)
+- [x] T009 Refactor sync/auth/tracker print sites to use the helper (WP02)
+- [x] T010 Parametrised integration test across 4 SaaS states (WP02) [P]
+- [x] T011 Bare-string regression scan of stdout (WP02) [P]
+- [x] T012 CHANGELOG entry + update contracts/json-envelope.md cross-refs (WP02) [P]
 
 Dependencies: none. Risks: changing diagnostic surface for human users; mitigated by stderr default (humans still see diagnostics in terminal output).
 
