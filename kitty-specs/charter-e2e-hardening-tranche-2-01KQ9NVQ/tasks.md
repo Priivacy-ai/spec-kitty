@@ -41,10 +41,10 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T013 | Add unit/integration tests for dry-run JSON envelope shape | WP03 | [D] |
 | T014 | Add integration test asserting on-disk artifacts after `--json` run | WP03 | [D] |
 | T015 | Verify `tests/doctrine_synthesizer/` and `tests/charter/` still pass | WP03 |  | [D] |
-| T016 | Implement #841 fix per research direction (default: `charter generate --json` emits `next_step.git_add` instruction; otherwise `bundle validate` accepts generated path) | WP04 |  |
-| T017 | Add or update tests covering generate→bundle-validate operator path in a fresh git project | WP04 |  |
-| T018 | Verify `tests/charter/` regression-free | WP04 |  |
-| T019 | Cross-check the operator path against `kitty-specs/<mission>/quickstart.md` Step 2; update if direction differed from default | WP04 |  |
+| T016 | Implement #841 fix per research direction (default: `charter generate --json` emits `next_step.git_add` instruction; otherwise `bundle validate` accepts generated path) | WP04 |  | [D] |
+| T017 | Add or update tests covering generate→bundle-validate operator path in a fresh git project | WP04 |  | [D] |
+| T018 | Verify `tests/charter/` regression-free | WP04 |  | [D] |
+| T019 | Cross-check the operator path against `kitty-specs/<mission>/quickstart.md` Step 2; update if direction differed from default | WP04 |  | [D] |
 | T020 | Audit SaaS sync / auth / background diagnostic emission sites that leak into `--json` stdout | WP05 |  |
 | T021 | Route diagnostics to stderr or into structured `warnings` envelope inside the JSON document | WP05 |  |
 | T022 | Add per-command test asserting strict full-stream `json.loads(stdout)` for `charter generate`, `charter bundle validate`, `charter synthesize`, `next` (new file: `tests/specify_cli/test_json_output_discipline.py`) | WP05 |  |
@@ -167,10 +167,10 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T016 Implement #841 fix per research direction (WP04)
-- [ ] T017 Add/update tests covering generate→bundle-validate operator path (WP04)
-- [ ] T018 Verify tests/charter/ regression-free (WP04)
-- [ ] T019 Cross-check operator path against quickstart.md Step 2 (WP04)
+- [x] T016 Implement #841 fix per research direction (WP04)
+- [x] T017 Add/update tests covering generate→bundle-validate operator path (WP04)
+- [x] T018 Verify tests/charter/ regression-free (WP04)
+- [x] T019 Cross-check operator path against quickstart.md Step 2 (WP04)
 
 **Implementation sketch**: Default direction (per `research.md` R1): make `charter generate --json` include a `next_step.action == "git_add"` field per `contracts/charter-bundle-validate.json` when generated charter is not yet tracked. The E2E (in WP08) reads and follows this verbatim. If WP01 surfaces that `bundle validate` should accept the generated path instead, implement that direction and update the contract.
 
