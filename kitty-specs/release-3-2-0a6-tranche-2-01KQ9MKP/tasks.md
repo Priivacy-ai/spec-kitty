@@ -49,12 +49,12 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 | T020 | Make reclaim/regenerate idempotent (no counter delta, no new artifact)   | WP04  |          | [D] |
 | T021 | Unit tests: ≥3 reruns of implement leave counter unchanged               | WP04  | [D] |
 | T022 | Integration test: real rejection advances counter exactly once           | WP04  |          | [D] |
-| T023 | Define ProfileInvocationRecord shape per data-model.md                   | WP05  |          |
-| T024 | Hook started-record write into next issuance path                        | WP05  |          |
-| T025 | Hook completed/failed-record write into next advance path                | WP05  |          |
-| T026 | Surface orphan started records via doctor                                | WP05  |          |
-| T027 | Unit tests: pair-matching, orphan observability                          | WP05  | [P]      |
-| T028 | Integration test: ≥5 issuances yield ≥95% pairing                        | WP05  |          |
+| T023 | Define ProfileInvocationRecord shape per data-model.md                   | WP05  |          | [D] |
+| T024 | Hook started-record write into next issuance path                        | WP05  |          | [D] |
+| T025 | Hook completed/failed-record write into next advance path                | WP05  |          | [D] |
+| T026 | Surface orphan started records via doctor                                | WP05  |          | [D] |
+| T027 | Unit tests: pair-matching, orphan observability                          | WP05  | [D] |
+| T028 | Integration test: ≥5 issuances yield ≥95% pairing                        | WP05  |          | [D] |
 | T029 | charter generate auto-tracks charter.md on success in git repo           | WP06  |          |
 | T030 | charter generate fails fast in non-git environment with actionable error | WP06  |          |
 | T031 | charter synthesize: identify minimal doctrine artifact set               | WP06  |          |
@@ -162,12 +162,12 @@ Dependencies: WP03 (shared modification surface in `cli/commands/agent/workflow.
 
 Subtasks:
 
-- [ ] T023 Define ProfileInvocationRecord shape per data-model.md (WP05)
-- [ ] T024 Hook started-record write into next issuance path (WP05)
-- [ ] T025 Hook completed/failed-record write into next advance path (WP05)
-- [ ] T026 Surface orphan started records via doctor (WP05)
-- [ ] T027 Unit tests: pair-matching, orphan observability (WP05) [P]
-- [ ] T028 Integration test: ≥5 issuances yield ≥95% pairing (WP05)
+- [x] T023 Define ProfileInvocationRecord shape per data-model.md (WP05)
+- [x] T024 Hook started-record write into next issuance path (WP05)
+- [x] T025 Hook completed/failed-record write into next advance path (WP05)
+- [x] T026 Surface orphan started records via doctor (WP05)
+- [x] T027 Unit tests: pair-matching, orphan observability (WP05) [P]
+- [x] T028 Integration test: ≥5 issuances yield ≥95% pairing (WP05)
 
 Dependencies: none. Risks: orphan flood on agent crashes; mitigated by NFR-006 pairing budget + doctor visibility.
 
