@@ -33,9 +33,9 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T005 | Investigate #844/#336 prompt resolution in `next` → R4 | WP01 | [D] |
 | T006 | Investigate #843 profile-invocation lifecycle write path → R5 | WP01 | [D] |
 | T007 | Finalize research.md with file/line refs and skill-refresh path → R7 | WP01 |  | [D] |
-| T008 | Stamp `spec_kitty.schema_version` and `spec_kitty.schema_capabilities` in `spec-kitty init` metadata writer (reuse existing constants) | WP02 |  |
-| T009 | Add fresh-init integration test asserting fields present in `.kittify/metadata.yaml` | WP02 |  |
-| T010 | Verify upgrade-version tests still pass | WP02 |  |
+| T008 | Stamp `spec_kitty.schema_version` and `spec_kitty.schema_capabilities` in `spec-kitty init` metadata writer (reuse existing constants) | WP02 |  | [D] |
+| T009 | Add fresh-init integration test asserting fields present in `.kittify/metadata.yaml` | WP02 |  | [D] |
+| T010 | Verify upgrade-version tests still pass | WP02 |  | [D] |
 | T011 | Make `charter synthesize --adapter fixture --dry-run --json` emit strict envelope per `contracts/charter-synthesize-dry-run.json` | WP03 |  |
 | T012 | Make `charter synthesize --adapter fixture --json` write `.kittify/doctrine/` artifacts via real write pipeline (no `--dry-run-evidence` fallback) | WP03 |  |
 | T013 | Add unit/integration tests for dry-run JSON envelope shape | WP03 | [P] |
@@ -117,9 +117,9 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T008 Stamp schema_version + schema_capabilities in init metadata writer (WP02)
-- [ ] T009 Add fresh-init integration test asserting fields present (WP02)
-- [ ] T010 Verify upgrade-version tests still pass (WP02)
+- [x] T008 Stamp schema_version + schema_capabilities in init metadata writer (WP02)
+- [x] T009 Add fresh-init integration test asserting fields present (WP02)
+- [x] T010 Verify upgrade-version tests still pass (WP02)
 
 **Implementation sketch**: Locate canonical schema constants (per WP01 R6 — likely under `src/specify_cli/upgrade/migrations/`). Reuse them in `src/specify_cli/init/` so init writes the same values upgrade migrations would write. Do not duplicate literals.
 
