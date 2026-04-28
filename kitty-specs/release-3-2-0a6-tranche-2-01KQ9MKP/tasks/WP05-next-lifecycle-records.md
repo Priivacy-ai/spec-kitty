@@ -15,8 +15,8 @@ subtasks:
 - T026
 - T027
 - T028
-agent: "claude:opus-4-7:default:implementer"
-shell_pid: "41311"
+agent: "claude:opus-4-7:default:reviewer"
+shell_pid: "47745"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -226,3 +226,4 @@ GitHub issue #843. Public `next` cycles currently produce no observable lifecycl
 
 - 2026-04-28T10:09:09Z – claude:opus-4-7:default:implementer – shell_pid=41311 – Started implementation via action command
 - 2026-04-28T10:21:33Z – claude:opus-4-7:default:implementer – shell_pid=41311 – WP05 ready: started/completed/failed pairing on next, orphan observability via doctor invocation-pairing, 29 unit+integration tests passing, mypy --strict clean
+- 2026-04-28T10:22:20Z – claude:opus-4-7:default:reviewer – shell_pid=47745 – Started review via action command
