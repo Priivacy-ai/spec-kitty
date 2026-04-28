@@ -151,10 +151,10 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T015 `DAEMON_TICK_SECONDS` constant + `_start_self_check_tick` helper (WP04)
-- [ ] T016 Wire tick thread into `run_sync_daemon`; cancel on serve_forever exit (WP04)
-- [ ] T017 Self-retirement decision: parse state file, compare port, server.shutdown() (WP04)
-- [ ] T018 Test suite — retires/continues across 4 state-file scenarios (WP04)
+- [x] T015 `DAEMON_TICK_SECONDS` constant + `_start_self_check_tick` helper (WP04)
+- [x] T016 Wire tick thread into `run_sync_daemon`; cancel on serve_forever exit (WP04)
+- [x] T017 Self-retirement decision: parse state file, compare port, server.shutdown() (WP04)
+- [x] T018 Test suite — retires/continues across 4 state-file scenarios (WP04)
 
 **Implementation sketch**: Add the constant and helper as additive code in `sync/daemon.py`. Wire the helper as a daemon thread started in `run_sync_daemon` and cancel it in the `finally` block. The retirement decision must NEVER rewrite the state file (state ownership is `_ensure_sync_daemon_running_locked` only).
 
