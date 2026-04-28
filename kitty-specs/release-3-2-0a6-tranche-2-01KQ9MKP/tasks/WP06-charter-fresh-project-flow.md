@@ -18,6 +18,8 @@ subtasks:
 - T033
 - T034
 - T035
+agent: "claude:opus-4-7:default:implementer"
+shell_pid: "48813"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -226,3 +228,7 @@ Combines GitHub issues #841 and #839 because both target the same fresh-project 
 - A test-only adapter for synthesize (Spec Assumption A2 forbids it).
 - Auto-commit (we auto-track / stage, not commit).
 - Migration for projects whose `charter.md` is already untracked but valid.
+
+## Activity Log
+
+- 2026-04-28T10:26:38Z – claude:opus-4-7:default:implementer – shell_pid=48813 – Started implementation via action command
