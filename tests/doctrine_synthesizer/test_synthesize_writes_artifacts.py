@@ -132,3 +132,149 @@ class TestSynthesizeAutoStubWritesArtifacts:
 
         with pytest.raises(FixtureAdapterMissingError):
             synthesize(request, adapter=adapter, repo_root=tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Post-review (PR #855): success envelope contract + dry-run/real path parity
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeSuccessEnvelopeContract:
+    """Locks the `result/adapter/written_artifacts` contract from
+    contracts/charter-synthesize.json. Pre-fix the success branch emitted
+    only `target_kind/target_slug/inputs_hash/adapter_id/adapter_version`,
+    silently violating the documented contract."""
+
+    def test_read_written_artifacts_from_manifest_returns_path_and_kind(
+        self, tmp_path: Path, fixture_auto_stub_env: None
+    ) -> None:
+        """After a real synthesize, the manifest yields {path, kind} entries."""
+        from specify_cli.cli.commands.charter import _read_written_artifacts_from_manifest
+
+        request = _build_minimal_request()
+        adapter = FixtureAdapter()
+        synthesize(request, adapter=adapter, repo_root=tmp_path)
+
+        written = _read_written_artifacts_from_manifest(tmp_path)
+        assert written, "Expected manifest-derived written_artifacts to be non-empty"
+        for entry in written:
+            assert isinstance(entry, dict)
+            assert {"path", "kind"} <= set(entry.keys())
+            assert entry["path"].startswith(".kittify/doctrine/")
+            assert entry["kind"] in {"directive", "tactic", "styleguide"}
+
+    def test_success_envelope_carries_contract_fields(
+        self, tmp_path: Path, fixture_auto_stub_env: None
+    ) -> None:
+        """`result`, `adapter`, and `written_artifacts` MUST be present.
+
+        Drives `charter synthesize --adapter fixture --json` (no --dry-run)
+        through the Typer CliRunner with the auto-stub env var set so the
+        real promote path materializes a manifest. The envelope MUST carry
+        the three contract-required fields.
+        """
+        import json as _json
+        from unittest.mock import patch
+
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.charter import app
+
+        # Seed minimal interview answers so the request can be built.
+        answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+        answers_path.parent.mkdir(parents=True, exist_ok=True)
+        answers_path.write_text(
+            "schema_version: '1'\n"
+            "mission: software-dev\n"
+            "profile: minimal\n"
+            "answers:\n"
+            "  mission_type: software_dev\n"
+            "  testing_philosophy: test-driven\n"
+            "  neutrality_posture: balanced\n"
+            "  risk_appetite: moderate\n"
+            "  language_scope: python\n"
+            "selected_paradigms: []\n"
+            "selected_directives:\n"
+            "  - DIRECTIVE_003\n"
+            "available_tools: []\n",
+            encoding="utf-8",
+        )
+
+        runner = CliRunner()
+        with patch(
+            "specify_cli.cli.commands.charter.find_repo_root",
+            return_value=tmp_path,
+        ):
+            result = runner.invoke(
+                app,
+                ["synthesize", "--adapter", "fixture", "--json"],
+            )
+
+        assert result.exit_code == 0, result.output
+        payload = _json.loads(result.output)
+        # Contract: contracts/charter-synthesize.json requires these keys.
+        assert payload.get("result") == "success"
+        assert "adapter" in payload, (
+            f"Pre-fix envelope missing `adapter` field. payload={payload!r}"
+        )
+        assert "written_artifacts" in payload, (
+            f"Pre-fix envelope missing `written_artifacts` field. payload={payload!r}"
+        )
+        assert isinstance(payload["written_artifacts"], list)
+        assert len(payload["written_artifacts"]) >= 1, (
+            "Expected at least one written artifact in success envelope"
+        )
+        for entry in payload["written_artifacts"]:
+            assert isinstance(entry, dict)
+            assert {"path", "kind"} <= set(entry.keys())
+            assert entry["path"].startswith(".kittify/doctrine/")
+
+
+class TestDryRunPathParityWithRealSynthesize:
+    """Locks parity between dry-run planned paths and real synthesize output.
+
+    Pre-fix `_staged_to_planned_artifacts` invented `PROJECT_000` for every
+    directive, so dry-run claimed `.kittify/doctrine/directives/000-...`
+    while real synthesize wrote `001-...`. Post-fix, the helper derives the
+    artifact_id from the provenance `artifact_urn`, matching the real path.
+    """
+
+    def test_dry_run_directive_path_matches_real_synthesize(
+        self, tmp_path: Path, fixture_auto_stub_env: None
+    ) -> None:
+        from specify_cli.cli.commands.charter import (
+            _provenance_to_planned_artifacts,
+        )
+        from charter.synthesizer.synthesize_pipeline import run_all
+
+        request = _build_minimal_request()
+        adapter = FixtureAdapter()
+
+        # 1. Real synthesize: writes artifacts to disk. The on-disk filename
+        #    is the truth (e.g., `001-mission-type-scope-directive.directive.yaml`).
+        synthesize(request, adapter=adapter, repo_root=tmp_path)
+        directives_dir = tmp_path / ".kittify" / "doctrine" / "directives"
+        real_files = sorted(p.name for p in directives_dir.glob("*.directive.yaml"))
+        assert real_files, "Real synthesize must produce at least one directive"
+
+        # 2. Provenance-derived dry-run paths: same numeric prefix as real files.
+        results = run_all(request, adapter=adapter)
+        planned = _provenance_to_planned_artifacts(results)
+        directive_planned = [e for e in planned if e["kind"] == "directive"]
+        assert directive_planned, "Expected at least one planned directive"
+
+        for entry in directive_planned:
+            planned_basename = entry["path"].rsplit("/", 1)[-1]
+            assert planned_basename in real_files, (
+                "Dry-run planned path does not match real synthesize output.\n"
+                f"  planned : {entry['path']}\n"
+                f"  real_files: {real_files}\n"
+                "Pre-fix bug: dry-run invented PROJECT_000 → 000-..., but real "
+                "synthesize uses provenance.artifact_urn → 001-..."
+            )
+            # Belt-and-suspenders: planned path MUST NOT carry the legacy
+            # 000- placeholder prefix (the pre-fix behavior).
+            assert "/000-" not in entry["path"], (
+                f"Dry-run path still uses placeholder PROJECT_000 prefix: "
+                f"{entry['path']!r}"
+            )

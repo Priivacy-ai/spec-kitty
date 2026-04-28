@@ -441,3 +441,96 @@ def test_next_query_json_strict_stdout(charter_project: Path) -> None:
         )
     _assert_strict_json_stdout(completed, command_label="next --json")
     _assert_stderr_clean(completed, command_label="next --json")
+
+
+# ---------------------------------------------------------------------------
+# Post-review: warnings must NOT leak to stdout in --json mode (FR-005)
+# ---------------------------------------------------------------------------
+
+
+def test_charter_synthesize_dry_run_json_warning_does_not_break_strict_parse(
+    tmp_path: Path,
+) -> None:
+    """Evidence warnings must NOT leak to stdout via Rich in --json mode.
+
+    Fast in-process variant: drives the synthesize command directly via the
+    Typer CliRunner with `_collect_evidence_result` patched to emit a non-empty
+    `warnings` list. Pre-fix, those warnings printed via `console.print`,
+    leaking Rich-formatted text onto stdout BEFORE the JSON envelope and
+    breaking `json.loads(stdout)`. Post-fix, they MUST be folded into the
+    envelope's `warnings` field instead.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.charter import app
+
+    # Stage interview answers so the dry-run can build a request.
+    answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+    answers_path.parent.mkdir(parents=True, exist_ok=True)
+    answers_path.write_text(
+        "schema_version: '1'\n"
+        "mission: software-dev\n"
+        "profile: minimal\n"
+        "answers:\n"
+        "  mission_type: software_dev\n"
+        "  testing_philosophy: test-driven\n"
+        "  neutrality_posture: balanced\n"
+        "  risk_appetite: moderate\n"
+        "  language_scope: python\n"
+        "selected_paradigms: []\n"
+        "selected_directives:\n"
+        "  - DIRECTIVE_003\n"
+        "available_tools: []\n",
+        encoding="utf-8",
+    )
+
+    fake_evidence_result = SimpleNamespace(
+        bundle=SimpleNamespace(code_signals=None, url_list=[], corpus_snapshot=None),
+        warnings=["evidence collection skipped: offline mode"],
+    )
+
+    runner = CliRunner()
+    with (
+        patch(
+            "specify_cli.cli.commands.charter.find_repo_root",
+            return_value=tmp_path,
+        ),
+        patch(
+            "specify_cli.cli.commands.charter._collect_evidence_result",
+            return_value=fake_evidence_result,
+        ),
+        patch(
+            "specify_cli.cli.commands.charter._run_synthesis_dry_run",
+            return_value=[
+                {
+                    "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                    "kind": "directive",
+                }
+            ],
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["synthesize", "--adapter", "fixture", "--dry-run", "--json"],
+        )
+
+    assert result.exit_code == 0, result.output
+    # Strict-parse: stdout must be EXACTLY one JSON document.
+    payload = json.loads(result.output)
+    # Warning MUST be in the envelope, not on stdout as a Rich-formatted line.
+    assert "warnings" in payload, (
+        f"Envelope missing `warnings` field; pre-fix Rich output: {result.output!r}"
+    )
+    assert isinstance(payload["warnings"], list)
+    assert any(
+        isinstance(entry, dict)
+        and entry.get("code")
+        and "evidence" in entry.get("message", "").lower()
+        for entry in payload["warnings"]
+    ), (
+        "Expected an evidence warning to be folded into the envelope's "
+        f"`warnings` array; got: {payload['warnings']!r}"
+    )

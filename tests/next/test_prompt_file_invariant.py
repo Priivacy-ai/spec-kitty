@@ -105,6 +105,46 @@ class TestBuildPromptOrError:
         assert error is not None
         assert "did not materialize" in error
 
+    def test_returns_error_when_path_stat_raises_oserror(
+        self, tmp_path: Path
+    ) -> None:
+        """Exercise decision.py:521-522 — Path.exists() OSError branch.
+
+        On some platforms Path.exists() can raise OSError (PermissionError,
+        ENAMETOOLONG, broken symlinks under restrictive filesystems). The
+        helper MUST surface a structured `not stat-able` error rather than
+        propagate the exception.
+        """
+        ghost = tmp_path / "ghost.md"
+        with (
+            patch(
+                "specify_cli.next.prompt_builder.build_prompt",
+                return_value=(None, ghost),
+            ),
+            # Cover the `except OSError` branch in
+            # `_build_prompt_or_error`. Path.exists() is called inside the
+            # try/except — we patch the class method to raise OSError so the
+            # second `except` block executes.
+            patch(
+                "pathlib.Path.exists",
+                side_effect=PermissionError("EACCES"),
+            ),
+        ):
+            path, error = _build_prompt_or_error(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert path is None
+        assert error is not None
+        assert "not stat-able" in error
+        assert "implement" in error
+
 
 # ---------------------------------------------------------------------------
 # _map_runtime_decision — every step kind goes through this surface

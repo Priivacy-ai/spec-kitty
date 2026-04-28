@@ -70,7 +70,12 @@ class TestStrictDryRunEnvelope:
             ),
             patch(
                 "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-                return_value=["directive:mission-type-scope-directive"],
+                return_value=[
+                    {
+                        "path": ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml",
+                        "kind": "directive",
+                    }
+                ],
             ),
         ):
             result = runner.invoke(
@@ -93,7 +98,12 @@ class TestStrictDryRunEnvelope:
             ),
             patch(
                 "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-                return_value=["directive:mission-type-scope-directive"],
+                return_value=[
+                    {
+                        "path": ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml",
+                        "kind": "directive",
+                    }
+                ],
             ),
         ):
             result = runner.invoke(
@@ -114,7 +124,12 @@ class TestStrictDryRunEnvelope:
             ),
             patch(
                 "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-                return_value=["directive:mission-type-scope-directive"],
+                return_value=[
+                    {
+                        "path": ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml",
+                        "kind": "directive",
+                    }
+                ],
             ),
         ):
             result = runner.invoke(
@@ -136,9 +151,18 @@ class TestStrictDryRunEnvelope:
             patch(
                 "specify_cli.cli.commands.charter._run_synthesis_dry_run",
                 return_value=[
-                    "directive:mission-type-scope-directive",
-                    "tactic:testing-philosophy-tactic",
-                    "styleguide:python-style-guide",
+                    {
+                        "path": ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml",
+                        "kind": "directive",
+                    },
+                    {
+                        "path": ".kittify/doctrine/tactics/testing-philosophy-tactic.tactic.yaml",
+                        "kind": "tactic",
+                    },
+                    {
+                        "path": ".kittify/doctrine/styleguides/python-style-guide.styleguide.yaml",
+                        "kind": "styleguide",
+                    },
                 ],
             ),
         ):
@@ -170,7 +194,12 @@ class TestStrictDryRunEnvelope:
             ),
             patch(
                 "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-                return_value=["directive:mission-type-scope-directive"],
+                return_value=[
+                    {
+                        "path": ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml",
+                        "kind": "directive",
+                    }
+                ],
             ),
         ):
             result = runner.invoke(

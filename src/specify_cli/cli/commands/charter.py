@@ -1752,12 +1752,82 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
     return _validation_callback
 
 
-def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]]:
-    """Convert staged ``kind:slug`` selectors to planned-artifact path entries.
+def _read_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, str]]:
+    """Read the synthesis manifest and emit ``[{path, kind}]`` entries.
+
+    Used to populate the ``written_artifacts`` field in the strict success
+    envelope (contracts/charter-synthesize.json). The manifest is the
+    authoritative commit marker written last by ``write_pipeline.promote``;
+    if it is missing or unreadable we return an empty list rather than
+    raising — the success envelope still satisfies the schema with the
+    required key present (and the missing-manifest case would have already
+    surfaced as a non-success ``synthesize()`` outcome).
+    """
+    try:
+        from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml as _load_manifest
+    except Exception:  # noqa: BLE001 — defensive; manifest module always present in prod
+        return []
+    manifest_path = repo_root / MANIFEST_PATH
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest = _load_manifest(manifest_path)
+    except Exception:  # noqa: BLE001 — corrupt manifest → empty list, log via stderr below
+        return []
+    return [{"path": entry.path, "kind": entry.kind} for entry in manifest.artifacts]
+
+
+def _provenance_to_planned_artifacts(
+    results: list[tuple[Any, Any]],
+) -> list[dict[str, str]]:
+    """Convert (body, ProvenanceEntry) tuples into planned-artifact path entries.
 
     The strict dry-run JSON envelope (contracts/charter-synthesize-dry-run.json)
     requires ``planned_artifacts: [{path, kind}]`` describing the files a real
     (non-dry-run) ``synthesize`` would write under ``.kittify/doctrine/``.
+
+    For directives the numeric artifact id is derived from the provenance
+    ``artifact_urn`` (e.g. ``directive:PROJECT_001`` → ``PROJECT_001``) so the
+    dry-run plan matches the filename a real promote would produce. This is
+    the same logic ``write_pipeline.promote`` uses, ensuring dry-run vs real
+    synthesize parity (no ``PROJECT_000`` placeholders).
+    """
+    from charter.synthesizer.artifact_naming import (
+        artifact_filename,
+        doctrine_kind_subdir,
+    )
+
+    planned: list[dict[str, str]] = []
+    for _body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+        artifact_id: str | None = None
+        if kind == "directive":
+            # artifact_urn is "directive:<artifact_id>" for directives — same
+            # extraction the write_pipeline performs in promote().
+            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        try:
+            filename = artifact_filename(kind, slug, artifact_id)
+            subdir = doctrine_kind_subdir(kind)
+        except Exception:  # noqa: BLE001, S112 — unknown kind defensively skipped from envelope
+            continue
+        planned.append(
+            {
+                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "kind": kind,
+            }
+        )
+    return planned
+
+
+def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]]:
+    """Convert staged ``kind:slug`` selectors to planned-artifact path entries.
+
+    .. deprecated::
+        Retained for backward compatibility with test mocks. New code should
+        use :func:`_provenance_to_planned_artifacts` which derives the real
+        artifact filename (including the directive numeric prefix) from
+        provenance entries instead of inventing a ``PROJECT_000`` placeholder.
     """
     from charter.synthesizer.artifact_naming import (
         artifact_filename,
@@ -1769,10 +1839,9 @@ def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]
         if ":" not in selector:
             continue
         kind, slug = selector.split(":", 1)
-        # For directives we don't know the artifact_id from the selector alone;
-        # use a stable placeholder that round-trips through artifact_filename.
         artifact_id: str | None = None
         if kind == "directive":
+            # Legacy fallback when only the kind:slug selector is available.
             artifact_id = "PROJECT_000"
         try:
             filename = artifact_filename(kind, slug, artifact_id)
@@ -1792,7 +1861,15 @@ def _run_synthesis_dry_run(
     request: Any,
     syn_adapter: Any,
     repo_root: Path,
-) -> list[str]:
+) -> list[dict[str, str]]:
+    """Stage + validate without promoting.
+
+    Returns the typed ``planned_artifacts`` list (``[{path, kind}]``) derived
+    from the provenance entries that ``run_all`` produced. The returned paths
+    match exactly what a non-dry-run ``synthesize`` would write to
+    ``.kittify/doctrine/`` (including directive numeric prefixes from
+    ``artifact_urn``), so dry-run plans no longer drift from reality.
+    """
     from charter.synthesizer.staging import StagingDir
     from charter.synthesizer.synthesize_pipeline import run_all
     from charter.synthesizer.write_pipeline import stage_and_validate
@@ -1801,7 +1878,11 @@ def _run_synthesis_dry_run(
     validation_callback = _build_synthesis_validation_callback(request)
 
     with StagingDir.create(repo_root, request.run_id) as staging_dir:
-        staged_artifacts = stage_and_validate(
+        # We still call stage_and_validate for its full validation side-effects
+        # (path-guard write, neutrality gate, schema/DRG validation). Its return
+        # value (kind:slug selectors) is no longer the source of truth for
+        # planned paths — we use the provenance-derived list below.
+        stage_and_validate(
             request,
             staging_dir,
             results,
@@ -1809,7 +1890,7 @@ def _run_synthesis_dry_run(
         )
         staging_dir.wipe()
 
-    return staged_artifacts
+    return _provenance_to_planned_artifacts(results)
 
 
 def _list_resynthesis_topics(
@@ -1846,7 +1927,7 @@ def _list_resynthesis_topics(
 
 
 @app.command("synthesize")
-def charter_synthesize(
+def charter_synthesize(  # noqa: C901 — single-function CLI orchestrator; PR #855 follow-up adds JSON branches
     adapter: str = typer.Option(
         "generated",
         "--adapter",
@@ -1913,8 +1994,12 @@ def charter_synthesize(
             skip_code_evidence=skip_code_evidence,
             skip_corpus=skip_corpus,
         )
-        for warning in evidence_result.warnings:
-            console.print(f"[yellow]\u26a0 {warning}[/yellow]")
+        # FR-005 strict-JSON contract: in --json mode evidence warnings MUST NOT
+        # leak to stdout via Rich (that would break json.loads of stdout).
+        # Fold them into the envelope's `warnings` field below instead.
+        if not json_output:
+            for warning in evidence_result.warnings:
+                console.print(f"[yellow]\u26a0 {warning}[/yellow]")
 
         if dry_run_evidence:
             bundle = evidence_result.bundle
@@ -1940,10 +2025,9 @@ def charter_synthesize(
         request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
         if dry_run:
-            staged_files = _run_synthesis_dry_run(request, syn_adapter, repo_root)
+            planned_artifacts = _run_synthesis_dry_run(request, syn_adapter, repo_root)
 
             if json_output:
-                planned_artifacts = _staged_to_planned_artifacts(staged_files)
                 envelope = {
                     "result": "success",
                     "adapter": adapter,
@@ -1960,8 +2044,10 @@ def charter_synthesize(
                 return
 
             console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
-            for f in staged_files:
-                console.print(f"  [dim]staged:[/dim] {f}")
+            for entry in planned_artifacts:
+                console.print(
+                    f"  [dim]staged:[/dim] {entry.get('kind', '?')} -> {entry.get('path', '?')}"
+                )
             return
 
         from charter.synthesizer import synthesize
@@ -1969,14 +2055,25 @@ def charter_synthesize(
         result = synthesize(request, adapter=syn_adapter, repo_root=repo_root)
 
         if json_output:
-            print(json.dumps({
+            written_artifacts = _read_written_artifacts_from_manifest(repo_root)
+            envelope = {
+                # Contract fields (contracts/charter-synthesize.json):
                 "result": "success",
+                "adapter": result.effective_adapter_id,
+                "written_artifacts": written_artifacts,
+                # Backward-compatible diagnostic fields (kept for downstream
+                # consumers that already read these):
                 "target_kind": result.target_kind,
                 "target_slug": result.target_slug,
                 "inputs_hash": result.inputs_hash,
                 "adapter_id": result.effective_adapter_id,
                 "adapter_version": result.effective_adapter_version,
-            }, indent=2))
+                "warnings": [
+                    {"code": "evidence_warning", "message": w}
+                    for w in evidence_result.warnings
+                ],
+            }
+            print(json.dumps(envelope, indent=2))
             # WP05 (#842): suppress atexit diagnostic prints after the
             # JSON envelope.
             mark_invocation_succeeded()
