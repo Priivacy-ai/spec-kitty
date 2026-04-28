@@ -215,14 +215,14 @@ def test_build_event_log_kanban_stats_surfaces_missing_event_log(tmp_path):
 
 
 def test_build_event_log_kanban_stats_tolerates_weighted_progress_failure(tmp_path, monkeypatch):
-    from specify_cli.status import reducer
+    from specify_cli.status import progress
 
     feature_dir = _create_feature(tmp_path, "001-progress-fallback")
 
-    def fail_materialize(_feature_dir):
+    def fail_weighted_progress(_snapshot):
         raise RuntimeError("progress unavailable")
 
-    monkeypatch.setattr(reducer, "materialize", fail_materialize)
+    monkeypatch.setattr(progress, "compute_weighted_progress", fail_weighted_progress)
 
     stats = scanner._build_event_log_kanban_stats(feature_dir, feature_dir / "tasks")
 
