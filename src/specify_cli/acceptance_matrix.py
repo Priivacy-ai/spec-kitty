@@ -3,6 +3,7 @@
 from specify_cli.acceptance.matrix import (  # noqa: F401
     AcceptanceCriterion,
     AcceptanceMatrix,
+    MATRIX_FILENAME,
     NegativeInvariant,
     enforce_negative_invariants,
     read_acceptance_matrix,

@@ -28,7 +28,7 @@ class AcceptanceCriterion:
     description: str
     proof_type: str  # "automated_test" | "manual_qa" | "code_review" | "negative_invariant"
     evidence: str | None = None
-    pass_fail: str = "pending"  # "pass" | "fail" | "pending"
+    pass_fail: str = "pending"  # noqa: S105  # "pass" | "fail" | "pending"
     verified_by: str | None = None
     verified_at: str | None = None
     notes: str | None = None
@@ -264,9 +264,10 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             evidence="No command specified in verification_command",
         )
 
-    result = subprocess.run(
+    # User-authored acceptance matrices intentionally support shell snippets.
+    result = subprocess.run(  # noqa: S602
         ni.verification_command,
-        shell=True,  # nosec B602 — command comes from user-authored spec file, intentional shell execution
+        shell=True,  # nosec B602
         cwd=str(repo_root),
         capture_output=True,
         text=True,

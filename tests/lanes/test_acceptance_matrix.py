@@ -5,6 +5,7 @@ import pytest
 from specify_cli.acceptance_matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
+    MATRIX_FILENAME,
     NegativeInvariant,
     enforce_negative_invariants,
     read_acceptance_matrix,
@@ -14,6 +15,10 @@ from specify_cli.acceptance_matrix import (
 )
 
 pytestmark = pytest.mark.fast
+
+
+def test_legacy_module_reexports_matrix_filename():
+    assert MATRIX_FILENAME == "acceptance-matrix.json"
 
 
 class TestAcceptanceCriterion:
