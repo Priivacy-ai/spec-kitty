@@ -12,7 +12,6 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.language_scope import infer_repo_languages
-from charter.resolver import GovernanceResolutionError, resolve_governance
 from kernel.atomic import atomic_write
 
 
@@ -288,28 +287,29 @@ def _render_bootstrap(charter_path: Path, summary: list[str], references: list[d
     return "\n".join(lines)
 
 
-def _render_compact_governance(repo_root: Path) -> str:
-    try:
-        resolution = resolve_governance(repo_root)
-    except GovernanceResolutionError as exc:
-        return f"Governance: unresolved ({exc})"
-    except Exception as exc:
-        return f"Governance: unavailable ({exc})"
+def _render_compact_governance(
+    repo_root: Path,
+    *,
+    directive_ids: list[str] | None = None,
+    tactic_ids: list[str] | None = None,
+) -> str:
+    """Render the compact governance block (FR-034).
 
-    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
-    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
-    tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+    Compact mode preserves every directive ID, tactic ID, and section
+    anchor that bootstrap mode would emit; only the long-form prose
+    body is collapsed. ``directive_ids`` / ``tactic_ids`` are optional
+    bootstrap-side lists that the caller has already resolved; when
+    omitted the compact view falls back to the resolver's directive
+    canon and charter heading anchors.
+    """
+    from charter.compact import render_compact_view
 
-    lines = [
-        "Governance:",
-        f"  - Template set: {resolution.template_set}",
-        f"  - Paradigms: {paradigms}",
-        f"  - Directives: {directives}",
-        f"  - Tools: {tools}",
-    ]
-    if resolution.diagnostics:
-        lines.append(f"  - Diagnostics: {' | '.join(resolution.diagnostics)}")
-    return "\n".join(lines)
+    view = render_compact_view(
+        repo_root,
+        directive_ids=directive_ids or (),
+        tactic_ids=tactic_ids or (),
+    )
+    return view.text
 
 
 def _extract_policy_summary(content: str) -> list[str]:
@@ -469,7 +469,7 @@ def build_charter_context(
             action=normalized,
             mode="compact",
             first_load=False,
-            text=_render_compact_governance(repo_root),
+            text=_render_compact_governance(canonical_root),
             references_count=0,
             depth=effective_depth,
         )
@@ -505,7 +505,7 @@ def build_charter_context(
             action=normalized,
             mode="compact",
             first_load=first_load,
-            text=_render_compact_governance(repo_root),
+            text=_render_compact_governance(canonical_root),
             references_count=0,
             depth=effective_depth,
         )
