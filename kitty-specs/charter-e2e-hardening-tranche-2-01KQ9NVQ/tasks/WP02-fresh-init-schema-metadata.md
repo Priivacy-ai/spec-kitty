@@ -15,8 +15,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: claude
-shell_pid: '42938'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "44797"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -151,3 +151,4 @@ spec-kitty agent action implement WP02 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T10:18:01Z – claude – shell_pid=42938 – Init now stamps schema_version + schema_capabilities; fresh-init integration test added; upgrade-version tests green
+- 2026-04-28T10:18:26Z – claude:opus:reviewer-renata:reviewer – shell_pid=44797 – Started review via action command
