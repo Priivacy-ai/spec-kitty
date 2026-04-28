@@ -16,8 +16,8 @@ subtasks:
 - T020
 - T021
 - T022
-agent: "claude:opus-4-7:default:implementer"
-shell_pid: "28781"
+agent: "claude:opus-4-7:default:reviewer"
+shell_pid: "40671"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -201,3 +201,4 @@ GitHub issue #676. Today, re-running `agent action implement` (e.g., to refresh 
 
 - 2026-04-28T09:58:47Z – claude:opus-4-7:default:implementer – shell_pid=28781 – Started implementation via action command
 - 2026-04-28T10:06:44Z – claude:opus-4-7:default:implementer – shell_pid=28781 – WP04 ready: counter advancement gated to rejection handler only; idempotent implement reruns; tests
+- 2026-04-28T10:07:29Z – claude:opus-4-7:default:reviewer – shell_pid=40671 – Started review via action command
