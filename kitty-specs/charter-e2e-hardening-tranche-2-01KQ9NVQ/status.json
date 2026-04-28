@@ -1,7 +1,7 @@
 {
-  "event_count": 24,
-  "last_event_id": "01KQ9TE9GCQ7EW49VN2XEV07NS",
-  "materialized_at": "2026-04-28T10:34:00.076318+00:00",
+  "event_count": 26,
+  "last_event_id": "01KQ9TF24VZVSZX9WHPRK44BW4",
+  "materialized_at": "2026-04-28T10:34:25.307790+00:00",
   "mission_number": "",
   "mission_slug": "charter-e2e-hardening-tranche-2-01KQ9NVQ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-04-28T10:34:00.076318+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet:implementer-ivan:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ9QWPYW37G8TJYBX3KWAD34",
-      "last_transition_at": "2026-04-28T09:49:26.876575+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ9TF24VZVSZX9WHPRK44BW4",
+      "last_transition_at": "2026-04-28T10:34:25.307790+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
