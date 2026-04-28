@@ -16,8 +16,8 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
-shell_pid: '17578'
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "20513"
 history:
 - at: '2026-04-28T09:17:32Z'
   actor: claude
@@ -182,3 +182,4 @@ Verify:
 ## Activity Log
 
 - 2026-04-28T09:45:05Z – claude – shell_pid=17578 – Ready for review: daemon self-retirement tick, 4 tests passing, existing daemon tests still green
+- 2026-04-28T09:45:42Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=20513 – Started review via action command
