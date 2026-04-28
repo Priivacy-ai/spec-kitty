@@ -26,13 +26,13 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Investigate #840 init metadata stamping → R6 in research.md | WP01 |  |
-| T002 | Investigate #841 charter generate ↔ bundle validate → R1 | WP01 | [P] |
-| T003 | Investigate #839 charter synthesize fixture pipeline → R2 | WP01 | [P] |
-| T004 | Investigate #842 `--json` stdout discipline → R3 | WP01 | [P] |
-| T005 | Investigate #844/#336 prompt resolution in `next` → R4 | WP01 | [P] |
-| T006 | Investigate #843 profile-invocation lifecycle write path → R5 | WP01 | [P] |
-| T007 | Finalize research.md with file/line refs and skill-refresh path → R7 | WP01 |  |
+| T001 | Investigate #840 init metadata stamping → R6 in research.md | WP01 |  | [D] |
+| T002 | Investigate #841 charter generate ↔ bundle validate → R1 | WP01 | [D] |
+| T003 | Investigate #839 charter synthesize fixture pipeline → R2 | WP01 | [D] |
+| T004 | Investigate #842 `--json` stdout discipline → R3 | WP01 | [D] |
+| T005 | Investigate #844/#336 prompt resolution in `next` → R4 | WP01 | [D] |
+| T006 | Investigate #843 profile-invocation lifecycle write path → R5 | WP01 | [D] |
+| T007 | Finalize research.md with file/line refs and skill-refresh path → R7 | WP01 |  | [D] |
 | T008 | Stamp `spec_kitty.schema_version` and `spec_kitty.schema_capabilities` in `spec-kitty init` metadata writer (reuse existing constants) | WP02 |  |
 | T009 | Add fresh-init integration test asserting fields present in `.kittify/metadata.yaml` | WP02 |  |
 | T010 | Verify upgrade-version tests still pass | WP02 |  |
@@ -87,13 +87,13 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T001 Investigate #840 init metadata stamping (WP01)
-- [ ] T002 Investigate #841 charter generate ↔ bundle validate (WP01)
-- [ ] T003 Investigate #839 charter synthesize fixture pipeline (WP01)
-- [ ] T004 Investigate #842 `--json` stdout discipline (WP01)
-- [ ] T005 Investigate #844/#336 prompt resolution in `next` (WP01)
-- [ ] T006 Investigate #843 profile-invocation lifecycle write path (WP01)
-- [ ] T007 Finalize research.md with file/line refs and skill-refresh path (WP01)
+- [x] T001 Investigate #840 init metadata stamping (WP01)
+- [x] T002 Investigate #841 charter generate ↔ bundle validate (WP01)
+- [x] T003 Investigate #839 charter synthesize fixture pipeline (WP01)
+- [x] T004 Investigate #842 `--json` stdout discipline (WP01)
+- [x] T005 Investigate #844/#336 prompt resolution in `next` (WP01)
+- [x] T006 Investigate #843 profile-invocation lifecycle write path (WP01)
+- [x] T007 Finalize research.md with file/line refs and skill-refresh path (WP01)
 
 **Implementation sketch**: Read source files referenced in `plan.md` Phase 0 and `research.md` topics R1..R7. For each, capture concrete paths, current behavior, and decision direction with file:line citations. Escalate any deviation from the default decision direction (e.g., R1 needs *both* sides changed) before product-fix WPs commit.
 
