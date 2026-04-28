@@ -52,6 +52,11 @@ class TestLaneTestDbName:
         assert name.replace("_", "").isalnum(), (
             f"Unsafe characters in DB name: {name!r}"
         )
+        assert name.isascii(), f"DB name must be ASCII-only: {name!r}"
+
+    def test_unicode_inputs_are_normalized_to_ascii_safe_names(self):
+        """Unicode word characters must not leak into DB identifiers."""
+        assert lane_test_db_name("füße", "lane-ß") == "test_f_e_lane"
 
     def test_planning_lane_gets_distinct_name(self):
         """The canonical lane-planning lane gets its own DB name too."""

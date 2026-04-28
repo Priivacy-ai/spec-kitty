@@ -68,6 +68,9 @@ from specify_cli.diagnostics import report_once
 
 
 logger = logging.getLogger(__name__)
+AUTH_RELOGIN_MESSAGE = (
+    "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -292,15 +295,13 @@ class AuthenticatedClient:
                 _force_refresh_sync()
             except AuthRefreshFailed as exc:
                 _emit_user_facing_failure_once(
-                    "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
+                    AUTH_RELOGIN_MESSAGE
                 )
                 raise exc
 
             access_token = _fetch_access_token_sync()
             if access_token is None:
-                _emit_user_facing_failure_once(
-                    "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
-                )
+                _emit_user_facing_failure_once(AUTH_RELOGIN_MESSAGE)
                 raise AuthRefreshFailed(
                     "Refresh succeeded but no access token is available.",
                     error_code="refresh_no_token",
@@ -308,9 +309,7 @@ class AuthenticatedClient:
 
             response = self._send(method, url, access_token, kwargs)
             if response.status_code == 401:
-                _emit_user_facing_failure_once(
-                    "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
-                )
+                _emit_user_facing_failure_once(AUTH_RELOGIN_MESSAGE)
                 raise AuthRefreshFailed(
                     "Server still returned 401 after a forced refresh.",
                     error_code="post_refresh_401",
@@ -399,9 +398,7 @@ class AsyncAuthenticatedClient:
         try:
             return await self._inner.request(method, url, **kwargs)
         except TokenRefreshError as exc:
-            _emit_user_facing_failure_once(
-                "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
-            )
+            _emit_user_facing_failure_once(AUTH_RELOGIN_MESSAGE)
             raise AuthRefreshFailed(str(exc), error_code="refresh_token_invalid") from exc
 
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.ownership.models import ExecutionMode
@@ -37,7 +37,7 @@ class LaneWorkspaceResult:
     # WP01/T006/FR-006: lane-specific test database env vars, derived from
     # mission_slug + lane_id. Empty for planning-artifact resolutions
     # (no per-lane test DB needed when there is no per-lane worktree).
-    lane_test_env: dict[str, str] = None  # type: ignore[assignment]
+    lane_test_env: dict[str, str] | None = None
 
     def __post_init__(self) -> None:
         if self.lane_test_env is None:

@@ -29,16 +29,6 @@ paths:
     owner: "charter team"
     reason: "Human-readable companion to python-review-checks.toolguide.yaml."
     added_in: "3.2.0"
-  - path: "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/agent-python-pedro.import.yaml"
-    scope: python
-    owner: "charter team"
-    reason: "Reference import candidate for the Python agent profile; quickstart material."
-    added_in: "3.2.0"
-  - path: "src/doctrine/_reference/quickstart-agent-augmented-development/candidates/toolguide-python-review-checks.import.yaml"
-    scope: python
-    owner: "charter team"
-    reason: "Reference import candidate for the Python review-checks toolguide."
-    added_in: "3.2.0"
   - path: "src/doctrine/skills/spec-kitty-setup-doctor/SKILL.md"
     scope: python
     owner: "charter team"
