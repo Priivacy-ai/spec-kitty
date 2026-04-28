@@ -20,11 +20,11 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 | T002 | Author/extend `docs/development/review-gates.md` documenting `uv sync --frozen` as the pre-review/pre-PR sync command | WP01 | [D] |
 | T003 | Audit `kitty-specs/**/issue-matrix.md` rows labeled "verified-already-fixed" for #848-related hygiene; correct any that misrepresent current risk | WP01 | [D] |
 | T004 | Validate the new drift test green-path on a clean install AND red-path with synthetic mismatch | WP01 |  | [D] |
-| T005 | Tighten `RuntimeDecision` validation in `src/specify_cli/next/decision.py` — `kind=step` requires non-null + on-disk `prompt_file` at envelope construction; replace the legitimizing inline comment | WP02 |  |
-| T006 | Audit every step-construction site in `src/specify_cli/next/runtime_bridge.py` and route any "no prompt available" case to `kind=blocked` with reason instead of emitting `kind=step` with null prompt | WP02 |  |
-| T007 | Tighten the assertion in `tests/e2e/test_charter_epic_golden_path.py` — for every issued `kind=step`, assert `prompt_file`/`prompt_path` is non-null, non-empty, and `Path(value).is_file()` is true | WP02 | [P] |
-| T008 | Scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any peer doctrine surface — remove text legitimizing null prompts for `kind=step` | WP02 | [P] |
-| T009 | Add unit tests under `tests/specify_cli/next/` covering positive + negative cases for the new `RuntimeDecision` validation | WP02 | [P] |
+| T005 | Tighten `RuntimeDecision` validation in `src/specify_cli/next/decision.py` — `kind=step` requires non-null + on-disk `prompt_file` at envelope construction; replace the legitimizing inline comment | WP02 |  | [D] |
+| T006 | Audit every step-construction site in `src/specify_cli/next/runtime_bridge.py` and route any "no prompt available" case to `kind=blocked` with reason instead of emitting `kind=step` with null prompt | WP02 |  | [D] |
+| T007 | Tighten the assertion in `tests/e2e/test_charter_epic_golden_path.py` — for every issued `kind=step`, assert `prompt_file`/`prompt_path` is non-null, non-empty, and `Path(value).is_file()` is true | WP02 | [D] |
+| T008 | Scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any peer doctrine surface — remove text legitimizing null prompts for `kind=step` | WP02 | [D] |
+| T009 | Add unit tests under `tests/specify_cli/next/` covering positive + negative cases for the new `RuntimeDecision` validation | WP02 | [D] |
 | T010 | Add `*/.kittify/dossiers/*/snapshot-latest.json` glob to root `.gitignore` | WP03 | [D] |
 | T011 | Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) | WP03 |  | [D] |
 | T012 | Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) | WP03 |  | [D] |
@@ -86,11 +86,11 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 
 **Subtasks**:
 
-- [ ] T005 Tighten `RuntimeDecision` validation in `src/specify_cli/next/decision.py` — `kind=step` requires non-null + on-disk `prompt_file` at envelope construction; replace the legitimizing inline comment (WP02)
-- [ ] T006 Audit every step-construction site in `src/specify_cli/next/runtime_bridge.py` and route any "no prompt available" case to `kind=blocked` with reason instead of emitting `kind=step` with null prompt (WP02)
-- [ ] T007 [P] Tighten the assertion in `tests/e2e/test_charter_epic_golden_path.py` — for every issued `kind=step`, assert `prompt_file`/`prompt_path` is non-null, non-empty, and `Path(value).is_file()` is true (WP02)
-- [ ] T008 [P] Scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any peer doctrine surface — remove text legitimizing null prompts for `kind=step` (WP02)
-- [ ] T009 [P] Add unit tests under `tests/specify_cli/next/` covering positive + negative cases for the new `RuntimeDecision` validation (WP02)
+- [x] T005 Tighten `RuntimeDecision` validation in `src/specify_cli/next/decision.py` — `kind=step` requires non-null + on-disk `prompt_file` at envelope construction; replace the legitimizing inline comment (WP02)
+- [x] T006 Audit every step-construction site in `src/specify_cli/next/runtime_bridge.py` and route any "no prompt available" case to `kind=blocked` with reason instead of emitting `kind=step` with null prompt (WP02)
+- [x] T007 [P] Tighten the assertion in `tests/e2e/test_charter_epic_golden_path.py` — for every issued `kind=step`, assert `prompt_file`/`prompt_path` is non-null, non-empty, and `Path(value).is_file()` is true (WP02)
+- [x] T008 [P] Scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any peer doctrine surface — remove text legitimizing null prompts for `kind=step` (WP02)
+- [x] T009 [P] Add unit tests under `tests/specify_cli/next/` covering positive + negative cases for the new `RuntimeDecision` validation (WP02)
 
 **Implementation sketch**:
 
