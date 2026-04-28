@@ -18,7 +18,8 @@ subtasks:
 - T015
 - T016
 - T017
-shell_pid: '19276'
+shell_pid: "19276"
+agent: "claude:opus-4-7:default:implementer"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -209,3 +210,7 @@ GitHub issue #833. Today, passing `claude:opus-4-7:reviewer-default:reviewer` si
 - Migrating to a JSON-encoded `--agent` flag.
 - Changing the agent registry or the per-tool defaults themselves.
 - WP04's review-cycle counter changes.
+
+## Activity Log
+
+- 2026-04-28T09:43:05Z – claude:opus-4-7:default:implementer – shell_pid=19276 – Assigned agent via action command
