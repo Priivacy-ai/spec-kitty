@@ -978,13 +978,13 @@ def setup_plan(
         generators_detected = []
 
         if mission_type == "documentation":
-            from specify_cli.doc_state import (
+            from specify_cli.doc_analysis.doc_state import (
                 read_documentation_state,
                 set_audit_metadata,
                 set_generators_configured,
             )
-            from specify_cli.gap_analysis import generate_gap_analysis_report
-            from specify_cli.doc_generators import (
+            from specify_cli.doc_analysis.gap_analysis import generate_gap_analysis_report
+            from specify_cli.doc_analysis.doc_generators import (
                 JSDocGenerator,
                 SphinxGenerator,
                 RustdocGenerator,

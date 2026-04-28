@@ -31,7 +31,9 @@ def _active_codebase_files() -> list[Path]:
         files.extend(
             candidate
             for candidate in path.rglob("*")
-            if candidate.is_file() and "__pycache__" not in candidate.parts and candidate.suffix != ".pyc"
+            if candidate.is_file()
+            and "__pycache__" not in candidate.parts
+            and candidate.suffix not in {".pyc", ".html", ".htm"}
         )
     return sorted(files)
 

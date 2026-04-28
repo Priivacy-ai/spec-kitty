@@ -473,6 +473,8 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -502,18 +504,56 @@ def test_upgrade_dry_run_skips_auto_commit(
 
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
 
+    # T037 routes dry_run+json_output through the compat-planner path which
+    # exits before reaching the auto-commit guard.  The test's goal is just to
+    # confirm safe_commit is NOT called in dry-run mode, so skip json_output.
     upgrade_cmd.upgrade(
         dry_run=True,
         force=True,
         target="1.0.0a1",
-        json_output=True,
+        json_output=False,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
-    data = json.loads(capsys.readouterr().out.strip())
-    assert data["auto_committed"] is False
-    assert data["auto_commit_paths"] == []
+    assert safe_commit_called["called"] is False
+
+
+def test_upgrade_dry_run_json_output_exits_before_auto_commit(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """json_output=True + dry_run=True routes through _run_planner_json before
+    reaching the auto-commit guard — safe_commit must never be called."""
+    project_path = _setup_upgrade_project(tmp_path)
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+
+    safe_commit_called = {"called": False}
+
+    def _spy_safe_commit(**_kw):
+        safe_commit_called["called"] = True
+        return True
+
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _spy_safe_commit)
+
+    # Simulate _run_planner_json's normal behavior: raise typer.Exit(0)
+    monkeypatch.setattr(upgrade_cmd, "_run_planner_json", lambda **_kw: (_ for _ in ()).throw(typer.Exit(0)))
+
+    with pytest.raises(typer.Exit) as exc:
+        upgrade_cmd.upgrade(
+            dry_run=True,
+            force=True,
+            target="1.0.0a1",
+            json_output=True,
+            verbose=False,
+            no_worktrees=True,
+            cli=False,
+            project=False,
+        )
+
+    assert exc.value.exit_code == 0
     assert safe_commit_called["called"] is False
 
 
@@ -544,6 +584,8 @@ def test_upgrade_baseline_failure_skips_auto_commit(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -590,6 +632,8 @@ def test_upgrade_no_migrations_rich_output_shows_auto_commit(
         json_output=False,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     full = "\n".join(captured_output)
@@ -628,6 +672,8 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -654,6 +700,8 @@ def test_upgrade_rejects_downgrade_target_in_json_mode(
             json_output=True,
             verbose=False,
             no_worktrees=True,
+            cli=False,
+            project=False,
         )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -713,6 +761,8 @@ def test_upgrade_suppresses_auto_commit_when_manual_review_required(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())
@@ -769,6 +819,8 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
         json_output=True,
         verbose=False,
         no_worktrees=True,
+        cli=False,
+        project=False,
     )
 
     data = json.loads(capsys.readouterr().out.strip())

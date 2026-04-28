@@ -486,7 +486,7 @@ def _check_lane_gates(
     if branch and branch != lanes_manifest.mission_branch:
         activity_issues.append(f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, not {branch}")
 
-    from specify_cli.acceptance_matrix import (
+    from specify_cli.acceptance.matrix import (
         enforce_negative_invariants,
         read_acceptance_matrix,
         validate_matrix_evidence,
