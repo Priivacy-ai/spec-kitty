@@ -15,8 +15,8 @@ subtasks:
 - T027
 - T028
 - T029
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "77735"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "98259"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -172,3 +172,4 @@ spec-kitty agent action implement WP06 --agent <your-agent-key>
 
 - 2026-04-28T11:04:15Z – claude:sonnet:implementer-ivan:implementer – shell_pid=77735 – Started implementation via action command
 - 2026-04-28T11:21:00Z – claude:sonnet:implementer-ivan:implementer – shell_pid=77735 – next --json: prompt_file always non-empty + resolvable, or structured blocked; SKILL.md workaround removed; agent skill copies refreshed; tests/next/ green
+- 2026-04-28T11:21:39Z – claude:opus:reviewer-renata:reviewer – shell_pid=98259 – Started review via action command
