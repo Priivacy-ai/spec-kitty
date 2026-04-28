@@ -17,8 +17,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
-shell_pid: '73767'
+agent: "claude:sonnet:python-pedro:reviewer"
+shell_pid: "78452"
 history:
 - at: '2026-04-28T19:59:16Z'
   actor: planner
@@ -225,3 +225,8 @@ spec-kitty agent action implement WP03 --agent claude --mission charter-e2e-827-
 - **FR-011** (regression coverage on the exact previously-blocking path).
 - **C-006** (single ownership policy; no conditional dual-policy runtime branch).
 - Contributes to **NFR-003** (verification matrix).
+
+## Activity Log
+
+- 2026-04-28T20:44:50Z – claude – shell_pid=73767 – WP03 ready for review: gitignore + explicit dirty-state filter + regression test
+- 2026-04-28T20:45:32Z – claude:sonnet:python-pedro:reviewer – shell_pid=78452 – Started review via action command

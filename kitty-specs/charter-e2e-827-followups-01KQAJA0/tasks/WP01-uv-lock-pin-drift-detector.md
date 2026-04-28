@@ -17,8 +17,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
-shell_pid: '73337'
+agent: "claude:sonnet:python-pedro:reviewer"
+shell_pid: "76652"
 history:
 - at: '2026-04-28T19:59:16Z'
   actor: planner
@@ -237,3 +237,8 @@ It also contributes to:
 - **C-004** (hygiene-only; no dependency-management redesign).
 
 PR-body language for **FR-016** is owned by the merging step but the operator's preferred order has WP01 landing first.
+
+## Activity Log
+
+- 2026-04-28T20:43:35Z – claude – shell_pid=73337 – WP01 ready for review: drift detector + sync command doc + issue-matrix audit (clean, 0 edits)
+- 2026-04-28T20:44:05Z – claude:sonnet:python-pedro:reviewer – shell_pid=76652 – Started review via action command

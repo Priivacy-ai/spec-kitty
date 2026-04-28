@@ -25,10 +25,10 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 | T007 | Tighten the assertion in `tests/e2e/test_charter_epic_golden_path.py` — for every issued `kind=step`, assert `prompt_file`/`prompt_path` is non-null, non-empty, and `Path(value).is_file()` is true | WP02 | [P] |
 | T008 | Scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any peer doctrine surface — remove text legitimizing null prompts for `kind=step` | WP02 | [P] |
 | T009 | Add unit tests under `tests/specify_cli/next/` covering positive + negative cases for the new `RuntimeDecision` validation | WP02 | [P] |
-| T010 | Add `*/.kittify/dossiers/*/snapshot-latest.json` glob to root `.gitignore` | WP03 | [P] |
-| T011 | Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) | WP03 |  |
-| T012 | Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) | WP03 |  |
-| T013 | Verify `tests/integration -k 'dossier or move_task or dirty or transition'` runs clean | WP03 |  |
+| T010 | Add `*/.kittify/dossiers/*/snapshot-latest.json` glob to root `.gitignore` | WP03 | [D] |
+| T011 | Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) | WP03 |  | [D] |
+| T012 | Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) | WP03 |  | [D] |
+| T013 | Verify `tests/integration -k 'dossier or move_task or dirty or transition'` runs clean | WP03 |  | [D] |
 | T014 | Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) | WP04 |  |
 | T015 | `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time | WP04 |  |
 | T016 | `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure | WP04 |  |
@@ -119,10 +119,10 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 
 **Subtasks**:
 
-- [ ] T010 [P] Add `*/.kittify/dossiers/*/snapshot-latest.json` glob to root `.gitignore` (WP03)
-- [ ] T011 Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) (WP03)
-- [ ] T012 Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) (WP03)
-- [ ] T013 Verify `tests/integration -k 'dossier or move_task or dirty or transition'` runs clean (WP03)
+- [x] T010 [P] Add `*/.kittify/dossiers/*/snapshot-latest.json` glob to root `.gitignore` (WP03)
+- [x] T011 Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) (WP03)
+- [x] T012 Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) (WP03)
+- [x] T013 Verify `tests/integration -k 'dossier or move_task or dirty or transition'` runs clean (WP03)
 
 **Implementation sketch**:
 
