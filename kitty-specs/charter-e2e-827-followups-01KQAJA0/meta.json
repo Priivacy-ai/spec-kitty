@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-28T17:31:05.366903+00:00",
+  "friendly_name": "Charter E2E #827 Follow-ups (Tranche A)",
+  "mission_id": "01KQAJA02YZ2Q7SH5WND713HKA",
+  "mission_number": null,
+  "mission_slug": "charter-e2e-827-followups-01KQAJA0",
+  "mission_type": "software-dev",
+  "purpose_context": "The #827 charter golden-path epic landed in Tranche 2 (PR #864), but four follow-up issues were intentionally deferred. Until they ship, charter E2E coverage permits null prompt paths, dossier snapshots can self-block status transitions, specify/plan can declare success without committing real mission content, and review gates can fail on environment drift. This mission closes those four gaps as a single stabilization PR before #822 backlog work begins.",
+  "purpose_tldr": "Close out the #827 epic's immediate follow-up tranche by fixing four mission-blocking defects (#844, #845, #846, #848) so charter E2E and review gates stay reliable.",
+  "slug": "charter-e2e-827-followups-01KQAJA0",
+  "target_branch": "main"
+}
