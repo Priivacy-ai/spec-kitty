@@ -171,3 +171,4 @@ spec-kitty agent action implement WP06 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T11:04:15Z – claude:sonnet:implementer-ivan:implementer – shell_pid=77735 – Started implementation via action command
+- 2026-04-28T11:21:00Z – claude:sonnet:implementer-ivan:implementer – shell_pid=77735 – next --json: prompt_file always non-empty + resolvable, or structured blocked; SKILL.md workaround removed; agent skill copies refreshed; tests/next/ green
