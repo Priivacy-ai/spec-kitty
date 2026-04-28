@@ -15,8 +15,8 @@ subtasks:
 - T013
 - T014
 - T015
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "47137"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "51393"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -164,3 +164,4 @@ spec-kitty agent action implement WP03 --agent <your-agent-key>
 
 - 2026-04-28T10:21:21Z – claude:sonnet:implementer-ivan:implementer – shell_pid=47137 – Started implementation via action command
 - 2026-04-28T10:31:30Z – claude:sonnet:implementer-ivan:implementer – shell_pid=47137 – Direction A: env-var stub mode for fixture adapter; tests for dry-run envelope and on-disk artifacts; doctrine_synthesizer + charter test trees green
+- 2026-04-28T10:32:08Z – claude:opus:reviewer-renata:reviewer – shell_pid=51393 – Started review via action command
