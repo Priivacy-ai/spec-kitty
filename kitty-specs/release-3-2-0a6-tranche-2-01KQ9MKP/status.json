@@ -1,7 +1,7 @@
 {
-  "event_count": 37,
-  "last_event_id": "01KQ9V4492YBKNJV3P6ZR3CYD1",
-  "materialized_at": "2026-04-28T10:45:55.618498+00:00",
+  "event_count": 39,
+  "last_event_id": "01KQ9V4H2B6VR40CKQ3TNR437Z",
+  "materialized_at": "2026-04-28T10:46:08.715426+00:00",
   "mission_number": "",
   "mission_slug": "release-3-2-0a6-tranche-2-01KQ9MKP",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -60,11 +60,11 @@
       "last_transition_at": "2026-04-28T10:45:55.618498+00:00"
     },
     "WP07": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:default:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ9Q6R49J2G88Q2B3SX6T0K4",
-      "last_transition_at": "2026-04-28T09:37:27.177937+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ9V4H2B6VR40CKQ3TNR437Z",
+      "last_transition_at": "2026-04-28T10:46:08.715426+00:00"
     }
   }
 }

@@ -18,6 +18,8 @@ subtasks:
 - T038
 - T039
 - T040
+agent: "claude:opus-4-7:default:implementer"
+shell_pid: "63926"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -208,3 +210,7 @@ This is the capstone WP. It does not introduce new behavior; it certifies that t
 - New tests beyond what verifies the tranche.
 - Doc rewrites unrelated to the tranche-2 invariants.
 - Bumping the package version.
+
+## Activity Log
+
+- 2026-04-28T10:46:08Z – claude:opus-4-7:default:implementer – shell_pid=63926 – Started implementation via action command
