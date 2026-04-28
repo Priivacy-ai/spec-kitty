@@ -426,6 +426,10 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
 
+    # WP02 / #844: kind=step requires a real prompt_file at construction
+    # time (C1/C2). Stage one under tmp_path so the validator passes.
+    sentinel_prompt = tmp_path / "sentinel-next.md"
+    sentinel_prompt.write_text("# next", encoding="utf-8")
     sentinel_decision = Decision(
         kind=DecisionKind.step,
         agent="test",
@@ -436,6 +440,7 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
         action="next",
         run_id="run-x",
         step_id="next",
+        prompt_file=str(sentinel_prompt),
     )
 
     with (
@@ -560,6 +565,10 @@ def test_next_dispatch_synthesizes_contract_after_registry_clear(
 
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
+    # WP02 / #844: kind=step requires a real prompt_file at construction
+    # time (C1/C2). Stage one under tmp_path so the validator passes.
+    sentinel_prompt = tmp_path / "sentinel-lookup-provider.md"
+    sentinel_prompt.write_text("# lookup-provider", encoding="utf-8")
     sentinel_decision = Decision(
         kind=DecisionKind.step,
         agent="test",
@@ -570,6 +579,7 @@ def test_next_dispatch_synthesizes_contract_after_registry_clear(
         action="lookup-provider",
         run_id="run-x",
         step_id="lookup-provider",
+        prompt_file=str(sentinel_prompt),
     )
 
     with (
