@@ -9,4 +9,5 @@ tactics:
   - requirements-validation-workflow
 styleguides: []
 toolguides: []
-procedures: []
+procedures:
+  - issue-triage-state-machine

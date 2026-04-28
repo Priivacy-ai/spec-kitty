@@ -5,6 +5,9 @@ directives:
 tactics:
   - requirements-validation-workflow
   - adr-drafting-workflow
+  - deepening-opportunity-assessment
+  - interface-variation-design
 styleguides: []
 toolguides: []
-procedures: []
+procedures:
+  - domain-aware-decision-interview
