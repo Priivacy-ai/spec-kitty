@@ -13,8 +13,8 @@ subtasks:
 - T031
 - T032
 - T033
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "202"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "11239"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -144,3 +144,4 @@ spec-kitty agent action implement WP07 --agent <your-agent-key>
 
 - 2026-04-28T11:24:55Z – claude:sonnet:implementer-ivan:implementer – shell_pid=202 – Started implementation via action command
 - 2026-04-28T13:26:34Z – claude:sonnet:implementer-ivan:implementer – shell_pid=202 – Composed actions issued by next now write paired started/completed lifecycle records with canonical outcome (done|failed|abandoned); integration test added; existing runtime walks regression-free
+- 2026-04-28T13:27:04Z – claude:opus:reviewer-renata:reviewer – shell_pid=11239 – Started review via action command
