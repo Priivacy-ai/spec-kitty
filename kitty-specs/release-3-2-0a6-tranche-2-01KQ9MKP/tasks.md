@@ -44,11 +44,11 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 | T015 | Wire 4-tuple through implement/review prompt context surface             | WP03  |          | [D] |
 | T016 | Unit tests: 4 arities + empty-positional-segment cases                   | WP03  | [D] |
 | T017 | Integration test: rendered prompt contains supplied model/profile/role   | WP03  |          | [D] |
-| T018 | Identify rejection event handler and reclaim/regenerate code path        | WP04  |          |
-| T019 | Move counter advancement into rejection event handler exclusively        | WP04  |          |
-| T020 | Make reclaim/regenerate idempotent (no counter delta, no new artifact)   | WP04  |          |
-| T021 | Unit tests: ≥3 reruns of implement leave counter unchanged               | WP04  | [P]      |
-| T022 | Integration test: real rejection advances counter exactly once           | WP04  |          |
+| T018 | Identify rejection event handler and reclaim/regenerate code path        | WP04  |          | [D] |
+| T019 | Move counter advancement into rejection event handler exclusively        | WP04  |          | [D] |
+| T020 | Make reclaim/regenerate idempotent (no counter delta, no new artifact)   | WP04  |          | [D] |
+| T021 | Unit tests: ≥3 reruns of implement leave counter unchanged               | WP04  | [D] |
+| T022 | Integration test: real rejection advances counter exactly once           | WP04  |          | [D] |
 | T023 | Define ProfileInvocationRecord shape per data-model.md                   | WP05  |          |
 | T024 | Hook started-record write into next issuance path                        | WP05  |          |
 | T025 | Hook completed/failed-record write into next advance path                | WP05  |          |
@@ -142,11 +142,11 @@ Dependencies: none. Risks: shifting implicit defaults for partial strings; mitig
 
 Subtasks:
 
-- [ ] T018 Identify rejection event handler and reclaim/regenerate code path (WP04)
-- [ ] T019 Move counter advancement into rejection event handler exclusively (WP04)
-- [ ] T020 Make reclaim/regenerate idempotent (no counter delta, no new artifact) (WP04)
-- [ ] T021 Unit tests: ≥3 reruns of implement leave counter unchanged (WP04) [P]
-- [ ] T022 Integration test: real rejection advances counter exactly once (WP04)
+- [x] T018 Identify rejection event handler and reclaim/regenerate code path (WP04)
+- [x] T019 Move counter advancement into rejection event handler exclusively (WP04)
+- [x] T020 Make reclaim/regenerate idempotent (no counter delta, no new artifact) (WP04)
+- [x] T021 Unit tests: ≥3 reruns of implement leave counter unchanged (WP04) [P]
+- [x] T022 Integration test: real rejection advances counter exactly once (WP04)
 
 Dependencies: WP03 (shared modification surface in `cli/commands/agent/workflow.py`; sequenced to avoid lane conflicts on the same file). Risks: missing a code path that still increments; mitigated by review of every counter mutation site.
 
