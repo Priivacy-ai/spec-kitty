@@ -376,3 +376,42 @@ def test_branch_mode_accepts_final_release_after_prerelease_tag(tmp_path: Path) 
 
     assert result.returncode == 0, result.stderr
     assert "All required checks passed." in result.stdout
+
+
+def test_stable_patch_ignores_later_minor_prerelease_tag(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "3.1.6",
+        changelog_for_versions(("3.1.6", "- Stable hotfix")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 3.1.6")
+    tag(tmp_path, "v3.1.6")
+
+    write_release_files(
+        tmp_path,
+        "3.2.0a4",
+        changelog_for_versions(
+            ("3.2.0a4", "- Alpha train"),
+            ("3.1.6", "- Stable hotfix"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 3.2.0a4")
+    tag(tmp_path, "v3.2.0a4")
+
+    write_release_files(
+        tmp_path,
+        "3.1.7",
+        changelog_for_versions(
+            ("3.1.7", "- Stable patch after alpha"),
+            ("3.2.0a4", "- Alpha train"),
+            ("3.1.6", "- Stable hotfix"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 3.1.7")
+
+    branch_result = run_validator(tmp_path, "--mode", "branch", "--tag-pattern", "v*.*.*")
+    assert branch_result.returncode == 0, branch_result.stderr
+
+    tag_result = run_validator(tmp_path, "--mode", "tag", "--tag", "v3.1.7", "--tag-pattern", "v*.*.*")
+    assert tag_result.returncode == 0, tag_result.stderr

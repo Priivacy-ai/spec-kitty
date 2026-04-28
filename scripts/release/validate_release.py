@@ -326,16 +326,47 @@ def detect_tag_from_env() -> str | None:
 def validate_version_progression(
     current_version: str, existing_tags: Sequence[str]
 ) -> ValidationIssue | None:
-    if not existing_tags:
+    progression_tags = _progression_tags_for_current_version(
+        current_version, existing_tags
+    )
+    if not progression_tags:
         return None
     current_tuple = parse_release_version(current_version)
-    latest_tuple = parse_release_version(existing_tags[0].lstrip("v"))
+    latest_tuple = parse_release_version(progression_tags[0].lstrip("v"))
     if current_tuple <= latest_tuple:
         return ValidationIssue(
-            message=f"Version {current_version} does not advance beyond latest tag {existing_tags[0]}.",
+            message=f"Version {current_version} does not advance beyond latest tag {progression_tags[0]}.",
             hint="Select a stable or prerelease version greater than previously published releases.",
         )
     return None
+
+
+def _progression_tags_for_current_version(
+    current_version: str,
+    existing_tags: Sequence[str],
+) -> list[str]:
+    """Return tags that should gate progression for the current release.
+
+    Stable releases target the stable pip channel, so later-minor prerelease
+    tags (for example ``v3.2.0a4``) must not block a stable patch like
+    ``3.1.7``. Same-line prerelease tags still count, so ``3.1.6`` cannot be
+    cut after ``v3.1.7a1``.
+    """
+    if is_prerelease_version(current_version):
+        return list(existing_tags)
+
+    current_major, current_minor, *_ = parse_release_version(current_version)
+    candidates: list[str] = []
+    for tag in existing_tags:
+        tag_version = tag.lstrip("v")
+        tag_major, tag_minor, _tag_patch, tag_stage_rank, _tag_stage_number = (
+            parse_release_version(tag_version)
+        )
+        is_stable_tag = tag_stage_rank == 3
+        if is_stable_tag or (tag_major == current_major and tag_minor <= current_minor):
+            candidates.append(tag)
+    candidates.sort(key=lambda tag: parse_release_version(tag.lstrip("v")), reverse=True)
+    return candidates
 
 
 def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue | None:
