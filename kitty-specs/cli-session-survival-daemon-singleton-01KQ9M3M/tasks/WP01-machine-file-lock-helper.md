@@ -213,3 +213,7 @@ Verify:
 3. `force_release(only_if_age_s=)` cannot drop a fresh lock — assert with a unit test.
 4. Tests cover all 7 cases in `contracts/refresh-lock.md`.
 5. No `# type: ignore` comments. No `# noqa` outside platform-guarded imports.
+
+## Activity Log
+
+- 2026-04-28T09:47:05Z – claude – shell_pid=17188 – Ready for review: file lock helper, 21 tests passing (1 win32-skipif), mypy --strict + ruff clean, 97% coverage
