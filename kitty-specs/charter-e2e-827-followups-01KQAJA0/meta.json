@@ -8,5 +8,7 @@
   "purpose_context": "The #827 charter golden-path epic landed in Tranche 2 (PR #864), but four follow-up issues were intentionally deferred. Until they ship, charter E2E coverage permits null prompt paths, dossier snapshots can self-block status transitions, specify/plan can declare success without committing real mission content, and review gates can fail on environment drift. This mission closes those four gaps as a single stabilization PR before #822 backlog work begins.",
   "purpose_tldr": "Close out the #827 epic's immediate follow-up tranche by fixing four mission-blocking defects (#844, #845, #846, #848) so charter E2E and review gates stay reliable.",
   "slug": "charter-e2e-827-followups-01KQAJA0",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-28T20:35:58.032945+00:00"
 }
