@@ -20,7 +20,7 @@ from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 
-from .tasks_support import (
+from specify_cli.task_utils import (
     LANES,
     TaskCliError,
     WorkPackage,
@@ -486,7 +486,7 @@ def _check_lane_gates(
     if branch and branch != lanes_manifest.mission_branch:
         activity_issues.append(f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, not {branch}")
 
-    from specify_cli.acceptance_matrix import (
+    from specify_cli.acceptance.matrix import (
         enforce_negative_invariants,
         read_acceptance_matrix,
         validate_matrix_evidence,

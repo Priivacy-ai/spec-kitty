@@ -17,7 +17,7 @@ from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
     scan_all_tasks_for_mismatches,
 )
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.task_utils import TaskCliError, find_repo_root
 
 
 def validate_tasks(

@@ -14,7 +14,7 @@ import yaml
 
 from specify_cli.status.models import get_all_lane_values
 from specify_cli.template import parse_frontmatter
-from specify_cli.tasks_support import build_document
+from specify_cli.task_utils import build_document
 
 __all__ = [
     "TaskMetadataError",

@@ -52,7 +52,7 @@ from specify_cli.core.wps_manifest import (
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
-from specify_cli.workspace_context import resolve_feature_worktree
+from specify_cli.workspace.context import resolve_feature_worktree
 from specify_cli.merge.config import MergeStrategy
 
 app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents", no_args_is_help=True)
@@ -978,13 +978,13 @@ def setup_plan(
         generators_detected = []
 
         if mission_type == "documentation":
-            from specify_cli.doc_state import (
+            from specify_cli.doc_analysis.doc_state import (
                 read_documentation_state,
                 set_audit_metadata,
                 set_generators_configured,
             )
-            from specify_cli.gap_analysis import generate_gap_analysis_report
-            from specify_cli.doc_generators import (
+            from specify_cli.doc_analysis.gap_analysis import generate_gap_analysis_report
+            from specify_cli.doc_analysis.doc_generators import (
                 JSDocGenerator,
                 SphinxGenerator,
                 RustdocGenerator,

@@ -137,7 +137,7 @@ def state_roots(
         spec-kitty doctor state-roots --json
     """
     from specify_cli.state.doctor import check_state_roots
-    from specify_cli.state_contract import StateRoot
+    from specify_cli.state.contract import StateRoot
 
     try:
         repo_root = locate_project_root()

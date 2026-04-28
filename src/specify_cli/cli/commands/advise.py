@@ -36,7 +36,7 @@ from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
 from specify_cli.invocation.writer import normalise_ref
-from specify_cli.tasks_support import find_repo_root
+from specify_cli.task_utils import find_repo_root
 
 # ---------------------------------------------------------------------------
 # Shared utilities

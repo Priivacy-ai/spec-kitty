@@ -150,14 +150,14 @@ def install_fake_refresh(monkeypatch: pytest.MonkeyPatch) -> FakeRefreshFlow:
 @pytest.fixture
 def seeded_tm(monkeypatch: pytest.MonkeyPatch, install_fake_refresh: FakeRefreshFlow) -> FakeStorage:
     """Seed the process-wide TokenManager with an expired-access-token session."""
-    import specify_cli.auth as auth_pkg
+    import specify_cli.auth.manager as auth_manager
     from specify_cli.auth.token_manager import TokenManager
 
     storage = FakeStorage(session=_make_expired_session())
     tm = TokenManager(storage)
     tm.load_from_storage_sync()
 
-    monkeypatch.setattr(auth_pkg, "_tm", tm, raising=False)
+    monkeypatch.setattr(auth_manager, "_tm", tm, raising=True)
     return storage
 
 

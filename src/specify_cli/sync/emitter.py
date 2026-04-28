@@ -62,7 +62,7 @@ def _get_project_identity() -> ProjectIdentity:
     Returns empty ProjectIdentity in non-project contexts.
     """
     from .project_identity import ensure_identity, ProjectIdentity
-    from specify_cli.tasks_support import find_repo_root, TaskCliError
+    from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
         repo_root = find_repo_root()
@@ -77,7 +77,7 @@ def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
     from .project_identity import ensure_identity
-    from specify_cli.tasks_support import find_repo_root, TaskCliError
+    from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
         repo_root = find_repo_root()

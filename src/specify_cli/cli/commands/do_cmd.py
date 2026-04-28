@@ -21,7 +21,7 @@ from specify_cli.invocation.executor import InvocationPayload, ProfileInvocation
 from specify_cli.invocation.modes import derive_mode
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
-from specify_cli.tasks_support import find_repo_root
+from specify_cli.task_utils import find_repo_root
 
 # ---------------------------------------------------------------------------
 # Shared utilities (mirror of advise.py — both modules kept lean)

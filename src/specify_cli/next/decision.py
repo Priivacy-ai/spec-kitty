@@ -29,7 +29,7 @@ from typing import Any
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
 # ---------------------------------------------------------------------------

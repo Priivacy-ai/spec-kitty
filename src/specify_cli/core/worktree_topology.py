@@ -17,7 +17,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, topologica
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
-from specify_cli.workspace_context import get_normalized_wp, resolve_workspace_for_wp
+from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
 
 
 @dataclass

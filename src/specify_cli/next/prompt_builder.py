@@ -15,7 +15,7 @@ from charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
 def build_prompt(

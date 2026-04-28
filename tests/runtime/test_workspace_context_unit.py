@@ -5,11 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import specify_cli.workspace_context as workspace_context_module
+import specify_cli.workspace.context as workspace_context_module
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.workspace_context import (
+from specify_cli.workspace.context import (
     WorkspaceContext,
     build_normalized_wp_index,
     build_feature_context_index,
