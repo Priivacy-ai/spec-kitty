@@ -16,10 +16,10 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Author `tests/architectural/test_uv_lock_pin_drift.py` (parse `uv.lock`, diff against installed versions, name offenders + sync command) | WP01 |  |
-| T002 | Author/extend `docs/development/review-gates.md` documenting `uv sync --frozen` as the pre-review/pre-PR sync command | WP01 | [P] |
-| T003 | Audit `kitty-specs/**/issue-matrix.md` rows labeled "verified-already-fixed" for #848-related hygiene; correct any that misrepresent current risk | WP01 | [P] |
-| T004 | Validate the new drift test green-path on a clean install AND red-path with synthetic mismatch | WP01 |  |
+| T001 | Author `tests/architectural/test_uv_lock_pin_drift.py` (parse `uv.lock`, diff against installed versions, name offenders + sync command) | WP01 |  | [D] |
+| T002 | Author/extend `docs/development/review-gates.md` documenting `uv sync --frozen` as the pre-review/pre-PR sync command | WP01 | [D] |
+| T003 | Audit `kitty-specs/**/issue-matrix.md` rows labeled "verified-already-fixed" for #848-related hygiene; correct any that misrepresent current risk | WP01 | [D] |
+| T004 | Validate the new drift test green-path on a clean install AND red-path with synthetic mismatch | WP01 |  | [D] |
 | T005 | Tighten `RuntimeDecision` validation in `src/specify_cli/next/decision.py` — `kind=step` requires non-null + on-disk `prompt_file` at envelope construction; replace the legitimizing inline comment | WP02 |  |
 | T006 | Audit every step-construction site in `src/specify_cli/next/runtime_bridge.py` and route any "no prompt available" case to `kind=blocked` with reason instead of emitting `kind=step` with null prompt | WP02 |  |
 | T007 | Tighten the assertion in `tests/e2e/test_charter_epic_golden_path.py` — for every issued `kind=step`, assert `prompt_file`/`prompt_path` is non-null, non-empty, and `Path(value).is_file()` is true | WP02 | [P] |
@@ -51,10 +51,10 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 
 **Subtasks**:
 
-- [ ] T001 Author `tests/architectural/test_uv_lock_pin_drift.py` (parse `uv.lock`, diff against installed versions, name offenders + sync command) (WP01)
-- [ ] T002 [P] Author/extend `docs/development/review-gates.md` documenting `uv sync --frozen` as the pre-review/pre-PR sync command (WP01)
-- [ ] T003 [P] Audit `kitty-specs/**/issue-matrix.md` rows labeled "verified-already-fixed" for #848-related hygiene; correct any that misrepresent current risk (WP01)
-- [ ] T004 Validate the new drift test green-path on a clean install AND red-path with synthetic mismatch (WP01)
+- [x] T001 Author `tests/architectural/test_uv_lock_pin_drift.py` (parse `uv.lock`, diff against installed versions, name offenders + sync command) (WP01)
+- [x] T002 [P] Author/extend `docs/development/review-gates.md` documenting `uv sync --frozen` as the pre-review/pre-PR sync command (WP01)
+- [x] T003 [P] Audit `kitty-specs/**/issue-matrix.md` rows labeled "verified-already-fixed" for #848-related hygiene; correct any that misrepresent current risk (WP01)
+- [x] T004 Validate the new drift test green-path on a clean install AND red-path with synthetic mismatch (WP01)
 
 **Implementation sketch**:
 
