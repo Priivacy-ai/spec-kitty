@@ -11,7 +11,7 @@ requirement_refs:
 - FR-017
 planning_base_branch: release/3.2.0a6-tranche-2
 merge_target_branch: release/3.2.0a6-tranche-2
-branch_strategy: lane-based
+branch_strategy: Planning artifacts for this feature were generated on release/3.2.0a6-tranche-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into release/3.2.0a6-tranche-2 unless the human explicitly redirects the landing branch.
 subtasks:
 - T036
 - T037

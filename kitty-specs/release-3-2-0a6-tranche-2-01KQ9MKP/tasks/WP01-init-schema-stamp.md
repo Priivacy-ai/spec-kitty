@@ -7,7 +7,7 @@ requirement_refs:
 - FR-002
 planning_base_branch: release/3.2.0a6-tranche-2
 merge_target_branch: release/3.2.0a6-tranche-2
-branch_strategy: lane-based
+branch_strategy: Planning artifacts for this feature were generated on release/3.2.0a6-tranche-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into release/3.2.0a6-tranche-2 unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -148,23 +148,14 @@ GitHub issue #840. Without these fields, fresh projects fail with "missing schem
 
 ---
 
-## Subtask T006 — CHANGELOG entry  [P]
+## Subtask T006 — Defer CHANGELOG entry to WP07  [P]
 
-**Purpose**: Surface the user-visible behavior change.
+**Purpose**: Keep CHANGELOG ownership consolidated.
 
 **Steps**:
 
-1. In `CHANGELOG.md`, add a Tranche 2 / 3.2.0a6 entry for #840. Example:
-   ```
-   ### Fixed
-   - `spec-kitty init` now stamps `schema_version` and `schema_capabilities` into
-     `.kittify/metadata.yaml` so fresh projects don't need hand edits before
-     downstream commands. Existing operator-authored keys are preserved. (#840)
-   ```
-2. Keep the entry under the appropriate version heading. Do not bump the version yourself unless instructed.
-
-**Files to edit**:
-- `CHANGELOG.md`
+1. **Do not edit `CHANGELOG.md`** from this WP — it is owned by WP07 (the capstone tranche-summary entry covers all seven issues including #840).
+2. Add a one-line note in the PR description referencing WP07's CHANGELOG entry as the owner of this user-visible change.
 
 ---
 
@@ -182,7 +173,7 @@ GitHub issue #840. Without these fields, fresh projects fail with "missing schem
 - [ ] T003 — idempotent on second run.
 - [ ] T004 — unit tests pass and cover ≥ 90% of changed lines.
 - [ ] T005 — integration test passes with `init → next` clean.
-- [ ] T006 — CHANGELOG entry added.
+- [ ] T006 — CHANGELOG ownership deferred to WP07 (no edits from this WP).
 - [ ] `mypy --strict` clean on touched modules.
 - [ ] No new top-level dependencies (SC-008).
 - [ ] No changes to mission identity fields (C-004).

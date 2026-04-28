@@ -7,7 +7,7 @@ requirement_refs:
 - FR-004
 planning_base_branch: release/3.2.0a6-tranche-2
 merge_target_branch: release/3.2.0a6-tranche-2
-branch_strategy: lane-based
+branch_strategy: Planning artifacts for this feature were generated on release/3.2.0a6-tranche-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into release/3.2.0a6-tranche-2 unless the human explicitly redirects the landing branch.
 subtasks:
 - T007
 - T008
@@ -26,7 +26,6 @@ owned_files:
 - src/specify_cli/sync/__init__.py
 - src/specify_cli/auth/transport.py
 - tests/integration/test_json_envelope_strict.py
-- CHANGELOG.md
 tags: []
 ---
 
@@ -189,20 +188,14 @@ GitHub issue #842. Today, lines like `Not authenticated, skipping sync` are prin
 
 ---
 
-## Subtask T012 — CHANGELOG entry + update contracts cross-refs  [P]
+## Subtask T012 — Verify contracts cross-refs  [P]
 
-**Purpose**: Document the contract and the user-visible change.
+**Purpose**: Keep planning docs in sync with what was built.
 
 **Steps**:
 
-1. Add to `CHANGELOG.md`:
-   ```
-   ### Fixed
-   - `--json` commands now produce strict JSON on stdout regardless of SaaS sync
-     state. Sync/auth/tracker diagnostics route to stderr or into the JSON
-     envelope under a `diagnostics` key. (#842)
-   ```
-2. Verify `kitty-specs/release-3-2-0a6-tranche-2-01KQ9MKP/contracts/json-envelope.md` reflects what was actually built; if `T009`'s implementation chose a slightly different nesting key, update the contract doc to match.
+1. Verify `kitty-specs/release-3-2-0a6-tranche-2-01KQ9MKP/contracts/json-envelope.md` reflects what was actually built; if `T009`'s implementation chose a slightly different nesting key, update the contract doc to match.
+2. **CHANGELOG entry is owned by WP07** (the capstone tranche-summary entry covers all seven issues including #842). Do **not** edit `CHANGELOG.md` from this WP — leave a one-line note in the PR description that #842's user-visible change is already covered by WP07's CHANGELOG entry.
 
 ---
 
@@ -220,7 +213,7 @@ GitHub issue #842. Today, lines like `Not authenticated, skipping sync` are prin
 - [ ] T009 — every identified bare-stdout diagnostic site refactored.
 - [ ] T010 — parametrised test passes for all `(command, saas_state)` pairs.
 - [ ] T011 — bare-string regression test passes.
-- [ ] T012 — CHANGELOG entry + contracts cross-refs verified.
+- [ ] T012 — contracts cross-refs verified (CHANGELOG owned by WP07).
 - [ ] No `print(...)` or `typer.echo(...)` in `sync/` or `auth/transport.py` writes to stdout during a `--json` command.
 - [ ] `mypy --strict` clean on touched modules.
 
