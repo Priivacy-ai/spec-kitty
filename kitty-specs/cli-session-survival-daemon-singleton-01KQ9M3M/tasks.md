@@ -199,12 +199,12 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: WP01 (lock introspection), WP05 (orphan listing).
 
 **Included subtasks**:
-- [ ] T023 `_auth_doctor.py` skeleton — `DoctorReport` + `assemble_report()` (read-only) (WP06)
-- [ ] T024 Rich rendering of 7 sections (reuse `_auth_status` formatters) (WP06)
-- [ ] T025 Findings + remediation (F-001..F-007) + exit-code policy (WP06)
-- [ ] T026 `--json` mode with `schema_version: 1`; assert no-network on default (WP06)
-- [ ] T027 Wire `doctor` typer subcommand with all flags in `cli/commands/auth.py` (WP06)
-- [ ] T028 Test suite — report + repair + offline (3 test files combined per contract) (WP06)
+- [x] T023 `_auth_doctor.py` skeleton — `DoctorReport` + `assemble_report()` (read-only) (WP06)
+- [x] T024 Rich rendering of 7 sections (reuse `_auth_status` formatters) (WP06)
+- [x] T025 Findings + remediation (F-001..F-007) + exit-code policy (WP06)
+- [x] T026 `--json` mode with `schema_version: 1`; assert no-network on default (WP06)
+- [x] T027 Wire `doctor` typer subcommand with all flags in `cli/commands/auth.py` (WP06)
+- [x] T028 Test suite — report + repair + offline (3 test files combined per contract) (WP06)
 
 **Implementation sketch**: Build the data layer first (T023): pure functions reading session, lock, daemon, and orphan state into a `DoctorReport`. Add Rich rendering (T024) on top, reusing formatters from `_auth_status.py`. Layer findings/remediation logic (T025), then `--json` (T026). Wire typer last (T027). Tests gate every path including the C-007 offline guarantee (T028).
 
