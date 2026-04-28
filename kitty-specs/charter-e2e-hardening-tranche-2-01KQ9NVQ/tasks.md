@@ -66,10 +66,10 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T038 | Delete profile-invocation absent-directory early return; require paired `started`/`completed` lifecycle records for every issued action (rely on FR-007) | WP08 |  | [D] |
 | T039 | Keep source-checkout pollution guard, fresh-project fixture, and "every step exercised through subprocess CLI" assertions; add any new strict assertions per spec FR-008..FR-012 | WP08 |  | [D] |
 | T040 | Run narrow gate, targeted gates, ruff, mypy strict, and 5-run determinism check; all must exit 0 | WP08 |  | [D] |
-| T041 | Open PR from `fix/charter-e2e-827-tranche-2` against `Priivacy-ai/spec-kitty:main` declaring closes for `#839`, `#840`, `#841`, `#842`, `#843`, `#844`; verified-mention `#336` antecedent | WP09 |  |
-| T042 | Comment on `#827` with PR URL and remaining-tranche recommendation | WP09 | [P] |
-| T043 | Comment precisely on any partially fixed issue stating what remains | WP09 | [P] |
-| T044 | Cross-check that generated agent skill copies refreshed by upgrade migration appear in PR diff (coordinate with WP06 T028 outcome) | WP09 |  |
+| T041 | Open PR from `fix/charter-e2e-827-tranche-2` against `Priivacy-ai/spec-kitty:main` declaring closes for `#839`, `#840`, `#841`, `#842`, `#843`, `#844`; verified-mention `#336` antecedent | WP09 |  | [D] |
+| T042 | Comment on `#827` with PR URL and remaining-tranche recommendation | WP09 | [D] |
+| T043 | Comment precisely on any partially fixed issue stating what remains | WP09 | [D] |
+| T044 | Cross-check that generated agent skill copies refreshed by upgrade migration appear in PR diff (coordinate with WP06 T028 outcome) | WP09 |  | [D] |
 
 (`[P]` indicates parallel-safe within its WP. WP-level parallelism is governed by `dependencies` and lane assignment computed by `finalize-tasks`.)
 
@@ -297,10 +297,10 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T041 Open PR with proper closes/partial-closes and verification log (WP09)
-- [ ] T042 Comment on #827 with PR URL and remaining-tranche recommendation (WP09)
-- [ ] T043 Comment precisely on any partially fixed issue (WP09)
-- [ ] T044 Cross-check skill copy refresh appears in PR diff (WP09)
+- [x] T041 Open PR with proper closes/partial-closes and verification log (WP09)
+- [x] T042 Comment on #827 with PR URL and remaining-tranche recommendation (WP09)
+- [x] T043 Comment precisely on any partially fixed issue (WP09)
+- [x] T044 Cross-check skill copy refresh appears in PR diff (WP09)
 
 **Implementation sketch**: Use `gh pr create` with HEREDOC body following the spec's "PR Expectations" section. Use `gh issue comment` for `#827` and any partial-close issues. Confirm WP06 T028 already landed the regenerated agent-copy diff.
 
