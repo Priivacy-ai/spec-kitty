@@ -461,7 +461,43 @@ def _build_prompt_safe(
     repo_root: Path,
     mission_type: str,
 ) -> str | None:
-    """Build prompt, returning None on failure instead of raising."""
+    """Build prompt, returning None on failure instead of raising.
+
+    .. deprecated::
+        Prefer :func:`_build_prompt_or_error` which surfaces the underlying
+        exception text so callers can emit a structured ``blocked`` decision
+        with a populated ``reason`` (WP06 / FR-006 / FR-013).
+    """
+    path, _err = _build_prompt_or_error(
+        action=action,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        agent=agent,
+        repo_root=repo_root,
+        mission_type=mission_type,
+    )
+    return path
+
+
+def _build_prompt_or_error(
+    action: str,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str | None,
+    agent: str,
+    repo_root: Path,
+    mission_type: str,
+) -> tuple[str | None, str | None]:
+    """Build prompt, returning ``(path, None)`` on success or ``(None, error)``.
+
+    The ``error`` message is suitable for embedding in a ``blocked`` decision's
+    ``reason`` so callers can avoid emitting a ``kind=step`` decision with a
+    null/missing ``prompt_file`` (WP06 / FR-006 / FR-013).
+
+    The path is also verified to exist on disk; if ``build_prompt`` returned a
+    path that does not resolve, ``error`` is populated and ``path`` is ``None``.
+    """
     try:
         from specify_cli.next.prompt_builder import build_prompt
 
@@ -475,6 +511,20 @@ def _build_prompt_safe(
                 repo_root=repo_root,
                 mission_type=mission_type,
             )
-        return str(prompt_path)
-    except Exception:
-        return None
+        path_str = str(prompt_path)
+        try:
+            if not Path(path_str).exists():
+                return None, (
+                    f"prompt template did not materialize on disk for action "
+                    f"'{action}' (path={path_str})"
+                )
+        except OSError as exc:
+            return None, (
+                f"prompt template path is not stat-able for action '{action}': {exc}"
+            )
+        return path_str, None
+    except Exception as exc:
+        return None, (
+            f"prompt resolution failed for action '{action}': "
+            f"{type(exc).__name__}: {exc}"
+        )

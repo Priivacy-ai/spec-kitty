@@ -49,6 +49,7 @@ from specify_cli.status.wp_state import wp_state_for
 from specify_cli.next.decision import (
     Decision,
     DecisionKind,
+    _build_prompt_or_error,
     _build_prompt_safe,
     _compute_wp_progress,
     _state_to_action,
@@ -1422,7 +1423,7 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def decide_next_via_runtime(
+def decide_next_via_runtime(  # noqa: C901
     agent: str,
     mission_slug: str,
     result: str,
@@ -1568,9 +1569,11 @@ def decide_next_via_runtime(
                 repo_root,
                 mission_type,
             )
-            prompt_file = (
-                _build_prompt_safe(
-                    action or current_step_id,
+            prompt_file: str | None = None
+            prompt_error: str | None = None
+            if action:
+                prompt_file, prompt_error = _build_prompt_or_error(
+                    action,
                     feature_dir,
                     mission_slug,
                     wp_id,
@@ -1578,9 +1581,31 @@ def decide_next_via_runtime(
                     repo_root,
                     mission_type,
                 )
-                if action
-                else None
-            )
+            else:
+                prompt_error = (
+                    f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
+                )
+            if prompt_file is None:
+                # WP06 (FR-006/FR-013): never issue kind=step with prompt_file=None.
+                # When a prompt cannot be resolved, surface a structured blocked
+                # decision so callers can stop, not partial-execute.
+                return Decision(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=prompt_error or "no_prompt_template",
+                    action=action,
+                    wp_id=wp_id,
+                    workspace_path=workspace_path,
+                    guard_failures=guard_failures,
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
             return Decision(
                 kind=DecisionKind.step,
                 agent=agent,
@@ -2115,7 +2140,7 @@ def _build_wp_iteration_decision(
             step_id=step_id,
         )
 
-    prompt_file = _build_prompt_safe(
+    prompt_file, prompt_error = _build_prompt_or_error(
         action,
         feature_dir,
         mission_slug,
@@ -2124,6 +2149,27 @@ def _build_wp_iteration_decision(
         repo_root,
         mission_type,
     )
+    if prompt_file is None:
+        # WP06 (FR-006/FR-013): kind=step decisions must always carry a
+        # non-empty resolvable prompt_file. When prompt resolution fails,
+        # surface a structured blocked decision instead of a partial step.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id,
+            timestamp=timestamp,
+            reason=prompt_error or "no_prompt_template",
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            guard_failures=guard_failures or [],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=step_id,
+        )
 
     return Decision(
         kind=DecisionKind.step,
@@ -2249,7 +2295,7 @@ def _map_runtime_decision(
                 run_id=run_id,
                 step_id=step_id,
             )
-        prompt_file = _build_prompt_safe(
+        prompt_file, prompt_error = _build_prompt_or_error(
             action,
             feature_dir,
             mission_slug,
@@ -2258,6 +2304,25 @@ def _map_runtime_decision(
             repo_root,
             mission_type,
         )
+        if prompt_file is None:
+            # WP06 (FR-006/FR-013): kind=step requires a resolvable prompt;
+            # fall through to blocked when one cannot be built.
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                reason=prompt_error or "no_prompt_template",
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
         return Decision(
             kind=DecisionKind.step,
             agent=agent,
@@ -2283,8 +2348,10 @@ def _map_runtime_decision(
         repo_root,
         mission_type,
     )
-    prompt_file = (
-        _build_prompt_safe(
+    prompt_file: str | None = None
+    prompt_error: str | None = None
+    if action or step_id:
+        prompt_file, prompt_error = _build_prompt_or_error(
             action or step_id or "unknown",
             feature_dir,
             mission_slug,
@@ -2293,9 +2360,27 @@ def _map_runtime_decision(
             repo_root,
             mission_type,
         )
-        if action or step_id
-        else None
-    )
+    else:
+        prompt_error = "no action and no step_id; cannot resolve prompt"
+    if prompt_file is None:
+        # WP06 (FR-006/FR-013): emit a structured blocked decision rather than
+        # an issued step that has no resolvable prompt.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            reason=prompt_error or "no_prompt_template",
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )
 
     return Decision(
         kind=DecisionKind.step,

@@ -1,0 +1,402 @@
+"""WP06 — `next --json` prompt_file resolvability invariant.
+
+This module exercises the contract locked by
+``contracts/next-issue.json``: when ``spec-kitty next --json`` issues a step
+(``kind == DecisionKind.step``), the issued decision MUST carry a non-empty
+``prompt_file`` whose path resolves to an existing file on disk. When no
+prompt is resolvable, the runtime MUST emit a structured ``blocked`` decision
+with a populated ``reason`` instead of a partial step.
+
+Tests target the two `_build_prompt_or_error` consumers in
+``runtime_bridge.py`` plus the helper itself in ``decision.py``. We exercise
+the legacy DAG path (`_handle_query_or_step`) via the bridge function
+``_map_runtime_decision`` because a full subprocess loop requires a working
+runtime stack with a frozen template; the unit-level coverage here proves
+the invariant holds for every code path that converts a runtime
+``NextDecision`` into a CLI ``Decision``.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import pytest
+
+from specify_cli.next.decision import (
+    Decision,
+    DecisionKind,
+    _build_prompt_or_error,
+)
+
+pytestmark = pytest.mark.fast
+
+
+# ---------------------------------------------------------------------------
+# _build_prompt_or_error — direct unit coverage
+# ---------------------------------------------------------------------------
+
+
+class TestBuildPromptOrError:
+    """The helper underpins the invariant — verify both branches end-to-end."""
+
+    def test_returns_path_when_prompt_exists(self, tmp_path: Path) -> None:
+        prompt_path = tmp_path / "prompt.md"
+        prompt_path.write_text("# prompt\n", encoding="utf-8")
+
+        with patch(
+            "specify_cli.next.prompt_builder.build_prompt",
+            return_value=(None, prompt_path),
+        ):
+            path, error = _build_prompt_or_error(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert path == str(prompt_path)
+        assert error is None
+        assert os.path.exists(path)
+
+    def test_returns_error_when_build_raises(self, tmp_path: Path) -> None:
+        with patch(
+            "specify_cli.next.prompt_builder.build_prompt",
+            side_effect=FileNotFoundError("no template for 'discovery'"),
+        ):
+            path, error = _build_prompt_or_error(
+                action="discovery",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id=None,
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert path is None
+        assert error is not None
+        assert "discovery" in error
+        assert "FileNotFoundError" in error
+
+    def test_returns_error_when_path_missing_on_disk(self, tmp_path: Path) -> None:
+        # build_prompt returns a path but the file does not exist.
+        ghost = tmp_path / "ghost.md"
+        with patch(
+            "specify_cli.next.prompt_builder.build_prompt",
+            return_value=(None, ghost),
+        ):
+            path, error = _build_prompt_or_error(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert path is None
+        assert error is not None
+        assert "did not materialize" in error
+
+    def test_returns_error_when_path_stat_raises_oserror(
+        self, tmp_path: Path
+    ) -> None:
+        """Exercise decision.py:521-522 — Path.exists() OSError branch.
+
+        On some platforms Path.exists() can raise OSError (PermissionError,
+        ENAMETOOLONG, broken symlinks under restrictive filesystems). The
+        helper MUST surface a structured `not stat-able` error rather than
+        propagate the exception.
+        """
+        ghost = tmp_path / "ghost.md"
+        with (
+            patch(
+                "specify_cli.next.prompt_builder.build_prompt",
+                return_value=(None, ghost),
+            ),
+            # Cover the `except OSError` branch in
+            # `_build_prompt_or_error`. Path.exists() is called inside the
+            # try/except — we patch the class method to raise OSError so the
+            # second `except` block executes.
+            patch(
+                "pathlib.Path.exists",
+                side_effect=PermissionError("EACCES"),
+            ),
+        ):
+            path, error = _build_prompt_or_error(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert path is None
+        assert error is not None
+        assert "not stat-able" in error
+        assert "implement" in error
+
+
+# ---------------------------------------------------------------------------
+# _map_runtime_decision — every step kind goes through this surface
+# ---------------------------------------------------------------------------
+
+
+def _runtime_decision(
+    *,
+    kind: str = "step",
+    step_id: str = "discovery",
+    run_id: str = "run-001",
+    decision_id: str | None = None,
+    question: str | None = None,
+    options: list[str] | None = None,
+    input_key: str | None = None,
+    reason: str | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        kind=kind,
+        step_id=step_id,
+        run_id=run_id,
+        decision_id=decision_id,
+        question=question,
+        options=options,
+        input_key=input_key,
+        reason=reason,
+    )
+
+
+@pytest.mark.parametrize(
+    "step_id",
+    [
+        "discovery",
+        "research",
+        "documentation",
+        "scoping",
+        "methodology",
+        "gathering",
+        "synthesis",
+        "output",
+    ],
+)
+def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) -> None:
+    """For every public step kind, an issued decision must satisfy the contract."""
+    from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+    prompt_path = tmp_path / f"{step_id}-prompt.md"
+    prompt_path.write_text(f"# prompt for {step_id}\n", encoding="utf-8")
+
+    with (
+        patch(
+            "specify_cli.next.runtime_bridge._state_to_action",
+            return_value=(step_id, None, None),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            return_value=False,
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            return_value=(str(prompt_path), None),
+        ),
+    ):
+        decision: Decision = _map_runtime_decision(
+            decision=_runtime_decision(step_id=step_id),
+            agent="claude",
+            mission_slug="042-test",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=tmp_path,
+            timestamp="2026-04-28T00:00:00+00:00",
+            progress=None,
+            origin={},
+        )
+
+    assert decision.kind == DecisionKind.step
+    # Contract: issued steps MUST carry a non-empty resolvable prompt_file.
+    assert decision.prompt_file is not None
+    assert decision.prompt_file != ""
+    assert os.path.exists(decision.prompt_file)
+
+
+@pytest.mark.parametrize("step_id", ["discovery", "research", "documentation"])
+def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: str) -> None:
+    """When prompt resolution fails, the response MUST be `blocked` with a non-empty `reason`."""
+    from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+    error_msg = (
+        f"prompt resolution failed for action '{step_id}': "
+        f"FileNotFoundError: no template"
+    )
+    with (
+        patch(
+            "specify_cli.next.runtime_bridge._state_to_action",
+            return_value=(step_id, None, None),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            return_value=False,
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            return_value=(None, error_msg),
+        ),
+    ):
+        decision: Decision = _map_runtime_decision(
+            decision=_runtime_decision(step_id=step_id),
+            agent="claude",
+            mission_slug="042-test",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=tmp_path,
+            timestamp="2026-04-28T00:00:00+00:00",
+            progress=None,
+            origin={},
+        )
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason is not None
+    assert decision.reason != ""
+    assert step_id in decision.reason
+    # prompt_file must NOT be set on a blocked decision when no prompt was resolvable.
+    assert decision.prompt_file is None
+
+
+@pytest.mark.parametrize("step_id", ["implement", "review"])
+def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None:
+    """Composed WP-iteration steps (implement/review) must satisfy the invariant too."""
+    from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+    prompt_path = tmp_path / f"{step_id}-prompt.md"
+    prompt_path.write_text(f"# prompt for {step_id}\n", encoding="utf-8")
+
+    with (
+        patch(
+            "specify_cli.next.runtime_bridge._state_to_action",
+            return_value=(step_id, "WP01", str(tmp_path / ".worktrees" / "lane-a")),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            return_value=True,
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            return_value=(str(prompt_path), None),
+        ),
+    ):
+        decision = _map_runtime_decision(
+            decision=_runtime_decision(step_id=step_id),
+            agent="claude",
+            mission_slug="042-test",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=tmp_path,
+            timestamp="2026-04-28T00:00:00+00:00",
+            progress=None,
+            origin={},
+        )
+
+    assert decision.kind == DecisionKind.step
+    assert decision.prompt_file is not None
+    assert os.path.exists(decision.prompt_file)
+
+
+@pytest.mark.parametrize("step_id", ["implement", "review"])
+def test_wp_iteration_step_blocked_when_prompt_unresolvable(tmp_path: Path, step_id: str) -> None:
+    """WP-iteration steps must also fall through to blocked when prompts fail."""
+    from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+    with (
+        patch(
+            "specify_cli.next.runtime_bridge._state_to_action",
+            return_value=(step_id, "WP01", str(tmp_path / ".worktrees" / "lane-a")),
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            return_value=True,
+        ),
+        patch(
+            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            return_value=(None, f"prompt resolution failed for action '{step_id}'"),
+        ),
+    ):
+        decision = _map_runtime_decision(
+            decision=_runtime_decision(step_id=step_id),
+            agent="claude",
+            mission_slug="042-test",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=tmp_path,
+            timestamp="2026-04-28T00:00:00+00:00",
+            progress=None,
+            origin={},
+        )
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason is not None
+    assert decision.reason != ""
+    assert step_id in decision.reason
+    assert decision.prompt_file is None
+
+
+def test_third_state_does_not_exist(tmp_path: Path) -> None:
+    """Negative test: there is no `kind=step` decision with a null prompt_file.
+
+    This codifies the WP06 invariant in a single shot — across both branches
+    of `_map_runtime_decision`'s step handler, the only outcomes are
+    (issued + resolvable prompt) or (blocked + non-empty reason).
+    """
+    from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+    for prompt_outcome in [
+        (None, "prompt resolution failed for action 'discovery': FileNotFoundError: x"),
+    ]:
+        with (
+            patch(
+                "specify_cli.next.runtime_bridge._state_to_action",
+                return_value=("discovery", None, None),
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                return_value=False,
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                return_value=prompt_outcome,
+            ),
+        ):
+            decision = _map_runtime_decision(
+                decision=_runtime_decision(step_id="discovery"),
+                agent="claude",
+                mission_slug="042-test",
+                mission_type="software-dev",
+                repo_root=tmp_path,
+                feature_dir=tmp_path,
+                timestamp="2026-04-28T00:00:00+00:00",
+                progress=None,
+                origin={},
+            )
+
+        # Forbidden combination: issued step with no resolvable prompt.
+        is_issued_step = decision.kind == DecisionKind.step
+        has_resolvable_prompt = (
+            decision.prompt_file is not None
+            and decision.prompt_file != ""
+            and os.path.exists(decision.prompt_file)
+        )
+        if is_issued_step:
+            assert has_resolvable_prompt, (
+                f"WP06 invariant violated: kind={decision.kind!r}, "
+                f"prompt_file={decision.prompt_file!r}"
+            )
+        else:
+            assert decision.kind == DecisionKind.blocked
+            assert decision.reason
