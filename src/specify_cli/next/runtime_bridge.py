@@ -706,11 +706,11 @@ def _check_composed_action_guard(  # noqa: C901
         # produces a non-empty failures list, which the dispatch surface
         # propagates as a structured error with no run-state advancement.
         if action == "scoping":
-            if not (feature_dir / "spec.md").is_file():
-                failures.append("Required artifact missing: spec.md")
+            if not (feature_dir / SPEC_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
         elif action == "methodology":
-            if not (feature_dir / "plan.md").is_file():
-                failures.append("Required artifact missing: plan.md")
+            if not (feature_dir / PLAN_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "gathering":
             if not (feature_dir / "source-register.csv").is_file():
                 failures.append("Required artifact missing: source-register.csv")
@@ -732,14 +732,14 @@ def _check_composed_action_guard(  # noqa: C901
 
     if mission == "documentation":
         if action == "discover":
-            if not (feature_dir / "spec.md").is_file():
-                failures.append("Required artifact missing: spec.md")
+            if not (feature_dir / SPEC_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
         elif action == "audit":
             if not (feature_dir / "gap-analysis.md").is_file():
                 failures.append("Required artifact missing: gap-analysis.md")
         elif action == "design":
-            if not (feature_dir / "plan.md").is_file():
-                failures.append("Required artifact missing: plan.md")
+            if not (feature_dir / PLAN_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "generate":
             if not _has_generated_docs(feature_dir):
                 failures.append(
@@ -759,25 +759,25 @@ def _check_composed_action_guard(  # noqa: C901
         return failures
 
     if action == "specify":
-        if not (feature_dir / "spec.md").exists():
-            failures.append("Required artifact missing: spec.md")
+        if not (feature_dir / SPEC_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
 
     elif action == "plan":
-        if not (feature_dir / "plan.md").exists():
-            failures.append("Required artifact missing: plan.md")
+        if not (feature_dir / PLAN_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
 
     elif action == "tasks":
         if legacy_step_id == "tasks_outline":
             # After tasks_outline the user is expected to have produced
             # tasks.md. WP files and dependencies come in later substeps.
-            if not (feature_dir / "tasks.md").exists():
-                failures.append("Required artifact missing: tasks.md")
+            if not (feature_dir / TASKS_ARTIFACT).exists():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
         elif legacy_step_id == "tasks_packages":
             # After tasks_packages: tasks.md AND >=1 WP file. Dependencies
             # are not yet expected — finalize-tasks adds them in the next
             # substep.
-            if not (feature_dir / "tasks.md").exists():
-                failures.append("Required artifact missing: tasks.md")
+            if not (feature_dir / TASKS_ARTIFACT).exists():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
             tasks_dir = feature_dir / "tasks"
             if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
                 failures.append("Required: at least one tasks/WP*.md file")
@@ -786,8 +786,8 @@ def _check_composed_action_guard(  # noqa: C901
             # (legacy_step_id is None): demand the full terminal state.
             # Union of legacy tasks_outline + tasks_packages + tasks_finalize
             # checks; no weakening of assertions.
-            if not (feature_dir / "tasks.md").exists():
-                failures.append("Required artifact missing: tasks.md")
+            if not (feature_dir / TASKS_ARTIFACT).exists():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
             tasks_dir = feature_dir / "tasks"
             if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
                 failures.append("Required: at least one tasks/WP*.md file")

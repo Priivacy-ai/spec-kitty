@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from enum import StrEnum
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 class Safety(StrEnum):
@@ -64,11 +64,7 @@ class _InvocationProtocol(Protocol):
         ...
 
 
-if TYPE_CHECKING:
-    # Only imported for type annotations; never executed at runtime.
-    _Invocation = _InvocationProtocol
-else:
-    _Invocation = _InvocationProtocol
+_Invocation = _InvocationProtocol
 
 # Public type alias — used by callers that want to register a predicate.
 SafetyPredicate = Callable[[_InvocationProtocol], Safety]
