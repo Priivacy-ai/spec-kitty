@@ -50,11 +50,11 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T022 | Add per-command test asserting strict full-stream `json.loads(stdout)` for `charter generate`, `charter bundle validate`, `charter synthesize`, `next` (new file: `tests/specify_cli/test_json_output_discipline.py`) | WP05 |  | [D] |
 | T023 | Verify SaaS-touching tests still pass; update assertions only where they tolerated broken behavior | WP05 |  | [D] |
 | T024 | Verify `tests/charter/`, `tests/next/`, `tests/specify_cli/` regression-free | WP05 |  | [D] |
-| T025 | Ensure `next --json` issued steps always carry non-empty resolvable `prompt_file` per `contracts/next-issue.json`; structured blocked decision when no prompt resolvable | WP06 |  |
-| T026 | Add per-step-kind tests (discovery, research, doc, composed actions) asserting prompt-file presence/resolvability | WP06 |  |
-| T027 | Edit SOURCE skill `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` to remove the `prompt_file == null` workaround text | WP06 |  |
-| T028 | Run skills sync / upgrade migration locally; confirm regenerated copies under `.claude/`, `.amazonq/`, `.gemini/`, `.cursor/`, `.qwen/`, `.opencode/`, `.windsurf/`, `.kilocode/`, `.augment/`, `.roo/`, `.kiro/`, `.agent/`, `.agents/skills/` land in the diff | WP06 |  |
-| T029 | Verify `tests/next/` regression-free | WP06 |  |
+| T025 | Ensure `next --json` issued steps always carry non-empty resolvable `prompt_file` per `contracts/next-issue.json`; structured blocked decision when no prompt resolvable | WP06 |  | [D] |
+| T026 | Add per-step-kind tests (discovery, research, doc, composed actions) asserting prompt-file presence/resolvability | WP06 |  | [D] |
+| T027 | Edit SOURCE skill `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` to remove the `prompt_file == null` workaround text | WP06 |  | [D] |
+| T028 | Run skills sync / upgrade migration locally; confirm regenerated copies under `.claude/`, `.amazonq/`, `.gemini/`, `.cursor/`, `.qwen/`, `.opencode/`, `.windsurf/`, `.kilocode/`, `.augment/`, `.roo/`, `.kiro/`, `.agent/`, `.agents/skills/` land in the diff | WP06 |  | [D] |
+| T029 | Verify `tests/next/` regression-free | WP06 |  | [D] |
 | T030 | Extend lifecycle writer (executor + invocation pipeline) to cover composed actions issued by `next`; emit paired `started`/`completed` records with action identity match | WP07 |  |
 | T031 | Ensure `outcome` field on `completed` is in canonical vocabulary (`done`, `failed`, `skipped`, `blocked`) per `contracts/next-advance.json` | WP07 |  |
 | T032 | Add integration test walking one composed action and asserting paired records exist under `.kittify/events/profile-invocations/` with matching action identity | WP07 |  |
@@ -218,11 +218,11 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T025 Ensure next --json issued steps carry non-empty resolvable prompt_file (WP06)
-- [ ] T026 Add per-step-kind tests for prompt-file presence/resolvability (WP06)
-- [ ] T027 Edit SOURCE skill to remove prompt_file == null workaround (WP06)
-- [ ] T028 Run skills sync / upgrade migration; confirm regenerated copies in diff (WP06)
-- [ ] T029 Verify tests/next/ regression-free (WP06)
+- [x] T025 Ensure next --json issued steps carry non-empty resolvable prompt_file (WP06)
+- [x] T026 Add per-step-kind tests for prompt-file presence/resolvability (WP06)
+- [x] T027 Edit SOURCE skill to remove prompt_file == null workaround (WP06)
+- [x] T028 Run skills sync / upgrade migration; confirm regenerated copies in diff (WP06)
+- [x] T029 Verify tests/next/ regression-free (WP06)
 
 **Implementation sketch**: Per WP01 R4, in `src/specify_cli/next/runtime_bridge.py` / `decision.py` / `prompt_builder.py`, ensure prompt resolution always returns a resolvable path or a structured blocked decision. Per CLAUDE.md "Template Source Location" rule, edit only `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`; refresh agent copies via the established upgrade migration.
 
