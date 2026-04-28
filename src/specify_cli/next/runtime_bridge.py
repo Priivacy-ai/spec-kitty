@@ -305,6 +305,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 SPEC_ARTIFACT = "spec.md"
 PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
+STATE_FILE = "state.json"
 TASKS_GLOB = "WP*.md"
 MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
 MISSING_TASK_FILES_MESSAGE = f"Required: at least one tasks/{TASKS_GLOB} file"
@@ -706,11 +707,11 @@ def _check_composed_action_guard(  # noqa: C901
         # produces a non-empty failures list, which the dispatch surface
         # propagates as a structured error with no run-state advancement.
         if action == "scoping":
-            if not (feature_dir / "spec.md").is_file():
-                failures.append("Required artifact missing: spec.md")
+            if not (feature_dir / SPEC_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
         elif action == "methodology":
-            if not (feature_dir / "plan.md").is_file():
-                failures.append("Required artifact missing: plan.md")
+            if not (feature_dir / PLAN_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "gathering":
             if not (feature_dir / "source-register.csv").is_file():
                 failures.append("Required artifact missing: source-register.csv")
@@ -732,14 +733,14 @@ def _check_composed_action_guard(  # noqa: C901
 
     if mission == "documentation":
         if action == "discover":
-            if not (feature_dir / "spec.md").is_file():
-                failures.append("Required artifact missing: spec.md")
+            if not (feature_dir / SPEC_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
         elif action == "audit":
             if not (feature_dir / "gap-analysis.md").is_file():
                 failures.append("Required artifact missing: gap-analysis.md")
         elif action == "design":
-            if not (feature_dir / "plan.md").is_file():
-                failures.append("Required artifact missing: plan.md")
+            if not (feature_dir / PLAN_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "generate":
             if not _has_generated_docs(feature_dir):
                 failures.append(
@@ -1323,7 +1324,7 @@ def _existing_run_ref(
 
     entry = index[mission_slug]
     run_dir = Path(entry["run_dir"])
-    if not (run_dir / "state.json").exists():
+    if not (run_dir / STATE_FILE).exists():
         return None
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
@@ -1382,7 +1383,7 @@ def get_or_start_run(
     if mission_slug in index:
         entry = index[mission_slug]
         run_dir = Path(entry["run_dir"])
-        if (run_dir / "state.json").exists():
+        if (run_dir / STATE_FILE).exists():
             stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
             return _build_run_ref(
                 run_id=entry["run_id"],
@@ -1768,7 +1769,7 @@ def decide_next_via_runtime(
 
     if retrospective_enabled:
         run_dir = Path(run_ref.run_dir)
-        state_path = run_dir / "state.json"
+        state_path = run_dir / STATE_FILE
         events_path = run_dir / "run.events.jsonl"
         try:
             pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
@@ -1845,7 +1846,7 @@ def decide_next_via_runtime(
             run_dir = Path(run_ref.run_dir)
             if pre_state_bytes is not None:
                 try:
-                    (run_dir / "state.json").write_bytes(pre_state_bytes)
+                    (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
                 except OSError as restore_exc:
                     logger.error(
                         "rollback of state.json failed after gate block: %s",
