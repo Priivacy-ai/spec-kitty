@@ -100,7 +100,7 @@ class TestStringAgent:
         result = wp.resolved_agent()
         assert result.tool == "claude"
         assert result.model == "claude-opus-4-6"
-        assert result.profile_id is None
+        assert result.profile_id == "generic-agent"
         assert result.role is None
 
     def test_string_agent_no_model_falls_back_to_unknown_model(self) -> None:
@@ -184,7 +184,7 @@ class TestNoneAgent:
         result = wp.resolved_agent()
         assert result.tool == "unknown"
         assert result.model == "unknown-model"
-        assert result.profile_id is None
+        assert result.profile_id == "generic-agent"
         assert result.role is None
 
 
