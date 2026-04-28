@@ -18,8 +18,8 @@ subtasks:
 - T015
 - T016
 - T017
-shell_pid: "19276"
-agent: "claude:opus-4-7:default:implementer"
+shell_pid: "27000"
+agent: "claude:opus-4-7:default:reviewer"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -215,3 +215,4 @@ GitHub issue #833. Today, passing `claude:opus-4-7:reviewer-default:reviewer` si
 
 - 2026-04-28T09:43:05Z – claude:opus-4-7:default:implementer – shell_pid=19276 – Assigned agent via action command
 - 2026-04-28T09:54:43Z – claude:opus-4-7:default:implementer – shell_pid=19276 – WP03 ready: 4-arity parser + prompt wiring + tests
+- 2026-04-28T09:55:19Z – claude:opus-4-7:default:reviewer – shell_pid=27000 – Started review via action command
