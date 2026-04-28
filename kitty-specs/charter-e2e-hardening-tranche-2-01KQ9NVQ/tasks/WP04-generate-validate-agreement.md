@@ -13,8 +13,8 @@ subtasks:
 - T017
 - T018
 - T019
-agent: "claude:sonnet:implementer-ivan:implementer"
-shell_pid: "52562"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "58076"
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks
@@ -148,3 +148,4 @@ spec-kitty agent action implement WP04 --agent <your-agent-key>
 
 - 2026-04-28T10:34:25Z – claude:sonnet:implementer-ivan:implementer – shell_pid=52562 – Started implementation via action command
 - 2026-04-28T10:40:00Z – claude:sonnet:implementer-ivan:implementer – shell_pid=52562 – Default direction: charter generate emits next_step.git_add when charter.md is untracked; tests cover fresh-project flow; bundle validate invariant unchanged
+- 2026-04-28T10:40:27Z – claude:opus:reviewer-renata:reviewer – shell_pid=58076 – Started review via action command
