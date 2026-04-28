@@ -36,11 +36,11 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T008 | Stamp `spec_kitty.schema_version` and `spec_kitty.schema_capabilities` in `spec-kitty init` metadata writer (reuse existing constants) | WP02 |  | [D] |
 | T009 | Add fresh-init integration test asserting fields present in `.kittify/metadata.yaml` | WP02 |  | [D] |
 | T010 | Verify upgrade-version tests still pass | WP02 |  | [D] |
-| T011 | Make `charter synthesize --adapter fixture --dry-run --json` emit strict envelope per `contracts/charter-synthesize-dry-run.json` | WP03 |  |
-| T012 | Make `charter synthesize --adapter fixture --json` write `.kittify/doctrine/` artifacts via real write pipeline (no `--dry-run-evidence` fallback) | WP03 |  |
-| T013 | Add unit/integration tests for dry-run JSON envelope shape | WP03 | [P] |
-| T014 | Add integration test asserting on-disk artifacts after `--json` run | WP03 | [P] |
-| T015 | Verify `tests/doctrine_synthesizer/` and `tests/charter/` still pass | WP03 |  |
+| T011 | Make `charter synthesize --adapter fixture --dry-run --json` emit strict envelope per `contracts/charter-synthesize-dry-run.json` | WP03 |  | [D] |
+| T012 | Make `charter synthesize --adapter fixture --json` write `.kittify/doctrine/` artifacts via real write pipeline (no `--dry-run-evidence` fallback) | WP03 |  | [D] |
+| T013 | Add unit/integration tests for dry-run JSON envelope shape | WP03 | [D] |
+| T014 | Add integration test asserting on-disk artifacts after `--json` run | WP03 | [D] |
+| T015 | Verify `tests/doctrine_synthesizer/` and `tests/charter/` still pass | WP03 |  | [D] |
 | T016 | Implement #841 fix per research direction (default: `charter generate --json` emits `next_step.git_add` instruction; otherwise `bundle validate` accepts generated path) | WP04 |  |
 | T017 | Add or update tests covering generate→bundle-validate operator path in a fresh git project | WP04 |  |
 | T018 | Verify `tests/charter/` regression-free | WP04 |  |
@@ -141,11 +141,11 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T011 Make synthesize --dry-run --json emit strict envelope (WP03)
-- [ ] T012 Make synthesize --json write doctrine artifacts via real write pipeline (WP03)
-- [ ] T013 Add unit/integration tests for dry-run envelope shape (WP03)
-- [ ] T014 Add integration test for on-disk artifacts after --json run (WP03)
-- [ ] T015 Verify tests/doctrine_synthesizer/ and tests/charter/ pass (WP03)
+- [x] T011 Make synthesize --dry-run --json emit strict envelope (WP03)
+- [x] T012 Make synthesize --json write doctrine artifacts via real write pipeline (WP03)
+- [x] T013 Add unit/integration tests for dry-run envelope shape (WP03)
+- [x] T014 Add integration test for on-disk artifacts after --json run (WP03)
+- [x] T015 Verify tests/doctrine_synthesizer/ and tests/charter/ pass (WP03)
 
 **Implementation sketch**: Per WP01 R2, fix the gap in `src/charter/synthesizer/fixture_adapter.py` and/or `synthesize_pipeline.py` / `write_pipeline.py` so the public `--json` path produces the same artifacts the `--dry-run-evidence` debug path produces today. Cover via `tests/doctrine_synthesizer/` and a charter-CLI integration test under `tests/charter/`.
 
