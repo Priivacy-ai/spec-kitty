@@ -59,13 +59,13 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T031 | Ensure `outcome` field on `completed` is in canonical vocabulary (`done`, `failed`, `skipped`, `blocked`) per `contracts/next-advance.json` | WP07 |  | [D] |
 | T032 | Add integration test walking one composed action and asserting paired records exist under `.kittify/events/profile-invocations/` with matching action identity | WP07 |  | [D] |
 | T033 | Verify `tests/integration/test_documentation_runtime_walk.py`, `tests/integration/test_research_runtime_walk.py`, `tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/invocation/` regression-free | WP07 |  | [D] |
-| T034 | Delete `_parse_first_json_object()` from `tests/e2e/test_charter_epic_golden_path.py`; switch to strict full-stream `json.loads(stdout)` for every `--json` call | WP08 |  |
-| T035 | Delete `_bootstrap_schema_version()` and any direct `.kittify/metadata.yaml` mutation in the test (rely on FR-001) | WP08 |  |
-| T036 | Delete synthesize fallback to `--dry-run-evidence` and hand-seeding of `.kittify/doctrine/`; require real `synthesize --json` to produce artifacts (rely on FR-003/FR-004) | WP08 |  |
-| T037 | Delete conditional prompt-file acceptance; require non-empty resolvable `prompt_file` for every issued step (rely on FR-006) | WP08 |  |
-| T038 | Delete profile-invocation absent-directory early return; require paired `started`/`completed` lifecycle records for every issued action (rely on FR-007) | WP08 |  |
-| T039 | Keep source-checkout pollution guard, fresh-project fixture, and "every step exercised through subprocess CLI" assertions; add any new strict assertions per spec FR-008..FR-012 | WP08 |  |
-| T040 | Run narrow gate, targeted gates, ruff, mypy strict, and 5-run determinism check; all must exit 0 | WP08 |  |
+| T034 | Delete `_parse_first_json_object()` from `tests/e2e/test_charter_epic_golden_path.py`; switch to strict full-stream `json.loads(stdout)` for every `--json` call | WP08 |  | [D] |
+| T035 | Delete `_bootstrap_schema_version()` and any direct `.kittify/metadata.yaml` mutation in the test (rely on FR-001) | WP08 |  | [D] |
+| T036 | Delete synthesize fallback to `--dry-run-evidence` and hand-seeding of `.kittify/doctrine/`; require real `synthesize --json` to produce artifacts (rely on FR-003/FR-004) | WP08 |  | [D] |
+| T037 | Delete conditional prompt-file acceptance; require non-empty resolvable `prompt_file` for every issued step (rely on FR-006) | WP08 |  | [D] |
+| T038 | Delete profile-invocation absent-directory early return; require paired `started`/`completed` lifecycle records for every issued action (rely on FR-007) | WP08 |  | [D] |
+| T039 | Keep source-checkout pollution guard, fresh-project fixture, and "every step exercised through subprocess CLI" assertions; add any new strict assertions per spec FR-008..FR-012 | WP08 |  | [D] |
+| T040 | Run narrow gate, targeted gates, ruff, mypy strict, and 5-run determinism check; all must exit 0 | WP08 |  | [D] |
 | T041 | Open PR from `fix/charter-e2e-827-tranche-2` against `Priivacy-ai/spec-kitty:main` declaring closes for `#839`, `#840`, `#841`, `#842`, `#843`, `#844`; verified-mention `#336` antecedent | WP09 |  |
 | T042 | Comment on `#827` with PR URL and remaining-tranche recommendation | WP09 | [P] |
 | T043 | Comment precisely on any partially fixed issue stating what remains | WP09 | [P] |
@@ -269,13 +269,13 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T034 Delete _parse_first_json_object; use full-stream json.loads (WP08)
-- [ ] T035 Delete _bootstrap_schema_version and metadata mutation (WP08)
-- [ ] T036 Delete --dry-run-evidence fallback and hand-seeding of doctrine (WP08)
-- [ ] T037 Delete conditional prompt-file acceptance; require resolvable prompt_file (WP08)
-- [ ] T038 Delete profile-invocation early return; require paired lifecycle records (WP08)
-- [ ] T039 Keep pollution guard, fresh-project fixture, subprocess CLI assertions; add new strict assertions per FR-008..012 (WP08)
-- [ ] T040 Run narrow gate, targeted gates, ruff, mypy strict, 5-run determinism (WP08)
+- [x] T034 Delete _parse_first_json_object; use full-stream json.loads (WP08)
+- [x] T035 Delete _bootstrap_schema_version and metadata mutation (WP08)
+- [x] T036 Delete --dry-run-evidence fallback and hand-seeding of doctrine (WP08)
+- [x] T037 Delete conditional prompt-file acceptance; require resolvable prompt_file (WP08)
+- [x] T038 Delete profile-invocation early return; require paired lifecycle records (WP08)
+- [x] T039 Keep pollution guard, fresh-project fixture, subprocess CLI assertions; add new strict assertions per FR-008..012 (WP08)
+- [x] T040 Run narrow gate, targeted gates, ruff, mypy strict, 5-run determinism (WP08)
 
 **Implementation sketch**: Edit `tests/e2e/test_charter_epic_golden_path.py` only (single-file footprint). Remove the six bypass blocks listed in the spec's "Current Test Seams To Tighten" section. Use the operator sequence from `quickstart.md` as the source of truth. Keep all "Keep" items (pollution guard, fresh-project fixture, subprocess CLI) and add the strict assertions enumerated in FR-008..012.
 
