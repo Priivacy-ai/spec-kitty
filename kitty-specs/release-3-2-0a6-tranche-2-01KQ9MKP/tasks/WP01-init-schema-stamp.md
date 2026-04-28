@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: release/3.2.0a6-tranche-2
 merge_target_branch: release/3.2.0a6-tranche-2
 branch_strategy: Planning artifacts for this feature were generated on release/3.2.0a6-tranche-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into release/3.2.0a6-tranche-2 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-release-3-2-0a6-tranche-2-01KQ9MKP
+base_commit: 5c2f7508b91f090e31f9b21ed5d7178fbbe9eee4
+created_at: '2026-04-28T09:42:49.263569+00:00'
 subtasks:
 - T001
 - T002
@@ -15,6 +18,7 @@ subtasks:
 - T004
 - T005
 - T006
+shell_pid: '18929'
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
