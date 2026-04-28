@@ -128,7 +128,7 @@ def test_no_warning_for_tracked_surface(tmp_path, monkeypatch):
 
 def test_surfaces_cover_all_state_surfaces(tmp_path):
     """Report surfaces list covers every entry in STATE_SURFACES."""
-    from specify_cli.state_contract import STATE_SURFACES
+    from specify_cli.state.contract import STATE_SURFACES
 
     report = check_state_roots(tmp_path)
     assert len(report.surfaces) == len(STATE_SURFACES)

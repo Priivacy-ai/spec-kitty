@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.state_contract import (
+from specify_cli.state.contract import (
     STATE_SURFACES,
     AuthorityClass,
     GitClass,
