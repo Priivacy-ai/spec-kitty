@@ -25,7 +25,7 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Create `src/specify_cli/core/file_lock.py` skeleton with `LockRecord` dataclass and module docstring | WP01 | [D] |
+| T001 | Create `src/specify_cli/core/file_lock.py` skeleton with `LockRecord` dataclass and module docstring | WP01 | [D] | [D] |
 | T002 | Implement `MachineFileLock` async context manager (acquire/release, hold-ceiling, atomic content write) | WP01 | [D] |
 | T003 | Implement `read_lock_record()` and `force_release()` helpers for diagnostic + repair use | WP01 | [D] |
 | T004 | Implement age-based stale-lock adoption (cooperate-after-timeout) + cross-platform primitive dispatch | WP01 | [D] |
@@ -75,11 +75,11 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T001 Module skeleton + LockRecord dataclass (WP01)
-- [ ] T002 MachineFileLock async context manager (WP01)
-- [ ] T003 read_lock_record + force_release helpers (WP01)
-- [ ] T004 Stale-lock adoption + cross-platform dispatch (WP01)
-- [ ] T005 Test suite — 7 cases per contract (WP01)
+- [x] T001 Module skeleton + LockRecord dataclass (WP01)
+- [x] T002 MachineFileLock async context manager (WP01)
+- [x] T003 read_lock_record + force_release helpers (WP01)
+- [x] T004 Stale-lock adoption + cross-platform dispatch (WP01)
+- [x] T005 Test suite — 7 cases per contract (WP01)
 
 **Implementation sketch**: Stand up the dataclass and module docstring (T001), then build the `MachineFileLock` async context manager (T002) using a non-blocking `fcntl.flock`/`msvcrt.locking` acquire with a bounded-wait loop. Add `read_lock_record`/`force_release` (T003) for the doctor surface. Add age-based adoption (T004) so a process holding a stuck lock cannot block forever. Tests last (T005) cover all branches against a tmp-path lock root.
 
