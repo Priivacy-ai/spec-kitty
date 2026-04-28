@@ -27,12 +27,12 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 
 | ID   | Description                                                              | WP    | Parallel |
 |------|--------------------------------------------------------------------------|-------|----------|
-| T001 | Define schema_version + schema_capabilities canonical map                | WP01  |          |
-| T002 | Implement additive metadata.yaml stamp in init                           | WP01  |          |
-| T003 | Idempotency + operator-key preservation                                  | WP01  |          |
-| T004 | Unit tests: empty dir, hand-edited file, idempotency                     | WP01  | [P]      |
-| T005 | Integration test: init then next runs without missing-schema errors      | WP01  |          |
-| T006 | CHANGELOG entry for #840                                                 | WP01  | [P]      |
+| T001 | Define schema_version + schema_capabilities canonical map                | WP01  |          | [D] |
+| T002 | Implement additive metadata.yaml stamp in init                           | WP01  |          | [D] |
+| T003 | Idempotency + operator-key preservation                                  | WP01  |          | [D] |
+| T004 | Unit tests: empty dir, hand-edited file, idempotency                     | WP01  | [D] |
+| T005 | Integration test: init then next runs without missing-schema errors      | WP01  |          | [D] |
+| T006 | CHANGELOG entry for #840                                                 | WP01  | [D] |
 | T007 | Inventory covered --json commands and their stdout writers               | WP02  |          |
 | T008 | Add diagnostic-routing helper (default stderr, optional envelope nest)   | WP02  |          |
 | T009 | Refactor sync/auth/tracker print sites to use the helper                 | WP02  |          |
@@ -80,12 +80,12 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 
 Subtasks:
 
-- [ ] T001 Define schema_version + schema_capabilities canonical map (WP01)
-- [ ] T002 Implement additive metadata.yaml stamp in init (WP01)
-- [ ] T003 Idempotency + operator-key preservation (WP01)
-- [ ] T004 Unit tests: empty dir, hand-edited file, idempotency (WP01) [P]
-- [ ] T005 Integration test: init then next runs without missing-schema errors (WP01)
-- [ ] T006 CHANGELOG entry for #840 (WP01) [P]
+- [x] T001 Define schema_version + schema_capabilities canonical map (WP01)
+- [x] T002 Implement additive metadata.yaml stamp in init (WP01)
+- [x] T003 Idempotency + operator-key preservation (WP01)
+- [x] T004 Unit tests: empty dir, hand-edited file, idempotency (WP01) [P]
+- [x] T005 Integration test: init then next runs without missing-schema errors (WP01)
+- [x] T006 CHANGELOG entry for #840 (WP01) [P]
 
 Dependencies: none. Risks: overwriting operator-authored fields; mitigated by FR-002 + NFR-008 idempotency tests.
 
