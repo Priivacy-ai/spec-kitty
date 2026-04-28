@@ -26,6 +26,7 @@ from charter.resolution import (
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
 )
+from specify_cli.diagnostics import mark_invocation_succeeded
 
 app = typer.Typer(
     name="bundle",
@@ -294,6 +295,10 @@ def validate(
         # Use plain stdout for JSON; the contract requires the exact JSON
         # shape to be parseable without Rich markup.
         sys.stdout.write(_json.dumps(report, indent=2) + "\n")
+        # WP05 (#842): suppress atexit diagnostic prints (e.g. SaaS sync
+        # warnings) from leaking into stdout/stderr after the JSON
+        # document.
+        mark_invocation_succeeded()
     else:
         _render_human(report, console)
 

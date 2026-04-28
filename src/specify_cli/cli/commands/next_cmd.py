@@ -31,6 +31,7 @@ from typing import Annotated
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import locate_project_root
 from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
 
@@ -228,6 +229,11 @@ def _print_decision(decision, json_output: bool, answered_id: str | None, answer
             d["answered"] = answered_id
             d["answer"] = answer
         print(json.dumps(d, indent=2))
+        # WP05 (#842): suppress atexit diagnostic prints (e.g. SaaS sync
+        # warnings) from leaking into stdout/stderr after the JSON
+        # document. The strict --json contract requires exactly one JSON
+        # document on stdout.
+        mark_invocation_succeeded()
     else:
         if answered_id is not None:
             print(f"  Answered decision: {answered_id}")

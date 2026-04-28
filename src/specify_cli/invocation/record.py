@@ -16,6 +16,47 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+# ---------------------------------------------------------------------------
+# Canonical outcome vocabulary (FR-007 / WP07)
+# ---------------------------------------------------------------------------
+# The canonical outcome enum used on completed InvocationRecord lines. Mirrors
+# the Literal on ``InvocationRecord.outcome`` below so consumers can validate
+# without importing pydantic. Keep this set in lockstep with the Literal.
+
+CANONICAL_OUTCOMES: frozenset[str] = frozenset({"done", "failed", "abandoned"})
+
+# Mapping from public ``next --result <value>`` strings to canonical outcomes.
+# ``next_cmd._VALID_RESULTS`` is the source of truth for accepted CLI values;
+# if it grows, extend this mapping in lockstep.
+NEXT_RESULT_TO_OUTCOME: dict[str, str] = {
+    "success": "done",
+    "failed": "failed",
+    "blocked": "abandoned",
+}
+
+
+def coerce_outcome(value: str | None) -> str | None:
+    """Return ``value`` if it is already canonical, else map via NEXT_RESULT_TO_OUTCOME.
+
+    Raises :class:`specify_cli.invocation.errors.InvalidOutcomeError` if the
+    value is neither canonical nor a recognised public ``next --result`` value.
+
+    ``None`` passes through (signalling "no outcome decided yet" — the writer
+    treats this as a no-op for the outcome field).
+    """
+    if value is None:
+        return None
+    if value in CANONICAL_OUTCOMES:
+        return value
+    mapped = NEXT_RESULT_TO_OUTCOME.get(value)
+    if mapped is not None:
+        return mapped
+    # Local import keeps the errors module free of circular imports.
+    from specify_cli.invocation.errors import InvalidOutcomeError
+
+    raise InvalidOutcomeError(value)
+
+
 class InvocationRecord(BaseModel):
     """v1 JSONL event record. Each invocation produces one file with two events."""
 

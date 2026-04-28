@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
-from specify_cli.invocation.record import InvocationRecord
+from specify_cli.invocation.record import InvocationRecord, coerce_outcome
 
 if TYPE_CHECKING:
     from specify_cli.glossary.chokepoint import GlossaryObservationBundle
@@ -139,6 +139,14 @@ class InvocationWriter:
         if not path.exists():
             raise InvocationError(f"Invocation record not found: {invocation_id}")
 
+        # T031 / FR-007 — validate outcome against canonical vocabulary BEFORE
+        # any I/O. ``coerce_outcome`` accepts canonical values (``done`` /
+        # ``failed`` / ``abandoned``) and the public ``next --result`` mappings
+        # (``success`` -> ``done``, ``blocked`` -> ``abandoned``). Anything
+        # else surfaces as a typed ``InvalidOutcomeError`` rather than a raw
+        # Pydantic traceback. ``None`` passes through unchanged.
+        canonical_outcome = coerce_outcome(outcome)
+
         # Already-closed check: read last line to see if a completed event exists.
         raw = path.read_text(encoding="utf-8")
         lines = [line.strip() for line in raw.splitlines() if line.strip()]
@@ -156,7 +164,7 @@ class InvocationWriter:
             profile_id=profile_id,
             action="",  # not re-stated in completed event
             completed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            outcome=outcome,  # type: ignore[arg-type]
+            outcome=canonical_outcome,  # type: ignore[arg-type]
             evidence_ref=evidence_ref,
         )
         try:

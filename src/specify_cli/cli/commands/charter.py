@@ -15,11 +15,13 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.commands.charter_bundle import _is_git_tracked
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
+from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
 
@@ -1254,12 +1256,29 @@ def generate(
                 for reference in compiled.references
                 if reference.kind == "local_support"
             ]
+            charter_path_rel = str(charter_path.relative_to(repo_root))
+            # FR-002 (charter-e2e-hardening-tranche-2): emit a `next_step`
+            # tracking instruction so the operator (and the strict E2E)
+            # knows when the generated charter must be `git add`ed before
+            # `charter bundle validate` will accept it. `bundle validate`
+            # requires charter.md to be git-tracked (manifest pin).
+            next_step: dict[str, Any]
+            if _is_git_tracked(repo_root, charter_path_rel):
+                next_step = {"action": "no_action_required"}
+            else:
+                next_step = {
+                    "action": "git_add",
+                    "paths": [charter_path_rel],
+                    "reason": (
+                        "bundle validate requires charter.md to be tracked"
+                    ),
+                }
             print(
                 json.dumps(
                     {
                         "result": "success",
                         "success": True,
-                        "charter_path": str(charter_path.relative_to(repo_root)),
+                        "charter_path": charter_path_rel,
                         "interview_source": interview_source,
                         "mission": compiled.mission,
                         "template_set": compiled.template_set,
@@ -1270,10 +1289,16 @@ def generate(
                         "library_files": local_support_files,
                         "files_written": files_written,
                         "diagnostics": compiled.diagnostics,
+                        "next_step": next_step,
                     },
                     indent=2,
                 )
             )
+            # WP05 (#842): suppress atexit diagnostic prints (e.g. SaaS sync
+            # warnings) from leaking into stdout/stderr after the JSON
+            # envelope. The strict --json contract requires exactly one JSON
+            # document on stdout.
+            mark_invocation_succeeded()
             return
 
         console.print("[green]Charter generated and synced[/green]")
@@ -1727,6 +1752,42 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
     return _validation_callback
 
 
+def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]]:
+    """Convert staged ``kind:slug`` selectors to planned-artifact path entries.
+
+    The strict dry-run JSON envelope (contracts/charter-synthesize-dry-run.json)
+    requires ``planned_artifacts: [{path, kind}]`` describing the files a real
+    (non-dry-run) ``synthesize`` would write under ``.kittify/doctrine/``.
+    """
+    from charter.synthesizer.artifact_naming import (
+        artifact_filename,
+        doctrine_kind_subdir,
+    )
+
+    planned: list[dict[str, str]] = []
+    for selector in staged_files:
+        if ":" not in selector:
+            continue
+        kind, slug = selector.split(":", 1)
+        # For directives we don't know the artifact_id from the selector alone;
+        # use a stable placeholder that round-trips through artifact_filename.
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = "PROJECT_000"
+        try:
+            filename = artifact_filename(kind, slug, artifact_id)
+            subdir = doctrine_kind_subdir(kind)
+        except Exception:  # noqa: BLE001, S112 — unknown kind defensively skipped from envelope
+            continue
+        planned.append(
+            {
+                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "kind": kind,
+            }
+        )
+    return planned
+
+
 def _run_synthesis_dry_run(
     request: Any,
     syn_adapter: Any,
@@ -1882,12 +1943,20 @@ def charter_synthesize(
             staged_files = _run_synthesis_dry_run(request, syn_adapter, repo_root)
 
             if json_output:
-                print(json.dumps({
-                    "result": "dry_run",
-                    "staged_artifacts": staged_files,
-                    "artifact_count": len(staged_files),
-                    "validated": True,
-                }, indent=2))
+                planned_artifacts = _staged_to_planned_artifacts(staged_files)
+                envelope = {
+                    "result": "success",
+                    "adapter": adapter,
+                    "planned_artifacts": planned_artifacts,
+                    "warnings": [
+                        {"code": "evidence_warning", "message": w}
+                        for w in evidence_result.warnings
+                    ],
+                }
+                print(json.dumps(envelope, indent=2))
+                # WP05 (#842): suppress atexit diagnostic prints after the
+                # JSON envelope.
+                mark_invocation_succeeded()
                 return
 
             console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
@@ -1908,6 +1977,9 @@ def charter_synthesize(
                 "adapter_id": result.effective_adapter_id,
                 "adapter_version": result.effective_adapter_version,
             }, indent=2))
+            # WP05 (#842): suppress atexit diagnostic prints after the
+            # JSON envelope.
+            mark_invocation_succeeded()
             return
 
         console.print("[green]Charter synthesis complete[/green]")

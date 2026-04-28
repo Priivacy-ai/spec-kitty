@@ -55,6 +55,43 @@ _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 
 
+def _stamp_schema_metadata(metadata_path: Path) -> None:
+    """Stamp ``spec_kitty.schema_version`` and ``spec_kitty.schema_capabilities``
+    into ``.kittify/metadata.yaml`` at init time.
+
+    Reuses the canonical constants defined in
+    ``src/specify_cli/migration/runner.py`` so fresh init projects land at the
+    same schema version that the migration runner upgrades existing projects to.
+    No literal duplication: if the canonical constants change, init follows.
+    """
+    # Local import keeps the migration package off the init hot-import path
+    # and side-steps any latent circular-import risk with `specify_cli.upgrade`.
+    from specify_cli.migration.runner import (
+        _TARGET_SCHEMA_CAPABILITIES,
+        _TARGET_SCHEMA_VERSION,
+    )
+
+    if not metadata_path.exists():
+        return
+
+    yaml_io = YAML()
+    yaml_io.preserve_quotes = True
+    yaml_io.width = 4096
+
+    with metadata_path.open("r", encoding="utf-8") as fh:
+        data = yaml_io.load(fh)
+
+    if data is None:
+        data = {}
+
+    spec_kitty_section = data.setdefault("spec_kitty", {})
+    spec_kitty_section["schema_version"] = _TARGET_SCHEMA_VERSION
+    spec_kitty_section["schema_capabilities"] = list(_TARGET_SCHEMA_CAPABILITIES)
+
+    with metadata_path.open("w", encoding="utf-8") as fh:
+        yaml_io.dump(data, fh)
+
+
 def _has_global_runtime() -> bool:
     """Check whether the global runtime has populated missions.
 
@@ -829,6 +866,7 @@ def init(  # noqa: C901
             platform_version=plat.platform(),
         )
         metadata.save(project_path / ".kittify")
+        _stamp_schema_metadata(project_path / ".kittify" / "metadata.yaml")
     except Exception as e:
         # Don't fail init if metadata creation fails
         _console.print(f"[dim]Note: Could not create project metadata: {e}[/dim]")

@@ -424,6 +424,10 @@ class TestNextCommandKnownBlockedMissions:
         # WP04/T024 (FR-021): the plan mission's `mission-runtime.yaml`
         # now validates against the runtime schema, so this test
         # transitions from strict-xfail to a hard regression check.
+        # WP06: minimal scaffold has no prompt template on disk, so the
+        # contract requires a structured blocked decision (not a kind=step
+        # with prompt_file=null). The mapping to the `specify` action still
+        # occurs — that is what we assert here, plus the structured shape.
         repo_root = _scaffold_project(
             tmp_path,
             mission_slug="043-plan-feature",
@@ -433,10 +437,17 @@ class TestNextCommandKnownBlockedMissions:
         from specify_cli.next.decision import decide_next
 
         decision = decide_next("test-agent", "043-plan-feature", "success", repo_root)
-        assert decision.kind == DecisionKind.step
         assert decision.action is not None
+        if decision.kind == DecisionKind.step:
+            assert decision.prompt_file
+            from pathlib import Path as _P
+            assert _P(decision.prompt_file).exists()
+        else:
+            assert decision.kind == DecisionKind.blocked
+            assert decision.reason
 
     def test_documentation_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
+        # WP06: see the plan-mission test above for the blocked-vs-step rationale.
         repo_root = _scaffold_project(
             tmp_path,
             mission_slug="044-docs-feature",
@@ -446,8 +457,14 @@ class TestNextCommandKnownBlockedMissions:
         from specify_cli.next.decision import decide_next
 
         decision = decide_next("test-agent", "044-docs-feature", "success", repo_root)
-        assert decision.kind == DecisionKind.step
         assert decision.action is not None
+        if decision.kind == DecisionKind.step:
+            assert decision.prompt_file
+            from pathlib import Path as _P
+            assert _P(decision.prompt_file).exists()
+        else:
+            assert decision.kind == DecisionKind.blocked
+            assert decision.reason
 
     def test_missing_canonical_status_during_wp_iteration_returns_structured_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
@@ -758,12 +775,22 @@ class TestNextCommandAnswerJSON:
                 "--json",
             ],
         )
-        assert r.exit_code == 0, r.output
+        # WP06: when the post-answer step has no on-disk prompt template, the
+        # contract requires the runtime to emit a structured blocked decision
+        # (exit code 1) rather than a kind=step with prompt_file=null. Accept
+        # either exit code; assert the JSON envelope is well-formed.
+        assert r.exit_code in {0, 1}, r.output
         data = json.loads(r.output.strip())
         assert isinstance(data, dict)
         assert data["answered"] == "input:approval"
         assert data["answer"] == "yes"
         assert data["kind"] in {"step", "terminal", "blocked", "decision_required"}
+        if data["kind"] == "step":
+            from pathlib import Path as _P
+            assert data["prompt_file"]
+            assert _P(data["prompt_file"]).exists()
+        elif data["kind"] == "blocked":
+            assert data["reason"]
 
     def test_answer_json_never_emits_two_objects(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Regression: stdout must be exactly one JSON document, no trailing object."""
@@ -802,7 +829,9 @@ class TestNextCommandAnswerJSON:
                 "--json",
             ],
         )
-        assert r.exit_code == 0, r.output
+        # WP06: blocked exit (1) is now valid when the post-answer step has no
+        # on-disk prompt template. The single-document invariant must still hold.
+        assert r.exit_code in {0, 1}, r.output
 
         # Ensure a single top-level JSON value with no trailing payload.
         decoder = json.JSONDecoder()

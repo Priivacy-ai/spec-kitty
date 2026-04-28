@@ -147,7 +147,7 @@ class TestSynthesizeHappyPath:
         assert data["result"] in {"success", "dry_run"}
 
     def test_synthesize_dry_run_json(self, tmp_path: Path) -> None:
-        """--dry-run --json returns staged artifacts and validated=true."""
+        """--dry-run --json emits the strict envelope per contracts/charter-synthesize-dry-run.json."""
         _write_interview_answers(tmp_path)
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
@@ -161,9 +161,13 @@ class TestSynthesizeHappyPath:
 
         assert result.exit_code == 0
         data = json.loads(result.output)
-        assert data["result"] == "dry_run"
-        assert "staged_artifacts" in data
-        assert data["validated"] is True
+        assert data["result"] == "success"
+        assert data["adapter"] == "generated"
+        assert isinstance(data["planned_artifacts"], list)
+        assert data["planned_artifacts"], "planned_artifacts must be non-empty"
+        for entry in data["planned_artifacts"]:
+            assert {"path", "kind"} <= set(entry.keys())
+            assert entry["path"].startswith(".kittify/doctrine/")
 
 
 # ---------------------------------------------------------------------------

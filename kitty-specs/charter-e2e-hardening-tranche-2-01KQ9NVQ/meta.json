@@ -2,7 +2,7 @@
   "created_at": "2026-04-28T09:13:57.989097+00:00",
   "friendly_name": "Charter E2E Hardening Tranche 2",
   "mission_id": "01KQ9NVQT8QS2QPX78YSXDQ6WN",
-  "mission_number": null,
+  "mission_number": 105,
   "mission_slug": "charter-e2e-hardening-tranche-2-01KQ9NVQ",
   "mission_type": "software-dev",
   "purpose_context": "PR #838 landed the first product-repo E2E for issue #827 but tolerated softened checks because the public CLI still had gaps in fresh-init metadata, charter generate/validate, fixture synthesis, JSON stdout cleanliness, prompt-file resolution, and profile-invocation lifecycle records. Tranche 2 fixes those product gaps so the operator path works end-to-end, then strips the test's bypass helpers so a future regression in any of those areas fails the golden-path gate from a fresh project using only public CLI commands.",

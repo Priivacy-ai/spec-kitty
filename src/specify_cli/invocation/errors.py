@@ -59,3 +59,23 @@ class InvalidModeForEvidenceError(InvocationError):
             f"mode is {mode.value}; Tier 2 evidence is only allowed on "
             f"task_execution or mission_step invocations."
         )
+
+
+class InvalidOutcomeError(InvocationError):
+    """A completed invocation outcome is outside the canonical vocabulary.
+
+    The canonical outcome enum lives in :mod:`specify_cli.invocation.record`
+    (``Outcome = Literal["done", "failed", "abandoned"]``). Callers that route
+    arbitrary user-facing values (e.g. ``next --result <value>``) into the
+    invocation lifecycle MUST coerce to that vocabulary before invoking
+    ``write_completed`` / ``complete_invocation``; this error fires when the
+    coercion fails so the writer surfaces a typed failure rather than a raw
+    Pydantic validation traceback.
+    """
+
+    def __init__(self, outcome: object) -> None:
+        self.outcome = outcome
+        super().__init__(
+            f"Invalid outcome {outcome!r}: must be one of "
+            "'done', 'failed', or 'abandoned' (or None)."
+        )
