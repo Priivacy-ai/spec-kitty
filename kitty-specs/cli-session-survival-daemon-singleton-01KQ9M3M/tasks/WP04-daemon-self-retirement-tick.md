@@ -178,3 +178,7 @@ Verify:
 2. Timer thread is daemonized (`timer.daemon = True`) so it cannot keep the process alive.
 3. `tick.cancel()` lives in a `finally` block.
 4. The retirement decision excludes the dead-PID case (don't retire when the recorded PID is dead — that's not our job).
+
+## Activity Log
+
+- 2026-04-28T09:45:05Z – claude – shell_pid=17578 – Ready for review: daemon self-retirement tick, 4 tests passing, existing daemon tests still green
