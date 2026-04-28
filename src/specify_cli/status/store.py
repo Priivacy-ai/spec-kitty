@@ -101,8 +101,7 @@ class _SlugResolver:
                     )
             else:
                 logger.warning(
-                    "No meta.json found for mission_slug %r (orphaned event); "
-                    "mission_id will be None for these events",
+                    "No meta.json found for mission_slug %r (orphaned event); mission_id will be None for these events",
                     mission_slug,
                 )
 

@@ -460,11 +460,7 @@ def implement(
         bool,
         typer.Option(
             "--allow-sparse-checkout",
-            help=(
-                "Proceed even if legacy sparse-checkout state is detected. "
-                "Use of this override is logged. Does not bypass the commit-time "
-                "data-loss backstop."
-            ),
+            help=("Proceed even if legacy sparse-checkout state is detected. Use of this override is logged. Does not bypass the commit-time data-loss backstop."),
         ),
     ] = False,
     acknowledge_not_bulk_edit: Annotated[
@@ -512,9 +508,7 @@ def implement(
         try:
             from specify_cli.mission_metadata import resolve_mission_identity
 
-            _identity = resolve_mission_identity(
-                _main_repo_for_preflight / "kitty-specs" / mission_slug
-            )
+            _identity = resolve_mission_identity(_main_repo_for_preflight / "kitty-specs" / mission_slug)
             _mission_id_for_preflight = _identity.mission_id
         except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
             _mission_id_for_preflight = None
@@ -1378,6 +1372,7 @@ def review(
             render_gate_failure,
         )
         from rich.console import Console as _RichConsole
+
         _rich_console = _RichConsole()
         _gate_result = ensure_occurrence_classification_ready(feature_dir)
         if not _gate_result.passed:

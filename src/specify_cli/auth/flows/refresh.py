@@ -90,9 +90,7 @@ class TokenRefreshFlow:
             try:
                 tokens = response.json()
             except ValueError as exc:
-                raise TokenRefreshError(
-                    f"Refresh response was not JSON: {exc}"
-                ) from exc
+                raise TokenRefreshError(f"Refresh response was not JSON: {exc}") from exc
             return self._update_session(session, tokens)
 
         if response.status_code in {400, 401}:
@@ -102,24 +100,13 @@ class TokenRefreshFlow:
                 body = {}
             error = body.get("error", "")
             if error == "invalid_grant":
-                raise RefreshTokenExpiredError(
-                    "Refresh token is invalid or expired. "
-                    "Run `spec-kitty auth login` again."
-                )
+                raise RefreshTokenExpiredError("Refresh token is invalid or expired. Run `spec-kitty auth login` again.")
             if error == "session_invalid":
-                raise SessionInvalidError(
-                    "Session has been invalidated server-side. "
-                    "Run `spec-kitty auth login` again."
-                )
+                raise SessionInvalidError("Session has been invalidated server-side. Run `spec-kitty auth login` again.")
 
-        raise TokenRefreshError(
-            f"Token refresh failed: HTTP {response.status_code} - "
-            f"{response.text[:500]}"
-        )
+        raise TokenRefreshError(f"Token refresh failed: HTTP {response.status_code} - {response.text[:500]}")
 
-    def _update_session(
-        self, session: StoredSession, tokens: dict[str, Any]
-    ) -> StoredSession:
+    def _update_session(self, session: StoredSession, tokens: dict[str, Any]) -> StoredSession:
         """Build an updated session from a refresh response.
 
         Per C-012 (LANDED 2026-04-09), ``refresh_token_expires_at`` is read
@@ -137,9 +124,7 @@ class TokenRefreshFlow:
         try:
             new_access = tokens["access_token"]
         except KeyError as exc:
-            raise TokenRefreshError(
-                "Refresh response missing 'access_token'"
-            ) from exc
+            raise TokenRefreshError("Refresh response missing 'access_token'") from exc
 
         # Refresh token may rotate; keep the old one if the server doesn't rotate.
         new_refresh = tokens.get("refresh_token", session.refresh_token)
@@ -147,9 +132,7 @@ class TokenRefreshFlow:
         try:
             expires_in = int(tokens.get("expires_in", 3600))
         except (TypeError, ValueError) as exc:
-            raise TokenRefreshError(
-                f"Refresh response has invalid 'expires_in': {exc}"
-            ) from exc
+            raise TokenRefreshError(f"Refresh response has invalid 'expires_in': {exc}") from exc
 
         refresh_token_expires_at = self._resolve_refresh_expiry(tokens, now, session)
 
@@ -192,9 +175,7 @@ class TokenRefreshFlow:
             try:
                 return now + timedelta(seconds=int(relative))
             except (TypeError, ValueError):
-                log.warning(
-                    "refresh_token_expires_in was not an int: %r", relative
-                )
+                log.warning("refresh_token_expires_in was not an int: %r", relative)
 
         # Last-resort fallback: preserve the previous session's expiry so
         # we never produce a session with an indeterminate refresh expiry

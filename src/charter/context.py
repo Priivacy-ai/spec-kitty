@@ -391,9 +391,7 @@ def _write_state(path: Path, state: dict[str, object]) -> None:
     atomic_write(path, json.dumps(state, indent=2, sort_keys=True), mkdir=True)
 
 
-def _mark_action_loaded(
-    state: dict[str, object], state_path: Path, action: str
-) -> None:
+def _mark_action_loaded(state: dict[str, object], state_path: Path, action: str) -> None:
     """Persist first-load timestamp for *action* into context-state.json."""
     actions_obj = state.setdefault("actions", {})
     if not isinstance(actions_obj, dict):
@@ -525,9 +523,7 @@ def build_charter_context(
     mission = template_set.removesuffix("-default")
 
     # Project directive selection filtering (mirrors legacy behavior)
-    project_directives: set[str] = {
-        _normalize_directive_id(d) for d in governance.doctrine.selected_directives
-    }
+    project_directives: set[str] = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
 
     # -- 3. Query the DRG -----------------------------------------------------
     action_urn = f"action:{mission}/{normalized}"
@@ -538,9 +534,7 @@ def build_charter_context(
         repo_root / "src" / "doctrine",
         repo_root / "doctrine",
     ]
-    project_root = next(
-        (p for p in project_root_candidates if p.is_dir()), None
-    )
+    project_root = next((p for p in project_root_candidates if p.is_dir()), None)
     svc = DoctrineService(shipped_root=doctrine_root, project_root=project_root)
 
     # Classify resolved URNs by node kind, applying directive selection

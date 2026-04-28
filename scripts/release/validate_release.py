@@ -91,9 +91,7 @@ class ReleaseValidatorError(Exception):
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Validate release readiness for Spec Kitty release automation"
-    )
+    parser = argparse.ArgumentParser(description="Validate release readiness for Spec Kitty release automation")
     parser.add_argument(
         "--mode",
         choices=("branch", "tag"),
@@ -104,8 +102,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--tag",
-        help="Explicit tag (e.g., v1.2.3 or v1.3.0a0). Defaults to the detected "
-        "GITHUB_REF or GITHUB_REF_NAME in tag mode.",
+        help="Explicit tag (e.g., v1.2.3 or v1.3.0a0). Defaults to the detected GITHUB_REF or GITHUB_REF_NAME in tag mode.",
     )
     parser.add_argument(
         "--pyproject",
@@ -120,8 +117,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--tag-pattern",
         default="v*.*.*",
-        help="Git tag glob pattern used for version progression checks "
-        "(default: %(default)s).",
+        help="Git tag glob pattern used for version progression checks (default: %(default)s).",
     )
     parser.add_argument(
         "--fail-on-missing-tag",
@@ -149,24 +145,17 @@ def is_prerelease_version(value: str) -> bool:
 
 def load_pyproject_version(path: Path) -> str:
     if not path.exists():
-        raise ReleaseValidatorError(
-            f"pyproject.toml not found at {path} – ensure you run from repository root."
-        )
+        raise ReleaseValidatorError(f"pyproject.toml not found at {path} – ensure you run from repository root.")
     with path.open("rb") as fp:
         data = tomllib.load(fp)
     try:
         version = data["project"]["version"]
     except KeyError as exc:  # pragma: no cover - defensive; unlikely if file well-formed
-        raise ReleaseValidatorError(
-            "Unable to locate [project].version in pyproject.toml."
-        ) from exc
+        raise ReleaseValidatorError("Unable to locate [project].version in pyproject.toml.") from exc
     if not isinstance(version, str):
         raise ReleaseValidatorError("pyproject version must be a string.")
     if not RELEASE_VERSION_RE.match(version):
-        raise ReleaseValidatorError(
-            f"Version '{version}' is not a supported release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
-        )
+        raise ReleaseValidatorError(f"Version '{version}' is not a supported release version (expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN).")
     return version
 
 
@@ -175,21 +164,14 @@ def load_metadata_yaml_version(repo_root: Path) -> str:
     try:
         import yaml  # type: ignore[import-untyped]
     except ModuleNotFoundError as exc:  # pragma: no cover - pyyaml required
-        raise ReleaseValidatorError(
-            "PyYAML is required to load .kittify/metadata.yaml. "
-            "Run: pip install pyyaml"
-        ) from exc
+        raise ReleaseValidatorError("PyYAML is required to load .kittify/metadata.yaml. Run: pip install pyyaml") from exc
     metadata_path = repo_root / ".kittify" / "metadata.yaml"
     if not metadata_path.exists():
-        raise ReleaseValidatorError(
-            f".kittify/metadata.yaml not found at {metadata_path}"
-        )
+        raise ReleaseValidatorError(f".kittify/metadata.yaml not found at {metadata_path}")
     data = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
     version = data.get("spec_kitty", {}).get("version")
     if not version:
-        raise ReleaseValidatorError(
-            ".kittify/metadata.yaml missing spec_kitty.version"
-        )
+        raise ReleaseValidatorError(".kittify/metadata.yaml missing spec_kitty.version")
     return str(version)
 
 
@@ -207,15 +189,8 @@ def validate_metadata_yaml_version_sync(
         return ValidationIssue(message=str(exc))
     if pyproject_version != metadata_version:
         return ValidationIssue(
-            message=(
-                f"Version mismatch detected: "
-                f"pyproject.toml={pyproject_version!r} vs "
-                f".kittify/metadata.yaml={metadata_version!r}"
-            ),
-            hint=(
-                f"Update .kittify/metadata.yaml spec_kitty.version to "
-                f"{pyproject_version!r} so both files agree before cutting the release."
-            ),
+            message=(f"Version mismatch detected: pyproject.toml={pyproject_version!r} vs .kittify/metadata.yaml={metadata_version!r}"),
+            hint=(f"Update .kittify/metadata.yaml spec_kitty.version to {pyproject_version!r} so both files agree before cutting the release."),
         )
     return None
 
@@ -253,9 +228,7 @@ def git(*args: str, cwd: Path | None = None) -> str:
         text=True,
     )
     if result.returncode != 0:
-        raise ReleaseValidatorError(
-            f"git {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise ReleaseValidatorError(f"git {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}")
     return result.stdout.strip()
 
 
@@ -263,25 +236,14 @@ def find_repo_root(start: Path) -> Path:
     try:
         output = git("rev-parse", "--show-toplevel", cwd=start)
     except ReleaseValidatorError as exc:
-        raise ReleaseValidatorError(
-            "Unable to locate git repository root. Ensure git is installed and run this script "
-            "inside the Spec Kitty repository."
-        ) from exc
+        raise ReleaseValidatorError("Unable to locate git repository root. Ensure git is installed and run this script inside the Spec Kitty repository.") from exc
     return Path(output)
 
 
-def discover_release_tags(
-    repo_root: Path, tag_pattern: str, exclude: str | None = None
-) -> list[str]:
+def discover_release_tags(repo_root: Path, tag_pattern: str, exclude: str | None = None) -> list[str]:
     output = git("tag", "--list", tag_pattern, cwd=repo_root)
     tags = [line.strip() for line in output.splitlines() if line.strip()]
-    filtered = [
-        tag
-        for tag in tags
-        if tag != exclude
-        and tag.startswith("v")
-        and RELEASE_VERSION_RE.match(tag.lstrip("v"))
-    ]
+    filtered = [tag for tag in tags if tag != exclude and tag.startswith("v") and RELEASE_VERSION_RE.match(tag.lstrip("v"))]
     filtered.sort(key=lambda tag: parse_release_version(tag.lstrip("v")), reverse=True)
     return filtered
 
@@ -289,10 +251,7 @@ def discover_release_tags(
 def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
     match = RELEASE_VERSION_RE.match(value)
     if not match:
-        raise ReleaseValidatorError(
-            f"Value '{value}' is not a valid release version "
-            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
-        )
+        raise ReleaseValidatorError(f"Value '{value}' is not a valid release version (expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN).")
 
     stage = _normalize_stage(match.group("stage"))
     stage_number = int(match.group("stage_num") or "0")
@@ -323,12 +282,8 @@ def detect_tag_from_env() -> str | None:
     return None
 
 
-def validate_version_progression(
-    current_version: str, existing_tags: Sequence[str]
-) -> ValidationIssue | None:
-    progression_tags = _progression_tags_for_current_version(
-        current_version, existing_tags
-    )
+def validate_version_progression(current_version: str, existing_tags: Sequence[str]) -> ValidationIssue | None:
+    progression_tags = _progression_tags_for_current_version(current_version, existing_tags)
     if not progression_tags:
         return None
     current_tuple = parse_release_version(current_version)
@@ -359,9 +314,7 @@ def _progression_tags_for_current_version(
     candidates: list[str] = []
     for tag in existing_tags:
         tag_version = tag.lstrip("v")
-        tag_major, tag_minor, _tag_patch, tag_stage_rank, _tag_stage_number = (
-            parse_release_version(tag_version)
-        )
+        tag_major, tag_minor, _tag_patch, tag_stage_rank, _tag_stage_number = parse_release_version(tag_version)
         is_stable_tag = tag_stage_rank == 3
         if is_stable_tag or (tag_major == current_major and tag_minor <= current_minor):
             candidates.append(tag)
@@ -435,9 +388,7 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             if mismatch:
                 issues.append(mismatch)
 
-        existing_tags = discover_release_tags(
-            repo_root, tag_pattern=args.tag_pattern, exclude=tag
-        )
+        existing_tags = discover_release_tags(repo_root, tag_pattern=args.tag_pattern, exclude=tag)
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)

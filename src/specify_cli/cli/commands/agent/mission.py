@@ -1918,8 +1918,7 @@ def finalize_tasks(
                             console.print(f"    coupling: {c}")
             if risk_report.exceeds_threshold and _policy.risk.mode == "block":
                 error_msg = (
-                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold "
-                    f"{risk_report.threshold:.2f}. Adjust the risk policy to proceed."
+                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold {risk_report.threshold:.2f}. Adjust the risk policy to proceed."
                 )
                 if json_output:
                     _emit_json(

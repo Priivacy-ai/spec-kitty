@@ -143,9 +143,7 @@ def install_fake_refresh_flow(monkeypatch):
     refresh_module.TokenRefreshFlow = FakeRefreshFlow
 
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(
-        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
-    )
+    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
     yield FakeRefreshFlow
 
 
@@ -340,9 +338,7 @@ async def test_concurrent_get_access_token_is_single_flight(install_fake_refresh
     tasks = [asyncio.create_task(tm.get_access_token()) for _ in range(10)]
     results = await asyncio.gather(*tasks)
 
-    assert install_fake_refresh_flow.call_count == 1, (
-        f"Expected 1 refresh, got {install_fake_refresh_flow.call_count}"
-    )
+    assert install_fake_refresh_flow.call_count == 1, f"Expected 1 refresh, got {install_fake_refresh_flow.call_count}"
     assert len(set(results)) == 1  # all callers see the same fresh token
     assert all(r != "stale" for r in results)
 

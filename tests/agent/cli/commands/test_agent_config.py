@@ -199,6 +199,7 @@ class TestRemoveCommand:
 
         # Update config to include claude
         from specify_cli.core.agent_config import load_agent_config
+
         config = load_agent_config(mock_project)
         config.available.append("claude")
         save_agent_config(mock_project, config)
@@ -214,6 +215,7 @@ class TestRemoveCommand:
         """Test removing an agent whose directory doesn't exist."""
         # Add gemini to config but not filesystem
         from specify_cli.core.agent_config import load_agent_config
+
         config = load_agent_config(mock_project)
         config.available.append("gemini")
         save_agent_config(mock_project, config)
@@ -240,6 +242,7 @@ class TestRemoveCommand:
             assert not (mock_project / ".opencode").exists()
 
             from specify_cli.core.agent_config import load_agent_config
+
             config = load_agent_config(mock_project)
             assert "opencode" in config.available
 

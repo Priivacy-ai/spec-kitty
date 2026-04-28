@@ -1,4 +1,5 @@
 """Regression tests for WP04 T020: resilient write in write_mission_brief."""
+
 from __future__ import annotations
 
 import pytest

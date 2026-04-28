@@ -65,10 +65,7 @@ def write_mission_brief(
     brief_hash = hashlib.sha256(content.encode()).hexdigest()
     ingested_at = datetime.now(tz=UTC).isoformat()
 
-    header = (
-        f"<!-- spec-kitty intake: ingested from {source_file} at {ingested_at} -->\n"
-        f"<!-- brief_hash: {brief_hash} -->"
-    )
+    header = f"<!-- spec-kitty intake: ingested from {source_file} at {ingested_at} -->\n<!-- brief_hash: {brief_hash} -->"
     brief_text = header + "\n\n" + content
 
     source_data: dict[str, str] = {

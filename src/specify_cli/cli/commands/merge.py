@@ -138,12 +138,7 @@ def _resolve_merge_actor(repo_root: Path) -> str:
         pass
     # Final-tier fallback: environment username. Comment preserved deliberately
     # because reviewers ask why this exists — see Fix 2 / FR-008 post-merge follow-up.
-    return (
-        os.environ.get("GIT_AUTHOR_NAME")
-        or os.environ.get("USER")
-        or os.environ.get("USERNAME")
-        or "<unknown>"
-    )
+    return os.environ.get("GIT_AUTHOR_NAME") or os.environ.get("USER") or os.environ.get("USERNAME") or "<unknown>"
 
 
 def _emit_remediation_hint(hint_console: Console) -> None:
@@ -286,17 +281,11 @@ def _assert_merged_wps_reached_done(
             if lane != Lane.DONE:
                 incomplete.append(f"{wp_id}={lane.value}")
     except StoreError as exc:
-        console.print(
-            "[red]Error:[/red] Post-merge status validation failed: "
-            f"could not read {feature_dir / 'status.events.jsonl'} ({exc})"
-        )
+        console.print(f"[red]Error:[/red] Post-merge status validation failed: could not read {feature_dir / 'status.events.jsonl'} ({exc})")
         raise typer.Exit(1) from exc
 
     if incomplete:
-        console.print(
-            "[red]Error:[/red] Post-merge status validation failed: "
-            "merged WPs did not reach done in the canonical event log."
-        )
+        console.print("[red]Error:[/red] Post-merge status validation failed: merged WPs did not reach done in the canonical event log.")
         console.print(f"  Offending WPs: {', '.join(incomplete)}")
         raise typer.Exit(1)
 
@@ -401,7 +390,9 @@ def _bake_mission_number_into_mission_branch(
             if isinstance(existing_on_target, int) and not isinstance(existing_on_target, bool):
                 logger.debug(
                     "Mission %s already has mission_number=%d on target branch %s; no-op",
-                    mission_slug, existing_on_target, target_branch,
+                    mission_slug,
+                    existing_on_target,
+                    target_branch,
                 )
                 return None
 
@@ -415,9 +406,7 @@ def _bake_mission_number_into_mission_branch(
         )
 
     if dry_run:
-        console.print(
-            f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}"
-        )
+        console.print(f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}")
         return None
 
     # -- Step 2: Write the integer into meta.json on the mission branch.
@@ -516,9 +505,7 @@ def _bake_mission_number_into_mission_branch(
             capture_output=True,
         )
 
-    console.print(
-        f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}"
-    )
+    console.print(f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}")
     logger.info("Assigned mission_number=%d to mission %s", next_number, mission_slug)
     return next_number
 
@@ -869,10 +856,7 @@ def _run_lane_based_merge_locked(
         cwd=main_repo,
     )
     if _ret_checkout != 0:
-        console.print(
-            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
-            f"{(_err_checkout or '').strip()}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: {(_err_checkout or '').strip()}")
 
     # -- WP05/T007 FR-014: Post-merge working-tree invariant --
     # After the refresh, `git status --porcelain` MUST report at most the two
@@ -897,33 +881,19 @@ def _run_lane_based_merge_locked(
             expected_paths,
         )
         if offending_lines:
-            console.print(
-                "[red]Error:[/red] Post-merge working-tree invariant violated. "
-                "The following paths diverge from HEAD unexpectedly:"
-            )
+            console.print("[red]Error:[/red] Post-merge working-tree invariant violated. The following paths diverge from HEAD unexpectedly:")
             for line in offending_lines:
                 console.print(f"  {line}")
-            deleted_or_modified = any(
-                len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M"))
-                for line in offending_lines
-            )
+            deleted_or_modified = any(len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M")) for line in offending_lines)
             if deleted_or_modified:
                 console.print(
-                    "\nThis may indicate a sparse-checkout or filter-driver issue. Run\n"
-                    "  spec-kitty doctor sparse-checkout --fix\n"
-                    "before retrying the merge."
+                    "\nThis may indicate a sparse-checkout or filter-driver issue. Run\n  spec-kitty doctor sparse-checkout --fix\nbefore retrying the merge."
                 )
             else:
-                console.print(
-                    "\nUnexpected working-tree state after merge. "
-                    "Run `git status` to investigate before retrying."
-                )
+                console.print("\nUnexpected working-tree state after merge. Run `git status` to investigate before retrying.")
             raise typer.Exit(1)
     else:
-        console.print(
-            f"[yellow]Warning:[/yellow] post-merge invariant check skipped: "
-            f"git status failed ({(_err_status or '').strip()})"
-        )
+        console.print(f"[yellow]Warning:[/yellow] post-merge invariant check skipped: git status failed ({(_err_status or '').strip()})")
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
     safe_commit(
@@ -1069,11 +1039,7 @@ def merge(
     allow_sparse_checkout: bool = typer.Option(
         False,
         "--allow-sparse-checkout",
-        help=(
-            "Proceed even if legacy sparse-checkout state is detected. "
-            "Use of this override is logged. Does not bypass the commit-time "
-            "data-loss backstop."
-        ),
+        help=("Proceed even if legacy sparse-checkout state is detected. Use of this override is logged. Does not bypass the commit-time data-loss backstop."),
     ),
 ) -> None:
     """Merge a lane-based feature into its target branch."""
@@ -1178,9 +1144,7 @@ def merge(
             raise typer.Exit(1) from exc
 
         # WP10/T053: dry-run preview of merge-time mission_number assignment.
-        feature_dir_for_preview = (
-            get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
-        )
+        feature_dir_for_preview = get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
         would_assign_number: int | None = None
         if needs_number_assignment(feature_dir_for_preview):
             try:
@@ -1205,9 +1169,7 @@ def merge(
             "would_assign_mission_number": would_assign_number,
         }
         if would_assign_number is not None and not json_output:
-            console.print(
-                f"[cyan]would assign[/cyan] mission_number={would_assign_number} to mission {resolved_feature}"
-            )
+            console.print(f"[cyan]would assign[/cyan] mission_number={would_assign_number} to mission {resolved_feature}")
         if json_output:
             print(json.dumps(payload))
         else:
@@ -1239,7 +1201,9 @@ def merge(
         raise typer.Exit(1) from exc
 
     # -- Post-merge: Suggest mission review --
-    console.print("\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security.")
+    console.print(
+        "\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security."
+    )
 
 
 __all__ = [

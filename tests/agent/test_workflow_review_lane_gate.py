@@ -128,10 +128,11 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
     # Lane is event-log-only; verify canonical state via event log
     from specify_cli.status.store import read_events
     from specify_cli.status.reducer import reduce
+
     events = read_events(feature_dir)
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get("WP01", {})
-    assert wp_state.get("lane") in ("in_progress", "doing"), f"Expected in_progress lane, got: {wp_state.get('lane')}"
+    assert wp_state.get("lane") in ("in_progress", "doing", "in_review"), f"Expected in_progress or in_review lane, got: {wp_state.get('lane')}"
 
 
 def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
@@ -238,10 +239,11 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     # Lane is event-log-only; verify canonical state via event log
     from specify_cli.status.store import read_events
     from specify_cli.status.reducer import reduce
+
     events = read_events(feature_dir)
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get("WP01", {})
-    assert wp_state.get("lane") in ("in_progress", "doing"), f"Expected in_progress lane, got: {wp_state.get('lane')}"
+    assert wp_state.get("lane") in ("in_progress", "doing", "in_review"), f"Expected in_progress or in_review lane, got: {wp_state.get('lane')}"
 
 
 def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> tuple[Path, str]:

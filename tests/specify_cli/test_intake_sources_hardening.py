@@ -1,4 +1,5 @@
 """Regression tests for WP04 T022/T023: path containment and symlink exclusion."""
+
 from __future__ import annotations
 
 import pytest

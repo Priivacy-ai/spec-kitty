@@ -49,9 +49,7 @@ def _write_brief_from_candidate(
     # If only one file exists, that is partial state from a prior interrupted write;
     # write_mission_brief() will clean it up before re-writing.
     if brief_path.exists() and source_path.exists() and not force:
-        err_console.print(
-            "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
-        )
+        err_console.print("Brief already exists at .kittify/mission-brief.md. Use --force to overwrite.")
         raise typer.Exit(1)
     try:
         file_size = found_path.stat().st_size
@@ -59,8 +57,7 @@ def _write_brief_from_candidate(
         file_size = 0
     if file_size > MAX_BRIEF_FILE_SIZE_BYTES:
         err_console.print(
-            f"[red]File is too large to ingest ({file_size / 1024 / 1024:.1f} MB). "
-            f"Maximum allowed size is {MAX_BRIEF_FILE_SIZE_BYTES // 1024 // 1024} MB.[/red]"
+            f"[red]File is too large to ingest ({file_size / 1024 / 1024:.1f} MB). Maximum allowed size is {MAX_BRIEF_FILE_SIZE_BYTES // 1024 // 1024} MB.[/red]"
         )
         raise typer.Exit(1)
     try:
@@ -82,9 +79,7 @@ def _prompt_candidate_selection(
         err_console.print(f"  {idx}. {found_path}  ({harness_key})")
 
     if not sys.stdin.isatty():
-        err_console.print(
-            "\nNon-interactive stdin — pass a path explicitly: spec-kitty intake <path>"
-        )
+        err_console.print("\nNon-interactive stdin — pass a path explicitly: spec-kitty intake <path>")
         raise typer.Exit(1)
 
     selection_str = typer.prompt("Enter number")
@@ -93,9 +88,7 @@ def _prompt_candidate_selection(
         if not 1 <= selection <= len(candidates):
             raise ValueError  # noqa: TRY301
     except ValueError:
-        err_console.print(
-            f"[red]Invalid selection. Enter a number between 1 and {len(candidates)}.[/red]"
-        )
+        err_console.print(f"[red]Invalid selection. Enter a number between 1 and {len(candidates)}.[/red]")
         raise typer.Exit(1) from None
 
     return candidates[selection - 1]
@@ -106,10 +99,7 @@ def _auto_branch(repo_root: Path, *, force: bool) -> None:
     candidates = scan_for_plans(repo_root)
 
     if not candidates:
-        err_console.print(
-            "No plan document detected in known harness locations.\n"
-            "Pass a path explicitly: spec-kitty intake <path>"
-        )
+        err_console.print("No plan document detected in known harness locations.\nPass a path explicitly: spec-kitty intake <path>")
         raise typer.Exit(1)
 
     if len(candidates) == 1:
@@ -176,9 +166,7 @@ def intake(
     # Gate only on complete state (both files present). Partial state is recovered by
     # write_mission_brief() and should not block re-ingest.
     if brief_path.exists() and _source_path.exists() and not force:
-        err_console.print(
-            "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
-        )
+        err_console.print("Brief already exists at .kittify/mission-brief.md. Use --force to overwrite.")
         raise typer.Exit(1)
 
     # Read content from file or stdin

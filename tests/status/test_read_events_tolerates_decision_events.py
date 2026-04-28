@@ -37,9 +37,7 @@ def _write_events_jsonl(feature_dir: Path, events: list[dict[str, Any]]) -> None
     )
 
 
-def _make_lane_event(
-    event_id: str, wp_id: str, to_lane: str = "claimed"
-) -> dict[str, Any]:
+def _make_lane_event(event_id: str, wp_id: str, to_lane: str = "claimed") -> dict[str, Any]:
     return {
         "event_id": event_id,
         "mission_slug": "demo",

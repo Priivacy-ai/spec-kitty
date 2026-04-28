@@ -96,15 +96,11 @@ def test_compact_preserves_directive_ids(fixture_path: Path, repo_root: Path) ->
     )
 
     assert set(compact.directive_ids) >= set(bootstrap_directive_ids), (
-        f"Compact view dropped directive IDs from {fixture_path.name}: "
-        f"missing {set(bootstrap_directive_ids) - set(compact.directive_ids)}"
+        f"Compact view dropped directive IDs from {fixture_path.name}: missing {set(bootstrap_directive_ids) - set(compact.directive_ids)}"
     )
 
     for directive_id in bootstrap_directive_ids:
-        assert directive_id in compact.text, (
-            f"Compact text for {fixture_path.name} is missing literal "
-            f"directive ID {directive_id!r}."
-        )
+        assert directive_id in compact.text, f"Compact text for {fixture_path.name} is missing literal directive ID {directive_id!r}."
 
 
 @pytest.mark.parametrize("fixture_path", _load_fixtures(), ids=lambda p: p.name)
@@ -119,10 +115,7 @@ def test_compact_preserves_tactic_ids(fixture_path: Path, repo_root: Path) -> No
     )
 
     assert set(compact.tactic_ids) == set(bootstrap_tactic_ids), (
-        f"Compact view tactic IDs drifted from bootstrap on "
-        f"{fixture_path.name}: "
-        f"compact={sorted(compact.tactic_ids)}, "
-        f"bootstrap={sorted(bootstrap_tactic_ids)}"
+        f"Compact view tactic IDs drifted from bootstrap on {fixture_path.name}: compact={sorted(compact.tactic_ids)}, bootstrap={sorted(bootstrap_tactic_ids)}"
     )
 
     for tactic_id in bootstrap_tactic_ids:
@@ -133,10 +126,7 @@ def test_compact_preserves_tactic_ids(fixture_path: Path, repo_root: Path) -> No
 def test_compact_preserves_section_anchors(fixture_path: Path, repo_root: Path) -> None:
     charter_text = fixture_path.read_text(encoding="utf-8")
     bootstrap_anchors = extract_section_anchors(charter_text)
-    assert bootstrap_anchors, (
-        f"Fixture {fixture_path.name} has no Markdown headings; the "
-        "test would be vacuous. Add at least one `# heading`."
-    )
+    assert bootstrap_anchors, f"Fixture {fixture_path.name} has no Markdown headings; the test would be vacuous. Add at least one `# heading`."
 
     compact: CompactView = render_compact_view(
         repo_root,
@@ -144,20 +134,14 @@ def test_compact_preserves_section_anchors(fixture_path: Path, repo_root: Path) 
     )
 
     assert set(compact.section_anchors) == set(bootstrap_anchors), (
-        f"Compact view dropped section anchors from {fixture_path.name}: "
-        f"missing {set(bootstrap_anchors) - set(compact.section_anchors)}"
+        f"Compact view dropped section anchors from {fixture_path.name}: missing {set(bootstrap_anchors) - set(compact.section_anchors)}"
     )
     for anchor in bootstrap_anchors:
-        assert anchor in compact.text, (
-            f"Compact text for {fixture_path.name} is missing literal "
-            f"section anchor {anchor!r}."
-        )
+        assert anchor in compact.text, f"Compact text for {fixture_path.name} is missing literal section anchor {anchor!r}."
 
 
 @pytest.mark.parametrize("fixture_path", _load_fixtures(), ids=lambda p: p.name)
-def test_compact_view_is_meaningfully_smaller_than_charter(
-    fixture_path: Path, repo_root: Path
-) -> None:
+def test_compact_view_is_meaningfully_smaller_than_charter(fixture_path: Path, repo_root: Path) -> None:
     """Sanity: compact must not bloat back to bootstrap-equivalent size.
 
     Heuristic: compact text must be smaller than the charter body. This
@@ -168,7 +152,5 @@ def test_compact_view_is_meaningfully_smaller_than_charter(
     charter_text = fixture_path.read_text(encoding="utf-8")
     compact = render_compact_view(repo_root, charter_text=charter_text)
     assert len(compact.text) < max(1, len(charter_text)), (
-        f"Compact view for {fixture_path.name} is not smaller than the "
-        f"charter body (compact={len(compact.text)}, "
-        f"charter={len(charter_text)})."
+        f"Compact view for {fixture_path.name} is not smaller than the charter body (compact={len(compact.text)}, charter={len(charter_text)})."
     )

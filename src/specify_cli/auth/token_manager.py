@@ -115,9 +115,7 @@ class TokenManager:
             SessionInvalidError: SaaS reported ``session_invalid`` during refresh.
         """
         if self._session is None:
-            raise NotAuthenticatedError(
-                "No active session. Run `spec-kitty auth login` to authenticate."
-            )
+            raise NotAuthenticatedError("No active session. Run `spec-kitty auth login` to authenticate.")
         if self._session.is_access_token_expired(buffer_seconds=_REFRESH_BUFFER_SECONDS):
             await self.refresh_if_needed()
         # After refresh, _session is still non-None (refresh_if_needed raises on failure).
@@ -144,14 +142,10 @@ class TokenManager:
             # while we were waiting for our turn.
             if self._session is None:
                 raise NotAuthenticatedError("No session to refresh")
-            if not self._session.is_access_token_expired(
-                buffer_seconds=_REFRESH_BUFFER_SECONDS
-            ):
+            if not self._session.is_access_token_expired(buffer_seconds=_REFRESH_BUFFER_SECONDS):
                 return False  # already refreshed by a previous caller
             if self._session.is_refresh_token_expired():
-                raise RefreshTokenExpiredError(
-                    "Refresh token expired. Run `spec-kitty auth login` to log in again."
-                )
+                raise RefreshTokenExpiredError("Refresh token expired. Run `spec-kitty auth login` to log in again.")
 
             # Lazy import to avoid circular dependencies: auth.flows.refresh
             # imports from specify_cli.auth (session/errors/config), and is
