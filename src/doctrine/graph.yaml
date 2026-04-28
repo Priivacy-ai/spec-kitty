@@ -112,15 +112,24 @@ nodes:
   label: C4 Incremental Detail Modeling
 - urn: paradigm:code-is-the-documentation
   kind: paradigm
+- urn: paradigm:deep-module-design
+  kind: paradigm
+  label: Deep Module Design
 - urn: paradigm:domain-driven-design
   kind: paradigm
   label: Domain-Driven Design
 - urn: paradigm:specification-by-example
   kind: paradigm
   label: Specification by Example
+- urn: procedure:disciplined-defect-diagnosis
+  kind: procedure
+  label: Disciplined Defect Diagnosis
 - urn: procedure:documentation-gap-prioritization
   kind: procedure
   label: Documentation Gap Prioritization
+- urn: procedure:domain-aware-decision-interview
+  kind: procedure
+  label: Domain-Aware Decision Interview
 - urn: procedure:drill-down-documentation
   kind: procedure
   label: Drill-Down Documentation
@@ -130,6 +139,9 @@ nodes:
 - urn: procedure:example-mapping-workshop
   kind: procedure
   label: Example Mapping Workshop
+- urn: procedure:issue-triage-state-machine
+  kind: procedure
+  label: Issue Triage State Machine
 - urn: procedure:migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   label: Migrate Project Guidance to Spec Kitty Charter
@@ -145,6 +157,9 @@ nodes:
 - urn: styleguide:aggregate-design-rules
   kind: styleguide
   label: Aggregate Design Rules
+- urn: styleguide:deployable-skill-authoring
+  kind: styleguide
+  label: Deployable Skill Authoring Styleguide
 - urn: styleguide:kitty-glossary-writing
   kind: styleguide
   label: Kitty Glossary Writing Styleguide
@@ -187,6 +202,9 @@ nodes:
 - urn: tactic:black-box-integration-testing
   kind: tactic
   label: Black-Box Integration Testing
+- urn: tactic:bug-fixing-checklist
+  kind: tactic
+  label: Bug-Fixing Checklist
 - urn: tactic:bounded-context-canvas-fill
   kind: tactic
   label: Bounded Context Canvas Fill
@@ -216,6 +234,9 @@ nodes:
   label: Cross-Cutting State via Store
 - urn: tactic:database-driven-design
   kind: tactic
+- urn: tactic:deepening-opportunity-assessment
+  kind: tactic
+  label: Deepening Opportunity Assessment
 - urn: tactic:decision-marker-capture
   kind: tactic
   label: Decision Marker Capture
@@ -240,6 +261,9 @@ nodes:
 - urn: tactic:input-validation-fail-fast
   kind: tactic
   label: Input Validation with Fail-Fast Feedback
+- urn: tactic:interface-variation-design
+  kind: tactic
+  label: Interface Variation Design
 - urn: tactic:language-driven-design
   kind: tactic
   label: Language-Driven Design
@@ -353,6 +377,45 @@ nodes:
 - urn: tactic:zombies-tdd
   kind: tactic
   label: ZOMBIES TDD
+- urn: template:agent-brief-template
+  kind: template
+  label: Agent Brief Template
+- urn: template:ammerse-analysis-template
+  kind: template
+  label: AMMERSE Analysis Template
+- urn: template:bounded-context-canvas-template
+  kind: template
+  label: Bounded Context Canvas Template
+- urn: template:c4-component-mermaid-template
+  kind: template
+  label: C4 Component Mermaid Template
+- urn: template:c4-container-mermaid-template
+  kind: template
+  label: C4 Container Mermaid Template
+- urn: template:c4-context-mermaid-template
+  kind: template
+  label: C4 Context Mermaid Template
+- urn: template:glossary-template
+  kind: template
+  label: Glossary Template
+- urn: template:lightweight-prestudy-template
+  kind: template
+  label: Lightweight Prestudy Template
+- urn: template:out-of-scope-record-template
+  kind: template
+  label: Out-of-Scope Record Template
+- urn: template:quality-attribute-assessment-template
+  kind: template
+  label: Quality Attribute Assessment Template
+- urn: template:risk-identification-assessment-template
+  kind: template
+  label: Risk Identification Assessment Template
+- urn: template:stakeholder-persona-template
+  kind: template
+  label: Stakeholder Persona Template
+- urn: template:system-context-canvas-template
+  kind: template
+  label: System Context Canvas Template
 - urn: toolguide:contextive
   kind: toolguide
   label: Contextive
@@ -533,6 +596,12 @@ edges:
   target: tactic:adr-drafting-workflow
   relation: scope
 - source: action:software-dev/plan
+  target: tactic:deepening-opportunity-assessment
+  relation: scope
+- source: action:software-dev/plan
+  target: tactic:interface-variation-design
+  relation: scope
+- source: action:software-dev/plan
   target: tactic:premortem-risk-identification
   relation: scope
 - source: action:software-dev/plan
@@ -540,6 +609,9 @@ edges:
   relation: scope
 - source: action:software-dev/plan
   target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/plan
+  target: procedure:domain-aware-decision-interview
   relation: scope
 - source: action:software-dev/review
   target: directive:DIRECTIVE_010
@@ -606,6 +678,9 @@ edges:
   relation: scope
 - source: action:software-dev/tasks
   target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/tasks
+  target: procedure:issue-triage-state-machine
   relation: scope
 - source: action:research/scoping
   target: directive:DIRECTIVE_003
@@ -894,6 +969,23 @@ edges:
   reason: "A single all-in-one architecture diagram conflates audiences and abstraction
     levels, producing a poster that nobody can review in a reasonable time. C4 explicitly
     separates concerns into distinct levels.\n"
+- source: paradigm:deep-module-design
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: paradigm:deep-module-design
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: paradigm:deep-module-design
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: paradigm:deep-module-design
+  target: tactic:deepening-opportunity-assessment
+  relation: suggests
+  when: Use to determine whether a shallow design should be deepened.
+- source: paradigm:deep-module-design
+  target: tactic:interface-variation-design
+  relation: suggests
+  when: Use to compare candidate interfaces for a deep module.
 - source: paradigm:domain-driven-design
   target: directive:DIRECTIVE_001
   relation: requires
@@ -1379,6 +1471,130 @@ edges:
 - source: toolguide:python-mutation-tools
   target: styleguide:mutation-aware-test-design
   relation: requires
+
+# ---------------------------------------------------------------------------
+# Template reference edges — templates are first-class DRG nodes so procedure
+# and tactic references can resolve through the graph instead of being skipped.
+# ---------------------------------------------------------------------------
+- source: tactic:ammerse-impact-analysis
+  target: template:ammerse-analysis-template
+  relation: suggests
+- source: tactic:bounded-context-canvas-fill
+  target: template:bounded-context-canvas-template
+  relation: suggests
+- source: tactic:bounded-context-canvas-fill
+  target: template:glossary-template
+  relation: suggests
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: template:c4-context-mermaid-template
+  relation: suggests
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: template:c4-container-mermaid-template
+  relation: suggests
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: template:c4-component-mermaid-template
+  relation: suggests
+- source: tactic:premortem-risk-identification
+  target: template:risk-identification-assessment-template
+  relation: suggests
+- source: tactic:problem-decomposition
+  target: template:lightweight-prestudy-template
+  relation: suggests
+- source: tactic:stakeholder-alignment
+  target: template:stakeholder-persona-template
+  relation: suggests
+- source: tactic:stakeholder-alignment
+  target: template:system-context-canvas-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:system-context-canvas-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:lightweight-prestudy-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:quality-attribute-assessment-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:ammerse-analysis-template
+  relation: suggests
+
+# ---------------------------------------------------------------------------
+# Curated Matt Pocock skill-pattern doctrine.
+# Upstream: https://github.com/mattpocock/skills/tree/49cec7be019bc408e87b77670f3d442f536da254
+# ---------------------------------------------------------------------------
+- source: procedure:disciplined-defect-diagnosis
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: procedure:disciplined-defect-diagnosis
+  target: procedure:test-first-bug-fixing
+  relation: suggests
+- source: procedure:disciplined-defect-diagnosis
+  target: tactic:bug-fixing-checklist
+  relation: suggests
+- source: procedure:disciplined-defect-diagnosis
+  target: tactic:testing-select-appropriate-level
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: tactic:glossary-curation-interview
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: tactic:language-driven-design
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: tactic:adr-drafting-workflow
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: procedure:situational-assessment
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: template:agent-brief-template
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: template:out-of-scope-record-template
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: procedure:disciplined-defect-diagnosis
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: procedure:test-first-bug-fixing
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: tactic:requirements-validation-workflow
+  relation: suggests
+- source: tactic:deepening-opportunity-assessment
+  target: paradigm:deep-module-design
+  relation: suggests
+- source: tactic:deepening-opportunity-assessment
+  target: tactic:easy-to-change
+  relation: suggests
+- source: tactic:deepening-opportunity-assessment
+  target: tactic:locality-of-change
+  relation: suggests
+- source: tactic:deepening-opportunity-assessment
+  target: procedure:refactoring
+  relation: suggests
+- source: tactic:interface-variation-design
+  target: paradigm:deep-module-design
+  relation: suggests
+- source: tactic:interface-variation-design
+  target: tactic:deepening-opportunity-assessment
+  relation: suggests
+- source: tactic:interface-variation-design
+  target: tactic:traceable-decisions
+  relation: suggests
+- source: styleguide:deployable-skill-authoring
+  target: directive:DIRECTIVE_037
+  relation: suggests
+- source: agent_profile:architect-alphonso
+  target: tactic:deepening-opportunity-assessment
+  relation: suggests
+- source: agent_profile:architect-alphonso
+  target: tactic:interface-variation-design
+  relation: suggests
+- source: agent_profile:curator-carla
+  target: styleguide:deployable-skill-authoring
+  relation: suggests
 # ---------------------------------------------------------------------------
 # Agent profile nodes — specialisation hierarchy and doctrine context wiring
 # ---------------------------------------------------------------------------
