@@ -8,11 +8,15 @@ requirement_refs:
 planning_base_branch: fix/charter-e2e-827-tranche-2
 merge_target_branch: fix/charter-e2e-827-tranche-2
 branch_strategy: Planning artifacts for this feature were generated on fix/charter-e2e-827-tranche-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/charter-e2e-827-tranche-2 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-e2e-hardening-tranche-2-01KQ9NVQ
+base_commit: 856bc200c6e65929fb52c0442ac9ab3939ba87ea
+created_at: '2026-04-28T10:13:03.241674+00:00'
 subtasks:
 - T008
 - T009
 - T010
 agent: claude
+shell_pid: '42938'
 history:
 - at: '2026-04-28T09:36:40Z'
   actor: spec-kitty.tasks

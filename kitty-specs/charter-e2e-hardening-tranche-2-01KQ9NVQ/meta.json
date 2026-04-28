@@ -8,5 +8,7 @@
   "purpose_context": "PR #838 landed the first product-repo E2E for issue #827 but tolerated softened checks because the public CLI still had gaps in fresh-init metadata, charter generate/validate, fixture synthesis, JSON stdout cleanliness, prompt-file resolution, and profile-invocation lifecycle records. Tranche 2 fixes those product gaps so the operator path works end-to-end, then strips the test's bypass helpers so a future regression in any of those areas fails the golden-path gate from a fresh project using only public CLI commands.",
   "purpose_tldr": "Convert the merged Charter golden-path E2E into a strict regression gate by fixing six product gaps and removing every test bypass.",
   "slug": "charter-e2e-hardening-tranche-2-01KQ9NVQ",
-  "target_branch": "fix/charter-e2e-827-tranche-2"
+  "target_branch": "fix/charter-e2e-827-tranche-2",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-28T10:13:02.484116+00:00"
 }
