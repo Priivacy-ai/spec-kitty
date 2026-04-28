@@ -306,6 +306,40 @@ async def _run_locked(
                 network_call_made=True,
                 rejection_cause=cause,
             )
+        if repersisted is None:
+            # A concurrent process deleted the storage (logout/clear). The
+            # rejection was not against current material, but there is no
+            # session left to preserve. Surface as cleared so the caller
+            # raises the canonical re-login error instead of asserting on
+            # a None session downstream.
+            return RefreshResult(
+                outcome=RefreshOutcome.CURRENT_REJECTION_CLEARED,
+                session=None,
+                network_call_made=True,
+                rejection_cause=cause,
+            )
+        if repersisted.is_refresh_token_expired():
+            # The repersisted material is itself unusable: even though our
+            # rejection was stale, the local session can no longer refresh.
+            # Clear and require re-login.
+            storage.delete()
+            return RefreshResult(
+                outcome=RefreshOutcome.CURRENT_REJECTION_CLEARED,
+                session=None,
+                network_call_made=True,
+                rejection_cause=cause,
+            )
+        if repersisted.is_access_token_expired(buffer_seconds=_ADOPT_BUFFER_SECONDS):
+            # Refresh token still valid, but the access token is already
+            # expired. Adopting it would leak an expired bearer to the
+            # caller of get_access_token(). Preserve storage but fail this
+            # call retryably; the next refresh_if_needed will rotate the
+            # access token cleanly.
+            return RefreshResult(
+                outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
+                session=repersisted,
+                network_call_made=True,
+            )
         # FR-006: a different process has already rotated; the rejection
         # was against stale material we held in memory. Preserve the
         # freshly persisted session — DO NOT delete.

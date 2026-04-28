@@ -474,9 +474,15 @@ async def test_stale_grant_with_expired_persisted_preserves_session(
         async def refresh(self, session: StoredSession) -> StoredSession:
             # Simulate another process rotating the refresh token while we
             # were on the wire, then having the SaaS reject our (stale) one.
+            # The rotating peer persists a fresh access+refresh pair (this
+            # is what production rotation actually writes); our reconciler
+            # must preserve it.
             rejected_during_refresh["sent_with_rt"] = session
             storage._session = _replace(
-                session, refresh_token="rot-v2-rotated-by-other-process"
+                session,
+                refresh_token="rot-v2-rotated-by-other-process",
+                access_token="access-v2-fresh",
+                access_token_expires_at=_now() + timedelta(seconds=900),
             )
             raise RefreshTokenExpiredError("stale token rejected")
 
@@ -493,6 +499,112 @@ async def test_stale_grant_with_expired_persisted_preserves_session(
     assert current.refresh_token == "rot-v2-rotated-by-other-process"
     assert storage.deletes == 0
     assert rejected_during_refresh["sent_with_rt"].refresh_token == "rot-v1"
+
+
+@pytest.mark.asyncio
+async def test_stale_grant_with_concurrent_storage_delete_clears_cleanly(
+    install_fake_refresh_flow,
+):
+    """Repersisted is None (a parallel logout/clear).
+
+    Without the guard, the reconciler returns STALE_REJECTION_PRESERVED with
+    ``session=None``; the caller asserts non-None and the process crashes
+    with ``AssertionError``. The fix routes this case through
+    CURRENT_REJECTION_CLEARED so the canonical re-login error surfaces
+    cleanly.
+    """
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, refresh_token="rot-v1")
+    tm._session = in_memory
+    storage._session = _replace(in_memory)
+
+    class StaleRejectingFlowThatDeletes:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            # Another process logs the user out between our send and the
+            # SaaS rejection arriving back.
+            storage._session = None
+            raise RefreshTokenExpiredError("stale token rejected")
+
+    refresh_module = sys.modules["specify_cli.auth.flows.refresh"]
+    refresh_module.TokenRefreshFlow = StaleRejectingFlowThatDeletes  # type: ignore[attr-defined]
+
+    with pytest.raises(RefreshTokenExpiredError):
+        await tm.refresh_if_needed()
+
+    assert tm.get_current_session() is None
+
+
+@pytest.mark.asyncio
+async def test_stale_grant_with_repersisted_refresh_token_expired_clears(
+    install_fake_refresh_flow,
+):
+    """Repersisted material is itself unusable — clear and require re-login."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, refresh_token="rot-v1")
+    tm._session = in_memory
+    storage._session = _replace(in_memory)
+
+    class StaleRejectingFlowRotatesToExpiredRefresh:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            # Another process rotated, but the new refresh token is past
+            # its absolute lifetime. The repersisted session is no good.
+            storage._session = _replace(
+                session,
+                refresh_token="rot-v2-but-expired",
+                refresh_token_expires_at=_now() - timedelta(days=1),
+            )
+            raise RefreshTokenExpiredError("stale token rejected")
+
+    refresh_module = sys.modules["specify_cli.auth.flows.refresh"]
+    refresh_module.TokenRefreshFlow = StaleRejectingFlowRotatesToExpiredRefresh  # type: ignore[attr-defined]
+
+    with pytest.raises(RefreshTokenExpiredError):
+        await tm.refresh_if_needed()
+
+    assert tm.get_current_session() is None
+    assert storage.deletes >= 1
+
+
+@pytest.mark.asyncio
+async def test_stale_grant_with_repersisted_access_token_expired_raises_lock_timeout(
+    install_fake_refresh_flow,
+):
+    """Refresh token still valid; access token already expired.
+
+    Adopting the repersisted session would leak an expired bearer to the
+    next ``get_access_token()`` call. The fix surfaces a retryable
+    :class:`RefreshLockTimeoutError`; storage is preserved so a follow-up
+    call can rotate cleanly via ADOPTED_NEWER on the next attempt.
+    """
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, refresh_token="rot-v1")
+    tm._session = in_memory
+    storage._session = _replace(in_memory)
+
+    class StaleRejectingFlowRotatesToExpiredAccess:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            storage._session = _replace(
+                session,
+                refresh_token="rot-v2",
+                access_token="access-v2-already-expired",
+                access_token_expires_at=_now() - timedelta(seconds=10),
+            )
+            raise RefreshTokenExpiredError("stale token rejected")
+
+    refresh_module = sys.modules["specify_cli.auth.flows.refresh"]
+    refresh_module.TokenRefreshFlow = StaleRejectingFlowRotatesToExpiredAccess  # type: ignore[attr-defined]
+
+    with pytest.raises(RefreshLockTimeoutError):
+        await tm.refresh_if_needed()
+
+    # Storage must be preserved: the refresh token is still good and a
+    # retry will adopt it via ADOPTED_NEWER.
+    assert storage.deletes == 0
+    assert storage._session is not None
+    assert storage._session.refresh_token == "rot-v2"
 
 
 @pytest.mark.asyncio

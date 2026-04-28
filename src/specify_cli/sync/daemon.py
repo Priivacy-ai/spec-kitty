@@ -125,7 +125,7 @@ def _get_package_version() -> str:
     try:
         from importlib.metadata import version
 
-        return version("specify-cli")
+        return version("spec-kitty-cli")
     except Exception:
         return "unknown"
 

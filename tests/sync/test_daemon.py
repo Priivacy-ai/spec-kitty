@@ -493,3 +493,25 @@ def test_get_sync_daemon_status_reads_health_metadata(monkeypatch, tmp_path):
     assert status.websocket_status == "Connected"
     assert status.protocol_version == daemon.DAEMON_PROTOCOL_VERSION
     assert status.package_version == daemon._get_package_version()
+
+
+def test_get_package_version_queries_distribution_name_in_pyproject():
+    """Regression: ``_get_package_version`` must query the actual installed
+    distribution name (``spec-kitty-cli`` per ``pyproject.toml``).
+
+    Earlier code asked ``importlib.metadata.version("specify-cli")``, which
+    is not installed and silently returned ``"unknown"``. That made the
+    daemon health endpoint report ``package_version: unknown`` and broke
+    the WP04 daemon-recycle path (FR-008) and WP06 finding F-004
+    (daemon-version-mismatch detection in ``auth doctor``).
+    """
+    from importlib.metadata import version as _real_version
+
+    # The function under test must return the same string the package-
+    # metadata machinery returns for the canonical distribution name. If
+    # someone reverts to ``version("specify-cli")`` this assertion fails
+    # because that lookup raises and the function falls through to
+    # ``"unknown"``.
+    expected = _real_version("spec-kitty-cli")
+    assert daemon._get_package_version() == expected
+    assert daemon._get_package_version() != "unknown"
