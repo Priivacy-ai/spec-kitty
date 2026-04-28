@@ -147,3 +147,7 @@ Closes (in conjunction with the strict E2E gate): `#840`. Satisfies: `FR-001`, `
 ```bash
 spec-kitty agent action implement WP02 --agent <your-agent-key>
 ```
+
+## Activity Log
+
+- 2026-04-28T10:18:01Z – claude – shell_pid=42938 – Init now stamps schema_version + schema_capabilities; fresh-init integration test added; upgrade-version tests green
