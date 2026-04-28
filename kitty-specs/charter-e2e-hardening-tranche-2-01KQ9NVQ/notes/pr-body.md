@@ -70,3 +70,21 @@ The migration file demonstrates the rewrite that runs on consuming projects:
 ```bash
 git show HEAD:src/specify_cli/upgrade/migrations/m_3_2_5_fix_prompt_file_workaround.py
 ```
+
+---
+
+## Follow-up fixes (post-review)
+
+After initial review surfaced three implementation issues and CI flagged diff-coverage gaps, the following fixes were added in commit c8217f29:
+
+- **`charter synthesize --json` warning leak**: evidence warnings now fold into the JSON envelope's `warnings` field instead of polluting stdout via Rich. (`src/specify_cli/cli/commands/charter.py`)
+- **Synthesize success envelope contract**: success branch now emits `result`, `adapter`, and `written_artifacts` per `contracts/charter-synthesize.json`. (Same file.)
+- **Dry-run planned paths**: dry-run helper now uses real artifact URNs from staging instead of inventing `PROJECT_000` placeholders. Dry-run paths now match real synthesize output for directives. (Same file.)
+- **Diff-coverage**: added targeted tests for the structured-blocked emit paths in `next/decision.py:521-522` and `next/runtime_bridge.py:1565-1609, 2156, 2364`. `diff-coverage` and `quality-gate` are now green.
+
+Tests added/extended:
+- `tests/specify_cli/test_json_output_discipline.py` — strict-parse assertion now covers the warning case.
+- `tests/doctrine_synthesizer/test_synthesize_writes_artifacts.py` — asserts `adapter` + `written_artifacts` contract fields and dry-run/real path parity.
+- `tests/doctrine_synthesizer/test_synthesize_dry_run_envelope.py` — updated mocks to typed return shape.
+- `tests/next/test_prompt_file_invariant.py` — `Path.exists` OSError branch.
+- `tests/next/test_runtime_bridge_blocked_paths.py` (new) — covers legacy DAG guard-failure path and the WP-iteration blocked branch.
