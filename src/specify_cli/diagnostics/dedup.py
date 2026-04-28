@@ -1,4 +1,4 @@
-"""In-process diagnostic dedup + atexit success-flag.
+"""In-process diagnostic dedup + atexit success flag.
 
 Why this module exists
 ----------------------
@@ -10,8 +10,9 @@ The CLI prints noisy diagnostics from multiple cooperating subsystems
 
 This module is the smallest-blast-radius coordination point. It provides:
 
-- ``report_once(cause_key)`` — a ContextVar-backed gate that allows each
-  distinct diagnostic cause to print at most once per CLI invocation.
+- ``report_once(cause_key)`` — a process-wide, lock-backed gate that allows
+  each distinct diagnostic cause to print at most once per CLI invocation,
+  including diagnostics emitted from timer/final-sync threads.
 - ``mark_invocation_succeeded()`` / ``invocation_succeeded()`` — a
   process-state flag that JSON-emitting commands set after their final
   payload write so atexit handlers can downgrade or skip their warnings.
@@ -23,14 +24,11 @@ write so atexit handlers know the invocation succeeded.
 
 from __future__ import annotations
 
-import contextvars
 import threading
 from typing import Final
 
-_REPORTED: Final[contextvars.ContextVar[frozenset[str]]] = contextvars.ContextVar(
-    "spec_kitty_diagnostics_reported",
-    default=frozenset(),
-)
+_REPORTED_LOCK: Final[threading.Lock] = threading.Lock()
+_REPORTED: set[str] = set()
 
 _SUCCESS_FLAG_LOCK: Final[threading.Lock] = threading.Lock()
 _SUCCESS_FLAG: list[bool] = [False]
@@ -39,16 +37,16 @@ _SUCCESS_FLAG: list[bool] = [False]
 def report_once(cause_key: str) -> bool:
     """Return True iff ``cause_key`` has not been reported in this invocation.
 
-    Safe under asyncio (ContextVar). Caller pattern::
+    Safe across asyncio tasks and background threads. Caller pattern::
 
         if report_once("sync.unauthenticated"):
             logger.warning("Not authenticated, skipping sync")
     """
-    reported = _REPORTED.get()
-    if cause_key in reported:
-        return False
-    _REPORTED.set(reported | {cause_key})
-    return True
+    with _REPORTED_LOCK:
+        if cause_key in _REPORTED:
+            return False
+        _REPORTED.add(cause_key)
+        return True
 
 
 def reset_for_invocation() -> None:
@@ -57,7 +55,8 @@ def reset_for_invocation() -> None:
     Production code should NOT call this. Tests call it from a fixture so
     state does not leak between test runs.
     """
-    _REPORTED.set(frozenset())
+    with _REPORTED_LOCK:
+        _REPORTED.clear()
     with _SUCCESS_FLAG_LOCK:
         _SUCCESS_FLAG[0] = False
 
