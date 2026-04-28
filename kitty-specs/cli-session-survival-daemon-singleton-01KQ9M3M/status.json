@@ -1,0 +1,63 @@
+{
+  "event_count": 6,
+  "last_event_id": "01KQ9PPYC0PFPCBY1PYTDRPH2E",
+  "materialized_at": "2026-04-28T09:28:49.280508+00:00",
+  "mission_number": "",
+  "mission_slug": "cli-session-survival-daemon-singleton-01KQ9M3M",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 6
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQ9PPXTRTQH11Q2EBE90BQMS",
+      "last_transition_at": "2026-04-28T09:28:48.728859+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQ9PPY5SACPEJZH4NKKG0FHG",
+      "last_transition_at": "2026-04-28T09:28:49.081914+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQ9PPY79BXADWAW50Y3D8790",
+      "last_transition_at": "2026-04-28T09:28:49.129612+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQ9PPY8SCM6DQ8Q4JB6G0YQG",
+      "last_transition_at": "2026-04-28T09:28:49.177596+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQ9PPYAD9JN4Q2P52CRGG72J",
+      "last_transition_at": "2026-04-28T09:28:49.229279+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQ9PPYC0PFPCBY1PYTDRPH2E",
+      "last_transition_at": "2026-04-28T09:28:49.280508+00:00"
+    }
+  }
+}
