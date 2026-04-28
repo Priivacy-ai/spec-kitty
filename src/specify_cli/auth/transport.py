@@ -64,6 +64,7 @@ from specify_cli.auth.errors import (
     TokenRefreshError,
 )
 from specify_cli.auth.http import request_with_fallback_sync
+from specify_cli.diagnostics import report_once
 
 
 logger = logging.getLogger(__name__)
@@ -112,11 +113,19 @@ def _emit_user_facing_failure_once(message: str) -> None:
     Subsequent invocations within the same process accumulate to the
     debug log only. This implements FR-029 / NFR-007: ≤ 1 user-facing
     token-refresh failure line per command invocation.
+
+    As of WP06 (FR-008/FR-009), dedup state is shared with the
+    process-wide ``specify_cli.diagnostics.report_once`` ContextVar gate
+    via cause key ``auth.token_refresh_failed`` so that tests can reset
+    state via ``reset_for_invocation()`` and so the gate is unified
+    across the codebase. The legacy module-level boolean is kept in
+    sync for any code path still reading it directly.
     """
     global _user_facing_failure_emitted
+    first = report_once("auth.token_refresh_failed")
     with _dedup_lock:
-        first = not _user_facing_failure_emitted
-        _user_facing_failure_emitted = True
+        if first:
+            _user_facing_failure_emitted = True
     if first:
         # Single user-facing line.
         print(message, file=sys.stderr)
@@ -126,10 +135,22 @@ def _emit_user_facing_failure_once(message: str) -> None:
 
 
 def reset_user_facing_dedup() -> None:
-    """Reset the per-invocation dedup boolean. Intended for tests only."""
+    """Reset the per-invocation dedup boolean. Intended for tests only.
+
+    As of WP06 the dedup gate is unified with
+    ``specify_cli.diagnostics.report_once`` under cause key
+    ``auth.token_refresh_failed``. This helper resets BOTH the legacy
+    module-level boolean and the new ContextVar gate so existing tests
+    that only call this function continue to work.
+    """
+    from specify_cli.diagnostics import reset_for_invocation
+
     global _user_facing_failure_emitted
     with _dedup_lock:
         _user_facing_failure_emitted = False
+    # Reset the ContextVar gate so the next ``_emit_user_facing_failure_once``
+    # call in the same process actually fires.
+    reset_for_invocation()
 
 
 def _user_facing_failure_was_emitted() -> bool:

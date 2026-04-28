@@ -2,7 +2,7 @@ description = "Review a work package implementation"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.review - Review Work Package Implementation
+# /spec-kitty.review - Review Work Package<!-- glossary:glossary:work-package --> Implementation
 
 **Version**: 0.12.0+
 
@@ -10,17 +10,17 @@ prompt = """
 
 Review the implementation of a work package against its prompt file, acceptance
 criteria, and owned-file boundaries. Verify correctness, test coverage, and
-compliance with any applicable guardrails (e.g., bulk edit occurrence maps).
+compliance with any applicable guardrails (e.g., bulk edit<!-- glossary:glossary:bulk-edit --> occurrence maps).
 
 ---
 
 ## Working Directory
 
-**IMPORTANT**: This step works inside the execution workspace (worktree)
+**IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
 allocated by `spec-kitty agent action review WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -45,12 +45,12 @@ Then execute the returned `check_prerequisites` command and capture
 
 The output of `spec-kitty agent action review ...` is the authoritative work
 package prompt and review context. Do **not** separately call
-`spec-kitty charter context` or go hunting for alternate prompt files unless
+`spec-kitty charter<!-- glossary:glossary:charter --> context` or go hunting for alternate prompt files unless
 the command output tells you to.
 
 ### 2. Load Work Package Prompt
 
-Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
+Read the WP<!-- glossary:glossary:wp --> prompt file from `feature_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
 - `owned_files` -- only these globs should have been modified
 - `authoritative_surface` -- primary directory for this WP
@@ -61,7 +61,7 @@ Parse frontmatter for:
 ### 2a. Load Agent Profile
 
 Before proceeding with the review, load the agent profile from the WP frontmatter
-using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
+using the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> (or `spec-kitty agent profile list` to browse
 available profiles). Apply the profile's reviewer guidance and self-review gates for
 the rest of this review session.
 
@@ -80,7 +80,7 @@ For each subtask:
 ### 4. Check Quality
 
 - All tests pass
-- Code follows project conventions (run linter if configured)
+- Code follows project<!-- glossary:glossary:project --> conventions (run linter if configured)
 - No unintended side effects or regressions
 - Changes are well-documented where appropriate
 
@@ -90,7 +90,7 @@ For each subtask:
 
 If this mission has `change_mode: bulk_edit` in `meta.json`:
 
-1. **Verify occurrence map exists**: `occurrence_map.yaml` must be present in the feature directory
+1. **Verify occurrence map<!-- glossary:glossary:occurrence-map --> exists**: `occurrence_map.yaml` must be present in the feature directory
 2. **Reference during review**: The occurrence map is the governing artifact for this bulk edit
 3. **Check category compliance**:
    - Verify changes respect `do_not_change` categories — reject if these were modified
@@ -143,5 +143,5 @@ implementer profile so the next implementation cycle starts with the right conte
 The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
 and resume work with the proper persona and self-review gates.
 
-**Next step**: `spec-kitty next --agent <name>` will advance to the next phase.
+**Next step**: `spec-kitty next --agent <name>` will advance to the next phase<!-- glossary:glossary:phase -->.
 """

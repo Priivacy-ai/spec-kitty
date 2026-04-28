@@ -2,23 +2,23 @@ description = "Create a mission specification"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.specify - Create Mission Specification
+# /spec-kitty.specify - Create Mission<!-- glossary:glossary:mission --> Specification
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in the repository root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
 
 **IMPORTANT**: Specify works in the repository root checkout. NO worktrees are created.
 
 ```bash
 # Run from the repository root checkout:
-cd /path/to/project/root  # Your repository root checkout
+cd /path/to/project<!-- glossary:glossary:project -->/root  # Your repository root checkout
 
 # All planning artifacts are created in the project root and committed:
-# - kitty-specs/<mission_slug>/spec.md → Created in project root
+# - kitty-specs/<mission_slug<!-- glossary:glossary:mission_slug -->>/spec.md → Created in project root
 #   (use the mission_slug returned by `mission create`; the numeric NNN- prefix
 #    is display-only and is assigned at merge time)
-# - Committed to target branch (from create JSON: target_branch/base_branch)
+# - Committed to target branch<!-- glossary:glossary:target-branch --> (from create JSON: target_branch/base_branch)
 # - NO worktrees created
 ```
 
@@ -32,7 +32,7 @@ Before `mission create`, there is no mission handle yet.
 - Do **not** pass `--mission` to `spec-kitty agent mission create`.
 - After `create` succeeds, use `--mission <handle>` for commands that operate on
   the created mission.
-- `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of
+- `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of
   the ULID), or `mission_slug`.
 - The resolver disambiguates by `mission_id` and returns a structured
   `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
@@ -61,9 +61,9 @@ spec-kitty agent mission branch-context --json --target-branch <intended-branch>
 
 Parse the JSON and, in your next reply, explicitly tell the user:
 
-- Current branch at workflow start: `current_branch`
-- Default planning/base branch if you create the mission right now: `planning_base_branch`
-- Final merge target for completed changes: `merge_target_branch`
+- Current branch<!-- glossary:glossary:current-branch --> at workflow start: `current_branch`
+- Default planning/base branch if you create the mission right now: `planning_base_branch<!-- glossary:glossary:planning_base_branch -->`
+- Final merge target for completed changes: `merge_target_branch<!-- glossary:glossary:merge_target_branch -->`
 - Whether `branch_matches_target` is true or false
 - If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create`
 
@@ -77,7 +77,7 @@ Never talk generically about `main` or "the default branch". Name the actual bra
 - Do not write non-functional requirements without measurable thresholds.
 - Do not proceed to planning with unresolved requirement quality checklist failures.
 
-## Charter Context Bootstrap (required)
+## Charter<!-- glossary:glossary:charter --> Context Bootstrap (required)
 
 Before discovery questions, load charter context for this action:
 
@@ -115,7 +115,7 @@ Check in priority order:
    - Objective → Functional Requirements
    - Constraints and non-goals → Non-Functional Requirements and Constraints
    - Acceptance criteria → FR status and Definition of Done markers
-   - Risks and open questions → Assumptions or `[NEEDS CLARIFICATION]` markers (max 3)
+   - Risks and open questions → Assumptions or `[NEEDS CLARIFICATION: <text>] <!-- decision_id: <id> -->` markers (max 3; use `decision defer` before writing each marker)
 
 4. **Ask gap-filling questions only.** Scale to brief quality:
 
@@ -148,11 +148,58 @@ Check in priority order:
 
 No change to current behaviour. Continue to the Discovery Gate section below.
 
+## Decision Moment<!-- glossary:glossary:decision-moment --> Protocol
+
+Before asking **any** interview question during this command, you MUST:
+
+1. Run `spec-kitty agent decision open` to mint a decision_id:
+   ```
+   spec-kitty agent decision open \
+     --mission <mission-slug> \
+     --flow specify \
+     --slot-key specify.<section>.<question-slug> \
+     --input-key <snake_case_key> \
+     --question "<question text>" \
+     [--options '["option1","option2","Other"]']
+   ```
+   Capture the returned `decision_id` from the JSON output.
+
+2. Ask the question to the user in chat.
+
+3. After the user answers, run **exactly one** of:
+   - Resolved answer:
+     `spec-kitty agent decision resolve <decision_id> --mission <slug> --final-answer "<answer>" [--other-answer]`
+   - Deferred / skip:
+     `spec-kitty agent decision defer <decision_id> --mission <slug> --rationale "<reason>"`
+   - Not applicable / cancel:
+     `spec-kitty agent decision cancel <decision_id> --mission <slug> --rationale "<reason>"`
+
+4. When deferring, write the inline marker into `spec.md` immediately after the
+   relevant section:
+   ```
+   [NEEDS CLARIFICATION: <brief description of what needs answering>] <!-- decision_id: <decision_id> -->
+   ```
+
+5. Before declaring the interview phase<!-- glossary:glossary:phase --> complete, run:
+   `spec-kitty agent decision verify --mission <slug>`
+   Address any findings (`DEFERRED_WITHOUT_MARKER`, `MARKER_WITHOUT_DECISION`,
+   `STALE_MARKER`) before proceeding.
+
+**Important constraints:**
+- `--slot-key` format: `specify.<section>.<question-slug>` (e.g.,
+  `specify.auth.strategy`).
+- `--input-key` is the snake_case programmatic key (e.g., `auth_strategy`).
+- The `decision_id` on the wire is a plain ULID (26 chars). The `DM-` prefix
+  appears only in artifact filenames, not in CLI arguments.
+- Widening is represented by the CLI/SaaS widen flow; if that flow returns
+  canonical thread metadata, it must be recorded as `DecisionPointWidened`.
+- SaaS sync is not required; all operations are local-only.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
 
-- **Scope proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
+- **Scope<!-- glossary:glossary:scope --> proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
   - **Trivial/Test Features** (hello world, simple pages, proof-of-concept): Ask 1-2 questions maximum, then proceed. Examples: "a simple hello world page", "tic-tac-toe game", "basic contact form"
   - **Simple Features** (small UI additions, minor enhancements): Ask 2-3 questions covering purpose and basic constraints
   - **Complex Features** (new subsystems, integrations): Ask 3-5 questions covering goals, users, constraints, risks
@@ -200,7 +247,7 @@ Typical shapes: "rename X to Y", "the Blue feature is now the Red feature",
 "change the terminology from X to Y", "move package A to package B", "replace
 ACME with GlobalCorp everywhere in docs and UI".
 
-**If yes or uncertain**: load the `spec-kitty-bulk-edit-classification` skill
+**If yes or uncertain**: load the `spec-kitty-bulk-edit-classification` skill<!-- glossary:glossary:skill -->
 and follow it. You will set `change_mode: bulk_edit` in `meta.json` after
 `mission create` and produce an `occurrence_map.yaml` during plan. The user
 does not need to know these field names — the skill teaches you the workflow.
@@ -208,7 +255,7 @@ does not need to know these field names — the skill teaches you the workflow.
 **If clearly no** (a new feature with new identifiers, a bug fix that doesn't
 rename anything, a refactor inside one file): proceed normally.
 
-When in doubt, treat as bulk edit. The false-positive cost is drafting one map
+When in doubt, treat as bulk edit<!-- glossary:glossary:bulk-edit -->. The false-positive cost is drafting one map
 the user approves in a pass; the false-negative cost is the silent cross-file
 breakage that DIRECTIVE_035 exists to prevent.
 
@@ -234,7 +281,7 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 2. **Check for explicit mission requests** in the user's description:
    - If user mentions "research project", "investigation", "analysis" → use research
-   - If user mentions "build", "implement", "create feature" → use software-dev
+   - If user mentions "build<!-- glossary:glossary:build -->", "implement", "create feature" → use software-dev
 
 3. **Confirm with user** (unless explicit):
    > "Based on your description, this sounds like a **[software-dev/research]** project.
@@ -256,7 +303,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
+**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP<!-- glossary:glossary:wp -->## --agent <name>` for each WP. Each lane<!-- glossary:glossary:lane --> gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
 
 ## Location
 
@@ -270,13 +317,13 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
 - Read that title back during the Intent Summary and revise it if the user requests changes.
-- Use the confirmed title to derive the kebab-case feature slug for the create command.
+- Use the confirmed title to derive the kebab-case feature slug<!-- glossary:glossary:feature-slug --> for the create command.
 
 The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
 Given that feature description, do this:
 
-- **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …]` to at most three critical decisions the user has postponed).
+- **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` to at most three critical decisions the user has postponed; call `decision defer` before writing each such marker).
 - **Interactive Interview Mode (no arguments)**: Use the discovery interview to elicit all necessary context, synthesize the working feature description, and confirm it with the user before you generate any specification artifacts.
 
 1. **Check discovery status**:
@@ -300,10 +347,10 @@ Given that feature description, do this:
    - `result`: "success" or error message
    - `mission_id`: Canonical ULID machine identity (e.g., `01J6XW9KQT7M0YB3N4R5CQZ2EX`). Immutable.
    - `mission_slug`: Human-readable mission slug (e.g., `checkout-upsell-flow`)
-   - `mission_number`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
+   - `mission_number<!-- glossary:glossary:mission_number -->`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
    - `mission_type`: Mission type key (for example `software-dev`)
    - `slug`: Unnumbered mission slug (e.g., `checkout-upsell-flow`)
-   - `friendly_name`: Confirmed mission title
+   - `friendly_name<!-- glossary:glossary:friendly_name -->`: Confirmed mission title
    - `purpose_tldr`: One-line stakeholder-facing mission summary
    - `purpose_context`: Short stakeholder-facing context paragraph
    - `feature_dir`: Absolute path to the feature directory inside the repository root checkout

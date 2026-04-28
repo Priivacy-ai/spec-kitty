@@ -103,7 +103,12 @@ class StepContractStepResult:
         """Return the underlying invocation ID when this step was invoked."""
         if self.invocation_payload is None:
             return None
-        return self.invocation_payload.invocation_id
+        # InvocationPayload uses ``**kwargs: object`` + ``setattr`` for storage;
+        # mypy --strict therefore widens attribute access to Any. The class-level
+        # annotation pins it to ``str`` at runtime — narrow back explicitly so the
+        # property's declared return type is honored without a blanket ignore.
+        invocation_id: str = self.invocation_payload.invocation_id
+        return invocation_id
 
 
 @dataclass(frozen=True)

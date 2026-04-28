@@ -203,6 +203,25 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
             event_name = obj.get("event_name")
             if isinstance(event_name, str) and event_name.startswith("retrospective."):
                 continue
+
+            # Why: Skip mission-level events (DecisionPointOpened,
+            # DecisionPointResolved, DecisionPointDeferred,
+            # DecisionPointCanceled, DecisionPointWidened, and any future
+            # event-type written by a non-status-emitter subsystem) that
+            # share status.events.jsonl with lane-transition events.
+            # Two cooperating subsystems write to this file with incompatible
+            # schemas: the status emitter writes lane-transition events
+            # (carrying wp_id, from_lane, to_lane), while the Decision Moment
+            # Protocol writes mission-level events that carry a top-level
+            # `event_type` field instead. Discriminating on event_type
+            # PRESENCE (not a specific value allowlist) is future-proof AND
+            # preserves the existing fail-loud contract for malformed
+            # lane-transition events: a corrupted lane event missing wp_id
+            # but ALSO missing event_type still hits StatusEvent.from_dict
+            # below and raises as today. See FR-010.
+            if "event_type" in obj:
+                continue
+
             try:
                 # Resolve mission_id from the raw dict before parsing,
                 # so that from_dict() receives it even for legacy events.

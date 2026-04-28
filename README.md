@@ -564,7 +564,6 @@ spec-kitty next --agent <agent> --mission <slug>
 ```
 /spec-kitty.research   → After /plan: Investigate technical decisions
 /spec-kitty.analyze    → After /tasks: Cross-artifact consistency check
-/spec-kitty.checklist  → Anytime: Generate custom quality checklists
 /spec-kitty.dashboard  → Anytime: Open/restart the kanban dashboard
 ```
 
@@ -1092,7 +1091,6 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 | Command              | When to Use                                                           |
 |----------------------|-----------------------------------------------------------------------|
 | `/spec-kitty.analyze`   | **Optional, after `/spec-kitty.tasks`, before starting the `spec-kitty next` loop**: Cross-artifact consistency & coverage analysis |
-| `/spec-kitty.checklist` | **Optional, anytime after `/spec-kitty.plan`**: Generate custom quality checklists that validate requirements completeness, clarity, and consistency |
 | `/spec-kitty.dashboard` | **Anytime (runs in background)**: Open the real-time kanban dashboard in your browser. Automatically starts with `spec-kitty init` and updates as you work. |
 
 </details>

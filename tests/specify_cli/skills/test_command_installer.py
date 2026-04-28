@@ -629,7 +629,12 @@ class TestConstants:
         assert "vibe" in SUPPORTED_AGENTS
 
     def test_canonical_commands_count(self) -> None:
-        assert len(CANONICAL_COMMANDS) == 12
+        # Was 12 before 3.2.0a5; checklist retired (FR-003 / FR-004 / #815).
+        assert len(CANONICAL_COMMANDS) == 11
+
+    def test_canonical_commands_excludes_checklist(self) -> None:
+        # /spec-kitty.checklist was retired in 3.2.0a5 (#815, supersedes #635).
+        assert "checklist" not in CANONICAL_COMMANDS
 
     def test_canonical_commands_no_duplicates(self) -> None:
         assert len(set(CANONICAL_COMMANDS)) == len(CANONICAL_COMMANDS)

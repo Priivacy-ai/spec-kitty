@@ -2,7 +2,11 @@
 
 import subprocess
 from datetime import datetime
+from pathlib import Path
 
+import yaml
+
+from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.runner import MigrationRunner
 
@@ -82,6 +86,58 @@ def test_upgrade_dry_run_does_not_update_version(tmp_path):
 
     # Version should NOT have changed
     assert after_dry_run.version == "0.12.0", "Dry run should not update version"
+
+
+def test_upgrade_persists_schema_version(tmp_path: Path) -> None:
+    """Regression: spec-kitty upgrade must leave schema_version stamped in metadata.yaml.
+
+    Before the FR-002 / #705 fix, ``MigrationRunner.upgrade()`` ran
+    ``_stamp_schema_version`` BEFORE ``ProjectMetadata.save()``. ``save()``
+    reconstructs the YAML from a fixed three-key dict and does not preserve
+    unknown keys, so the stamped ``schema_version`` was wiped out one line
+    later. That left projects in PROJECT_MIGRATION_NEEDED state right after a
+    "successful" upgrade. This test pins the post-condition: after a
+    non-dry-run upgrade, ``spec_kitty.schema_version`` must equal
+    ``REQUIRED_SCHEMA_VERSION``.
+    """
+    from specify_cli import __version__
+
+    _init_git_repo(tmp_path)
+
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir()
+
+    # Pre-fix-era metadata: spec_kitty.version present but no schema_version.
+    metadata = ProjectMetadata(
+        version="0.12.0",
+        initialized_at=datetime.fromisoformat("2026-01-01T00:00:00"),
+    )
+    metadata.save(kittify_dir)
+
+    # Sanity: starting state has no schema_version.
+    pre = yaml.safe_load((kittify_dir / "metadata.yaml").read_text(encoding="utf-8"))
+    assert "schema_version" not in pre.get("spec_kitty", {}), (
+        "Test setup invariant violated: schema_version should be absent before upgrade"
+    )
+
+    runner = MigrationRunner(tmp_path)
+    result = runner.upgrade(__version__, dry_run=False, include_worktrees=False)
+
+    assert result.success is True, f"Upgrade failed: errors={result.errors}"
+
+    # The post-condition the FR-002 fix guarantees:
+    post = yaml.safe_load((kittify_dir / "metadata.yaml").read_text(encoding="utf-8"))
+    assert REQUIRED_SCHEMA_VERSION is not None, (
+        "REQUIRED_SCHEMA_VERSION is None; this test is meaningful only when the "
+        "schema-version gate is active. If the gate is intentionally disabled, "
+        "remove this assertion."
+    )
+    assert post["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION, (
+        f"schema_version was clobbered by metadata.save(). "
+        f"Expected {REQUIRED_SCHEMA_VERSION}, got "
+        f"{post.get('spec_kitty', {}).get('schema_version')!r}. "
+        "Regression of FR-002 / #705."
+    )
 
 
 def test_cli_version_is_not_fallback():

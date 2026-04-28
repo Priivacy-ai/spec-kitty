@@ -7,7 +7,38 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased - 3.2.0]
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [3.2.0a5] - 2026-04-27
+
+### Fixed
+
+- Fix `spec-kitty upgrade` silently leaving projects in PROJECT_MIGRATION_NEEDED state by stamping `schema_version` after metadata save (#705, WP01).
+- `spec-kitty init` in a non-git directory now prints an actionable "run `git init`" message (#636, WP05).
+- Suppress misleading "shutdown / final-sync" red error lines after a successful `spec-kitty agent mission create --json` payload (#735, WP06).
+- Deduplicate "Not authenticated, skipping sync" / "token refresh failed" diagnostics to at most once per CLI invocation (#717, WP06).
+- Fix `read_events()` raising `KeyError('wp_id')` on `DecisionPointOpened` / `DecisionPointResolved` events that share `status.events.jsonl` with lane-transition events. Restores `finalize-tasks` / `materialize` / dashboard for any mission that uses the Decision Moment Protocol (#830, WP08).
+
+### Changed
+
+- Loosen `.python-version` from a hard `3.13` pin to `3.11` (the floor declared by `pyproject.toml`) and restore `mypy --strict` cleanliness on `mission_step_contracts/executor.py` (#805, WP03).
+
+### Removed
+
+- Retire the deprecated `/spec-kitty.checklist` command surface from every supported agent's rendered output. The canonical requirements checklist at `kitty-specs/<mission>/checklists/requirements.md` is unaffected (#815, supersedes #635, WP04).
+
+### Internal
+
+- Add regression tests confirming `--feature` aliases stay hidden from `--help` while remaining accepted (#790, WP07).
+- Add regression test confirming `spec-kitty agent decision` command shape stays consistent across docs / help / skill snapshots (#774, WP07).
 
 ### Added
 
@@ -132,9 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Existing SaaS dashboards see no change for `task_execution` / `mission_step` traffic.
 - New advisory events now appear in the SaaS timeline as minimal entries without body — this is a deliberate behaviour change documented in the SaaS Read-Model Policy table.
 
-## [3.2.0a5] - 2026-04-22
-
-### Added
+### Added (Phase 4 trail follow-on)
 
 - `docs/trail-model.md`: Formal operator documentation for the Phase 4 trail contract,
   mode-of-work taxonomy, tier promotion rules, SaaS projection policy, intake positioning,

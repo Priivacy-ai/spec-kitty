@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
+from specify_cli.diagnostics import invocation_succeeded, report_once
 
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
@@ -164,10 +165,21 @@ class BackgroundSyncService:
             if acquired:
                 self._lock.release()
 
+        # FR-008: when a JSON-emitting command marked the invocation as
+        # successful, downgrade shutdown warnings to debug so they don't
+        # paint red over a clean stdout payload (#735). On failure paths
+        # the warnings stay visible for operators.
+        succeeded = invocation_succeeded()
+
         if not acquired:
             # Timer thread is stuck holding the lock; skip the final sync
             # rather than blocking shutdown.
-            logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
+            if succeeded:
+                logger.debug(
+                    "Could not acquire sync lock within 5 s; skipping final sync (post-success)"
+                )
+            else:
+                logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
             return
 
         # Best-effort final sync with a bounded timeout so atexit never
@@ -181,11 +193,18 @@ class BackgroundSyncService:
             sync_thread.start()
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
-                logger.warning(
-                    "Final sync did not complete within %ds; "
-                    "queued events will be drained by the daemon",
-                    _STOP_SYNC_TIMEOUT_SECONDS,
-                )
+                if succeeded:
+                    logger.debug(
+                        "Final sync did not complete within %ds (post-success); "
+                        "queued events will be drained by the daemon",
+                        _STOP_SYNC_TIMEOUT_SECONDS,
+                    )
+                else:
+                    logger.warning(
+                        "Final sync did not complete within %ds; "
+                        "queued events will be drained by the daemon",
+                        _STOP_SYNC_TIMEOUT_SECONDS,
+                    )
         logger.debug("Background sync service stopped")
 
     def _guarded_final_sync(self) -> None:
@@ -267,7 +286,8 @@ class BackgroundSyncService:
         with self._lock:
             access_token = _fetch_access_token_sync()
             if access_token is None:
-                logger.warning("Not authenticated, skipping sync")
+                if report_once("sync.unauthenticated"):
+                    logger.warning("Not authenticated, skipping sync")
                 return BatchSyncResult()
 
             try:
@@ -322,7 +342,8 @@ class BackgroundSyncService:
 
         access_token = _fetch_access_token_sync()
         if access_token is None:
-            logger.warning("Not authenticated, skipping sync")
+            if report_once("sync.unauthenticated"):
+                logger.warning("Not authenticated, skipping sync")
             return BatchSyncResult()
 
         event_sync_succeeded = False
