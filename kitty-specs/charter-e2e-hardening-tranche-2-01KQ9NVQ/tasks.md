@@ -55,10 +55,10 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 | T027 | Edit SOURCE skill `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` to remove the `prompt_file == null` workaround text | WP06 |  | [D] |
 | T028 | Run skills sync / upgrade migration locally; confirm regenerated copies under `.claude/`, `.amazonq/`, `.gemini/`, `.cursor/`, `.qwen/`, `.opencode/`, `.windsurf/`, `.kilocode/`, `.augment/`, `.roo/`, `.kiro/`, `.agent/`, `.agents/skills/` land in the diff | WP06 |  | [D] |
 | T029 | Verify `tests/next/` regression-free | WP06 |  | [D] |
-| T030 | Extend lifecycle writer (executor + invocation pipeline) to cover composed actions issued by `next`; emit paired `started`/`completed` records with action identity match | WP07 |  |
-| T031 | Ensure `outcome` field on `completed` is in canonical vocabulary (`done`, `failed`, `skipped`, `blocked`) per `contracts/next-advance.json` | WP07 |  |
-| T032 | Add integration test walking one composed action and asserting paired records exist under `.kittify/events/profile-invocations/` with matching action identity | WP07 |  |
-| T033 | Verify `tests/integration/test_documentation_runtime_walk.py`, `tests/integration/test_research_runtime_walk.py`, `tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/invocation/` regression-free | WP07 |  |
+| T030 | Extend lifecycle writer (executor + invocation pipeline) to cover composed actions issued by `next`; emit paired `started`/`completed` records with action identity match | WP07 |  | [D] |
+| T031 | Ensure `outcome` field on `completed` is in canonical vocabulary (`done`, `failed`, `skipped`, `blocked`) per `contracts/next-advance.json` | WP07 |  | [D] |
+| T032 | Add integration test walking one composed action and asserting paired records exist under `.kittify/events/profile-invocations/` with matching action identity | WP07 |  | [D] |
+| T033 | Verify `tests/integration/test_documentation_runtime_walk.py`, `tests/integration/test_research_runtime_walk.py`, `tests/specify_cli/mission_step_contracts/`, `tests/specify_cli/invocation/` regression-free | WP07 |  | [D] |
 | T034 | Delete `_parse_first_json_object()` from `tests/e2e/test_charter_epic_golden_path.py`; switch to strict full-stream `json.loads(stdout)` for every `--json` call | WP08 |  |
 | T035 | Delete `_bootstrap_schema_version()` and any direct `.kittify/metadata.yaml` mutation in the test (rely on FR-001) | WP08 |  |
 | T036 | Delete synthesize fallback to `--dry-run-evidence` and hand-seeding of `.kittify/doctrine/`; require real `synthesize --json` to produce artifacts (rely on FR-003/FR-004) | WP08 |  |
@@ -244,10 +244,10 @@ WP01 is a hard prerequisite for WP02–WP07. WP08 depends on WP02–WP07 all bei
 
 **Included subtasks**:
 
-- [ ] T030 Extend lifecycle writer to cover composed actions (WP07)
-- [ ] T031 Ensure outcome field uses canonical vocabulary (WP07)
-- [ ] T032 Add integration test asserting paired records (WP07)
-- [ ] T033 Verify documentation/research runtime walks regression-free (WP07)
+- [x] T030 Extend lifecycle writer to cover composed actions (WP07)
+- [x] T031 Ensure outcome field uses canonical vocabulary (WP07)
+- [x] T032 Add integration test asserting paired records (WP07)
+- [x] T033 Verify documentation/research runtime walks regression-free (WP07)
 
 **Implementation sketch**: Per WP01 R5, extend `src/specify_cli/mission_step_contracts/executor.py` and/or `src/specify_cli/invocation/writer.py` so composed actions issued by `next` go through the same lifecycle-write path that WP-bound actions use today. Match the existing record schema in `src/specify_cli/invocation/record.py`; do not redefine.
 
