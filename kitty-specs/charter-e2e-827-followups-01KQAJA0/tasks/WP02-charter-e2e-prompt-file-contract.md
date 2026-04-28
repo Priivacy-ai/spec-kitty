@@ -256,3 +256,7 @@ spec-kitty agent action implement WP02 --agent claude --mission charter-e2e-827-
 - **FR-008** (doctrine no longer legitimizes null).
 - **C-005** (kind=step contract not weakened).
 - Contributes to **NFR-003** (verification matrix).
+
+## Activity Log
+
+- 2026-04-28T20:51:09Z – claude – shell_pid=73541 – WP02 ready for review: prompt_file contract tightened + E2E + doctrine scrub + unit tests

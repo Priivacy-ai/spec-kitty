@@ -1,7 +1,7 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KQAXQMZ925NP6M0W9SM4910D",
-  "materialized_at": "2026-04-28T20:50:46.889845+00:00",
+  "event_count": 20,
+  "last_event_id": "01KQAXRA5XVY1K9SFNQ7VCHN3K",
+  "materialized_at": "2026-04-28T20:51:08.605426+00:00",
   "mission_number": "",
   "mission_slug": "charter-e2e-827-followups-01KQAJA0",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 1,
+    "for_review": 2,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-28T20:46:25.228316+00:00"
     },
     "WP02": {
-      "actor": "implement-command",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KQAWX07Q6YMKWVPHVV1N390N",
-      "last_transition_at": "2026-04-28T20:36:13.687814+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KQAXRA5XVY1K9SFNQ7VCHN3K",
+      "last_transition_at": "2026-04-28T20:51:08.605426+00:00"
     },
     "WP03": {
       "actor": "user",
