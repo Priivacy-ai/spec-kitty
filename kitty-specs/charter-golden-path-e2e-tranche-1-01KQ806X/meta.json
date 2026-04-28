@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-27T17:36:21.282813+00:00",
+  "friendly_name": "Charter Golden-Path E2E (Tranche 1)",
+  "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
+  "mission_number": 104,
+  "mission_slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
+  "mission_type": "software-dev",
+  "purpose_context": "Issue #827 needs a deterministic operator-path E2E spine before the rest of the P0/P1/P2 matrix can be built on top. This tranche delivers one product-repo test that drives Charter setup, bundle validation, synthesis, status, lint, mission advancement via spec-kitty next, and retrospect summary — all through public commands — and asserts the source checkout is unchanged afterward, so future tranches can extend the spine without fighting hidden helpers.",
+  "purpose_tldr": "Prove the shipped Charter epic works through public CLI from a fresh project, with no source-checkout pollution.",
+  "slug": "charter-golden-path-e2e-tranche-1-01KQ806X",
+  "source_description": "First testing tranche for Priivacy-ai/spec-kitty#827 (parent epic #461): a product-repo, public-CLI Charter golden-path E2E test that proves the shipped Charter epic works through the operator path with zero source-checkout pollution. Brief lives at workspace-root start-here.md.",
+  "target_branch": "test/charter-e2e-827-tranche-1",
+  "vcs": "git"
+}
