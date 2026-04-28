@@ -148,3 +148,4 @@ spec-kitty agent action implement WP09 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T13:52:43Z – claude:sonnet:curator-carla:curator – shell_pid=28017 – Started implementation via action command
+- 2026-04-28T13:57:24Z – claude:sonnet:curator-carla:curator – shell_pid=28017 – PR body, #827 comment, partial-fix notes prepared. Actual gh pr create runs after mission merge to fix/charter-e2e-827-tranche-2.
