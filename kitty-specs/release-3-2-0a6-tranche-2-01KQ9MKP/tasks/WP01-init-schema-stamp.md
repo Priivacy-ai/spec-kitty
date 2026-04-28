@@ -18,7 +18,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '18929'
+shell_pid: "18929"
+agent: "claude:opus-4-7:default:implementer"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -201,3 +202,7 @@ GitHub issue #840. Without these fields, fresh projects fail with "missing schem
 - Migrating existing projects (covered by the migration runner separately).
 - Any change to schema versions on already-initialized projects.
 - Adding new capabilities to the canonical map beyond what the runtime already requires.
+
+## Activity Log
+
+- 2026-04-28T09:42:50Z – claude:opus-4-7:default:implementer – shell_pid=18929 – Assigned agent via action command
