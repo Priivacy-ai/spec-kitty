@@ -50,19 +50,26 @@ This sets `role=implementer`, scopes your editing surface to the `owned_files` d
 
 ## Objective
 
-Tighten the `RuntimeDecision` envelope contract so a `kind=step` decision MUST carry a non-null, on-disk-resolvable `prompt_file` (or its alias `prompt_path`). Update the charter golden-path E2E to enforce that contract. Scrub host-facing doctrine that legitimizes null prompts. Add focused unit tests for the construction-time validator.
+Tighten the `RuntimeDecision` envelope contract so a `kind=step` decision MUST carry a non-null, on-disk-resolvable **`prompt_file`**. Update the charter golden-path E2E to enforce that contract (preserving its existing defensive consumer-side `prompt_path` fallback verbatim). Scrub host-facing doctrine that legitimizes null prompts. Add focused unit tests for the construction-time validator.
+
+## Wire-field reality (verified in source — read this carefully)
+
+- `prompt_file` is the **only** producer-side wire field. It is declared at `src/specify_cli/next/decision.py:61` and is the only prompt-related key emitted by `Decision.to_dict()` (around `decision.py:93`).
+- `prompt_path` is **not** a field on `Decision` / `RuntimeDecision`. It is a local variable in `prompt_builder.py` (return value) and `runtime_bridge.py:2198` (`_, prompt_path = build_decision_prompt(...)`).
+- The E2E test reads `payload.get("prompt_file") or payload.get("prompt_path")` as a defensive consumer-side fallback. **Preserve this fallback verbatim** — it covers any historical or downstream consumer that may emit either key. Producer code in this WP writes `prompt_file` only.
+- This WP does **not** add a `prompt_path` field on the dataclass, and the validator MUST NOT reference any `self.prompt_path` attribute.
 
 ## Context
 
 - The `RuntimeDecision` dataclass at `src/specify_cli/next/decision.py:61` currently declares `prompt_file: str | None = None`. The wire format admits `null` for `kind=step`.
-- The inline comment at `src/specify_cli/next/decision.py:79` reads `# "prompt_file": <path> | null  (advance mode populates this)` — this is the legitimizing text per FR-008.
+- An inline comment in the `to_dict()` block (around `decision.py:79`) reads something like `"prompt_file": <path> | null  (advance mode populates this)` — this is the legitimizing text per FR-008. Verify the exact wording in source before scrubbing.
 - The current E2E test at `tests/e2e/test_charter_epic_golden_path.py:570` only checks "a prompt key exists in the payload":
   ```python
   if "prompt_file" not in payload and "prompt_path" not in payload:
       raise ...
   ```
   It does NOT assert non-null, non-empty, or `Path.is_file()`.
-- `runtime_bridge.py` constructs decision envelopes at multiple sites — grep findings include lines around 1571, 1594, 1662, 1686, 2118, 2138, 2193, 2225, 2252, 2271, 2286, 2310. Some sites set `prompt_file = None` directly (line 2193).
+- `runtime_bridge.py` constructs decision envelopes at multiple sites — grep findings include lines around 1571, 1594, 1662, 1686, 2118, 2138, 2193, 2225, 2252, 2271, 2286, 2310. Some sites set `prompt_file = None` directly (line ~2193).
 - The contract this WP enforces is documented in [`contracts/next-prompt-file-contract.md`](../contracts/next-prompt-file-contract.md) (C1, C2, C3) and [`data-model.md`](../data-model.md) (INV-844-1, INV-844-2, INV-844-3).
 
 ## Detailed guidance per subtask
@@ -74,11 +81,11 @@ Tighten the `RuntimeDecision` envelope contract so a `kind=step` decision MUST c
 **Steps**:
 
 1. Open `src/specify_cli/next/decision.py`.
-2. Add a `__post_init__` (or peer construction-time validator) on the `RuntimeDecision` dataclass:
+2. Add a `__post_init__` on the `RuntimeDecision` (and `Decision`) dataclass that references **only `self.prompt_file`** (there is no `self.prompt_path` attribute):
    ```python
    def __post_init__(self) -> None:
        if self.kind == "step":
-           prompt = self.prompt_file or self.prompt_path  # whichever attribute exists
+           prompt = self.prompt_file
            if not prompt:
                raise InvalidStepDecision(
                    "kind='step' requires a non-empty prompt_file; got None/empty"
@@ -89,8 +96,8 @@ Tighten the `RuntimeDecision` envelope contract so a `kind=step` decision MUST c
                )
    ```
 3. Define `InvalidStepDecision` as a dedicated exception in the same module (subclass of `ValueError`) so call sites can `try/except` it cleanly.
-4. Replace the legitimizing inline comment at line 79:
-   - Old: `# "prompt_file": <path> | null  (advance mode populates this)`
+4. Replace the legitimizing inline comment in the `to_dict()` block:
+   - Old: a comment like `# "prompt_file": <path> | null  (advance mode populates this)` (verify exact wording in source)
    - New: a comment that says: "kind='step' MUST carry a non-null prompt_file that resolves on disk (see C1/C2 in kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/next-prompt-file-contract.md). null is legal only for non-step kinds."
 5. Verify `mypy --strict` is clean on the change.
 

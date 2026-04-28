@@ -16,17 +16,18 @@ class RuntimeDecision:
     # ... other fields
 ```
 
-Wire format (current, from `to_dict()`):
+Wire format (current, from `to_dict()` in `decision.py:93`):
 - `kind`: string
-- `prompt_file`: string | null  ← **invariant tightened by this mission**
-- `prompt_path`: string | null  (alias; same tightening applies whichever field is populated)
+- `prompt_file`: string | null  ← **only producer-side prompt field; invariant tightened by this mission**
+
+`prompt_path` is **not** a wire field on `RuntimeDecision` / `Decision`. It is a local variable in `prompt_builder.py` and `runtime_bridge.py`. The current charter E2E (`tests/e2e/test_charter_epic_golden_path.py:570`) accepts either key as a defensive consumer-side fallback — that fallback is preserved by this mission for backward compatibility, but **producer code in this mission writes `prompt_file` only**. This mission does NOT introduce a `prompt_path` wire field.
 
 #### New invariants (#844)
 
 | ID | Invariant | Enforced where |
 |---|---|---|
-| INV-844-1 | If `kind == "step"`, then `prompt_file` (or `prompt_path` alias) MUST be a non-empty string. | Envelope construction in `decision.py` and `runtime_bridge.py`; validation guard before serialization. |
-| INV-844-2 | If `kind == "step"`, then the path emitted by INV-844-1 MUST resolve to an existing on-disk file at the time of envelope construction. | Same. Falls back to `kind=blocked` with reason if it cannot. |
+| INV-844-1 | If `kind == "step"`, then `prompt_file` MUST be a non-empty string. | Envelope construction (`__post_init__` on `RuntimeDecision` in `decision.py`); call-site fallback to `kind=blocked` in `runtime_bridge.py` when validation fails. |
+| INV-844-2 | If `kind == "step"`, then the path emitted by INV-844-1 MUST resolve to an existing on-disk file at the time of envelope construction. | Same. |
 | INV-844-3 | A non-actionable runtime state MUST use a non-`step` kind (typically `kind=blocked`) with a `reason`. `kind=step` with `prompt_file=null` is illegal. | Same. |
 
 State transitions: none. The `kind` enum already exists; this mission only enforces correct use of existing values.
@@ -43,32 +44,44 @@ Already-existing pydantic model. Persisted to `<feature_dir>/.kittify/dossiers/<
 | INV-845-2 | Any worktree dirty-state pre-flight used by `agent tasks move-task` (and related transitions) MUST treat paths matching INV-845-1's pattern as not-dirty for the purposes of the transition gate. | Pre-flight code path in `src/specify_cli/cli/commands/agent/tasks.py` and helpers in `src/specify_cli/status/`. |
 | INV-845-3 | The pre-flight MUST continue to fail on **other** worktree dirty state (i.e., real uncommitted edits unrelated to the snapshot). | Same. Verified by regression test. |
 
-### `Mission` setup-plan / setup-specify auto-commit decision
+### `Mission` create / setup-plan auto-commit decisions
 
-Already-existing code path in `src/specify_cli/cli/commands/agent/mission.py` that auto-commits scaffolded `spec.md` / `plan.md` to the target branch.
+Two existing code paths in `src/specify_cli/cli/commands/agent/mission.py`:
+
+1. **`mission create`** auto-commits the empty `spec.md` scaffold + `meta.json` at create time. *This is the primary defect surface for #846.*
+2. **`setup-plan`** writes `plan.md` from the slash-template flow and calls `_commit_to_branch(plan_file, …)` to commit it.
+
+The `/spec-kitty.specify` slash-template instructs the agent to commit substantive `spec.md` content separately; that commit happens outside Python.
 
 #### New invariants (#846)
 
 | ID | Invariant | Enforced where |
 |---|---|---|
-| INV-846-1 | The auto-commit step MUST consult `_is_substantive(file_path, kind)` before committing. | `mission.py` at the auto-commit branch. |
-| INV-846-2 | If `_is_substantive(...)` returns false, the workflow MUST NOT auto-commit. It MUST emit a documented "needs substantive content" status and skip the commit. | Same. |
-| INV-846-3 | Workflow status JSON MUST report a non-substantive-but-scaffolded state as **incomplete**, not "ready". | Status emission paths reachable from `setup-plan --json` and the specify equivalent. |
+| INV-846-1 | `mission create` MUST NOT auto-commit `spec.md`. The empty scaffold remains untracked at create time; the agent commits the populated content after writing substantive requirements. | `mission.py` — modify the create-time `safe_commit` call to omit `spec.md` from `files_to_commit`. |
+| INV-846-2 | `setup-plan` MUST verify, at entry, that `spec.md` is **both** committed (tracked + present in HEAD) **and** substantive. If either fails, emit `phase_complete=False` with a `blocked_reason` and return without writing or committing `plan.md`. | `mission.py` `setup-plan` entry path. |
+| INV-846-3 | The existing `_commit_to_branch(plan_file, …)` call in `setup-plan` MUST be gated on `is_substantive(plan_path, "plan")`. If false, emit `phase_complete=False / blocked_reason` and skip the commit. | `mission.py` `setup-plan` exit path (around line 973). |
+| INV-846-4 | Workflow status JSON MUST report any non-substantive or uncommitted-substantive state as **incomplete**, not "ready". | Status emission paths reachable from `setup-plan --json` and any peer status command. |
 
-#### `_is_substantive(file_path: Path, kind: Literal["spec", "plan"]) -> bool`
+#### `is_substantive(file_path: Path, kind: Literal["spec", "plan"]) -> bool`
 
-New helper. Definition (operational):
+New helper. Definition (operational, **revised — section-presence only**):
 
 ```
-_is_substantive(file_path, kind) returns True iff EITHER:
-  (a) byte_length(file_path) > byte_length(canonical_scaffold(kind)) + SUBSTANTIVE_DELTA  // default 256
-  OR
-  (b) required_sections_present(file_path, kind)  // spec: ≥1 FR row; plan: non-empty Technical Context
+is_substantive(file_path, kind) returns True iff:
+  required_sections_present(file_path, kind)
 ```
 
-`canonical_scaffold(kind)` returns the bytes of whatever the create command writes by default for that artifact kind. Computed once at module load and cached.
+Required-section heuristics:
+- **spec**: at least one row with an `FR-\d{3}` ID followed by non-empty description content. The row must not consist entirely of template placeholders (`[NEEDS CLARIFICATION …]`, `[e.g., …]`).
+- **plan**: a populated `Technical Context` section where the `Language/Version`, `Primary Dependencies`, etc. fields contain real values, not template placeholders like `[e.g., Python 3.11 …]` or `[NEEDS CLARIFICATION …]`.
 
-Both checks are pure functions of file content. No side effects. Deterministic.
+The earlier "byte-length OR section-presence" formulation was rejected (research R7, revised) because byte-length-only could pass scaffold + 300 bytes of arbitrary prose, recreating the failure mode.
+
+The check is a pure function of file content. No side effects. Deterministic.
+
+#### `is_committed(file_path: Path, repo_root: Path) -> bool`
+
+New helper. Returns True iff `git ls-files --error-unmatch <file_path>` succeeds AND the file is present at HEAD (`git cat-file -e HEAD:<rel_path>`). Used by INV-846-2.
 
 ## Pin-drift detection (#848)
 

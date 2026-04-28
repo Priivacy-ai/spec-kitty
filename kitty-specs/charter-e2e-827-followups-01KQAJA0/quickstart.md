@@ -20,10 +20,11 @@ Expected: installed `spec-kitty-events` and `spec-kitty-tracker` versions match 
 
 ## 2. Run the full mission verification matrix (NFR-003)
 
-Runs in any order; listed in the same order as the spec for clarity. All seven invocations must pass on the merging branch before opening the PR.
+Runs in any order; listed in the same order as the spec for clarity. All eight invocations must pass on the merging branch before opening the PR.
 
 ```bash
 uv lock --check
+uv run pytest tests/architectural -q
 PWHEADLESS=1 uv run pytest tests/e2e/test_charter_epic_golden_path.py -q
 uv run pytest tests/contract/test_cross_repo_consumers.py -q
 uv run pytest tests/next -q
@@ -32,11 +33,7 @@ uv run pytest tests/integration -k 'dossier or move_task or dirty or transition'
 uv run pytest tests/integration -k 'specify or plan or auto_commit or mission' -q
 ```
 
-Plus the new architectural test introduced by this mission:
-
-```bash
-uv run pytest tests/architectural/test_uv_lock_pin_drift.py -q
-```
+The `tests/architectural -q` invocation includes the new `test_uv_lock_pin_drift.py` introduced by this mission, so #848 is enforced by the canonical NFR-003 matrix (not just as an extra check). The other seven entries match the matrix spec verbatim.
 
 ## 3. Per-issue spot checks
 
@@ -92,22 +89,37 @@ spec-kitty agent tasks move-task WP01 --to claimed --mission snap-smoke ...
 uv run pytest tests/integration/test_specify_plan_commit_boundary.py -q     # PASS expected
 ```
 
-Manual repro:
+Manual repro (post-fix):
 
 ```bash
-# 1. Create a fresh mission and DO NOT populate spec.md.
+# 1. Create a fresh mission. spec.md is NOT auto-committed; only meta.json is.
 spec-kitty agent mission create "boundary-smoke" --json
-# Inspect git log: there should be a scaffold commit (existing behavior) but no "spec ready" auto-commit.
-git log --oneline -5
+git log --oneline -1   # commit shows meta.json, NOT spec.md
+git status             # spec.md is present on disk but untracked
 
-# 2. Try to advance:
+# 2. Try to advance with uncommitted spec.md:
 spec-kitty agent mission setup-plan --mission boundary-smoke --json
-# Expected: phase_complete=false, blocked_reason mentions "substantive content".
+# Expected: phase_complete=false, blocked_reason mentions "committed AND substantive".
+# No plan.md is written or committed.
 
-# 3. Populate spec.md with at least one real FR row, then re-run setup-plan:
-# (edit kitty-specs/<dir>/spec.md to add a Functional Requirements table with FR-001)
+# 3. Populate spec.md with a real FR row, but DON'T commit it yet:
+# (edit kitty-specs/<dir>/spec.md to add an FR-001 row)
+spec-kitty agent mission setup-plan --mission boundary-smoke --json
+# Expected: still phase_complete=false (uncommitted leg).
+
+# 4. Commit the substantive spec.md, then re-run setup-plan:
+git add kitty-specs/<dir>/spec.md && git commit -m "Populate spec for boundary-smoke"
+spec-kitty agent mission setup-plan --mission boundary-smoke --json
+# Expected: setup-plan now writes plan.md from template. If plan.md is template-only,
+# phase_complete=false with substantive-plan blocked_reason.
+
+# 5. Populate plan.md Technical Context with real values, re-run:
 spec-kitty agent mission setup-plan --mission boundary-smoke --json
 # Expected: phase_complete=true; setup-plan auto-committed plan.md.
+
+# 6. Negative regression — scaffold + arbitrary prose stays NON-substantive:
+# Create another mission, append 300 bytes of unrelated text to spec.md, commit, re-run.
+# Expected: setup-plan still returns phase_complete=false (no FR row = not substantive).
 ```
 
 ## 4. Static & type checks

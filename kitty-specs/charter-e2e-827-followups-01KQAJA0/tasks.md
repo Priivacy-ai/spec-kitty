@@ -29,11 +29,11 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 | T011 | Add explicit path filter helper (`_is_dossier_snapshot(path)` or equivalent) in the dirty-state preflight code path in `src/specify_cli/cli/commands/agent/tasks.py` (and any peer in `src/specify_cli/status/`) | WP03 |  |
 | T012 | Author `tests/integration/test_dossier_snapshot_no_self_block.py` — green path (snapshot write → move-task succeeds) AND control case (unrelated dirty file still blocks, naming that file not the snapshot) | WP03 |  |
 | T013 | Verify `tests/integration -k 'dossier or move_task or dirty or transition'` runs clean | WP03 |  |
-| T014 | Implement `_is_substantive(file_path, kind)` helper — byte-length delta vs canonical scaffold OR required-sections presence | WP04 |  |
-| T015 | Wire `_is_substantive(...)` into the auto-commit branches in `src/specify_cli/cli/commands/agent/mission.py` (specify + setup-plan paths) — emit `phase_complete=false` + `blocked_reason` when non-substantive; do NOT commit | WP04 |  |
-| T016 | Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` with a "Commit Boundary" subsection | WP04 | [P] |
-| T017 | Author `tests/integration/test_specify_plan_commit_boundary.py` covering the three scenarios from the contract (empty scaffold blocks; populated commits; threshold-byte content commits) | WP04 |  |
-| T018 | Verify `tests/integration -k 'specify or plan or auto_commit or mission'` runs clean | WP04 |  |
+| T014 | Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) | WP04 |  |
+| T015 | `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time | WP04 |  |
+| T016 | `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure | WP04 |  |
+| T017 | Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` AND author `tests/integration/test_specify_plan_commit_boundary.py` covering the five contract scenarios | WP04 | [P] |
+| T018 | Verify `tests/integration -k 'specify or plan or auto_commit or mission'` and `tests/specify_cli/cli/commands/agent` run clean | WP04 |  |
 
 `[P]` in this index marks parallel-safe items per file/concern. The per-WP checkbox lists below are the tracking surface for `agent tasks mark-status`.
 
@@ -151,23 +151,23 @@ Per Constraint C-004 in the spec: **WP01 stays scoped as environment/review-gate
 
 **Subtasks**:
 
-- [ ] T014 Implement `_is_substantive(file_path, kind)` helper — byte-length delta vs canonical scaffold OR required-sections presence (WP04)
-- [ ] T015 Wire `_is_substantive(...)` into the auto-commit branches in `src/specify_cli/cli/commands/agent/mission.py` (specify + setup-plan paths) — emit `phase_complete=false` + `blocked_reason` when non-substantive; do NOT commit (WP04)
-- [ ] T016 [P] Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` with a "Commit Boundary" subsection (WP04)
-- [ ] T017 Author `tests/integration/test_specify_plan_commit_boundary.py` covering the three scenarios from the contract (empty scaffold blocks; populated commits; threshold-byte content commits) (WP04)
-- [ ] T018 Verify `tests/integration -k 'specify or plan or auto_commit or mission'` runs clean (WP04)
+- [ ] T014 Implement `_substantive` helpers (`is_substantive` + `is_committed`) in new module `src/specify_cli/missions/_substantive.py` — section-presence only (no byte-length OR) (WP04)
+- [ ] T015 `mission create` boundary fix: stop including `spec.md` in the create-time `safe_commit` call. Empty scaffolds remain untracked at create time (WP04)
+- [ ] T016 `setup-plan` gates: entry check (spec must be committed AND substantive) + exit check (plan must be substantive). Both emit `phase_complete=False / blocked_reason` and skip the relevant commit on failure (WP04)
+- [ ] T017 [P] Update mission templates `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` AND author `tests/integration/test_specify_plan_commit_boundary.py` covering the five contract scenarios (WP04)
+- [ ] T018 Verify `tests/integration -k 'specify or plan or auto_commit or mission'` and `tests/specify_cli/cli/commands/agent` run clean (WP04)
 
 **Implementation sketch**:
 
-1. Place `_is_substantive(file_path: Path, kind: Literal["spec", "plan"]) -> bool` in a new module `src/specify_cli/missions/_substantive.py`. Logic per `contracts/specify-plan-commit-boundary.md`: byte-length delta > `SUBSTANTIVE_DELTA` (default 256) OR required-section parse succeeds.
-2. Cache the canonical scaffolds at module load (`canonical_scaffold(kind)`).
-3. In `src/specify_cli/cli/commands/agent/mission.py`, locate the existing auto-commit decision branch in `setup-plan` and the analogous specify code path. Wrap the commit in `if _is_substantive(file_path, kind): ... else: emit_blocked(...)`.
-4. Ensure the JSON `setup-plan --json` output reflects `phase_complete=False` and a `blocked_reason` mentioning "substantive content" when the gate blocks.
-5. Update both command templates to include a "Commit Boundary" subsection explaining the gate and how to satisfy it.
-6. Author the regression test with the three scenarios.
+1. Place `is_substantive(file_path, kind)` and `is_committed(file_path, repo_root)` in a new module `src/specify_cli/missions/_substantive.py`. **Section-presence only** for `is_substantive` — no byte-length OR. Detect template placeholders (`[NEEDS CLARIFICATION …]`, `[e.g., …]`) as NON-substantive.
+2. In `mission create` (`src/specify_cli/cli/commands/agent/mission.py` around line 333): omit `spec.md` from the `safe_commit(files_to_commit=[...])` list. Keep `meta.json` and other genuine scaffolding files. Add a comment explaining the agent commits the populated `spec.md` from the slash-template.
+3. In `setup-plan` (`mission.py` around line 973): add an entry gate (`is_committed(spec, repo) and is_substantive(spec, "spec")`) before any plan write/commit. Replace the existing `_commit_to_branch(plan_file, ...)` call with a gated version that only commits when `is_substantive(plan, "plan")`.
+4. Ensure `mission setup-plan --json` payload reflects `phase_complete=False` with a `blocked_reason` in both gate-failure cases.
+5. Update both command templates with a "Commit Boundary" subsection.
+6. Author the regression test with the five contract scenarios (including: scaffold + 300 bytes prose stays NON-substantive).
 
 **Risks**:
-- The mission spec for THIS mission was itself committed empty (we observed it). The test must not regress for missions whose specs were created BEFORE this fix — guard the gate so it only blocks NEW invocations, not historical state.
+- Legacy missions whose `spec.md` was committed empty by the pre-fix `mission create` will be reported as incomplete by the new setup-plan entry gate until populated and re-committed. That is correct behavior — surface in PR description.
 - Workflow status reporters and dashboards must read the new `phase_complete=False` cleanly. Smoke via `tests/integration -k 'mission'`.
 
 **Prompt file**: [tasks/WP04-specify-plan-commit-boundary.md](tasks/WP04-specify-plan-commit-boundary.md)

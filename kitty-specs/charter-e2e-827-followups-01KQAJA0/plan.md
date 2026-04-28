@@ -69,10 +69,10 @@ src/specify_cli/
 │   ├── prompt_builder.py      # Already returns a Path; ensure callers cannot null it for kind=step
 │   └── runtime_bridge.py      # Audit every site that constructs a step decision; require non-null prompt
 ├── dossier/
-│   └── snapshot.py            # Apply chosen ownership policy (#845)
+│   └── snapshot.py            # NOT modified — writer behavior unchanged (#845 fixes the consumer side, not the writer)
 ├── cli/commands/agent/
-│   ├── mission.py             # Snapshot-write site + setup-plan auto-commit gating (#845, #846)
-│   └── tasks.py               # move-task pre-flight: ignore dossier snapshot when applying chosen policy (#845)
+│   ├── mission.py             # mission-create scaffold-commit boundary + setup-plan substantive-content gates (#846)
+│   └── tasks.py               # move-task pre-flight: filter dossier snapshot from dirty-state computation (#845)
 ├── missions/<mission-type>/command-templates/
 │   ├── specify.md             # Substantive-content gate documented (#846)
 │   └── plan.md                # Same (#846)
@@ -113,12 +113,12 @@ docs/
 
 ### Issue #844 — Charter E2E mandates a real prompt file
 
-- **Wire field**: keep both existing field names (`prompt_file` and `prompt_path`) — they already exist in `src/specify_cli/next/decision.py:61` and `src/specify_cli/next/runtime_bridge.py`. Choose `prompt_file` as the **canonical** public name; `prompt_path` continues to work as an alias (backwards-compat).
+- **Wire field reality (verified in source)**: `prompt_file` is the **only** producer-side wire field on `Decision` / `RuntimeDecision` — it appears in `src/specify_cli/next/decision.py:61` (field declaration) and is the only prompt-related key emitted by `to_dict()` (`decision.py:93`). `prompt_path` is **not** a wire field — it appears as a local variable in `prompt_builder.py` and `runtime_bridge.py:2198` only. The current E2E test accepts either key as a defensive consumer-side fallback (`tests/e2e/test_charter_epic_golden_path.py:570`); that fallback is preserved by this mission but the producer contract is **`prompt_file` only**. This mission does NOT add a `prompt_path` wire field.
 - **Tighten the contract** in `src/specify_cli/next/decision.py`:
   - For decisions with `kind == "step"` (composed step), `prompt_file` MUST be a non-empty string and MUST resolve to an existing file when serialized.
-  - Validation runs at the point of envelope construction (e.g. when `to_dict()` / JSON emit happens). A `kind=step` with a missing prompt is a programmer error — the runtime returns `kind=blocked` with a reason instead.
-- **Tighten E2E assertion** in `tests/e2e/test_charter_epic_golden_path.py` — replace the current "key exists" check with: for every issued decision where `kind == "step"`, assert (a) `prompt_file` (or `prompt_path`) is present, (b) the value is non-null and non-empty, and (c) `Path(value).is_file()` is true.
-- **Doctrine**: scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any inline comment in `src/specify_cli/next/decision.py:79` ("advance mode populates this") that legitimizes `null` for `kind=step`. Replace with: "null is only legal for non-`step` kinds; a `kind=step` envelope without a resolvable prompt is a runtime invariant violation".
+  - Validation runs at envelope construction time (`__post_init__` on the decision dataclass). A `kind=step` with a missing prompt is a programmer error — the runtime catches the validator's exception and falls back to `kind=blocked` with a reason instead.
+- **Tighten E2E assertion** in `tests/e2e/test_charter_epic_golden_path.py` — replace the current "key exists" check with: for every issued decision where `kind == "step"`, look up `payload.get("prompt_file") or payload.get("prompt_path")` (preserving the existing consumer-side fallback) and assert the value is non-null, non-empty, and `Path(value).is_file()` is true.
+- **Doctrine**: scrub `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` and any inline comment in `src/specify_cli/next/decision.py` (around the `to_dict()` block — currently includes "advance mode populates this") that legitimizes `null` for `kind=step`. Replace with: "null is only legal for non-`step` kinds; a `kind=step` envelope without a resolvable prompt is a runtime invariant violation".
 
 ### Issue #845 — Dossier snapshot ownership
 
@@ -130,13 +130,21 @@ docs/
 
 ### Issue #846 — Specify/plan auto-commit boundary
 
-- **"Substantive content" definition (operational)**: a spec.md (or plan.md) is substantive when **either** (a) its byte-length exceeds the byte-length of the canonical scaffold the create command writes by a fixed threshold (default: 256 bytes; tunable by config but with a sensible default), **or** (b) it contains all required mandatory sections expected for that artifact (spec: at minimum a non-empty Functional Requirements table; plan: at minimum a non-empty Technical Context section). Both checks are cheap, deterministic, and resistant to drift.
+**Surface inventory (verified in source)** — there are two distinct auto-commit paths today, and the bug shows up at *both*:
+
+1. **`mission create`** (in `src/specify_cli/cli/commands/agent/mission.py`) auto-commits the empty `spec.md` scaffold along with `meta.json`. We observed this concretely while building this mission: an empty `spec.md` was committed before any substantive content was written. **This is the primary defect surface.**
+2. **`setup-plan`** (`mission.py` around line 973: `_commit_to_branch(plan_file, ...)`) auto-commits `plan.md` after the agent populates it from the `/spec-kitty.plan` slash-template flow.
+3. **`/spec-kitty.specify` slash-template** instructs the agent to populate `spec.md` and then commit; today the slash template owns the substantive commit, not Python. The bug surface is therefore the *initial* scaffold commit (path #1) plus any workflow command that reports "spec phase ready" while the substantive spec is still untracked (FR-014).
+
+- **"Substantive content" definition (operational, revised)**: a spec.md (or plan.md) is substantive iff it contains the required mandatory sections for that artifact (spec: at least one non-empty Functional Requirements row with an `FR-###` ID; plan: a populated Technical Context section, *not* template placeholders like `[e.g., Python 3.11 …]` or `[NEEDS CLARIFICATION …]`). The earlier byte-length OR has been **dropped** — see research R7 (revised). Byte-length is too easy to satisfy with arbitrary filler that recreates the failure mode.
 - **Implementation**:
-  - Add a `_is_substantive(file_path: Path, kind: Literal["spec", "plan"]) -> bool` helper in `src/specify_cli/cli/commands/agent/mission.py` (or a new `src/specify_cli/missions/_substantive.py` if it grows).
-  - In the auto-commit decision branch of `setup-plan` and the equivalent specify auto-commit branch, gate the commit on `_is_substantive(...)`. If false, do **not** auto-commit a "success" envelope — instead emit a documented prompt to the agent that the spec/plan needs substantive content before the workflow can advance.
-  - Workflow status reporting (whatever `mission setup-plan --json` emits, plus the dashboard) treats a non-substantive-but-committed-scaffold state as **incomplete**, not "spec/plan ready".
-- **Templates** under `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` add an explicit "commit boundary" section so future agents understand why their empty-scaffold commit is being blocked.
-- **Regression coverage**: a new integration test at `tests/integration/test_specify_plan_commit_boundary.py` that asserts (a) running specify-with-empty-content does not auto-commit a success state, (b) running specify with substantive content does auto-commit, and (c) workflow status correctly distinguishes the two.
+  - Add a pure helper `is_substantive(file_path: Path, kind: Literal["spec", "plan"]) -> bool` in a new module `src/specify_cli/missions/_substantive.py`. Section-presence only.
+  - **Fix 1 (`mission create` boundary)**: change the create flow in `mission.py` so the auto-commit at create time **does not include `spec.md`** (only `meta.json` and the other supporting scaffolding). The agent commits the populated `spec.md` themselves after writing substantive content (existing slash-template behavior) — but only that *substantive* content lands on the branch, not the empty scaffold.
+  - **Fix 2 (`setup-plan` entry gate)**: at the top of `setup-plan`, check `is_substantive(spec_path, "spec")` AND that `spec.md` is committed (i.e., `git ls-files --error-unmatch` succeeds and the committed version is substantive). If either fails, emit `phase_complete=False / blocked_reason="spec.md must be committed and substantive before plan phase"` and return without writing or committing `plan.md`.
+  - **Fix 3 (`setup-plan` exit gate)**: gate the existing `_commit_to_branch(plan_file, …)` call on `is_substantive(plan_path, "plan")`. If false, emit the same incomplete envelope and skip the commit.
+  - Workflow status reporting treats a non-substantive-but-committed-scaffold state (legacy missions, or this mission's own pre-fix history) as **incomplete**, not "spec/plan ready".
+- **Templates** under `src/specify_cli/missions/<mission-type>/command-templates/{specify,plan}.md` add an explicit "commit boundary" subsection so future agents understand why their empty-scaffold commit is being blocked.
+- **Regression coverage**: a new integration test at `tests/integration/test_specify_plan_commit_boundary.py` that asserts (a) `mission create` does NOT commit an empty `spec.md`; (b) `setup-plan` blocks if `spec.md` is uncommitted; (c) `setup-plan` blocks if `spec.md` is committed but non-substantive; (d) `setup-plan` succeeds and commits `plan.md` only when both are substantive.
 
 ### Suggested execution order (informational; lane plan is for `/spec-kitty.tasks`)
 

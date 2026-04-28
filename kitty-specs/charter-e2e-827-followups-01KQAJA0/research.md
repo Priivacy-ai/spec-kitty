@@ -80,32 +80,51 @@ Research artifact for [plan.md](plan.md). Each section is a discrete engineering
 - *Only `.gitignore`.* Rejected — risks a code path that ignores it.
 - *Only explicit filter.* Rejected — leaves the file showing up in `git status` for humans, which is its own UX bug.
 
-## R7. #846 — substantive-content definition
+## R7. #846 — substantive-content definition (REVISED)
 
-**Decision**: A spec/plan file is "substantive" iff **either**:
-- (a) the file's byte-length exceeds the canonical scaffold's byte-length by a fixed threshold (default: 256 bytes), **or**
-- (b) the file contains all of a small, hard-coded list of required mandatory sections for that artifact (spec: a non-empty Functional Requirements table with at least one row; plan: a non-empty Technical Context section).
+**Original decision (REJECTED in planning review)**: byte-length-delta-vs-scaffold OR section-presence.
 
-**Rationale**:
-- The OR makes it permissive enough not to false-block legitimate small specs while still catching the empty-scaffold case.
-- Both checks are deterministic and cheap (file read + cheap parse).
-- The byte-length check is robust to template changes; the section check is robust to abbreviated specs that happen to be near the threshold size.
+**Reason for revision**: review caught that the byte-length OR could pass `scaffold + 300 bytes of arbitrary prose` as "substantive", which recreates the failure mode this mission exists to fix. A user can paste a paragraph of unrelated text and the gate would commit. That is exactly the silent-commit-of-non-spec-content bug, just with more bytes.
 
-**Alternatives considered**:
-- *Pure byte-length threshold.* Rejected — false-blocks legitimately small specs near the threshold.
-- *Pure section-presence check.* Rejected — couples the gate to a specific section structure that may evolve; also brittle if a future template renames sections.
-- *Hash equality with the scaffold.* Rejected — too strict; any whitespace edit would pass even when content is still scaffold-like.
-- *AI/LLM judgement of "is this substantive".* Rejected — non-deterministic, expensive, off-pattern for a CLI guard.
+**Revised decision**: A spec/plan file is "substantive" iff it contains the required mandatory sections for that artifact, AND those sections contain real (non-template-placeholder) content.
 
-## R8. #846 — where to gate auto-commit
-
-**Decision**: Gate the auto-commit at the same code path that performs the auto-commit today (in `src/specify_cli/cli/commands/agent/mission.py`, around `setup-plan` and the equivalent specify path). The gate is a single conditional: `if not _is_substantive(file_path, kind): emit_blocked_status_and_skip_commit(); return`.
+- **spec**: at least one Functional Requirements row with an `FR-\d{3}` ID followed by description content that survives `[NEEDS CLARIFICATION …]` / `[e.g., …]` stripping.
+- **plan**: a populated Technical Context section where `Language/Version` (and at least one peer field) contains a real value, not a template placeholder.
 
 **Rationale**:
-- One gate, one place. Easiest to reason about and test.
-- Workflow status (the JSON returned to the calling agent) reflects the gated state, so downstream tools see "incomplete" rather than "ready".
+- Section-presence with placeholder-stripping is the precise signal we actually care about. A spec without an FR row is, by definition, not a spec.
+- Resilience to template evolution: if a future template renames "Functional Requirements" to something else, the gate fails LOUDLY (clear regression to fix), not silently (passing scaffolds).
+- Cheap and deterministic: regex parse over the file body.
+
+**Alternatives reconsidered**:
+- *Pure byte-length threshold.* Rejected (was rejected before, still rejected).
+- *Byte-length OR section-presence.* **Now rejected** — recreates the failure mode with arbitrary filler.
+- *Byte-length AND section-presence.* Rejected as redundant — section-presence alone is sufficient. Adding a length AND-gate would only false-reject edge cases where a one-FR-row spec is shorter than the scaffold (very rare, but possible if the scaffold is verbose).
+- *Hash equality with the scaffold.* Still rejected — too strict.
+- *AI/LLM judgement.* Still rejected — non-deterministic.
+
+**Implication for tests**: the regression test must assert that scaffold + 300 bytes of arbitrary prose (no FR row) is **NON-substantive**. This was previously documented as a "this commits" case in the contract; that test scenario is removed and replaced with the stricter assertion.
+
+## R8. #846 — where to gate auto-commit (REVISED)
+
+**Original decision (REJECTED in planning review)**: single gate at the existing `setup-plan` auto-commit branch in `mission.py`.
+
+**Reason for revision**: review caught that there is **no Python auto-commit branch for the populated `spec.md`** today. The slash-template `/spec-kitty.specify` instructs the agent to commit substantive `spec.md` content; that commit happens outside Python. The Python-side bug is at **`mission create`** (which auto-commits the empty `spec.md` scaffold), not at any specify-side commit branch. A gate placed only at `setup-plan` would let the empty-scaffold commit through.
+
+**Revised decision**: gate at THREE places, all in `src/specify_cli/cli/commands/agent/mission.py`:
+
+1. **`mission create`**: stop including `spec.md` in the create-time `safe_commit(files_to_commit=[…])` call. Empty scaffolds remain untracked at create time.
+2. **`setup-plan` entry**: check `is_committed(spec, repo) AND is_substantive(spec, "spec")`. If false, emit `phase_complete=False / blocked_reason` and return without writing or committing `plan.md`.
+3. **`setup-plan` exit**: gate the existing `_commit_to_branch(plan_file, …)` call on `is_substantive(plan, "plan")`.
+
+**Rationale**:
+- The `mission create` change alone doesn't enforce FR-014 (workflow state doesn't falsely advance). The setup-plan entry check is what surfaces "spec phase not yet complete" to downstream tools.
+- The exit check is needed because today's `setup-plan` writes `plan.md` from a template, and an empty-but-template-only `plan.md` is exactly the failure mode for the plan side.
+- Three small surgical changes are easier to review and test than one monolithic gate.
 
 **Alternatives considered**:
+- *Single gate at setup-plan entry only.* Rejected — leaves the create-time commit of empty `spec.md` in place, surfacing as `git log` clutter and creating reviewer noise. Also doesn't cover the `plan.md` template-only case.
+- *Refactor `mission create` to delay scaffold commit until the slash-template's first commit*. Rejected — invasive; the right fix is just to omit `spec.md` from the existing scaffold-commit list.
 - *Block at template render time.* Rejected — too early; the template render is intentionally permissive.
 - *Block at a separate `validate-content` CLI subcommand.* Rejected — adds a step the agent might skip.
 

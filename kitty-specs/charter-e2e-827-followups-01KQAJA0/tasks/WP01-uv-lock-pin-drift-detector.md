@@ -28,6 +28,7 @@ model: claude-sonnet-4-6
 owned_files:
 - tests/architectural/test_uv_lock_pin_drift.py
 - docs/development/review-gates.md
+- kitty-specs/**/issue-matrix.md
 role: implementer
 tags: []
 ---
@@ -131,23 +132,25 @@ You are adding **one new pytest** plus **one documentation page**. If a reviewer
 - [ ] Doc cross-references `tests/architectural/test_uv_lock_pin_drift.py`.
 - [ ] No reference to deprecated/alternative sync commands.
 
-### Subtask T003 [P] — Audit issue-matrix rows
+### Subtask T003 [P] — Audit and correct issue-matrix rows
 
 **Purpose**: Correct any `kitty-specs/**/issue-matrix.md` row that says #848 is "verified-already-fixed" when the underlying risk still exists, per FR-003.
 
+`kitty-specs/**/issue-matrix.md` is in this WP's `owned_files`, so editing those rows when the audit finds stale claims is in scope (and required by FR-003).
+
 **Steps**:
 
-1. Search: `grep -RInl "848" kitty-specs/**/issue-matrix.md` (and similar variants).
+1. Search: `grep -RInl "848" kitty-specs/**/issue-matrix.md 2>/dev/null` (and variants like `848 `, `#848`, `Issue 848`).
 2. For each match, inspect the row text. If the row asserts "verified-already-fixed" or equivalent for environment/pin-drift hygiene AND that risk is still present (i.e., this WP is still required), correct the row to reflect actual status — e.g., "in progress: WP01 of charter-e2e-827-followups adds drift detector".
-3. Do not invent rows or restructure unrelated content — only correct misrepresentations.
+3. Do not invent rows or restructure unrelated content. Only correct misrepresentations specifically related to #848 hygiene.
 
-**Files**: `kitty-specs/**/issue-matrix.md` (edit-only, scope depends on audit findings; may be zero edits).
+**Files**: `kitty-specs/**/issue-matrix.md` (edit-allowed, scope depends on audit findings; may be zero edits).
 
 **Validation**:
 - [ ] No remaining row claims #848 hygiene is already-fixed if the drift detector is not yet on main.
-- [ ] No unrelated changes to issue-matrix files.
+- [ ] No unrelated changes to issue-matrix files (no #844/#845/#846/#847/#822/etc. row touched).
 
-> **Note**: this subtask may produce zero edits if no stale rows exist. That is a legitimate outcome — record "audit clean" in the WP completion notes if so.
+> **Note**: this subtask may produce zero edits if no stale rows exist. That is a legitimate outcome — record "audit clean: 0 edits" in the WP completion notes if so.
 
 ### Subtask T004 — Validate green-path AND red-path
 
@@ -191,11 +194,12 @@ You are adding **one new pytest** plus **one documentation page**. If a reviewer
 
 - [ ] `tests/architectural/test_uv_lock_pin_drift.py` exists, passes on a clean install, and fails actionably on synthetic drift.
 - [ ] `docs/development/review-gates.md` exists and documents `uv sync --frozen` as the canonical pre-review/pre-PR sync command.
-- [ ] Issue-matrix audit performed; any misleading "verified-already-fixed" rows for #848 hygiene corrected (or recorded as already accurate).
-- [ ] `uv run pytest tests/architectural -q` runs clean (this WP's test plus all existing architectural tests).
+- [ ] Issue-matrix audit performed; any misleading "verified-already-fixed" rows for #848 hygiene corrected (or recorded as "audit clean: 0 edits").
+- [ ] `uv run pytest tests/architectural -q` runs clean (this WP's test plus all existing architectural tests). This is part of the NFR-003 verification matrix.
 - [ ] `mypy --strict` is clean on the new file.
 - [ ] No edits to `pyproject.toml`, `uv.lock`, or `[tool.uv.sources]` (scope guardrail C-004).
-- [ ] Owned-files list in this WP's frontmatter is the only set of paths modified.
+- [ ] Edits limited to this WP's `owned_files`: the new test, the doc page, and possibly issue-matrix.md rows for #848.
+- [ ] Issue-matrix changes (if any) only touch rows about #848; no other issue's row is modified.
 
 ## Implementation command
 
