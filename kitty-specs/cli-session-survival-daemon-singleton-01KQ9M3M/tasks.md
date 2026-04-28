@@ -102,12 +102,12 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: WP01
 
 **Included subtasks**:
-- [ ] T006 `refresh_transaction.py` skeleton + `RefreshOutcome` enum (WP02)
-- [ ] T007 Reload-before-refresh + lock-timeout adopt/error (WP02)
-- [ ] T008 Stale-grant reconciler — current-vs-stale rejection branches (WP02)
-- [ ] T009 User-readable re-login message + recovery command (WP02)
-- [ ] T010 `TokenManager.refresh_if_needed` delegates; preserve `asyncio.Lock`; INFO logs per outcome (WP02)
-- [ ] T011 Extend `test_token_manager.py` with new-flow coverage + golden FR-020 status output (WP02)
+- [x] T006 `refresh_transaction.py` skeleton + `RefreshOutcome` enum (WP02)
+- [x] T007 Reload-before-refresh + lock-timeout adopt/error (WP02)
+- [x] T008 Stale-grant reconciler — current-vs-stale rejection branches (WP02)
+- [x] T009 User-readable re-login message + recovery command (WP02)
+- [x] T010 `TokenManager.refresh_if_needed` delegates; preserve `asyncio.Lock`; INFO logs per outcome (WP02)
+- [x] T011 Extend `test_token_manager.py` with new-flow coverage + golden FR-020 status output (WP02)
 
 **Implementation sketch**: Build the new module top-down (skeleton → happy path → failure-mode reconciler → user-facing message). Then rewire `TokenManager` so the in-process `asyncio.Lock` runs first as a same-process fast path (FR-003) and `run_refresh_transaction` runs inside it. Tests assert each `RefreshOutcome` produces a unique observable side-effect (storage write or not, log line, exception class).
 
@@ -128,9 +128,9 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: WP01, WP02
 
 **Included subtasks**:
-- [ ] T012 `tests/auth/concurrency/conftest.py` — in-process fake refresh server + tmp-auth-store env override (WP03)
-- [ ] T013 `test_machine_refresh_lock.py` + `test_stale_grant_preservation.py` (WP03)
-- [ ] T014 `test_incident_regression.py` — subprocess-based two-worker test under file barriers (WP03)
+- [x] T012 `tests/auth/concurrency/conftest.py` — in-process fake refresh server + tmp-auth-store env override (WP03)
+- [x] T013 `test_machine_refresh_lock.py` + `test_stale_grant_preservation.py` (WP03)
+- [x] T014 `test_incident_regression.py` — subprocess-based two-worker test under file barriers (WP03)
 
 **Implementation sketch**: Start with the conftest fixture (T012) so the rest of WP03 has a working harness. Add the deterministic single-process tests next (T013) to confirm the contract before scaling to subprocesses. Finish with T014 — the subprocess regression — using `subprocess.Popen` and file-system barriers (`tmp_path / "rotated.flag"`) to sequence Worker A (rotates) then Worker B (stale-grant) without `time.sleep`-based ordering.
 
@@ -175,10 +175,10 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T019 `orphan_sweep.py` skeleton — `OrphanDaemon` and `SweepReport` dataclasses (WP05)
-- [ ] T020 `enumerate_orphans()` — port scan + identity probe (WP05)
-- [ ] T021 `sweep_orphans()` — escalating shutdown + state-file cleanup (WP05)
-- [ ] T022 Test suite — 7 cases per `contracts/daemon-singleton.md` (WP05)
+- [x] T019 `orphan_sweep.py` skeleton — `OrphanDaemon` and `SweepReport` dataclasses (WP05)
+- [x] T020 `enumerate_orphans()` — port scan + identity probe (WP05)
+- [x] T021 `sweep_orphans()` — escalating shutdown + state-file cleanup (WP05)
+- [x] T022 Test suite — 7 cases per `contracts/daemon-singleton.md` (WP05)
 
 **Implementation sketch**: Module skeleton first (T019). The probe (T020) must use a tight per-port `connect_ex` timeout (50 ms) so the worst-case 50-port scan stays within NFR-006's 3 s ceiling. The sweep (T021) escalates: HTTP shutdown without token (best-effort, 403 expected), then `psutil.Process.terminate()` (1 s wait), then `kill()` (1 s wait). State-file cleanup is best-effort.
 

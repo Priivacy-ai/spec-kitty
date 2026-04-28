@@ -13,6 +13,7 @@ subtasks:
 - T020
 - T021
 - T022
+shell_pid: "55938"
 history:
 - at: '2026-04-28T09:17:32Z'
   actor: claude
@@ -28,7 +29,7 @@ status: planned
 tags: []
 agent_profile: python-pedro
 role: implementer
-agent: claude
+agent: "claude:sonnet:reviewer-renata:reviewer"
 ---
 
 # WP05 — Orphan daemon sweep
@@ -183,3 +184,10 @@ Verify:
 3. `sweep_orphans()` escalates HTTP → SIGTERM → SIGKILL with a 1 s wait at each step.
 4. `psutil.AccessDenied` is caught and recorded in `SweepReport.failed`, not raised.
 5. State-file cleanup is best-effort (no exception if the file is missing).
+
+## Activity Log
+
+- 2026-04-28T10:28:25Z – claude:sonnet:python-pedro:implementer – shell_pid=49283 – Started implementation via action command
+- 2026-04-28T10:37:26Z – claude:sonnet:python-pedro:implementer – shell_pid=49283 – Ready for review: orphan sweep module + 8 tests, mypy strict + ruff clean
+- 2026-04-28T10:38:19Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=55938 – Started review via action command
+- 2026-04-28T10:42:27Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=55938 – Review passed: R4 invariant enforced (both protocol_version + package_version required); singleton excluded; HTTP→terminate→kill escalation with 1s waits; AccessDenied/NoSuchProcess caught and recorded; 50-port scan well under 3s; all 7 contract tests + 1 perf test pass; mypy/ruff/1441 sync tests clean.

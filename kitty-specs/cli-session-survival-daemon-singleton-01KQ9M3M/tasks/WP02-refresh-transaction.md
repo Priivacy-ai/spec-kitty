@@ -24,6 +24,7 @@ subtasks:
 - T009
 - T010
 - T011
+shell_pid: "36775"
 history:
 - at: '2026-04-28T09:17:32Z'
   actor: claude
@@ -40,7 +41,7 @@ status: planned
 tags: []
 agent_profile: python-pedro
 role: implementer
-agent: claude
+agent: "claude:sonnet:reviewer-renata:reviewer"
 ---
 
 # WP02 — Refresh transaction with stale-grant preservation
@@ -250,3 +251,10 @@ Verify:
 4. INFO logs fire on every outcome (FR-019).
 5. `auth status` output is byte-equal to the pre-WP02 golden fixture (FR-020).
 6. No code path can clear a newer persisted session.
+
+## Activity Log
+
+- 2026-04-28T09:51:37Z – claude:sonnet:python-pedro:implementer – shell_pid=24737 – Started implementation via action command
+- 2026-04-28T10:04:13Z – claude:sonnet:python-pedro:implementer – shell_pid=24737 – Ready for review: refresh transaction (incident fix), 31 tests passing (12 new + 19 preserved), mypy strict + ruff clean, 99% coverage on owned files (refresh_transaction 100%, token_manager 99%)
+- 2026-04-28T10:05:00Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=36775 – Started review via action command
+- 2026-04-28T10:07:54Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=36775 – Review passed: stale-grant preservation correct; storage.delete gated on (session_id, refresh_token) byte equality; in-process asyncio.Lock preserved; INFO log per outcome; all 6 RefreshOutcome members tested incl. headline test_stale_grant_with_expired_persisted_preserves_session; mypy strict + ruff clean; 31 token_manager + 269 auth tests green; _auth_status.py byte-identical.

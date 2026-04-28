@@ -14,6 +14,7 @@ subtasks:
 - T012
 - T013
 - T014
+shell_pid: "47921"
 history:
 - at: '2026-04-28T09:17:32Z'
   actor: claude
@@ -31,7 +32,7 @@ status: planned
 tags: []
 agent_profile: python-pedro
 role: implementer
-agent: claude
+agent: "claude:sonnet:reviewer-renata:reviewer"
 ---
 
 # WP03 — Concurrency and multiprocess incident regression tests
@@ -174,3 +175,10 @@ Verify:
 3. T014's 30 s timeout is enforced via `wait_for`, not via a soft sleep.
 4. No worker script writes outside `tmp_path`.
 5. The fake server's `invalid_grant` response shape matches the SaaS's actual response shape (same JSON keys).
+
+## Activity Log
+
+- 2026-04-28T10:08:45Z – claude:sonnet:python-pedro:implementer – shell_pid=41190 – Started implementation via action command
+- 2026-04-28T10:21:59Z – claude:sonnet:python-pedro:implementer – shell_pid=41190 – Ready for review: 5 concurrency tests, incident regression ~1.9s wall-clock, fully deterministic
+- 2026-04-28T10:22:57Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=47921 – Started review via action command
+- 2026-04-28T10:27:21Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=47921 – Review passed: 5 tests cover FR-003/004/005/006/007 + NFR-005; incident regression 3.8 s deterministic across 5 runs; 1-request deviation correct under WP02 FR-004 fast path; FR-006 stale-grant explicitly exercised by test_stale_rejection_preserves_session
