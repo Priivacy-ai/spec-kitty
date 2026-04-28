@@ -38,6 +38,9 @@ owned_files:
 priority: P1
 status: planned
 tags: []
+agent_profile: python-pedro
+role: implementer
+agent: claude
 ---
 
 # WP02 — Refresh transaction with stale-grant preservation

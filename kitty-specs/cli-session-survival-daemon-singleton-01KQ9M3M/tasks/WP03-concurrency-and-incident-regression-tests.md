@@ -29,6 +29,9 @@ owned_files:
 priority: P1
 status: planned
 tags: []
+agent_profile: python-pedro
+role: implementer
+agent: claude
 ---
 
 # WP03 — Concurrency and multiprocess incident regression tests

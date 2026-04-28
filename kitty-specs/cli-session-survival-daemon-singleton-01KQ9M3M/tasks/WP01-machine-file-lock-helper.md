@@ -33,6 +33,9 @@ owned_files:
 priority: P1
 status: planned
 tags: []
+agent_profile: python-pedro
+role: implementer
+agent: claude
 ---
 
 # WP01 — Cross-platform machine-wide file lock helper

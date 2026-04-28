@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-28T08:43:33.107060Z",
+      "decision_id": "01KQ9M41VJENF0T6H83VRK5DYQ",
+      "final_answer": "report-plus-active-repair",
+      "input_key": "auth_doctor_actions",
+      "mission_id": "01KQ9M3M91HND8QRPQNJVQAFH5",
+      "mission_slug": "cli-session-survival-daemon-singleton-01KQ9M3M",
+      "options": [
+        "report-only",
+        "report-plus-active-repair",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "For Tranche 1, should auth doctor be report-only or also include opt-in active-repair flags such as --reset (sweep orphans) and --unstick-lock (drop a stuck refresh lock above an age threshold)?",
+      "rationale": null,
+      "resolved_at": "2026-04-28T08:43:47.154573Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.auth_doctor_actions",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQ9M3M91HND8QRPQNJVQAFH5",
+  "version": 1
+}

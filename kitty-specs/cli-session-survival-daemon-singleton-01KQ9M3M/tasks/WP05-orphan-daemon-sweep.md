@@ -26,6 +26,9 @@ owned_files:
 priority: P1
 status: planned
 tags: []
+agent_profile: python-pedro
+role: implementer
+agent: claude
 ---
 
 # WP05 — Orphan daemon sweep
