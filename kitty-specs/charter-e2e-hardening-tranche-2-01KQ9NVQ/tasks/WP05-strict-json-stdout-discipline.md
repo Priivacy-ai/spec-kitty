@@ -157,3 +157,4 @@ spec-kitty agent action implement WP05 --agent <your-agent-key>
 ## Activity Log
 
 - 2026-04-28T10:43:20Z – claude:sonnet:implementer-ivan:implementer – shell_pid=62162 – Started implementation via action command
+- 2026-04-28T10:58:47Z – claude:sonnet:implementer-ivan:implementer – shell_pid=62162 – Strict --json stdout: mark_invocation_succeeded wired into four CLI paths; new test asserts strict json.loads(stdout) for all four; charter/next/specify_cli green
