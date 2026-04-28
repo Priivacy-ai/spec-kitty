@@ -62,11 +62,11 @@ WP07 is the capstone — its dependencies (WP01, WP02, WP05, WP06) span lanes; f
 | T033 | Idempotency: synthesize twice yields identical output set                | WP06  |          | [D] |
 | T034 | Integration test: fresh repo, generate→bundle validate succeeds          | WP06  | [D] |
 | T035 | Integration test: synthesize on fresh project produces expected set      | WP06  | [D] |
-| T036 | Update test_charter_epic_golden_path.py: no doctrine seed, no metadata edit | WP07 |       |
-| T037 | Verify under-120s budget on CI for golden-path E2E                       | WP07  |          |
-| T038 | Update governance setup docs to remove redundant git add (FR-017)        | WP07  | [P]      |
-| T039 | CHANGELOG entry: tranche-2 summary                                       | WP07  | [P]      |
-| T040 | Final acceptance pass against spec.md SC-001..SC-008                     | WP07  |          |
+| T036 | Update test_charter_epic_golden_path.py: no doctrine seed, no metadata edit | WP07 |       | [D] |
+| T037 | Verify under-120s budget on CI for golden-path E2E                       | WP07  |          | [D] |
+| T038 | Update governance setup docs to remove redundant git add (FR-017)        | WP07  | [D] |
+| T039 | CHANGELOG entry: tranche-2 summary                                       | WP07  | [D] |
+| T040 | Final acceptance pass against spec.md SC-001..SC-008                     | WP07  |          | [D] |
 
 ---
 
@@ -205,11 +205,11 @@ Dependencies: WP01 (fresh-project init is the precondition for fresh-project cha
 
 Subtasks:
 
-- [ ] T036 Update test_charter_epic_golden_path.py: no doctrine seed, no metadata edit (WP07)
-- [ ] T037 Verify under-120s budget on CI for golden-path E2E (WP07)
-- [ ] T038 Update governance setup docs to remove redundant git add (FR-017) (WP07) [P]
-- [ ] T039 CHANGELOG entry: tranche-2 summary (WP07) [P]
-- [ ] T040 Final acceptance pass against spec.md SC-001..SC-008 (WP07)
+- [x] T036 Update test_charter_epic_golden_path.py: no doctrine seed, no metadata edit (WP07)
+- [x] T037 Verify under-120s budget on CI for golden-path E2E (WP07)
+- [x] T038 Update governance setup docs to remove redundant git add (FR-017) (WP07) [P]
+- [x] T039 CHANGELOG entry: tranche-2 summary (WP07) [P]
+- [x] T040 Final acceptance pass against spec.md SC-001..SC-008 (WP07)
 
 Dependencies: WP01, WP02, WP05, WP06 (all are exercised by the consolidated E2E and the docs sync). Risks: flakiness from real charter doctrine seed work; mitigated by Assumption A2 (public CLI path only) + < 120s budget assertion.
 
