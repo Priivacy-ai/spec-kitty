@@ -23,6 +23,7 @@ deletion).
 """
 
 from .clock import LamportClock, generate_node_id
+from .diagnose import emit_diagnostic
 from .events import (
     get_emitter,
     reset_emitter,
@@ -118,4 +119,5 @@ __all__ = [
     "SAAS_SYNC_ENV_VAR",
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",
+    "emit_diagnostic",
 ]

@@ -769,3 +769,83 @@ def shim_registry(
 
     console.print()
     raise typer.Exit(report.recommended_exit_code)
+
+
+@app.command(name="invocation-pairing")
+def invocation_pairing(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """List orphan profile-invocation lifecycle records.
+
+    WP05 (#843) wiring: scans
+    ``.kittify/events/profile-invocation-lifecycle.jsonl`` for ``started``
+    records with no paired ``completed`` or ``failed`` partner. Mid-cycle
+    agent crashes show up here. The check observes; it does not remediate.
+
+    Exit codes:
+      0  No orphans observed.
+      1  At least one orphan found.
+
+    Examples:
+        spec-kitty doctor invocation-pairing
+        spec-kitty doctor invocation-pairing --json
+    """
+    from specify_cli.invocation.lifecycle import doctor_orphan_report
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    report = doctor_orphan_report(repo_root)
+    orphan_count_raw = report.get("orphan_count", 0)
+    orphan_count = orphan_count_raw if isinstance(orphan_count_raw, int) else 0
+    pairing_rate_raw = report.get("pairing_rate", 1.0)
+    pairing_rate = pairing_rate_raw if isinstance(pairing_rate_raw, (int, float)) else 1.0
+    total_groups_raw = report.get("total_groups", 0)
+    total_groups = total_groups_raw if isinstance(total_groups_raw, int) else 0
+    orphans_raw = report.get("orphans", [])
+    orphans_list: list[dict[str, object]] = (
+        [o for o in orphans_raw if isinstance(o, dict)] if isinstance(orphans_raw, list) else []
+    )
+
+    if json_output:
+        console.print_json(json.dumps(report, indent=2, sort_keys=True))
+        raise typer.Exit(1 if orphan_count else 0)
+
+    if orphan_count == 0:
+        console.print(
+            "[green]Invocation Pairing[/green]: no orphan started records "
+            f"(pairing rate: {pairing_rate:.0%}, "
+            f"groups: {total_groups})."
+        )
+        raise typer.Exit(0)
+
+    console.print(
+        f"\n[bold]Invocation Pairing[/bold] — {orphan_count} orphan "
+        f"started record(s)\n"
+    )
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("Canonical Action ID", style="cyan", min_width=24)
+    table.add_column("Agent", min_width=10)
+    table.add_column("Mission ID", min_width=10)
+    table.add_column("WP", min_width=6)
+    table.add_column("Started At", min_width=20)
+    for entry in orphans_list:
+        table.add_row(
+            str(entry.get("canonical_action_id", "")),
+            str(entry.get("agent", "")),
+            str(entry.get("mission_id", "")),
+            str(entry.get("wp_id") or "-"),
+            str(entry.get("started_at", "")),
+        )
+    console.print(table)
+    console.print(
+        f"\nPairing rate: {pairing_rate:.0%} "
+        f"across {total_groups} group(s)."
+    )
+    console.print()
+    raise typer.Exit(1)

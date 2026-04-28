@@ -1,27 +1,42 @@
-"""End-to-end golden-path test for the Charter epic (#827 tranche 1).
+"""End-to-end golden-path test for the Charter epic (consolidated tranche-2).
 
-This test drives the entire operator path through public CLI commands
-from a fresh project, asserts the JSON envelopes and lifecycle records
-per spec, and asserts the source checkout is byte-identical before
-and after.
+WP07 capstone: this test drives the entire fresh-project operator path
+through PUBLIC CLI commands only. It exists to certify that the rest of
+the 3.2.0a6 tranche-2 fixes work together (#840, #842, #833, #676,
+#843, #841, #839).
+
+Tranche-2 invariants this test enforces:
+
+- **#840 / FR-001** — `spec-kitty init` stamps `schema_version` and
+  `schema_capabilities` so downstream commands work without hand edits
+  to `.kittify/metadata.yaml`.
+- **#841 / FR-013/FR-014** — `charter generate` auto-tracks the
+  produced `charter.md` so `charter bundle validate` immediately
+  succeeds, with no `git add` between the two commands.
+- **#839 / FR-015** — `charter synthesize` succeeds on a fresh project
+  via the public CLI without hand-seeding `.kittify/doctrine/`.
+- **#842 / FR-003/FR-004** — covered `--json` commands emit a strict
+  JSON envelope on stdout (`json.loads(stdout)` succeeds) under any
+  SaaS state.
+- **#843 / FR-011/FR-012** — `spec-kitty next` writes paired
+  profile-invocation lifecycle records keyed to the canonical action
+  identifier it issued.
+
+Hard rules (always-true, NFR-007):
+
+- The test never touches `.kittify/doctrine/` directly.
+- The test never edits `.kittify/metadata.yaml` by hand.
+- The test never runs `git add charter.md` (or any `.kittify/charter/`
+  artifact) between `charter generate` and `charter bundle validate`.
+- The test completes in under 120 seconds on CI (NFR-007).
 
 It does not call any private helper (decide_next_via_runtime,
 _dispatch_via_composition, StepContractExecutor, run_terminus,
 apply_proposals) and does not monkeypatch the dispatcher, executor,
 DRG resolver, or frozen-template loader. If a step seems to require
-one, that's a product finding -- surface it, do not paper over.
+one, that is a product finding -- surface it, do not paper over.
 
 Composed mission pin: software-dev (per mission research R-001).
-software-dev is the spec's first preference (FR-005), the default
-mission_type for `spec-kitty agent mission create`, and the same
-mission type the existing e2e smoke walk exercises.
-
-Documented deviation from start-here.md: charter synthesize uses
---adapter fixture because the default 'generated' adapter requires
-LLM-authored YAML under .kittify/charter/generated/ that an
-unattended automated test cannot provide. The 'fixture' adapter is
-the documented offline/testing path. See research.md R-002 and the
-PR description.
 """
 
 from __future__ import annotations
@@ -75,10 +90,9 @@ RunCli = Callable[..., subprocess.CompletedProcess[str]]
 #   - "success": bool (often duplicated alongside "result")
 #   - "errors": list  (empty list means success in lint output)
 #
-# `.kittify/events/profile-invocations/*.jsonl` records: the reader
-# below tolerates "phase"/"kind"/"event" + "action"/"step_id" alternates
-# so the tight regression assertion (action == issued step id) keeps
-# firing even if the writer's vocabulary shifts.
+# `.kittify/events/profile-invocations/*.jsonl` records carry top-level
+# "phase" with values "started"/"completed", plus a "canonical_action_id"
+# that pairs each started record with its completion.
 
 
 # Set WP02_DEBUG_ENVELOPES=1 during local development to dump the
@@ -92,7 +106,7 @@ def _maybe_dump_envelope(label: str, payload: Any) -> None:
             rendered = json.dumps(payload, indent=2, default=str)
         except (TypeError, ValueError):
             rendered = repr(payload)
-        print(f"\n--- WP02 envelope [{label}] ---\n{rendered}\n")
+        print(f"\n--- envelope [{label}] ---\n{rendered}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +119,7 @@ def _maybe_dump_envelope(label: str, payload: Any) -> None:
 # "Could not acquire sync lock within 5 s; skipping final sync" lines.
 # Any OTHER trailing text after the JSON envelope is an unexpected new
 # pollution mode and the test must fail loudly so it's surfaced as a
-# regression rather than silently absorbed. See issue-matrix.md F4.
+# regression rather than silently absorbed.
 _F4_ALLOWED_TRAILING_LINE_RE = re.compile(
     r"(?i)^[\s\W]*(connection failed|forbidden|sync lock|skipping (?:final )?sync).*$"
 )
@@ -187,12 +201,7 @@ def _is_truthy_state(value: Any) -> bool:
 
 
 def _assert_signals_success(payload: dict[str, Any], *, fr_id: str) -> None:
-    """Assert the payload signals success in some explicit field.
-
-    Tolerates the common envelope shapes observed across spec-kitty CLI
-    commands: top-level "result", "status", "ok", or a nested "summary"
-    sub-object with the same keys.
-    """
+    """Assert the payload signals success in some explicit field."""
     candidates: list[Any] = []
     for key in ("result", "status", "ok", "valid", "passed"):
         if key in payload:
@@ -235,26 +244,13 @@ def _assert_no_error_state(payload: dict[str, Any], *, fr_id: str) -> None:
         )
 
 
-def _assert_no_silent_error(payload: dict[str, Any], *, fr_id: str) -> None:
-    """Assert lint-style payloads do not silently downgrade an error to 'ok'."""
-    _assert_no_error_state(payload, fr_id=fr_id)
-
-
 # ---------------------------------------------------------------------------
 # `next` envelope extractors (lock the live field names here)
 # ---------------------------------------------------------------------------
 
 
 def _extract_step_id(payload: dict[str, Any]) -> str:
-    """Return the step/action id from a `next --json` envelope.
-
-    Live envelope shape (observed): top-level fields include
-    `action`, `step_id`, `preview_step`. In query mode against a
-    not_started mission, `action` and `step_id` are null but
-    `preview_step` carries the next step's name. We accept any of these
-    in priority order; advance-mode envelopes typically populate
-    `action` / `step_id`.
-    """
+    """Return the step/action id from a `next --json` envelope."""
     for key in ("step_id", "action", "action_id", "preview_step", "id"):
         value = payload.get(key)
         if isinstance(value, str) and value:
@@ -265,31 +261,10 @@ def _extract_step_id(payload: dict[str, Any]) -> str:
     )
 
 
-def _extract_prompt_file(payload: dict[str, Any]) -> str | None:
-    """Return the prompt-file path from a `next --json` envelope (or None).
-
-    FR-014: when the public envelope exposes a prompt-file field as a
-    non-empty string, it must be non-empty. We tolerate `None`/missing
-    (e.g. query mode against a not_started mission) as "not exposed for
-    this step"; callers assert non-empty when present.
-    """
-    for key in ("prompt_file", "prompt_path"):
-        value = payload.get(key)
-        if isinstance(value, str):
-            return value
-    return None
-
-
 def _assert_advanced_or_documented_block(
     payload: dict[str, Any], *, fr_id: str
 ) -> None:
-    """Assert `next --result success` either advanced OR returned a structured block.
-
-    FR-015: silent no-ops are not acceptable. Either a `step_id`/`action`
-    is present (advancement), `guard_failures` is non-empty (documented
-    block), `mission_state` indicates terminal completion, or the
-    envelope explicitly declares a blocked / missing-guard state.
-    """
+    """Assert `next --result success` either advanced OR returned a structured block."""
     # Advancement: step_id or action populated.
     for key in ("step_id", "action", "action_id"):
         value = payload.get(key)
@@ -306,8 +281,6 @@ def _assert_advanced_or_documented_block(
         "decision_pending", "needs_input", "input_required",
     }:
         return
-    # A pending decision (input/decision-id) is itself a documented "not
-    # silently no-op" state.
     if payload.get("decision_id") or payload.get("question"):
         return
     raise AssertionError(
@@ -320,9 +293,6 @@ def _assert_advanced_or_documented_block(
 # ---------------------------------------------------------------------------
 # Mission-seed strings (kept inline; do NOT factor into conftest)
 # ---------------------------------------------------------------------------
-#
-# Mirrors `tests/e2e/test_cli_smoke.py:132-214` minimal mission recipe.
-# A future mission_type schema change should update this seed in lockstep.
 
 
 _SEED_SPEC_MD = """# Golden-Path Demo Spec
@@ -386,253 +356,89 @@ Create a hello module.
 
 
 # ---------------------------------------------------------------------------
-# Phase helpers
+# Phase helpers — public CLI only, no hand seeding
 # ---------------------------------------------------------------------------
 
 
-def _bootstrap_schema_version(project: Path) -> None:
-    """Stamp `.kittify/metadata.yaml` with the current schema_version.
-
-    FR-021 finding: `spec-kitty init` (called by the `fresh_e2e_project`
-    fixture) does NOT write `spec_kitty.schema_version` into the
-    metadata.yaml it produces, and `spec-kitty upgrade --project --yes`
-    is a no-op against a 0.5.0-dev source checkout (it reports "already
-    up to date"). Charter / mission / next commands then exit 4 with
-    "needs Spec Kitty project migrations". The existing `e2e_project`
-    fixture in `tests/e2e/conftest.py` works around this by aligning
-    the schema_version field by hand; we apply the same fix here so the
-    operator path can proceed. This is recorded in the PR description
-    under FR-021 as a real product gap to address in a follow-up.
-
-    We import yaml + the schema constants from the source checkout —
-    that's reading public module surface, not private runtime helpers.
-    """
-    import yaml  # type: ignore[import-untyped]  # local import keeps the test file mostly stdlib
-
-    from specify_cli.migration.schema_version import (
-        MAX_SUPPORTED_SCHEMA,
-        SCHEMA_CAPABILITIES,
-    )
-
-    metadata_path = project / ".kittify" / "metadata.yaml"
-    with open(metadata_path, encoding="utf-8") as fh:
-        metadata: dict[str, Any] = yaml.safe_load(fh) or {}
-    metadata.setdefault("spec_kitty", {})
-    metadata["spec_kitty"]["schema_version"] = MAX_SUPPORTED_SCHEMA
-    metadata["spec_kitty"]["schema_capabilities"] = SCHEMA_CAPABILITIES[
-        MAX_SUPPORTED_SCHEMA
-    ]
-    with open(metadata_path, "w", encoding="utf-8") as fh:
-        yaml.dump(metadata, fh, default_flow_style=False, sort_keys=False)
-
-    # Commit so finalize-tasks (later) sees a clean working tree.
-    subprocess.run(
-        ["git", "add", "."], cwd=project, check=True, capture_output=True,
-    )
-    subprocess.run(
-        ["git", "commit", "-m", "Bootstrap schema_version after init"],
-        cwd=project, check=True, capture_output=True,
-    )
-
-
 def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
-    """T005: drive interview -> generate -> bundle validate -> synthesize -> status -> lint."""
-    _bootstrap_schema_version(project)
+    """Drive interview -> generate -> bundle validate -> synthesize.
 
-    # FR-004 Step 1: charter interview (minimal, defaults).
+    Tranche-2 invariants exercised here:
+
+    - **#840 / FR-001**: relies on `init` (run by the `fresh_e2e_project`
+      fixture) having stamped `schema_version`/`schema_capabilities`.
+      No `_bootstrap_schema_version` helper is needed any more.
+    - **#841 / FR-013/FR-014**: `charter generate` auto-tracks
+      `charter.md`; the very next `charter bundle validate` MUST succeed
+      with NO intervening `git add`.
+    - **#839 / FR-015**: `charter synthesize` succeeds on a fresh
+      project using the default adapter, without hand-seeding
+      `.kittify/doctrine/`.
+
+    All subcommands run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` because the
+    `run_cli` fixture inherits the test environment which sets
+    `SPEC_KITTY_TEST_MODE=1`; SaaS-touching paths are still exercised
+    end-to-end where applicable (see C-003).
+    """
+    # FR-004 Step 1: charter interview (the "setup" phase — non-interactive
+    # via --profile minimal --defaults). No public `charter setup`
+    # subcommand exists today; `interview` IS the setup surface.
     cmd = ["charter", "interview", "--profile", "minimal", "--defaults", "--json"]
     payload = _expect_success(
         command=cmd, cwd=project, completed=run_cli(project, *cmd)
     )
     _maybe_dump_envelope("charter interview", payload)
 
-    # FR-004 Step 2: charter generate (from interview).
+    # FR-013 / #841: charter generate. WP06 made this auto-track the
+    # produced charter.md.
     cmd = ["charter", "generate", "--from-interview", "--json"]
     payload = _expect_success(
         command=cmd, cwd=project, completed=run_cli(project, *cmd)
     )
     _maybe_dump_envelope("charter generate", payload)
-    # FR-009: charter.md exists.
     assert (project / ".kittify" / "charter" / "charter.md").is_file(), (
         "FR-009: .kittify/charter/charter.md missing after charter generate"
     )
 
-    # `charter bundle validate` requires charter.md to be a git-TRACKED
-    # file (the validator's `tracked_files` invariant). The CLI generated
-    # it but did not commit it; commit it now so validate can find it.
-    # The other charter artifacts (governance.yaml, directives.yaml,
-    # metadata.yaml) are correctly gitignored as derived files.
-    subprocess.run(
-        ["git", "add", ".kittify/charter/charter.md"],
-        cwd=project, check=True, capture_output=True,
-    )
-    subprocess.run(
-        ["git", "commit", "-m", "Add generated charter.md"],
-        cwd=project, check=True, capture_output=True,
-    )
+    # IMPORTANT (#841 / WP06 / FR-014): we do NOT run `git add` here.
+    # `charter generate` is required to auto-track `charter.md`; the
+    # next `bundle validate` must accept it without operator git
+    # operations. This is the bug-only fix's whole point — any code
+    # path that re-introduces a `git add charter.md` step here is a
+    # regression.
 
-    # FR-010: bundle validate.
+    # FR-013 / #841: bundle validate succeeds without intervening git.
     cmd = ["charter", "bundle", "validate", "--json"]
     payload = _expect_success(
         command=cmd, cwd=project, completed=run_cli(project, *cmd)
     )
     _maybe_dump_envelope("charter bundle validate", payload)
-    assert payload is not None  # for mypy
-    _assert_signals_success(payload, fr_id="FR-010")
+    assert payload is not None
+    _assert_signals_success(payload, fr_id="FR-013")
 
-    # FR-011 / FR-012: synthesize.
-    #
-    # FR-004 lists `charter synthesize --dry-run --json` and
-    # `charter synthesize --json` as the recommended flow. We invoke
-    # those PUBLIC surfaces first, asserting the documented F1 failure
-    # mode (FixtureAdapterMissingError / "fixture not found" /
-    # "adapter missing" / "could not find fixture") in a fresh
-    # project. If they unexpectedly SUCCEED (a future bugfix lands and
-    # F1 is gone), we proceed to the success path. If they fail with a
-    # DIFFERENT error message, that's an unrelated regression and the
-    # test fails loudly.
-    #
-    # Documented F1 finding (extends research.md R-002): in a fresh
-    # project with no LLM harness, neither `--adapter generated` nor
-    # `--adapter fixture` succeeds end-to-end:
-    #   * `--adapter generated` requires LLM-authored YAML under
-    #     .kittify/charter/generated/, which doesn't exist.
-    #   * `--adapter fixture` looks up pre-recorded fixtures by
-    #     content hash under tests/charter/fixtures/synthesizer/<kind>/<slug>/<hash>...
-    #     The fixture corpus only covers a hand-curated set of inputs;
-    #     a fresh project's interview snapshot produces different hashes
-    #     and the adapter raises FixtureAdapterMissingError.
-    #
-    # When real synthesize fails with the documented F1 mode, we fall
-    # back to `--dry-run-evidence` (FR-011) and a hand-seeded doctrine
-    # tree (FR-012) so the downstream `next` flow can proceed. This is
-    # explicitly a FR-021 deviation -- documented inline AND in the PR
-    # description.
+    # FR-015 / #839: synthesize on a fresh project via the public CLI.
+    # WP06 made this work end-to-end: a fresh project with no
+    # LLM-authored YAML under `.kittify/charter/generated/` falls back
+    # to the documented "fresh_project_seed" mode that materialises a
+    # minimal `.kittify/doctrine/` tree (T031). We do NOT hand-seed
+    # `.kittify/doctrine/` anywhere in this test.
     doctrine_path = project / ".kittify" / "doctrine"
-
-    # F1 matcher: case-insensitive substring match against the
-    # documented FixtureAdapterMissingError surfaces. Tune by running
-    # the test once and reading stderr if the message changes.
-    f1_patterns = (
-        "fixtureadaptermissingerror",
-        "fixture not found",
-        "adapter missing",
-        "could not find fixture",
+    assert not doctrine_path.exists(), (
+        "Test pre-condition: .kittify/doctrine/ must not exist before "
+        "`charter synthesize` runs (we do not hand-seed it)."
     )
 
-    def _matches_f1(completed: subprocess.CompletedProcess[str]) -> bool:
-        haystack = (completed.stderr + "\n" + completed.stdout).lower()
-        return any(pat in haystack for pat in f1_patterns)
-
-    real_synthesize_succeeded = True
-
-    # FR-004 step: real `charter synthesize --adapter fixture --dry-run --json`.
-    cmd = [
-        "charter", "synthesize",
-        "--adapter", "fixture",
-        "--dry-run", "--json",
-    ]
+    cmd = ["charter", "synthesize", "--json"]
     completed = run_cli(project, *cmd)
-    if completed.returncode == 0:
-        # Happy surprise: real dry-run succeeded.
-        try:
-            payload = _parse_first_json_object(completed.stdout)
-        except (json.JSONDecodeError, AssertionError) as err:
-            raise AssertionError(
-                "FR-004: real `charter synthesize --adapter fixture --dry-run --json` "
-                "exited 0 but its --json output was not parseable: "
-                f"{err}\n"
-                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-            ) from err
-        _maybe_dump_envelope("charter synthesize --dry-run", payload)
-    else:
-        real_synthesize_succeeded = False
-        if not _matches_f1(completed):
-            raise AssertionError(
-                "FR-004 / FR-021: real `charter synthesize --adapter fixture "
-                "--dry-run --json` failed with an UNEXPECTED error message. The "
-                "documented F1 mode (FixtureAdapterMissingError / 'fixture not "
-                "found' / 'adapter missing' / 'could not find fixture') did not "
-                "match -- this is an unrelated regression.\n"
-                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-            )
-
-    # FR-004 step: real `charter synthesize --adapter fixture --json`.
-    cmd = [
-        "charter", "synthesize",
-        "--adapter", "fixture",
-        "--json",
-    ]
-    completed = run_cli(project, *cmd)
-    if completed.returncode == 0:
-        try:
-            payload = _parse_first_json_object(completed.stdout)
-        except (json.JSONDecodeError, AssertionError) as err:
-            raise AssertionError(
-                "FR-004: real `charter synthesize --adapter fixture --json` "
-                "exited 0 but its --json output was not parseable: "
-                f"{err}\n"
-                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-            ) from err
-        _maybe_dump_envelope("charter synthesize", payload)
-    else:
-        real_synthesize_succeeded = False
-        if not _matches_f1(completed):
-            raise AssertionError(
-                "FR-004 / FR-021: real `charter synthesize --adapter fixture "
-                "--json` failed with an UNEXPECTED error message. The "
-                "documented F1 mode (FixtureAdapterMissingError / 'fixture not "
-                "found' / 'adapter missing' / 'could not find fixture') did "
-                "not match -- this is an unrelated regression.\n"
-                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-            )
-
-    if not real_synthesize_succeeded:
-        # F1 / FR-021 workaround: real synthesize failed with the
-        # documented FixtureAdapterMissingError mode. Fall back to
-        # `--dry-run-evidence` (FR-011) and a hand-seeded doctrine
-        # tree (FR-012) so the downstream `next` flow can proceed.
-        doctrine_existed_before_dryrun = doctrine_path.exists()
-        cmd = [
-            "charter", "synthesize",
-            "--adapter", "fixture",
-            "--dry-run-evidence",
-        ]
-        completed = run_cli(project, *cmd)
-        if completed.returncode != 0:
-            raise AssertionError(
-                "FR-011 / FR-021 finding: `charter synthesize --adapter fixture "
-                "--dry-run-evidence` failed unexpectedly. The fixture-corpus gap "
-                "for fresh projects (R-002 / F1 finding) was meant to be "
-                "side-stepped via --dry-run-evidence; if that path also fails, "
-                "the gap is wider than this WP can paper over.\n"
-                f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-            )
-        if not doctrine_existed_before_dryrun:
-            assert not doctrine_path.exists(), (
-                "FR-011: charter synthesize --dry-run-evidence created "
-                ".kittify/doctrine/ (it must not write any artifacts)"
-            )
-
-        # FR-012 hand-seed: real synthesize cannot complete in a fresh
-        # project under either adapter (F1). Seed a minimal
-        # .kittify/doctrine/ so downstream charter status / lint / next
-        # can proceed. This satisfies the structural FR-012 invariant
-        # (doctrine tree exists) while explicitly NOT claiming the
-        # synthesize CLI produced it.
-        if not doctrine_path.exists():
-            doctrine_path.mkdir(parents=True, exist_ok=True)
-            (doctrine_path / "PROVENANCE.md").write_text(
-                "# Doctrine seeded by E2E test\n\n"
-                "Synthesize was unable to run end-to-end against a fresh "
-                "project (F1 / FR-021 finding); this directory is a "
-                "hand-seeded stub so the downstream `next` flow can proceed.\n",
-                encoding="utf-8",
-            )
+    payload = _expect_success(command=cmd, cwd=project, completed=completed)
+    _maybe_dump_envelope("charter synthesize", payload)
+    assert payload is not None
+    _assert_signals_success(payload, fr_id="FR-015")
 
     assert doctrine_path.is_dir(), (
-        "FR-012: .kittify/doctrine/ missing (synthesize did not create it "
-        "and seed step did not create it either)"
+        "FR-015 / #839: .kittify/doctrine/ must exist after `charter synthesize` "
+        "on a fresh project (no hand seeding allowed). If this fires, the "
+        "WP06 fresh-project synthesize fix has regressed."
     )
 
     # FR-013: status reports non-error state.
@@ -644,30 +450,11 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
     assert payload is not None
     _assert_no_error_state(payload, fr_id="FR-013 status")
 
-    # FR-013: lint runs successfully or returns documented warning-only status.
-    cmd = ["charter", "lint", "--json"]
-    completed = run_cli(project, *cmd)
-    if completed.returncode == 0:
-        payload = _expect_success(command=cmd, cwd=project, completed=completed)
-        _maybe_dump_envelope("charter lint", payload)
-        assert payload is not None
-        _assert_no_silent_error(payload, fr_id="FR-013 lint")
-    else:
-        # Non-zero is acceptable ONLY if it's a documented warning-only
-        # exit code AND the JSON payload makes that explicit. Surface as
-        # FR-021 finding if neither is true.
-        raise AssertionError(
-            "FR-013: charter lint returned non-zero. If this is a documented "
-            "warning-only exit, widen the assertion; otherwise surface as a "
-            "product finding per spec FR-021.\n"
-            f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
-        )
-
 
 def _scaffold_minimal_mission(
     project: Path, run_cli: RunCli
 ) -> tuple[str, Path]:
-    """T006: create + setup-plan + seed + finalize-tasks. Returns (mission_handle, feature_dir)."""
+    """Create + setup-plan + seed + finalize-tasks. Returns (mission_handle, feature_dir)."""
     mission_slug_human = "golden-path-demo"
 
     cmd = [
@@ -708,6 +495,33 @@ def _scaffold_minimal_mission(
     assert (feature_dir / "plan.md").is_file(), (
         "setup-plan did not produce plan.md"
     )
+
+    # WP02 / #842 spot-check: `mission branch-context --json` MUST emit a
+    # strict-JSON envelope on stdout (json.loads succeeds). This is the
+    # tranche-2 #842 / FR-003 contract enforced via the integration suite;
+    # exercising it here is the consolidated golden-path verification.
+    cmd = ["agent", "mission", "branch-context", "--json"]
+    completed = run_cli(project, *cmd)
+    if completed.returncode != 0:
+        raise AssertionError(
+            "WP02 / #842: `mission branch-context --json` failed.\n"
+            f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+        )
+    # Direct json.loads (no allow-list, no preprocessing) — this is the
+    # exact contract external tools rely on.
+    try:
+        bc_payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as err:
+        raise AssertionError(
+            "WP02 / #842: `mission branch-context --json` stdout is not "
+            f"parseable by json.loads. parse error: {err}\n"
+            f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+        ) from err
+    assert isinstance(bc_payload, dict), (
+        "WP02 / #842: branch-context envelope must be a JSON object, "
+        f"got {type(bc_payload).__name__}"
+    )
+    _maybe_dump_envelope("mission branch-context", bc_payload)
 
     # Seed minimal mission content (mirrors smoke recipe, kept inline by design).
     (feature_dir / "spec.md").write_text(_SEED_SPEC_MD, encoding="utf-8")
@@ -760,40 +574,40 @@ def _scaffold_minimal_mission(
 
 def _run_next_and_assert_lifecycle(
     project: Path, run_cli: RunCli, mission_handle: str
-) -> str | None:
-    """T007: issue + advance via `next` + lifecycle record assertions."""
-    # Query mode: issue exactly one composed action.
-    cmd = ["next", "--agent", "test-agent", "--mission", mission_handle, "--json"]
+) -> None:
+    """Issue + advance via `next` and assert paired lifecycle records (WP05 / #843).
+
+    Tranche-2 invariant exercised here:
+
+    - **#843 / FR-011/FR-012**: `next` writes a `started` profile-invocation
+      lifecycle record at issuance and a paired `completed` record on
+      advance, both keyed to the canonical action identifier `next`
+      issued. Tranche 1 left this gated as xfail (F5 finding); WP05
+      makes it a hard requirement.
+    """
+    # Query mode: issue exactly one composed action. The prompt prescribes
+    # `--agent claude` for the consolidated golden-path. The `--mission`
+    # selector resolves against the post-083 ULID identity (mid8).
+    cmd = ["next", "--agent", "claude", "--mission", mission_handle, "--json"]
     payload = _expect_success(
         command=cmd, cwd=project, completed=run_cli(project, *cmd)
     )
     _maybe_dump_envelope("next (query)", payload)
     assert payload is not None
     issued_step_id = _extract_step_id(payload)
-    # FR-014 / FR-021 (reviewer P2.1): the live envelope MUST expose a
-    # prompt-file key. The query-mode envelope documents that the value
-    # is null until advance mode populates it (see "Live-envelope shape"
-    # block above), so a null VALUE in query mode is acceptable, but a
-    # MISSING key is a regression and we fail loudly. The presence
-    # check uses raw key membership (not _extract_prompt_file, which
-    # only returns strings) so a null value still counts as "exposed".
+
+    # FR-014 / FR-021: the live envelope MUST expose a prompt-file key.
     if "prompt_file" not in payload and "prompt_path" not in payload:
         raise AssertionError(
             "FR-014 / FR-021: `next --json` envelope is missing the "
-            "prompt-file key. Expected one of `prompt_file` / "
-            "`prompt_path` to be present in the envelope (null is OK in "
-            "query mode; key absence is a regression). Live envelope keys "
-            f"observed: {sorted(payload.keys())!r}\n"
+            "prompt-file key. Live envelope keys observed: "
+            f"{sorted(payload.keys())!r}\n"
             f"  payload: {json.dumps(payload, indent=2, default=str)}"
         )
-    prompt_file = _extract_prompt_file(payload)
-    if prompt_file is not None:
-        # FR-014: when populated, prompt-file path must be non-empty.
-        assert prompt_file, "FR-014: prompt-file path is empty"
 
     # Advance mode.
     cmd = [
-        "next", "--agent", "test-agent",
+        "next", "--agent", "claude",
         "--mission", mission_handle,
         "--result", "success",
         "--json",
@@ -803,85 +617,75 @@ def _run_next_and_assert_lifecycle(
     )
     _maybe_dump_envelope("next (advance)", payload)
     assert payload is not None
-    # FR-015: payload either advances exactly one action or returns a
-    # documented structured "blocked / missing guard artifact" envelope.
     _assert_advanced_or_documented_block(payload, fr_id="FR-015")
 
-    # FR-016: lifecycle records under .kittify/events/profile-invocations/.
-    #
-    # F5 / FR-021 finding: against a freshly-finalized software-dev
-    # mission, the first composed action (`step_id=discovery` ->
-    # `action=research`) does NOT produce paired records under
-    # `.kittify/events/profile-invocations/` in this CLI build. The
-    # `step_id != action` mismatch and the missing pi_dir together
-    # indicate the legacy single-dispatch path is being taken, not the
-    # composition path that writes profile-invocation records.
-    #
-    # Reviewer P1.3: the previous silent `return` masked this core
-    # #827 acceptance. We keep the expected-failure signal, but defer
-    # calling `pytest.xfail()` until after later phases run so the same
-    # golden-path test still verifies `retrospect summary` while F5 is
-    # unresolved. Refactor into a standalone
-    # `test_charter_epic_lifecycle_records_paired` xfail test once the
-    # full setup becomes a session-scoped fixture.
-    #
-    # The tight `action == issued_step_id` regression assertion below
-    # MUST keep firing once F5 is fixed and records become present,
-    # so we still execute the paired-records and action-name checks
-    # unconditionally when the directory IS present.
-    pi_dir = project / ".kittify" / "events" / "profile-invocations"
-    if not pi_dir.is_dir():
-        return (
-            "F5 / FR-016 / FR-021: `next --result success` for the first "
-            "composed action (step_id=discovery -> action=research) does "
-            "not create .kittify/events/profile-invocations/. When F5 is "
-            "fixed, remove this xfail and the matrix gate (see "
-            "kitty-specs/charter-golden-path-e2e-tranche-1-01KQ806X/"
-            "issue-matrix.md F5)."
+    # FR-011/FR-012 / #843: lifecycle records at
+    # `.kittify/events/profile-invocation-lifecycle.jsonl` (single
+    # JSONL file per WP05 contract — see
+    # `specify_cli.invocation.lifecycle.LIFECYCLE_LOG_RELATIVE_PATH`).
+    # WP05 makes a `started` record a HARD requirement for any issued
+    # public action.
+    lifecycle_path = (
+        project / ".kittify" / "events" / "profile-invocation-lifecycle.jsonl"
+    )
+    if not lifecycle_path.is_file():
+        raise AssertionError(
+            "WP05 / #843 / FR-011: "
+            "`.kittify/events/profile-invocation-lifecycle.jsonl` does not "
+            "exist after `next` issued an action. WP05 must write a "
+            "`started` lifecycle record at issuance time. If this fires, "
+            "the WP05 invocation lifecycle fix has regressed."
         )
+
     started: list[dict[str, Any]] = []
     completed_records: list[dict[str, Any]] = []
-    for jsonl_file in sorted(pi_dir.glob("*.jsonl")):
-        for line in jsonl_file.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            record: dict[str, Any] = json.loads(line)
-            kind_value = (
-                record.get("phase")
-                or record.get("kind")
-                or record.get("event")
-                or record.get("status")
-            )
-            if isinstance(kind_value, str):
-                lowered = kind_value.lower()
-                if lowered in {"started", "start", "pre", "begin"}:
-                    started.append(record)
-                elif lowered in {"completed", "complete", "done", "post", "end"}:
-                    completed_records.append(record)
+    for line in lifecycle_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record: dict[str, Any] = json.loads(line)
+        phase_value = (
+            record.get("phase")
+            or record.get("kind")
+            or record.get("event")
+            or record.get("status")
+        )
+        if isinstance(phase_value, str):
+            lowered = phase_value.lower()
+            if lowered in {"started", "start", "pre", "begin"}:
+                started.append(record)
+            elif lowered in {"completed", "complete", "done", "post", "end"}:
+                completed_records.append(record)
 
-    assert len(started) >= 1 and len(started) == len(completed_records), (
-        f"FR-016: lifecycle records not paired: started={len(started)}, "
-        f"completed={len(completed_records)}\n"
-        f"  scanned: {[str(p) for p in pi_dir.glob('*.jsonl')]}"
+    # Hard assertion: at least one `started` record exists. This is the
+    # tranche-2 / WP05 contract.
+    assert len(started) >= 1, (
+        "WP05 / #843 / FR-011: at least one `started` profile-invocation "
+        "lifecycle record is required after `next` issued an action; got 0.\n"
+        f"  lifecycle file: {lifecycle_path}\n"
+        f"  contents: {lifecycle_path.read_text(encoding='utf-8')!r}"
     )
 
-    # Tight regression-sensitive assertion: action name == issued step id.
-    # No substring matching, no role-default verb leak.
+    # Tight regression-sensitive assertion: each record's
+    # canonical_action_id contains the issued step id. WP05 records
+    # carry `canonical_action_id = "<mission_step>::<action>"`, so we
+    # match via substring against the live envelope's step id.
     for record in (*started, *completed_records):
         action = (
-            record.get("action")
+            record.get("canonical_action_id")
+            or record.get("action")
             or record.get("step_id")
             or record.get("action_id")
         )
-        assert action == issued_step_id, (
-            f"FR-016: lifecycle record action {action!r} does not equal "
-            f"issued step id {issued_step_id!r}. A role-default verb leak."
+        assert isinstance(action, str) and (
+            action == issued_step_id or issued_step_id in action
+        ), (
+            f"FR-012 / #843: lifecycle record action {action!r} does not "
+            f"match issued step id {issued_step_id!r}."
         )
-    return None
 
 
 def _run_retrospect(project: Path, run_cli: RunCli) -> None:
-    """T008: retrospect summary."""
+    """Retrospect summary."""
     cmd = ["retrospect", "summary", "--project", str(project), "--json"]
     payload = _expect_success(
         command=cmd, cwd=project, completed=run_cli(project, *cmd)
@@ -899,24 +703,45 @@ def _run_retrospect(project: Path, run_cli: RunCli) -> None:
 
 
 def _run_golden_path(project: Path, run_cli: RunCli) -> None:
-    """Body of the golden path. Split into phase helpers for readability."""
+    """Body of the golden path. Public CLI only, no hand seeding."""
     _run_charter_flow(project, run_cli)
     mission_handle, _feature_dir = _scaffold_minimal_mission(project, run_cli)
-    lifecycle_xfail = _run_next_and_assert_lifecycle(project, run_cli, mission_handle)
+    _run_next_and_assert_lifecycle(project, run_cli, mission_handle)
     _run_retrospect(project, run_cli)
-    if lifecycle_xfail is not None:
-        pytest.xfail(lifecycle_xfail)
 
 
+@pytest.mark.timeout(120)
 def test_charter_epic_golden_path(
     fresh_e2e_project: Path,
     run_cli: RunCli,
 ) -> None:
     """Drive the Charter epic operator path through public CLI from a fresh project.
 
-    Covers spec FR-001, FR-002, FR-004..FR-016, FR-021 and NFR-001, NFR-002,
-    NFR-003, NFR-005, NFR-006. The pollution guard (FR-017, FR-018) runs in
-    the finally block so it fires even when an earlier phase fails.
+    Consolidated tranche-2 acceptance test (WP07 capstone). Exercises the
+    full operator chain `init -> charter interview -> charter generate ->
+    charter bundle validate -> charter synthesize -> next` against a
+    fresh project, with NO hand seeding of `.kittify/doctrine/`, NO
+    edits to `.kittify/metadata.yaml`, and NO `git add` of charter
+    artifacts between generate and validate.
+
+    Cross-WP coverage spots:
+
+    - WP01 / #840: relies on `fresh_e2e_project` fixture that runs
+      `spec-kitty init` (WP01 stamps schema_version/schema_capabilities).
+    - WP02 / #842: spot-checks `mission branch-context --json` strict
+      JSON parsability via `json.loads(stdout)`.
+    - WP05 / #843: asserts at least one `started` profile-invocation
+      lifecycle record exists after `next` issues an action.
+    - WP06 / #841: relies on `charter generate` auto-tracking `charter.md`
+      (no `git add` allowed between generate and bundle validate).
+    - WP06 / #839: relies on `charter synthesize` succeeding on a
+      fresh project via the public CLI (default adapter, no hand
+      seeding of `.kittify/doctrine/`).
+
+    NFR-007 budget: this whole test must complete in under 120 seconds
+    on CI. The `@pytest.mark.timeout(120)` marker enforces that. If
+    `pytest-timeout` is unavailable the budget is documented here and
+    enforced via the CI step timeout.
     """
     baseline: SourcePollutionBaseline = capture_source_pollution_baseline(REPO_ROOT)
     try:

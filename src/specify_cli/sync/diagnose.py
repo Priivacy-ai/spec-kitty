@@ -7,13 +7,21 @@ The ``diagnose_events()`` function is the main entry point, used by
 the ``spec-kitty sync diagnose`` CLI command.
 
 Also provides body upload queue diagnostics via ``diagnose_body_queue()``.
+
+WP02 (#842): exposes :func:`emit_diagnostic`, the single canonical
+routing helper for sync / auth / tracker diagnostics. It guarantees
+the strict-JSON contract (FR-003, FR-004) — diagnostic content is
+either nested into a caller-provided JSON envelope under the
+``diagnostics`` top-level key, or written to **stderr**. It NEVER
+writes to stdout.
 """
 
 from __future__ import annotations
 
+import sys
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -23,6 +31,102 @@ from .emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES, VALID_AGGREGATE_TYPES
 
 if TYPE_CHECKING:
     from .body_queue import BodyQueueStats, OfflineBodyUploadQueue
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic routing helper (WP02 / #842)
+# ---------------------------------------------------------------------------
+
+
+# Categories the helper accepts.  Keep the literal narrow so that callers
+# cannot drift the contract by inventing new buckets.  If a new bucket is
+# needed, add it here AND extend the contract document.
+DiagnosticCategory = Literal["sync", "auth", "tracker"]
+
+
+def emit_diagnostic(
+    message: str,
+    *,
+    category: DiagnosticCategory,
+    json_mode: bool,
+    envelope: dict[str, Any] | None = None,
+) -> None:
+    """Route a sync/auth/tracker diagnostic message safely.
+
+    This helper is the canonical entry point for any module under
+    ``specify_cli.sync``, ``specify_cli.auth``, or the tracker glue that
+    wants to surface a diagnostic line during a CLI command. It enforces
+    the strict-JSON envelope contract (#842, FR-003, FR-004):
+
+    * Diagnostic content NEVER lands on **stdout**.
+    * In ``--json`` mode, the caller may supply an *envelope* dict; the
+      message is appended under ``envelope["diagnostics"][category]``
+      so the consumer observes it programmatically.
+    * Otherwise the message is written to **stderr**.
+
+    Args:
+        message: Human-readable diagnostic line.
+        category: One of ``"sync"``, ``"auth"``, ``"tracker"``. Determines
+            the nested key when an envelope is provided.
+        json_mode: ``True`` when the calling CLI command is producing a
+            ``--json`` payload. Drives the routing choice between
+            envelope-nesting and stderr.
+        envelope: Optional dict that will be the strict-JSON output for
+            the current command. When supplied with ``json_mode=True``,
+            the message is nested rather than printed.
+
+    Routing matrix:
+
+    +------------+----------------+--------------------------------------+
+    | json_mode  | envelope       | destination                          |
+    +============+================+======================================+
+    | False      | (any)          | stderr                               |
+    +------------+----------------+--------------------------------------+
+    | True       | None           | stderr                               |
+    +------------+----------------+--------------------------------------+
+    | True       | dict           | envelope["diagnostics"][category]    |
+    +------------+----------------+--------------------------------------+
+
+    Notes:
+        - The helper imports ``rich.console.Console`` lazily so that the
+          stderr write benefits from rich formatting when available, but
+          it falls back to ``print(..., file=sys.stderr)`` if rich is not
+          importable for any reason.
+        - Mutation of ``envelope`` is done in-place; the caller decides
+          when to serialise.
+    """
+    if json_mode and envelope is not None:
+        diagnostics = envelope.setdefault("diagnostics", {})
+        if not isinstance(diagnostics, dict):
+            # Envelope already used "diagnostics" for something else.
+            # Surface to stderr instead of mutating a foreign structure.
+            _write_stderr(message)
+            return
+        bucket = diagnostics.setdefault(category, [])
+        if not isinstance(bucket, list):
+            _write_stderr(message)
+            return
+        bucket.append(message)
+        return
+
+    # All non-envelope paths go to stderr — never stdout.
+    _write_stderr(message)
+
+
+def _write_stderr(message: str) -> None:
+    """Write *message* to the *current* ``sys.stderr``.
+
+    We deliberately re-read ``sys.stderr`` on every call rather than
+    capturing it at import-time so tests (and any operator that swaps
+    stderr in-process) see the message land where they expect.
+
+    ``print(..., file=sys.stderr)`` is sufficient — rich formatting is
+    deliberately avoided here because (a) the helper must work in
+    minimal environments, and (b) rich's ``Console`` caches its output
+    file at construction, which interferes with stream-redirection
+    tests for the strict-JSON contract.
+    """
+    print(message, file=sys.stderr)
 
 
 @dataclass

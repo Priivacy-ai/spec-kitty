@@ -8,10 +8,11 @@ Validation rules:
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -148,6 +149,104 @@ class EvidenceArtifact:
     directory: Path
     evidence_file: Path
     record_snapshot: Path
+
+
+# ---------------------------------------------------------------------------
+# Profile-invocation lifecycle pair (WP05 / data-model.md §4)
+# ---------------------------------------------------------------------------
+
+
+ProfileInvocationPhase = Literal["started", "completed", "failed"]
+
+
+@dataclass(frozen=True)
+class ProfileInvocationRecord:
+    """Paired profile-invocation lifecycle record (WP05).
+
+    Captures one phase of a public action `next` issued. For every `started`
+    record there should eventually be exactly one paired `completed` or
+    `failed` record sharing the same ``canonical_action_id``.
+
+    See data-model.md §4 and contracts/invocation-lifecycle.md.
+    """
+
+    canonical_action_id: str
+    phase: ProfileInvocationPhase
+    at: _dt.datetime
+    agent: str
+    mission_id: str
+    wp_id: str | None = None
+    reason: str | None = None
+    # Optional tag set by the writer for ergonomic filtering. Not part of the
+    # canonical schema; ignored by readers that don't recognise it.
+    metadata: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to the on-disk JSON shape (sorted-key stable).
+
+        Optional fields are omitted when None for line-stability with the
+        contract example. ``metadata`` is omitted when empty.
+        """
+        payload: dict[str, Any] = {
+            "canonical_action_id": self.canonical_action_id,
+            "phase": self.phase,
+            "at": _ensure_iso_utc(self.at),
+            "agent": self.agent,
+            "mission_id": self.mission_id,
+            "wp_id": self.wp_id,
+            "reason": self.reason,
+        }
+        if self.metadata:
+            payload["metadata"] = dict(self.metadata)
+        return payload
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ProfileInvocationRecord:
+        """Parse from the on-disk JSON shape.
+
+        Tolerates missing optional fields. Coerces ``at`` from ISO string.
+        """
+        at_raw = data.get("at")
+        if isinstance(at_raw, _dt.datetime):
+            at_value = at_raw
+        elif isinstance(at_raw, str) and at_raw:
+            at_value = _dt.datetime.fromisoformat(at_raw)
+        else:
+            raise ValueError("ProfileInvocationRecord requires 'at' (ISO-8601 string or datetime)")
+
+        metadata_raw = data.get("metadata") or {}
+        metadata: dict[str, str] = {}
+        if isinstance(metadata_raw, dict):
+            for k, v in metadata_raw.items():
+                metadata[str(k)] = str(v)
+
+        phase_raw = data.get("phase")
+        if phase_raw not in ("started", "completed", "failed"):
+            raise ValueError(
+                f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}"
+            )
+
+        return cls(
+            canonical_action_id=str(data["canonical_action_id"]),
+            phase=phase_raw,
+            at=at_value,
+            agent=str(data["agent"]),
+            mission_id=str(data["mission_id"]),
+            wp_id=(str(data["wp_id"]) if data.get("wp_id") is not None else None),
+            reason=(str(data["reason"]) if data.get("reason") is not None else None),
+            metadata=metadata,
+        )
+
+    def to_json_line(self) -> str:
+        """Serialise to a single JSON line (sorted keys for stability)."""
+        return json.dumps(self.to_dict(), sort_keys=True)
+
+
+def _ensure_iso_utc(dt: _dt.datetime) -> str:
+    """Return ISO-8601 string. Naive datetimes are assumed UTC."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_dt.timezone.utc)
+    return dt.isoformat()
 
 
 def promote_to_evidence(

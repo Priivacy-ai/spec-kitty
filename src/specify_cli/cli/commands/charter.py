@@ -1174,6 +1174,88 @@ def interview(  # noqa: C901
         raise typer.Exit(code=1) from e
 
 
+def _is_inside_git_worktree(repo_root: Path) -> bool:
+    """Return True iff ``repo_root`` is inside a git working tree.
+
+    Uses ``git rev-parse --is-inside-work-tree``. Returns False on any
+    subprocess error (git missing, exit non-zero, etc.) — callers should
+    treat both "not a repo" and "git unavailable" as fail-fast cases since
+    the downstream auto-track step requires a working git invocation either
+    way.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
+    """Stage ``files`` via ``git add --force`` so ``bundle validate`` accepts them.
+
+    Issue #841: ``charter generate`` must auto-track the produced ``charter.md``
+    (and any other tracked-files manifest entries) so the immediately-following
+    ``charter bundle validate`` succeeds without an operator ``git add``. We
+    stage (not commit) — staging is what ``git ls-files`` reports as tracked,
+    which is the signal ``charter bundle validate`` keys on.
+
+    Files are passed as repo-relative ``Path``s. ``--force`` is used so that an
+    operator who has gitignored ``charter.md`` for any reason still gets the
+    auto-track contract honored — this is consistent with the bundle manifest
+    declaring ``charter.md`` as a tracked file.
+    """
+    for file_path in files:
+        rel = file_path.as_posix()
+        subprocess.run(
+            ["git", "add", "--force", "--", rel],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+
+def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:
+    """Append any missing ``required`` entries to ``.gitignore``.
+
+    Issue #841 parity: ``charter bundle validate`` requires the project's
+    ``.gitignore`` to contain entries for the derived charter artifacts
+    (so they are not accidentally committed). After ``charter generate``
+    materializes the derived files, we make sure ``.gitignore`` is also
+    primed so the very next ``bundle validate`` reports compliance without
+    operator hand-edits — the same parity contract that motivates auto-track.
+
+    The function is additive-only: existing entries are preserved, and any
+    ``required`` entry already on disk is left untouched. A trailing newline
+    is normalized when entries are appended.
+    """
+    gitignore_path = repo_root / ".gitignore"
+    existing_lines: list[str] = []
+    if gitignore_path.is_file():
+        existing_lines = gitignore_path.read_text(encoding="utf-8").splitlines()
+
+    existing_set = {line.rstrip("\r") for line in existing_lines}
+    missing = [entry for entry in required if entry not in existing_set]
+    if not missing:
+        return
+
+    # Build the new content. Preserve existing content; append a managed
+    # block of missing entries with a clear header comment.
+    new_lines: list[str] = list(existing_lines)
+    if new_lines and new_lines[-1] != "":
+        new_lines.append("")
+    new_lines.append("# Spec Kitty: charter bundle derived files (auto-added by `charter generate`)")
+    new_lines.extend(missing)
+
+    gitignore_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+
 @app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -1190,13 +1272,37 @@ def generate(
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Generate charter bundle from interview answers + doctrine references."""
+    """Generate charter bundle from interview answers + doctrine references.
+
+    Behavior contract (issue #841 / WP06 T029-T030):
+
+    - On success in a git working tree, the produced ``.kittify/charter/charter.md``
+      is auto-staged via ``git add`` so a subsequent ``charter bundle validate``
+      finds it tracked without any operator ``git add`` between the two
+      commands. Staging (not committing) matches the parity contract — the
+      ``bundle validate`` tracked-files check keys on ``git ls-files``.
+    - When the cwd is not inside a git working tree, ``generate`` exits
+      non-zero before any side effect with an actionable error message that
+      names the remediation (``git init``).
+    """
     from charter.compiler import compile_charter, write_compiled_charter
     from charter.interview import read_interview_answers
     from charter.sync import sync as sync_charter
 
     try:
         repo_root = find_repo_root()
+
+        # T030 (#841 fail-fast): verify we are inside a git working tree
+        # BEFORE writing any artifact. Auto-tracking on success requires
+        # git, and producing artifacts that bundle validate cannot accept
+        # is exactly the silent-inconsistency bug #841 closes.
+        if not _is_inside_git_worktree(repo_root):
+            console.print(
+                "[red]Error:[/red] charter generate requires a git repository. "
+                "Initialize one with `git init` (so the produced charter.md can be "
+                "auto-tracked and accepted by `charter bundle validate`)."
+            )
+            raise typer.Exit(code=1)
         charter_dir = repo_root / ".kittify" / "charter"
         answers_path = _interview_path(repo_root)
         resolved_mission_type = None
@@ -1248,6 +1354,18 @@ def generate(
             if file_name not in files_written:
                 files_written.append(file_name)
 
+        # T029 (#841 auto-track): stage every file that bundle validate
+        # asserts is git-tracked AND ensure .gitignore contains the required
+        # entries for derived files. CANONICAL_MANIFEST is the single source
+        # of truth for both sets — we read both fields here so the
+        # auto-track contract never drifts from what bundle validate checks.
+        from charter.bundle import CANONICAL_MANIFEST
+
+        _ensure_gitignore_entries(
+            repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries)
+        )
+        _stage_charter_files(repo_root, list(CANONICAL_MANIFEST.tracked_files))
+
         if json_output:
             local_support_files = [
                 reference.source_path
@@ -1288,6 +1406,10 @@ def generate(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
+    except typer.Exit:
+        # Pass-through: caller already emitted an actionable message
+        # (e.g. T030 fail-fast for non-git environments).
+        raise
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
@@ -1784,6 +1906,90 @@ def _list_resynthesis_topics(
     }
 
 
+def _has_generated_artifacts(repo_root: Path) -> bool:
+    """Return True iff ``.kittify/charter/generated/`` contains agent-authored YAMLs.
+
+    The ``generated`` adapter (production default) reads YAML files written by
+    the LLM harness under ``.kittify/charter/generated/{directives,tactics,
+    styleguides}/``. On a fresh project the harness has not run yet, so this
+    directory is either missing or empty. The fresh-project synthesize path
+    (T032 / #839) keys on this signal.
+    """
+    generated_root = repo_root / ".kittify" / "charter" / "generated"
+    if not generated_root.is_dir():
+        return False
+    for sub in ("directives", "tactics", "styleguides"):
+        sub_dir = generated_root / sub
+        if sub_dir.is_dir() and any(sub_dir.glob("*.yaml")):
+            return True
+    return False
+
+
+# T031 (#839 minimal artifact set): the runtime consumes ``.kittify/doctrine/``
+# via ``DoctrineService(project_root=...)``. The candidate-list resolver in
+# ``src/charter/_doctrine_paths.py::resolve_project_root`` treats project-root
+# discovery as **directory-presence only** — an empty ``.kittify/doctrine/`` is
+# a valid candidate, and the shipped layer (``src/doctrine/``) supplies content
+# until the project layer is populated. The minimal artifact set
+# ``charter synthesize`` must produce on a fresh project to unblock the runtime
+# is therefore:
+#
+#   1. ``.kittify/doctrine/``                 — directory marker (REQUIRED)
+#   2. ``.kittify/doctrine/PROVENANCE.md``    — human-readable provenance note
+#                                                  describing the seed source
+#                                                  (REQUIRED for auditability)
+#
+# Anything beyond this set (per-directive YAML, project-layer DRG graph,
+# provenance sidecars, synthesis manifest) is produced ONLY when an LLM-authored
+# corpus exists under ``.kittify/charter/generated/`` and is out of WP06 scope.
+# See spec.md FR-015 / Spec Assumption A2 / GitHub issue #839.
+_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE = """\
+# Spec Kitty Doctrine — Fresh Project Seed
+
+This `.kittify/doctrine/` tree was materialized by `spec-kitty charter
+synthesize` running against a **fresh project** (no LLM-authored YAML under
+`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a
+project layer and the runtime can advance; it is intentionally empty.
+
+The runtime falls back to the in-package shipped doctrine
+(`src/doctrine/`) for all artifact lookups until the LLM harness writes
+project-local artifacts under `.kittify/charter/generated/` and you re-run
+`spec-kitty charter synthesize`.
+
+References
+----------
+- GitHub issue: https://github.com/Priivacy-ai/spec-kitty/issues/839
+- Spec assumption A2: public CLI synthesize works on a fresh project.
+- Project-root resolution: `src/charter/_doctrine_paths.py`.
+"""
+
+
+def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
+    """Materialize the minimal ``.kittify/doctrine/`` artifact set.
+
+    Used on a fresh project where ``.kittify/charter/generated/`` has no
+    agent-authored YAML (T032 / #839). Sources the canonical seed text from
+    this module's in-package constant — no external file I/O, no new
+    dependency, no doctrine-subsystem changes.
+
+    Idempotent: re-runs produce bytewise-identical output (T033). Returns the
+    list of repo-relative paths written.
+    """
+    doctrine_dir = repo_root / ".kittify" / "doctrine"
+    doctrine_dir.mkdir(parents=True, exist_ok=True)
+
+    provenance_path = doctrine_dir / "PROVENANCE.md"
+    # Idempotency: only write if content differs (avoids needless mtime churn,
+    # though byte-stability is preserved either way).
+    new_bytes = _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE.encode("utf-8")
+    if not provenance_path.exists() or provenance_path.read_bytes() != new_bytes:
+        provenance_path.write_bytes(new_bytes)
+
+    return [
+        str(provenance_path.relative_to(repo_root)),
+    ]
+
+
 @app.command("synthesize")
 def charter_synthesize(
     adapter: str = typer.Option(
@@ -1819,11 +2025,32 @@ def charter_synthesize(
     """Validate and promote agent-generated project-local doctrine artifacts.
 
     Reads the charter interview answers, resolves synthesis targets from the
-    DRG + doctrine, and writes all artifacts to .kittify/doctrine/.
+    DRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.
 
     Doctrine generation is performed by the LLM harness (Claude Code, Codex,
     Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
     validates and promotes the artifacts the agent has written.
+
+    Fresh-project behavior (issue #839 / WP06 T031-T033)
+    ----------------------------------------------------
+    On a fresh project where ``.kittify/charter/generated/`` is missing or
+    empty (i.e. the LLM harness has not yet written agent artifacts), this
+    command short-circuits the adapter pipeline and materializes the
+    **minimal artifact set** the runtime requires:
+
+    1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
+       project-root resolver (``src/charter/_doctrine_paths.py``) is a
+       presence-only check; an empty directory is a valid project layer.
+    2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
+       fresh-project seed path, citing #839.
+
+    The runtime falls back to the shipped doctrine (``src/doctrine/``) for
+    all artifact lookups until the harness writes per-target YAML and the
+    operator re-runs ``synthesize`` (which then takes the normal adapter
+    path). The fresh-project path is **idempotent**: re-running produces
+    bytewise-identical output (T033). Charter prerequisites are still
+    enforced — ``charter.md`` must exist (else ``TaskCliError`` is raised
+    via ``_build_synthesis_request``).
 
     Examples
     --------
@@ -1845,6 +2072,56 @@ def charter_synthesize(
 
     try:
         repo_root = find_repo_root()
+
+        # T032 (#839 fresh-project): When the operator runs synthesize on a
+        # fresh project (post `charter generate` but before the LLM harness
+        # has written YAMLs under .kittify/charter/generated/), the production
+        # adapter has nothing to load and would raise GeneratedArtifactMissingError.
+        # The intercept below takes the bounded fresh-project path: it requires
+        # charter.md to exist (the upstream chain produced it) AND no
+        # agent-authored YAMLs to be present. When both signals fire, we
+        # materialize the minimal .kittify/doctrine/ artifact set documented in
+        # T031 so the runtime can advance via the shipped-doctrine fallback.
+        #
+        # When charter.md is absent we fall through to the existing pipeline so
+        # callers that mock charter.synthesizer.synthesize (legacy unit tests)
+        # keep their established behaviour. Real operators always reach this
+        # path AFTER `charter generate`, so charter.md is reliably present in
+        # the realistic fresh-project flow.
+        charter_md = repo_root / ".kittify" / "charter" / "charter.md"
+        is_fresh_project_synthesize = (
+            adapter == "generated"
+            and not _has_generated_artifacts(repo_root)
+            and not dry_run_evidence
+            and not dry_run
+            and charter_md.is_file()
+        )
+
+        if is_fresh_project_synthesize:
+            written = _materialize_fresh_doctrine(repo_root)
+
+            if json_output:
+                print(json.dumps({
+                    "result": "success",
+                    "success": True,
+                    "mode": "fresh_project_seed",
+                    "files_written": written,
+                    "note": (
+                        "Fresh project: no agent-authored YAML under "
+                        ".kittify/charter/generated/. Materialized minimal "
+                        ".kittify/doctrine/ so the runtime can advance "
+                        "(see issue #839)."
+                    ),
+                }, indent=2))
+                return
+
+            console.print(
+                "[green]Charter synthesis (fresh project)[/green]: minimal "
+                ".kittify/doctrine/ materialized."
+            )
+            for f in written:
+                console.print(f"  ✓ {f}")
+            return
 
         # Collect evidence before building the synthesis request
         evidence_result = _collect_evidence_result(

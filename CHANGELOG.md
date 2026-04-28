@@ -17,6 +17,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0a6] — Tranche 2 (bug-only)
+
+Tranche 2 of the 3.2.0a6 release is a bug-only sweep that restores the
+documented fresh-project golden path (`init` → charter `setup`/`generate`/
+`synthesize` → `next`), locks in strict JSON for covered `--json` commands
+under any SaaS state, fixes agent identity parsing and review-cycle
+accounting, and adds paired profile-invocation lifecycle observability for
+`spec-kitty next`. No new public CLI subcommands and no new top-level
+runtime dependencies were introduced.
+
+### Fixed
+
+- Stamp `schema_version` and a `schema_capabilities` block in
+  `.kittify/metadata.yaml` on `spec-kitty init` so a fresh project no
+  longer requires hand-edits before subsequent CLI commands; existing
+  schema fields are preserved (additive, idempotent) (#840, WP01).
+- Strict JSON envelope contract for covered `--json` commands: stdout is
+  parseable by `json.loads` regardless of SaaS sync state (disabled,
+  unauthorized, network-failed, success); sync/auth diagnostics route to
+  stderr or nest inside the envelope (#842, WP02).
+- `WPMetadata.resolved_agent()` parses 4-segment colon-delimited agent
+  strings (`tool:model:profile:role`) and preserves every supplied field
+  through implement and review prompt rendering, with deterministic
+  fallback for partial strings (#833, WP03).
+- Review-cycle counter advances exactly once per genuine reviewer
+  rejection; reclaim/regenerate of an `implement` prompt no longer
+  inflates the counter or writes a spurious `review-cycle-N.md`
+  artifact (#676, WP04).
+- `spec-kitty next` writes paired `started`/`completed` profile-invocation
+  lifecycle records keyed to the canonical mission step + action it
+  issued, observable via `spec-kitty doctor invocation-pairing` (#843,
+  WP05).
+- `charter generate` auto-tracks the produced `charter.md` and ensures
+  the required `.gitignore` entries exist; `charter bundle validate`
+  succeeds immediately afterwards with no operator `git add` between
+  the two commands. Outside a git working tree, `generate` fails fast
+  with an actionable error that names `git init` as the remediation
+  (#841, WP06).
+- `charter synthesize` succeeds on a fresh project via the public CLI
+  with no hand-seeded `.kittify/doctrine/`; the bounded fresh-project
+  path materialises a minimal doctrine tree (`PROVENANCE.md`) so the
+  shipped doctrine layer can supply content (#839, WP06).
+
+### Internal
+
+- Consolidated golden-path E2E (`tests/e2e/test_charter_epic_golden_path.py`)
+  rewritten to drive the fresh-project chain through the public CLI
+  only — no hand seeding of `.kittify/doctrine/`, no edits to
+  `.kittify/metadata.yaml`, no manual `git add` of charter artifacts
+  between `generate` and `bundle validate`. Runs in well under the
+  120-second NFR-007 budget. Also exercises strict JSON parsability of
+  `mission branch-context --json` (WP02 spot-check) and the `started`
+  lifecycle record (WP05 spot-check) (WP07).
+- Governance setup docs (`docs/how-to/setup-governance.md`) note that
+  `charter generate` now auto-tracks `charter.md`, removing any
+  expectation that operators run `git add` between `generate` and
+  `bundle validate` (WP07).
+
+### Tranche-2 acceptance pass (SC-001..SC-008)
+
+- **SC-001 (Fresh-path completion)** — `tests/e2e/test_charter_epic_golden_path.py::test_charter_epic_golden_path` walks `init → charter interview → generate → bundle validate → synthesize → mission create → setup-plan → finalize-tasks → next` against a fresh project with no `.kittify/` hand-edits and no `git add` of charter artifacts. Passes locally in <20s.
+- **SC-002 (JSON parsability)** — `tests/integration/test_json_envelope_strict.py` (WP02) covers the SaaS state matrix; the consolidated E2E spot-checks `mission branch-context --json` via `json.loads(stdout)`.
+- **SC-003 (Identity preservation rate)** — WP03 unit + integration tests cover colon arities 1–4 and assert `model`/`profile_id`/`role` in rendered prompts.
+- **SC-004 (Review-cycle precision)** — WP04 tests assert the counter is unchanged across ≥3 reclaim/regenerate runs and advances by exactly 1 on a real rejection.
+- **SC-005 (Lifecycle observability)** — `tests/integration/test_next_lifecycle_records.py` (WP05) covers ≥5 issuances with mid-cycle orphan; the consolidated E2E asserts at least one `started` record after `next` issues an action and that the `canonical_action_id` matches the issued step id.
+- **SC-006 (Charter parity rate)** — `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py` (WP06) covers the auto-track + non-git fail-fast contract; the consolidated E2E exercises `generate → bundle validate` with no intervening git ops.
+- **SC-007 (Documentation/CLI agreement)** — `docs/how-to/setup-governance.md` updated; no documented governance-setup flow contains a `git add charter.md` step between `charter generate` and `charter bundle validate`.
+- **SC-008 (Bug-only discipline)** — Diff inventory: zero new public CLI subcommands at the top level, zero new top-level runtime dependencies. WP05 added `spec-kitty doctor invocation-pairing` — that is a SUBCOMMAND under the existing `doctor` top-level command, not a new top-level public CLI surface, and is the minimum viable observability wiring required by FR-011/FR-012. No additions to `pyproject.toml` `[project.dependencies]` in the tranche-2 diff.
+
 ## [3.2.0a5] - 2026-04-27
 
 ### Fixed

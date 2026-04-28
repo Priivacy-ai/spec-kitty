@@ -31,6 +31,44 @@ SCHEMA_CAPABILITIES: dict[int, list[str]] = {
     3: ["canonical_context", "event_log_authority", "ownership_manifest", "thin_shims"],
 }
 
+# ---------------------------------------------------------------------------
+# Canonical "current" stamp targets (issue #840)
+# ---------------------------------------------------------------------------
+#
+# These constants are the single source of truth that ``spec-kitty init``
+# stamps into a fresh project's ``.kittify/metadata.yaml``. They MUST agree
+# with the schema version and capability set the migration runner targets
+# after a clean run (see ``specify_cli.migration.runner``). Keeping both
+# code paths bound to the same constants prevents drift between fresh-init
+# projects and migrated projects.
+
+#: Schema version a fresh project gets stamped with by ``init``.
+CURRENT_SCHEMA_VERSION: int = MAX_SUPPORTED_SCHEMA
+
+#: Capability flags a fresh project gets stamped with by ``init``.
+#:
+#: This is an additive map of capability-name -> True. The runtime treats a
+#: missing key as "off" and a present-True key as "on". It is intentionally
+#: a ``dict[str, bool]`` (rather than a list) so operators may extend the
+#: map with their own keys without colliding on list ordering. ``init``
+#: never overwrites or removes keys an operator has authored.
+CURRENT_SCHEMA_CAPABILITIES: dict[str, bool] = {
+    name: True for name in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
+}
+
+__all__ = [
+    "MIN_SUPPORTED_SCHEMA",
+    "MAX_SUPPORTED_SCHEMA",
+    "REQUIRED_SCHEMA_VERSION",
+    "SCHEMA_CAPABILITIES",
+    "CURRENT_SCHEMA_VERSION",
+    "CURRENT_SCHEMA_CAPABILITIES",
+    "CompatibilityStatus",
+    "CompatibilityResult",
+    "get_project_schema_version",
+    "check_compatibility",
+]
+
 
 class CompatibilityStatus(StrEnum):
     """Outcome of a schema-version compatibility check."""

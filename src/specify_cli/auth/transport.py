@@ -49,7 +49,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 import threading
 from contextlib import suppress
 from datetime import datetime, timedelta, UTC
@@ -120,6 +119,16 @@ def _emit_user_facing_failure_once(message: str) -> None:
     state via ``reset_for_invocation()`` and so the gate is unified
     across the codebase. The legacy module-level boolean is kept in
     sync for any code path still reading it directly.
+
+    WP02 (#842): the actual write goes through
+    :func:`specify_cli.sync.emit_diagnostic` so that the strict-JSON
+    contract is honored (diagnostics never land on stdout). Today this
+    helper has no ``json_mode`` plumbing and no envelope reference, so
+    we always call it with ``json_mode=False``; that reroutes through
+    the helper without changing observable behavior — the message still
+    appears on stderr exactly once per invocation. If a future caller
+    threads a ``--json`` envelope down here, the call sites can pass
+    ``json_mode=True`` and an envelope dict to nest the message.
     """
     global _user_facing_failure_emitted
     first = report_once("auth.token_refresh_failed")
@@ -127,8 +136,12 @@ def _emit_user_facing_failure_once(message: str) -> None:
         if first:
             _user_facing_failure_emitted = True
     if first:
-        # Single user-facing line.
-        print(message, file=sys.stderr)
+        # Lazy import to avoid a hard cycle at module load.
+        from specify_cli.sync import emit_diagnostic
+
+        # Single user-facing line, routed through the canonical helper
+        # so it CANNOT accidentally land on stdout.
+        emit_diagnostic(message, category="auth", json_mode=False)
     else:
         # Subsequent failures land in debug log only.
         logger.debug("Suppressed duplicate token-refresh failure: %s", message)
