@@ -208,3 +208,4 @@ GitHub issue #840. Without these fields, fresh projects fail with "missing schem
 - 2026-04-28T09:42:50Z – claude:opus-4-7:default:implementer – shell_pid=18929 – Assigned agent via action command
 - 2026-04-28T09:49:18Z – claude:opus-4-7:default:implementer – shell_pid=18929 – WP01 ready: additive schema stamp + idempotency + tests
 - 2026-04-28T09:49:53Z – claude:opus-4-7:default:reviewer – shell_pid=23248 – Started review via action command
+- 2026-04-28T09:53:00Z – claude:opus-4-7:default:reviewer – shell_pid=23248 – Review passed: additive schema_version+schema_capabilities stamp wired into init via _stamp_schema_metadata; 8/8 tests green; mypy clean apart from pre-existing yaml stub; idempotent + operator keys preserved.

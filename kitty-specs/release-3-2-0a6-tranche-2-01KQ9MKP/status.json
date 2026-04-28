@@ -1,35 +1,35 @@
 {
-  "event_count": 13,
-  "last_event_id": "01KQ9QXFW65AETYT3NEA1ET05V",
-  "materialized_at": "2026-04-28T09:49:52.390573+00:00",
+  "event_count": 16,
+  "last_event_id": "01KQ9R4G10S46X7AJZAV76KCRE",
+  "materialized_at": "2026-04-28T09:53:41.920048+00:00",
   "mission_number": "",
   "mission_slug": "release-3-2-0a6-tranche-2-01KQ9MKP",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 1,
-    "planned": 5
+    "in_progress": 2,
+    "in_review": 0,
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude:opus-4-7:default:reviewer",
-      "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KQ9QXFW65AETYT3NEA1ET05V",
-      "last_transition_at": "2026-04-28T09:49:52.390573+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KQ9R363W795S5DD4XTQ5FG2N",
+      "last_transition_at": "2026-04-28T09:52:59.004389+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:default:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQ9Q6QX17AK2RYQ9EAMDKQ8K",
-      "last_transition_at": "2026-04-28T09:37:26.945775+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQ9R4G10S46X7AJZAV76KCRE",
+      "last_transition_at": "2026-04-28T09:53:41.920048+00:00"
     },
     "WP03": {
       "actor": "implement-command",
