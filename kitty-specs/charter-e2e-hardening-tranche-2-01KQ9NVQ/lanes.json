@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "mission_slug": "charter-e2e-hardening-tranche-2-01KQ9NVQ",
+  "mission_id": "01KQ9NVQT8QS2QPX78YSXDQ6WN",
+  "mission_branch": "kitty/mission-charter-e2e-hardening-tranche-2-01KQ9NVQ",
+  "target_branch": "fix/charter-e2e-827-tranche-2",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".agent/workflows/spec-kitty-runtime-next.md",
+        ".agents/skills/spec-kitty-runtime-next/SKILL.md",
+        ".amazonq/prompts/spec-kitty-runtime-next.md",
+        ".augment/commands/spec-kitty-runtime-next.md",
+        ".claude/commands/spec-kitty.runtime-next.md",
+        ".cursor/commands/spec-kitty-runtime-next.md",
+        ".gemini/commands/spec-kitty-runtime-next.md",
+        ".github/prompts/spec-kitty-runtime-next.md",
+        ".kilocode/workflows/spec-kitty-runtime-next.md",
+        ".kiro/prompts/spec-kitty-runtime-next.md",
+        ".opencode/command/spec-kitty-runtime-next.md",
+        ".qwen/commands/spec-kitty-runtime-next.md",
+        ".roo/commands/spec-kitty-runtime-next.md",
+        ".windsurf/workflows/spec-kitty-runtime-next.md",
+        "src/charter/_doctrine_paths.py",
+        "src/charter/bundle.py",
+        "src/charter/compiler.py",
+        "src/charter/generator.py",
+        "src/charter/synthesizer/**",
+        "src/doctrine/skills/spec-kitty-runtime-next/**",
+        "src/specify_cli/auth/**",
+        "src/specify_cli/cli/init.py",
+        "src/specify_cli/events/sync.py",
+        "src/specify_cli/events/sync_client.py",
+        "src/specify_cli/init/**",
+        "src/specify_cli/invocation/**",
+        "src/specify_cli/mission_step_contracts/**",
+        "src/specify_cli/next/**",
+        "tests/charter/test_bundle*.py",
+        "tests/charter/test_charter_synthesize*.py",
+        "tests/charter/test_generate*.py",
+        "tests/charter/test_synthesize*.py",
+        "tests/doctrine_synthesizer/**",
+        "tests/e2e/conftest.py",
+        "tests/e2e/test_charter_epic_golden_path.py",
+        "tests/integration/test_profile_invocation_lifecycle*.py",
+        "tests/next/**",
+        "tests/specify_cli/init/**",
+        "tests/specify_cli/invocation/**",
+        "tests/specify_cli/mission_step_contracts/**",
+        "tests/specify_cli/test_init*.py",
+        "tests/specify_cli/test_json_output_discipline.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP09"
+      ],
+      "write_scope": [
+        "kitty-specs/charter-e2e-hardening-tranche-2-01KQ9NVQ/notes/pr-body.md",
+        "kitty-specs/charter-e2e-hardening-tranche-2-01KQ9NVQ/research.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-28T09:51:03.733715+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP09"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP02"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP03"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP04"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP05"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP07"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

@@ -7,7 +7,7 @@ requirement_refs:
 - FR-002
 planning_base_branch: fix/charter-e2e-827-tranche-2
 merge_target_branch: fix/charter-e2e-827-tranche-2
-branch_strategy: Mission base branch is fix/charter-e2e-827-tranche-2; lane worktree path/branch resolved by finalize-tasks.
+branch_strategy: Planning artifacts for this feature were generated on fix/charter-e2e-827-tranche-2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/charter-e2e-827-tranche-2 unless the human explicitly redirects the landing branch.
 subtasks:
 - T016
 - T017
