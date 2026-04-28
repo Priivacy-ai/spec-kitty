@@ -15,6 +15,8 @@ subtasks:
 - T026
 - T027
 - T028
+agent: "claude:opus-4-7:default:implementer"
+shell_pid: "41311"
 history:
 - at: '2026-04-28T09:30:00Z'
   by: spec-kitty.tasks
@@ -219,3 +221,7 @@ GitHub issue #843. Public `next` cycles currently produce no observable lifecycl
 - SaaS-side syncing of these records (independent; governed by `SPEC_KITTY_ENABLE_SAAS_SYNC`).
 - A migration for legacy single-shot records (a deprecation tolerance window in the doctor surface is sufficient).
 - Auto-remediation of orphans.
+
+## Activity Log
+
+- 2026-04-28T10:09:09Z – claude:opus-4-7:default:implementer – shell_pid=41311 – Started implementation via action command
