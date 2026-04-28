@@ -358,3 +358,4 @@ spec-kitty agent action implement WP04 --agent claude --mission charter-e2e-827-
 
 - 2026-04-28T20:50:48Z – claude – shell_pid=73767 – WP04 ready for review: mission-create no-empty-spec + setup-plan entry/exit gates + templates + 5 regression scenarios
 - 2026-04-28T20:51:30Z – claude:sonnet:python-pedro:reviewer – shell_pid=86584 – Started review via action command
+- 2026-04-28T20:55:23Z – claude:sonnet:python-pedro:reviewer – shell_pid=86584 – Review passed: section-presence-only is_substantive; three gates wired (create + setup-plan entry + exit); 5 regression scenarios + 300-byte-prose negative; templates documented; mission_creation.py scope deviation justified by inaccurate prompt pointer; FR-012/013/014/015/016 met; C-007 honored.
