@@ -1,19 +1,19 @@
 {
-  "event_count": 15,
-  "last_event_id": "01KQC6Q19Z7RQATS17F9Z63STT",
-  "materialized_at": "2026-04-29T08:46:58.367453+00:00",
+  "event_count": 16,
+  "last_event_id": "01KQC6W4EMB83C16E5NYCAYGR7",
+  "materialized_at": "2026-04-29T08:49:45.428834+00:00",
   "mission_number": "",
   "mission_slug": "spdd-reasons-doctrine-pack-01KQC4AX",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 4
   },
   "work_packages": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-29T08:34:46.253924+00:00"
     },
     "WP02": {
-      "actor": "claude:opus:reviewer-renata:reviewer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KQC6Q19Z7RQATS17F9Z63STT",
-      "last_transition_at": "2026-04-29T08:46:58.367453+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQC6W4EMB83C16E5NYCAYGR7",
+      "last_transition_at": "2026-04-29T08:49:45.428834+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
