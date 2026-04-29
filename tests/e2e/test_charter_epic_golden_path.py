@@ -231,6 +231,124 @@ def _extract_step_id(payload: dict[str, Any]) -> str:
     )
 
 
+# ---------------------------------------------------------------------------
+# WP03 — issued-action / blocked-decision per-envelope assertions
+# (FR-006, FR-007 — closes #844; contract:
+# kitty-specs/charter-contract-cleanup-tranche-1-01KQATS4/contracts/
+# golden-path-envelope-assertions.md)
+# ---------------------------------------------------------------------------
+
+
+def _envelope_identifier(payload: dict[str, Any]) -> str:
+    """Return a stable handle for failure messages."""
+    for key in ("step_id", "action", "decision_id", "run_id", "id"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return f"{key}={value!r}"
+    return "<unidentified envelope>"
+
+
+def _assert_issued_action_prompt_resolvable(
+    payload: dict[str, Any],
+    *,
+    test_project_root: Path,
+    fr_id: str,
+) -> None:
+    """FR-006: an issued-action envelope MUST carry a resolvable prompt file.
+
+    Per ``contracts/golden-path-envelope-assertions.md`` §"Issued Action"
+    and §"Permitted multiplexing": read ``prompt_file`` (the documented
+    public field on the runtime ``Decision`` envelope at
+    ``src/specify_cli/next/decision.py``); also accept ``prompt_path``
+    for forward-compat with any documented multiplex. The value must be
+    present, non-null, ``!= ""``, and resolve to an existing file
+    on-disk (relative under the test project, or absolute that exists).
+    """
+    identifier = _envelope_identifier(payload)
+    candidates: list[tuple[str, Any]] = []
+    for key in ("prompt_file", "prompt_path"):
+        if key in payload:
+            candidates.append((key, payload[key]))
+    if not candidates:
+        raise AssertionError(
+            f"{fr_id}: issued-action envelope {identifier} carries no "
+            f"`prompt_file` (or documented public equivalent) field.\n"
+            f"  payload keys: {sorted(payload.keys())!r}"
+        )
+
+    last_error: str | None = None
+    for key, value in candidates:
+        if value is None:
+            last_error = f"{key}={value!r} (None)"
+            continue
+        if not isinstance(value, str) or value == "":
+            last_error = f"{key}={value!r} (empty/non-string)"
+            continue
+        candidate_path = Path(value)
+        if candidate_path.is_absolute():
+            if candidate_path.is_file():
+                return
+            last_error = f"{key}={value!r} (absolute path does not exist)"
+            continue
+        relative_resolution = test_project_root / candidate_path
+        if relative_resolution.is_file():
+            return
+        last_error = (
+            f"{key}={value!r} (neither absolute nor "
+            f"test-project-relative resolves: tried {relative_resolution})"
+        )
+
+    raise AssertionError(
+        f"{fr_id}: issued-action envelope {identifier} has unresolvable "
+        f"prompt file. {last_error}\n"
+        f"  test_project_root: {test_project_root}\n"
+        f"  payload: {json.dumps(payload, indent=2, default=str)}"
+    )
+
+
+def _assert_blocked_decision_reason_present(
+    payload: dict[str, Any], *, fr_id: str
+) -> None:
+    """FR-007: a blocked-decision envelope MUST carry a non-empty ``reason``.
+
+    Blocked decisions are EXEMPT from the prompt-file resolvability rule
+    per the contract; they may carry one or none. Only ``reason``
+    presence is enforced here.
+    """
+    identifier = _envelope_identifier(payload)
+    reason = payload.get("reason")
+    if reason is None or not isinstance(reason, str) or reason.strip() == "":
+        raise AssertionError(
+            f"{fr_id}: blocked decision {identifier} has missing/empty "
+            f"`reason` (got {reason!r}).\n"
+            f"  payload: {json.dumps(payload, indent=2, default=str)}"
+        )
+
+
+def _assert_envelope_per_kind_invariants(
+    payload: dict[str, Any],
+    *,
+    test_project_root: Path,
+    fr_id: str,
+) -> None:
+    """Dispatch to the kind-specific assertion (FR-006 / FR-007).
+
+    Discriminator is the runtime's public ``kind`` field, defined by
+    ``DecisionKind`` in ``src/specify_cli/next/decision.py``. Issued
+    actions use ``kind == "step"``; blocked decisions use
+    ``kind == "blocked"``. Other kinds (``query``, ``decision_required``,
+    ``terminal``) keep their existing assertions and are NOT subject to
+    the prompt-file resolvability or reason-presence requirement.
+    """
+    kind = payload.get("kind")
+    if kind == "step":
+        _assert_issued_action_prompt_resolvable(
+            payload, test_project_root=test_project_root, fr_id=fr_id
+        )
+    elif kind == "blocked":
+        _assert_blocked_decision_reason_present(payload, fr_id=fr_id)
+
+
 def _assert_advanced_or_documented_block(
     payload: dict[str, Any], *, fr_id: str
 ) -> None:
@@ -601,22 +719,14 @@ def _run_next_and_assert_lifecycle(
             f"  payload: {json.dumps(payload, indent=2, default=str)}"
         )
 
-    # #844 / FR-005/FR-006/FR-007 (C1, C2): kind="step" envelopes MUST carry a
-    # non-null, non-empty prompt_file that resolves on disk. Non-step kinds
-    # (blocked, terminal, decision_required, query) remain permissive — do
-    # NOT assert prompt fields on them. The producer-side wire field is
-    # ``prompt_file``; the ``prompt_path`` fallback is preserved verbatim
-    # as a defensive consumer-side alias for any downstream emitter that
-    # may emit either key.
-    if payload.get("kind") == "step":
-        prompt = payload.get("prompt_file") or payload.get("prompt_path")
-        assert prompt is not None and prompt != "", (
-            "kind='step' must carry a non-empty prompt_file (C1). "
-            f"Live envelope keys: {sorted(payload.keys())}"
-        )
-        assert Path(prompt).is_file(), (
-            f"kind='step' prompt_file must resolve on disk (C2): {prompt!r}"
-        )
+    # WP03 / FR-006 / FR-007 (closes #844): per-envelope kind-discriminated
+    # invariants. Issued actions (kind="step") MUST carry a resolvable
+    # prompt_file; blocked decisions (kind="blocked") MUST carry a
+    # non-empty reason. Other kinds (notably the query-mode envelope this
+    # call returns) are unaffected by these invariants.
+    _assert_envelope_per_kind_invariants(
+        payload, test_project_root=project, fr_id="FR-006/FR-007 (next query)"
+    )
 
     # Advance mode.
     cmd = [
@@ -631,6 +741,14 @@ def _run_next_and_assert_lifecycle(
     _maybe_dump_envelope("next (advance)", payload)
     assert payload is not None
     _assert_advanced_or_documented_block(payload, fr_id="FR-015")
+
+    # WP03 / FR-006 / FR-007 (closes #844): same kind-discriminated
+    # invariants on the advance envelope. The advance envelope is the one
+    # that, in the golden path, carries kind="step" with a real
+    # prompt_file pointing at the issued action's prompt artifact.
+    _assert_envelope_per_kind_invariants(
+        payload, test_project_root=project, fr_id="FR-006/FR-007 (next advance)"
+    )
 
     # FR-011/FR-012 / #843: lifecycle records at
     # `.kittify/events/profile-invocation-lifecycle.jsonl` (single

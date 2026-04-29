@@ -15,6 +15,16 @@ import pytest
 from tests.tasks.conftest import create_mission_fast
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
+
+SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan
+
+## Technical Context
+
+**Language/Version**: Python 3.12
+**Primary Dependencies**: Typer
+"""
+
+
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
     """Test that create command works in main without creating worktree."""
     # Run create command
@@ -43,15 +53,15 @@ def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None
     worktree_dir = test_project / ".worktrees" / mission_slug
     assert not worktree_dir.exists(), "Worktree should NOT be created during feature creation"
 
-    # Verify spec.md was committed to main
-    log_result = subprocess.run(
-        ["git", "log", "--oneline", "-2"],
+    # Verify spec.md remains an uncommitted scaffold until /spec-kitty.specify
+    # writes substantive content.
+    spec_tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str((feature_dir / "spec.md").relative_to(test_project))],
         cwd=test_project,
         capture_output=True,
         text=True,
-        check=True,
     )
-    assert "spec" in log_result.stdout.lower(), "spec.md should be committed to main"
+    assert spec_tracked.returncode != 0, "scaffold spec.md should not be committed at create time"
 
 def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     """Test that setup-plan command works in main repo and commits plan.md."""
@@ -63,10 +73,7 @@ def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
     plan_template = plan_template_dir / "plan-template.md"
-    plan_template.write_text(
-        "# Implementation Plan\n\nThis is a test plan template.\n",
-        encoding="utf-8"
-    )
+    plan_template.write_text(SUBSTANTIVE_PLAN_TEMPLATE, encoding="utf-8")
 
     # Run setup-plan command
     result = run_cli(
@@ -103,10 +110,7 @@ def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_c
 
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
-    (plan_template_dir / "plan-template.md").write_text(
-        "# Implementation Plan\n\nExplicit mission flow.\n",
-        encoding="utf-8",
-    )
+    (plan_template_dir / "plan-template.md").write_text(SUBSTANTIVE_PLAN_TEMPLATE, encoding="utf-8")
 
     result = run_cli(
         test_project,
@@ -175,10 +179,7 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
     # Create plan template
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
-    (plan_template_dir / "plan-template.md").write_text(
-        "# Plan Template\n",
-        encoding="utf-8"
-    )
+    (plan_template_dir / "plan-template.md").write_text(SUBSTANTIVE_PLAN_TEMPLATE, encoding="utf-8")
 
     # Step 1: Create mission in-process (not the test target for this test)
     feature_dir = create_mission_fast(test_project, "full-workflow-test")

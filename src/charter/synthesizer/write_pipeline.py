@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
@@ -48,6 +49,129 @@ from .provenance import dump_yaml as dump_provenance, provenance_path_for
 from .request import SynthesisRequest
 from .staging import StagingDir
 from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
+
+
+# ---------------------------------------------------------------------------
+# Typed staged-artifact entry (WP02 — Charter Contract Cleanup Tranche 1)
+# ---------------------------------------------------------------------------
+#
+# ``StagedArtifact`` is the typed entry returned by ``compute_written_artifacts``
+# below. It is the single source of truth for the ``written_artifacts`` array
+# emitted by ``charter synthesize --json`` (FR-003), and powers the byte-equal
+# dry-run / non-dry-run path-parity guarantee (FR-004).
+#
+# Shape mirrors the ``WrittenArtifact`` contract from
+# ``contracts/synthesis-envelope.schema.json``:
+#
+#   * ``path``        — repo-relative POSIX path that the live tree will (or
+#                       did) carry. Computed from the same helpers
+#                       ``promote()`` uses below — see ``_artifact_filename``
+#                       and ``_doctrine_kind_subdir`` — so dry-run and
+#                       non-dry-run agree byte-for-byte.
+#   * ``kind``        — doctrine kind (``directive`` / ``tactic`` / ``styleguide``)
+#                       lifted directly from ``ProvenanceEntry.artifact_kind``.
+#   * ``slug``        — slug component lifted from ``ProvenanceEntry.artifact_slug``.
+#   * ``artifact_id`` — concrete artifact identifier extracted from
+#                       ``ProvenanceEntry.artifact_urn``. ``None`` for kinds
+#                       that do not carry a URN-encoded id (tactic, styleguide).
+#                       The CLI surface MUST NOT expose the placeholder
+#                       ``PROJECT_000``; it is rejected here as well so a
+#                       missing-provenance regression cannot silently leak.
+#
+# The dataclass is frozen so callers cannot mutate provenance after the fact.
+# Adding fields here is safe (additive); removing/renaming would break the
+# CLI envelope shape and is out of scope.
+
+
+@dataclass(frozen=True)
+class StagedArtifact:
+    """Typed provenance entry for a single staged-or-promoted doctrine artifact.
+
+    Sourced from ``(body, ProvenanceEntry)`` results returned by
+    ``synthesize_pipeline.run_all``; never reconstructed from ``kind:slug``
+    selectors. Used by both dry-run and non-dry-run code paths so that
+    ``written_artifacts[*].path`` is byte-equal across the two modes
+    (FR-004).
+    """
+
+    path: str
+    """Repo-relative POSIX path (e.g. ``.kittify/doctrine/directives/001-foo.directive.yaml``)."""
+
+    kind: str
+    """Doctrine kind: ``directive`` | ``tactic`` | ``styleguide``."""
+
+    slug: str
+    """Slug component used in the artifact filename."""
+
+    artifact_id: str | None
+    """Concrete artifact identifier (e.g. ``PROJECT_001``) or ``None``."""
+
+
+def _artifact_id_from_provenance(prov: ProvenanceEntry) -> str | None:
+    """Lift the concrete artifact_id from a ``ProvenanceEntry``.
+
+    ``stage_and_validate``, ``promote``, and dry-run envelope projection all
+    call this helper so malformed directive provenance cannot silently fall
+    back to a ``000`` path. Returns ``None`` for kinds that do not carry a
+    URN-encoded id (tactic, styleguide).
+    """
+    if prov.artifact_kind != "directive":
+        return None
+    prefix, separator, artifact_id = prov.artifact_urn.partition(":")
+    if prefix != "directive" or separator != ":" or not artifact_id:
+        raise ValueError(
+            "Directive provenance must carry artifact_urn='directive:<artifact_id>'"
+        )
+    if artifact_id == "PROJECT_000":
+        raise ValueError("Directive provenance must not surface PROJECT_000")
+    return artifact_id
+
+
+def compute_written_artifacts(
+    results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
+    repo_root: Path,
+) -> list[StagedArtifact]:
+    """Project ``(body, ProvenanceEntry)`` results into typed staged-artifact entries.
+
+    Pure function (no I/O). Uses the same path computation as ``promote()`` so
+    a dry-run and a real-run produce byte-equal ``path`` values (FR-004).
+
+    Parameters
+    ----------
+    results:
+        The output of ``synthesize_pipeline.run_all``.
+    repo_root:
+        Project root used to resolve repo-relative paths (POSIX style).
+
+    Returns
+    -------
+    list[StagedArtifact]
+        One entry per result, in the order ``run_all`` produced them. Empty
+        list when there are no results.
+    """
+    entries: list[StagedArtifact] = []
+    for _body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+        artifact_id = _artifact_id_from_provenance(prov)
+        filename = artifact_filename(kind, slug, artifact_id)
+        live_path = (
+            repo_root
+            / ".kittify"
+            / "doctrine"
+            / doctrine_kind_subdir(kind)
+            / filename
+        )
+        rel_path = live_path.relative_to(repo_root).as_posix()
+        entries.append(
+            StagedArtifact(
+                path=rel_path,
+                kind=kind,
+                slug=slug,
+                artifact_id=artifact_id,
+            )
+        )
+    return entries
 
 
 # ---------------------------------------------------------------------------
@@ -150,9 +274,7 @@ def _run_neutrality_gate(
 
         # Determine the staged content path for this specific artifact.
         # The artifact_id is embedded in the URN for directives.
-        artifact_id: str | None = None
-        if kind == "directive":
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        artifact_id = _artifact_id_from_provenance(prov)
         filename = _artifact_filename(kind, slug, artifact_id)
         staged_path = staging_dir.path_for_content(kind, filename)
 
@@ -205,9 +327,7 @@ def stage_and_validate(
     for body, prov in results:
         kind = prov.artifact_kind
         slug = prov.artifact_slug
-        artifact_id: str | None = None
-        if kind == "directive":
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        artifact_id = _artifact_id_from_provenance(prov)
 
         filename = _artifact_filename(kind, slug, artifact_id)
         yaml_bytes = canonical_yaml(body)
@@ -290,10 +410,7 @@ def promote(
         slug = prov.artifact_slug
 
         # Infer artifact_id from the provenance URN for directive filename
-        artifact_id: str | None = None
-        if kind == "directive":
-            # artifact_urn is "directive:<artifact_id>" for directives
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        artifact_id = _artifact_id_from_provenance(prov)
 
         filename = _artifact_filename(kind, slug, artifact_id)
         yaml_bytes = canonical_yaml(body)
@@ -349,9 +466,7 @@ def promote(
             kind = prov.artifact_kind
             slug = prov.artifact_slug
 
-            artifact_id_: str | None = None
-            if kind == "directive":
-                artifact_id_ = prov.artifact_urn.split(":", 1)[1]
+            artifact_id_ = _artifact_id_from_provenance(prov)
 
             filename = _artifact_filename(kind, slug, artifact_id_)
             yaml_bytes = canonical_yaml(body)
@@ -436,4 +551,11 @@ def promote(
     return manifest
 
 
-__all__ = ["promote", "_is_generic_scoped", "_run_neutrality_gate"]
+__all__ = [
+    "promote",
+    "stage_and_validate",
+    "compute_written_artifacts",
+    "StagedArtifact",
+    "_is_generic_scoped",
+    "_run_neutrality_gate",
+]

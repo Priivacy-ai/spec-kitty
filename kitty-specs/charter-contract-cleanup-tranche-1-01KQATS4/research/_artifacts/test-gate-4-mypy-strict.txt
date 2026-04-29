@@ -1,0 +1,12 @@
+Installed 65 packages in 131ms
+============================= test session starts ==============================
+platform darwin -- Python 3.11.11, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/spec-kitty
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: cov-7.1.0, timeout-2.4.0, asyncio-1.3.0, respx-0.23.1, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 1 item
+
+tests/cross_cutting/test_mypy_strict_mission_step_contracts.py .         [100%]
+
+============================== 1 passed in 6.62s ===============================

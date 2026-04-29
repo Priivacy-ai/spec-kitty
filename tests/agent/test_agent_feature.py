@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -17,6 +18,54 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 TEST_MISSION_MID8 = TEST_MISSION_ID[:8]
+SUBSTANTIVE_SPEC = """# Test Spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Setup-plan creates the implementation plan. | The configured template is copied into plan.md. | proposed |
+"""
+SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan Template
+
+## Technical Context
+
+**Language/Version**: Python 3.12
+**Primary Dependencies**: Typer
+"""
+
+
+def _write_committed_substantive_spec(repo_root: Path, feature_dir: Path) -> None:
+    """Create a committed spec.md that satisfies setup-plan's entry gate."""
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text(SUBSTANTIVE_SPEC, encoding="utf-8")
+    subprocess.run(
+        ["git", "add", str(spec_file.relative_to(repo_root))],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Spec Kitty Tests",
+            "-c",
+            "user.email=spec-kitty-tests@example.invalid",
+            "commit",
+            "-m",
+            "Add substantive spec",
+        ],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
 
 
 class TestBranchContextCommand:
@@ -892,14 +941,14 @@ class TestSetupPlanCommand:
         mock_show_branch.return_value = (tmp_path, "main")
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
-        (feature_dir / "spec.md").write_text("# Spec")
+        _write_committed_substantive_spec(tmp_path, feature_dir)
         mock_find.return_value = feature_dir
 
         # Create template
         template_dir = tmp_path / ".kittify" / "templates"
         template_dir.mkdir(parents=True)
         plan_template = template_dir / "plan-template.md"
-        plan_template.write_text("# Implementation Plan Template")
+        plan_template.write_text(SUBSTANTIVE_PLAN_TEMPLATE, encoding="utf-8")
 
         # Execute
         result = runner.invoke(app, ["setup-plan", "--json"])
@@ -924,7 +973,7 @@ class TestSetupPlanCommand:
         # Verify plan file was created
         plan_file = feature_dir / "plan.md"
         assert plan_file.exists()
-        assert plan_file.read_text() == "# Implementation Plan Template"
+        assert plan_file.read_text(encoding="utf-8") == SUBSTANTIVE_PLAN_TEMPLATE
 
         # Verify commit was called
         mock_commit.assert_called_once()
@@ -947,14 +996,14 @@ class TestSetupPlanCommand:
         mock_show_branch.return_value = (tmp_path, "main")
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
-        (feature_dir / "spec.md").write_text("# Spec")
+        _write_committed_substantive_spec(tmp_path, feature_dir)
         mock_find.return_value = feature_dir
 
         # Create template
         template_dir = tmp_path / ".kittify" / "templates"
         template_dir.mkdir(parents=True)
         plan_template = template_dir / "plan-template.md"
-        plan_template.write_text("# Implementation Plan Template")
+        plan_template.write_text(SUBSTANTIVE_PLAN_TEMPLATE, encoding="utf-8")
 
         # Execute
         result = runner.invoke(app, ["setup-plan"])
@@ -981,7 +1030,7 @@ class TestSetupPlanCommand:
         mock_show_branch.return_value = (tmp_path, "main")
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
-        (feature_dir / "spec.md").write_text("# Spec")
+        _write_committed_substantive_spec(tmp_path, feature_dir)
         mock_find.return_value = feature_dir
 
         # No template created and package template unavailable

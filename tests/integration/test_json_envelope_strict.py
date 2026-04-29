@@ -360,3 +360,153 @@ def test_set_saas_state_disabled_unsets_env_var(
 def test_set_saas_state_unauthorized_sets_env_var(set_saas_state: Any) -> None:
     set_saas_state("unauthorized")
     assert os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "1"
+
+
+# ---------------------------------------------------------------------------
+# WP02 / FR-001 — charter synthesize --json strict-stdout when warnings exist
+# ---------------------------------------------------------------------------
+
+
+def test_synthesize_json_stdout_is_strict_json_with_warnings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``charter synthesize --json`` stdout is one JSON document even with warnings.
+
+    This is the load-bearing FR-001 / AC-001 assertion: when the
+    evidence collection step produces at least one warning, the warning
+    MUST land inside the envelope's ``warnings`` array, not as a Rich
+    console print before the JSON document. ``json.loads`` over the FULL
+    stdout MUST succeed without preprocessing.
+
+    The warning is elicited by patching
+    ``specify_cli.cli.commands.charter._collect_evidence_result`` to
+    return a deterministic ``EvidenceResult`` with a non-empty
+    ``warnings`` list. The fresh-seed code path is taken because the
+    test repo has no LLM-authored YAMLs under
+    ``.kittify/charter/generated/``.
+    """
+    import subprocess
+    from unittest.mock import patch as _patch
+
+    # Set up a real git repo with charter.md + interview answers so the
+    # fresh-seed path runs end-to-end.
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "commit.gpgsign", "false"], cwd=tmp_path, check=True, capture_output=True
+    )
+    interview_dir = tmp_path / ".kittify" / "charter" / "interview"
+    interview_dir.mkdir(parents=True, exist_ok=True)
+    (interview_dir / "answers.yaml").write_text(
+        "mission: software-dev\n"
+        "profile: minimal\n"
+        "selected_paradigms: []\n"
+        "selected_directives: []\n"
+        "available_tools: []\n"
+        "answers:\n"
+        "  purpose: Strict JSON envelope warning test.\n",
+        encoding="utf-8",
+    )
+
+    from specify_cli.cli.commands.charter import app as charter_app
+
+    runner_local = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    # Generate charter.md so the fresh-seed branch fires.
+    gen = runner_local.invoke(charter_app, ["generate", "--from-interview"], catch_exceptions=False)
+    assert gen.exit_code == 0, f"charter generate failed: {gen.stdout!r}"
+
+    # Note: the fresh-seed branch in WP02 short-circuits BEFORE calling
+    # ``_collect_evidence_result``, so warnings on that branch are
+    # legitimately empty. We additionally exercise the
+    # non-fresh-seed code path by seeding an LLM-generated YAML and
+    # patching ``_collect_evidence_result`` to return a warning.
+    generated_dir = tmp_path / ".kittify" / "charter" / "generated" / "directives"
+    # The presence of any YAML file under generated/ flips the
+    # ``_has_generated_artifacts`` signal so we leave the seed path and
+    # take the production-adapter branch — which DOES call
+    # ``_collect_evidence_result`` and is the bug surface for FR-001.
+    generated_dir.mkdir(parents=True, exist_ok=True)
+    (generated_dir / "001-mission-type-scope-directive.directive.yaml").write_text(
+        "schema_version: '1'\n"
+        "id: PROJECT_001\n"
+        "title: Test directive\n"
+        "body: Test body for FR-001 strict-JSON contract.\n",
+        encoding="utf-8",
+    )
+
+    # Inject a deterministic warning via the evidence-collector seam.
+    from charter.evidence.orchestrator import EvidenceResult
+    from charter.synthesizer.evidence import EvidenceBundle
+
+    fake_evidence = EvidenceResult(
+        bundle=EvidenceBundle(
+            code_signals=None,
+            url_list=(),
+            corpus_snapshot=None,
+            collected_at="2026-04-28T00:00:00+00:00",
+        ),
+        warnings=[
+            "TEST-WARNING: deterministic evidence-collector warning for FR-001 regression test",
+        ],
+    )
+
+    with _patch(
+        "specify_cli.cli.commands.charter._collect_evidence_result",
+        return_value=fake_evidence,
+    ):
+        # The production adapter will fail validation (no real schema-valid
+        # YAML), but FR-001 contract holds for SUCCESS and FAILURE
+        # envelopes alike — stdout must be strict JSON either way.
+        result = runner_local.invoke(
+            charter_app, ["synthesize", "--adapter", "fixture", "--json"],
+            catch_exceptions=False,
+        )
+
+    # FR-001 / AC-001: full stdout parses as one JSON document.
+    assert result.stdout, f"empty stdout. stderr={result.stderr!r}"
+    try:
+        envelope = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        pytest.fail(
+            f"FR-001 violation: stdout is not strict JSON: {exc}\n"
+            f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        )
+
+    assert isinstance(envelope, dict)
+    # FR-002: contracted fields present.
+    for key in ("result", "adapter", "written_artifacts", "warnings"):
+        assert key in envelope, f"FR-002: missing {key!r}; got {envelope!r}"
+
+    # FR-001 essence: warnings live INSIDE the envelope.
+    assert isinstance(envelope["warnings"], list)
+    # Find at least the deterministic warning we injected (it may be
+    # accompanied by additional warnings the real evidence collector
+    # would also have raised — we only assert presence of ours).
+    matched = [
+        w for w in envelope["warnings"]
+        if "TEST-WARNING: deterministic evidence-collector warning for FR-001" in w
+    ]
+    assert matched, (
+        f"FR-001: deterministic warning is missing from envelope.warnings. "
+        f"Got warnings={envelope['warnings']!r}"
+    )
+
+    # And the warning string MUST NOT also appear on stdout outside the
+    # JSON document — we already proved json.loads succeeded over the
+    # FULL stdout, but we additionally check that the warning string is
+    # only seen as a JSON value (the substring is present in stdout
+    # because it's inside the envelope, but stdout is one JSON document).
+    # The strongest possible check: there is exactly one JSON document
+    # and it deserialises cleanly.
+    assert result.stdout.count("\n") < 200, "envelope unexpectedly large"
+    # FR-005 sanity: PROJECT_000 placeholder is not user-visible.
+    assert "PROJECT_000" not in result.stdout
