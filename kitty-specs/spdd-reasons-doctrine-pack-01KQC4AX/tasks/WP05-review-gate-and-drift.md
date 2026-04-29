@@ -16,7 +16,8 @@ created_at: '2026-04-29T08:15:46Z'
 subtasks:
 - T020
 - T021
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "47292"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -176,3 +177,7 @@ For the inactive baseline: capture `review.md` rendered output before this WP la
 - Renderer hook (delivered in WP04; reused here).
 - Charter wiring (WP02).
 - User-facing docs (WP06).
+
+## Activity Log
+
+- 2026-04-29T09:14:02Z – claude:opus:python-pedro:implementer – shell_pid=47292 – Started implementation via action command
