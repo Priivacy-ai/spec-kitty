@@ -156,14 +156,34 @@ class TestSynthesizeHappyPath:
             mock_result.effective_adapter_id = "fixture"
             mock_result.effective_adapter_version = "1.0.0"
 
-            with patch("charter.synthesizer.synthesize", return_value=mock_result):
+            with patch("charter.synthesizer.synthesize", return_value=mock_result), patch(
+                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+                return_value=[
+                    {
+                        "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                        "kind": "directive",
+                        "slug": "test",
+                        "artifact_id": "PROJECT_001",
+                    }
+                ],
+            ):
                 result = runner.invoke(
                     app, ["synthesize", "--adapter", "fixture", "--json"]
                 )
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         data = json.loads(result.output)
-        assert data["result"] in {"success", "dry_run"}
+        assert data["result"] == "success"
+        assert data["adapter"] == {"id": "fixture", "version": "1.0.0"}
+        assert data["written_artifacts"] == [
+            {
+                "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                "kind": "directive",
+                "slug": "test",
+                "artifact_id": "PROJECT_001",
+            }
+        ]
+        assert data["warnings"] == []
 
     def test_synthesize_dry_run_json(self, tmp_path: Path) -> None:
         """--dry-run --json returns staged artifacts and validated=true.
@@ -214,6 +234,7 @@ class TestSynthesizeHappyPath:
         assert entry["kind"] == "directive"
         assert entry["slug"] == "test-directive"
         assert entry["artifact_id"] == "PROJECT_001"
+        assert "PROJECT_000" not in json.dumps(data)
 
 
 # ---------------------------------------------------------------------------

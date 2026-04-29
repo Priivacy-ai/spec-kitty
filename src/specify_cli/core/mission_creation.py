@@ -340,9 +340,14 @@ def create_mission_core(
         else:
             spec_file.touch()
 
-    # Commit spec.md (non-fatal)
-    with contextlib.suppress(Exception):
-        _commit_feature_file(spec_file, mission_slug_formatted, "spec", resolved_root)
+    # NOTE: spec.md is intentionally NOT committed here (issue #846).
+    # The empty scaffold remains on disk but untracked at create time.
+    # The agent commits the populated spec.md from the /spec-kitty.specify
+    # slash-template after writing substantive content. The substantive-content
+    # gate at `setup-plan` entry (see specify_cli.missions._substantive) enforces
+    # that spec.md is committed AND substantive before plan.md can be scaffolded.
+    # See:
+    #   kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md
 
     # ------------------------------------------------------------------
     # 6. meta.json

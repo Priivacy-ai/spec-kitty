@@ -186,8 +186,8 @@ def _assert_within(base: Path, target: Path) -> Path:
 def _apply_add_glossary_term(
     payload: AddGlossaryTermPayload,
     repo_root: Path,
-    proposal: Proposal,
-    actor: ActorRef,
+    _proposal: Proposal,
+    _actor: ActorRef,
 ) -> tuple[str, str]:
     """Apply an add_glossary_term proposal.
 
@@ -219,8 +219,8 @@ def _apply_add_glossary_term(
 def _apply_update_glossary_term(
     payload: UpdateGlossaryTermPayload,
     repo_root: Path,
-    proposal: Proposal,
-    actor: ActorRef,
+    _proposal: Proposal,
+    _actor: ActorRef,
 ) -> tuple[str, str]:
     """Apply an update_glossary_term proposal (same storage as add)."""
     term_key = payload.term_key
@@ -246,7 +246,7 @@ def _apply_flag_not_helpful(
     payload: FlagNotHelpfulPayload,
     repo_root: Path,
     proposal: Proposal,
-    actor: ActorRef,
+    _actor: ActorRef,
 ) -> tuple[str, str]:
     """Apply a flag_not_helpful proposal.
 
@@ -277,8 +277,8 @@ def _apply_flag_not_helpful(
 def _apply_add_edge(
     payload: AddEdgePayload,
     repo_root: Path,
-    proposal: Proposal,
-    actor: ActorRef,
+    _proposal: Proposal,
+    _actor: ActorRef,
 ) -> tuple[str, str]:
     """Apply an add_edge proposal.
 
@@ -315,8 +315,8 @@ def _apply_add_edge(
 def _apply_rewire_edge(
     payload: RewireEdgePayload,
     repo_root: Path,
-    proposal: Proposal,
-    actor: ActorRef,
+    _proposal: Proposal,
+    _actor: ActorRef,
 ) -> tuple[str, str]:
     """Apply a rewire_edge proposal.
 
@@ -357,8 +357,8 @@ def _apply_rewire_edge(
 def _apply_synthesize(
     payload: SynthesizeDirectivePayload | SynthesizeTacticPayload | SynthesizeProcedurePayload,
     repo_root: Path,
-    proposal: Proposal,
-    actor: ActorRef,
+    _proposal: Proposal,
+    _actor: ActorRef,
 ) -> tuple[str, str]:
     """Apply a synthesize_* proposal.
 

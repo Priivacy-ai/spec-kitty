@@ -1,5 +1,32 @@
-"""State model diagnostics for spec-kitty CLI.
+"""State model diagnostics and contract for spec-kitty CLI.
 
-This package provides project-scoped state health checks,
-distinct from the feature-scoped status checks in specify_cli.status.
+This package provides project-scoped state health checks and the
+machine-readable state surface registry, distinct from the
+feature-scoped status checks in specify_cli.status.
 """
+
+from .contract import (
+    AuthorityClass,
+    GitClass,
+    STATE_SURFACES,
+    StateFormat,
+    StateRoot,
+    StateSurface,
+    get_runtime_gitignore_entries,
+    get_surfaces_by_authority,
+    get_surfaces_by_git_class,
+    get_surfaces_by_root,
+)
+
+__all__ = [
+    "AuthorityClass",
+    "GitClass",
+    "STATE_SURFACES",
+    "StateFormat",
+    "StateRoot",
+    "StateSurface",
+    "get_runtime_gitignore_entries",
+    "get_surfaces_by_authority",
+    "get_surfaces_by_git_class",
+    "get_surfaces_by_root",
+]

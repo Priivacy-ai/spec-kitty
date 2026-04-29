@@ -254,9 +254,12 @@ class TestBuildPromptSafe:
     def test_build_prompt_safe_suppresses_stdout_noise(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.next.decision import _build_prompt_safe
 
+        prompt_path = tmp_path / "prompt.md"
+        prompt_path.write_text("# prompt\n", encoding="utf-8")
+
         def noisy_build_prompt(**_kwargs):
             print("noisy stdout")
-            return None, tmp_path / "prompt.md"
+            return None, prompt_path
 
         with patch("specify_cli.next.prompt_builder.build_prompt", side_effect=noisy_build_prompt):
             result = _build_prompt_safe(
@@ -269,7 +272,7 @@ class TestBuildPromptSafe:
                 mission_type="software-dev",
             )
 
-        assert result == str(tmp_path / "prompt.md")
+        assert result == str(prompt_path)
         captured = capsys.readouterr()
         assert captured.out == ""
         assert captured.err == ""
@@ -688,6 +691,12 @@ class TestResultSuccessStillAdvances:
         """C-005: --result success retains its advancing behavior."""
         from specify_cli.next.decision import Decision, DecisionKind
 
+        # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
+        # prompt_file at construction time (C1/C2). Materialize a real prompt
+        # under tmp_path so the validator passes.
+        prompt = tmp_path / "step.md"
+        prompt.write_text("# step", encoding="utf-8")
+
         mock_decision = Decision(
             kind=DecisionKind.step,
             agent="claude",
@@ -695,6 +704,7 @@ class TestResultSuccessStillAdvances:
             mission="069-test",
             mission_state="plan",
             timestamp="2026-04-07T00:00:00+00:00",
+            prompt_file=str(prompt),
         )
 
         with (

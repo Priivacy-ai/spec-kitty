@@ -5,7 +5,7 @@ from pathlib import Path
 
 def test_repo_gitignore_covers_local_runtime():
     """Every LOCAL_RUNTIME project surface has a matching .gitignore entry."""
-    from specify_cli.state_contract import (
+    from specify_cli.state.contract import (
         STATE_SURFACES,
         AuthorityClass,
         GitClass,
@@ -48,7 +48,7 @@ def test_repo_gitignore_covers_local_runtime():
 def test_runtime_entries_match_contract():
     """GitignoreManager entries are derived from state contract."""
     from specify_cli.gitignore_manager import RUNTIME_PROTECTED_ENTRIES
-    from specify_cli.state_contract import get_runtime_gitignore_entries
+    from specify_cli.state.contract import get_runtime_gitignore_entries
 
     contract_entries = get_runtime_gitignore_entries()
     assert set(RUNTIME_PROTECTED_ENTRIES) == set(contract_entries), (
@@ -59,7 +59,7 @@ def test_runtime_entries_match_contract():
 
 def test_contract_runtime_entries_complete():
     """Contract runtime entries are non-empty and contain known patterns."""
-    from specify_cli.state_contract import get_runtime_gitignore_entries
+    from specify_cli.state.contract import get_runtime_gitignore_entries
 
     entries = get_runtime_gitignore_entries()
     assert len(entries) >= 4, f"Expected at least 4 runtime entries, got {len(entries)}"  # noqa: PLR2004

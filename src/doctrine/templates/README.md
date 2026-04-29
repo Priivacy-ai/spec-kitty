@@ -12,6 +12,7 @@ missions.
 | `command-templates/` | Prompt files for `/spec-kitty.*` slash commands |
 | `sets/` | Named bundles grouping related templates for coordinated deployment |
 | `structure/` | Structural mapping templates (REPO_MAP, SURFACES) for repository orientation |
+| `triage/` | Issue triage interaction templates (agent briefs, out-of-scope records) |
 
 ## Top-Level Templates
 

@@ -24,7 +24,7 @@ from specify_cli.lanes.recovery import (
     scan_recovery_state,
 )
 from specify_cli.lanes.worktree_allocator import _recover_lane_worktree
-from specify_cli.workspace_context import (
+from specify_cli.workspace.context import (
     WorkspaceContext,
     load_context,
     save_context,

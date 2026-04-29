@@ -30,6 +30,7 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
     ArtifactKind.TOOLGUIDE: NodeKind.TOOLGUIDE,
     ArtifactKind.PROCEDURE: NodeKind.PROCEDURE,
     ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
+    ArtifactKind.TEMPLATE: NodeKind.TEMPLATE,
 }
 
 # FR-008 / Phase 6 #505: this table is for built-in missions ONLY.

@@ -16,9 +16,9 @@ from rich.table import Table
 from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_selector
-from specify_cli.tasks_support import find_repo_root, TaskCliError
+from specify_cli.task_utils import find_repo_root, TaskCliError
 from specify_cli.core.paths import locate_project_root
-from specify_cli.workspace_context import (
+from specify_cli.workspace.context import (
     cleanup_orphaned_contexts,
     find_orphaned_contexts,
     list_contexts,

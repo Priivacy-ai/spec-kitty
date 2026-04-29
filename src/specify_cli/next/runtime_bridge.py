@@ -49,6 +49,8 @@ from specify_cli.status.wp_state import wp_state_for
 from specify_cli.next.decision import (
     Decision,
     DecisionKind,
+    InvalidStepDecision,
+    _build_prompt_or_error,
     _build_prompt_safe,
     _compute_wp_progress,
     _state_to_action,
@@ -305,6 +307,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 SPEC_ARTIFACT = "spec.md"
 PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
+STATE_FILE = "state.json"
 TASKS_GLOB = "WP*.md"
 MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
 MISSING_TASK_FILES_MESSAGE = f"Required: at least one tasks/{TASKS_GLOB} file"
@@ -706,11 +709,11 @@ def _check_composed_action_guard(  # noqa: C901
         # produces a non-empty failures list, which the dispatch surface
         # propagates as a structured error with no run-state advancement.
         if action == "scoping":
-            if not (feature_dir / "spec.md").is_file():
-                failures.append("Required artifact missing: spec.md")
+            if not (feature_dir / SPEC_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
         elif action == "methodology":
-            if not (feature_dir / "plan.md").is_file():
-                failures.append("Required artifact missing: plan.md")
+            if not (feature_dir / PLAN_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "gathering":
             if not (feature_dir / "source-register.csv").is_file():
                 failures.append("Required artifact missing: source-register.csv")
@@ -732,14 +735,14 @@ def _check_composed_action_guard(  # noqa: C901
 
     if mission == "documentation":
         if action == "discover":
-            if not (feature_dir / "spec.md").is_file():
-                failures.append("Required artifact missing: spec.md")
+            if not (feature_dir / SPEC_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
         elif action == "audit":
             if not (feature_dir / "gap-analysis.md").is_file():
                 failures.append("Required artifact missing: gap-analysis.md")
         elif action == "design":
-            if not (feature_dir / "plan.md").is_file():
-                failures.append("Required artifact missing: plan.md")
+            if not (feature_dir / PLAN_ARTIFACT).is_file():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "generate":
             if not _has_generated_docs(feature_dir):
                 failures.append(
@@ -759,25 +762,25 @@ def _check_composed_action_guard(  # noqa: C901
         return failures
 
     if action == "specify":
-        if not (feature_dir / "spec.md").exists():
-            failures.append("Required artifact missing: spec.md")
+        if not (feature_dir / SPEC_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
 
     elif action == "plan":
-        if not (feature_dir / "plan.md").exists():
-            failures.append("Required artifact missing: plan.md")
+        if not (feature_dir / PLAN_ARTIFACT).exists():
+            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
 
     elif action == "tasks":
         if legacy_step_id == "tasks_outline":
             # After tasks_outline the user is expected to have produced
             # tasks.md. WP files and dependencies come in later substeps.
-            if not (feature_dir / "tasks.md").exists():
-                failures.append("Required artifact missing: tasks.md")
+            if not (feature_dir / TASKS_ARTIFACT).exists():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
         elif legacy_step_id == "tasks_packages":
             # After tasks_packages: tasks.md AND >=1 WP file. Dependencies
             # are not yet expected — finalize-tasks adds them in the next
             # substep.
-            if not (feature_dir / "tasks.md").exists():
-                failures.append("Required artifact missing: tasks.md")
+            if not (feature_dir / TASKS_ARTIFACT).exists():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
             tasks_dir = feature_dir / "tasks"
             if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
                 failures.append("Required: at least one tasks/WP*.md file")
@@ -786,8 +789,8 @@ def _check_composed_action_guard(  # noqa: C901
             # (legacy_step_id is None): demand the full terminal state.
             # Union of legacy tasks_outline + tasks_packages + tasks_finalize
             # checks; no weakening of assertions.
-            if not (feature_dir / "tasks.md").exists():
-                failures.append("Required artifact missing: tasks.md")
+            if not (feature_dir / TASKS_ARTIFACT).exists():
+                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
             tasks_dir = feature_dir / "tasks"
             if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
                 failures.append("Required: at least one tasks/WP*.md file")
@@ -1323,7 +1326,7 @@ def _existing_run_ref(
 
     entry = index[mission_slug]
     run_dir = Path(entry["run_dir"])
-    if not (run_dir / "state.json").exists():
+    if not (run_dir / STATE_FILE).exists():
         return None
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
@@ -1382,7 +1385,7 @@ def get_or_start_run(
     if mission_slug in index:
         entry = index[mission_slug]
         run_dir = Path(entry["run_dir"])
-        if (run_dir / "state.json").exists():
+        if (run_dir / STATE_FILE).exists():
             stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
             return _build_run_ref(
                 run_id=entry["run_id"],
@@ -1422,7 +1425,7 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def decide_next_via_runtime(
+def decide_next_via_runtime(  # noqa: C901
     agent: str,
     mission_slug: str,
     result: str,
@@ -1568,9 +1571,11 @@ def decide_next_via_runtime(
                 repo_root,
                 mission_type,
             )
-            prompt_file = (
-                _build_prompt_safe(
-                    action or current_step_id,
+            prompt_file: str | None = None
+            prompt_error: str | None = None
+            if action:
+                prompt_file, prompt_error = _build_prompt_or_error(
+                    action,
                     feature_dir,
                     mission_slug,
                     wp_id,
@@ -1578,26 +1583,70 @@ def decide_next_via_runtime(
                     repo_root,
                     mission_type,
                 )
-                if action
-                else None
-            )
-            return Decision(
-                kind=DecisionKind.step,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id,
-                timestamp=now,
-                action=action,
-                wp_id=wp_id,
-                workspace_path=workspace_path,
-                prompt_file=prompt_file,
-                guard_failures=guard_failures,
-                progress=progress,
-                origin=origin,
-                run_id=run_ref.run_id,
-                step_id=current_step_id,
-            )
+            else:
+                prompt_error = (
+                    f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
+                )
+            if prompt_file is None:
+                # WP06 (FR-006/FR-013): never issue kind=step with prompt_file=None.
+                # When a prompt cannot be resolved, surface a structured blocked
+                # decision so callers can stop, not partial-execute.
+                return Decision(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=prompt_error or "prompt_file_not_resolvable",
+                    action=action,
+                    wp_id=wp_id,
+                    workspace_path=workspace_path,
+                    guard_failures=guard_failures,
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
+            try:
+                return Decision(
+                    kind=DecisionKind.step,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    action=action,
+                    wp_id=wp_id,
+                    workspace_path=workspace_path,
+                    prompt_file=prompt_file,
+                    guard_failures=guard_failures,
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
+            except InvalidStepDecision:
+                # C-005: keep the kind=step prompt contract as a hard
+                # constructor invariant. If the file disappears between
+                # resolution and construction, surface a structured blocker.
+                return Decision(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=prompt_error or "prompt_file_not_resolvable",
+                    action=action,
+                    wp_id=wp_id,
+                    workspace_path=workspace_path,
+                    guard_failures=guard_failures,
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
 
     # Composition dispatch (mission `software-dev-composition-rewrite-01KQ26CY`).
     #
@@ -1768,7 +1817,7 @@ def decide_next_via_runtime(
 
     if retrospective_enabled:
         run_dir = Path(run_ref.run_dir)
-        state_path = run_dir / "state.json"
+        state_path = run_dir / STATE_FILE
         events_path = run_dir / "run.events.jsonl"
         try:
             pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
@@ -1845,7 +1894,7 @@ def decide_next_via_runtime(
             run_dir = Path(run_ref.run_dir)
             if pre_state_bytes is not None:
                 try:
-                    (run_dir / "state.json").write_bytes(pre_state_bytes)
+                    (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
                 except OSError as restore_exc:
                     logger.error(
                         "rollback of state.json failed after gate block: %s",
@@ -2115,7 +2164,7 @@ def _build_wp_iteration_decision(
             step_id=step_id,
         )
 
-    prompt_file = _build_prompt_safe(
+    prompt_file, prompt_error = _build_prompt_or_error(
         action,
         feature_dir,
         mission_slug,
@@ -2124,24 +2173,67 @@ def _build_wp_iteration_decision(
         repo_root,
         mission_type,
     )
+    if prompt_file is None:
+        # WP06 (FR-006/FR-013): kind=step decisions must always carry a
+        # non-empty resolvable prompt_file. When prompt resolution fails,
+        # surface a structured blocked decision instead of a partial step.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id,
+            timestamp=timestamp,
+            reason=prompt_error or "no_prompt_template",
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            guard_failures=guard_failures or [],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=step_id,
+        )
 
-    return Decision(
-        kind=DecisionKind.step,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=step_id,
-        timestamp=timestamp,
-        action=action,
-        wp_id=wp_id,
-        workspace_path=workspace_path,
-        prompt_file=prompt_file,
-        guard_failures=guard_failures or [],
-        progress=progress,
-        origin=origin,
-        run_id=run_ref.run_id,
-        step_id=step_id,
-    )
+    try:
+        return Decision(
+            kind=DecisionKind.step,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id,
+            timestamp=timestamp,
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            guard_failures=guard_failures or [],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=step_id,
+        )
+    except InvalidStepDecision:
+        # C-005: prompt_builder failed to produce a usable prompt for this
+        # WP iteration. Route to kind=blocked rather than emitting a
+        # kind=step with a null/unresolvable prompt_file.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id,
+            timestamp=timestamp,
+            reason=prompt_error or "prompt_file_not_resolvable",
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            guard_failures=guard_failures or [],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=step_id,
+        )
 
 
 def _map_runtime_decision(
@@ -2249,7 +2341,7 @@ def _map_runtime_decision(
                 run_id=run_id,
                 step_id=step_id,
             )
-        prompt_file = _build_prompt_safe(
+        prompt_file, prompt_error = _build_prompt_or_error(
             action,
             feature_dir,
             mission_slug,
@@ -2258,22 +2350,59 @@ def _map_runtime_decision(
             repo_root,
             mission_type,
         )
-        return Decision(
-            kind=DecisionKind.step,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id,
-            timestamp=timestamp,
-            action=action,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            prompt_file=prompt_file,
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
-        )
+        if prompt_file is None:
+            # WP06 (FR-006/FR-013): kind=step requires a resolvable prompt;
+            # fall through to blocked when one cannot be built.
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                reason=prompt_error or "prompt_file_not_resolvable",
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
+        try:
+            return Decision(
+                kind=DecisionKind.step,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                prompt_file=prompt_file,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
+        except InvalidStepDecision:
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                reason=prompt_error or "prompt_file_not_resolvable",
+                action=action,
+                wp_id=wp_id,
+                workspace_path=workspace_path,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
 
     # Non-WP step: map step_id to action via template resolution
     action, wp_id, workspace_path = _state_to_action(
@@ -2283,8 +2412,10 @@ def _map_runtime_decision(
         repo_root,
         mission_type,
     )
-    prompt_file = (
-        _build_prompt_safe(
+    prompt_file: str | None = None
+    prompt_error: str | None = None
+    if action or step_id:
+        prompt_file, prompt_error = _build_prompt_or_error(
             action or step_id or "unknown",
             feature_dir,
             mission_slug,
@@ -2293,23 +2424,62 @@ def _map_runtime_decision(
             repo_root,
             mission_type,
         )
-        if action or step_id
-        else None
-    )
+    else:
+        prompt_error = "no action and no step_id; cannot resolve prompt"
+    if prompt_file is None:
+        # WP06 (FR-006/FR-013): emit a structured blocked decision rather than
+        # an issued step that has no resolvable prompt.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            reason=prompt_error or "no_prompt_template",
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )
 
-    return Decision(
-        kind=DecisionKind.step,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=step_id or "unknown",
-        timestamp=timestamp,
-        action=action or step_id,
-        wp_id=wp_id,
-        workspace_path=workspace_path,
-        prompt_file=prompt_file,
-        progress=progress,
-        origin=origin,
-        run_id=run_id,
-        step_id=step_id,
-    )
+    try:
+        return Decision(
+            kind=DecisionKind.step,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )
+    except InvalidStepDecision:
+        # C-005: non-WP step path — prompt resolution failed (no template,
+        # build error, or null step_id with no action). Surface as blocked
+        # rather than emit kind=step with a null/unresolvable prompt.
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            reason=prompt_error or "prompt_file_not_resolvable",
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )

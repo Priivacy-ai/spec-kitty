@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "mission_slug": "charter-e2e-827-followups-01KQAJA0",
+  "mission_id": "01KQAJA02YZ2Q7SH5WND713HKA",
+  "mission_branch": "kitty/mission-charter-e2e-827-followups-01KQAJA0",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/review-gates.md",
+        "tests/architectural/test_uv_lock_pin_drift.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md",
+        "src/specify_cli/next/decision.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/e2e/test_charter_epic_golden_path.py",
+        "tests/specify_cli/next/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/status/preflight.py",
+        "tests/integration/test_dossier_snapshot_no_self_block.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/missions/*/command-templates/plan.md",
+        "src/specify_cli/missions/*/command-templates/specify.md",
+        "src/specify_cli/missions/_substantive.py",
+        "tests/integration/test_specify_plan_commit_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-28T20:07:16.722395+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

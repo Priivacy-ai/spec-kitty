@@ -23,6 +23,7 @@ from specify_cli.sync.events import (
 
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, TransitionRequest
+from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
@@ -38,7 +39,7 @@ from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.core.utils import write_text_within_directory
-from specify_cli.workspace_context import get_normalized_wp, resolve_workspace_for_wp
+from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -54,7 +55,7 @@ def resolve_primary_branch(repo_root: Path) -> str:
     return _resolve(repo_root)
 
 
-from specify_cli.tasks_support import (
+from specify_cli.task_utils import (
     append_activity_log,
     build_document,
     ensure_lane,
@@ -175,6 +176,14 @@ console = Console()
 _RUNTIME_STATE_DENY_LIST: tuple[str, ...] = (".spec-kitty/", ".kittify/")
 
 
+# ---------------------------------------------------------------------------
+# Mission charter-e2e-827-followups-01KQAJA0 / C-006: dossier snapshot exclude
+# ---------------------------------------------------------------------------
+# The dossier snapshot at <feature_dir>/.kittify/dossiers/<mission>/snapshot-
+# latest.json is a mutable derived artifact. Per the EXCLUDE ownership policy
+# (single policy — see ``specify_cli.status.preflight``), it must be filtered
+# from any preflight that bypasses ``.gitignore`` so the writer's update does
+# not self-block the next ``move-task`` transition.
 def _filter_runtime_state_paths(porcelain_output: str) -> str:
     """Strip lines whose path falls under spec-kitty's own runtime-state dirs.
 
@@ -182,6 +191,10 @@ def _filter_runtime_state_paths(porcelain_output: str) -> str:
     format ``XY path`` where ``XY`` is a two-character status code followed by
     a single space. A ``startswith`` check against the fixed deny-list is
     used intentionally (C-003): no regex, no glob expansion, no fuzzy match.
+
+    Dossier ``snapshot-latest.json`` paths are also stripped here per the
+    EXCLUDE ownership policy (C-006); the snapshot writer must never
+    self-block a transition.
 
     Returns a newline-joined string with deny-listed entries removed. Lines
     whose path is OUTSIDE the deny list are preserved verbatim so the
@@ -194,6 +207,8 @@ def _filter_runtime_state_paths(porcelain_output: str) -> str:
         # git status --porcelain format: first 3 chars are "XY " status prefix.
         path_part = line[3:] if len(line) > 3 else line.strip()
         if any(path_part.startswith(prefix) for prefix in _RUNTIME_STATE_DENY_LIST):
+            continue
+        if _is_dossier_snapshot(path_part):
             continue
         kept.append(line)
     return "\n".join(kept)
@@ -751,6 +766,13 @@ def _validate_ready_for_review(
                 continue
             # git status --porcelain format: "XY path" (first 3 chars are status)
             file_part = line[3:] if len(line) > 3 else line.strip()
+            # EXCLUDE policy (C-006): dossier snapshot writes are derived,
+            # ephemeral, and recomputable; they must never self-block a
+            # transition. Drop them before classification so they cannot
+            # leak into the blocking bucket via a path that bypasses
+            # ``.gitignore``.
+            if _is_dossier_snapshot(file_part):
+                continue
             raw_paths.append(file_part)
             raw_lines.append(line)
 

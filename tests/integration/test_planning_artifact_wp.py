@@ -60,7 +60,7 @@ class TestPlanningArtifactWorkspaceResolution:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """resolve_workspace_for_wp -> resolution_kind='repo_root'."""
-        from specify_cli.workspace_context import (
+        from specify_cli.workspace.context import (
             ResolvedWorkspace,
             resolve_workspace_for_wp,
         )
@@ -100,6 +100,10 @@ class TestPlanningArtifactRuntimeDecisionShape:
         kind is `step` (i.e. NOT blocked)."""
         from specify_cli.next.decision import Decision, DecisionKind
 
+        # WP02 / #844: kind=step requires a real prompt_file at construction
+        # time (C1/C2). Stage one under tmp_path so the validator passes.
+        prompt = tmp_path / "implement.md"
+        prompt.write_text("# implement", encoding="utf-8")
         decision = Decision(
             kind=DecisionKind.step,
             agent="claude",
@@ -111,6 +115,7 @@ class TestPlanningArtifactRuntimeDecisionShape:
             action="implement",
             wp_id="WP08",
             workspace_path=str(tmp_path),  # planning_artifact -> repo root
+            prompt_file=str(prompt),
         )
 
         payload = decision.to_dict()

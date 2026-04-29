@@ -18,7 +18,7 @@ from pathlib import Path
 
 from specify_cli.lanes.branch_naming import parse_lane_id_from_branch
 from specify_cli.status.models import Lane
-from specify_cli.workspace_context import (
+from specify_cli.workspace.context import (
     WorkspaceContext,
     list_contexts,
     save_context,

@@ -55,7 +55,7 @@ from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_ch
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.task_utils import TaskCliError, find_repo_root
 
 logger = logging.getLogger(__name__)
 

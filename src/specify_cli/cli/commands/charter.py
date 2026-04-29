@@ -20,7 +20,8 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
 
 logger = logging.getLogger(__name__)
@@ -1863,6 +1864,81 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
     return _validation_callback
 
 
+def _read_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, str]]:
+    """Read manifest entries for the strict synthesize success envelope."""
+    try:
+        from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml as _load_manifest
+    except Exception:
+        return []
+    manifest_path = repo_root / MANIFEST_PATH
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest = _load_manifest(manifest_path)
+    except Exception:
+        return []
+    return [{"path": entry.path, "kind": entry.kind} for entry in manifest.artifacts]
+
+
+def _provenance_to_planned_artifacts(
+    results: list[tuple[Any, Any]],
+) -> list[dict[str, str]]:
+    """Convert synthesis provenance entries into planned doctrine paths."""
+    from charter.synthesizer.artifact_naming import (
+        artifact_filename,
+        doctrine_kind_subdir,
+    )
+
+    planned: list[dict[str, str]] = []
+    for _body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        try:
+            filename = artifact_filename(kind, slug, artifact_id)
+            subdir = doctrine_kind_subdir(kind)
+        except Exception:  # noqa: S112
+            continue
+        planned.append(
+            {
+                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "kind": kind,
+            }
+        )
+    return planned
+
+
+def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]]:
+    """Convert legacy staged ``kind:slug`` selectors to planned artifacts."""
+    from charter.synthesizer.artifact_naming import (
+        artifact_filename,
+        doctrine_kind_subdir,
+    )
+
+    planned: list[dict[str, str]] = []
+    for selector in staged_files:
+        if ":" not in selector:
+            continue
+        kind, slug = selector.split(":", 1)
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = "PROJECT_000"
+        try:
+            filename = artifact_filename(kind, slug, artifact_id)
+            subdir = doctrine_kind_subdir(kind)
+        except Exception:  # noqa: S112
+            continue
+        planned.append(
+            {
+                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "kind": kind,
+            }
+        )
+    return planned
+
+
 def _run_synthesis_dry_run(
     request: Any,
     syn_adapter: Any,
@@ -2319,6 +2395,7 @@ def charter_synthesize(  # noqa: C901
                             "See issue #839."
                         ),
                     }, indent=2, sort_keys=True))
+                    mark_invocation_succeeded()
                     return
                 console.print(
                     "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
@@ -2357,6 +2434,7 @@ def charter_synthesize(  # noqa: C901
                         "(see issue #839)."
                     ),
                 }, indent=2, sort_keys=True))
+                mark_invocation_succeeded()
                 return
 
             console.print(
@@ -2419,6 +2497,7 @@ def charter_synthesize(  # noqa: C901
                         ),
                     },
                 }, indent=2, sort_keys=True))
+                mark_invocation_succeeded()
                 raise typer.Exit(0)
 
             console.print("[bold]Evidence dry-run summary:[/bold]")
@@ -2468,6 +2547,7 @@ def charter_synthesize(  # noqa: C901
                     "artifact_count": len(staged_files),
                     "validated": True,
                 }, indent=2, sort_keys=True))
+                mark_invocation_succeeded()
                 return
 
             console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
@@ -2505,6 +2585,7 @@ def charter_synthesize(  # noqa: C901
                 "adapter_id": result.effective_adapter_id,
                 "adapter_version": result.effective_adapter_version,
             }, indent=2, sort_keys=True))
+            mark_invocation_succeeded()
             return
 
         console.print("[green]Charter synthesis complete[/green]")

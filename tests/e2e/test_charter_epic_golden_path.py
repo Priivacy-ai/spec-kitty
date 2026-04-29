@@ -570,6 +570,32 @@ def _scaffold_minimal_mission(
         f"feature_dir not created: {feature_dir}\n  payload: {payload!r}"
     )
 
+    # WP04 setup-plan entry gate requires `is_committed(spec) AND
+    # is_substantive(spec, "spec")`. The scaffolded spec.md is neither
+    # populated nor committed at this point, so we must populate it with
+    # a substantive Functional Requirements row and commit it before
+    # invoking setup-plan. (Mirrors the populate+commit pattern in
+    # tests/integration/test_specify_plan_commit_boundary.py scenarios.)
+    spec_path = feature_dir / "spec.md"
+    spec_path.write_text(
+        spec_path.read_text(encoding="utf-8")
+        + (
+            "\n## Functional Requirements\n\n"
+            "| ID | Description | Priority | Status |\n"
+            "|---|---|---|---|\n"
+            "| FR-001 | Demo mission for golden-path E2E. | P0 | Draft |\n"
+        ),
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "add", str(spec_path.relative_to(project))],
+        cwd=project, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Populate golden-path demo spec.md (substantive FR row)"],
+        cwd=project, check=True, capture_output=True,
+    )
+
     # setup-plan
     cmd = [
         "agent", "mission", "setup-plan",

@@ -213,8 +213,12 @@ def test_merge_gate_evaluation_emits_canonical_mission_fields(tmp_path: Path) ->
 
 
 def test_next_decision_payload_emits_canonical_mission_fields() -> None:
+    # NOTE: kind=DecisionKind.terminal (not step) — WP02's __post_init__ validator
+    # rejects kind="step" without a non-empty, on-disk-resolvable prompt_file.
+    # This test asserts mission-field rendering in to_dict(), which is independent
+    # of the prompt-file contract, so a terminal kind exercises the same code path.
     payload = Decision(
-        kind=DecisionKind.step,
+        kind=DecisionKind.terminal,
         agent="codex",
         mission_slug="064-complete-mission-identity-cutover",
         mission="software-dev",

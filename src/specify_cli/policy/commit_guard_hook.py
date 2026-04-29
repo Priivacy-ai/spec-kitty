@@ -92,7 +92,7 @@ def _detect_owned_files(
     """Try to detect owned_files for the current WP from workspace context or lanes."""
     # Try workspace context.
     try:
-        from specify_cli.workspace_context import list_contexts
+        from specify_cli.workspace.context import list_contexts
 
         for ctx in list_contexts(repo_root):
             if ctx.branch_name == branch:

@@ -5,7 +5,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from specify_cli.state_contract import (
+from specify_cli.state.contract import (
     STATE_SURFACES,
     AuthorityClass,
     GitClass,
