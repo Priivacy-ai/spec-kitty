@@ -29,11 +29,11 @@
 | T016 | Modify the `e2e-cross-cutting` job in `.github/workflows/ci-quality.yml`: install `pip install -e .[test,lint]` instead of `pip install -e .[test]` | WP04 | | [D] |
 | T017 | Verify locally that the modified install line produces a functioning `python -m mypy` and that `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` passes | WP04 | | [D] |
 | T018 | Confirm no other CI job in the workflow regresses (read job graph, identify any indirect dependency on the `[test]`-only install) | WP04 | | [D] |
-| T019 | Run the five-command local test gate (NFR-001) on the feature branch and capture terminal evidence | WP05 | |
-| T020 | Diagnose the `Protect Main Branch` failure observed on release PR #864 — fix here if reproducible from product code, otherwise file/update a GitHub issue | WP05 | |
-| T021 | Open the PR `fix/charter-827-contract-cleanup` → `Priivacy-ai/spec-kitty:main` with the test-gate evidence in the description | WP05 | |
-| T022 | After merge, apply post-merge GH issue hygiene: comment/close `#844`, comment on `#827`, update `#848` | WP05 | |
-| T023 | Update `release-evidence.md` with the final CI-green snapshot, list of issues touched, and pointer to the merge commit | WP05 | |
+| T019 | Run the five-command local test gate (NFR-001) on the feature branch and capture terminal evidence | WP05 | | [D] |
+| T020 | Diagnose the `Protect Main Branch` failure observed on release PR #864 — fix here if reproducible from product code, otherwise file/update a GitHub issue | WP05 | | [D] |
+| T021 | Open the PR `fix/charter-827-contract-cleanup` → `Priivacy-ai/spec-kitty:main` with the test-gate evidence in the description | WP05 | | [D] |
+| T022 | After merge, apply post-merge GH issue hygiene: comment/close `#844`, comment on `#827`, update `#848` | WP05 | | [D] |
+| T023 | Update `release-evidence.md` with the final CI-green snapshot, list of issues touched, and pointer to the merge commit | WP05 | | [D] |
 
 ---
 
@@ -136,11 +136,11 @@
   - `release-evidence.md` exists at `kitty-specs/charter-contract-cleanup-tranche-1-01KQATS4/research/release-evidence.md` and captures the final state.
 - **Independent test:** `gh pr checks --watch` shows all required CI green; the merge commit hash matches `release-evidence.md`.
 - **Included subtasks:**
-  - [ ] T019 Run the five-command local test gate (WP05)
-  - [ ] T020 Diagnose the `Protect Main Branch` failure (fix or file issue) (WP05)
-  - [ ] T021 Open the PR with the test-gate evidence in the description (WP05)
-  - [ ] T022 Apply post-merge GH issue hygiene: `#844`, `#827`, `#848` (WP05)
-  - [ ] T023 Update `release-evidence.md` with the final CI-green snapshot (WP05)
+  - [x] T019 Run the five-command local test gate (WP05)
+  - [x] T020 Diagnose the `Protect Main Branch` failure (fix or file issue) (WP05)
+  - [x] T021 Open the PR with the test-gate evidence in the description (WP05)
+  - [x] T022 Apply post-merge GH issue hygiene: `#844`, `#827`, `#848` (WP05)
+  - [x] T023 Update `release-evidence.md` with the final CI-green snapshot (WP05)
 - **Implementation sketch:** run the five-command gate locally → diagnose Protect-Main-Branch with `gh run view` and source inspection → push branch and open PR → monitor checks → merge once green → run issue-hygiene `gh` commands (with `unset GITHUB_TOKEN` per CLAUDE.md) → write evidence file.
 - **Parallel opportunities:** T019 can start as soon as WP02/WP03/WP04 are complete; T022 only after merge.
 - **Dependencies:** WP01, WP02, WP03, WP04.
