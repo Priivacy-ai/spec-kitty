@@ -13,6 +13,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter._doctrine_paths import resolve_project_root
 from charter.language_scope import infer_repo_languages
+from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 from kernel.atomic import atomic_write
 
 
@@ -301,6 +302,9 @@ def _render_bootstrap_text(
         _extend_named_artifact_lines(lines, "Toolguides", doctrine_bundle.toolguide_ids, service.toolguides, "title", None)  # type: ignore[attr-defined]
 
     _append_guidelines_lines(lines, doctrine_bundle.mission, action)
+
+    if is_spdd_reasons_active(charter_path.parent.parent.parent):
+        append_spdd_reasons_guidance(lines, doctrine_bundle.mission, action)
 
     lines.append("")
     lines.append(REFERENCE_DOCS_HEADER)

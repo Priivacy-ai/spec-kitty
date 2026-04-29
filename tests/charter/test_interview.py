@@ -112,6 +112,7 @@ def test_load_packaged_defaults_returns_empty_when_resource_is_missing(
         "answers": {},
         "selected_paradigms": [],
         "selected_directives": [],
+        "selected_tactics": [],
         "available_tools": [],
     }
 

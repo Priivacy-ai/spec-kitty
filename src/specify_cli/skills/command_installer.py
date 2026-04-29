@@ -287,7 +287,9 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
 
     for command in CANONICAL_COMMANDS:
         template = _resolve_template(repo_root, command)
-        rendered = command_renderer.render(template, agent_key, version)
+        rendered = command_renderer.render(
+            template, agent_key, version, repo_root=repo_root
+        )
         skill_md_bytes = rendered.to_skill_md().encode("utf-8")
         rel_path = f".agents/skills/spec-kitty.{command}/SKILL.md"
         abs_path = repo_root / rel_path

@@ -25,6 +25,8 @@ selected_paradigms: []
 
 selected_directives: []
 
+selected_tactics: []
+
 available_tools:
   - git
   - spec-kitty

@@ -58,6 +58,7 @@ class CompiledCharter:
     markdown: str
     references: list[CharterReference]
     diagnostics: list[str] = field(default_factory=list)
+    selected_tactics: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,12 @@ def compile_charter(
         label="selected_directives",
         diagnostics=diagnostics,
     )
+    selected_tactics = _sanitize_catalog_selection(
+        values=interview.selected_tactics,
+        allowed=set(catalog.tactics),
+        label="selected_tactics",
+        diagnostics=diagnostics,
+    )
     available_tools = _sanitize_catalog_selection(
         values=interview.available_tools,
         allowed=set(DEFAULT_TOOL_REGISTRY),
@@ -142,6 +149,7 @@ def compile_charter(
         interview=interview,
         selected_paradigms=selected_paradigms,
         selected_directives=selected_directives,
+        selected_tactics=selected_tactics,
         available_tools=available_tools,
         references=references,
     )
@@ -155,6 +163,7 @@ def compile_charter(
         markdown=markdown,
         references=references,
         diagnostics=diagnostics,
+        selected_tactics=selected_tactics,
     )
 
 
@@ -728,7 +737,9 @@ def _render_charter_markdown(
     selected_directives: list[str],
     available_tools: list[str],
     references: list[CharterReference],
+    selected_tactics: list[str] | None = None,
 ) -> str:
+    selected_tactics = selected_tactics or []
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     testing = interview.answers.get(
@@ -767,6 +778,7 @@ def _render_charter_markdown(
         [
             f"selected_paradigms: {_yaml_inline_list(selected_paradigms)}",
             f"selected_directives: {_yaml_inline_list(selected_directives)}",
+            f"selected_tactics: {_yaml_inline_list(selected_tactics)}",
             f"available_tools: {_yaml_inline_list(available_tools)}",
             f"template_set: {template_set}",
         ]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.resources
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -164,6 +164,7 @@ class CharterInterview:
     agent_profile: str | None = None
     agent_role: str | None = None
     local_supporting_files: list[LocalSupportDeclaration] | None = None
+    selected_tactics: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         # Normalize None to empty list for local_supporting_files (frozen dataclass workaround)
@@ -178,6 +179,7 @@ class CharterInterview:
             "answers": dict(self.answers),
             "selected_paradigms": list(self.selected_paradigms),
             "selected_directives": list(self.selected_directives),
+            "selected_tactics": list(self.selected_tactics),
             "available_tools": list(self.available_tools),
             "agent_profile": self.agent_profile,
             "agent_role": self.agent_role,
@@ -213,6 +215,7 @@ class CharterInterview:
             agent_profile=_normalize_optional_string(data.get("agent_profile")),
             agent_role=_normalize_optional_string(data.get("agent_role")),
             local_supporting_files=local_supporting_files,
+            selected_tactics=_normalize_list(data.get("selected_tactics")),
         )
 
 
@@ -257,6 +260,10 @@ def default_interview(
             defaults.get("available_tools"),
             fallback=sorted(DEFAULT_TOOL_REGISTRY),
         ),
+        selected_tactics=_normalize_iterable(
+            defaults.get("selected_tactics"),
+            fallback=[],
+        ),
     )
 
 
@@ -292,6 +299,7 @@ def apply_answer_overrides(
     answers: dict[str, str] | None = None,
     selected_paradigms: Iterable[str] | None = None,
     selected_directives: Iterable[str] | None = None,
+    selected_tactics: Iterable[str] | None = None,
     available_tools: Iterable[str] | None = None,
     agent_profile: str | None | object = _UNSET,
     agent_role: str | None | object = _UNSET,
@@ -332,6 +340,10 @@ def apply_answer_overrides(
         agent_profile=interview.agent_profile if agent_profile is _UNSET else _normalize_optional_string(agent_profile),
         agent_role=interview.agent_role if agent_role is _UNSET else _normalize_optional_string(agent_role),
         local_supporting_files=resolved_local,
+        selected_tactics=_normalize_iterable(
+            selected_tactics,
+            fallback=interview.selected_tactics,
+        ),
     )
 
 
@@ -372,6 +384,7 @@ def _load_packaged_defaults() -> dict[str, object]:
         "answers": {},
         "selected_paradigms": [],
         "selected_directives": [],
+        "selected_tactics": [],
         "available_tools": [],
     }
     try:
@@ -399,6 +412,7 @@ def _load_packaged_defaults() -> dict[str, object]:
         "answers": normalized_answers,
         "selected_paradigms": _normalize_list(data.get("selected_paradigms")),
         "selected_directives": _normalize_list(data.get("selected_directives")),
+        "selected_tactics": _normalize_list(data.get("selected_tactics")),
         "available_tools": _normalize_list(data.get("available_tools")),
     }
 

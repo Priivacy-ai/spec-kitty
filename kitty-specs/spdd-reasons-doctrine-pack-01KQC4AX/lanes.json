@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "mission_slug": "spdd-reasons-doctrine-pack-01KQC4AX",
+  "mission_id": "01KQC4AX9R4BJ40WWND37CCCJT",
+  "mission_branch": "kitty/mission-spdd-reasons-doctrine-pack-01KQC4AX",
+  "target_branch": "doctrine/spdd-reasons-pack",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "src/charter/context.py",
+        "src/charter/synthesizer/targets.py",
+        "src/doctrine/directives/shipped/038-structured-prompt-boundary.directive.yaml",
+        "src/doctrine/paradigms/shipped/structured-prompt-driven-development.paradigm.yaml",
+        "src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md",
+        "src/doctrine/spdd_reasons/__init__.py",
+        "src/doctrine/spdd_reasons/activation.py",
+        "src/doctrine/spdd_reasons/charter_context.py",
+        "src/doctrine/spdd_reasons/template_renderer.py",
+        "src/doctrine/styleguides/shipped/reasons-canvas-writing.styleguide.yaml",
+        "src/doctrine/tactics/shipped/reasons-canvas-fill.tactic.yaml",
+        "src/doctrine/tactics/shipped/reasons-canvas-review.tactic.yaml",
+        "src/doctrine/templates/fragments/reasons-canvas-template.md",
+        "src/specify_cli/missions/software-dev/command-templates/implement.md",
+        "src/specify_cli/missions/software-dev/command-templates/plan.md",
+        "src/specify_cli/missions/software-dev/command-templates/review.md",
+        "src/specify_cli/missions/software-dev/command-templates/specify.md",
+        "src/specify_cli/missions/software-dev/command-templates/tasks.md",
+        "tests/charter/__init__.py",
+        "tests/charter/fixtures/spdd_active/.gitkeep",
+        "tests/charter/fixtures/spdd_inactive/.gitkeep",
+        "tests/charter/test_charter_context_spdd_reasons.py",
+        "tests/doctrine/test_spdd_reasons_artifacts.py",
+        "tests/doctrine/test_spdd_reasons_skill.py",
+        "tests/prompts/__init__.py",
+        "tests/prompts/fixtures/baseline/.gitkeep",
+        "tests/prompts/test_prompt_fragment_rendering.py",
+        "tests/reviews/__init__.py",
+        "tests/reviews/test_review_gate_activation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/charter.md",
+        "docs/doctrine/README.md",
+        "docs/doctrine/spdd-reasons.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-04-29T08:24:56.224015+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

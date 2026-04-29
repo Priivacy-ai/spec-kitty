@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-29T08:05:24.042983+00:00",
+  "friendly_name": "Opt-in SPDD and REASONS Canvas Doctrine Pack",
+  "mission_id": "01KQC4AX9R4BJ40WWND37CCCJT",
+  "mission_number": 107,
+  "mission_slug": "spdd-reasons-doctrine-pack-01KQC4AX",
+  "mission_type": "software-dev",
+  "purpose_context": "Adapts Martin Fowler's SPDD/REASONS pattern to Spec Kitty's philosophy: code remains the source of truth for current behavior, while structured prompts and canvases capture change-intent and decision boundaries. Activation is fully charter-driven so inactive projects see no prompt, context, or review changes.",
+  "purpose_tldr": "Ship an opt-in doctrine pack that lets projects activate Structured-Prompt-Driven Development and REASONS Canvas through charter selection without changing behavior for projects that don't select it.",
+  "slug": "spdd-reasons-doctrine-pack-01KQC4AX",
+  "source_description": "Implement epic #873: opt-in SPDD/REASONS doctrine pack across 6 WPs (#876, #879, #878, #875, #877, #874). Brief: .kittify/mission-brief.md.",
+  "target_branch": "doctrine/spdd-reasons-pack",
+  "vcs": "git"
+}

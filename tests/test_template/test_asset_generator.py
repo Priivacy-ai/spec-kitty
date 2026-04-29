@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from specify_cli.template.asset_generator import (
     generate_agent_assets,
     prepare_command_templates,
@@ -69,8 +67,8 @@ def test_render_command_template_handles_toml_extension(tmp_path: Path) -> None:
     assert output.startswith('description = "Demo Template"')
     # Version marker is embedded inside the prompt block for TOML output
     assert 'prompt = """' in output
-    assert 'Run echo hi {{args}}  for gemini.' in output
-    assert '<!-- spec-kitty-command-version:' in output
+    assert "Run echo hi {{args}}  for gemini." in output
+    assert "<!-- spec-kitty-command-version:" in output
 
 
 def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
@@ -265,9 +263,7 @@ def test_render_command_template_markdown_starts_with_yaml_frontmatter(tmp_path:
     assert "description: Demo Template" in lines, "description not preserved in frontmatter"
     # The closing --- comes before the version marker
     closing_index = next(i for i in range(1, len(lines)) if lines[i] == "---")
-    assert lines[closing_index + 1].startswith("<!-- spec-kitty-command-version:"), (
-        "Version marker must immediately follow the closing --- of the frontmatter"
-    )
+    assert lines[closing_index + 1].startswith("<!-- spec-kitty-command-version:"), "Version marker must immediately follow the closing --- of the frontmatter"
 
 
 def test_render_command_template_markdown_marker_not_on_line_zero(tmp_path: Path) -> None:
@@ -284,8 +280,7 @@ def test_render_command_template_markdown_marker_not_on_line_zero(tmp_path: Path
     )
 
     assert not output.splitlines()[0].startswith("<!-- spec-kitty-command-version:"), (
-        "Marker on line 0 would break Claude Code's frontmatter parsing — "
-        "this is the bug the fix addresses."
+        "Marker on line 0 would break Claude Code's frontmatter parsing — this is the bug the fix addresses."
     )
 
 
@@ -302,6 +297,90 @@ def test_render_command_template_markdown_preserves_body(tmp_path: Path) -> None
     )
 
     assert "Run echo hi $ARGUMENTS source env for claude." in output
+
+
+def test_render_command_template_strips_spdd_block_when_inactive(tmp_path: Path) -> None:
+    template_path = tmp_path / "demo.md"
+    template_path.write_text(
+        """---
+description: Demo Template
+scripts:
+  sh: echo hi
+---
+Before
+
+<!-- spdd:reasons-block:start -->
+
+### REASONS Guidance
+
+Hidden unless active.
+
+<!-- spdd:reasons-block:end -->
+
+After {SCRIPT}
+""",
+        encoding="utf-8",
+    )
+    repo_root = tmp_path / "project"
+    repo_root.mkdir()
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+        repo_root=repo_root,
+    )
+
+    assert "Before\n\nAfter echo hi" in output
+    assert "REASONS Guidance" not in output
+    assert "spdd:reasons-block" not in output
+
+
+def test_render_command_template_keeps_spdd_block_when_active(tmp_path: Path) -> None:
+    template_path = tmp_path / "demo.md"
+    template_path.write_text(
+        """---
+description: Demo Template
+scripts:
+  sh: echo hi
+---
+Before
+
+<!-- spdd:reasons-block:start -->
+
+### REASONS Guidance
+
+Visible when active.
+
+<!-- spdd:reasons-block:end -->
+
+After {SCRIPT}
+""",
+        encoding="utf-8",
+    )
+    repo_root = tmp_path / "project"
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "governance.yaml").write_text(
+        "doctrine:\n  selected_paradigms:\n    - structured-prompt-driven-development\n",
+        encoding="utf-8",
+    )
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+        repo_root=repo_root,
+    )
+
+    assert "REASONS Guidance" in output
+    assert "Visible when active." in output
+    assert "spdd:reasons-block" not in output
+    assert "After echo hi" in output
 
 
 def test_render_command_template_markdown_without_frontmatter_still_emits_marker(tmp_path: Path) -> None:
@@ -336,10 +415,7 @@ def test_bundled_software_dev_templates_have_descriptions(tmp_path: Path) -> Non
     for template_file in template_files:
         meta, _body, _raw = parse_frontmatter(template_file.read_text(encoding="utf-8"))
         description = str(meta.get("description", "")).strip()
-        assert description, (
-            f"{template_file.name} missing 'description' in YAML frontmatter — "
-            f"slash-command pickers will show garbage"
-        )
+        assert description, f"{template_file.name} missing 'description' in YAML frontmatter — slash-command pickers will show garbage"
 
 
 def test_render_command_template_fails_when_script_missing_and_required(tmp_path: Path) -> None:

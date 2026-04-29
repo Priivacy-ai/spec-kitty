@@ -5,6 +5,24 @@ description: Create a mission specification
 
 **Version**: 0.11.0+
 
+<!-- spdd:reasons-block:start -->
+
+### REASONS Guidance — Specify
+
+This project's charter selected the SPDD/REASONS doctrine pack. While capturing
+the spec, populate or update these REASONS canvas sections:
+
+- **Requirements** — problem statement, acceptance criteria, definition of done.
+- **Entities** — domain concepts, relationships, canonical glossary terms.
+
+Reference: `kitty-specs/<mission>/reasons-canvas.md` if present. Use the
+template at `src/doctrine/templates/fragments/reasons-canvas-template.md` if
+the canvas does not yet exist.
+
+Charter directives take precedence over canvas content.
+
+<!-- spdd:reasons-block:end -->
+
 ## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
 **IMPORTANT**: Specify works in the repository root checkout. NO worktrees are created.
