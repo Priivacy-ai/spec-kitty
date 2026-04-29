@@ -288,6 +288,7 @@ spec-kitty charter status --json
 - [Create a Specification](create-specification.md) -- Start a feature with governance active
 - [Switch Missions](switch-missions.md) -- How missions interact with governance
 - [Non-Interactive Init](non-interactive-init.md) -- Automated project setup including charter
+- [Doctrine Packs](../doctrine/README.md) -- Optional pack selections, including [SPDD and the REASONS Canvas](../doctrine/spdd-reasons.md)
 
 ## Background
 
