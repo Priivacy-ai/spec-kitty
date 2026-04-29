@@ -55,14 +55,14 @@ The current docs still lean on the older 2.x interview/generate/sync mental mode
 | ID | Requirement | Priority | Status |
 |---|---|---|---|
 | FR-001 | A gap analysis (`gap-analysis.md`) **must** be produced with a Divio coverage matrix covering all areas listed in the Audit scope. Each cell must be classified as `present-current`, `present-stale`, `missing`, or `intentionally-deferred`. Stale/missing cells must cite both the stale doc path and the source-of-truth code/spec path. | P0 | Draft |
-| FR-002 | A documentation information architecture plan (`plan.md`) **must** be produced before any content is written, resolving the required design decisions listed in the Design scope. | P0 | Draft |
+| FR-002 | A documentation information architecture plan (`plan.md`) **must** be produced before any content is written, resolving the required design decisions listed in the Design scope. | P0 | Done |
 | FR-003 | A Charter current-state overview doc **must** be produced or updated to accurately describe the current synthesis/DRG model and to distinguish human-policy files from generated-doctrine files. | P0 | Draft |
 | FR-004 | `docs/how-to/setup-governance.md` **must** teach the current recommended governance setup flow — including bundle validation and doctrine synthesis — and **must not** describe only the older interview/generate/sync flow. | P0 | Draft |
 | FR-005 | Docs covering Charter synthesis, resynthesis (including dry-run, apply, status, lint, provenance, idempotency, staging, and recovery) **must** be produced or updated. | P0 | Draft |
 | FR-006 | Docs covering DRG-backed governance context, action identities, bootstrap versus compact context, and known limitations (including compact-context behavior from #787 if still open) **must** be produced. | P0 | Draft |
 | FR-007 | Docs covering governed profile invocation — `ask`, `advise`, `do`, `profile-invocation complete`, evidence/artifact correlation, and lifecycle trails — **must** be produced so that an operator can follow the invocation lifecycle without reading source code. | P0 | Draft |
 | FR-008 | Docs covering mission composition under Charter (`spec-kitty next --agent <agent>`, composed step contracts, prompt resolution, blocked decisions, and Charter context loading) **must** be produced. | P0 | Draft |
-| FR-009 | Documentation mission type docs **must** use the current phases: `discover`, `audit`, `design`, `generate`, `validate`, `publish`, `accept`. Docs **must not** describe phases from an earlier model. | P0 | Draft |
+| FR-009 | Documentation mission type docs **must** use the current phases: `discover`, `audit`, `design`, `generate`, `validate`, `publish`, `accept`. Docs **must not** describe phases from an earlier model. *(Note: NFR-004 is the measurable complement — exact phase-name match required. FR-009 is the functional requirement; NFR-004 is the quality threshold.)* | P0 | Draft |
 | FR-010 | Retrospective learning loop docs **must** be produced, covering HiC/autonomous behavior, skip semantics, facilitator failures, summary, synthesizer dry-run/apply, proposal kinds, conflicts, staleness, provenance, and exit codes. These docs **must** be reachable from navigation and split into appropriate Divio shapes. | P0 | Draft |
 | FR-011 | Glossary docs **must** explain the runtime, DRG, project-local, and retrospective-proposal relationships so that a maintainer can understand what is authoritative human policy versus generated state. | P1 | Draft |
 | FR-012 | A CLI reference **must** be produced or updated covering the Charter-era command surfaces listed in issue #828, verified against current `--help` output or source code. | P0 | Draft |
@@ -210,6 +210,9 @@ Update TOCs and any docs release notes/changelog if maintained.
 - Do not hand-wave CLI references; they must match the shipped command surface.
 - Do not use screenshots as the primary source of truth for CLI behavior.
 - Do not do #469 Phase 7 or additional #827 E2E canaries in this mission.
+- Do not produce research-mission-specific how-to docs; the research mission is noted as intentionally deferred in the coverage matrix.
+- Do not produce custom-mission lifecycle docs beyond what is covered by the Charter operator workflow; custom mission internals are a separate documentation scope.
+- Do not document operator-level event, sync, or SaaS-integration internals; `docs/reference/event-envelope.md` covers the internal/dev surface and is out of scope for this PR.
 
 ## Machine Rule
 

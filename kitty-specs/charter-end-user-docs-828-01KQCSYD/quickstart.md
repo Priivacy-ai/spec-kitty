@@ -37,15 +37,16 @@ Before writing any CLI reference content, run the real `--help` output:
 uv run spec-kitty charter --help
 uv run spec-kitty charter interview --help
 uv run spec-kitty charter generate --help
-uv run spec-kitty charter context --help
+uv run spec-kitty charter synthesize --help     # doctrine synthesis (primary synthesis verb)
+uv run spec-kitty charter resynthesize --help   # partial resynthesis
 uv run spec-kitty charter status --help
-uv run spec-kitty charter sync --help
+uv run spec-kitty charter sync --help           # syncs charter.md to YAML config (NOT SaaS push)
 uv run spec-kitty charter lint --help
-uv run spec-kitty charter bundle --help   # verify this exists before writing a section for it
+uv run spec-kitty charter bundle --help         # verify this exists before writing a section for it
 uv run spec-kitty next --help
-uv run spec-kitty retro --help
-uv run spec-kitty retro summary --help
-uv run spec-kitty retro synthesizer --help
+uv run spec-kitty retrospect --help
+uv run spec-kitty retrospect summary --help
+uv run spec-kitty agent retrospect synthesize --help
 uv run spec-kitty agent decision --help
 ```
 
@@ -69,6 +70,16 @@ If a subcommand returns `Error: No such command`, do not include a section for i
 2. Identify stale sections (e.g., "Spec Kitty 2.x" prerequisite in `setup-governance.md`).
 3. Update in place — do not rewrite sections that are still accurate.
 4. Add a "See also" block at the bottom linking to the new related pages.
+
+---
+
+## Terminology Note
+
+Use **charter bundle** (not "doctrine bundle") when referring to the output of `charter bundle`. The CLI term is "charter bundle" — use this consistently in all pages to match what users see in `--help` output.
+
+Use **charter synthesize** (not "charter context") when describing doctrine synthesis. `charter context` is a different subcommand with a different purpose — do not use it as a synonym for synthesis.
+
+Use **retrospect** (not "retro") for the retrospective command group: `spec-kitty retrospect summary`, `spec-kitty agent retrospect synthesize`.
 
 ---
 

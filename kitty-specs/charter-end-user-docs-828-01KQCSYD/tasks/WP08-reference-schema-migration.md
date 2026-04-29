@@ -69,8 +69,8 @@ cat src/specify_cli/missions/documentation/mission-runtime.yaml 2>/dev/null || e
 
 # Check retrospective schema
 find src/ -name '*.yaml' | xargs grep -l 'retrospective' 2>/dev/null | head -10
-uv run spec-kitty retro synthesizer --help
-uv run spec-kitty retro summary --help
+uv run spec-kitty agent retrospect synthesize --help
+uv run spec-kitty retrospect summary --help
 ```
 
 **Critical rule**: Documentation mission phases in `documentation-mission.md` must match exactly what `mission-runtime.yaml` declares. Do not invent or elide phases.
@@ -97,14 +97,14 @@ The migration guide covers changes between 2.x and Charter-era 3.x that affect o
 |---|---|---|---|
 | (derive from source — do not invent) | | | |
 
-To find the schema: look for `retrospective.yaml` in `src/specify_cli/` or check `uv run spec-kitty retro summary --json` output if available. If the schema is not directly inspectable, derive from what `retro summary` outputs and document that.
+To find the schema: look for `retrospective.yaml` in `src/specify_cli/` or check `uv run spec-kitty retrospect summary --json` output if available. If the schema is not directly inspectable, derive from what `retrospect summary` outputs and document that.
 
 3. **Proposal kinds** — one section per proposal type:
    - Name
    - Required fields
    - When the synthesizer accepts vs rejects it
    
-   If proposal kinds are not directly documented, use `retro synthesizer dry-run` output structure.
+   If proposal kinds are not directly documented, use `agent retrospect synthesize --dry-run` output structure.
 
 4. **Retrospective status event fields** — what events appear in the status trail for a retrospective lifecycle. Reference the 9-lane status model (status.events.jsonl).
 
@@ -115,7 +115,7 @@ To find the schema: look for `retrospective.yaml` in `src/specify_cli/` or check
 | 0 | Success — proposals applied | None |
 | (non-zero codes from --help or source) | | |
 
-If exit codes are not documented in `--help`, write: "Consult `uv run spec-kitty retro synthesizer --help` for current exit codes."
+If exit codes are not documented in `--help`, write: "Consult `uv run spec-kitty agent retrospect synthesize --help` for current exit codes."
 
 **Cross-links**:
 - `docs/how-to/use-retrospective-learning.md`
@@ -163,7 +163,7 @@ Derive 2.x behavior by reading `docs/2x/` content (particularly `docs/2x/doctrin
 
 ### T033 — Review docs/explanation/documentation-mission.md for phase accuracy
 
-**Action**: Read the file. Compare the phases described in it to `mission-runtime.yaml`:
+**Action**: Read the file. Compare the phases described in it to `mission-runtime.yaml`. Also check for any references to `charter context`, `retro summary`, or `retro synthesizer` — these are stale command names if present:
 
 ```bash
 cat docs/explanation/documentation-mission.md
@@ -187,7 +187,7 @@ If the file uses old phase names (e.g., from the pre-3.0 documentation mission),
 
 If no changes are needed (all phases match), skip this subtask and note "documentation-mission.md phases confirmed current" in the commit message.
 
-### T035 — Update migration/toc.yml; verify reference/toc.yml has retrospective-schema.md
+### T035 — Verify docs/migration/toc.yml and reference/toc.yml have correct entries
 
 The migration page and retrospective-schema.md should already appear in their toc.yml files (added by WP01). Verify:
 

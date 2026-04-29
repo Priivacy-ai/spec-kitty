@@ -32,6 +32,7 @@ owned_files:
 - docs/reference/toc.yml
 - docs/migration/toc.yml
 - docs/2x/index.md
+- docs/docfx.json
 tags: []
 ---
 
@@ -202,6 +203,29 @@ grep -r 'TODO: register' docs/
 ```
 Zero results required.
 
+### T004.1 — Update docs/docfx.json to include new directories
+
+**File**: `docs/docfx.json`
+
+Read the current file. The DocFX build configuration controls which Markdown files are included in the generated site — distinct from toc.yml reachability. Pages in toc.yml that are not listed in docfx.json will be absent from the generated site even if the toc is correct.
+
+Add `docs/3x/` and `docs/migration/` to the `files` or `content` array in `docs/docfx.json`. The exact JSON key depends on the current file structure — read it first.
+
+Expected additions (adapt to the existing JSON structure):
+```json
+"docs/3x/**.md",
+"docs/3x/toc.yml",
+"docs/migration/**.md",
+"docs/migration/toc.yml"
+```
+
+Verify the file is valid JSON after editing:
+```bash
+python3 -c "import json; json.load(open('docs/docfx.json'))"
+```
+
+This step is **required**. Without it, the `docs/3x/` and `docs/migration/` pages will not appear in the built DocFX site even though toc.yml is correct.
+
 ### T005 — Update docs/2x/index.md with archive notice
 
 **File**: `docs/2x/index.md`
@@ -226,4 +250,5 @@ Do not remove or modify any existing 2.x content — this is archive material.
 - [ ] `docs/2x/index.md` has archive notice
 - [ ] `grep -r 'TODO: register' docs/` returns zero results
 - [ ] All toc.yml files are valid YAML (no syntax errors)
+- [ ] `docs/docfx.json` updated to include `docs/3x/` and `docs/migration/` directories; file is valid JSON
 - [ ] `uv run pytest tests/docs/ -q` passes (zero failures)

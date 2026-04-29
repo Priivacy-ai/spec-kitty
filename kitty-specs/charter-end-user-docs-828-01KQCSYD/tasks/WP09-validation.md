@@ -101,7 +101,9 @@ All pages produced or updated by WP02–WP08:
 
 ## Subtask Guidance
 
-### T036 — Run uv run pytest tests/docs/ -q
+### T036 — Run uv run pytest tests/docs/ -q and DocFX build check
+
+**Part 1: docs test suite**
 
 ```bash
 cd /path/to/spec-kitty/repo  # run from repo root
@@ -117,11 +119,31 @@ If failures occur:
 
 Fix each failure by reading the test output, identifying the root cause, and fixing the page or toc.yml.
 
+**Part 2: DocFX build and link check**
+
+Verify that `docs/docfx.json` includes the new directories so newly added pages appear in the built site:
+
+```bash
+# Confirm docs/3x/ and docs/migration/ appear in docfx.json
+grep -E '3x|migration' docs/docfx.json
+```
+
+Both must appear. If either is missing, the new pages will be absent from the generated DocFX site even if toc.yml is correct. Flag as a WP01 fix if missing.
+
+If the repo has a `docfx build` script or CI step, run it and verify zero build errors:
+```bash
+# Run DocFX build if available (adapt to repo's build tooling)
+docfx build docs/docfx.json --dryRun 2>&1 | tail -20
+```
+
+If `docfx` is not installed locally, note "DocFX binary not available locally; build verified via CI" in the validation report.
+
 Record in validation-report.md:
 - Command run
 - Exit code
 - Number of tests passing
 - Any failures and their fixes
+- DocFX build result or note about CI verification
 
 ### T037 — Check all new/changed pages reachable from toc.yml; grep for TODO markers
 
@@ -161,6 +183,22 @@ grep -r 'TODO: register in docs nav' docs/
 ```
 Zero results required.
 
+**Part 3: Deferral language grep**
+
+Check that no page contains deferred-placeholder language that should have been resolved before PR:
+
+```bash
+grep -rE '\[NEEDS CLARIFICATION|INTENTIONALLY-DEFERRED|intentionally.deferred' \
+  docs/3x/ docs/tutorials/charter-governed-workflow.md \
+  docs/how-to/synthesize-doctrine.md docs/how-to/run-governed-mission.md \
+  docs/how-to/use-retrospective-learning.md docs/how-to/troubleshoot-charter.md \
+  docs/explanation/ docs/reference/charter-commands.md \
+  docs/reference/profile-invocation.md docs/reference/retrospective-schema.md \
+  docs/migration/from-charter-2x.md
+```
+
+Zero results required. Deferred placeholders are acceptable in planning artifacts but not in published docs pages.
+
 ### T038 — Verify CLI flags in charter-commands.md match current --help
 
 Re-run each charter subcommand `--help` and compare against `docs/reference/charter-commands.md`:
@@ -168,17 +206,21 @@ Re-run each charter subcommand `--help` and compare against `docs/reference/char
 ```bash
 uv run spec-kitty charter interview --help
 uv run spec-kitty charter generate --help
-uv run spec-kitty charter context --help
+uv run spec-kitty charter synthesize --help
+uv run spec-kitty charter resynthesize --help
 uv run spec-kitty charter status --help
 uv run spec-kitty charter sync --help
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help
+uv run spec-kitty retrospect summary --help
+uv run spec-kitty agent retrospect synthesize --help
 ```
 
 For each subcommand:
 - Every flag in `charter-commands.md` must appear in `--help` output
 - No flag in `charter-commands.md` that doesn't appear in `--help`
 - Descriptions should match (minor paraphrasing acceptable; invented flags are not)
+- `charter-commands.md` must include `charter synthesize` and `charter resynthesize` sections (P1 requirement)
 
 Record any discrepancies and fix `charter-commands.md` before marking this check passed.
 
@@ -196,7 +238,9 @@ Cross-check `docs/explanation/documentation-mission.md` against the phases in `m
 
 Record the phase list from mission-runtime.yaml in the validation report as evidence.
 
-### T040 — Execute tutorial smoke-test from fresh temp repo
+### T040 — Execute tutorial smoke-test and setup-governance.md check from fresh temp repo
+
+**Part 1: Tutorial smoke-test**
 
 Run the `docs/tutorials/charter-governed-workflow.md` tutorial from a fresh temp directory and verify no source-repo pollution:
 
@@ -209,6 +253,7 @@ git init -q
 # Execute each step in the tutorial in sequence
 # For interactive steps (charter interview), use --non-interactive if available or document manually
 # For steps requiring SaaS sync: SPEC_KITTY_ENABLE_SAAS_SYNC=1
+# Steps should use: charter synthesize (not charter context), retrospect summary (not retro summary)
 
 cd "$ORIGINAL_DIR"
 
@@ -219,11 +264,28 @@ git diff --stat HEAD  # should be clean
 rm -rf "$TMPDIR"
 ```
 
-**Required result**: All tutorial steps complete without error (or errors are documented in the tutorial as expected), AND the spec-kitty source repo is clean after the smoke test.
+**Part 2: setup-governance.md smoke-test**
 
-If a tutorial step fails in the smoke test:
-- Check if the tutorial step accurately describes what the command does
-- Fix the tutorial page if the step description is wrong
+Also verify the setup-governance.md flow is executable (FR-004 requirement):
+
+```bash
+TMPDIR2=$(mktemp -d)
+cd "$TMPDIR2"
+git init -q
+
+# Run the governance setup flow from docs/how-to/setup-governance.md
+# charter interview, charter generate, charter lint, charter synthesize, charter bundle
+
+cd "$ORIGINAL_DIR"
+git status  # clean check
+rm -rf "$TMPDIR2"
+```
+
+**Required result**: All tutorial steps and setup-governance steps complete without error (or errors are documented as expected), AND the spec-kitty source repo is clean after both smoke tests.
+
+If a step fails in the smoke test:
+- Check if the page accurately describes what the command does
+- Fix the page if the step description is wrong
 - If the command itself has a bug, note it in the validation report and flag for follow-up
 
 ### T041 — Write validation-report.md with evidence
@@ -253,11 +315,12 @@ Produce a comprehensive report. Template:
 - **Pages checked**: [list pages]
 - **All pages in toc.yml**: [yes/no — list any misses]
 - **TODO markers found**: 0
+- **Deferral language found**: 0
 - **Fixes applied**: [list any, or "none"]
 
 ## T038: CLI flags vs --help
 
-- **Subcommands verified**: charter interview, generate, context, status, sync, lint, bundle
+- **Subcommands verified**: charter interview, generate, synthesize, resynthesize, status, sync, lint, bundle; retrospect summary; agent retrospect synthesize
 - **Discrepancies found**: [list any, or "none"]
 - **Fixes applied**: [list any, or "none"]
 
@@ -268,7 +331,7 @@ Produce a comprehensive report. Template:
 - **Match**: [yes/no]
 - **Fixes applied**: [list any, or "none"]
 
-## T040: Tutorial smoke-test
+## T040: Tutorial smoke-test and setup-governance.md check
 
 - **Tutorial**: docs/tutorials/charter-governed-workflow.md
 - **Smoke-test repo**: temp dir (cleaned after test)
@@ -276,6 +339,7 @@ Produce a comprehensive report. Template:
 - **Steps passed**: [list which steps ran cleanly]
 - **Steps that require SaaS or interactive**: [list and note]
 - **Result**: [pass/fail]
+- **setup-governance.md smoke-test**: [pass/fail or "not run — see notes"]
 
 ## Summary
 
@@ -287,11 +351,15 @@ Ready for PR: [yes/no]
 ## Definition of Done
 
 - [ ] `uv run pytest tests/docs/ -q` → zero failures
+- [ ] `docs/docfx.json` confirmed to include `docs/3x/` and `docs/migration/`; DocFX build passes or note recorded
 - [ ] All new/changed pages verified in toc.yml
 - [ ] `grep -r 'TODO' [all new pages]` → zero results
 - [ ] `grep -r 'TODO: register in docs nav' docs/` → zero results
-- [ ] CLI flags in `charter-commands.md` verified against live `--help`
+- [ ] Deferral-language grep → zero results in published doc pages
+- [ ] CLI flags in `charter-commands.md` verified against live `--help`; includes `charter synthesize` and `charter resynthesize`
+- [ ] `charter-commands.md` uses `retrospect summary` / `agent retrospect synthesize` — not `retro` variants
 - [ ] Documentation mission phases verified against `mission-runtime.yaml`
 - [ ] Tutorial smoke-test completed with no source-repo pollution
+- [ ] `docs/how-to/setup-governance.md` flow smoke-tested from temp repo
 - [ ] `kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/validation-report.md` written with evidence for each check
 - [ ] All checks PASS (no outstanding failures)

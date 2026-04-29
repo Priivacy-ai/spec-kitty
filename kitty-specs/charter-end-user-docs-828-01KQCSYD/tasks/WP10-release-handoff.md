@@ -114,13 +114,17 @@ Produce the release handoff artifact. Use the template from `plan.md` "Release H
 |---|---|
 | `uv run spec-kitty charter interview --help` | [actual outcome] |
 | `uv run spec-kitty charter generate --help` | [actual outcome] |
-| `uv run spec-kitty charter context --help` | [actual outcome] |
+| `uv run spec-kitty charter synthesize --help` | [actual outcome] |
+| `uv run spec-kitty charter resynthesize --help` | [actual outcome or "not available"] |
 | `uv run spec-kitty charter status --help` | [actual outcome] |
+| `uv run spec-kitty charter sync --help` | [actual outcome] |
 | `uv run spec-kitty charter lint --help` | [actual outcome] |
 | `uv run spec-kitty charter bundle --help` | [actual outcome or "not available"] |
 | `uv run spec-kitty next --help` | [actual outcome] |
-| `uv run spec-kitty retro summary --help` | [actual outcome] |
+| `uv run spec-kitty retrospect summary --help` | [actual outcome] |
+| `uv run spec-kitty agent retrospect synthesize --help` | [actual outcome] |
 | Tutorial smoke-test (temp repo) | [pass/fail + notes] |
+| `docs/how-to/setup-governance.md` smoke-test (temp repo) | [pass/fail + notes] |
 
 ## Docs Tests Run
 
@@ -191,6 +195,19 @@ grep -r '2\.x' docs/3x/ docs/tutorials/charter-governed-workflow.md \
 **Required result**:
 - `grep -r 'TODO'` → zero results
 - `grep -r '2\.x'` in current-facing pages → zero results (except migration page, which is expected)
+
+Also run a final stale-command check:
+```bash
+# Check for stale retro command surface
+grep -r 'retro summary\|retro synthesizer\|spec-kitty retro' \
+  docs/3x/ docs/tutorials/ docs/how-to/ docs/explanation/ docs/reference/ docs/migration/
+
+# Check for stale charter context as synthesis verb
+grep -r 'charter context --dry-run\|charter context.*apply' \
+  docs/3x/ docs/tutorials/ docs/how-to/ docs/explanation/ docs/reference/
+```
+
+Both greps must return zero results.
 
 If any stale text found: fix the page, then re-run the grep.
 

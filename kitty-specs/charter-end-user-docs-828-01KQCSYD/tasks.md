@@ -45,12 +45,12 @@
 | T027 | Write docs/reference/charter-commands.md | WP07 | [P] |
 | T028 | Update docs/reference/cli-commands.md with Charter-era section | WP07 | [P] |
 | T029 | Write docs/reference/profile-invocation.md | WP07 | [P] |
-| T030 | Update docs/reference/toc.yml | WP07 | [P] |
+| T030 | Verify docs/reference/toc.yml has all reference page entries | WP07 | [P] |
 | T031 | Write docs/reference/retrospective-schema.md | WP08 | [P] |
 | T032 | Write docs/migration/from-charter-2x.md | WP08 | [P] |
 | T033 | Review docs/explanation/documentation-mission.md for phase accuracy | WP08 | [P] |
 | T034 | Update docs/explanation/documentation-mission.md if stale | WP08 | [P] |
-| T035 | Update docs/migration/toc.yml; verify reference/toc.yml | WP08 | [P] |
+| T035 | Verify docs/migration/toc.yml and reference/toc.yml have correct entries | WP08 | [P] |
 | T036 | Run uv run pytest tests/docs/ -q (zero failures) | WP09 | — |
 | T037 | Check new pages reachable from toc.yml; grep TODO markers | WP09 | — |
 | T038 | Verify CLI flags in charter-commands.md match --help | WP09 | — |
@@ -124,7 +124,7 @@
 
 **Subtasks**:
 
-- [ ] T010 Write docs/tutorials/charter-governed-workflow.md — arc: governance setup → bundle validate → synthesize → spec-kitty next → retro summary → next steps (WP03)
+- [ ] T010 Write docs/tutorials/charter-governed-workflow.md — arc: governance setup → charter lint/bundle → charter synthesize → spec-kitty next → retrospect summary → next steps (WP03)
 - [ ] T011 Smoke-test all command snippets in tutorial against a temp project (WP03)
 - [ ] T012 Verify tutorial entry in docs/tutorials/toc.yml; add "See also" cross-links (WP03)
 
@@ -162,9 +162,9 @@
 
 **Subtasks**:
 
-- [ ] T018 Write docs/how-to/use-retrospective-learning.md (retro summary, synthesizer dry-run/apply, HiC/autonomous, skip semantics, exit codes) (WP05)
+- [ ] T018 Write docs/how-to/use-retrospective-learning.md (retrospect summary, agent retrospect synthesize --dry-run/--apply, facilitator failures, HiC/autonomous, skip semantics, exit codes) (WP05)
 - [ ] T019 Write docs/how-to/troubleshoot-charter.md (stale bundle, missing doctrine, compact context, retro gate failure, synthesizer rejection) (WP05)
-- [ ] T020 Smoke-test retro command snippets; add cross-links to reference/retrospective-schema.md (WP05)
+- [ ] T020 Smoke-test retrospect command snippets; add cross-links to reference/retrospective-schema.md (WP05)
 
 **Dependencies**: WP01
 **Parallelization**: [P] with WP02, WP03, WP04, WP06, WP07, WP08
@@ -204,7 +204,7 @@
 - [ ] T027 Write docs/reference/charter-commands.md — one section per subcommand, all flags verified against --help output (WP07)
 - [ ] T028 Update docs/reference/cli-commands.md — add Charter-era section with cross-links to charter-commands.md (WP07)
 - [ ] T029 Write docs/reference/profile-invocation.md — ask/advise/do flags, profile-invocation complete, trail fields, lifecycle states (WP07)
-- [ ] T030 Update docs/reference/toc.yml (WP07)
+- [ ] T030 Verify docs/reference/toc.yml has all reference page entries (WP07)
 
 **Dependencies**: WP01
 **Parallelization**: [P] with WP02, WP03, WP04, WP05, WP06, WP08
@@ -224,7 +224,7 @@
 - [ ] T032 Write docs/migration/from-charter-2x.md — changed paths/commands, re-run steps after upgrade, known migration failures (WP08)
 - [ ] T033 Review docs/explanation/documentation-mission.md for phase accuracy against mission-runtime.yaml (FR-009) (WP08)
 - [ ] T034 Update docs/explanation/documentation-mission.md with current phases if stale (WP08)
-- [ ] T035 Update docs/migration/toc.yml; verify reference/toc.yml has retrospective-schema.md entry (WP08)
+- [ ] T035 Verify docs/migration/toc.yml and reference/toc.yml have correct entries (WP08)
 
 **Dependencies**: WP01
 **Parallelization**: [P] with WP02, WP03, WP04, WP05, WP06, WP07

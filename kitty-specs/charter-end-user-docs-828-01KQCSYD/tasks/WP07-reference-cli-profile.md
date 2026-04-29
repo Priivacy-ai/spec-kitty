@@ -69,15 +69,16 @@ Reference pages describe only what exists, not what might exist or what used to 
 uv run spec-kitty charter --help
 uv run spec-kitty charter interview --help
 uv run spec-kitty charter generate --help
-uv run spec-kitty charter context --help
+uv run spec-kitty charter synthesize --help      # doctrine synthesis (the primary synthesis verb)
+uv run spec-kitty charter resynthesize --help    # partial resynthesis
 uv run spec-kitty charter status --help
-uv run spec-kitty charter sync --help
+uv run spec-kitty charter sync --help            # syncs charter.md to YAML config files
 uv run spec-kitty charter lint --help
-uv run spec-kitty charter bundle --help   # verify this exists
+uv run spec-kitty charter bundle --help          # verify this exists
 uv run spec-kitty next --help
-uv run spec-kitty retro --help
-uv run spec-kitty retro summary --help
-uv run spec-kitty retro synthesizer --help
+uv run spec-kitty retrospect --help
+uv run spec-kitty retrospect summary --help
+uv run spec-kitty agent retrospect synthesize --help
 uv run spec-kitty agent decision --help
 uv run spec-kitty agent decision open --help
 uv run spec-kitty agent decision resolve --help
@@ -102,9 +103,11 @@ Capture this into notes before writing T027 — the reference is built entirely 
 
 Key questions to answer:
 - Does `charter bundle` exist? (Plan assumes yes — verify)
-- Does `charter context` have a `--dry-run` flag?
-- Does `retro synthesizer` have `dry-run` and `apply` subcommands?
+- Does `charter synthesize` have a `--dry-run` flag?
+- Does `charter resynthesize` exist? What flags does it accept?
+- Does `agent retrospect synthesize` have `--dry-run` and `--apply` flags?
 - What flags does `spec-kitty next` accept?
+- What is the exact behavior of `charter sync`? (It syncs charter.md to YAML config files — confirm with `--help`)
 
 ### T027 — Write docs/reference/charter-commands.md
 
@@ -122,9 +125,10 @@ For each subcommand, include:
 **Subcommands to cover** (only those verified in T026):
 - `charter interview`
 - `charter generate`
-- `charter context`
+- `charter synthesize` (the primary doctrine synthesis verb — includes `--dry-run` if verified)
+- `charter resynthesize` (partial resynthesis — if verified to exist)
 - `charter status`
-- `charter sync`
+- `charter sync` (syncs `charter.md` to YAML config files — document what it actually does per `--help`)
 - `charter lint`
 - `charter bundle` (if it exists)
 
@@ -154,16 +158,16 @@ For each section, include exactly what `--help` says — do not embellish or par
 
 Spec Kitty 3.x adds the Charter governance layer. Charter commands use the `charter` subcommand group.
 
-- **[Charter CLI Reference](charter-commands.md)** — Full reference for `charter interview`, `generate`, `context`, `status`, `sync`, `lint`, `bundle`.
+- **[Charter CLI Reference](charter-commands.md)** — Full reference for `charter interview`, `generate`, `synthesize`, `resynthesize`, `status`, `sync`, `lint`, `bundle`.
 - **[Profile Invocation Reference](profile-invocation.md)** — Reference for `ask`/`advise`/`do` flags and the invocation trail.
 - **`spec-kitty next`** — Run a governed mission action. Flags: [list from --help output].
-- **`spec-kitty retro summary`** — View retrospective summary.
-- **`spec-kitty retro synthesizer dry-run` / `apply`** — Preview or apply synthesis proposals.
+- **`spec-kitty retrospect summary`** — View retrospective summary.
+- **`spec-kitty agent retrospect synthesize --dry-run` / `--apply`** — Preview or apply synthesis proposals.
 ```
 
 Do not duplicate flag tables — cross-link to `charter-commands.md` instead.
 
-Verify the `next` and `retro` commands appear in the Charter-era section with accurate flags from T026 output.
+Verify the `next` and `retrospect` commands appear in the Charter-era section with accurate flags from T026 output.
 
 ### T029 — Write docs/reference/profile-invocation.md
 
@@ -203,7 +207,7 @@ Verify flag names against `spec-kitty next --help` or equivalent before writing.
 - `docs/how-to/run-governed-mission.md`
 - `docs/3x/charter-overview.md`
 
-### T030 — Verify docs/reference/toc.yml
+### T030 — Verify docs/reference/toc.yml has all reference page entries
 
 The three reference pages should already appear in `docs/reference/toc.yml` (added by WP01). Verify:
 ```bash
@@ -219,9 +223,9 @@ Zero results required.
 
 ## Definition of Done
 
-- [ ] T026: All Charter `--help` output captured and reviewed before writing
-- [ ] `charter-commands.md` written with one section per verified subcommand; all flags match live `--help`
-- [ ] `cli-commands.md` updated with Charter-era section and cross-links (no duplicate flag tables)
+- [ ] T026: All Charter `--help` output captured and reviewed before writing; includes `charter synthesize` and `charter resynthesize`
+- [ ] `charter-commands.md` written with one section per verified subcommand; includes `synthesize` and `resynthesize` sections; all flags match live `--help`
+- [ ] `cli-commands.md` updated with Charter-era section and cross-links (no duplicate flag tables); uses `retrospect summary` and `agent retrospect synthesize` — not `retro` variants
 - [ ] `profile-invocation.md` written: ask/advise/do modes, profile-invocation complete, trail fields, lifecycle states, example JSON
 - [ ] No flags or subcommands invented — only what `--help` confirms
 - [ ] All pages use DocFX frontmatter

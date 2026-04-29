@@ -50,7 +50,7 @@ kitty-specs/charter-end-user-docs-828-01KQCSYD/
 ```
 docs/
 ├── index.md                               # (existing — no change)
-├── toc.yml                                # UPDATE: add 3x/ entry; register retrospective-learning-loop
+├── toc.yml                                # UPDATE: add 3x/ entry; relabel 2x/ as Archive; do NOT register retrospective-learning-loop at root level (it moves to explanation/)
 ├── retrospective-learning-loop.md         # EXISTING — currently not in toc.yml; integrate + split
 ├── 1x/                                    # archive (no change)
 ├── 2x/                                    # UPDATE: add archive label to index.md

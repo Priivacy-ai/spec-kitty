@@ -54,10 +54,10 @@ This WP can run in parallel with WP02, WP04–WP08 after WP01 completes.
 
 The tutorial must cover this complete arc:
 1. Initialize governance (run `charter interview`, `charter generate`)
-2. Validate the bundle (`charter bundle`, `charter lint`)
-3. Synthesize doctrine (`charter context`, `charter status`)
+2. Validate the bundle (`charter lint`, `charter bundle`)
+3. Synthesize doctrine (`charter synthesize`, `charter status`)
 4. Run one governed mission action (`spec-kitty next`)
-5. View retrospective summary (`retro summary`)
+5. View retrospective summary (`retrospect summary`)
 6. Next steps (where to go from here)
 
 No assumed knowledge of the Charter model. Link to `docs/3x/charter-overview.md` for background at the top.
@@ -70,13 +70,14 @@ Run every command in the tutorial before including it:
 uv run spec-kitty charter --help
 uv run spec-kitty charter interview --help
 uv run spec-kitty charter generate --help
-uv run spec-kitty charter context --help
+uv run spec-kitty charter synthesize --help
+uv run spec-kitty charter resynthesize --help
 uv run spec-kitty charter status --help
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help
 uv run spec-kitty next --help
-uv run spec-kitty retro --help
-uv run spec-kitty retro summary --help
+uv run spec-kitty retrospect --help
+uv run spec-kitty retrospect summary --help
 ```
 
 If any subcommand returns "No such command", mark that step with a note ("This command requires X") and omit it from the tutorial rather than inventing behavior.
@@ -136,13 +137,13 @@ description: Learn to set up governance, synthesize doctrine, and run a governed
 [charter lint + charter bundle]
 
 ## Step 3: Synthesize doctrine
-[charter context + charter status — explain the dry-run vs apply distinction]
+[charter synthesize --dry-run (preview) + charter synthesize (apply) + charter status — explain the dry-run vs apply distinction]
 
 ## Step 4: Run a governed mission action
 [spec-kitty next — explain that Charter context is now injected automatically]
 
 ## Step 5: View the retrospective summary
-[retro summary — show example output]
+[retrospect summary — show example output]
 
 ## What's next
 - [How to synthesize and maintain doctrine](../how-to/synthesize-doctrine.md)

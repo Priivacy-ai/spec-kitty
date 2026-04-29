@@ -148,9 +148,10 @@ Before writing, read:
 3. **The gate model** — Two modes:
    - Autonomous: retrospective is mandatory; cannot be skipped; blocks next mission start.
    - HiC (Human in Charge): retrospective can be skipped with explicit operator action; an audit record is always created.
-4. **Proposal lifecycle** — The retrospective produces proposals (doctrine changes, directive additions/removals). Proposals are reviewed by `retro synthesizer dry-run` then applied by `retro synthesizer apply`.
+4. **Proposal lifecycle** — The retrospective produces proposals (doctrine changes, directive additions/removals). Proposals are reviewed by `agent retrospect synthesize --dry-run` then applied by `agent retrospect synthesize --apply`.
 5. **The synthesizer's role** — The synthesizer validates proposals against current doctrine, resolves conflicts, and applies accepted proposals to `charter.md`. It is the only path from retrospective output to governance change.
-6. **Cross-mission retrospective summary** — Aggregate view across missions (if supported — verify with `uv run spec-kitty retro summary --help`).
+6. **Facilitator failures** — what it means when the retrospective facilitator fails (the component that collects and formats the retrospective record). Distinguish facilitator failures (bad record, missing data) from synthesizer failures (proposals rejected). Direct users to `retrospect summary` output for diagnostics and to troubleshoot-charter.md for fixes.
+7. **Cross-mission retrospective summary** — Aggregate view across missions (if supported — verify with `uv run spec-kitty retrospect summary --help`).
 
 **Cross-links**:
 - `docs/how-to/use-retrospective-learning.md`

@@ -64,7 +64,7 @@ Key: `present-current` | `present-stale` | `missing` | `intentionally-deferred`
 
 ### Charter synthesis / resynthesis
 - **Source code**: `src/specify_cli/charter/synthesis/` or equivalent
-- **CLI**: `uv run spec-kitty charter context --help`; `uv run spec-kitty charter status --help`; `uv run spec-kitty charter lint --help`
+- **CLI**: `uv run spec-kitty charter synthesize --help`; `uv run spec-kitty charter resynthesize --help`; `uv run spec-kitty charter status --help`; `uv run spec-kitty charter lint --help`
 - **Specs**: phase-3-charter-synthesizer-pipeline, charter-synthesizer-phase-3-completion
 
 ### DRG-backed action context
@@ -89,7 +89,7 @@ Key: `present-current` | `present-stale` | `missing` | `intentionally-deferred`
 
 ### CLI reference (Charter era)
 - **Source**: `uv run spec-kitty --help`; each subcommand `--help`; `src/specify_cli/cli/` tree
-- **Commands to cover**: `charter interview`, `charter generate`, `charter context`, `charter status`, `charter sync`, `charter lint`, `charter bundle`; `next`; `retro summary`; `retro synthesizer dry-run/apply`; `agent decision open/resolve/defer/cancel/verify`; `agent mission create/setup-plan`
+- **Commands to cover**: `charter interview`, `charter generate`, `charter synthesize`, `charter resynthesize`, `charter status`, `charter sync`, `charter lint`, `charter bundle`; `next`; `retrospect summary`; `agent retrospect synthesize --dry-run/--apply`; `agent decision open/resolve/defer/cancel/verify`; `agent mission create/setup-plan`
 
 ### Documentation mission phases
 - **Source**: `src/specify_cli/missions/documentation/mission-runtime.yaml` (or equivalent)
@@ -128,19 +128,20 @@ Run from repo root with `uv run spec-kitty`:
 uv run spec-kitty charter --help
 uv run spec-kitty charter interview --help
 uv run spec-kitty charter generate --help
-uv run spec-kitty charter context --help
+uv run spec-kitty charter synthesize --help     # doctrine synthesis (NOT charter context)
+uv run spec-kitty charter resynthesize --help   # partial resynthesis
 uv run spec-kitty charter status --help
-uv run spec-kitty charter sync --help
+uv run spec-kitty charter sync --help           # syncs charter.md to YAML config
 uv run spec-kitty charter lint --help
-uv run spec-kitty charter bundle --help  # verify this subcommand exists
+uv run spec-kitty charter bundle --help         # verify this subcommand exists
 
 # Composition / next
 uv run spec-kitty next --help
 
-# Retrospective
-uv run spec-kitty retro --help           # verify subcommand tree
-uv run spec-kitty retro summary --help
-uv run spec-kitty retro synthesizer --help
+# Retrospective (NOTE: use "retrospect" not "retro")
+uv run spec-kitty retrospect --help
+uv run spec-kitty retrospect summary --help
+uv run spec-kitty agent retrospect synthesize --help
 
 # Agent decision
 uv run spec-kitty agent decision --help
