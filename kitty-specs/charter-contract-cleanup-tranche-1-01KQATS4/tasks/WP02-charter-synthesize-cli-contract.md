@@ -24,8 +24,8 @@ subtasks:
 - T010
 - T011
 phase: Phase 2 - Charter CLI contract
-agent: claude
-shell_pid: '29183'
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "47216"
 history:
 - timestamp: '2026-04-28T20:35:00Z'
   lane: planned
@@ -301,3 +301,4 @@ spec-kitty agent action implement WP02 --agent <name>
 ## Activity Log
 
 - 2026-04-29T05:44:53Z – claude – shell_pid=29183 – Charter --json envelope contract overhauled; 4-test gate green; mypy strict clean; PROJECT_000 sweep clean
+- 2026-04-29T05:45:41Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=47216 – Started review via action command
