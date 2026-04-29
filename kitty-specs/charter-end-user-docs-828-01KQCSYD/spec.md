@@ -50,6 +50,57 @@ The current docs still lean on the older 2.x interview/generate/sync mental mode
 - A maintainer can use retrospective summary and synthesizer dry-run/apply flows safely.
 - A user can troubleshoot stale bundles, missing doctrine, compact-context limitations, retrospective gate failures, and synthesizer rejection.
 
+## Functional Requirements
+
+| ID | Requirement | Priority | Status |
+|---|---|---|---|
+| FR-001 | A gap analysis (`gap-analysis.md`) **must** be produced with a Divio coverage matrix covering all areas listed in the Audit scope. Each cell must be classified as `present-current`, `present-stale`, `missing`, or `intentionally-deferred`. Stale/missing cells must cite both the stale doc path and the source-of-truth code/spec path. | P0 | Draft |
+| FR-002 | A documentation information architecture plan (`plan.md`) **must** be produced before any content is written, resolving the required design decisions listed in the Design scope. | P0 | Draft |
+| FR-003 | A Charter current-state overview doc **must** be produced or updated to accurately describe the current synthesis/DRG model and to distinguish human-policy files from generated-doctrine files. | P0 | Draft |
+| FR-004 | `docs/how-to/setup-governance.md` **must** teach the current recommended governance setup flow — including bundle validation and doctrine synthesis — and **must not** describe only the older interview/generate/sync flow. | P0 | Draft |
+| FR-005 | Docs covering Charter synthesis, resynthesis (including dry-run, apply, status, lint, provenance, idempotency, staging, and recovery) **must** be produced or updated. | P0 | Draft |
+| FR-006 | Docs covering DRG-backed governance context, action identities, bootstrap versus compact context, and known limitations (including compact-context behavior from #787 if still open) **must** be produced. | P0 | Draft |
+| FR-007 | Docs covering governed profile invocation — `ask`, `advise`, `do`, `profile-invocation complete`, evidence/artifact correlation, and lifecycle trails — **must** be produced so that an operator can follow the invocation lifecycle without reading source code. | P0 | Draft |
+| FR-008 | Docs covering mission composition under Charter (`spec-kitty next --agent <agent>`, composed step contracts, prompt resolution, blocked decisions, and Charter context loading) **must** be produced. | P0 | Draft |
+| FR-009 | Documentation mission type docs **must** use the current phases: `discover`, `audit`, `design`, `generate`, `validate`, `publish`, `accept`. Docs **must not** describe phases from an earlier model. | P0 | Draft |
+| FR-010 | Retrospective learning loop docs **must** be produced, covering HiC/autonomous behavior, skip semantics, facilitator failures, summary, synthesizer dry-run/apply, proposal kinds, conflicts, staleness, provenance, and exit codes. These docs **must** be reachable from navigation and split into appropriate Divio shapes. | P0 | Draft |
+| FR-011 | Glossary docs **must** explain the runtime, DRG, project-local, and retrospective-proposal relationships so that a maintainer can understand what is authoritative human policy versus generated state. | P1 | Draft |
+| FR-012 | A CLI reference **must** be produced or updated covering the Charter-era command surfaces listed in issue #828, verified against current `--help` output or source code. | P0 | Draft |
+| FR-013 | Migration docs **must** be produced covering the upgrade path from older 2.x/early-3.x Charter projects. | P1 | Draft |
+| FR-014 | Troubleshooting docs **must** be produced covering the following failure modes: stale bundle, missing doctrine, compact-context limitations, retrospective gate failures, and synthesizer rejection. | P1 | Draft |
+| FR-015 | A release handoff artifact **must** be produced listing pages added/updated, command snippets validated, docs tests run, known limitations accepted, and any follow-up docs issues. | P0 | Draft |
+| FR-016 | All added or changed pages **must** appear in the relevant table-of-contents entries and pass the docs integrity checks available in the repo. | P0 | Draft |
+| FR-017 | A new user **must** be able to follow one tutorial from governance setup through Charter synthesis, one governed mission action, retrospective summary, and next-step learning, without reading source code. | P0 | Draft |
+
+## Non-Functional Requirements
+
+| ID | Requirement | Threshold | Status |
+|---|---|---|---|
+| NFR-001 | Docs link/integrity checks and `tests/docs/` tests **must** pass with zero failures after all changes are applied. | 0 test failures | Draft |
+| NFR-002 | All interactive command snippets included in the docs **must** be parseable and, where safe to execute, runnable against a temporary project without polluting the source repository. | 100% of interactive snippets either execute successfully or are explicitly marked as requiring external services | Draft |
+| NFR-003 | Documentation **must not** claim that custom mission retrospective execution is deferred when the current shipped product supports it. | No false deferral claims present in any changed page | Draft |
+| NFR-004 | Documentation mission phases documented in the generated content **must** match the phases declared in `mission-runtime.yaml`. | Exact phase-name match | Draft |
+| NFR-005 | The Charter setup guide **must** be executable in a fresh temporary repository or **must** explicitly mark any command that requires an external service. | No undocumented external-service dependencies in the setup guide | Draft |
+
+## Constraints
+
+| ID | Constraint | Rationale | Status |
+|---|---|---|---|
+| C-001 | This mission **must not** produce another implementation spec for Charter behavior; it is strictly a documentation mission. | Scope is end-user docs parity, not product design. | Active |
+| C-002 | This mission **must not** include #469 Phase 7 or additional #827 E2E canaries. | That work is tracked separately and must not be mixed into this docs PR. | Active |
+| C-003 | Any validation command that touches hosted auth, tracker, or sync behavior on this machine **must** be run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. | Machine rule required for this environment. | Active |
+| C-004 | CLI reference entries **must** match the current shipped command surface. Screenshots **must not** be used as the primary source of truth for CLI behavior. | References must stay verifiable and non-stale. | Active |
+| C-005 | Known product defects **must not** be hidden with vague prose. They must be documented clearly and linked to their open issues. | Users deserve accurate information about current limitations. | Active |
+
+## Success Criteria
+
+1. A new user can follow one end-to-end tutorial (setup → Charter synthesis → one governed mission action → retrospective summary → next-step learning) without reading source code.
+2. `docs/how-to/setup-governance.md` teaches the current recommended flow and passes a fresh-repo execution check.
+3. Documentation mission phases in all changed docs match `mission-runtime.yaml` exactly.
+4. CLI reference entries for all covered Charter-era commands are verified against current `--help` output or source code with no discrepancies.
+5. All changed and added pages pass the repo docs link/integrity checks and `tests/docs/` suite with zero failures.
+6. The release handoff artifact is complete and the PR body references the artifact.
+
 ## Scope
 
 ### Discover
