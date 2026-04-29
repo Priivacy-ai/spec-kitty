@@ -181,3 +181,4 @@ grep -qi 'archive\|2\.x.*no longer' docs/2x/index.md && echo "docs/2x/index.md h
 - 2026-04-29T19:06:12Z – claude:sonnet:researcher-robbie:implementer – shell_pid=83167 – Pre-flight checks passed, source WP01 executed, all deliverables verified
 - 2026-04-29T19:06:54Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=86606 – Started review via action command
 - 2026-04-29T19:07:38Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=86606 – Review passed: all deliverables verified — gap-analysis.md with Divio matrix, docs/toc.yml updated (3x entry + Archive label), docs/3x/toc.yml created, all 5 section toc.yml files updated, docfx.json includes 3x and migration, docs/2x/index.md has archive notice. 375 tests pass.
+- 2026-04-29T19:31:38Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=86606 – Planning artifact — all work committed directly to docs/charter-end-user-docs-828. No separate lane branch.
