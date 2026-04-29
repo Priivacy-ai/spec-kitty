@@ -1,0 +1,16 @@
+Wanted to use GlooCache but no API key was provided. Did you set BOUNDARY_PROJECT_ID and BOUNDARY_SECRET?
+============================= test session starts ==============================
+platform darwin -- Python 3.11.14, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/spec-kitty
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.12.1, playwright-0.7.2, html-4.1.1, xdist-3.8.0, timeout-2.4.0, metadata-3.1.1, Faker-33.1.0, cov-4.1.0, asyncio-1.3.0, mock-3.12.0, hypothesis-6.151.2, base-url-2.1.0, typeguard-4.4.4, respx-0.23.1, baml-0.19.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 109 items
+
+tests/next/test_retrospective_terminus_wiring.py ............            [ 11%]
+tests/retrospective/test_gate_decision.py .............................. [ 38%]
+........                                                                 [ 45%]
+tests/doctrine_synthesizer/test_path_traversal_rejection.py ............ [ 56%]
+...............................................                          [100%]
+
+============================= 109 passed in 6.03s ==============================
