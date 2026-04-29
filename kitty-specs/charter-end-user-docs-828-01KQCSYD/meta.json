@@ -1,0 +1,38 @@
+{
+  "created_at": "2026-04-29T14:23:03.192794+00:00",
+  "documentation_state": {
+    "coverage_percentage": 0.0,
+    "divio_types_selected": [
+      "tutorial",
+      "how-to",
+      "reference",
+      "explanation"
+    ],
+    "generators_configured": [
+      {
+        "config_path": "",
+        "language": "javascript",
+        "name": "jsdoc"
+      },
+      {
+        "config_path": "",
+        "language": "python",
+        "name": "sphinx"
+      }
+    ],
+    "iteration_mode": "initial",
+    "last_audit_date": null,
+    "target_audience": "operators, upgraders, integrators, maintainers, docs contributors"
+  },
+  "friendly_name": "Charter End-User Docs Parity (#828)",
+  "mission_id": "01KQCSYDGQN09RV05M6V8Q5H1B",
+  "mission_number": null,
+  "mission_slug": "charter-end-user-docs-828-01KQCSYD",
+  "mission_type": "documentation",
+  "pr_bound": true,
+  "purpose_context": "Run a documentation mission over the shipped Charter epic so users can set up governance, synthesize doctrine, run governed missions, understand profile invocation trails, use the retrospective learning loop, and troubleshoot current Charter-era behavior from end-user docs.",
+  "purpose_tldr": "Bring Charter epic end-user documentation to parity with the shipped product.",
+  "slug": "charter-end-user-docs-828-01KQCSYD",
+  "source_issue": "https://github.com/Priivacy-ai/spec-kitty/issues/828",
+  "target_branch": "main"
+}
