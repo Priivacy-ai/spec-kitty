@@ -103,7 +103,8 @@ class RefreshRejectionCause(StrEnum):
     behaviour for ``auth/transport.py``).
     """
 
-    REFRESH_TOKEN_EXPIRED = "refresh_token_expired"  # noqa: S105 — outcome label, not a credential
+    # `refresh_token_expired` is an enum label surfaced to callers, not a secret.
+    REFRESH_TOKEN_EXPIRED = "refresh_token_expired"  # noqa: S105
     SESSION_INVALID = "session_invalid"
 
 
