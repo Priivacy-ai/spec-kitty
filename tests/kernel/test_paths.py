@@ -125,7 +125,9 @@ class TestGetPackageAssetRoot:
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(missions))
         assert get_package_asset_root() == missions
 
-    def test_template_root_checkout_root_normalizes_to_doctrine_missions(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_template_root_checkout_root_normalizes_to_doctrine_missions(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """A checkout root env var resolves to src/doctrine/missions."""
         checkout = tmp_path / "spec-kitty"
         missions = checkout / "src" / "doctrine" / "missions"
@@ -137,7 +139,9 @@ class TestGetPackageAssetRoot:
 
         assert get_package_asset_root() == missions
 
-    def test_template_root_legacy_package_asset_root_with_command_templates(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_template_root_legacy_package_asset_root_with_command_templates(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """A direct package asset root with command templates remains valid."""
         package_assets = tmp_path / "pkg"
         command_templates = package_assets / "software-dev" / "command-templates"
@@ -147,7 +151,9 @@ class TestGetPackageAssetRoot:
 
         assert get_package_asset_root() == package_assets
 
-    def test_template_root_legacy_package_asset_root_with_mission_yaml(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_template_root_legacy_package_asset_root_with_mission_yaml(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """A direct package asset root with mission YAML remains valid."""
         package_assets = tmp_path / "pkg"
         mission = package_assets / "software-dev"
@@ -164,7 +170,9 @@ class TestGetPackageAssetRoot:
         with pytest.raises(FileNotFoundError, match="SPEC_KITTY_TEMPLATE_ROOT"):
             get_package_asset_root()
 
-    def test_template_root_existing_invalid_dir_raises(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_template_root_existing_invalid_dir_raises(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """SPEC_KITTY_TEMPLATE_ROOT must contain recognizable mission assets."""
         empty_root = tmp_path / "empty"
         empty_root.mkdir()
@@ -253,7 +261,9 @@ class TestRenderRuntimePathMutantKills:
     a specific surviving mutant, per the mutation-aware-test-design styleguide.
     """
 
-    def test_default_for_user_compresses_to_tilde_on_posix(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_default_for_user_compresses_to_tilde_on_posix(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Default for_user=True must tilde-compress on POSIX.
 
         Kills __mutmut_1 (for_user default flipped from True to False): with
@@ -266,7 +276,9 @@ class TestRenderRuntimePathMutantKills:
         assert rendered == "~/.kittify/auth"
         assert rendered.startswith("~/")
 
-    def test_home_must_exist_when_resolving(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_home_must_exist_when_resolving(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """home.resolve() uses strict=False so missing home does not raise.
 
         Kills __mutmut_11 (home resolve flipped to strict=True): if the home
@@ -283,7 +295,9 @@ class TestRenderRuntimePathMutantKills:
         rendered = render_runtime_path(fake_home / ".kittify" / "state")
         assert rendered == "~/.kittify/state"
 
-    def test_tilde_output_uses_forward_slash_separator(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_tilde_output_uses_forward_slash_separator(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Output uses forward-slash separator, never backslash.
 
         Kills __mutmut_21 (replace("\\\\", "/") mutated to replace("XX\\\\XX", "/"))
@@ -299,7 +313,9 @@ class TestRenderRuntimePathMutantKills:
         assert "XX" not in rendered
         assert "\\" not in rendered
 
-    def test_path_resolve_accepts_nonexistent_target(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_path_resolve_accepts_nonexistent_target(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Target path resolve uses strict=False so missing target is ok.
 
         Documents the behaviour that __mutmut_3 (resolve(strict=None)) leaves
@@ -329,7 +345,9 @@ class TestGetKittifyHomeWindowsPlatformdirsContract:
     replace, or drop one of those arguments.
     """
 
-    def _install_platformdirs_spy(self, monkeypatch: pytest.MonkeyPatch, return_value: str) -> list[tuple[tuple[Any, ...], dict[str, Any]]]:
+    def _install_platformdirs_spy(
+        self, monkeypatch: pytest.MonkeyPatch, return_value: str
+    ) -> list[tuple[tuple[Any, ...], dict[str, Any]]]:
         """Install a recording spy for platformdirs.user_data_dir.
 
         Returns a list that will accumulate (args, kwargs) tuples for each
@@ -349,7 +367,9 @@ class TestGetKittifyHomeWindowsPlatformdirsContract:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         return calls
 
-    def test_user_data_dir_receives_spec_kitty_app_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_user_data_dir_receives_spec_kitty_app_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """First argument to user_data_dir must be the exact string 'spec-kitty'.
 
         Kills __mutmut_7 (app name -> None), __mutmut_10 (positional arg removed),
@@ -367,7 +387,9 @@ class TestGetKittifyHomeWindowsPlatformdirsContract:
         assert app_name != "SPEC-KITTY"
         assert "XX" not in str(app_name)
 
-    def test_user_data_dir_receives_appauthor_false_explicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_user_data_dir_receives_appauthor_false_explicitly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """appauthor must be passed as exactly False (not True, not omitted).
 
         Kills __mutmut_8 (appauthor=None), __mutmut_11 (appauthor kwarg removed),
@@ -382,7 +404,9 @@ class TestGetKittifyHomeWindowsPlatformdirsContract:
         # Bi-Directional Logic: False and True are distinct observables.
         assert kwargs["appauthor"] is not True
 
-    def test_user_data_dir_receives_roaming_false_explicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_user_data_dir_receives_roaming_false_explicitly(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """roaming must be passed as exactly False (not True, not omitted).
 
         Kills __mutmut_9 (roaming=None), __mutmut_12 (roaming kwarg removed),
@@ -407,7 +431,9 @@ class TestGetKittifyHomeWindowsPlatformdirsContract:
 class TestGetPackageAssetRootErrorMessage:
     """Pin the exact error message emitted when assets cannot be located."""
 
-    def test_missing_assets_error_message_is_exact(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_missing_assets_error_message_is_exact(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """FileNotFoundError message must be the plain English sentence.
 
         Kills __mutmut_17 (error string replaced with "XXCannot locate …XX").
