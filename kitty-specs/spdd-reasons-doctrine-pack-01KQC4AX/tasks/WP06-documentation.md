@@ -18,7 +18,8 @@ created_at: '2026-04-29T08:15:46Z'
 subtasks:
 - T022
 - T023
-agent: claude
+agent: "claude:opus:curator-carla:implementer"
+shell_pid: "49611"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -203,3 +204,7 @@ Do NOT modify other docs' tone or structure; insert minimal link entries only.
 
 - Code changes (this is documentation only).
 - Glossary changes (out of scope; use the glossary skill if any term needs canonicalization).
+
+## Activity Log
+
+- 2026-04-29T09:20:43Z – claude:opus:curator-carla:implementer – shell_pid=49611 – Started implementation via action command

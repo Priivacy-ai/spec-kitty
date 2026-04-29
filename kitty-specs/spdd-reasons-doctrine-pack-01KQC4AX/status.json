@@ -1,7 +1,7 @@
 {
-  "event_count": 31,
-  "last_event_id": "01KQC8MAF74JRKXAK0HS7PH0QJ",
-  "materialized_at": "2026-04-29T09:20:26.599600+00:00",
+  "event_count": 33,
+  "last_event_id": "01KQC8MV110PCHZ5E7EKJWYY30",
+  "materialized_at": "2026-04-29T09:20:43.553431+00:00",
   "mission_number": "",
   "mission_slug": "spdd-reasons-doctrine-pack-01KQC4AX",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-04-29T09:20:26.599600+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:curator-carla:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQC5EP2ZY3026J4J9T0D572P",
-      "last_transition_at": "2026-04-29T08:24:56.159021+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQC8MV110PCHZ5E7EKJWYY30",
+      "last_transition_at": "2026-04-29T09:20:43.553431+00:00"
     }
   }
 }
