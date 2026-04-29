@@ -1,19 +1,19 @@
 {
-  "event_count": 24,
-  "last_event_id": "01KQBWB1HS1YG89RNKZ4Z1SRFV",
-  "materialized_at": "2026-04-29T05:45:39.641445+00:00",
+  "event_count": 25,
+  "last_event_id": "01KQBWJ3G4SNNX409XFA9KMEX2",
+  "materialized_at": "2026-04-29T05:49:31.012549+00:00",
   "mission_number": "",
   "mission_slug": "charter-contract-cleanup-tranche-1-01KQATS4",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 1
   },
   "work_packages": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-29T05:19:39.059278+00:00"
     },
     "WP02": {
-      "actor": "claude:opus-4-7:reviewer-renata:reviewer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KQBWB1HS1YG89RNKZ4Z1SRFV",
-      "last_transition_at": "2026-04-29T05:45:39.641445+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQBWJ3G4SNNX409XFA9KMEX2",
+      "last_transition_at": "2026-04-29T05:49:31.012549+00:00"
     },
     "WP03": {
       "actor": "user",
