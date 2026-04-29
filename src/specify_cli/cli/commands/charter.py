@@ -39,6 +39,7 @@ app = typer.Typer(
 app.add_typer(charter_bundle_app, name="bundle")
 
 console = Console()
+_CHARTER_MD_FILENAME = "charter.md"
 
 
 def default_interview(*args, **kwargs):
@@ -54,7 +55,7 @@ def _resolve_charter_path(repo_root: Path) -> Path:
     Does not fall back to legacy locations. Users with pre-charter state
     must run 'spec-kitty upgrade' first (handled by the charter-rename migration).
     """
-    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
+    charter_path = repo_root / ".kittify" / "charter" / _CHARTER_MD_FILENAME
     if charter_path.exists():
         return charter_path
 
@@ -2080,6 +2081,145 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
     ]
 
 
+def _emit_json(payload: dict[str, Any]) -> None:
+    print(json.dumps(payload, indent=2))
+
+
+def _print_paths(prefix: str, paths: list[str]) -> None:
+    for rel_path in paths:
+        console.print(f"{prefix} {rel_path}")
+
+
+def _handle_fresh_project_synthesize(
+    repo_root: Path,
+    *,
+    dry_run: bool,
+    json_output: bool,
+) -> bool:
+    """Handle the fresh-project synthesize short-circuit path.
+
+    Returns True when the fresh-project path handled output and the caller
+    should return immediately.
+    """
+    written_or_planned = _planned_fresh_doctrine_paths(repo_root) if dry_run else _materialize_fresh_doctrine(repo_root)
+    mode = "fresh_project_seed_dry_run" if dry_run else "fresh_project_seed"
+
+    if json_output:
+        payload: dict[str, Any] = {
+            "result": "success",
+            "success": True,
+            "mode": mode,
+        }
+        if dry_run:
+            payload["files_planned"] = written_or_planned
+            payload["note"] = (
+                "Fresh project + --dry-run: would materialize minimal "
+                ".kittify/doctrine/ (no files written). See issue #839."
+            )
+        else:
+            payload["files_written"] = written_or_planned
+            payload["note"] = (
+                "Fresh project: no agent-authored YAML under "
+                ".kittify/charter/generated/. Materialized minimal "
+                ".kittify/doctrine/ so the runtime can advance "
+                "(see issue #839)."
+            )
+        _emit_json(payload)
+        return True
+
+    if dry_run:
+        console.print(
+            "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
+            "would materialize minimal .kittify/doctrine/ (no files written)."
+        )
+        _print_paths("  •", written_or_planned)
+        return True
+
+    console.print(
+        "[green]Charter synthesis (fresh project)[/green]: minimal "
+        ".kittify/doctrine/ materialized."
+    )
+    _print_paths("  ✓", written_or_planned)
+    return True
+
+
+def _print_evidence_warnings(warnings: list[str]) -> None:
+    for warning in warnings:
+        console.print(f"[yellow]⚠ {warning}[/yellow]")
+
+
+def _handle_evidence_dry_run(bundle: Any, warnings: list[str]) -> None:
+    console.print("[bold]Evidence dry-run summary:[/bold]")
+    if bundle.code_signals:
+        cs = bundle.code_signals
+        console.print(f"  Code signals: stack={cs.stack_id}, lang={cs.primary_language}")
+        console.print(f"  Representative files: {len(cs.representative_files)} found")
+    else:
+        console.print("  Code signals: none (skipped or not detected)")
+    console.print(f"  URL list: {len(bundle.url_list)} URL(s) configured")
+    if bundle.corpus_snapshot:
+        console.print(
+            f"  Corpus: {bundle.corpus_snapshot.snapshot_id} "
+            f"({len(bundle.corpus_snapshot.entries)} entries)"
+        )
+    else:
+        console.print("  Corpus: none")
+    for warning in warnings:
+        console.print(f"  [yellow]Warning: {warning}[/yellow]")
+    raise typer.Exit(0)
+
+
+def _handle_synthesis_dry_run(
+    planned_artifacts: list[dict[str, Any]],
+    *,
+    adapter: str,
+    warnings: list[str],
+    json_output: bool,
+) -> bool:
+    if json_output:
+        _emit_json({
+            "result": "success",
+            "adapter": adapter,
+            "planned_artifacts": planned_artifacts,
+            "warnings": [
+                {"code": "evidence_warning", "message": warning}
+                for warning in warnings
+            ],
+        })
+        mark_invocation_succeeded()
+        return True
+
+    console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
+    for entry in planned_artifacts:
+        console.print(
+            f"  [dim]staged:[/dim] {entry.get('kind', '?')} -> {entry.get('path', '?')}"
+        )
+    return True
+
+
+def _emit_synthesize_success_json(
+    repo_root: Path,
+    result: Any,
+    warnings: list[str],
+) -> None:
+    written_artifacts = _read_written_artifacts_from_manifest(repo_root)
+    _emit_json({
+        "result": "success",
+        "adapter": result.effective_adapter_id,
+        "written_artifacts": written_artifacts,
+        "target_kind": result.target_kind,
+        "target_slug": result.target_slug,
+        "inputs_hash": result.inputs_hash,
+        "adapter_id": result.effective_adapter_id,
+        "adapter_version": result.effective_adapter_version,
+        "warnings": [
+            {"code": "evidence_warning", "message": warning}
+            for warning in warnings
+        ],
+    })
+    mark_invocation_succeeded()
+
+
 @app.command("synthesize")
 def charter_synthesize(  # noqa: C901
     adapter: str = typer.Option(
@@ -2178,7 +2318,7 @@ def charter_synthesize(  # noqa: C901
         # keep their established behaviour. Real operators always reach this
         # path AFTER `charter generate`, so charter.md is reliably present in
         # the realistic fresh-project flow.
-        charter_md = repo_root / ".kittify" / "charter" / "charter.md"
+        charter_md = repo_root / ".kittify" / "charter" / _CHARTER_MD_FILENAME
         is_fresh_project_synthesize = (
             adapter == "generated"
             and not _has_generated_artifacts(repo_root)
@@ -2186,56 +2326,11 @@ def charter_synthesize(  # noqa: C901
             and charter_md.is_file()
         )
 
-        if is_fresh_project_synthesize:
-            # Dry-run on a fresh project must NOT fall through to the production
-            # adapter (which would raise GeneratedArtifactMissingError). Report
-            # what would be materialized, write nothing, exit 0. (#839 follow-up)
-            if dry_run:
-                planned = _planned_fresh_doctrine_paths(repo_root)
-                if json_output:
-                    print(json.dumps({
-                        "result": "success",
-                        "success": True,
-                        "mode": "fresh_project_seed_dry_run",
-                        "files_planned": planned,
-                        "note": (
-                            "Fresh project + --dry-run: would materialize "
-                            "minimal .kittify/doctrine/ (no files written). "
-                            "See issue #839."
-                        ),
-                    }, indent=2))
-                    return
-                console.print(
-                    "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
-                    "would materialize minimal .kittify/doctrine/ (no files written)."
-                )
-                for f in planned:
-                    console.print(f"  • {f}")
-                return
-
-            written = _materialize_fresh_doctrine(repo_root)
-
-            if json_output:
-                print(json.dumps({
-                    "result": "success",
-                    "success": True,
-                    "mode": "fresh_project_seed",
-                    "files_written": written,
-                    "note": (
-                        "Fresh project: no agent-authored YAML under "
-                        ".kittify/charter/generated/. Materialized minimal "
-                        ".kittify/doctrine/ so the runtime can advance "
-                        "(see issue #839)."
-                    ),
-                }, indent=2))
-                return
-
-            console.print(
-                "[green]Charter synthesis (fresh project)[/green]: minimal "
-                ".kittify/doctrine/ materialized."
-            )
-            for f in written:
-                console.print(f"  ✓ {f}")
+        if is_fresh_project_synthesize and _handle_fresh_project_synthesize(
+            repo_root,
+            dry_run=dry_run,
+            json_output=json_output,
+        ):
             return
 
         # Collect evidence before building the synthesis request
@@ -2245,76 +2340,33 @@ def charter_synthesize(  # noqa: C901
             skip_corpus=skip_corpus,
         )
         if not json_output:
-            for warning in evidence_result.warnings:
-                console.print(f"[yellow]\u26a0 {warning}[/yellow]")
+            _print_evidence_warnings(evidence_result.warnings)
 
         if dry_run_evidence:
-            bundle = evidence_result.bundle
-            console.print("[bold]Evidence dry-run summary:[/bold]")
-            if bundle.code_signals:
-                cs = bundle.code_signals
-                console.print(f"  Code signals: stack={cs.stack_id}, lang={cs.primary_language}")
-                console.print(f"  Representative files: {len(cs.representative_files)} found")
-            else:
-                console.print("  Code signals: none (skipped or not detected)")
-            console.print(f"  URL list: {len(bundle.url_list)} URL(s) configured")
-            if bundle.corpus_snapshot:
-                console.print(
-                    f"  Corpus: {bundle.corpus_snapshot.snapshot_id} "
-                    f"({len(bundle.corpus_snapshot.entries)} entries)"
-                )
-            else:
-                console.print("  Corpus: none")
-            for w in evidence_result.warnings:
-                console.print(f"  [yellow]Warning: {w}[/yellow]")
-            raise typer.Exit(0)
+            _handle_evidence_dry_run(evidence_result.bundle, evidence_result.warnings)
 
         request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
         if dry_run:
             planned_artifacts = _run_synthesis_dry_run(request, syn_adapter, repo_root)
-
-            if json_output:
-                print(json.dumps({
-                    "result": "success",
-                    "adapter": adapter,
-                    "planned_artifacts": planned_artifacts,
-                    "warnings": [
-                        {"code": "evidence_warning", "message": w}
-                        for w in evidence_result.warnings
-                    ],
-                }, indent=2))
-                mark_invocation_succeeded()
+            if _handle_synthesis_dry_run(
+                planned_artifacts,
+                adapter=adapter,
+                warnings=evidence_result.warnings,
+                json_output=json_output,
+            ):
                 return
-
-            console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
-            for entry in planned_artifacts:
-                console.print(
-                    f"  [dim]staged:[/dim] {entry.get('kind', '?')} -> {entry.get('path', '?')}"
-                )
-            return
 
         from charter.synthesizer import synthesize
 
         result = synthesize(request, adapter=syn_adapter, repo_root=repo_root)
 
         if json_output:
-            written_artifacts = _read_written_artifacts_from_manifest(repo_root)
-            print(json.dumps({
-                "result": "success",
-                "adapter": result.effective_adapter_id,
-                "written_artifacts": written_artifacts,
-                "target_kind": result.target_kind,
-                "target_slug": result.target_slug,
-                "inputs_hash": result.inputs_hash,
-                "adapter_id": result.effective_adapter_id,
-                "adapter_version": result.effective_adapter_version,
-                "warnings": [
-                    {"code": "evidence_warning", "message": w}
-                    for w in evidence_result.warnings
-                ],
-            }, indent=2))
-            mark_invocation_succeeded()
+            _emit_synthesize_success_json(
+                repo_root,
+                result,
+                evidence_result.warnings,
+            )
             return
 
         console.print("[green]Charter synthesis complete[/green]")

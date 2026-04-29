@@ -52,9 +52,10 @@ CURRENT_SCHEMA_VERSION: int = MAX_SUPPORTED_SCHEMA
 #: a ``dict[str, bool]`` (rather than a list) so operators may extend the
 #: map with their own keys without colliding on list ordering. ``init``
 #: never overwrites or removes keys an operator has authored.
-CURRENT_SCHEMA_CAPABILITIES: dict[str, bool] = {
-    name: True for name in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
-}
+CURRENT_SCHEMA_CAPABILITIES: dict[str, bool] = dict.fromkeys(
+    SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA],
+    True,
+)
 
 __all__ = [
     "MIN_SUPPORTED_SCHEMA",

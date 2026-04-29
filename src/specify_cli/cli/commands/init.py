@@ -355,7 +355,7 @@ def _is_inside_git_work_tree(target: Path) -> bool:
             capture_output=True,
             text=True,
         )
-    except (FileNotFoundError, OSError):
+    except OSError:
         return False
     return result.returncode == 0 and result.stdout.strip() == "true"
 

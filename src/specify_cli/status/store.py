@@ -172,6 +172,17 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     return results
 
 
+def _load_json_line(stripped: str, line_number: int) -> dict[str, Any]:
+    """Decode a single JSONL record and preserve the user-facing line number."""
+    try:
+        obj = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+    if not isinstance(obj, dict):
+        raise StoreError(f"Invalid JSON object on line {line_number}: expected an object")
+    return obj
+
+
 def read_events(feature_dir: Path) -> list[StatusEvent]:
     """Read and deserialize StatusEvent objects from the events file.
 
@@ -196,10 +207,7 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
             stripped = raw_line.strip()
             if not stripped:
                 continue
-            try:
-                obj = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+            obj = _load_json_line(stripped, line_number)
             event_name = obj.get("event_name")
             if isinstance(event_name, str) and event_name.startswith("retrospective."):
                 continue
