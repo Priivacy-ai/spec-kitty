@@ -383,8 +383,98 @@ Over time, artifacts may gradually diverge from glossary definitions. Catch drif
 
 ---
 
+## Charter 3.x: Glossary Integration with Governance
+
+In Charter 3.x, the glossary is integrated with the governance layer. This section covers the
+four aspects of that integration.
+
+For background on the Charter model, see [How Charter Works](../3x/charter-overview.md).
+
+### Glossary as runtime doctrine
+
+Charter exposes the project glossary as part of the doctrine surface so that agents receive
+consistent terminology at every invocation. When a governed mission action is run via
+`spec-kitty next`, the DRG-derived context includes glossary terms relevant to the current action.
+
+To add a glossary term and make it available in the governed context:
+
+1. Add the term to `charter.md` under the glossary section.
+2. Run `charter sync` to update the YAML config:
+   ```bash
+   uv run spec-kitty charter sync
+   ```
+3. Run `charter synthesize` to promote the updated doctrine:
+   ```bash
+   uv run spec-kitty charter synthesize
+   ```
+4. Verify the term appears in the bundle:
+   ```bash
+   uv run spec-kitty charter bundle validate
+   uv run spec-kitty charter status
+   ```
+
+### Glossary and the DRG
+
+Glossary terms are nodes in the Directive Relationship Graph (DRG). Terms can be connected to
+directives and tactics via `scopes-to` edges, making them reachable as part of the context
+subgraph for specific actions. This means agents consistently encounter the correct term
+definitions when working in the areas those terms govern.
+
+For example, a term like `lifecycle-terminus` scoped to the `retrospect` action will appear in
+the context every time an agent runs the retrospective facilitator, ensuring the agent uses the
+project-canonical definition of that term.
+
+### Glossary as project-local doctrine
+
+The glossary is project-local human policy. Glossary terms live in the authoritative `charter.md`
+surface — they are not generated state. Adding or changing a term requires:
+
+1. Editing `charter.md` directly
+2. Running `charter sync` then `charter synthesize`
+
+Do not add terms to the generated glossary files under `.kittify/doctrine/` directly — those files
+are overwritten on the next synthesis run.
+
+### Glossary and retrospective proposals
+
+The retrospective synthesizer can emit glossary-change proposals (`add_glossary_term`,
+`update_glossary_term`) when the retrospective facilitator identifies terms that were missing
+or incorrect during a mission.
+
+Preview proposals for a completed mission:
+```bash
+uv run spec-kitty agent retrospect synthesize --mission my-feature-slug
+```
+
+Sample output showing a glossary proposal:
+```
+Mode: dry-run (default)
+
+Planned applications: 1
+  ✔ P1  add_glossary_term  "lifecycle-terminus-hook"  (scope: team_domain)
+
+Apply: not run (use --apply to mutate)
+```
+
+Apply accepted proposals:
+```bash
+uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
+```
+
+When `--apply` is used, accepted glossary proposals are written to `charter.md` (or the
+project's glossary layer) with full provenance. Run `charter synthesize` afterward to propagate
+the updated terms into the DRG:
+```bash
+uv run spec-kitty charter synthesize
+```
+
+---
+
 ## See Also
 
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Propagate glossary changes
+- [How Charter Works](../3x/charter-overview.md) -- Charter mental model
+- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) -- How proposals flow from retrospectives to glossary
 - [Create a Specification](create-specification.md) -- Where terms first appear in your workflow
 - [Switch Missions](switch-missions.md) -- Mission-level glossary configuration
 - [Install and Upgrade](install-spec-kitty.md) -- Initial project setup including glossary initialization

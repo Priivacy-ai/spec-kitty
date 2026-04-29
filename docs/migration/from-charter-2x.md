@@ -1,0 +1,169 @@
+---
+title: Migrating from 2.x / Early 3.x Charter Projects
+description: What changed when upgrading from Spec Kitty 2.x or early 3.x to current Charter-era 3.x, migration steps, and known failure modes.
+---
+
+# Migrating from 2.x / Early 3.x Charter Projects
+
+This guide covers what changed when upgrading a project from Spec Kitty 2.x (or early 3.x before
+the Charter era) to the current Charter-era 3.x.
+
+---
+
+## What changed
+
+| Area | 2.x behavior | 3.x Charter behavior |
+|---|---|---|
+| Governance file location | `.kittify/charter/charter.md` — same location, but no DRG-backed synthesis | `.kittify/charter/charter.md` — same file, now drives the full synthesis pipeline |
+| Doctrine layer | Repository-native doctrine artifacts in `src/doctrine/` (directives, tactics, styleguides) | Project-local doctrine in `.kittify/doctrine/` promoted by `charter synthesize`; shipped doctrine in `src/doctrine/` is the fallback |
+| Synthesis command | `charter sync` (sync only — charter.md to YAML config) | `charter synthesize` (full DRG-backed doctrine promotion) + `charter bundle validate` |
+| Partial synthesis | Not available | `charter resynthesize --topic <selector>` |
+| Bundle validation | Not available | `charter bundle validate` |
+| Graph-native decay | Not available | `charter lint` |
+| Synthesis status | `charter status` (sync status only) | `charter status` (sync status + synthesis/operator state + optional provenance) |
+| CLI structure | `spec-kitty charter <subcommand>` | Same — `spec-kitty charter <subcommand>` |
+| Mission execution | Direct workflow commands: `/spec-kitty.specify`, `/spec-kitty.plan`, etc. | `spec-kitty next --agent <name> --mission <slug>` with automatic Charter context injection |
+| Retrospective | Not available in 2.x | `spec-kitty retrospect summary` + `spec-kitty agent retrospect synthesize --mission <slug>` |
+| Profile invocation | Not available in 2.x | `spec-kitty ask`, `advise`, `do` + `profile-invocation complete` |
+| Governance context injection | `charter context --action <action>` (available; used by runtime) | Same command available for debugging; automatic injection via `spec-kitty next` |
+
+**Note on `constitution`**: In early 3.x, the governance command was `spec-kitty constitution`.
+As of 3.1.0 (mission 063), `spec-kitty constitution` has been removed. All references must
+be updated to `spec-kitty charter`.
+
+---
+
+## Migration steps
+
+Follow these steps after upgrading the Spec Kitty CLI to the current Charter-era version:
+
+### Step 1: Update CLI invocations
+
+If any scripts or CI pipelines reference `spec-kitty constitution`, replace every occurrence
+with `spec-kitty charter`:
+
+```bash
+# Old (no longer works)
+spec-kitty constitution interview
+spec-kitty constitution generate
+
+# New
+uv run spec-kitty charter interview
+uv run spec-kitty charter generate
+```
+
+### Step 2: Re-run the interview if charter.md format changed
+
+If the charter format changed between your old CLI version and the current one:
+
+```bash
+uv run spec-kitty charter interview --profile minimal --defaults
+uv run spec-kitty charter generate --from-interview --force
+```
+
+### Step 3: Run the full synthesis flow
+
+Run synthesis to populate `.kittify/doctrine/` for the first time:
+
+```bash
+# Check current status
+uv run spec-kitty charter status
+
+# Lint for decay
+uv run spec-kitty charter lint
+
+# Synthesize (dry-run first)
+uv run spec-kitty charter synthesize --dry-run
+uv run spec-kitty charter synthesize
+
+# Validate the bundle
+uv run spec-kitty charter bundle validate
+
+# Confirm
+uv run spec-kitty charter status
+```
+
+### Step 4: Verify no drift
+
+After synthesis, confirm `charter status` reports no drift between `charter.md` and the bundle.
+If drift is reported, re-run `charter sync` followed by `charter synthesize`.
+
+### Step 5: Update mission execution patterns
+
+If your scripts run missions using direct command invocations (e.g., calling specific slash
+commands in a loop), update them to use `spec-kitty next`:
+
+```bash
+# Old pattern (2.x direct invocations)
+# /spec-kitty.specify, /spec-kitty.plan, /spec-kitty.implement ...
+
+# New pattern (Charter era)
+uv run spec-kitty next --agent claude --mission my-feature-slug --json
+uv run spec-kitty next --agent claude --mission my-feature-slug --result success --json
+```
+
+---
+
+## Known migration failures and fixes
+
+### 1. "TaskCliError: charter.md must exist"
+
+`charter synthesize` requires `charter.md` to exist. If your project predates the charter
+generation step, create it:
+
+```bash
+uv run spec-kitty charter interview --profile minimal --defaults
+uv run spec-kitty charter generate --from-interview
+```
+
+### 2. "No such command: constitution"
+
+You are calling `spec-kitty constitution` which was removed in 3.1.0. Replace all occurrences
+with `spec-kitty charter`.
+
+### 3. Bundle validate fails after upgrading
+
+If `charter bundle validate` reports schema errors after upgrading, the bundle was generated by
+an older CLI version and may not conform to CharterBundleManifest v1.0.0. Force regenerate:
+
+```bash
+uv run spec-kitty charter generate --from-interview --force
+uv run spec-kitty charter synthesize
+uv run spec-kitty charter bundle validate
+```
+
+### 4. Doctrine files missing after migration
+
+On first migration, `.kittify/doctrine/` may be empty because `charter synthesize` was never run.
+Run it once to populate:
+
+```bash
+uv run spec-kitty charter synthesize
+```
+
+If `.kittify/charter/generated/` is also empty (no agent-generated artifacts), synthesize will
+create only the minimal artifact set. The runtime falls back to shipped doctrine until you run
+a full synthesis with agent-generated content.
+
+### 5. compact-context warnings in agent prompts
+
+After migrating, agents may receive compact-context mode warnings if your governance layer is
+large. This is expected — see [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
+for workarounds.
+
+---
+
+## Getting help
+
+If you encounter issues not covered here, see
+[Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md).
+
+---
+
+## See Also
+
+- [How to Set Up Project Governance](../how-to/setup-governance.md)
+- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
+- [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
+- [Spec Kitty 3.x — Charter Era](../3x/index.md)
+- [Spec Kitty 2.x Docs (archived)](../2x/index.md)

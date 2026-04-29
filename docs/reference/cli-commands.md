@@ -1432,14 +1432,104 @@ spec-kitty migrate normalize-lifecycle --mission 083-private-teamspace
 
 **Synopsis**: `spec-kitty charter status [OPTIONS]`
 
-**Description**: Display charter sync status.
+**Description**: Display charter sync status plus synthesis/operator state.
 
 **Options**:
 
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON |
+| `--provenance` | Include per-artifact provenance details |
 | `--help` | Show this message and exit |
+
+### spec-kitty charter synthesize
+
+**Synopsis**: `spec-kitty charter synthesize [OPTIONS]`
+
+**Description**: Validate and promote agent-generated project-local doctrine artifacts to `.kittify/doctrine/`. This is the primary doctrine synthesis verb — different from `charter sync`.
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--adapter TEXT` | Adapter to use: `generated` (default) or `fixture` (offline/testing) |
+| `--dry-run` | Stage and validate artifacts but do not promote to live tree |
+| `--json` | Output JSON |
+| `--skip-code-evidence` | Skip code-reading evidence collection |
+| `--skip-corpus` | Skip best-practice corpus loading |
+| `--dry-run-evidence` | Print evidence summary and exit |
+| `--help` | Show this message and exit |
+
+### spec-kitty charter resynthesize
+
+**Synopsis**: `spec-kitty charter resynthesize [OPTIONS]`
+
+**Description**: Regenerate a bounded set of project-local doctrine artifacts (partial resynthesis). Unrelated artifacts are never touched.
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--topic TEXT` | Structured topic selector: `<kind>:<slug>`, `<drg-urn>`, or `<interview-section-label>` |
+| `--list-topics` | List valid structured topic selectors and exit |
+| `--adapter TEXT` | Adapter to use (`generated` or `fixture`) |
+| `--skip-code-evidence` | Skip code-reading evidence collection |
+| `--skip-corpus` | Skip best-practice corpus loading |
+| `--json` | Output JSON |
+| `--help` | Show this message and exit |
+
+### spec-kitty charter lint
+
+**Synopsis**: `spec-kitty charter lint [OPTIONS]`
+
+**Description**: Detect decay in charter artifacts via graph-native checks (orphans, contradictions, staleness).
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--mission TEXT` | Scope lint to a specific mission slug |
+| `--orphans` | Run only orphan checks |
+| `--contradictions` | Run only contradiction checks |
+| `--stale` | Run only staleness checks |
+| `--json` | Output findings as JSON |
+| `--severity TEXT` | Minimum severity (`low`/`medium`/`high`/`critical`; default: `low`) |
+| `--help` | Show this message and exit |
+
+### spec-kitty charter bundle validate
+
+**Synopsis**: `spec-kitty charter bundle validate [OPTIONS]`
+
+**Description**: Validate the charter bundle against CharterBundleManifest v1.0.0.
+
+**Options**:
+
+| Flag | Description |
+| --- | --- |
+| `--json` | Emit structured JSON |
+| `--help` | Show this message and exit |
+
+---
+
+## Charter Commands (3.x)
+
+Spec Kitty 3.x adds the Charter governance layer. Charter commands use the `charter` subcommand
+group.
+
+- **[Charter CLI Reference](charter-commands.md)** — Full reference for `charter interview`,
+  `generate`, `synthesize`, `resynthesize`, `status`, `sync`, `lint`, and `bundle validate`.
+- **[Profile Invocation Reference](profile-invocation.md)** — Reference for `ask`/`advise`/`do`
+  flags and the invocation trail.
+- **`spec-kitty next --agent <name> --mission <slug>`** — Run a governed mission action. Flags:
+  `--agent TEXT` (agent name), `--mission TEXT` (mission slug), `--result TEXT`
+  (`success`/`failed`/`blocked`), `--json`, `--answer TEXT`, `--decision-id TEXT`.
+- **`spec-kitty profiles list`** — List available agent profiles (`--json` for JSON output).
+- **`spec-kitty mission list`** — List all available missions with their source.
+- **`spec-kitty glossary list`** — List all glossary terms (`--scope`, `--status`, `--json`).
+- **`spec-kitty retrospect summary`** — View cross-mission retrospective summary (`--json`,
+  `--since <date>`, `--limit <n>`).
+- **`spec-kitty agent retrospect synthesize --mission <slug>`** — Preview synthesis proposals
+  (dry-run, default). Add `--apply` to mutate governance state.
 
 ---
 

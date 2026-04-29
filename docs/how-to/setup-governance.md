@@ -9,8 +9,8 @@ Spec Kitty uses a charter to govern how agents behave during workflow actions. T
 
 ## Prerequisites
 
-- Spec Kitty 2.x installed
-- A project initialized with `spec-kitty init`
+- Spec Kitty 3.x installed — verify with `uv run spec-kitty --version`
+- A project initialized with `uv run spec-kitty init` inside a git working tree
 
 ## Understanding the 3-Layer Model
 
@@ -279,12 +279,49 @@ spec-kitty charter status --json
 
 ---
 
+## Charter Synthesis Flow (3.x)
+
+After setting up and syncing your governance (steps 1–4 above), run the Charter synthesis flow
+to promote doctrine artifacts for runtime context injection. This is a 3.x addition to the
+governance setup workflow.
+
+**`charter synthesize` vs `charter sync` distinction**:
+- `charter sync` syncs `charter.md` to YAML config files (`governance.yaml`, `directives.yaml`,
+  `metadata.yaml`). Run it after manually editing `charter.md`.
+- `charter synthesize` validates and promotes agent-generated doctrine artifacts to
+  `.kittify/doctrine/` via the DRG-backed synthesis pipeline. Run it to make doctrine available
+  for governed mission context injection.
+- They are different operations. You typically run `charter sync` first (after editing), then
+  `charter synthesize` to complete the promotion.
+
+```bash
+# 1. Check for graph-native decay before synthesis
+uv run spec-kitty charter lint
+
+# 2. Synthesize (dry-run first)
+uv run spec-kitty charter synthesize --dry-run
+uv run spec-kitty charter synthesize
+
+# 3. Validate the bundle
+uv run spec-kitty charter bundle validate
+
+# 4. Confirm status
+uv run spec-kitty charter status
+```
+
+Once synthesis completes successfully, governed mission actions via `spec-kitty next` will
+automatically receive the current Charter context.
+
+---
+
 ## Command Reference
 
 - [CLI Commands](../reference/cli-commands.md) -- Full CLI reference including charter subcommands
 
 ## See Also
 
+- [How Charter Works](../3x/charter-overview.md) -- Charter mental model and synthesis flow
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Full synthesis workflow
 - [Create a Specification](create-specification.md) -- Start a feature with governance active
 - [Switch Missions](switch-missions.md) -- How missions interact with governance
 - [Non-Interactive Init](non-interactive-init.md) -- Automated project setup including charter
