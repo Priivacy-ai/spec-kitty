@@ -181,3 +181,4 @@ For the inactive baseline: capture `review.md` rendered output before this WP la
 ## Activity Log
 
 - 2026-04-29T09:14:02Z – claude:opus:python-pedro:implementer – shell_pid=47292 – Started implementation via action command
+- 2026-04-29T09:17:57Z – claude:opus:python-pedro:implementer – shell_pid=47292 – Ready for review: review.md SPDD block + 7 contract tests
