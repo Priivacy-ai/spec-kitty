@@ -37,8 +37,8 @@ WP02 and WP03 can run in parallel after WP01 lands. WP04 depends on the activati
 | T017  | Add SPDD reasons-block markers to `implement.md` template              | WP04 | [D] |
 | T018  | Implement renderer hook that strips/keeps blocks based on activation   | WP04 |          | [D] |
 | T019  | Add `tests/prompts/test_prompt_fragment_rendering.py` (golden)         | WP04 |          | [D] |
-| T020  | Add SPDD reasons-block to `review.md` template (drift gate content)    | WP05 |          |
-| T021  | Add `tests/reviews/test_review_gate_activation.py`                     | WP05 |          |
+| T020  | Add SPDD reasons-block to `review.md` template (drift gate content)    | WP05 |          | [D] |
+| T021  | Add `tests/reviews/test_review_gate_activation.py`                     | WP05 |          | [D] |
 | T022  | Author `docs/doctrine/spdd-reasons.md` (philosophy + activation + examples) | WP06 |          |
 | T023  | Add inbound links from existing doctrine/charter/mission docs          | WP06 |          |
 
@@ -211,8 +211,8 @@ Add the conditional REASONS Canvas Comparison subsection to `review.md` (using t
 
 ### Included subtasks
 
-- [ ] T020 Add `<!-- spdd:reasons-block:start --> … <!-- spdd:reasons-block:end -->` to `src/specify_cli/missions/software-dev/command-templates/review.md` containing the REASONS Canvas Comparison subsection (load canvas → trace → classify drift). Use seam after `### 2a. Load Agent Profile`.
-- [ ] T021 Add `tests/reviews/test_review_gate_activation.py` with the seven cases from `contracts/review-gate.md`.
+- [x] T020 Add `<!-- spdd:reasons-block:start --> … <!-- spdd:reasons-block:end -->` to `src/specify_cli/missions/software-dev/command-templates/review.md` containing the REASONS Canvas Comparison subsection (load canvas → trace → classify drift). Use seam after `### 2a. Load Agent Profile`.
+- [x] T021 Add `tests/reviews/test_review_gate_activation.py` with the seven cases from `contracts/review-gate.md`.
 
 ### Implementation sketch
 
