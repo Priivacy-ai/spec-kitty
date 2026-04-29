@@ -66,6 +66,11 @@ pyproject.local.toml
 .kittify/merge-state.json
 .kittify/.migration-backup/
 kitty-specs/**/.kittify/dossiers/
+
+# Dossier snapshots are mutable derived artifacts; recomputable from dossier source.
+# See kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/dossier-snapshot-ownership.md
+.kittify/dossiers/*/snapshot-latest.json
+kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 .kittify/charter/context-state.json
 .kittify/charter/directives.yaml
 .kittify/charter/provenance/

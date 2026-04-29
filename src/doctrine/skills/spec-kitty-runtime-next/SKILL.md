@@ -374,12 +374,14 @@ See `references/runtime-result-taxonomy.md` for the complete taxonomy.
 **Always check `guard_failures`** — this field may appear on any decision kind,
 not just `blocked`.
 
-**`prompt_file` contract on `kind: step`.** Issued steps always carry a
-non-empty `prompt_file` whose path resolves to an existing file on disk. If
-the runtime cannot resolve a prompt template, the response is `kind: blocked`
-with a non-empty `reason` (and an optional machine-readable code such as
-`no_prompt_template`). There is no third state — no agent loop should ever
-observe a `kind: step` with `prompt_file == null`.
+**The `kind="step"` prompt-file contract is a hard runtime invariant (C1/C2).**
+A `kind="step"` envelope MUST carry a `prompt_file` (or its consumer-side
+`prompt_path` alias) that is non-null, non-empty, and resolves on disk. If
+the runtime cannot produce an actionable step (no composed action, guard
+failure, blocked dependency, prompt build error, etc.), it returns
+`kind="blocked"` with a non-empty `reason` (and optional machine-readable
+code such as `no_prompt_template`). There is no third state: an agent loop
+should never observe a `kind="step"` decision with `prompt_file == null`.
 
 **Always check `progress` for completion.** If `progress.done_wps` equals
 `progress.total_wps` but `kind` is not `terminal`, the mission is actually
@@ -452,9 +454,9 @@ while [ "$KIND" = "step" ] || [ "$KIND" = "decision_required" ]; do
   if [ "$KIND" = "step" ]; then
     PROMPT=$(echo "$DECISION" | jq -r '.prompt_file')
 
-    # Contract (post-#336 fix): kind=step always carries a non-empty
-    # prompt_file resolvable on disk. If a prompt cannot be resolved the
-    # runtime emits kind=blocked with a populated reason instead.
+    # Contract (C1/C2, post-#336 fix): kind=step always carries a
+    # non-empty prompt_file resolvable on disk. If a prompt cannot be
+    # resolved, the runtime emits kind=blocked with a populated reason.
 
     # Read and execute the prompt...
     RESULT="success"  # or "failed" or "blocked"
@@ -503,10 +505,11 @@ recognizing the mission is complete. **Workaround:** Check
 `progress.done_wps == progress.total_wps` as a secondary completion signal.
 
 **#336 — fixed.** `prompt_file` is always non-empty and resolvable on disk
-on `kind: step` decisions. When no prompt is available the runtime now emits
-a structured `kind: blocked` decision with a non-empty `reason` (and an
-optional `blocker_code` such as `no_prompt_template`). Agent loops no longer
-need to defensively null-check `prompt_file`.
+on `kind: step` decisions. When no prompt is available, the runtime now emits
+a structured `kind: blocked` decision with a non-empty `reason` (and optional
+machine-readable code such as `no_prompt_template`). Agent loops no longer
+need to defensively null-check `prompt_file`; a `kind: step` decision with a
+null prompt is a runtime bug.
 
 ---
 

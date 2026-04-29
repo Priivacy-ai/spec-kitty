@@ -452,6 +452,32 @@ def _scaffold_minimal_mission(
         f"feature_dir not created: {feature_dir}\n  payload: {payload!r}"
     )
 
+    # WP04 setup-plan entry gate requires `is_committed(spec) AND
+    # is_substantive(spec, "spec")`. The scaffolded spec.md is neither
+    # populated nor committed at this point, so we must populate it with
+    # a substantive Functional Requirements row and commit it before
+    # invoking setup-plan. (Mirrors the populate+commit pattern in
+    # tests/integration/test_specify_plan_commit_boundary.py scenarios.)
+    spec_path = feature_dir / "spec.md"
+    spec_path.write_text(
+        spec_path.read_text(encoding="utf-8")
+        + (
+            "\n## Functional Requirements\n\n"
+            "| ID | Description | Priority | Status |\n"
+            "|---|---|---|---|\n"
+            "| FR-001 | Demo mission for golden-path E2E. | P0 | Draft |\n"
+        ),
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "add", str(spec_path.relative_to(project))],
+        cwd=project, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Populate golden-path demo spec.md (substantive FR row)"],
+        cwd=project, check=True, capture_output=True,
+    )
+
     # setup-plan
     cmd = [
         "agent", "mission", "setup-plan",
@@ -573,6 +599,23 @@ def _run_next_and_assert_lifecycle(
             "prompt-file key. Live envelope keys observed: "
             f"{sorted(payload.keys())!r}\n"
             f"  payload: {json.dumps(payload, indent=2, default=str)}"
+        )
+
+    # #844 / FR-005/FR-006/FR-007 (C1, C2): kind="step" envelopes MUST carry a
+    # non-null, non-empty prompt_file that resolves on disk. Non-step kinds
+    # (blocked, terminal, decision_required, query) remain permissive — do
+    # NOT assert prompt fields on them. The producer-side wire field is
+    # ``prompt_file``; the ``prompt_path`` fallback is preserved verbatim
+    # as a defensive consumer-side alias for any downstream emitter that
+    # may emit either key.
+    if payload.get("kind") == "step":
+        prompt = payload.get("prompt_file") or payload.get("prompt_path")
+        assert prompt is not None and prompt != "", (
+            "kind='step' must carry a non-empty prompt_file (C1). "
+            f"Live envelope keys: {sorted(payload.keys())}"
+        )
+        assert Path(prompt).is_file(), (
+            f"kind='step' prompt_file must resolve on disk (C2): {prompt!r}"
         )
 
     # Advance mode.

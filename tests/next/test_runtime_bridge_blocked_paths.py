@@ -291,6 +291,55 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         if decision.prompt_file is not None:
             assert Path(decision.prompt_file).exists()
 
+    def test_guard_failure_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
+        """A prompt can disappear after resolution; keep the step invariant hard."""
+        from specify_cli.next import runtime_bridge as rb
+
+        mission_slug = "042-test"
+        self._build_minimal_feature_dir(tmp_path, mission_slug)
+
+        prompt_path = tmp_path / "specify-prompt.md"
+        prompt_path.write_text("# specify\n", encoding="utf-8")
+
+        run_ref = SimpleNamespace(run_id="run-guard-04", run_dir=str(tmp_path / "run"))
+        snapshot = SimpleNamespace(issued_step_id="specify")
+
+        with (
+            patch.object(rb, "get_mission_type", return_value="software-dev"),
+            patch.object(rb, "SyncRuntimeEventEmitter") as sync_cls,
+            patch.object(rb, "get_or_start_run", return_value=run_ref),
+            patch.object(rb, "_compute_wp_progress", return_value=None),
+            patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
+            patch.object(rb, "_is_wp_iteration_step", return_value=False),
+            patch.object(rb, "_state_to_action", return_value=("specify", None, None)),
+            patch.object(
+                rb,
+                "_build_prompt_or_error",
+                return_value=(str(prompt_path), None),
+            ),
+            patch("pathlib.Path.is_file", return_value=False),
+            patch(
+                "specify_cli.next._internal_runtime.engine._read_snapshot",
+                return_value=snapshot,
+            ),
+        ):
+            sync_cls.for_feature.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
+            decision = rb.decide_next_via_runtime(
+                agent="claude",
+                mission_slug=mission_slug,
+                result="success",
+                repo_root=tmp_path,
+            )
+
+        assert decision.kind == DecisionKind.blocked
+        assert decision.reason == "prompt_file_not_resolvable"
+        assert decision.guard_failures == ["specify_guard_failure"]
+        assert decision.prompt_file is None
+
     def test_guard_failure_on_non_wp_step_no_action_mapped(
         self, tmp_path: Path
     ) -> None:
@@ -335,4 +384,123 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         assert decision.reason
         assert "no action mapped" in decision.reason
         assert decision.guard_failures == ["exotic_guard_failure"]
+        assert decision.prompt_file is None
+
+
+class TestResolvedPromptRaceFallbacks:
+    """Cover every runtime bridge path that catches ``InvalidStepDecision``."""
+
+    def test_wp_iteration_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.next.runtime_bridge import _build_wp_iteration_decision
+
+        prompt_path = tmp_path / "implement-prompt.md"
+        prompt_path.write_text("# implement\n", encoding="utf-8")
+        run_ref = SimpleNamespace(run_id="run-wp-race")
+
+        with (
+            patch(
+                "specify_cli.next.runtime_bridge._state_to_action",
+                return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                return_value=(str(prompt_path), None),
+            ),
+            patch("pathlib.Path.is_file", return_value=False),
+        ):
+            decision = _build_wp_iteration_decision(
+                step_id="implement",
+                agent="claude",
+                mission_slug="042-test",
+                mission_type="software-dev",
+                feature_dir=tmp_path,
+                repo_root=tmp_path,
+                timestamp="2026-04-28T00:00:00+00:00",
+                progress=None,
+                origin={},
+                run_ref=run_ref,
+            )
+
+        assert decision.kind == DecisionKind.blocked
+        assert decision.reason == "prompt_file_not_resolvable"
+        assert decision.prompt_file is None
+
+    def test_map_wp_step_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+        prompt_path = tmp_path / "implement-prompt.md"
+        prompt_path.write_text("# implement\n", encoding="utf-8")
+
+        with (
+            patch(
+                "specify_cli.next.runtime_bridge._state_to_action",
+                return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                return_value=True,
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                return_value=(str(prompt_path), None),
+            ),
+            patch("pathlib.Path.is_file", return_value=False),
+        ):
+            decision = _map_runtime_decision(
+                decision=_runtime_decision(step_id="implement"),
+                agent="claude",
+                mission_slug="042-test",
+                mission_type="software-dev",
+                repo_root=tmp_path,
+                feature_dir=tmp_path,
+                timestamp="2026-04-28T00:00:00+00:00",
+                progress=None,
+                origin={},
+            )
+
+        assert decision.kind == DecisionKind.blocked
+        assert decision.reason == "prompt_file_not_resolvable"
+        assert decision.prompt_file is None
+
+    def test_map_non_wp_step_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.next.runtime_bridge import _map_runtime_decision
+
+        prompt_path = tmp_path / "specify-prompt.md"
+        prompt_path.write_text("# specify\n", encoding="utf-8")
+
+        with (
+            patch(
+                "specify_cli.next.runtime_bridge._state_to_action",
+                return_value=("specify", None, None),
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                return_value=False,
+            ),
+            patch(
+                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                return_value=(str(prompt_path), None),
+            ),
+            patch("pathlib.Path.is_file", return_value=False),
+        ):
+            decision = _map_runtime_decision(
+                decision=_runtime_decision(step_id="specify"),
+                agent="claude",
+                mission_slug="042-test",
+                mission_type="software-dev",
+                repo_root=tmp_path,
+                feature_dir=tmp_path,
+                timestamp="2026-04-28T00:00:00+00:00",
+                progress=None,
+                origin={},
+            )
+
+        assert decision.kind == DecisionKind.blocked
+        assert decision.reason == "prompt_file_not_resolvable"
         assert decision.prompt_file is None

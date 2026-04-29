@@ -42,6 +42,33 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Commit Boundary (issue #846)
+
+`/spec-kitty.plan` will refuse to advance the plan phase unless **two**
+gates pass:
+
+1. **Entry gate.** `spec.md` must already be both **committed** (tracked +
+   present at HEAD) and **substantive** (at least one populated `FR-###`
+   row — not just template placeholders). If either check fails, the CLI
+   returns `phase_complete=false` with a `blocked_reason` naming "committed
+   AND substantive" and does **not** create or commit `plan.md`.
+
+2. **Exit gate.** `plan.md` is only auto-committed when its Technical Context
+   section contains a real `Language/Version` value (and at least one peer
+   field) — not the `[e.g., …]` / `[NEEDS CLARIFICATION …]` placeholders. If
+   the plan is left as scaffold, it stays untracked on disk and the CLI
+   returns `phase_complete=false` with a substantive-plan `blocked_reason`.
+
+Section presence is the only signal — adding arbitrary prose without the
+required structural rows does **not** count as substantive (no byte-length
+escape hatch).
+
+To advance: populate the Technical Context with real values, then re-run
+`spec-kitty agent mission setup-plan --json`. The substantive plan will be
+auto-committed and `phase_complete` will report `true`.
+
+Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
+
 ## Branch Strategy Confirmation (MANDATORY)
 
 Before asking planning questions or generating artifacts, you must make the branch contract explicit.

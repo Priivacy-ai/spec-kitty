@@ -47,6 +47,17 @@ class DecisionKind:
     query = "query"  # New: bare next call; state not advanced
 
 
+class InvalidStepDecision(ValueError):
+    """Raised when a ``kind="step"`` ``Decision`` is constructed without a
+    valid, on-disk-resolvable ``prompt_file``.
+
+    See contracts C1/C2/C3 in
+    ``kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/next-prompt-file-contract.md``:
+    a ``kind="step"`` envelope MUST carry a non-null, non-empty ``prompt_file``
+    that resolves on disk. ``null`` is legal only for non-step kinds.
+    """
+
+
 @dataclass
 class Decision:
     kind: str  # one of DecisionKind.*
@@ -75,6 +86,32 @@ class Decision:
     mission_number: str | None = None
     mission_type: str | None = None
 
+    def __post_init__(self) -> None:
+        """Enforce the ``kind="step"`` prompt-file contract at construction time.
+
+        Contract (C1/C2 in
+        ``kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/next-prompt-file-contract.md``):
+        a ``kind="step"`` envelope MUST carry a non-null, non-empty
+        ``prompt_file`` that resolves on disk. Non-step kinds (``blocked``,
+        ``terminal``, ``decision_required``, ``query``) remain permissive —
+        ``prompt_file=None`` is legal there.
+
+        Raises :class:`InvalidStepDecision` (a :class:`ValueError`) on
+        violation so the call site can ``try/except`` and route to a
+        ``kind="blocked"`` envelope (Constraint C-005: do NOT weaken the
+        ``kind="step"`` contract).
+        """
+        if self.kind == DecisionKind.step:
+            prompt = self.prompt_file
+            if not prompt:
+                raise InvalidStepDecision(
+                    "kind='step' requires a non-empty prompt_file; got None/empty"
+                )
+            if not Path(prompt).is_file():
+                raise InvalidStepDecision(
+                    f"kind='step' prompt_file must resolve on disk: {prompt!r} does not"
+                )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": self.kind,
@@ -90,6 +127,10 @@ class Decision:
             "action": self.action,
             "wp_id": self.wp_id,
             "workspace_path": self.workspace_path,
+            # kind='step' MUST carry a non-null prompt_file that resolves on
+            # disk (see C1/C2 in
+            # kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/next-prompt-file-contract.md).
+            # null is legal only for non-step kinds.
             "prompt_file": self.prompt_file,
             "reason": self.reason,
             "guard_failures": self.guard_failures,

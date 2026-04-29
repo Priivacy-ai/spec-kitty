@@ -904,7 +904,12 @@ def test_composition_success_skips_legacy_dispatch(
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
     sentinel_decision = Decision(
-        kind=DecisionKind.step,
+        # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
+        # prompt_file. This sentinel is only used as the return value of a
+        # patched ``_advance_run_state_after_composition`` and the test does
+        # not assert on its ``kind`` — switch to ``terminal`` so the
+        # construction-time validator is not tripped.
+        kind=DecisionKind.terminal,
         agent="test",
         mission_slug=mission_slug,
         mission="software-dev",
@@ -1314,7 +1319,12 @@ class TestCustomMissionComposition:
         fake_result.invocation_ids = ("inv-001",)
 
         sentinel_decision = Decision(
-            kind=DecisionKind.step,
+            # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
+            # prompt_file. This sentinel is only used as the return value of a
+            # patched ``_advance_run_state_after_composition`` and the test does
+            # not assert on its ``kind`` — switch to ``terminal`` so the
+            # construction-time validator is not tripped.
+            kind=DecisionKind.terminal,
             agent="test",
             mission_slug=mission_slug,
             mission="software-dev",
@@ -1371,7 +1381,12 @@ class TestCustomMissionComposition:
         fake_result.invocation_ids = ("inv-001",)
 
         sentinel_decision = Decision(
-            kind=DecisionKind.step,
+            # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
+            # prompt_file. This sentinel is only used as the return value of a
+            # patched ``_advance_run_state_after_composition`` and the test does
+            # not assert on its ``kind`` — switch to ``terminal`` so the
+            # construction-time validator is not tripped.
+            kind=DecisionKind.terminal,
             agent="test",
             mission_slug=mission_slug,
             mission="software-dev",
@@ -1465,7 +1480,13 @@ class TestCustomMissionComposition:
             fake_result.invocation_ids = ("inv-001",)
 
             sentinel_decision = Decision(
-                kind=DecisionKind.step,
+                # WP02 / #844: kind=step now requires a non-null,
+                # on-disk-resolvable prompt_file. This sentinel is only the
+                # return value of a patched
+                # ``_advance_run_state_after_composition`` and the test does
+                # not assert on ``kind`` — use ``terminal`` so the
+                # construction-time validator is not tripped.
+                kind=DecisionKind.terminal,
                 agent="test",
                 mission_slug=mission_slug,
                 mission="software-dev",

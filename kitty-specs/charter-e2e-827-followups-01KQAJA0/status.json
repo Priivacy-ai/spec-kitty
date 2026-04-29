@@ -1,0 +1,49 @@
+{
+  "event_count": 28,
+  "last_event_id": "01KQAY1WY4Q864QW3AP6KMZV2H",
+  "materialized_at": "2026-04-28T20:56:22.724386+00:00",
+  "mission_number": "106",
+  "mission_slug": "charter-e2e-827-followups-01KQAJA0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQAY1WG94EVJYV09FFZ8W030",
+      "last_transition_at": "2026-04-28T20:56:22.281953+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQAY1WSYVWW3E06CRPR7NWSH",
+      "last_transition_at": "2026-04-28T20:56:22.590483+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQAY1WWC56J0YTJC5MMT6A26",
+      "last_transition_at": "2026-04-28T20:56:22.668492+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQAY1WY4Q864QW3AP6KMZV2H",
+      "last_transition_at": "2026-04-28T20:56:22.724386+00:00"
+    }
+  }
+}

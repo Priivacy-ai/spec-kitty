@@ -731,7 +731,9 @@ def create_mission(
         console.print(f"   TLDR: {result.meta.get('purpose_tldr', '')}")
         console.print(f"   Context: {result.meta.get('purpose_context', '')}")
         console.print(f"   Directory: {result.feature_dir}")
-        console.print(f"   Spec committed to {result.target_branch}")
+        # Issue #846: spec.md is no longer auto-committed at create time.
+        # The agent commits it from /spec-kitty.specify after writing substantive content.
+        console.print(f"   Meta committed to {result.target_branch}; spec.md scaffold left untracked")
 
 
 @app.command(name="check-prerequisites")
@@ -947,6 +949,42 @@ def setup_plan(
                     console.print(f"  - {step}")
             raise typer.Exit(1)
 
+        # Issue #846 entry gate: spec.md must be committed AND substantive
+        # before plan.md can be scaffolded or committed. Section-presence only;
+        # scaffold + arbitrary prose without an FR row is NOT substantive.
+        from specify_cli.missions._substantive import is_committed, is_substantive
+
+        spec_is_committed = is_committed(spec_file, repo_root)
+        spec_is_substantive = is_substantive(spec_file, "spec")
+        if not spec_is_committed or not spec_is_substantive:
+            blocked_reason = (
+                "spec.md must be committed AND substantive before setup-plan can run. "
+                "Populate the Functional Requirements (at least one FR-### row with "
+                "real description content), commit spec.md, then re-run setup-plan."
+            )
+            payload = {
+                "result": "blocked",
+                "phase_complete": False,
+                "blocked_reason": blocked_reason,
+                "error_code": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
+                "mission_slug": mission_slug,
+                "feature_dir": str(feature_dir.resolve()),
+                "spec_file": str(spec_file.resolve()),
+                "spec_committed": spec_is_committed,
+                "spec_substantive": spec_is_substantive,
+            }
+            if json_output:
+                _emit_json(
+                    _inject_branch_contract(
+                        payload,
+                        target_branch=target_branch,
+                        current_branch=current_branch,
+                    )
+                )
+            else:
+                console.print(f"[yellow]Blocked:[/yellow] {blocked_reason}")
+            return
+
         # Find plan template
         plan_template_candidates = [
             repo_root / ".kittify" / "templates" / "plan-template.md",
@@ -960,17 +998,35 @@ def setup_plan(
                 plan_template = candidate
                 break
 
-        if plan_template is not None:
-            shutil.copy2(plan_template, plan_file)
-        else:
-            package_template = files("specify_cli").joinpath("templates", "plan-template.md")
-            if not package_template.exists():
-                raise FileNotFoundError("Plan template not found in repository or package")
-            with package_template.open("rb") as src, open(plan_file, "wb") as dst:
-                shutil.copyfileobj(src, dst)
+        # C-007: never overwrite an existing plan.md. The agent may have
+        # populated it between setup-plan invocations and we must not silently
+        # delete or rewrite their content.
+        if not plan_file.exists():
+            if plan_template is not None:
+                shutil.copy2(plan_template, plan_file)
+            else:
+                package_template = files("specify_cli").joinpath("templates", "plan-template.md")
+                if not package_template.exists():
+                    raise FileNotFoundError("Plan template not found in repository or package")
+                with package_template.open("rb") as src, open(plan_file, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
 
-        # Commit plan.md to target branch
-        _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
+        # Issue #846 exit gate: only commit plan.md when its Technical Context
+        # has been populated with real (non-placeholder) values. A bare
+        # template stays untracked so the dashboard / workflow JSON does not
+        # falsely advertise the plan phase as complete.
+        plan_is_substantive = is_substantive(plan_file, "plan")
+        plan_blocked_reason: str | None = None
+        if plan_is_substantive:
+            _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
+        else:
+            plan_blocked_reason = (
+                "plan.md content is not substantive yet; populate Technical Context with real "
+                "values (Language/Version plus at least one peer field, such as Primary "
+                "Dependencies) — not template placeholders — and re-run setup-plan to commit."
+            )
+            if not json_output:
+                console.print(f"[yellow]Plan not committed:[/yellow] {plan_blocked_reason}")
 
         # T014 + T016: Documentation mission wiring for plan
         mission_type = get_mission_type(feature_dir)
@@ -1069,13 +1125,17 @@ def setup_plan(
             )
 
         if json_output:
-            result = {
-                "result": "success",
+            result: dict[str, object] = {
+                "result": "success" if plan_is_substantive else "blocked",
+                "phase_complete": plan_is_substantive,
                 "mission_slug": mission_slug,
                 "plan_file": str(plan_file),
                 "feature_dir": str(feature_dir),
                 "spec_file": str(spec_file),
+                "plan_substantive": plan_is_substantive,
             }
+            if plan_blocked_reason is not None:
+                result["blocked_reason"] = plan_blocked_reason
             if gap_analysis_path:
                 result["gap_analysis"] = gap_analysis_path
             if generators_detected:

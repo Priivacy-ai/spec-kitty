@@ -68,6 +68,30 @@ Parse the JSON and, in your next reply, explicitly tell the user:
 
 Never talk generically about `main` or "the default branch". Name the actual branch values from the helper JSON. Do not shell out to git for this prompt.
 
+## Commit Boundary (issue #846)
+
+`spec-kitty agent mission create` no longer auto-commits `spec.md`. The empty
+template is written to disk untracked at create time; **you** are responsible
+for committing it after writing substantive content.
+
+"Substantive content" for `spec.md` means **at least one Functional
+Requirements row** (`FR-###`) whose description is real (not a template
+placeholder like `[NEEDS CLARIFICATION …]`, `[e.g., …]`, or a bare user-story
+scaffold). Section presence is the only signal — adding 300 bytes of arbitrary
+prose without an FR row does **not** count as substantive.
+
+Workflow:
+
+1. Run `spec-kitty agent mission create …`. Note that `spec.md` is left
+   untracked.
+2. Populate `spec.md` with real Functional / Non-Functional / Constraint rows.
+3. Commit `spec.md` yourself: `git add <feature_dir>/spec.md && git commit -m "Add spec for <slug>"`.
+4. Only then will `spec-kitty agent mission setup-plan` accept the spec phase
+   as complete; otherwise it returns `phase_complete=false` with a
+   `blocked_reason` mentioning "committed AND substantive".
+
+Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
+
 ## DO NOT
 
 - Do not mix functional, non-functional, and constraint requirements in one list.
