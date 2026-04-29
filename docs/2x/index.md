@@ -1,4 +1,10 @@
-# 2.x Documentation (Current Track)
+# 2.x Documentation (Archive)
+
+> **Archive Notice**: This section documents Spec Kitty 2.x behavior. It is preserved
+> for historical reference only. For current 3.x Charter documentation, see
+> [3.x Docs (Current)](../3x/index.md).
+
+
 
 `2.x` is the current architecture track, centered on doctrine-backed governance,
 living glossary semantics, and runtime-owned mission execution.

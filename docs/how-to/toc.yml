@@ -46,3 +46,11 @@
   href: non-interactive-init.md
 - name: Set Up Project Governance
   href: setup-governance.md
+- name: Synthesize and Maintain Doctrine
+  href: synthesize-doctrine.md
+- name: Run a Governed Mission
+  href: run-governed-mission.md
+- name: Use the Retrospective Learning Loop
+  href: use-retrospective-learning.md
+- name: Troubleshoot Charter Failures
+  href: troubleshoot-charter.md

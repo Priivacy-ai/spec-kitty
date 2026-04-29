@@ -21,6 +21,22 @@
         "exclude": [
           "**/_*.md"
         ]
+      },
+      {
+        "files": [
+          "**.md",
+          "toc.yml"
+        ],
+        "src": "3x",
+        "dest": "3x"
+      },
+      {
+        "files": [
+          "**.md",
+          "toc.yml"
+        ],
+        "src": "migration",
+        "dest": "migration"
       }
     ],
     "resource": [
