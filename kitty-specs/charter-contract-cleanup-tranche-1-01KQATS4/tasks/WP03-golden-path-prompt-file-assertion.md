@@ -196,3 +196,7 @@ GitHub issue [`#844`](https://github.com/Priivacy-ai/spec-kitty/issues/844) is t
 ```bash
 spec-kitty agent action implement WP03 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-29T05:28:00Z – claude – shell_pid=29435 – Issued-action prompt_file resolvability assertion + blocked-decision reason assertion landed; FR-010 helpers verified intact; golden-path E2E green
