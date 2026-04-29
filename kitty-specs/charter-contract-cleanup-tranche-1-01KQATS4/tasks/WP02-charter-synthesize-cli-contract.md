@@ -297,3 +297,7 @@ The brief at `/Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/sta
 ```bash
 spec-kitty agent action implement WP02 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-29T05:44:53Z – claude – shell_pid=29183 – Charter --json envelope contract overhauled; 4-test gate green; mypy strict clean; PROJECT_000 sweep clean
