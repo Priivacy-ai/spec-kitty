@@ -19,9 +19,9 @@
 | T001 | Run pre-flight checks (git status, pull, version, check-prerequisites) | WP01 | — | [D] |
 | T002 | Execute source mission WP01 via `spec-kitty next` (gap analysis + nav + docfx.json) | WP01 | — | [D] |
 | T003 | Verify WP01 deliverables (gap-analysis.md, toc files, docfx.json updated) | WP01 | — | [D] |
-| T004 | Execute source mission WP02–WP08 via `spec-kitty next` (content generation) | WP02 | — |
-| T005 | Verify page count (14 new + 5 updated) and spot-check CLI flag accuracy | WP02 | — |
-| T006 | Grep for stale command names and TODO markers across all changed docs | WP02 | — |
+| T004 | Execute source mission WP02–WP08 via `spec-kitty next` (content generation) | WP02 | — | [D] |
+| T005 | Verify page count (14 new + 5 updated) and spot-check CLI flag accuracy | WP02 | — | [D] |
+| T006 | Grep for stale command names and TODO markers across all changed docs | WP02 | — | [D] |
 | T007 | Execute source mission WP09 via `spec-kitty next` (validation pass) | WP03 | — |
 | T008 | Review validation-report.md for completeness and evidence coverage | WP03 | — |
 | T009 | Triage validation failures — stop and report any product bugs (FR-007) | WP03 | — |
@@ -66,9 +66,9 @@
 
 **Subtasks**:
 
-- [ ] T004 Execute source WP02–WP08 via `spec-kitty next` (content generation) (WP02)
-- [ ] T005 Verify page count (14 new + 5 updated) and spot-check CLI flag accuracy (WP02)
-- [ ] T006 Grep for stale command names and TODO markers across all changed docs (WP02)
+- [x] T004 Execute source WP02–WP08 via `spec-kitty next` (content generation) (WP02)
+- [x] T005 Verify page count (14 new + 5 updated) and spot-check CLI flag accuracy (WP02)
+- [x] T006 Grep for stale command names and TODO markers across all changed docs (WP02)
 
 **Dependencies**: WP01  
 **Parallelization**: none (internal parallelism within source WP02–WP08 handled by `spec-kitty next`)
