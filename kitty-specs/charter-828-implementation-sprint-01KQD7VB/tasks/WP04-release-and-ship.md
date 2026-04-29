@@ -15,8 +15,8 @@ subtasks:
 - T011
 - T012
 phase: Phase 4 - Ship
-agent: "claude:sonnet:researcher-robbie:implementer"
-shell_pid: "91875"
+agent: "claude:sonnet:researcher-robbie:reviewer"
+shell_pid: "92426"
 history:
 - at: '2026-04-29T18:44:20Z'
   actor: system
@@ -185,3 +185,4 @@ Report each SC result. If any SC fails, fix the underlying gap before declaring 
 
 - 2026-04-29T19:27:04Z – claude:sonnet:researcher-robbie:implementer – shell_pid=91875 – Started implementation via action command
 - 2026-04-29T19:30:27Z – claude:sonnet:researcher-robbie:implementer – shell_pid=91875 – Release handoff complete, all 9 SC verified, branch clean
+- 2026-04-29T19:30:52Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=92426 – Started review via action command
