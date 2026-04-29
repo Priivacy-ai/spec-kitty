@@ -22,10 +22,10 @@
 | T009 | Add/harden assertions in `tests/integration/test_charter_synthesize_fresh.py` covering envelope shape on fresh-project seed | WP02 | [P] |
 | T010 | Add new `tests/charter/synthesizer/test_synthesize_path_parity.py` proving dry-run/non-dry-run path parity for non-`PROJECT_000` provenance | WP02 | [P] |
 | T011 | Run `PROJECT_000` user-visibility sweep (grep + assertion) and `mypy --strict` on every modified runtime file | WP02 | |
-| T012 | Update issued-action assertion in `tests/e2e/test_charter_epic_golden_path.py` to require resolvable `prompt_file` (or documented public equivalent) | WP03 | |
-| T013 | Update blocked-decision assertion in the same file to require non-empty `reason` and not require a prompt file | WP03 | |
-| T014 | Run the golden-path E2E end-to-end against the real synthesizer and confirm both new assertions pass and existing ones do not regress | WP03 | |
-| T015 | Confirm verify-only invariants on `_parse_first_json_object` and `_run_next_and_assert_lifecycle` still hold after the assertion changes | WP03 | |
+| T012 | Update issued-action assertion in `tests/e2e/test_charter_epic_golden_path.py` to require resolvable `prompt_file` (or documented public equivalent) | WP03 | | [D] |
+| T013 | Update blocked-decision assertion in the same file to require non-empty `reason` and not require a prompt file | WP03 | | [D] |
+| T014 | Run the golden-path E2E end-to-end against the real synthesizer and confirm both new assertions pass and existing ones do not regress | WP03 | | [D] |
+| T015 | Confirm verify-only invariants on `_parse_first_json_object` and `_run_next_and_assert_lifecycle` still hold after the assertion changes | WP03 | | [D] |
 | T016 | Modify the `e2e-cross-cutting` job in `.github/workflows/ci-quality.yml`: install `pip install -e .[test,lint]` instead of `pip install -e .[test]` | WP04 | | [D] |
 | T017 | Verify locally that the modified install line produces a functioning `python -m mypy` and that `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` passes | WP04 | | [D] |
 | T018 | Confirm no other CI job in the workflow regresses (read job graph, identify any indirect dependency on the `[test]`-only install) | WP04 | | [D] |
@@ -95,10 +95,10 @@
   - Existing assertions about other envelope kinds and the lifecycle trail continue to pass.
 - **Independent test:** `uv run pytest tests/e2e/test_charter_epic_golden_path.py -q` exits 0 on the feature branch.
 - **Included subtasks:**
-  - [ ] T012 Update issued-action assertion to require resolvable `prompt_file` (WP03)
-  - [ ] T013 Update blocked-decision assertion to require non-empty `reason` (WP03)
-  - [ ] T014 Run the golden-path E2E and confirm both new assertions pass and existing ones do not regress (WP03)
-  - [ ] T015 Confirm verify-only invariants on `_parse_first_json_object` and `_run_next_and_assert_lifecycle` still hold (WP03)
+  - [x] T012 Update issued-action assertion to require resolvable `prompt_file` (WP03)
+  - [x] T013 Update blocked-decision assertion to require non-empty `reason` (WP03)
+  - [x] T014 Run the golden-path E2E and confirm both new assertions pass and existing ones do not regress (WP03)
+  - [x] T015 Confirm verify-only invariants on `_parse_first_json_object` and `_run_next_and_assert_lifecycle` still hold (WP03)
 - **Implementation sketch:** locate the per-envelope loop → branch on envelope kind → add the two new assertions → run the test with verbose output to confirm legitimate envelopes are not falsely rejected → re-read helper functions for verify-only confirmation.
 - **Parallel opportunities:** runs in parallel with WP02 and WP04.
 - **Dependencies:** WP01.
