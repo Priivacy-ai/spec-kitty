@@ -110,17 +110,21 @@ class StagedArtifact:
 def _artifact_id_from_provenance(prov: ProvenanceEntry) -> str | None:
     """Lift the concrete artifact_id from a ``ProvenanceEntry``.
 
-    Mirrors the inline ``prov.artifact_urn.split(":", 1)[1]`` pattern used by
-    ``stage_and_validate`` and ``promote`` so the dry-run path computes the
-    SAME id (FR-004 path parity). Returns ``None`` for kinds that do not
-    carry a URN-encoded id (tactic, styleguide).
+    ``stage_and_validate``, ``promote``, and dry-run envelope projection all
+    call this helper so malformed directive provenance cannot silently fall
+    back to a ``000`` path. Returns ``None`` for kinds that do not carry a
+    URN-encoded id (tactic, styleguide).
     """
     if prov.artifact_kind != "directive":
         return None
-    parts = prov.artifact_urn.split(":", 1)
-    if len(parts) != 2 or not parts[1]:
-        return None
-    return str(parts[1])
+    prefix, separator, artifact_id = prov.artifact_urn.partition(":")
+    if prefix != "directive" or separator != ":" or not artifact_id:
+        raise ValueError(
+            "Directive provenance must carry artifact_urn='directive:<artifact_id>'"
+        )
+    if artifact_id == "PROJECT_000":
+        raise ValueError("Directive provenance must not surface PROJECT_000")
+    return artifact_id
 
 
 def compute_written_artifacts(
@@ -270,9 +274,7 @@ def _run_neutrality_gate(
 
         # Determine the staged content path for this specific artifact.
         # The artifact_id is embedded in the URN for directives.
-        artifact_id: str | None = None
-        if kind == "directive":
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        artifact_id = _artifact_id_from_provenance(prov)
         filename = _artifact_filename(kind, slug, artifact_id)
         staged_path = staging_dir.path_for_content(kind, filename)
 
@@ -325,9 +327,7 @@ def stage_and_validate(
     for body, prov in results:
         kind = prov.artifact_kind
         slug = prov.artifact_slug
-        artifact_id: str | None = None
-        if kind == "directive":
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        artifact_id = _artifact_id_from_provenance(prov)
 
         filename = _artifact_filename(kind, slug, artifact_id)
         yaml_bytes = canonical_yaml(body)
@@ -410,10 +410,7 @@ def promote(
         slug = prov.artifact_slug
 
         # Infer artifact_id from the provenance URN for directive filename
-        artifact_id: str | None = None
-        if kind == "directive":
-            # artifact_urn is "directive:<artifact_id>" for directives
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        artifact_id = _artifact_id_from_provenance(prov)
 
         filename = _artifact_filename(kind, slug, artifact_id)
         yaml_bytes = canonical_yaml(body)
@@ -469,9 +466,7 @@ def promote(
             kind = prov.artifact_kind
             slug = prov.artifact_slug
 
-            artifact_id_: str | None = None
-            if kind == "directive":
-                artifact_id_ = prov.artifact_urn.split(":", 1)[1]
+            artifact_id_ = _artifact_id_from_provenance(prov)
 
             filename = _artifact_filename(kind, slug, artifact_id_)
             yaml_bytes = canonical_yaml(body)

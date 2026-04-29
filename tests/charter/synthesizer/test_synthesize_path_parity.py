@@ -29,6 +29,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -36,7 +37,10 @@ from typer.testing import CliRunner
 
 from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget
 from charter.synthesizer.synthesize_pipeline import run_all
-from charter.synthesizer.write_pipeline import compute_written_artifacts
+from charter.synthesizer.write_pipeline import (
+    _artifact_id_from_provenance,
+    compute_written_artifacts,
+)
 
 
 pytestmark = pytest.mark.fast
@@ -203,6 +207,20 @@ def test_dry_run_paths_match_real_run_paths(
         assert entry.artifact_id != "PROJECT_000", (
             f"directive surfaced placeholder PROJECT_000: {entry}"
         )
+
+
+@pytest.mark.parametrize(
+    "artifact_urn",
+    ["directive:", "directive:PROJECT_000", "not-a-directive-urn"],
+)
+def test_directive_provenance_rejects_missing_or_placeholder_ids(
+    artifact_urn: str,
+) -> None:
+    """Directive provenance must fail closed instead of falling back to a 000 path."""
+    prov = SimpleNamespace(artifact_kind="directive", artifact_urn=artifact_urn)
+
+    with pytest.raises(ValueError):
+        _artifact_id_from_provenance(prov)
 
 
 # ---------------------------------------------------------------------------
