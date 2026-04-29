@@ -20,7 +20,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "18693"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -239,3 +240,7 @@ For inactive baselines: capture the current output once, write it to a `*.expect
 - Prompt fragment rendering (WP04).
 - Review-gate behavior (WP05).
 - User-facing docs (WP06).
+
+## Activity Log
+
+- 2026-04-29T08:35:13Z – claude:opus:python-pedro:implementer – shell_pid=18693 – Started implementation via action command
