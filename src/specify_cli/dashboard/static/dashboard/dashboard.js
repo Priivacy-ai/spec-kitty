@@ -1095,7 +1095,12 @@ function getFeatureDisplayName(feature) {
     return feature.display_name || feature.name || feature.id || 'Unknown mission';
 }
 
+function normalizeFeatureList(features) {
+    return Array.isArray(features) ? features : [];
+}
+
 function updateFeatureList(features, activeFeatureId = null) {
+    features = normalizeFeatureList(features);
     allFeatures = features;
     const selectContainer = document.getElementById('feature-selector-container');
     const select = document.getElementById('feature-select');
@@ -1227,7 +1232,8 @@ function updateFeatureList(features, activeFeatureId = null) {
 function updateFeatureListSilent(features) {
     // Same as updateFeatureList but doesn't reload the current page
     // Used during polling to avoid resetting user's view
-    const oldFeature = allFeatures.find(f => f.id === currentFeature);
+    features = normalizeFeatureList(features);
+    const oldFeature = normalizeFeatureList(allFeatures).find(f => f.id === currentFeature);
     allFeatures = features;
     const feature = features.find(f => f.id === currentFeature);
 
@@ -1254,13 +1260,28 @@ function fetchData(isInitialLoad = false) {
         return;
     }
     fetch('/api/features')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json()
+                    .catch(() => ({}))
+                    .then(errorData => {
+                        const detail = errorData.detail || errorData.error || response.statusText;
+                        throw new Error(`GET /api/features failed (${response.status}): ${detail}`);
+                    });
+            }
+            return response.json();
+        })
         .then(data => {
+            const features = normalizeFeatureList(data && data.features);
+            if (!data || !Array.isArray(data.features)) {
+                console.warn('GET /api/features returned no features array; rendering an empty feature list', data);
+            }
+
             // Use full update on initial load, silent update on polls
             if (isInitialLoad) {
-                updateFeatureList(data.features, data.active_feature_id || null);
+                updateFeatureList(features, data?.active_feature_id || null);
             } else {
-                updateFeatureListSilent(data.features);
+                updateFeatureListSilent(features);
             }
 
             // Refresh kanban board if currently viewing it
@@ -1270,11 +1291,11 @@ function fetchData(isInitialLoad = false) {
 
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
 
-            if (data.project_path) {
+            if (data?.project_path) {
                 projectPathDisplay = data.project_path;
             }
 
-            if (data.active_worktree) {
+            if (data?.active_worktree) {
                 activeWorktreeDisplay = data.active_worktree;
             } else {
                 activeWorktreeDisplay = '';
@@ -1284,7 +1305,13 @@ function fetchData(isInitialLoad = false) {
             computeFeatureWorktreeStatus(currentFeatureObj || null);
             updateTreeInfo();
         })
-        .catch(error => console.error('Error fetching data:', error));
+        .catch(error => {
+            console.error('Error fetching data:', error);
+            if (isInitialLoad) {
+                updateFeatureList([], null);
+                document.getElementById('last-update').textContent = 'Load failed';
+            }
+        });
 }
 
 // Initial fetch

@@ -27,13 +27,15 @@ def fake_global_command_dirs(tmp_path, monkeypatch):
     global_root = tmp_path / "global-home"
 
     def _fake_global_command_dir(agent_key: str):
+        if agent_key == "opencode":
+            return global_root / ".config" / "opencode" / "commands"
         return global_root / AGENT_COMMAND_CONFIG[agent_key]["dir"]
 
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.config.get_global_command_dir",
         _fake_global_command_dir,
     )
-    (global_root / ".opencode" / "command").mkdir(parents=True)
+    (global_root / ".config" / "opencode" / "commands").mkdir(parents=True)
     return global_root
 
 
@@ -72,7 +74,7 @@ class TestListCommand:
 
             assert result.exit_code == 0
             assert "opencode" in result.stdout
-            assert ".opencode/command/" in _unwrapped_output(result.stdout)
+            assert ".config/opencode/commands/" in _unwrapped_output(result.stdout)
             assert "✓" in result.stdout  # opencode exists
 
     def test_list_uses_global_command_root_after_init(self, tmp_path):
@@ -86,7 +88,7 @@ class TestListCommand:
 
             assert result.exit_code == 0
             assert "✓ opencode" in result.stdout
-            assert ".opencode/command/" in _unwrapped_output(result.stdout)
+            assert ".config/opencode/commands/" in _unwrapped_output(result.stdout)
             assert "(global)" in result.stdout
             assert not (tmp_path / ".opencode").exists()
 
