@@ -25,6 +25,8 @@ from specify_cli.next.decision import (
     InvalidStepDecision,
 )
 
+pytestmark = pytest.mark.fast
+
 
 _TIMESTAMP = "2026-04-28T00:00:00+00:00"
 _MISSION_SLUG = "charter-e2e-827-followups-01KQAJA0"
