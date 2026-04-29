@@ -163,3 +163,4 @@ For any product bug: write `kitty-specs/charter-828-implementation-sprint-01KQD7
 - 2026-04-29T19:26:26Z – claude:sonnet:researcher-robbie:implementer – shell_pid=91142 – Validation pass complete, report at kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/validation-report.md
 - 2026-04-29T19:26:41Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=91691 – Started review via action command
 - 2026-04-29T19:26:59Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=91691 – Review passed: validation-report.md complete with evidence for all 6 checks — 375 pytest pass, all 15 pages in toc.yml, CLI flags verified against --help, phases match mission-runtime.yaml, both smoke tests pass with clean repo.
+- 2026-04-29T19:31:41Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=91691 – Planning artifact — all work committed directly to docs/charter-end-user-docs-828. No separate lane branch.
