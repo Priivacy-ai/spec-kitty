@@ -229,3 +229,4 @@ spec-kitty agent action implement WP01 --agent <name>
 - 2026-04-29T05:17:51Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=27620 – Verification evidence authored; verdict in research/verification-evidence.md
 - 2026-04-29T05:18:22Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=28678 – Started review via action command
 - 2026-04-29T05:19:40Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=28678 – Review passed: regression guards verified intact (109/109 pass); FR-009/FR-010 invariants cited at runtime_bridge.py:1109-1147,1740-1795, schema.py:194-206, golden-path E2E:126,395-402,598-608; scope clean (only research/ modified); path drift to src/specify_cli/retrospective/ documented.
+- 2026-04-29T06:03:00Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=28678 – Moved to done
