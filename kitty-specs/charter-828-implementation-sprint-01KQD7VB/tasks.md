@@ -16,9 +16,9 @@
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Run pre-flight checks (git status, pull, version, check-prerequisites) | WP01 | — |
-| T002 | Execute source mission WP01 via `spec-kitty next` (gap analysis + nav + docfx.json) | WP01 | — |
-| T003 | Verify WP01 deliverables (gap-analysis.md, toc files, docfx.json updated) | WP01 | — |
+| T001 | Run pre-flight checks (git status, pull, version, check-prerequisites) | WP01 | — | [D] |
+| T002 | Execute source mission WP01 via `spec-kitty next` (gap analysis + nav + docfx.json) | WP01 | — | [D] |
+| T003 | Verify WP01 deliverables (gap-analysis.md, toc files, docfx.json updated) | WP01 | — | [D] |
 | T004 | Execute source mission WP02–WP08 via `spec-kitty next` (content generation) | WP02 | — |
 | T005 | Verify page count (14 new + 5 updated) and spot-check CLI flag accuracy | WP02 | — |
 | T006 | Grep for stale command names and TODO markers across all changed docs | WP02 | — |
@@ -46,9 +46,9 @@
 
 **Subtasks**:
 
-- [ ] T001 Run pre-flight checks (git status, pull, version, check-prerequisites) (WP01)
-- [ ] T002 Execute source WP01 via `spec-kitty next` (gap analysis + nav + docfx.json) (WP01)
-- [ ] T003 Verify WP01 deliverables (gap-analysis.md, toc files, docfx.json updated) (WP01)
+- [x] T001 Run pre-flight checks (git status, pull, version, check-prerequisites) (WP01)
+- [x] T002 Execute source WP01 via `spec-kitty next` (gap analysis + nav + docfx.json) (WP01)
+- [x] T003 Verify WP01 deliverables (gap-analysis.md, toc files, docfx.json updated) (WP01)
 
 **Dependencies**: none  
 **Parallelization**: none; WP02–WP04 are blocked on this.
