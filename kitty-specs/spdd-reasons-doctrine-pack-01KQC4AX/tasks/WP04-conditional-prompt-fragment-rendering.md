@@ -294,3 +294,4 @@ For inactive baselines: capture each template's pre-feature output as `tests/pro
 ## Activity Log
 
 - 2026-04-29T08:57:39Z – claude:opus:python-pedro:implementer – shell_pid=43330 – Started implementation via action command
+- 2026-04-29T09:09:42Z – claude:opus:python-pedro:implementer – shell_pid=43330 – Ready for review: 4 templates + renderer hook + 13 tests
