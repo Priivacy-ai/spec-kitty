@@ -10,7 +10,7 @@ Bring Spec Kitty end-user documentation to parity with the shipped Charter-era p
 
 ## Technical Context
 
-**Doc Framework**: DocFX (toc.yml hierarchy, Markdown source)
+**Language/Version**: Markdown (DocFX site — toc.yml hierarchy, no build-tool version pinned)
 **Primary Dependencies**: DocFX-compatible Markdown; `tests/docs/` pytest suite; `uv run spec-kitty` for CLI reference verification
 **Storage**: Flat file — `docs/` tree in the repository root
 **Testing**: `tests/docs/` (test_architecture_docs_consistency.py, test_readme_canonical_path.py, test_versioned_docs_integrity.py); link-integrity checks; command-snippet smoke
