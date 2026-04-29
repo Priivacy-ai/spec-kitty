@@ -39,8 +39,8 @@ WP02 and WP03 can run in parallel after WP01 lands. WP04 depends on the activati
 | T019  | Add `tests/prompts/test_prompt_fragment_rendering.py` (golden)         | WP04 |          | [D] |
 | T020  | Add SPDD reasons-block to `review.md` template (drift gate content)    | WP05 |          | [D] |
 | T021  | Add `tests/reviews/test_review_gate_activation.py`                     | WP05 |          | [D] |
-| T022  | Author `docs/doctrine/spdd-reasons.md` (philosophy + activation + examples) | WP06 |          |
-| T023  | Add inbound links from existing doctrine/charter/mission docs          | WP06 |          |
+| T022  | Author `docs/doctrine/spdd-reasons.md` (philosophy + activation + examples) | WP06 |          | [D] |
+| T023  | Add inbound links from existing doctrine/charter/mission docs          | WP06 |          | [D] |
 
 23 subtasks across 6 WPs. Distribution: WP01=7, WP02=4, WP03=2, WP04=6, WP05=2, WP06=2. Average WP size 3.8 subtasks (within ideal 3–7 range).
 
@@ -245,8 +245,8 @@ Author `docs/doctrine/spdd-reasons.md` and link it from existing doctrine, chart
 
 ### Included subtasks
 
-- [ ] T022 Author `docs/doctrine/spdd-reasons.md` with all required sections (per spec FR-019).
-- [ ] T023 Add inbound links from one or more of: `docs/doctrine/README.md`, `docs/charter.md` (or equivalent), and the mission workflow docs.
+- [x] T022 Author `docs/doctrine/spdd-reasons.md` with all required sections (per spec FR-019).
+- [x] T023 Add inbound links from one or more of: `docs/doctrine/README.md`, `docs/charter.md` (or equivalent), and the mission workflow docs.
 
 ### Implementation sketch
 
