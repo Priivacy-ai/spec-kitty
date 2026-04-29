@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
-from specify_cli.runtime.agent_commands import _sync_agent_commands
+from specify_cli.runtime.agent_commands import _sync_agent_commands, get_global_command_dir
 
 
 # ---------------------------------------------------------------------------
@@ -71,3 +71,19 @@ def test_claude_still_routes_to_command_files(tmp_path: Path) -> None:
         _sync_agent_commands("claude", tmp_path, "sh")
 
     mock_install.assert_not_called()
+
+
+def test_opencode_global_commands_use_xdg_config_home(tmp_path: Path, monkeypatch) -> None:
+    """OpenCode loads global commands from its config root, not ``~/.opencode``."""
+    monkeypatch.delenv("OPENCODE_CONFIG_DIR", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    assert get_global_command_dir("opencode") == tmp_path / "xdg-config" / "opencode" / "commands"
+
+
+def test_opencode_global_commands_respect_custom_config_dir(tmp_path: Path, monkeypatch) -> None:
+    """OpenCode's documented custom config directory should be honored."""
+    monkeypatch.setenv("OPENCODE_CONFIG_DIR", str(tmp_path / "custom-opencode"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    assert get_global_command_dir("opencode") == tmp_path / "custom-opencode" / "commands"

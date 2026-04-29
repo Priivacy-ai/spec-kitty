@@ -49,3 +49,13 @@ def test_dashboard_javascript_has_valid_syntax():
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_dashboard_features_polling_guards_malformed_payloads():
+    repo_root = Path(__file__).resolve().parents[2]
+    dashboard_js = repo_root / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"
+    source = dashboard_js.read_text(encoding="utf-8")
+
+    assert "function normalizeFeatureList(features)" in source
+    assert "Array.isArray(data.features)" in source
+    assert "response.ok" in source
