@@ -26,9 +26,9 @@
 | T013 | Update blocked-decision assertion in the same file to require non-empty `reason` and not require a prompt file | WP03 | |
 | T014 | Run the golden-path E2E end-to-end against the real synthesizer and confirm both new assertions pass and existing ones do not regress | WP03 | |
 | T015 | Confirm verify-only invariants on `_parse_first_json_object` and `_run_next_and_assert_lifecycle` still hold after the assertion changes | WP03 | |
-| T016 | Modify the `e2e-cross-cutting` job in `.github/workflows/ci-quality.yml`: install `pip install -e .[test,lint]` instead of `pip install -e .[test]` | WP04 | |
-| T017 | Verify locally that the modified install line produces a functioning `python -m mypy` and that `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` passes | WP04 | |
-| T018 | Confirm no other CI job in the workflow regresses (read job graph, identify any indirect dependency on the `[test]`-only install) | WP04 | |
+| T016 | Modify the `e2e-cross-cutting` job in `.github/workflows/ci-quality.yml`: install `pip install -e .[test,lint]` instead of `pip install -e .[test]` | WP04 | | [D] |
+| T017 | Verify locally that the modified install line produces a functioning `python -m mypy` and that `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py` passes | WP04 | | [D] |
+| T018 | Confirm no other CI job in the workflow regresses (read job graph, identify any indirect dependency on the `[test]`-only install) | WP04 | | [D] |
 | T019 | Run the five-command local test gate (NFR-001) on the feature branch and capture terminal evidence | WP05 | |
 | T020 | Diagnose the `Protect Main Branch` failure observed on release PR #864 — fix here if reproducible from product code, otherwise file/update a GitHub issue | WP05 | |
 | T021 | Open the PR `fix/charter-827-contract-cleanup` → `Priivacy-ai/spec-kitty:main` with the test-gate evidence in the description | WP05 | |
@@ -115,9 +115,9 @@
   - No other CI job regresses.
 - **Independent test:** push to a feature branch and observe `gh pr checks` — `e2e-cross-cutting` exits green; lint-feedback job (if present) is unaffected.
 - **Included subtasks:**
-  - [ ] T016 Modify the `e2e-cross-cutting` install step to add the `lint` extra (WP04)
-  - [ ] T017 Verify locally that the modified install line produces a functioning `python -m mypy` and the test passes (WP04)
-  - [ ] T018 Confirm no other CI job in the workflow regresses (WP04)
+  - [x] T016 Modify the `e2e-cross-cutting` install step to add the `lint` extra (WP04)
+  - [x] T017 Verify locally that the modified install line produces a functioning `python -m mypy` and the test passes (WP04)
+  - [x] T018 Confirm no other CI job in the workflow regresses (WP04)
 - **Implementation sketch:** edit one line in `.github/workflows/ci-quality.yml` → reproduce the install locally to confirm `mypy` is on PATH and the test passes → grep the workflow for any other job that might inadvertently rely on the `[test]`-only state.
 - **Parallel opportunities:** runs in parallel with WP02 and WP03.
 - **Dependencies:** WP01.
