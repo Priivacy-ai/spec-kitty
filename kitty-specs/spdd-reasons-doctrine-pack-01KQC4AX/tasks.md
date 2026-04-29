@@ -18,13 +18,13 @@ WP02 and WP03 can run in parallel after WP01 lands. WP04 depends on the activati
 
 | ID    | Description                                                            | WP   | Parallel |
 |-------|------------------------------------------------------------------------|------|----------|
-| T001  | Author `structured-prompt-driven-development.paradigm.yaml`            | WP01 | [P]      |
-| T002  | Author `reasons-canvas-fill.tactic.yaml`                               | WP01 | [P]      |
-| T003  | Author `reasons-canvas-review.tactic.yaml`                             | WP01 | [P]      |
-| T004  | Author `reasons-canvas-writing.styleguide.yaml`                        | WP01 | [P]      |
-| T005  | Author `038-structured-prompt-boundary.directive.yaml`                 | WP01 | [P]      |
-| T006  | Author `templates/fragments/reasons-canvas-template.md`                | WP01 | [P]      |
-| T007  | Add `tests/doctrine/test_spdd_reasons_artifacts.py`                    | WP01 |          |
+| T001  | Author `structured-prompt-driven-development.paradigm.yaml`            | WP01 | [P]      | [D] |
+| T002  | Author `reasons-canvas-fill.tactic.yaml`                               | WP01 | [D] |
+| T003  | Author `reasons-canvas-review.tactic.yaml`                             | WP01 | [D] |
+| T004  | Author `reasons-canvas-writing.styleguide.yaml`                        | WP01 | [D] |
+| T005  | Author `038-structured-prompt-boundary.directive.yaml`                 | WP01 | [D] |
+| T006  | Author `templates/fragments/reasons-canvas-template.md`                | WP01 | [D] |
+| T007  | Add `tests/doctrine/test_spdd_reasons_artifacts.py`                    | WP01 |          | [D] |
 | T008  | Implement `is_spdd_reasons_active()` helper                            | WP02 |          |
 | T009  | Extend `build_charter_context` to inject SPDD/REASONS guidance         | WP02 |          |
 | T010  | Verify `bundle.py`/`targets.py` paradigm flow; patch if needed         | WP02 |          |
@@ -61,13 +61,13 @@ Ship six new doctrine library artifacts that validate against existing schemas a
 
 ### Included subtasks
 
-- [ ] T001 Author `src/doctrine/paradigms/shipped/structured-prompt-driven-development.paradigm.yaml`
-- [ ] T002 Author `src/doctrine/tactics/shipped/reasons-canvas-fill.tactic.yaml`
-- [ ] T003 Author `src/doctrine/tactics/shipped/reasons-canvas-review.tactic.yaml`
-- [ ] T004 Author `src/doctrine/styleguides/shipped/reasons-canvas-writing.styleguide.yaml`
-- [ ] T005 Author `src/doctrine/directives/shipped/038-structured-prompt-boundary.directive.yaml`
-- [ ] T006 Author `src/doctrine/templates/fragments/reasons-canvas-template.md`
-- [ ] T007 Add `tests/doctrine/test_spdd_reasons_artifacts.py` validating all six artifacts load via repositories and conform to schemas.
+- [x] T001 Author `src/doctrine/paradigms/shipped/structured-prompt-driven-development.paradigm.yaml`
+- [x] T002 Author `src/doctrine/tactics/shipped/reasons-canvas-fill.tactic.yaml`
+- [x] T003 Author `src/doctrine/tactics/shipped/reasons-canvas-review.tactic.yaml`
+- [x] T004 Author `src/doctrine/styleguides/shipped/reasons-canvas-writing.styleguide.yaml`
+- [x] T005 Author `src/doctrine/directives/shipped/038-structured-prompt-boundary.directive.yaml`
+- [x] T006 Author `src/doctrine/templates/fragments/reasons-canvas-template.md`
+- [x] T007 Add `tests/doctrine/test_spdd_reasons_artifacts.py` validating all six artifacts load via repositories and conform to schemas.
 
 ### Implementation sketch
 
