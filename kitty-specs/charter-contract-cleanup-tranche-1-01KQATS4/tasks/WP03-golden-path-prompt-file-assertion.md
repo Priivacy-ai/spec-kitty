@@ -18,8 +18,8 @@ subtasks:
 - T014
 - T015
 phase: Phase 2 - Charter CLI contract
-agent: claude
-shell_pid: '29435'
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "32022"
 history:
 - timestamp: '2026-04-28T20:35:00Z'
   lane: planned
@@ -200,3 +200,4 @@ spec-kitty agent action implement WP03 --agent <name>
 ## Activity Log
 
 - 2026-04-29T05:28:00Z – claude – shell_pid=29435 – Issued-action prompt_file resolvability assertion + blocked-decision reason assertion landed; FR-010 helpers verified intact; golden-path E2E green
+- 2026-04-29T05:28:33Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=32022 – Started review via action command
