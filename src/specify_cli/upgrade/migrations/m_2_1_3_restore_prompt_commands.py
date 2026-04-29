@@ -139,13 +139,21 @@ def _compute_output_filename(command: str, agent_key: str) -> str:
     return f"spec-kitty.{stem}"
 
 
-def _render_full_prompt(template_path: Path, agent_key: str, script_type: str) -> str | None:
+def _render_full_prompt(
+    template_path: Path,
+    agent_key: str,
+    script_type: str,
+    *,
+    repo_root: Path | None = None,
+) -> str | None:
     """Render a single command template for *agent_key*.
 
     Args:
         template_path: Path to the source ``.md`` template file.
         agent_key:     Agent key, e.g. ``"claude"``.
         script_type:   Script type string, e.g. ``"sh"`` or ``"ps"``.
+        repo_root:     Project repository root used to gate the SPDD/REASONS
+                       conditional prompt fragment renderer.
 
     Returns:
         Rendered string, or ``None`` on any rendering error.
@@ -164,6 +172,7 @@ def _render_full_prompt(template_path: Path, agent_key: str, script_type: str) -
             agent_key=agent_key,
             arg_format=config["arg_format"],
             extension=config["ext"],
+            repo_root=repo_root,
         )
     except Exception as exc:  # pragma: no cover — rendering failure is non-fatal
         logger.warning("Failed to render %s for agent %s: %s", template_path.name, agent_key, exc)
@@ -292,7 +301,9 @@ class RestorePromptCommandsMigration(BaseMigration):
                     continue
 
                 # Render the full prompt
-                rendered = _render_full_prompt(template_path, agent_key, script_type)
+                rendered = _render_full_prompt(
+                    template_path, agent_key, script_type, repo_root=project_path
+                )
                 if rendered is None:
                     errors.append(f"Failed to render {command} for {agent_key}")
                     continue

@@ -357,6 +357,8 @@ def render(
     template_path: Path,
     agent_key: str,
     spec_kitty_version: str,
+    *,
+    repo_root: Path | None = None,
 ) -> RenderedSkill:
     """Render a command template as a :class:`RenderedSkill` for *agent_key*.
 
@@ -369,6 +371,11 @@ def render(
     spec_kitty_version:
         The current CLI version string, stored on the returned record for
         auditability.
+    repo_root:
+        Optional project repository root used to gate the SPDD/REASONS
+        conditional prompt fragment renderer. When ``None``, the renderer
+        treats the project as inactive and strips REASONS blocks entirely
+        (byte-for-byte parity with pre-WP04 output).
 
     Returns
     -------
@@ -397,6 +404,13 @@ def render(
     raw_bytes = template_path.read_bytes()
     source_hash = hashlib.sha256(raw_bytes).hexdigest()
     raw_text = raw_bytes.decode("utf-8")
+
+    # Apply the SPDD/REASONS conditional prompt fragment renderer before any
+    # downstream processing so block visibility is consistent across the
+    # slash-command and skills pipelines (FR-013, FR-014, FR-015).
+    from doctrine.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
+
+    raw_text = apply_spdd_blocks_for_project(raw_text, repo_root)
 
     # Strip existing YAML frontmatter (templates carry metadata for the
     # command-file pipeline that is not relevant to skills rendering).

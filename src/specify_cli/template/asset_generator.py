@@ -92,6 +92,7 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
             agent_key,
             config["arg_format"],
             config["ext"],
+            repo_root=project_path,
         )
         ext = config["ext"]
         stem = template_path.stem
@@ -114,9 +115,21 @@ def render_command_template(
     agent_key: str,
     arg_format: str,
     extension: str,
+    *,
+    repo_root: Path | None = None,
 ) -> str:
-    """Render a single command template for an agent."""
+    """Render a single command template for an agent.
+
+    The ``repo_root`` argument, when supplied, gates the SPDD/REASONS
+    conditional prompt fragment renderer (``apply_spdd_blocks_for_project``).
+    When omitted, callers are treated as inactive (block content stripped),
+    which preserves byte-for-byte parity with pre-WP04 output for any caller
+    that has not been updated to pass ``repo_root``.
+    """
+    from doctrine.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
+
     template_text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
+    template_text = apply_spdd_blocks_for_project(template_text, repo_root)
     requires_script = "{SCRIPT}" in template_text
 
     def build_variables(metadata: dict[str, object]) -> Mapping[str, str]:

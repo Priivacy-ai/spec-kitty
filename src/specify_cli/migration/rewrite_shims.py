@@ -133,6 +133,7 @@ def _generate_prompt_templates(repo_root: Path) -> list[Path]:
                     agent_key=agent_key,
                     arg_format=config["arg_format"],
                     extension=config["ext"],
+                    repo_root=repo_root,
                 )
             except Exception as exc:
                 logger.warning("Failed to render %s for %s: %s", command, agent_key, exc)

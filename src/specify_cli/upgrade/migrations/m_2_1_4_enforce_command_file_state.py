@@ -130,7 +130,13 @@ def _compute_output_filename(command: str, agent_key: str) -> str:
     return f"spec-kitty.{stem}"
 
 
-def _render_full_prompt(template_path: Path, agent_key: str, script_type: str) -> str | None:
+def _render_full_prompt(
+    template_path: Path,
+    agent_key: str,
+    script_type: str,
+    *,
+    repo_root: Path | None = None,
+) -> str | None:
     """Render a single prompt-driven command template for *agent_key*."""
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.template.asset_generator import render_command_template
@@ -146,6 +152,7 @@ def _render_full_prompt(template_path: Path, agent_key: str, script_type: str) -
             agent_key=agent_key,
             arg_format=config["arg_format"],
             extension=config["ext"],
+            repo_root=repo_root,
         )
     except Exception as exc:
         logger.warning("Failed to render %s for agent %s: %s", template_path.name, agent_key, exc)
@@ -285,7 +292,9 @@ class EnforceCommandFileStateMigration(BaseMigration):
                     changes.append(f"Would write prompt: {rel_path}")
                     continue
 
-                rendered = _render_full_prompt(template_path, agent_key, script_type)
+                rendered = _render_full_prompt(
+                    template_path, agent_key, script_type, repo_root=project_path
+                )
                 if rendered is None:
                     errors.append(f"Failed to render {command} for {agent_key}")
                     continue

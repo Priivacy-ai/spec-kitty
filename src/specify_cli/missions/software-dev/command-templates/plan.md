@@ -5,6 +5,19 @@ description: Create an implementation plan
 
 **Version**: 0.11.0+
 
+<!-- spdd:reasons-block:start -->
+
+### REASONS Guidance — Plan
+
+While composing the plan, fill or update:
+
+- **Approach** — chosen strategy and rejected alternatives with rationale.
+- **Structure** — code surfaces, components, dependencies, ownership boundaries.
+
+Link to source artifacts (spec, contracts) instead of duplicating them.
+
+<!-- spdd:reasons-block:end -->
+
 ## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
 **IMPORTANT**: Plan works in the repository root checkout. NO worktrees created.
