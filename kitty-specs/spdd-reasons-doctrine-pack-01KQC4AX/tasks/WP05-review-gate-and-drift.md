@@ -16,8 +16,8 @@ created_at: '2026-04-29T08:15:46Z'
 subtasks:
 - T020
 - T021
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "47292"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "48570"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -182,3 +182,4 @@ For the inactive baseline: capture `review.md` rendered output before this WP la
 
 - 2026-04-29T09:14:02Z – claude:opus:python-pedro:implementer – shell_pid=47292 – Started implementation via action command
 - 2026-04-29T09:17:57Z – claude:opus:python-pedro:implementer – shell_pid=47292 – Ready for review: review.md SPDD block + 7 contract tests
+- 2026-04-29T09:18:15Z – claude:opus:reviewer-renata:reviewer – shell_pid=48570 – Started review via action command
