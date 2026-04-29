@@ -18,8 +18,8 @@ created_at: '2026-04-29T08:15:46Z'
 subtasks:
 - T022
 - T023
-agent: "claude:opus:curator-carla:implementer"
-shell_pid: "49611"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "50474"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -209,3 +209,4 @@ Do NOT modify other docs' tone or structure; insert minimal link entries only.
 
 - 2026-04-29T09:20:43Z – claude:opus:curator-carla:implementer – shell_pid=49611 – Started implementation via action command
 - 2026-04-29T09:26:31Z – claude:opus:curator-carla:implementer – shell_pid=49611 – Ready for review: docs/doctrine/spdd-reasons.md + inbound links
+- 2026-04-29T09:26:57Z – claude:opus:reviewer-renata:reviewer – shell_pid=50474 – Started review via action command
