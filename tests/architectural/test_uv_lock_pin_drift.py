@@ -39,6 +39,7 @@ explanation of the sync command.
 """
 from __future__ import annotations
 
+import re
 import tomllib
 from importlib import metadata as importlib_metadata
 from pathlib import Path
@@ -57,6 +58,7 @@ SYNC_COMMAND: str = "uv sync --frozen"
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _UV_LOCK_PATH = _REPO_ROOT / "uv.lock"
+_VENV_DIR = _REPO_ROOT / ".venv"
 
 
 def _resolve_uv_lock_versions(lock_path: Path) -> dict[str, str]:
@@ -77,13 +79,69 @@ def _resolve_uv_lock_versions(lock_path: Path) -> dict[str, str]:
     return locked
 
 
-def _installed_version(pkg: str) -> str | None:
-    """Return the installed version of ``pkg`` or ``None`` if absent.
+def _venv_site_packages() -> Path | None:
+    """Return the project ``.venv`` site-packages dir, or ``None`` if absent.
 
-    Wraps :func:`importlib.metadata.version` so a missing package does
-    not crash the test; the absence is itself a form of drift and is
-    reported by the caller.
+    The drift check should target ``uv sync --frozen``'s installation
+    surface, not whatever ambient interpreter happens to host the pytest
+    process. A developer running pytest under a non-``.venv`` interpreter
+    (e.g. homebrew Python with stray ``pythonpath`` entries) would
+    otherwise see false drift caused by unrelated copies of the package.
     """
+    if not _VENV_DIR.is_dir():
+        return None
+    for candidate in (_VENV_DIR / "lib").glob("python*/site-packages"):
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+# Distribution-name normalization mirrors PEP 503: dist-info dir names use
+# underscores in place of hyphens, e.g. ``spec_kitty_tracker-0.4.3.dist-info``.
+_DIST_INFO_RE = re.compile(r"-(?P<version>[^-]+)\.dist-info$")
+
+
+def _venv_installed_version(site_packages: Path, pkg: str) -> str | None:
+    """Read the installed version of ``pkg`` from a specific ``.venv`` site-packages.
+
+    Resolves the distribution by scanning for ``<dist_name>-<version>.dist-info``
+    directories where ``<dist_name>`` matches ``pkg`` after PEP 503 dash-to-
+    underscore normalization. Reads ``METADATA`` and parses the ``Version:``
+    header.
+
+    Returns the version string, or ``None`` if the package is not installed
+    in this site-packages tree.
+    """
+    dist_name_underscored = pkg.replace("-", "_")
+    for candidate in site_packages.glob(f"{dist_name_underscored}-*.dist-info"):
+        match = _DIST_INFO_RE.search(candidate.name)
+        if not match:
+            continue
+        metadata_path = candidate / "METADATA"
+        if not metadata_path.is_file():
+            continue
+        for raw_line in metadata_path.read_text(encoding="utf-8").splitlines():
+            if raw_line.startswith("Version:"):
+                version = raw_line.split(":", 1)[1].strip()
+                if version:
+                    return version
+        # METADATA found but Version header missing — fall back to dir-name parse.
+        return match.group("version")
+    return None
+
+
+def _installed_version(pkg: str) -> str | None:
+    """Return the installed version of ``pkg``.
+
+    Targets the project ``.venv`` site-packages when one exists, so the
+    drift check is independent of which interpreter happens to host the
+    pytest process. Falls back to the ambient interpreter's metadata when
+    no project ``.venv`` is present (e.g., the ``clean-install-verification``
+    CI job which installs into the ambient interpreter).
+    """
+    site_packages = _venv_site_packages()
+    if site_packages is not None:
+        return _venv_installed_version(site_packages, pkg)
     try:
         return importlib_metadata.version(pkg)
     except importlib_metadata.PackageNotFoundError:
