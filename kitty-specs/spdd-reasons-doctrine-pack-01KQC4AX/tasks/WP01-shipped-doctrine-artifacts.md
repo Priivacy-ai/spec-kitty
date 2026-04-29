@@ -27,8 +27,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: claude
-shell_pid: '99221'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "14122"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -204,3 +204,4 @@ Do NOT add CLI/integration tests in this WP — those belong to WP02.
 ## Activity Log
 
 - 2026-04-29T08:32:24Z – claude – shell_pid=99221 – Ready for review: 6 doctrine artifacts + smoke test
+- 2026-04-29T08:32:50Z – claude:opus:reviewer-renata:reviewer – shell_pid=14122 – Started review via action command
