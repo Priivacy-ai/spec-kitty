@@ -15,13 +15,13 @@
 | T002 | Inspect `runtime_bridge.py` and `retrospective/schema.py` invariants by reading current code | WP01 | [D] |
 | T003 | Inspect golden-path helpers (`_parse_first_json_object`, `_run_next_and_assert_lifecycle`) and the synthesizer-call path in the E2E | WP01 | [D] |
 | T004 | Author `verification-evidence.md` with results, FR-009/FR-010 disposition, and any escalation flags | WP01 | | [D] |
-| T005 | Refactor `charter synthesize --json` branch in `src/specify_cli/cli/commands/charter.py` to keep stdout strict-JSON, emit contracted envelope fields, source `written_artifacts` from staged entries, drive dry-run from same source, and eliminate user-visible `PROJECT_000` | WP02 | |
-| T006 | Extend `src/charter/synthesizer/write_pipeline.py` staged-artifact return shape **only if** WP01/T005 inspection shows the existing return is insufficient | WP02 | |
-| T007 | Add/harden regression test in `tests/integration/test_json_envelope_strict.py` proving `json.loads(stdout)` succeeds when evidence warnings exist | WP02 | [P] |
-| T008 | Add/harden assertions in `tests/agent/cli/commands/test_charter_synthesize_cli.py` covering the four contracted envelope fields | WP02 | [P] |
-| T009 | Add/harden assertions in `tests/integration/test_charter_synthesize_fresh.py` covering envelope shape on fresh-project seed | WP02 | [P] |
-| T010 | Add new `tests/charter/synthesizer/test_synthesize_path_parity.py` proving dry-run/non-dry-run path parity for non-`PROJECT_000` provenance | WP02 | [P] |
-| T011 | Run `PROJECT_000` user-visibility sweep (grep + assertion) and `mypy --strict` on every modified runtime file | WP02 | |
+| T005 | Refactor `charter synthesize --json` branch in `src/specify_cli/cli/commands/charter.py` to keep stdout strict-JSON, emit contracted envelope fields, source `written_artifacts` from staged entries, drive dry-run from same source, and eliminate user-visible `PROJECT_000` | WP02 | | [D] |
+| T006 | Extend `src/charter/synthesizer/write_pipeline.py` staged-artifact return shape **only if** WP01/T005 inspection shows the existing return is insufficient | WP02 | | [D] |
+| T007 | Add/harden regression test in `tests/integration/test_json_envelope_strict.py` proving `json.loads(stdout)` succeeds when evidence warnings exist | WP02 | [D] |
+| T008 | Add/harden assertions in `tests/agent/cli/commands/test_charter_synthesize_cli.py` covering the four contracted envelope fields | WP02 | [D] |
+| T009 | Add/harden assertions in `tests/integration/test_charter_synthesize_fresh.py` covering envelope shape on fresh-project seed | WP02 | [D] |
+| T010 | Add new `tests/charter/synthesizer/test_synthesize_path_parity.py` proving dry-run/non-dry-run path parity for non-`PROJECT_000` provenance | WP02 | [D] |
+| T011 | Run `PROJECT_000` user-visibility sweep (grep + assertion) and `mypy --strict` on every modified runtime file | WP02 | | [D] |
 | T012 | Update issued-action assertion in `tests/e2e/test_charter_epic_golden_path.py` to require resolvable `prompt_file` (or documented public equivalent) | WP03 | | [D] |
 | T013 | Update blocked-decision assertion in the same file to require non-empty `reason` and not require a prompt file | WP03 | | [D] |
 | T014 | Run the golden-path E2E end-to-end against the real synthesizer and confirm both new assertions pass and existing ones do not regress | WP03 | | [D] |
@@ -72,13 +72,13 @@
   - `mypy --strict` passes on every modified runtime file.
 - **Independent test:** `uv run pytest tests/agent/cli/commands/test_charter_synthesize_cli.py tests/integration/test_json_envelope_strict.py tests/integration/test_charter_synthesize_fresh.py tests/charter/synthesizer/test_synthesize_path_parity.py -q` exits 0.
 - **Included subtasks:**
-  - [ ] T005 Refactor `charter synthesize --json` branch (WP02)
-  - [ ] T006 Extend `write_pipeline.py` staged-artifact return shape only if needed (WP02)
-  - [ ] T007 Add/harden `test_json_envelope_strict.py` regression (WP02)
-  - [ ] T008 Add/harden `test_charter_synthesize_cli.py` envelope assertions (WP02)
-  - [ ] T009 Add/harden `test_charter_synthesize_fresh.py` envelope assertions (WP02)
-  - [ ] T010 Add new `test_synthesize_path_parity.py` for FR-004 (WP02)
-  - [ ] T011 `PROJECT_000` sweep + `mypy --strict` on touched files (WP02)
+  - [x] T005 Refactor `charter synthesize --json` branch (WP02)
+  - [x] T006 Extend `write_pipeline.py` staged-artifact return shape only if needed (WP02)
+  - [x] T007 Add/harden `test_json_envelope_strict.py` regression (WP02)
+  - [x] T008 Add/harden `test_charter_synthesize_cli.py` envelope assertions (WP02)
+  - [x] T009 Add/harden `test_charter_synthesize_fresh.py` envelope assertions (WP02)
+  - [x] T010 Add new `test_synthesize_path_parity.py` for FR-004 (WP02)
+  - [x] T011 `PROJECT_000` sweep + `mypy --strict` on touched files (WP02)
 - **Implementation sketch:** inspect the synthesize JSON branch and the write pipeline's staged-artifact return → introduce a single envelope-builder function that consumes typed staged entries → switch dry-run to consume the same source → route warnings into the envelope (not stdout) → add tests pinned to the contract → mypy + grep sweep last.
 - **Parallel opportunities:** T007/T008/T009/T010 can be drafted in parallel after T005.
 - **Dependencies:** WP01 (baseline established).
