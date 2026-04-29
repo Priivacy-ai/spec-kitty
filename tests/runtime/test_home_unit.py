@@ -134,6 +134,20 @@ class TestGetPackageAssetRoot:
         result = get_package_asset_root()
         assert result == missions
 
+    def test_template_root_checkout_root_normalizes_to_runtime_missions(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A checkout root env var resolves to src/specify_cli/missions."""
+        checkout = tmp_path / "spec-kitty"
+        missions = checkout / "src" / "specify_cli" / "missions"
+        software_dev = missions / "software-dev"
+        software_dev.mkdir(parents=True)
+        (software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
+
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(checkout))
+
+        assert get_package_asset_root() == missions
+
     def test_template_root_env_nonexistent_raises(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
