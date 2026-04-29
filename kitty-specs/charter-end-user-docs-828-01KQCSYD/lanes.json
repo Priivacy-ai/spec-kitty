@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "mission_slug": "charter-end-user-docs-828-01KQCSYD",
+  "mission_id": "01KQCSYDGQN09RV05M6V8Q5H1B",
+  "mission_branch": "kitty/mission-charter-end-user-docs-828-01KQCSYD",
+  "target_branch": "docs/charter-end-user-docs-828",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        "docs/2x/index.md",
+        "docs/3x/charter-overview.md",
+        "docs/3x/governance-files.md",
+        "docs/3x/index.md",
+        "docs/3x/toc.yml",
+        "docs/explanation/charter-synthesis-drg.md",
+        "docs/explanation/documentation-mission.md",
+        "docs/explanation/governed-profile-invocation.md",
+        "docs/explanation/retrospective-learning-loop.md",
+        "docs/explanation/toc.yml",
+        "docs/how-to/manage-glossary.md",
+        "docs/how-to/run-governed-mission.md",
+        "docs/how-to/setup-governance.md",
+        "docs/how-to/synthesize-doctrine.md",
+        "docs/how-to/toc.yml",
+        "docs/how-to/troubleshoot-charter.md",
+        "docs/how-to/use-retrospective-learning.md",
+        "docs/migration/from-charter-2x.md",
+        "docs/migration/toc.yml",
+        "docs/reference/charter-commands.md",
+        "docs/reference/cli-commands.md",
+        "docs/reference/profile-invocation.md",
+        "docs/reference/retrospective-schema.md",
+        "docs/reference/toc.yml",
+        "docs/retrospective-learning-loop.md",
+        "docs/toc.yml",
+        "docs/tutorials/charter-governed-workflow.md",
+        "docs/tutorials/toc.yml",
+        "kitty-specs/charter-end-user-docs-828-01KQCSYD/checklists/validation-report.md",
+        "kitty-specs/charter-end-user-docs-828-01KQCSYD/gap-analysis.md",
+        "kitty-specs/charter-end-user-docs-828-01KQCSYD/release-handoff.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-29T15:53:41.721546+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP02",
+    "WP03",
+    "WP04",
+    "WP05",
+    "WP06",
+    "WP07",
+    "WP08",
+    "WP09",
+    "WP10"
+  ]
+}
