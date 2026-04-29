@@ -108,7 +108,9 @@ Confirmed at WP03 validation (2026-04-29) and again at WP04 final hygiene pass.
 
 ## Known Limitations
 
-None. All 14 new pages and 5 updated pages are complete, accurate, and free of unfilled content gaps. CLI flag documentation matches the live `--help` surface exactly as of spec-kitty-cli 3.2.0a5.
+- **retrospective-learning-loop.md redirect**: `docs/retrospective-learning-loop.md` was converted from a 305-line standalone page to a one-line redirect stub pointing to `docs/explanation/retrospective-learning-loop.md`. DocFX does not auto-generate HTTP redirects for moved Markdown pages — users with existing bookmarks to the generated HTML URL will see the redirect notice text rather than being automatically redirected. The content is fully available at the new location.
+
+All 14 new pages and 5 updated pages are otherwise complete, accurate, and free of unfilled content gaps. CLI flag documentation matches the live `--help` surface exactly as of spec-kitty-cli 3.2.0a5.
 
 ---
 
