@@ -31,12 +31,12 @@ WP02 and WP03 can run in parallel after WP01 lands. WP04 depends on the activati
 | T011  | Add `tests/charter/test_charter_context_spdd_reasons.py`               | WP02 |          | [D] |
 | T012  | Author `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md`          | WP03 |          | [D] |
 | T013  | Wire skill discovery test (smoke assertion the skill loads)            | WP03 |          | [D] |
-| T014  | Add SPDD reasons-block markers to `specify.md` template                | WP04 | [P]      |
-| T015  | Add SPDD reasons-block markers to `plan.md` template                   | WP04 | [P]      |
-| T016  | Add SPDD reasons-block markers to `tasks.md` template                  | WP04 | [P]      |
-| T017  | Add SPDD reasons-block markers to `implement.md` template              | WP04 | [P]      |
-| T018  | Implement renderer hook that strips/keeps blocks based on activation   | WP04 |          |
-| T019  | Add `tests/prompts/test_prompt_fragment_rendering.py` (golden)         | WP04 |          |
+| T014  | Add SPDD reasons-block markers to `specify.md` template                | WP04 | [D] |
+| T015  | Add SPDD reasons-block markers to `plan.md` template                   | WP04 | [D] |
+| T016  | Add SPDD reasons-block markers to `tasks.md` template                  | WP04 | [D] |
+| T017  | Add SPDD reasons-block markers to `implement.md` template              | WP04 | [D] |
+| T018  | Implement renderer hook that strips/keeps blocks based on activation   | WP04 |          | [D] |
+| T019  | Add `tests/prompts/test_prompt_fragment_rendering.py` (golden)         | WP04 |          | [D] |
 | T020  | Add SPDD reasons-block to `review.md` template (drift gate content)    | WP05 |          |
 | T021  | Add `tests/reviews/test_review_gate_activation.py`                     | WP05 |          |
 | T022  | Author `docs/doctrine/spdd-reasons.md` (philosophy + activation + examples) | WP06 |          |
@@ -170,12 +170,12 @@ Inject conditional REASONS guidance into the four mission-action command templat
 
 ### Included subtasks
 
-- [ ] T014 Add `<!-- spdd:reasons-block:start -->` … `<!-- spdd:reasons-block:end -->` block to `src/specify_cli/missions/software-dev/command-templates/specify.md` covering Requirements + Entities guidance.
-- [ ] T015 Add the equivalent block to `plan.md` covering Approach + Structure guidance.
-- [ ] T016 Add the equivalent block to `tasks.md` covering Operations + WP-boundary guidance.
-- [ ] T017 Add the equivalent block to `implement.md` covering full WP-scoped canvas (R/E/A/S/O/N/S).
-- [ ] T018 Implement renderer hook that, at template materialization time, calls `is_spdd_reasons_active(repo_root)` and either keeps the block (stripping marker comment lines only) or removes the block and its delimiters in their entirety. Locate the hook at the existing template-materialization seam used during agent prompt deployment.
-- [ ] T019 Add `tests/prompts/test_prompt_fragment_rendering.py` with: (a) baseline snapshot of inactive output for each of the four templates; (b) active output containing the expected REASONS block headlines; (c) malformed marker (missing end) raises a clear renderer error.
+- [x] T014 Add `<!-- spdd:reasons-block:start -->` … `<!-- spdd:reasons-block:end -->` block to `src/specify_cli/missions/software-dev/command-templates/specify.md` covering Requirements + Entities guidance.
+- [x] T015 Add the equivalent block to `plan.md` covering Approach + Structure guidance.
+- [x] T016 Add the equivalent block to `tasks.md` covering Operations + WP-boundary guidance.
+- [x] T017 Add the equivalent block to `implement.md` covering full WP-scoped canvas (R/E/A/S/O/N/S).
+- [x] T018 Implement renderer hook that, at template materialization time, calls `is_spdd_reasons_active(repo_root)` and either keeps the block (stripping marker comment lines only) or removes the block and its delimiters in their entirety. Locate the hook at the existing template-materialization seam used during agent prompt deployment.
+- [x] T019 Add `tests/prompts/test_prompt_fragment_rendering.py` with: (a) baseline snapshot of inactive output for each of the four templates; (b) active output containing the expected REASONS block headlines; (c) malformed marker (missing end) raises a clear renderer error.
 
 ### Implementation sketch
 
