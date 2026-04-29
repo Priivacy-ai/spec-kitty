@@ -209,20 +209,32 @@ uv run spec-kitty charter generate --help
 uv run spec-kitty charter synthesize --help
 uv run spec-kitty charter resynthesize --help
 uv run spec-kitty charter status --help
-uv run spec-kitty charter sync --help
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run spec-kitty charter sync --help
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help
+uv run spec-kitty charter bundle validate --help
+uv run spec-kitty next --help
+uv run spec-kitty profiles --help
+uv run spec-kitty profiles list --help
+uv run spec-kitty ask --help
+uv run spec-kitty advise --help
+uv run spec-kitty do --help
+uv run spec-kitty profile-invocation --help
+uv run spec-kitty profile-invocation complete --help
+uv run spec-kitty mission --help
+uv run spec-kitty glossary --help
 uv run spec-kitty retrospect summary --help
 uv run spec-kitty agent retrospect synthesize --help
 ```
 
-For each subcommand:
+For each covered command:
 - Every flag in `charter-commands.md` must appear in `--help` output
 - No flag in `charter-commands.md` that doesn't appear in `--help`
 - Descriptions should match (minor paraphrasing acceptable; invented flags are not)
 - `charter-commands.md` must include `charter synthesize` and `charter resynthesize` sections (P1 requirement)
+- `cli-commands.md` and `profile-invocation.md` must cover `profiles`, `ask`, `advise`, `do`, `profile-invocation complete`, `next`, `mission`, `glossary`, `retrospect summary`, and `agent retrospect synthesize`
 
-Record any discrepancies and fix `charter-commands.md` before marking this check passed.
+Record any discrepancies and fix the affected reference page before marking this check passed.
 
 ### T039 — Verify documentation mission phases in changed pages match mission-runtime.yaml
 
@@ -320,7 +332,7 @@ Produce a comprehensive report. Template:
 
 ## T038: CLI flags vs --help
 
-- **Subcommands verified**: charter interview, generate, synthesize, resynthesize, status, sync, lint, bundle; retrospect summary; agent retrospect synthesize
+- **Subcommands verified**: charter interview, generate, synthesize, resynthesize, status, sync, lint, bundle validate; profiles list; ask; advise; do; profile-invocation complete; next; mission; glossary; retrospect summary; agent retrospect synthesize
 - **Discrepancies found**: [list any, or "none"]
 - **Fixes applied**: [list any, or "none"]
 
@@ -356,8 +368,8 @@ Ready for PR: [yes/no]
 - [ ] `grep -r 'TODO' [all new pages]` → zero results
 - [ ] `grep -r 'TODO: register in docs nav' docs/` → zero results
 - [ ] Deferral-language grep → zero results in published doc pages
-- [ ] CLI flags in `charter-commands.md` verified against live `--help`; includes `charter synthesize` and `charter resynthesize`
-- [ ] `charter-commands.md` uses `retrospect summary` / `agent retrospect synthesize` — not `retro` variants
+- [ ] CLI flags in `charter-commands.md`, `cli-commands.md`, and `profile-invocation.md` verified against live `--help`; includes `charter synthesize` and `charter resynthesize`
+- [ ] Retrospective references use `retrospect summary` / `agent retrospect synthesize` — not `retro` variants, and do not invent an `agent retrospect synthesize --dry-run` flag
 - [ ] Documentation mission phases verified against `mission-runtime.yaml`
 - [ ] Tutorial smoke-test completed with no source-repo pollution
 - [ ] `docs/how-to/setup-governance.md` flow smoke-tested from temp repo

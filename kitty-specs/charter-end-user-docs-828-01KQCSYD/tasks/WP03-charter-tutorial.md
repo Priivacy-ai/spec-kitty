@@ -54,7 +54,7 @@ This WP can run in parallel with WP02, WP04–WP08 after WP01 completes.
 
 The tutorial must cover this complete arc:
 1. Initialize governance (run `charter interview`, `charter generate`)
-2. Validate the bundle (`charter lint`, `charter bundle`)
+2. Validate the bundle (`charter lint`, `charter bundle validate`)
 3. Synthesize doctrine (`charter synthesize`, `charter status`)
 4. Run one governed mission action (`spec-kitty next`)
 5. View retrospective summary (`retrospect summary`)
@@ -75,6 +75,7 @@ uv run spec-kitty charter resynthesize --help
 uv run spec-kitty charter status --help
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help
+uv run spec-kitty charter bundle validate --help
 uv run spec-kitty next --help
 uv run spec-kitty retrospect --help
 uv run spec-kitty retrospect summary --help

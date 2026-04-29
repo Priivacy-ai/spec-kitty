@@ -117,10 +117,18 @@ Produce the release handoff artifact. Use the template from `plan.md` "Release H
 | `uv run spec-kitty charter synthesize --help` | [actual outcome] |
 | `uv run spec-kitty charter resynthesize --help` | [actual outcome or "not available"] |
 | `uv run spec-kitty charter status --help` | [actual outcome] |
-| `uv run spec-kitty charter sync --help` | [actual outcome] |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run spec-kitty charter sync --help` | [actual outcome] |
 | `uv run spec-kitty charter lint --help` | [actual outcome] |
 | `uv run spec-kitty charter bundle --help` | [actual outcome or "not available"] |
+| `uv run spec-kitty charter bundle validate --help` | [actual outcome or "not available"] |
 | `uv run spec-kitty next --help` | [actual outcome] |
+| `uv run spec-kitty profiles list --help` | [actual outcome] |
+| `uv run spec-kitty ask --help` | [actual outcome] |
+| `uv run spec-kitty advise --help` | [actual outcome] |
+| `uv run spec-kitty do --help` | [actual outcome] |
+| `uv run spec-kitty profile-invocation complete --help` | [actual outcome] |
+| `uv run spec-kitty mission --help` | [actual outcome] |
+| `uv run spec-kitty glossary --help` | [actual outcome] |
 | `uv run spec-kitty retrospect summary --help` | [actual outcome] |
 | `uv run spec-kitty agent retrospect synthesize --help` | [actual outcome] |
 | Tutorial smoke-test (temp repo) | [pass/fail + notes] |
@@ -205,6 +213,10 @@ grep -r 'retro summary\|retro synthesizer\|spec-kitty retro' \
 # Check for stale charter context as synthesis verb
 grep -r 'charter context --dry-run\|charter context.*apply' \
   docs/3x/ docs/tutorials/ docs/how-to/ docs/explanation/ docs/reference/
+
+# Check for invented retrospective dry-run flag
+grep -r 'agent retrospect synthesize --dry-run' \
+  docs/3x/ docs/tutorials/ docs/how-to/ docs/explanation/ docs/reference/ docs/migration/
 ```
 
 Both greps must return zero results.

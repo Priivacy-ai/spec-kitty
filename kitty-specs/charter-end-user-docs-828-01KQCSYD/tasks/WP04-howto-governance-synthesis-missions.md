@@ -80,7 +80,8 @@ uv run spec-kitty charter resynthesize --help   # partial resynthesis
 uv run spec-kitty charter status --help
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help
-uv run spec-kitty charter sync --help           # syncs charter.md to YAML config files
+uv run spec-kitty charter bundle validate --help
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run spec-kitty charter sync --help  # syncs charter.md to YAML config files
 uv run spec-kitty next --help
 ```
 
@@ -100,7 +101,7 @@ If a flag or subcommand is absent from `--help`, omit it from the page.
 
 **Changes required**:
 1. Remove or update the "Spec Kitty 2.x installed" prerequisite — replace with current requirement.
-2. Add a new section covering the Charter synthesis flow after governance setup: `charter lint` → `charter synthesize` → `charter bundle`. One-line description of each.
+2. Add a new section covering the Charter synthesis flow after governance setup: `charter lint` -> `charter synthesize` -> `charter bundle validate`. One-line description of each.
 3. Add a note on the synthesis vs sync distinction: `charter synthesize` promotes doctrine; `charter sync` syncs `charter.md` to YAML config files (not SaaS push).
 4. Add "See also" block at the bottom pointing to:
    - `synthesize-doctrine.md`
@@ -121,7 +122,7 @@ Do not rewrite sections that are still accurate. Minimize diff.
 3. **Lint your charter file** — `charter lint` (what it checks, how to read errors)
 4. **Synthesize doctrine (dry-run first)** — `charter synthesize --dry-run` (verify this flag exists with `--help`); explain what dry-run shows; **note**: `charter resynthesize` is available for partial regeneration — verify with `--help` and document if present
 5. **Apply synthesis** — `charter synthesize` (apply mode); what changes on disk
-6. **Build the bundle** — `charter bundle`; what the bundle is and why you need it; add note about `charter bundle validate` if it exists (verify with `--help`)
+6. **Validate the bundle** — `charter bundle validate`; what the bundle is and why you need a valid one
 7. **Check provenance** — how to verify what synthesized the current doctrine (if `charter status` shows provenance info, describe it)
 8. **Staging** — if `charter status` reports a staging state or pending synthesis, describe what it means and how to proceed
 9. **Recovery: stale or corrupted bundle** — symptoms (e.g., `charter status` reports drift), fix steps
@@ -133,6 +134,7 @@ uv run spec-kitty charter resynthesize --help  # partial resynthesis
 uv run spec-kitty charter status --help
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help
+uv run spec-kitty charter bundle validate --help
 ```
 
 **Cross-links at bottom ("See also")**:
@@ -182,7 +184,7 @@ uv run spec-kitty agent decision resolve --help
 
 3. **Glossary as project-local doctrine** — the glossary is project-local human policy (lives in the authoritative `charter.md` surface), not generated state. Adding or changing a term requires editing `charter.md` and re-running synthesis.
 
-4. **Glossary and retrospective proposals** — the retrospective synthesizer can emit glossary-change proposals. Explain how these proposals appear in `agent retrospect synthesize --dry-run` output, and how accepting them updates the project glossary via `charter.md`.
+4. **Glossary and retrospective proposals** — the retrospective synthesizer can emit glossary-change proposals. Explain how these proposals appear in the default dry-run output from `agent retrospect synthesize --mission <mission>`, and how accepting them with `--apply` updates the project glossary via `charter.md`.
 
 5. Add "See also" block:
    - `docs/how-to/synthesize-doctrine.md`
@@ -201,7 +203,7 @@ cd "$TMPDIR"
 git init -q
 # T013 smoke: run the setup-governance.md setup flow
 # Run: charter interview, charter generate
-# Run: charter lint, charter synthesize, charter bundle (from T014)
+# Run: charter lint, charter synthesize, charter bundle validate (from T014)
 # Run: spec-kitty next (with a test agent if available, from T015)
 cd -
 rm -rf "$TMPDIR"

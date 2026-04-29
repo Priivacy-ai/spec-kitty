@@ -72,10 +72,20 @@ uv run spec-kitty charter generate --help
 uv run spec-kitty charter synthesize --help      # doctrine synthesis (the primary synthesis verb)
 uv run spec-kitty charter resynthesize --help    # partial resynthesis
 uv run spec-kitty charter status --help
-uv run spec-kitty charter sync --help            # syncs charter.md to YAML config files
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run spec-kitty charter sync --help  # syncs charter.md to YAML config files
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help          # verify this exists
+uv run spec-kitty charter bundle validate --help
 uv run spec-kitty next --help
+uv run spec-kitty profiles --help
+uv run spec-kitty profiles list --help
+uv run spec-kitty ask --help
+uv run spec-kitty advise --help
+uv run spec-kitty do --help
+uv run spec-kitty profile-invocation --help
+uv run spec-kitty profile-invocation complete --help
+uv run spec-kitty mission --help
+uv run spec-kitty glossary --help
 uv run spec-kitty retrospect --help
 uv run spec-kitty retrospect summary --help
 uv run spec-kitty agent retrospect synthesize --help
@@ -102,12 +112,13 @@ Reference pages use DocFX frontmatter. Model: read existing `docs/reference/cli-
 Capture this into notes before writing T027 — the reference is built entirely from this output.
 
 Key questions to answer:
-- Does `charter bundle` exist? (Plan assumes yes — verify)
+- Does `charter bundle validate` exist? (Plan assumes yes — verify)
 - Does `charter synthesize` have a `--dry-run` flag?
 - Does `charter resynthesize` exist? What flags does it accept?
-- Does `agent retrospect synthesize` have `--dry-run` and `--apply` flags?
+- Does `agent retrospect synthesize` require `--mission <mission>`, default to dry-run, and mutate only with `--apply`?
 - What flags does `spec-kitty next` accept?
 - What is the exact behavior of `charter sync`? (It syncs charter.md to YAML config files — confirm with `--help`)
+- Do `profiles list`, `ask`, `advise`, `do`, `profile-invocation complete`, `mission`, and `glossary` exist? Capture their exact usage and flags.
 
 ### T027 — Write docs/reference/charter-commands.md
 
@@ -130,7 +141,7 @@ For each subcommand, include:
 - `charter status`
 - `charter sync` (syncs `charter.md` to YAML config files — document what it actually does per `--help`)
 - `charter lint`
-- `charter bundle` (if it exists)
+- `charter bundle validate` (if it exists)
 
 For each section, include exactly what `--help` says — do not embellish or paraphrase flag descriptions.
 
@@ -158,11 +169,14 @@ For each section, include exactly what `--help` says — do not embellish or par
 
 Spec Kitty 3.x adds the Charter governance layer. Charter commands use the `charter` subcommand group.
 
-- **[Charter CLI Reference](charter-commands.md)** — Full reference for `charter interview`, `generate`, `synthesize`, `resynthesize`, `status`, `sync`, `lint`, `bundle`.
+- **[Charter CLI Reference](charter-commands.md)** — Full reference for `charter interview`, `generate`, `synthesize`, `resynthesize`, `status`, `sync`, `lint`, and `bundle validate`.
 - **[Profile Invocation Reference](profile-invocation.md)** — Reference for `ask`/`advise`/`do` flags and the invocation trail.
 - **`spec-kitty next`** — Run a governed mission action. Flags: [list from --help output].
+- **`spec-kitty profiles list`** — List available agent profiles.
+- **`spec-kitty mission ...`** — Mission discovery and runtime commands.
+- **`spec-kitty glossary ...`** — Glossary list/show/conflict commands.
 - **`spec-kitty retrospect summary`** — View retrospective summary.
-- **`spec-kitty agent retrospect synthesize --dry-run` / `--apply`** — Preview or apply synthesis proposals.
+- **`spec-kitty agent retrospect synthesize --mission <mission>` / `--mission <mission> --apply`** — Preview or apply synthesis proposals.
 ```
 
 Do not duplicate flag tables — cross-link to `charter-commands.md` instead.
@@ -180,13 +194,13 @@ Verify the `next` and `retrospect` commands appear in the Charter-era section wi
 1. Brief intro: "Profile invocation is the mechanism by which a governed agent persona is called with Charter context. For an explanation of the model, see [Understanding Governed Profile Invocation](../explanation/governed-profile-invocation.md)."
 2. **Invocation modes** — reference table:
 
-| Mode | Flag | Behavior |
+| Mode | CLI | Behavior |
 |---|---|---|
-| Ask | `--mode ask` (verify flag name) | Agent asks before acting; human approval required |
-| Advise | `--mode advise` (verify) | Agent acts and recommends doctrine changes |
-| Do | `--mode do` (verify) | Agent acts autonomously |
+| Ask | `spec-kitty ask <profile> <request>` | Invoke a named profile directly for a query/advisory flow |
+| Advise | `spec-kitty advise [--profile <profile>] <request>` | Open an advisory invocation record for a routed request |
+| Do | `spec-kitty do <request>` | Route a request to the best-matching profile for action |
 
-Verify flag names against `spec-kitty next --help` or equivalent before writing.
+Verify command syntax against `spec-kitty ask --help`, `spec-kitty advise --help`, `spec-kitty do --help`, and `spec-kitty profile-invocation complete --help` before writing.
 
 3. **`profile-invocation complete` syntax** — the signal that closes the trail. Show the exact syntax from the CLI (verify with `--help` or from `docs/trail-model.md` if it exists).
 4. **Invocation trail fields** — table of trail record fields (check `docs/trail-model.md` if present; otherwise derive from available documentation):

@@ -76,13 +76,13 @@ Tutorial arc: initialize governance → validate bundle → synthesize doctrine 
 | `docs/how-to/use-retrospective-learning.md` | How to Use the Retrospective Learning Loop | NEW | FR-010 |
 | `docs/how-to/troubleshoot-charter.md` | Troubleshooting Charter Failures | NEW | FR-014 |
 
-`setup-governance.md` update scope: add Charter bundle validation step; update to current `spec-kitty charter interview` → `generate` → `context` flow; remove "Spec Kitty 2.x" prerequisite; note synthesis vs sync distinction.
+`setup-governance.md` update scope: add Charter bundle validation step; update to current `spec-kitty charter interview` -> `generate` -> `lint` -> `synthesize` -> `bundle validate` flow; remove "Spec Kitty 2.x" prerequisite; note synthesis vs sync distinction.
 
-`synthesize-doctrine.md` scope: cover `charter status`, `charter lint`, `charter bundle`; synthesis vs resynthesis; dry-run vs apply; idempotency; provenance; staged recovery; what to do when the bundle is stale.
+`synthesize-doctrine.md` scope: cover `charter status`, `charter lint`, `charter synthesize`, `charter resynthesize`, and `charter bundle validate`; synthesis vs resynthesis; dry-run vs apply; idempotency; provenance; staged recovery; what to do when the bundle is stale.
 
 `run-governed-mission.md` scope: `spec-kitty next --agent <agent>`; composed step contract; how Charter context is injected; blocked decisions; how to read `next --json` output.
 
-`use-retrospective-learning.md` scope: `retro summary`; `retro synthesizer dry-run`; `retro synthesizer apply`; proposal kinds; conflict resolution; staleness; provenance; HiC vs autonomous behavior; skip semantics.
+`use-retrospective-learning.md` scope: `retrospect summary`; `agent retrospect synthesize --mission <mission>` default dry-run; `agent retrospect synthesize --mission <mission> --apply`; proposal kinds; conflict resolution; staleness; provenance; HiC vs autonomous behavior; skip semantics.
 
 `troubleshoot-charter.md` scope: stale bundle (symptoms, fix); missing doctrine (symptoms, fix); compact-context limitation (what it is, workaround, issue link if open); retrospective gate failure (symptoms, fix); synthesizer rejection (exit codes, fix).
 
@@ -109,9 +109,9 @@ Tutorial arc: initialize governance → validate bundle → synthesize doctrine 
 | `docs/reference/profile-invocation.md` | Profile Invocation Reference | NEW | FR-007 |
 | `docs/reference/retrospective-schema.md` | Retrospective Schema and Events Reference | NEW | FR-010 |
 
-`cli-commands.md` update scope: add a Charter-era section with links to `charter-commands.md`, `profile-invocation.md`, and `next` command. Do not duplicate flag tables — cross-link.
+`cli-commands.md` update scope: add a Charter-era section with links to `charter-commands.md`, `profile-invocation.md`, and summary entries for `next`, `profiles`, `ask`, `advise`, `do`, `profile-invocation`, `mission`, `glossary`, `retrospect`, and `agent retrospect`. Do not duplicate flag tables — cross-link.
 
-`charter-commands.md` scope: one section per command: `charter interview`, `charter generate`, `charter context`, `charter status`, `charter sync`, `charter lint`, `charter bundle` (verify each exists). Each section: description, flags, example, and expected output. All flags verified against `uv run spec-kitty charter <subcommand> --help`.
+`charter-commands.md` scope: one section per command: `charter interview`, `charter generate`, `charter context`, `charter status`, `charter sync`, `charter synthesize`, `charter resynthesize`, `charter lint`, and `charter bundle validate` (verify each exists). Each section: description, flags, example, and expected output. All flags verified against `uv run spec-kitty charter <subcommand> --help`.
 
 `profile-invocation.md` scope: `ask`/`advise`/`do` flag semantics; `profile-invocation complete` syntax; invocation trail fields; lifecycle states; example JSON output.
 

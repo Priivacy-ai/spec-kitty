@@ -8,7 +8,7 @@
 
 ## Summary
 
-10 work packages, 45 subtasks covering gap analysis, navigation architecture, 14 new documentation pages, 5 updated pages, a validation pass, and a release handoff. Content WPs (WP02–WP08) can all run in parallel after WP01 completes.
+10 work packages, 45 subtasks covering gap analysis, navigation architecture, 14 new documentation pages, 5 updated pages, a validation pass, and a release handoff. Content WPs (WP02-WP08) can all run in parallel after WP01 completes.
 
 ---
 
@@ -41,7 +41,7 @@
 | T023 | Write docs/explanation/retrospective-learning-loop.md (Divio-shaped) | WP06 | [P] |
 | T024 | Convert docs/retrospective-learning-loop.md to redirect stub | WP06 | [P] |
 | T025 | Update docs/explanation/toc.yml; add cross-links from explanation pages | WP06 | [P] |
-| T026 | Run uv run spec-kitty charter --help and all subcommands | WP07 | [P] |
+| T026 | Run uv run spec-kitty --help for Charter-era command surfaces | WP07 | [P] |
 | T027 | Write docs/reference/charter-commands.md | WP07 | [P] |
 | T028 | Update docs/reference/cli-commands.md with Charter-era section | WP07 | [P] |
 | T029 | Write docs/reference/profile-invocation.md | WP07 | [P] |
@@ -124,7 +124,7 @@
 
 **Subtasks**:
 
-- [ ] T010 Write docs/tutorials/charter-governed-workflow.md — arc: governance setup → charter lint/bundle → charter synthesize → spec-kitty next → retrospect summary → next steps (WP03)
+- [ ] T010 Write docs/tutorials/charter-governed-workflow.md — arc: governance setup → charter lint/bundle validate → charter synthesize → spec-kitty next → retrospect summary → next steps (WP03)
 - [ ] T011 Smoke-test all command snippets in tutorial against a temp project (WP03)
 - [ ] T012 Verify tutorial entry in docs/tutorials/toc.yml; add "See also" cross-links (WP03)
 
@@ -162,7 +162,7 @@
 
 **Subtasks**:
 
-- [ ] T018 Write docs/how-to/use-retrospective-learning.md (retrospect summary, agent retrospect synthesize --dry-run/--apply, facilitator failures, HiC/autonomous, skip semantics, exit codes) (WP05)
+- [ ] T018 Write docs/how-to/use-retrospective-learning.md (retrospect summary, agent retrospect synthesize default dry-run / --apply with --mission <mission>, facilitator failures, HiC/autonomous, skip semantics, exit codes) (WP05)
 - [ ] T019 Write docs/how-to/troubleshoot-charter.md (stale bundle, missing doctrine, compact context, retro gate failure, synthesizer rejection) (WP05)
 - [ ] T020 Smoke-test retrospect command snippets; add cross-links to reference/retrospective-schema.md (WP05)
 
@@ -200,7 +200,7 @@
 
 **Subtasks**:
 
-- [ ] T026 Run uv run spec-kitty charter --help and every Charter subcommand --help to capture the current command surface (WP07)
+- [ ] T026 Run uv run spec-kitty --help and every Charter-era command surface required by #828 (`charter`, `profiles`, `ask`, `advise`, `do`, `profile-invocation`, `next`, `mission`, `glossary`, `retrospect`, `agent retrospect`) to capture current usage (WP07)
 - [ ] T027 Write docs/reference/charter-commands.md — one section per subcommand, all flags verified against --help output (WP07)
 - [ ] T028 Update docs/reference/cli-commands.md — add Charter-era section with cross-links to charter-commands.md (WP07)
 - [ ] T029 Write docs/reference/profile-invocation.md — ask/advise/do flags, profile-invocation complete, trail fields, lifecycle states (WP07)

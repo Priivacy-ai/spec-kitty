@@ -60,11 +60,10 @@ Before writing any command snippet, run:
 uv run spec-kitty retrospect --help
 uv run spec-kitty retrospect summary --help
 uv run spec-kitty agent retrospect synthesize --help
-uv run spec-kitty agent retrospect synthesize --dry-run --help   # verify --dry-run flag
-uv run spec-kitty agent retrospect synthesize --apply --help     # verify --apply flag
 ```
 
 If a subcommand is absent, omit it rather than inventing behavior.
+Current surface to verify before writing: `agent retrospect synthesize` requires `--mission <mission>`, defaults to dry-run, and mutates only with `--apply`.
 
 **Note on command names**: The retrospective command tree is `spec-kitty retrospect` (not `retro`). The synthesizer is `spec-kitty agent retrospect synthesize` (not `retro synthesizer`). Always use `uv run spec-kitty`, never the ambient `spec-kitty` binary.
 
@@ -74,7 +73,7 @@ If a subcommand is absent, omit it rather than inventing behavior.
 
 ### Source: research.md
 
-`kitty-specs/charter-end-user-docs-828-01KQCSYD/research.md` Section 2 covers what exists and what's missing for the retrospective learning loop. The existing `docs/retrospective-learning-loop.md` has partial content (HiC/autonomous behavior, lacks synthesizer dry-run/apply).
+`kitty-specs/charter-end-user-docs-828-01KQCSYD/research.md` Section 2 covers what exists and what's missing for the retrospective learning loop. The existing `docs/retrospective-learning-loop.md` has partial content (HiC/autonomous behavior, lacks synthesizer default dry-run/apply coverage).
 
 ## Subtask Guidance
 
@@ -83,13 +82,13 @@ If a subcommand is absent, omit it rather than inventing behavior.
 **File**: `docs/how-to/use-retrospective-learning.md`  
 **Title**: "How to Use the Retrospective Learning Loop"
 
-**Scope** (from data-model.md): `retrospect summary`; `agent retrospect synthesize --dry-run`; `agent retrospect synthesize --apply`; proposal kinds; conflict resolution; staleness; provenance; facilitator failures; HiC vs autonomous behavior; skip semantics.
+**Scope** (from data-model.md): `retrospect summary`; `agent retrospect synthesize --mission <mission>` default dry-run; `agent retrospect synthesize --mission <mission> --apply`; proposal kinds; conflict resolution; staleness; provenance; facilitator failures; HiC vs autonomous behavior; skip semantics.
 
 **Structure**:
 1. Context link: "For an explanation of why retrospectives exist and the gate model, see [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md)."
 2. **View the retrospective summary** — `uv run spec-kitty retrospect summary` with example output description.
-3. **Preview synthesis proposals (dry-run)** — `uv run spec-kitty agent retrospect synthesize --dry-run`; what it shows; how to read proposal kinds.
-4. **Apply synthesis** — `uv run spec-kitty agent retrospect synthesize --apply`; what changes; provenance trail.
+3. **Preview synthesis proposals (dry-run)** — `uv run spec-kitty agent retrospect synthesize --mission <mission>`; what it shows; how to read proposal kinds.
+4. **Apply synthesis** — `uv run spec-kitty agent retrospect synthesize --mission <mission> --apply`; what changes; provenance trail.
 5. **Resolve conflicts** — what to do when the synthesizer rejects proposals; conflict output reading.
 6. **Staleness** — when the retrospective report is stale (too many unreviewed missions); how to detect and resolve.
 7. **Facilitator failures** — what happens when the retrospective facilitator itself fails (e.g., the retrospective record cannot be loaded, the synthesis process errors). Symptoms, diagnostics (`retrospect summary` output), and recovery steps.
@@ -115,11 +114,11 @@ If a subcommand is absent, omit it rather than inventing behavior.
 
 #### 1. Stale bundle
 - **Symptoms**: `charter status` reports drift between `charter.md` and the bundle; `spec-kitty next` injects outdated context.
-- **Fix**: `charter lint` → `charter bundle`.
+- **Fix**: `charter lint` -> `charter bundle validate`.
 
 #### 2. Missing doctrine
 - **Symptoms**: `charter status` reports no bundle or bundle is empty; `spec-kitty next` fails with a "no governance context" error (verify exact error message against the CLI).
-- **Fix**: Run the full synthesis flow: `charter synthesize` → `charter bundle`.
+- **Fix**: Run the full synthesis flow: `charter synthesize` -> `charter bundle validate`.
 
 #### 3. Compact-context limitation
 - **Symptoms**: Governed mission actions receive incomplete Charter context; large project governance gets truncated.
@@ -128,10 +127,10 @@ If a subcommand is absent, omit it rather than inventing behavior.
 
 #### 4. Retrospective gate failure
 - **Symptoms**: `spec-kitty next` or mission completion blocks with a retrospective gate error.
-- **Fix**: Run `retrospect summary` to review the pending retrospective; `agent retrospect synthesize --apply` to process it. In HiC mode, you can skip with the appropriate command (verify with `retrospect --help`).
+- **Fix**: Run `retrospect summary` to review the pending retrospective; `agent retrospect synthesize --mission <mission> --apply` to process it. In HiC mode, you can skip with the appropriate command (verify with `retrospect --help`).
 
 #### 5. Synthesizer rejection
-- **Symptoms**: `agent retrospect synthesize --apply` exits with non-zero code; proposals not applied.
+- **Symptoms**: `agent retrospect synthesize --mission <mission> --apply` exits with non-zero code; proposals not applied.
 - **Diagnosis**: Read the rejection output; check proposal kinds and conflict fields.
 - **Fix**: Resolve conflicts manually in `charter.md`; re-run synthesis.
 
@@ -165,7 +164,7 @@ After smoke-testing:
 
 ## Definition of Done
 
-- [ ] `use-retrospective-learning.md` written: `retrospect summary`, `agent retrospect synthesize --dry-run`, `agent retrospect synthesize --apply`, conflict resolution, facilitator failures, HiC vs autonomous, skip semantics, exit codes
+- [ ] `use-retrospective-learning.md` written: `retrospect summary`, `agent retrospect synthesize --mission <mission>` default dry-run, `agent retrospect synthesize --mission <mission> --apply`, conflict resolution, facilitator failures, HiC vs autonomous, skip semantics, exit codes
 - [ ] `troubleshoot-charter.md` written: stale bundle, missing doctrine, compact-context limitation, retro gate failure, synthesizer rejection
 - [ ] All command snippets use `retrospect summary` / `agent retrospect synthesize` — not `retro summary` / `retro synthesizer`
 - [ ] No `|| true` masking in smoke-test commands

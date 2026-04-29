@@ -86,7 +86,7 @@ description: <One-line description for nav/SEO>
 
 **Structure**:
 1. Brief intro: "You're looking at Spec Kitty 3.x Charter-era documentation. This is the current product."
-2. One-paragraph Charter model summary: governance file (`charter.md`) → synthesis → doctrine bundle → runtime context injection.
+2. One-paragraph Charter model summary: governance file (`charter.md`) -> synthesis -> charter bundle -> runtime context injection.
 3. Four navigation blocks (one per Divio type): Tutorial, How-To, Reference, Explanation — each with 2–3 bullet links to the most important pages in that section.
 4. "What's archived" note: link to `docs/2x/` with a clear statement that 2.x docs are preserved but not current.
 
@@ -101,8 +101,8 @@ description: <One-line description for nav/SEO>
 **Purpose**: Canonical "how Charter works" mental model page. All other new pages reference this one for the current-state Charter model. Cover: synthesis, DRG, bundle, bootstrap vs compact context.
 
 **Structure**:
-1. **What Charter Does** — governance file (`charter.md`) drives the synthesis pipeline. The synthesizer produces the doctrine bundle (authoritative vs generated files distinction).
-2. **Synthesis Flow** — `charter interview` → `charter generate` → `charter context` → `charter lint` → `charter bundle`. Brief description of each step's role. Include a command sequence code block (verify commands exist with `--help` before writing).
+1. **What Charter Does** — governance file (`charter.md`) drives the synthesis pipeline. The synthesizer produces the charter bundle (authoritative vs generated files distinction).
+2. **Synthesis Flow** — `charter interview` -> `charter generate` -> `charter lint` -> `charter synthesize` -> `charter bundle validate`. Brief description of each step's role. Include a command sequence code block (verify commands exist with `--help` before writing). Mention `charter context --action <action> --json` separately as the runtime/debug command for rendering action context, not as a synthesis step.
 3. **The DRG-Backed Context Model** — how DRG edges are computed; how context is injected when `spec-kitty next` invokes an agent profile. Explain what "governed profile invocation" means at a high level.
 4. **Bootstrap vs Compact Context** — when the full DRG context fits: bootstrap mode. When it's too large: compact-context mode. Link issue #787 (or note "see issue tracker" if the issue number is uncertain) for the compact-context limitation. Do not promise full-context behavior unconditionally.
 5. **Key Governance Files** — one-sentence each for `charter.md` (human-edited) and the generated files. Link to `governance-files.md` for the full table.
@@ -132,8 +132,8 @@ description: <One-line description for nav/SEO>
 
 Verify actual file paths against a real project or `uv run spec-kitty charter status` output before writing. Adjust the table to match reality.
 
-3. **What Happens If You Edit a Generated File** — one paragraph: "The synthesizer will overwrite your changes on the next `charter lint` or `charter bundle` run. Use `charter status` to detect drift between your edits and the synthesizer's output."
-4. **Bundle Validation** — brief note: run `charter bundle` to produce the canonical bundle; `charter lint` to check for drift.
+3. **What Happens If You Edit a Generated File** — one paragraph: "The synthesizer can overwrite generated-file edits on the next `charter synthesize` run. Use `charter status`, `charter lint`, and `charter bundle validate` to detect drift before relying on the bundle."
+4. **Bundle Validation** — brief note: run `charter bundle validate` to validate the canonical bundle; `charter lint` checks for graph-native decay.
 
 **Cross-links**:
 - `charter-overview.md`

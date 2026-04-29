@@ -19,7 +19,7 @@ Bring Spec Kitty end-user documentation to parity with the shipped Charter-era p
 **Project Type**: Documentation-only mission — no product source changes
 **Performance Goals**: N/A (documentation)
 **Constraints**: No source-repo pollution from smoke commands; `SPEC_KITTY_ENABLE_SAAS_SYNC=1` for any command touching hosted auth/tracker; all snippets must parse cleanly
-**Scale/Scope**: ~18 new or updated pages across tutorials/, how-to/, reference/, explanation/, docs/3x/, and docs/migration/; plus gap-analysis.md and release handoff
+**Scale/Scope**: 19 new or updated pages across tutorials/, how-to/, reference/, explanation/, docs/3x/, and docs/migration/; plus gap-analysis.md and release handoff
 
 ## Charter Check
 
@@ -67,7 +67,7 @@ docs/
 │   ├── setup-governance.md               # UPDATE: add current Charter synthesis/bundle flow
 │   ├── synthesize-doctrine.md            # NEW: dry-run, apply, status, lint, provenance, recovery
 │   ├── run-governed-mission.md           # NEW: spec-kitty next, composed steps, blocked decisions
-│   ├── use-retrospective-learning.md     # NEW: summary, synthesizer dry-run/apply, exit codes
+│   ├── use-retrospective-learning.md     # NEW: summary, synthesizer default dry-run/apply, exit codes
 │   └── troubleshoot-charter.md           # NEW: stale bundle, missing doctrine, compact context, synth rejection
 ├── explanation/
 │   ├── charter-synthesis-drg.md         # NEW: Charter as synthesis/DRG model
@@ -75,7 +75,7 @@ docs/
 │   └── retrospective-learning-loop.md   # NEW: split from root-level file into Divio shape
 ├── reference/
 │   ├── cli-commands.md                  # UPDATE: add Charter-era command surface
-│   ├── charter-commands.md              # NEW: Charter subcommand reference (interview, generate, context, status, sync, lint, bundle)
+│   ├── charter-commands.md              # NEW: Charter subcommand reference (interview, generate, context, status, sync, synthesize, resynthesize, lint, bundle validate)
 │   ├── profile-invocation.md            # NEW: ask/advise/do, invocation trail, lifecycle
 │   └── retrospective-schema.md          # NEW: retrospective.yaml schema, proposal kinds, event fields
 └── migration/

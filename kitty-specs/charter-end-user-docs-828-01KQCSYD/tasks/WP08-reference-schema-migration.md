@@ -104,7 +104,7 @@ To find the schema: look for `retrospective.yaml` in `src/specify_cli/` or check
    - Required fields
    - When the synthesizer accepts vs rejects it
    
-   If proposal kinds are not directly documented, use `agent retrospect synthesize --dry-run` output structure.
+   If proposal kinds are not directly documented, use the default dry-run output from `agent retrospect synthesize --mission <mission>`.
 
 4. **Retrospective status event fields** — what events appear in the status trail for a retrospective lifecycle. Reference the 9-lane status model (status.events.jsonl).
 
@@ -136,7 +136,7 @@ If exit codes are not documented in `--help`, write: "Consult `uv run spec-kitty
 | Area | 2.x behavior | 3.x Charter behavior |
 |---|---|---|
 | Governance file location | (derive from docs/2x/) | `.kittify/charter/charter.md` |
-| Synthesis command | (if existed in 2.x) | `charter context` + `charter bundle` |
+| Synthesis command | (if existed in 2.x) | `charter synthesize` + `charter bundle validate` |
 | CLI structure | (from docs/2x/ reference) | `spec-kitty charter <subcommand>` |
 | Mission execution | (2.x pattern) | `spec-kitty next --agent <agent>` with Charter context |
 
@@ -145,7 +145,7 @@ Derive 2.x behavior by reading `docs/2x/` content (particularly `docs/2x/doctrin
 3. **Migration steps** — what to re-run after upgrade:
    - Re-run `charter interview` if `charter.md` format changed
    - Re-run `charter generate` to regenerate governance files
-   - Re-run `charter bundle` to produce new bundle
+   - Re-run `charter bundle validate` to verify the new bundle
    - Verify `charter status` reports no drift
 
 4. **Known migration failures and fixes**:

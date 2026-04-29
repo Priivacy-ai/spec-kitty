@@ -40,17 +40,27 @@ uv run spec-kitty charter generate --help
 uv run spec-kitty charter synthesize --help     # doctrine synthesis (primary synthesis verb)
 uv run spec-kitty charter resynthesize --help   # partial resynthesis
 uv run spec-kitty charter status --help
-uv run spec-kitty charter sync --help           # syncs charter.md to YAML config (NOT SaaS push)
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run spec-kitty charter sync --help  # syncs charter.md to YAML config (NOT SaaS push)
 uv run spec-kitty charter lint --help
 uv run spec-kitty charter bundle --help         # verify this exists before writing a section for it
+uv run spec-kitty charter bundle validate --help
 uv run spec-kitty next --help
+uv run spec-kitty profiles --help
+uv run spec-kitty profiles list --help
+uv run spec-kitty ask --help
+uv run spec-kitty advise --help
+uv run spec-kitty do --help
+uv run spec-kitty profile-invocation --help
+uv run spec-kitty profile-invocation complete --help
+uv run spec-kitty mission --help
+uv run spec-kitty glossary --help
 uv run spec-kitty retrospect --help
 uv run spec-kitty retrospect summary --help
 uv run spec-kitty agent retrospect synthesize --help
 uv run spec-kitty agent decision --help
 ```
 
-If a subcommand returns `Error: No such command`, do not include a section for it in the reference — note it as "not yet available" or omit it.
+If a subcommand returns `Error: No such command`, do not include a section for it in the reference — note it as "not yet available" or omit it. `agent retrospect synthesize` currently defaults to dry-run, requires `--mission <mission>`, and mutates only with `--apply`; do not document a `--dry-run` flag unless `--help` shows one.
 
 ---
 
@@ -75,7 +85,7 @@ If a subcommand returns `Error: No such command`, do not include a section for i
 
 ## Terminology Note
 
-Use **charter bundle** (not "doctrine bundle") when referring to the output of `charter bundle`. The CLI term is "charter bundle" — use this consistently in all pages to match what users see in `--help` output.
+Use **charter bundle** (not "doctrine bundle") when referring to the bundle concept or CLI group, and use `charter bundle validate` when documenting validation commands. Use this consistently in all pages to match what users see in `--help` output.
 
 Use **charter synthesize** (not "charter context") when describing doctrine synthesis. `charter context` is a different subcommand with a different purpose — do not use it as a synonym for synthesis.
 
