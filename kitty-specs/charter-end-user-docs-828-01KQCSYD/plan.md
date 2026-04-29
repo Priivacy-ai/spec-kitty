@@ -1,6 +1,7 @@
 # Implementation Plan: Charter End-User Docs Parity (#828)
 
 **Branch**: `docs/charter-end-user-docs-828` | **Date**: 2026-04-29 | **Spec**: [spec.md](spec.md)
+**Mission ID**: `01KQCSYDGQN09RV05M6V8Q5H1B` | **Slug**: `charter-end-user-docs-828-01KQCSYD`
 **Mission**: `charter-end-user-docs-828-01KQCSYD`
 **Input**: `/Users/robert/spec-kitty-dev/spec-kitty-20260429-161241-ycLfiR/spec-kitty/kitty-specs/charter-end-user-docs-828-01KQCSYD/spec.md`
 
