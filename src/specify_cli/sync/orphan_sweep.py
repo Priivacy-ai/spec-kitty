@@ -204,9 +204,16 @@ def _http_shutdown_no_token(port: int) -> None:
     try:
         # nosec B310 — request URL is 127.0.0.1 in the reserved daemon range.
         with urllib.request.urlopen(request, timeout=1.0):
-            pass
+            return
     except Exception:
-        pass
+        return
+
+
+def _port_closed_after_process_disappeared(port: int) -> tuple[bool, str | None]:
+    """Handle races where the process exits between discovery and escalation."""
+    if _wait_for_port_close(port, timeout_s=_TERMINATE_WAIT_S):
+        return True, None
+    return False, "process_gone_but_port_still_listening"
 
 
 # ---------------------------------------------------------------------------
@@ -301,9 +308,7 @@ def _sweep_one(orphan: OrphanDaemon) -> tuple[bool, str | None]:
     except psutil.NoSuchProcess:
         # Process vanished between health-probe and now; the port may already
         # be free (race with self-retirement tick).
-        if _wait_for_port_close(orphan.port, timeout_s=_TERMINATE_WAIT_S):
-            return True, None
-        return False, "process_gone_but_port_still_listening"
+        return _port_closed_after_process_disappeared(orphan.port)
     except psutil.AccessDenied:
         return False, "access_denied_opening_process"
 
@@ -311,9 +316,7 @@ def _sweep_one(orphan: OrphanDaemon) -> tuple[bool, str | None]:
     try:
         proc.terminate()
     except psutil.NoSuchProcess:
-        if _wait_for_port_close(orphan.port, timeout_s=_TERMINATE_WAIT_S):
-            return True, None
-        return False, "process_gone_but_port_still_listening"
+        return _port_closed_after_process_disappeared(orphan.port)
     except psutil.AccessDenied:
         return False, "access_denied_on_terminate"
 
@@ -324,9 +327,7 @@ def _sweep_one(orphan: OrphanDaemon) -> tuple[bool, str | None]:
     try:
         proc.kill()
     except psutil.NoSuchProcess:
-        if _wait_for_port_close(orphan.port, timeout_s=_KILL_WAIT_S):
-            return True, None
-        return False, "process_gone_but_port_still_listening"
+        return _port_closed_after_process_disappeared(orphan.port)
     except psutil.AccessDenied:
         return False, "access_denied_on_kill"
 

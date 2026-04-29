@@ -139,3 +139,27 @@ async def test_send_event_when_not_connected():
 
     with pytest.raises(ConnectionError, match="Not connected to server"):
         await client.send_event({"type": "test"})
+
+
+def test_normalize_ws_url_converts_https_and_loopback_http():
+    """Provisioned HTTPS URLs become WSS; loopback HTTP remains allowed for local dev."""
+    assert (
+        WebSocketClient._normalize_ws_url("https://spec-kitty-dev.fly.dev/ws")
+        == "wss://spec-kitty-dev.fly.dev/ws"
+    )
+    assert (
+        WebSocketClient._normalize_ws_url("http://127.0.0.1:9400/ws")
+        == "ws://127.0.0.1:9400/ws"
+    )
+    assert (
+        WebSocketClient._normalize_ws_url("ws://localhost:9400/ws")
+        == "ws://localhost:9400/ws"
+    )
+
+
+def test_normalize_ws_url_rejects_insecure_remote_plaintext():
+    """Remote plaintext endpoints must not receive the ephemeral WS token."""
+    with pytest.raises(Exception, match="Refusing insecure WebSocket provisioning URL"):
+        WebSocketClient._normalize_ws_url("http://spec-kitty-dev.fly.dev/ws")
+    with pytest.raises(Exception, match="Refusing insecure WebSocket provisioning URL"):
+        WebSocketClient._normalize_ws_url("ws://spec-kitty-dev.fly.dev/ws")

@@ -13,6 +13,7 @@ import random
 from contextlib import suppress
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
 import websockets
 from websockets import ConnectionClosed
@@ -154,11 +155,7 @@ class WebSocketClient:
                 "WebSocket provisioning returned an incomplete bundle."
             )
 
-        # Normalize ws_url scheme (provisioning returns https/http; WS needs wss/ws).
-        if ws_url.startswith("https://"):
-            ws_url = "wss://" + ws_url[len("https://") :]
-        elif ws_url.startswith("http://"):
-            ws_url = "ws://" + ws_url[len("http://") :]
+        ws_url = self._normalize_ws_url(ws_url)
 
         # Token-in-query-string, matching the SaaS contract for ephemeral ws tokens.
         separator = "&" if "?" in ws_url else "?"
@@ -259,6 +256,31 @@ class WebSocketClient:
     def reset_reconnect_attempts(self):
         """Reset the reconnection attempt counter"""
         self.reconnect_attempts = 0
+
+    @staticmethod
+    def _normalize_ws_url(ws_url: str) -> str:
+        """Convert provisioned HTTP(S) URLs to WS(S), rejecting insecure remote hosts."""
+        if ws_url.startswith("wss://"):
+            return ws_url
+        if ws_url.startswith("ws://"):
+            host = (urlparse(ws_url).hostname or "").lower()
+            if host not in {"127.0.0.1", "localhost", "::1"}:
+                raise AuthenticationError(
+                    "Refusing insecure WebSocket provisioning URL outside loopback."
+                )
+            return ws_url
+        if ws_url.startswith("https://"):
+            return "wss://" + ws_url[len("https://") :]
+        if ws_url.startswith("http://"):
+            host = (urlparse(ws_url).hostname or "").lower()
+            if host not in {"127.0.0.1", "localhost", "::1"}:
+                raise AuthenticationError(
+                    "Refusing insecure WebSocket provisioning URL outside loopback."
+                )
+            return "ws://" + ws_url[len("http://") :]
+        raise AuthenticationError(
+            f"Unsupported WebSocket provisioning URL scheme: {ws_url!r}"
+        )
 
     def get_reconnect_delay(self, attempt: int) -> float:
         """

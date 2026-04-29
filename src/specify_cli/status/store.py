@@ -172,6 +172,30 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     return results
 
 
+def _should_skip_status_event(obj: dict[str, Any]) -> bool:
+    """Return True for non-lane events that intentionally share the JSONL file."""
+    event_name = obj.get("event_name")
+    if isinstance(event_name, str) and event_name.startswith("retrospective."):
+        return True
+
+    # Why: Skip mission-level events (DecisionPointOpened,
+    # DecisionPointResolved, DecisionPointDeferred,
+    # DecisionPointCanceled, DecisionPointWidened, and any future
+    # event-type written by a non-status-emitter subsystem) that
+    # share status.events.jsonl with lane-transition events.
+    # Two cooperating subsystems write to this file with incompatible
+    # schemas: the status emitter writes lane-transition events
+    # (carrying wp_id, from_lane, to_lane), while the Decision Moment
+    # Protocol writes mission-level events that carry a top-level
+    # `event_type` field instead. Discriminating on event_type
+    # PRESENCE (not a specific value allowlist) is future-proof AND
+    # preserves the existing fail-loud contract for malformed
+    # lane-transition events: a corrupted lane event missing wp_id
+    # but ALSO missing event_type still hits StatusEvent.from_dict
+    # below and raises as today. See FR-010.
+    return "event_type" in obj
+
+
 def read_events(feature_dir: Path) -> list[StatusEvent]:
     """Read and deserialize StatusEvent objects from the events file.
 
@@ -200,26 +224,7 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
                 raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
-            event_name = obj.get("event_name")
-            if isinstance(event_name, str) and event_name.startswith("retrospective."):
-                continue
-
-            # Why: Skip mission-level events (DecisionPointOpened,
-            # DecisionPointResolved, DecisionPointDeferred,
-            # DecisionPointCanceled, DecisionPointWidened, and any future
-            # event-type written by a non-status-emitter subsystem) that
-            # share status.events.jsonl with lane-transition events.
-            # Two cooperating subsystems write to this file with incompatible
-            # schemas: the status emitter writes lane-transition events
-            # (carrying wp_id, from_lane, to_lane), while the Decision Moment
-            # Protocol writes mission-level events that carry a top-level
-            # `event_type` field instead. Discriminating on event_type
-            # PRESENCE (not a specific value allowlist) is future-proof AND
-            # preserves the existing fail-loud contract for malformed
-            # lane-transition events: a corrupted lane event missing wp_id
-            # but ALSO missing event_type still hits StatusEvent.from_dict
-            # below and raises as today. See FR-010.
-            if "event_type" in obj:
+            if _should_skip_status_event(obj):
                 continue
 
             try:
