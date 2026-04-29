@@ -15,7 +15,8 @@ subtasks:
 - T011
 - T012
 phase: Phase 4 - Ship
-agent: claude
+agent: "claude:sonnet:researcher-robbie:implementer"
+shell_pid: "91875"
 history:
 - at: '2026-04-29T18:44:20Z'
   actor: system
@@ -179,3 +180,7 @@ Report each SC result. If any SC fails, fix the underlying gap before declaring 
 - PR #885 may need a push to include new commits from the sprint — run `git push origin docs/charter-end-user-docs-828` if the PR is behind
 - `pytest tests/docs/` may not yet exist (no test suite for docs) — if the path doesn't exist, note "no tests/docs/ suite found" in the release-handoff.md and report to the user
 - `release-handoff.md` may have placeholder sections if WP10 agent skipped guidance — review every section for real content, not scaffold prose
+
+## Activity Log
+
+- 2026-04-29T19:27:04Z – claude:sonnet:researcher-robbie:implementer – shell_pid=91875 – Started implementation via action command
