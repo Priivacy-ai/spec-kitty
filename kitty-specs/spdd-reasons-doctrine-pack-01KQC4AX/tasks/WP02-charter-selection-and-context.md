@@ -244,3 +244,4 @@ For inactive baselines: capture the current output once, write it to a `*.expect
 ## Activity Log
 
 - 2026-04-29T08:35:13Z – claude:opus:python-pedro:implementer – shell_pid=18693 – Started implementation via action command
+- 2026-04-29T08:46:36Z – claude:opus:python-pedro:implementer – shell_pid=18693 – Ready for review: activation helper + charter-context injection + 3 test classes
