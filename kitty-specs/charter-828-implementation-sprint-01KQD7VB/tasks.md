@@ -22,9 +22,9 @@
 | T004 | Execute source mission WP02–WP08 via `spec-kitty next` (content generation) | WP02 | — | [D] |
 | T005 | Verify page count (14 new + 5 updated) and spot-check CLI flag accuracy | WP02 | — | [D] |
 | T006 | Grep for stale command names and TODO markers across all changed docs | WP02 | — | [D] |
-| T007 | Execute source mission WP09 via `spec-kitty next` (validation pass) | WP03 | — |
-| T008 | Review validation-report.md for completeness and evidence coverage | WP03 | — |
-| T009 | Triage validation failures — stop and report any product bugs (FR-007) | WP03 | — |
+| T007 | Execute source mission WP09 via `spec-kitty next` (validation pass) | WP03 | — | [D] |
+| T008 | Review validation-report.md for completeness and evidence coverage | WP03 | — | [D] |
+| T009 | Triage validation failures — stop and report any product bugs (FR-007) | WP03 | — | [D] |
 | T010 | Execute source mission WP10 via `spec-kitty next` (release handoff) | WP04 | — |
 | T011 | Verify release-handoff.md completeness (all required sections filled) | WP04 | — |
 | T012 | Verify branch cleanliness and PR #885 merge-readiness | WP04 | — |
@@ -86,9 +86,9 @@
 
 **Subtasks**:
 
-- [ ] T007 Execute source WP09 via `spec-kitty next` (validation pass) (WP03)
-- [ ] T008 Review validation-report.md for completeness and evidence coverage (WP03)
-- [ ] T009 Triage validation failures — stop and report any product bugs (FR-007) (WP03)
+- [x] T007 Execute source WP09 via `spec-kitty next` (validation pass) (WP03)
+- [x] T008 Review validation-report.md for completeness and evidence coverage (WP03)
+- [x] T009 Triage validation failures — stop and report any product bugs (FR-007) (WP03)
 
 **Dependencies**: WP02
 
