@@ -49,6 +49,8 @@ def _looks_like_missions_root(path: Path) -> bool:
         mission_dir = path / mission_name
         if (mission_dir / "mission.yaml").is_file() or (mission_dir / "mission-runtime.yaml").is_file():
             return True
+        if (mission_dir / "command-templates").is_dir():
+            return True
     return False
 
 

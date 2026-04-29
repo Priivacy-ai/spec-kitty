@@ -148,6 +148,18 @@ class TestGetPackageAssetRoot:
 
         assert get_package_asset_root() == missions
 
+    def test_template_root_legacy_package_asset_root_with_command_templates(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A direct package asset root with command templates remains valid."""
+        package_assets = tmp_path / "pkg"
+        command_templates = package_assets / "software-dev" / "command-templates"
+        command_templates.mkdir(parents=True)
+
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
+
+        assert get_package_asset_root() == package_assets
+
     def test_template_root_env_nonexistent_raises(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

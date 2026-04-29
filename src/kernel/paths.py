@@ -80,6 +80,8 @@ def get_package_asset_root() -> Path:
             mission_dir = path / mission_name
             if (mission_dir / "mission.yaml").is_file() or (mission_dir / "mission-runtime.yaml").is_file():
                 return True
+            if (mission_dir / "command-templates").is_dir():
+                return True
         return False
 
     def _resolve_env_root(root: Path) -> Path:
