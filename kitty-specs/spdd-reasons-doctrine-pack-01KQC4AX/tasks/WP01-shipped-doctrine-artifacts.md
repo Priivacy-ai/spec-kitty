@@ -200,3 +200,7 @@ Do NOT add CLI/integration tests in this WP — those belong to WP02.
 - Prompt fragment rendering (WP04).
 - Review gate (WP05).
 - User-facing docs (WP06).
+
+## Activity Log
+
+- 2026-04-29T08:32:24Z – claude – shell_pid=99221 – Ready for review: 6 doctrine artifacts + smoke test
