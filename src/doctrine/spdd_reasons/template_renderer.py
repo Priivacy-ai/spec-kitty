@@ -103,20 +103,14 @@ def _validate_markers(text: str) -> None:
         stripped = line.strip()
         if stripped == REASONS_BLOCK_START:
             if depth != 0:
-                raise UnmatchedReasonsBlockError(
-                    "Nested spdd:reasons-block start marker; flat blocks only."
-                )
+                raise UnmatchedReasonsBlockError("Nested spdd:reasons-block start marker; flat blocks only.")
             depth += 1
         elif stripped == REASONS_BLOCK_END:
             if depth == 0:
-                raise UnmatchedReasonsBlockError(
-                    "spdd:reasons-block end marker has no matching start."
-                )
+                raise UnmatchedReasonsBlockError("spdd:reasons-block end marker has no matching start.")
             depth -= 1
     if depth != 0:
-        raise UnmatchedReasonsBlockError(
-            "spdd:reasons-block start marker has no matching end."
-        )
+        raise UnmatchedReasonsBlockError("spdd:reasons-block start marker has no matching end.")
 
 
 def _strip_marker_lines(text: str) -> str:
@@ -131,7 +125,7 @@ def _strip_marker_lines(text: str) -> str:
     out_lines: list[str] = []
     for line in text.splitlines():
         stripped = line.strip()
-        if stripped == REASONS_BLOCK_START or stripped == REASONS_BLOCK_END:
+        if stripped in (REASONS_BLOCK_START, REASONS_BLOCK_END):
             continue
         out_lines.append(line)
     rendered = "\n".join(out_lines)
@@ -182,9 +176,7 @@ def _remove_blocks(text: str) -> str:
     return rendered
 
 
-def apply_spdd_blocks_for_project(
-    template_text: str, repo_root: Path | None
-) -> str:
+def apply_spdd_blocks_for_project(template_text: str, repo_root: Path | None) -> str:
     """Convenience wrapper: gate ``process_spdd_blocks`` on charter activation.
 
     Resolves activation by calling
@@ -196,7 +188,7 @@ def apply_spdd_blocks_for_project(
     This is the single seam that template materialization should call so all
     template paths share one activation gate (no drift across renderers).
     """
-    if REASONS_BLOCK_START not in template_text:
+    if REASONS_BLOCK_START not in template_text and REASONS_BLOCK_END not in template_text:
         # Fast path: no marker, no work, no activation read.
         return template_text
 
@@ -207,9 +199,7 @@ def apply_spdd_blocks_for_project(
     # activation module imports tooling that touches templates.
     from doctrine.spdd_reasons.activation import is_spdd_reasons_active
 
-    return process_spdd_blocks(
-        template_text, active=is_spdd_reasons_active(repo_root)
-    )
+    return process_spdd_blocks(template_text, active=is_spdd_reasons_active(repo_root))
 
 
 __all__ = [

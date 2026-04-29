@@ -10,7 +10,7 @@ from collections.abc import Mapping
 import yaml
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
-from specify_cli.template.renderer import parse_frontmatter, render_template, rewrite_paths
+from specify_cli.template.renderer import parse_frontmatter, render_template_text, rewrite_paths
 
 
 def _get_cli_version() -> str:
@@ -150,7 +150,11 @@ def render_command_template(
             "__AGENT__": agent_key,
         }
 
-    metadata, rendered_body, raw_frontmatter = render_template(template_path, variables=build_variables)
+    metadata, rendered_body, raw_frontmatter = render_template_text(
+        template_text,
+        variables=build_variables,
+        template_path=template_path,
+    )
     description = str(metadata.get("description", "")).strip()
 
     frontmatter_clean = _filter_frontmatter(raw_frontmatter)
@@ -181,10 +185,7 @@ def render_command_template(
     # frontmatter block — placing it before would push the `---` off line 1
     # and break YAML frontmatter parsing.  Migrations and doctor scans look
     # for the marker within the file head, not only on line 1.
-    if frontmatter_clean:
-        result = f"---\n{frontmatter_clean}\n---\n{version_marker}\n{rendered_body}"
-    else:
-        result = f"{version_marker}\n{rendered_body}"
+    result = f"---\n{frontmatter_clean}\n---\n{version_marker}\n{rendered_body}" if frontmatter_clean else f"{version_marker}\n{rendered_body}"
     if not result.endswith("\n"):
         result += "\n"
     return result

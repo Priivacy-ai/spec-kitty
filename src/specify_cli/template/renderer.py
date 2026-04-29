@@ -46,9 +46,8 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any], str, str]:
             metadata = {}
     except yaml.YAMLError as exc:
         import logging as _logging
-        _logging.getLogger(__name__).warning(
-            "YAML parse error in frontmatter (WP may vanish from dashboard): %s", exc
-        )
+
+        _logging.getLogger(__name__).warning("YAML parse error in frontmatter (WP may vanish from dashboard): %s", exc)
         metadata = {}
 
     return metadata, body, frontmatter_text
@@ -69,6 +68,22 @@ def render_template(
 ) -> tuple[dict[str, Any], str, str]:
     """Render a template by applying frontmatter parsing and substitutions."""
     text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
+    return render_template_text(text, variables=variables, template_path=template_path)
+
+
+def render_template_text(
+    template_text: str,
+    variables: VariablesResolver | None = None,
+    *,
+    template_path: Path | None = None,
+) -> tuple[dict[str, Any], str, str]:
+    """Render already-loaded template text.
+
+    ``template_path`` is optional context for glossary annotation only. Callers
+    that transform template text before rendering should use this helper so
+    the transformation is not lost by re-reading the source file.
+    """
+    text = template_text.replace("\r", "")
     metadata, body, raw_frontmatter = parse_frontmatter(text)
     replacements = _resolve_variables(variables, metadata)
     rendered = _apply_variables(body, replacements)
@@ -80,9 +95,8 @@ def render_template(
         rendered = _annotate_glossary_refs_from_store(rendered, template_path)
     except Exception:  # noqa: BLE001
         import logging as _logging
-        _logging.getLogger(__name__).debug(
-            "glossary annotation skipped for %s", template_path, exc_info=True
-        )
+
+        _logging.getLogger(__name__).debug("glossary annotation skipped for %s", template_path, exc_info=True)
     if not rendered.endswith("\n"):
         rendered += "\n"
     return metadata, rendered, raw_frontmatter
@@ -188,5 +202,6 @@ __all__ = [
     "_annotate_glossary_refs",
     "parse_frontmatter",
     "render_template",
+    "render_template_text",
     "rewrite_paths",
 ]

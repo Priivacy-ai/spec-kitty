@@ -14,13 +14,12 @@ from doctrine.spdd_reasons.template_renderer import (
     REASONS_BLOCK_END,
     REASONS_BLOCK_START,
     UnmatchedReasonsBlockError,
+    apply_spdd_blocks_for_project,
     process_spdd_blocks,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEMPLATES_DIR = (
-    REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
-)
+TEMPLATES_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
 
 ACTION_TEMPLATES: list[tuple[str, str]] = [
     ("specify.md", "REASONS Guidance — Specify"),
@@ -43,19 +42,7 @@ class TestProcessSpddBlocks:
     """Unit-level behaviour of ``process_spdd_blocks``."""
 
     def test_active_keeps_content_strips_markers(self) -> None:
-        text = (
-            "Header line\n"
-            "\n"
-            f"{REASONS_BLOCK_START}\n"
-            "\n"
-            "### REASONS Guidance — X\n"
-            "\n"
-            "- bullet\n"
-            "\n"
-            f"{REASONS_BLOCK_END}\n"
-            "\n"
-            "Footer line\n"
-        )
+        text = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance — X\n\n- bullet\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
         rendered = process_spdd_blocks(text, active=True)
         assert REASONS_BLOCK_START not in rendered
         assert REASONS_BLOCK_END not in rendered
@@ -66,19 +53,7 @@ class TestProcessSpddBlocks:
         assert rendered.endswith("Footer line\n")
 
     def test_inactive_removes_block_entirely(self) -> None:
-        text = (
-            "Header line\n"
-            "\n"
-            f"{REASONS_BLOCK_START}\n"
-            "\n"
-            "### REASONS Guidance — X\n"
-            "\n"
-            "- bullet\n"
-            "\n"
-            f"{REASONS_BLOCK_END}\n"
-            "\n"
-            "Footer line\n"
-        )
+        text = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance — X\n\n- bullet\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
         rendered = process_spdd_blocks(text, active=False)
         assert "spdd:reasons-block" not in rendered
         assert "REASONS Guidance" not in rendered
@@ -89,17 +64,7 @@ class TestProcessSpddBlocks:
         # Pre-feature baseline: header followed by a blank then footer.
         baseline = "Header line\n\nFooter line\n"
         # Author convention: insert a blank + marker block between them.
-        with_block = (
-            "Header line\n"
-            "\n"
-            f"{REASONS_BLOCK_START}\n"
-            "\n"
-            "### REASONS Guidance — X\n"
-            "\n"
-            f"{REASONS_BLOCK_END}\n"
-            "\n"
-            "Footer line\n"
-        )
+        with_block = f"Header line\n\n{REASONS_BLOCK_START}\n\n### REASONS Guidance — X\n\n{REASONS_BLOCK_END}\n\nFooter line\n"
         rendered = process_spdd_blocks(with_block, active=False)
         assert rendered == baseline
 
@@ -119,6 +84,11 @@ class TestProcessSpddBlocks:
         text = "# Title\n\nSome body text.\n"
         assert process_spdd_blocks(text, active=True) == text
         assert process_spdd_blocks(text, active=False) == text
+
+    def test_project_wrapper_rejects_unmatched_end_marker(self) -> None:
+        text = f"Header\n{REASONS_BLOCK_END}\nFooter\n"
+        with pytest.raises(UnmatchedReasonsBlockError):
+            apply_spdd_blocks_for_project(text, repo_root=None)
 
 
 # =============================================================================
@@ -161,9 +131,7 @@ class TestInactiveBaselineEquivalence:
     """FR-013 / NFR-001: inactive rendering is byte-identical to baseline."""
 
     @pytest.mark.parametrize("template_name", [t[0] for t in ACTION_TEMPLATES])
-    def test_inactive_template_byte_equivalent_to_baseline(
-        self, template_name: str
-    ) -> None:
+    def test_inactive_template_byte_equivalent_to_baseline(self, template_name: str) -> None:
         text = _read_template(template_name)
         # Sanity: each WP04 template carries the marker pair.
         assert REASONS_BLOCK_START in text, f"{template_name} missing start marker"
@@ -209,9 +177,7 @@ class TestActiveTemplatesContainBlock:
     """FR-014: active rendering surfaces the action-scoped headline."""
 
     @pytest.mark.parametrize("template_name,headline", ACTION_TEMPLATES)
-    def test_active_template_contains_headline(
-        self, template_name: str, headline: str
-    ) -> None:
+    def test_active_template_contains_headline(self, template_name: str, headline: str) -> None:
         text = _read_template(template_name)
         rendered = process_spdd_blocks(text, active=True)
         assert headline in rendered
