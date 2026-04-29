@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.8] - 2026-04-29
+
+### Fixed
+
+- Dashboard feature polling now tolerates `/api/features` error or malformed
+  payloads without crashing on an undefined `features` array, so the UI no
+  longer gets stuck on loading when feature scanning fails.
+- OpenCode global command installation now targets OpenCode's config command
+  directory, honoring `OPENCODE_CONFIG_DIR` and `XDG_CONFIG_HOME` before
+  falling back to `~/.config/opencode/commands`.
+
 ## [3.1.7] - 2026-04-28
 
 ### Fixed
