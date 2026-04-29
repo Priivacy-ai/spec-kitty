@@ -5,6 +5,7 @@ dependencies: []
 requirement_refs:
 - FR-001
 - FR-002
+- NFR-002
 planning_base_branch: docs/charter-end-user-docs-828
 merge_target_branch: docs/charter-end-user-docs-828
 branch_strategy: Planning artifacts for this feature were generated on docs/charter-end-user-docs-828. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into docs/charter-end-user-docs-828 unless the human explicitly redirects the landing branch.
@@ -77,8 +78,9 @@ Run all four checks in order. All must pass before any WP execution begins (FR-0
 # 1. Confirm branch and clean state
 git status --short --branch
 
-# 2. Fast-forward from origin (must succeed — no local commits ahead of remote except planned ones)
-git pull --ff-only origin main
+# 2. Pull tracking branch (origin/docs/charter-end-user-docs-828) with fast-forward only
+#    Note: NOT "git pull --ff-only origin main" — the feature branch is ahead of main
+git pull --ff-only
 
 # 3. Verify CLI version is 3.2.0a5 or later
 uv run spec-kitty --version
@@ -86,13 +88,17 @@ uv run spec-kitty --version
 # 4. Check source mission prerequisites
 uv run spec-kitty agent mission check-prerequisites \
   --mission charter-end-user-docs-828-01KQCSYD --json
+
+# 5. Verify PR #885 is open (Assumption in spec)
+gh pr view 885 --json state,headRefName,baseRefName
 ```
 
 **Pass criteria**:
 - `git status` shows branch `docs/charter-end-user-docs-828`, working tree clean
-- `git pull` succeeds with no merge conflicts
+- `git pull --ff-only` succeeds (pulls tracking branch; not main)
 - `spec-kitty --version` prints `3.2.0a5` or later
 - `check-prerequisites` returns `"valid": true` with zero errors
+- PR #885: `state=OPEN`, `headRefName=docs/charter-end-user-docs-828`, `baseRefName=main`
 
 **If any check fails**: Stop, report the failure, do not proceed to T002.
 

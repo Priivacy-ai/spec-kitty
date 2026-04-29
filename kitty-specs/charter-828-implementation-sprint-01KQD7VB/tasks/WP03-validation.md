@@ -6,6 +6,7 @@ dependencies:
 requirement_refs:
 - FR-004
 - FR-007
+- NFR-003
 planning_base_branch: docs/charter-end-user-docs-828
 merge_target_branch: docs/charter-end-user-docs-828
 branch_strategy: Planning artifacts for this feature were generated on docs/charter-end-user-docs-828. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into docs/charter-end-user-docs-828 unless the human explicitly redirects the landing branch.
