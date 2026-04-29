@@ -14,7 +14,8 @@ subtasks:
 - T002
 - T003
 phase: Phase 1 - Foundation
-agent: claude
+agent: "claude:sonnet:researcher-robbie:implementer"
+shell_pid: "83167"
 history:
 - at: '2026-04-29T18:44:20Z'
   actor: system
@@ -173,3 +174,7 @@ grep -qi 'archive\|2\.x.*no longer' docs/2x/index.md && echo "docs/2x/index.md h
 - `git pull --ff-only` fails if local branch has diverged from origin — resolve before continuing
 - Source WP01 may not be "ready" if source mission status is unexpected — check `spec-kitty agent tasks status --mission charter-end-user-docs-828-01KQCSYD`
 - `docs/docfx.json` update may have been skipped by WP01 agent — verify explicitly in T003
+
+## Activity Log
+
+- 2026-04-29T18:58:01Z – claude:sonnet:researcher-robbie:implementer – shell_pid=83167 – Started implementation via action command
