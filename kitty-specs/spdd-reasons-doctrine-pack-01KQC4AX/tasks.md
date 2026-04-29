@@ -25,10 +25,10 @@ WP02 and WP03 can run in parallel after WP01 lands. WP04 depends on the activati
 | T005  | Author `038-structured-prompt-boundary.directive.yaml`                 | WP01 | [D] |
 | T006  | Author `templates/fragments/reasons-canvas-template.md`                | WP01 | [D] |
 | T007  | Add `tests/doctrine/test_spdd_reasons_artifacts.py`                    | WP01 |          | [D] |
-| T008  | Implement `is_spdd_reasons_active()` helper                            | WP02 |          |
-| T009  | Extend `build_charter_context` to inject SPDD/REASONS guidance         | WP02 |          |
-| T010  | Verify `bundle.py`/`targets.py` paradigm flow; patch if needed         | WP02 |          |
-| T011  | Add `tests/charter/test_charter_context_spdd_reasons.py`               | WP02 |          |
+| T008  | Implement `is_spdd_reasons_active()` helper                            | WP02 |          | [D] |
+| T009  | Extend `build_charter_context` to inject SPDD/REASONS guidance         | WP02 |          | [D] |
+| T010  | Verify `bundle.py`/`targets.py` paradigm flow; patch if needed         | WP02 |          | [D] |
+| T011  | Add `tests/charter/test_charter_context_spdd_reasons.py`               | WP02 |          | [D] |
 | T012  | Author `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md`          | WP03 |          |
 | T013  | Wire skill discovery test (smoke assertion the skill loads)            | WP03 |          |
 | T014  | Add SPDD reasons-block markers to `specify.md` template                | WP04 | [P]      |
@@ -98,10 +98,10 @@ Wire the new artifacts through the charter interview/library flow so charter sel
 
 ### Included subtasks
 
-- [ ] T008 Implement `is_spdd_reasons_active(repo_root) -> bool` per `contracts/activation.md`. Place in `src/doctrine/spdd_reasons/__init__.py` with helper module `activation.py`.
-- [ ] T009 Extend `src/charter/context.py` to call a new `_append_spdd_reasons_guidance()` helper after `_append_action_doctrine_lines()` only when active. Action-scoped content per `contracts/charter-context.md`.
-- [ ] T010 Verify `src/charter/bundle.py` and `src/charter/synthesizer/targets.py` write paradigms when selected. Patch minimally if not. No schema changes.
-- [ ] T011 Add `tests/charter/test_charter_context_spdd_reasons.py` covering: (a) inactive fixture byte-identical to baseline; (b) active fixture contains scoped guidance for each of specify/plan/tasks/implement/review; (c) only-paradigm/only-tactic/only-directive activation each enable injection; (d) malformed governance.yaml propagates loader error.
+- [x] T008 Implement `is_spdd_reasons_active(repo_root) -> bool` per `contracts/activation.md`. Place in `src/doctrine/spdd_reasons/__init__.py` with helper module `activation.py`.
+- [x] T009 Extend `src/charter/context.py` to call a new `_append_spdd_reasons_guidance()` helper after `_append_action_doctrine_lines()` only when active. Action-scoped content per `contracts/charter-context.md`.
+- [x] T010 Verify `src/charter/bundle.py` and `src/charter/synthesizer/targets.py` write paradigms when selected. Patch minimally if not. No schema changes.
+- [x] T011 Add `tests/charter/test_charter_context_spdd_reasons.py` covering: (a) inactive fixture byte-identical to baseline; (b) active fixture contains scoped guidance for each of specify/plan/tasks/implement/review; (c) only-paradigm/only-tactic/only-directive activation each enable injection; (d) malformed governance.yaml propagates loader error.
 
 ### Implementation sketch
 
