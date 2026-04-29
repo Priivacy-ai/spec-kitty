@@ -22,7 +22,8 @@ subtasks:
 - T017
 - T018
 - T019
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "43330"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -289,3 +290,7 @@ For inactive baselines: capture each template's pre-feature output as `tests/pro
 - Charter wiring (WP02).
 - Skill (WP03).
 - Docs (WP06).
+
+## Activity Log
+
+- 2026-04-29T08:57:39Z – claude:opus:python-pedro:implementer – shell_pid=43330 – Started implementation via action command
