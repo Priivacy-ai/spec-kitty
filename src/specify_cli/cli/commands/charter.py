@@ -1760,7 +1760,21 @@ def _build_synthesis_request(
         "schema_version": "1",
     }
 
-    # Placeholder target (synthesize() derives actual targets from interview)
+    # Internal placeholder target. ``synthesize()`` derives the actual
+    # target list from the interview, so this token is never the artifact
+    # the synthesizer actually produces — it just satisfies the Pydantic
+    # constructor that requires a non-None ``target``.
+    #
+    # FR-005 (WP02): ``PROJECT_000`` is INTERNAL ONLY here. The CLI
+    # surface MUST NOT expose it. The four user-visible code paths
+    # (``--json`` success, ``--json`` dry-run, ``--json`` failure, and
+    # the human-readable text branch) all derive their displayed
+    # artifact_id from ``ProvenanceEntry.artifact_urn`` produced by the
+    # synthesizer (see ``_load_written_artifacts_from_manifest`` and
+    # ``compute_written_artifacts``), never from this constructor
+    # placeholder. The path-parity test in
+    # ``tests/charter/synthesizer/test_synthesize_path_parity.py``
+    # guards against regression.
     target = SynthesisTarget(
         kind="directive",
         slug="synthesize-placeholder",
@@ -1854,6 +1868,14 @@ def _run_synthesis_dry_run(
     syn_adapter: Any,
     repo_root: Path,
 ) -> list[str]:
+    """Stage + validate without promoting; return ``kind:slug`` selectors.
+
+    Legacy ``staged_artifacts`` field on the dry-run JSON envelope is sourced
+    from this list. The strict ``written_artifacts`` field (FR-003) is built
+    separately in :func:`_run_synthesis_dry_run_with_artifacts`, which calls
+    this function and additionally projects the typed staged-artifact entries
+    via :func:`charter.synthesizer.write_pipeline.compute_written_artifacts`.
+    """
     from charter.synthesizer.staging import StagingDir
     from charter.synthesizer.synthesize_pipeline import run_all
     from charter.synthesizer.write_pipeline import stage_and_validate
@@ -1871,6 +1893,138 @@ def _run_synthesis_dry_run(
         staging_dir.wipe()
 
     return staged_artifacts
+
+
+def _run_synthesis_dry_run_with_artifacts(
+    request: Any,
+    syn_adapter: Any,
+    repo_root: Path,
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """Stage + validate; return both legacy selectors and typed written-artifact entries.
+
+    The typed ``written_artifacts`` list is sourced from the SAME
+    ``compute_written_artifacts`` helper used by the real-run branch — this is
+    the FR-004 byte-equal-path guarantee. ``run_all`` is invoked once; the
+    same ``results`` feed both ``stage_and_validate`` (which exercises the
+    write-time validation gate) and ``compute_written_artifacts`` (which
+    projects per-artifact provenance).
+    """
+    from charter.synthesizer.staging import StagingDir
+    from charter.synthesizer.synthesize_pipeline import run_all
+    from charter.synthesizer.write_pipeline import (
+        compute_written_artifacts,
+        stage_and_validate,
+    )
+
+    results = run_all(request, adapter=syn_adapter)
+    validation_callback = _build_synthesis_validation_callback(request)
+
+    with StagingDir.create(repo_root, request.run_id) as staging_dir:
+        staged_artifacts = stage_and_validate(
+            request,
+            staging_dir,
+            results,
+            validation_callback,
+        )
+        staging_dir.wipe()
+
+    # FR-003 / FR-004: typed staged-artifact entries — never reconstructed
+    # from kind:slug selectors. Same source of truth as the real-run path.
+    typed = compute_written_artifacts(results, repo_root)
+    written_artifacts = [
+        {
+            "path": entry.path,
+            "kind": entry.kind,
+            "slug": entry.slug,
+            "artifact_id": entry.artifact_id,
+        }
+        for entry in typed
+    ]
+    return staged_artifacts, written_artifacts
+
+
+def _load_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, Any]]:
+    """Project the on-disk synthesis manifest into ``WrittenArtifact`` dicts.
+
+    Single source of truth for the real-run JSON envelope (FR-003): we read
+    the manifest the write pipeline wrote last (KD-2 commit marker) and
+    project each ``ManifestArtifactEntry`` plus its sibling provenance
+    sidecar into the four-field ``WrittenArtifact`` shape.
+
+    The provenance sidecar is consulted because the manifest does not carry
+    ``artifact_id`` directly; the URN segment after ``directive:`` is the
+    canonical id (e.g. ``directive:PROJECT_001`` → ``PROJECT_001``). For
+    non-directive kinds (tactic, styleguide), ``artifact_id`` is ``None``
+    per the ``WrittenArtifact`` schema.
+
+    Returns ``[]`` when the manifest is absent — this happens when the
+    real-run code path is mocked out by tests, so the JSON envelope still
+    carries a valid empty ``written_artifacts`` list (FR-002 / INV-E-2).
+
+    All fields are pure data; the function never raises (a corrupt manifest
+    yields an empty list rather than blowing up the strict-JSON contract).
+    """
+    try:
+        from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml
+    except Exception:
+        return []
+
+    manifest_path = repo_root / MANIFEST_PATH
+    if not manifest_path.is_file():
+        return []
+
+    try:
+        manifest = load_yaml(manifest_path)
+    except Exception:
+        return []
+
+    entries: list[dict[str, Any]] = []
+    for entry in manifest.artifacts:
+        artifact_id: str | None = None
+        if entry.kind == "directive":
+            # Provenance sidecar at .kittify/charter/provenance/<kind>-<slug>.yaml
+            # carries the URN; that is the only on-disk surface that records
+            # the symbolic artifact_id without lossy reconstruction.
+            prov_path = repo_root / entry.provenance_path
+            artifact_id = _extract_artifact_id_from_provenance(prov_path)
+
+        entries.append(
+            {
+                "path": entry.path,
+                "kind": entry.kind,
+                "slug": entry.slug,
+                "artifact_id": artifact_id,
+            }
+        )
+    return entries
+
+
+def _extract_artifact_id_from_provenance(prov_path: Path) -> str | None:
+    """Read ``artifact_urn`` from a provenance sidecar; return the id segment.
+
+    The sidecar is YAML with a top-level ``artifact_urn`` key shaped like
+    ``directive:PROJECT_001``. Return ``None`` on any parse failure or if
+    the URN does not carry a non-empty id segment.
+    """
+    if not prov_path.is_file():
+        return None
+    try:
+        from ruamel.yaml import YAML
+
+        y = YAML(typ="safe")
+        with prov_path.open("r", encoding="utf-8") as f:
+            data = y.load(f)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    urn = data.get("artifact_urn")
+    if not isinstance(urn, str):
+        return None
+    parts = urn.split(":", 1)
+    if len(parts) != 2 or not parts[1]:
+        return None
+    return parts[1]
 
 
 def _list_resynthesis_topics(
@@ -2004,7 +2158,13 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
 
 
 @app.command("synthesize")
-def charter_synthesize(
+def charter_synthesize(  # noqa: C901
+    # WP02 / FR-001..FR-005: this command body is the strict-JSON
+    # envelope-emit point. Branches are deliberate: fresh-seed (dry-run +
+    # real), evidence-dry-run, dry-run, real-run, and four typed
+    # exception envelopes. Splitting them into helper functions would
+    # obscure the FR-001 stdout contract — every branch must end with
+    # exactly one ``json.dumps`` call when ``--json`` is set.
     adapter: str = typer.Option(
         "generated",
         "--adapter",
@@ -2083,6 +2243,13 @@ def charter_synthesize(
 
     err_console = Console(stderr=True)
 
+    # FR-001: warnings collected so far. Initialised here (outside the
+    # try/except) so failure-branch envelopes can carry the same
+    # warnings the success branch would have surfaced — i.e. an
+    # evidence warning followed by a synthesis error still ships its
+    # warning inside the envelope rather than losing it.
+    warnings_collected: list[str] = []
+
     try:
         repo_root = find_repo_root()
 
@@ -2110,14 +2277,39 @@ def charter_synthesize(
         )
 
         if is_fresh_project_synthesize:
-            # Dry-run on a fresh project must NOT fall through to the production
-            # adapter (which would raise GeneratedArtifactMissingError). Report
-            # what would be materialized, write nothing, exit 0. (#839 follow-up)
+            # FR-002 / FR-003 / FR-005: fresh-project seed mode emits the
+            # strict four-field envelope. ``written_artifacts`` is built from
+            # the already-known minimal seed file list (PROVENANCE.md). No
+            # adapter actually ran, so ``adapter.id`` is the documented
+            # internal "fresh-seed" sentinel — non-empty per AdapterRef
+            # invariant — and ``adapter.version`` is the running CLI version.
+            # ``warnings`` is intentionally empty: evidence collection has
+            # not been triggered on this branch.
+            from importlib.metadata import version as _pkg_version
+            try:
+                _seed_version = _pkg_version("spec-kitty-cli")
+            except Exception:
+                _seed_version = "unknown"
+
             if dry_run:
                 planned = _planned_fresh_doctrine_paths(repo_root)
+                fresh_written_artifacts: list[dict[str, Any]] = [
+                    {
+                        "path": p,
+                        "kind": "seed",
+                        "slug": "provenance",
+                        "artifact_id": None,
+                    }
+                    for p in planned
+                ]
                 if json_output:
                     print(json.dumps({
-                        "result": "success",
+                        # FR-002 contracted fields:
+                        "result": "dry_run",
+                        "adapter": {"id": "fresh-seed", "version": _seed_version},
+                        "written_artifacts": fresh_written_artifacts,
+                        "warnings": [],
+                        # Compatibility / fresh-seed identification fields:
                         "success": True,
                         "mode": "fresh_project_seed_dry_run",
                         "files_planned": planned,
@@ -2126,7 +2318,7 @@ def charter_synthesize(
                             "minimal .kittify/doctrine/ (no files written). "
                             "See issue #839."
                         ),
-                    }, indent=2))
+                    }, indent=2, sort_keys=True))
                     return
                 console.print(
                     "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
@@ -2137,10 +2329,24 @@ def charter_synthesize(
                 return
 
             written = _materialize_fresh_doctrine(repo_root)
+            fresh_written_artifacts = [
+                {
+                    "path": p,
+                    "kind": "seed",
+                    "slug": "provenance",
+                    "artifact_id": None,
+                }
+                for p in written
+            ]
 
             if json_output:
                 print(json.dumps({
+                    # FR-002 contracted fields:
                     "result": "success",
+                    "adapter": {"id": "fresh-seed", "version": _seed_version},
+                    "written_artifacts": fresh_written_artifacts,
+                    "warnings": [],
+                    # Compatibility / fresh-seed identification fields:
                     "success": True,
                     "mode": "fresh_project_seed",
                     "files_written": written,
@@ -2150,7 +2356,7 @@ def charter_synthesize(
                         ".kittify/doctrine/ so the runtime can advance "
                         "(see issue #839)."
                     ),
-                }, indent=2))
+                }, indent=2, sort_keys=True))
                 return
 
             console.print(
@@ -2161,17 +2367,60 @@ def charter_synthesize(
                 console.print(f"  ✓ {f}")
             return
 
-        # Collect evidence before building the synthesis request
+        # FR-001: when --json is set, evidence warnings MUST live inside the
+        # envelope's ``warnings`` array, NOT on stdout. The previous
+        # implementation called ``console.print`` here unconditionally,
+        # which broke ``json.loads(stdout)`` for any run that produced
+        # warnings (the bug behind FR-001 / AC-001).
         evidence_result = _collect_evidence_result(
             repo_root,
             skip_code_evidence=skip_code_evidence,
             skip_corpus=skip_corpus,
         )
-        for warning in evidence_result.warnings:
-            console.print(f"[yellow]\u26a0 {warning}[/yellow]")
+        warnings_collected.extend(str(w) for w in evidence_result.warnings)
+        if not json_output:
+            for warning in warnings_collected:
+                console.print(f"[yellow]\u26a0 {warning}[/yellow]")
 
         if dry_run_evidence:
             bundle = evidence_result.bundle
+            if json_output:
+                # FR-001 / FR-002: evidence dry-run also emits the strict
+                # envelope. ``written_artifacts`` is empty because no
+                # synthesis ran; warnings live in the ``warnings`` array.
+                print(json.dumps({
+                    # Contracted fields (FR-002):
+                    "result": "success",
+                    "adapter": {"id": adapter, "version": "evidence-dry-run"},
+                    "written_artifacts": [],
+                    "warnings": warnings_collected,
+                    # Compatibility / mode-identification fields:
+                    "mode": "evidence_dry_run",
+                    "evidence": {
+                        "code_signals": (
+                            {
+                                "stack_id": bundle.code_signals.stack_id,
+                                "primary_language": bundle.code_signals.primary_language,
+                                "representative_files_count": len(
+                                    bundle.code_signals.representative_files
+                                ),
+                            }
+                            if bundle.code_signals
+                            else None
+                        ),
+                        "url_list_count": len(bundle.url_list),
+                        "corpus": (
+                            {
+                                "snapshot_id": bundle.corpus_snapshot.snapshot_id,
+                                "entries_count": len(bundle.corpus_snapshot.entries),
+                            }
+                            if bundle.corpus_snapshot
+                            else None
+                        ),
+                    },
+                }, indent=2, sort_keys=True))
+                raise typer.Exit(0)
+
             console.print("[bold]Evidence dry-run summary:[/bold]")
             if bundle.code_signals:
                 cs = bundle.code_signals
@@ -2187,22 +2436,38 @@ def charter_synthesize(
                 )
             else:
                 console.print("  Corpus: none")
-            for w in evidence_result.warnings:
+            for w in warnings_collected:
                 console.print(f"  [yellow]Warning: {w}[/yellow]")
             raise typer.Exit(0)
 
         request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
         if dry_run:
-            staged_files = _run_synthesis_dry_run(request, syn_adapter, repo_root)
+            # FR-003 / FR-004: ``written_artifacts`` for dry-run comes from
+            # the SAME ``compute_written_artifacts`` helper the real-run
+            # path uses. Paths are byte-equal to what a non-dry-run with the
+            # same SynthesisRequest would write (the parity guarantee that
+            # tests/charter/synthesizer/test_synthesize_path_parity.py
+            # locks in).
+            staged_files, written_artifacts_dr = _run_synthesis_dry_run_with_artifacts(
+                request, syn_adapter, repo_root
+            )
 
             if json_output:
                 print(json.dumps({
+                    # Contracted fields (FR-002):
                     "result": "dry_run",
+                    "adapter": {
+                        "id": getattr(syn_adapter, "id", adapter),
+                        "version": getattr(syn_adapter, "version", "unknown"),
+                    },
+                    "written_artifacts": written_artifacts_dr,
+                    "warnings": warnings_collected,
+                    # Legacy compatibility fields (data-model.md \u00a7E-1):
                     "staged_artifacts": staged_files,
                     "artifact_count": len(staged_files),
                     "validated": True,
-                }, indent=2))
+                }, indent=2, sort_keys=True))
                 return
 
             console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
@@ -2214,15 +2479,32 @@ def charter_synthesize(
 
         result = synthesize(request, adapter=syn_adapter, repo_root=repo_root)
 
+        # FR-003: ``written_artifacts`` is sourced from the on-disk
+        # synthesis manifest the write pipeline wrote last (KD-2 commit
+        # marker). Each entry's ``artifact_id`` is read from the matching
+        # provenance sidecar \u2014 never reconstructed by parsing the filename.
+        # When ``synthesize()`` is mocked out by tests (the manifest is
+        # never written), this returns ``[]`` and the four contracted
+        # fields are still emitted (INV-E-2: empty list != absent field).
+        written_artifacts_real = _load_written_artifacts_from_manifest(repo_root)
+
         if json_output:
             print(json.dumps({
+                # Contracted fields (FR-002):
                 "result": "success",
+                "adapter": {
+                    "id": result.effective_adapter_id,
+                    "version": result.effective_adapter_version,
+                },
+                "written_artifacts": written_artifacts_real,
+                "warnings": warnings_collected,
+                # Legacy compatibility fields (data-model.md \u00a7E-1):
                 "target_kind": result.target_kind,
                 "target_slug": result.target_slug,
                 "inputs_hash": result.inputs_hash,
                 "adapter_id": result.effective_adapter_id,
                 "adapter_version": result.effective_adapter_version,
-            }, indent=2))
+            }, indent=2, sort_keys=True))
             return
 
         console.print("[green]Charter synthesis complete[/green]")
@@ -2232,20 +2514,56 @@ def charter_synthesize(
     except typer.Exit:
         raise
     except NeutralityGateViolation as e:
+        # Stderr-only (R-001): human-readable progress remains permitted on
+        # stderr in --json mode. The error panel never reaches stdout.
         render_error_panel(e, err_console)
         err_console.print(
             f"\n[yellow]Staging directory preserved at:[/yellow] {e.staging_dir}\n"
             "Inspect the staged artifacts, adjust the synthesis prompt or scope, and retry."
         )
+        if json_output:
+            # FR-001: even in failure mode, stdout MUST contain exactly one
+            # JSON document. The error message is appended to whatever
+            # warnings were already collected so callers reading only
+            # stdout still see both.
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [f"NeutralityGateViolation: {e}"],
+            }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
     except SynthesisError as e:
         render_error_panel(e, err_console)
+        if json_output:
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [f"SynthesisError: {e}"],
+            }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        if json_output:
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [str(e)],
+            }, indent=2, sort_keys=True))
+        else:
+            console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        if json_output:
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [f"Unexpected error: {e}"],
+            }, indent=2, sort_keys=True))
+        else:
+            console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(code=1) from e
 
 

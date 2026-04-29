@@ -145,11 +145,55 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
     )
 
     # The JSON envelope advertises the fresh-project mode for tooling.
+    # WP02 / FR-001: the FULL stdout parses as one JSON document — no
+    # warning leakage prefix, no progress noise.
     payload = json.loads(result.stdout)
     assert payload.get("result") == "success"
     assert payload.get("success") is True
     assert payload.get("mode") == "fresh_project_seed"
     assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_written", [])
+
+    # WP02 / FR-002: the four contracted envelope fields are present
+    # unconditionally — even on the fresh-project seed code path
+    # (data-model §E-1 / INV-E-2: empty list != absent field).
+    assert "result" in payload
+    assert "adapter" in payload
+    assert "written_artifacts" in payload
+    assert "warnings" in payload
+    assert isinstance(payload["adapter"], dict)
+    assert isinstance(payload["adapter"].get("id"), str)
+    assert payload["adapter"]["id"], "AdapterRef.id must be non-empty"
+    assert isinstance(payload["adapter"].get("version"), str)
+    assert payload["adapter"]["version"], "AdapterRef.version must be non-empty"
+    assert isinstance(payload["written_artifacts"], list)
+    assert isinstance(payload["warnings"], list)
+
+    # WP02 / FR-003: every ``written_artifacts[*].path`` must resolve to a
+    # file the run actually wrote. The fresh-seed mode wrote PROVENANCE.md
+    # so we expect at least one entry; each entry's ``path`` MUST point to
+    # a real file under tmp_path.
+    assert len(payload["written_artifacts"]) >= 1
+    for entry in payload["written_artifacts"]:
+        assert isinstance(entry, dict)
+        # Required WrittenArtifact fields per data-model §E-3:
+        assert "path" in entry
+        assert "kind" in entry
+        assert "slug" in entry
+        assert "artifact_id" in entry  # may be None
+        assert isinstance(entry["path"], str) and entry["path"]
+        assert isinstance(entry["kind"], str) and entry["kind"]
+        assert isinstance(entry["slug"], str) and entry["slug"]
+        # FR-005: never the placeholder.
+        assert entry["artifact_id"] != "PROJECT_000"
+        # Path resolves under the test project root.
+        resolved = tmp_path / entry["path"]
+        assert resolved.is_file(), (
+            f"FR-003: written_artifacts entry path does not resolve to "
+            f"an actual file on disk: {entry['path']!r} -> {resolved}"
+        )
+
+    # FR-005: no PROJECT_000 anywhere in the JSON envelope.
+    assert "PROJECT_000" not in json.dumps(payload)
 
 
 # ---------------------------------------------------------------------------
@@ -179,10 +223,24 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
     )
 
     payload = json.loads(result.stdout)
-    assert payload.get("result") == "success"
+    # WP02 / FR-002: dry-run carries ``result == "dry_run"`` per the
+    # synthesis envelope contract (contracts/synthesis-envelope.schema.json)
+    # — not "success". A pre-WP02 invariant used "success" with a separate
+    # ``mode`` flag; the new contract makes ``result`` a discriminated
+    # enum {success, failure, dry_run}.
+    assert payload.get("result") == "dry_run"
     assert payload.get("success") is True
     assert payload.get("mode") == "fresh_project_seed_dry_run"
     assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_planned", [])
+
+    # WP02 / FR-002 contracted-fields presence:
+    assert "adapter" in payload
+    assert "written_artifacts" in payload
+    assert "warnings" in payload
+    assert isinstance(payload["written_artifacts"], list)
+    assert isinstance(payload["warnings"], list)
+    # FR-005: no PROJECT_000 in any envelope value.
+    assert "PROJECT_000" not in json.dumps(payload)
 
     # Dry-run MUST NOT write anything to disk.
     assert not doctrine_dir.exists(), (
