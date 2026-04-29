@@ -190,3 +190,7 @@ The post-mission shape is `pip install -e .[test,lint]`.
 ```bash
 spec-kitty agent action implement WP04 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-29T05:26:13Z – claude – shell_pid=29706 – lint extra added to e2e-cross-cutting; local repro: mypy strict executor test passes; no other job depends on [test]-only state
