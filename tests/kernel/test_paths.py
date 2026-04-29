@@ -151,10 +151,35 @@ class TestGetPackageAssetRoot:
 
         assert get_package_asset_root() == package_assets
 
+    def test_template_root_legacy_package_asset_root_with_mission_yaml(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A direct package asset root with mission YAML remains valid."""
+        package_assets = tmp_path / "pkg"
+        mission = package_assets / "software-dev"
+        mission.mkdir(parents=True)
+        (mission / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
+
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
+
+        assert get_package_asset_root() == package_assets
+
     def test_template_root_env_nonexistent_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """SPEC_KITTY_TEMPLATE_ROOT with invalid path raises FileNotFoundError."""
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", "/nonexistent/path")
         with pytest.raises(FileNotFoundError, match="SPEC_KITTY_TEMPLATE_ROOT"):
+            get_package_asset_root()
+
+    def test_template_root_existing_invalid_dir_raises(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """SPEC_KITTY_TEMPLATE_ROOT must contain recognizable mission assets."""
+        empty_root = tmp_path / "empty"
+        empty_root.mkdir()
+
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(empty_root))
+
+        with pytest.raises(FileNotFoundError, match="does not contain mission assets"):
             get_package_asset_root()
 
     def test_importlib_discovery(self, monkeypatch: pytest.MonkeyPatch) -> None:
