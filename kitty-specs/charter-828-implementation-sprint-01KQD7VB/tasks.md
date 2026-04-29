@@ -25,9 +25,9 @@
 | T007 | Execute source mission WP09 via `spec-kitty next` (validation pass) | WP03 | — | [D] |
 | T008 | Review validation-report.md for completeness and evidence coverage | WP03 | — | [D] |
 | T009 | Triage validation failures — stop and report any product bugs (FR-007) | WP03 | — | [D] |
-| T010 | Execute source mission WP10 via `spec-kitty next` (release handoff) | WP04 | — |
-| T011 | Verify release-handoff.md completeness (all required sections filled) | WP04 | — |
-| T012 | Verify branch cleanliness and PR #885 merge-readiness | WP04 | — |
+| T010 | Execute source mission WP10 via `spec-kitty next` (release handoff) | WP04 | — | [D] |
+| T011 | Verify release-handoff.md completeness (all required sections filled) | WP04 | — | [D] |
+| T012 | Verify branch cleanliness and PR #885 merge-readiness | WP04 | — | [D] |
 
 ---
 
@@ -105,8 +105,8 @@
 
 **Subtasks**:
 
-- [ ] T010 Execute source WP10 via `spec-kitty next` (release handoff) (WP04)
-- [ ] T011 Verify release-handoff.md completeness (all required sections filled) (WP04)
-- [ ] T012 Verify branch cleanliness and PR #885 merge-readiness (WP04)
+- [x] T010 Execute source WP10 via `spec-kitty next` (release handoff) (WP04)
+- [x] T011 Verify release-handoff.md completeness (all required sections filled) (WP04)
+- [x] T012 Verify branch cleanliness and PR #885 merge-readiness (WP04)
 
 **Dependencies**: WP03
