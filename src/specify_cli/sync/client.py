@@ -260,7 +260,14 @@ class WebSocketClient:
     @staticmethod
     def _normalize_ws_url(ws_url: str) -> str:
         """Convert provisioned HTTP(S) URLs to WS(S), rejecting insecure remote hosts."""
-        if ws_url.startswith("wss://") or ws_url.startswith("ws://"):
+        if ws_url.startswith("wss://"):
+            return ws_url
+        if ws_url.startswith("ws://"):
+            host = (urlparse(ws_url).hostname or "").lower()
+            if host not in {"127.0.0.1", "localhost", "::1"}:
+                raise AuthenticationError(
+                    "Refusing insecure WebSocket provisioning URL outside loopback."
+                )
             return ws_url
         if ws_url.startswith("https://"):
             return "wss://" + ws_url[len("https://") :]
