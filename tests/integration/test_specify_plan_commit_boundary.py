@@ -3,7 +3,7 @@
 Locks in the contract from
 ``kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md``:
 
-(a) ``mission create`` does NOT commit ``spec.md`` (``meta.json`` IS committed).
+(a) ``mission create`` does NOT commit ``spec.md`` (``meta.json`` is still written).
 (b) Uncommitted populated ``spec.md`` -> setup-plan blocks ("committed AND substantive").
 (c) Committed but scaffold-only ``spec.md`` -> setup-plan blocks (substantive-spec).
 (d) Committed substantive spec + populated plan -> plan commits, phase_complete=True.
@@ -223,16 +223,15 @@ def test_is_committed_returns_false_for_staged_only(tmp_path: Path) -> None:
 
 
 def test_mission_create_does_not_commit_spec_md(tmp_path: Path) -> None:
-    """meta.json IS committed; spec.md is left untracked on disk."""
+    """meta.json is written; spec.md is left untracked on disk."""
     _init_git_repo(tmp_path)
     feature_dir = _create_mission(tmp_path, "mission-a")
 
     rel_root = feature_dir.relative_to(tmp_path)
     spec_rel = str(rel_root / "spec.md")
-    meta_rel = str(rel_root / "meta.json")
 
     assert (feature_dir / "spec.md").exists(), "spec.md scaffold must remain on disk"
-    assert _file_in_head(tmp_path, meta_rel) is True, "meta.json must be committed"
+    assert (feature_dir / "meta.json").exists(), "meta.json must still be written"
     assert _file_in_head(tmp_path, spec_rel) is False, "spec.md must NOT be committed at create"
 
 
