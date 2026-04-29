@@ -21,6 +21,7 @@ class CharterDraft:
     available_tools: list[str]
     markdown: str
     diagnostics: list[str] = field(default_factory=list)
+    selected_tactics: list[str] = field(default_factory=list)
 
 
 def build_charter_draft(
@@ -47,6 +48,7 @@ def build_charter_draft(
         available_tools=compiled.available_tools,
         markdown=compiled.markdown,
         diagnostics=compiled.diagnostics,
+        selected_tactics=compiled.selected_tactics,
     )
 
 

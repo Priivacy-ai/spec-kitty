@@ -67,6 +67,12 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/schemas.py",
         # Future bootstrap migration
         "src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py",
+        # Doctrine layer cannot import the charter layer (architectural rule
+        # ``kernel <- doctrine <- charter <- specify_cli`` — see
+        # tests/architectural/test_layer_rules.py::TestDoctrineIsolation).
+        # The activation helper reads governance.yaml/directives.yaml directly
+        # from disk; charter-context callers upstream of it own bundle freshness.
+        "src/doctrine/spdd_reasons/activation.py",
     }
 )
 

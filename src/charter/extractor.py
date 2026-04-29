@@ -218,6 +218,10 @@ class Extractor:
         if directives:
             doctrine.selected_directives = directives
 
+        tactics = self._get_list_value(normalized, ("selected_tactics", "tactics"))
+        if tactics:
+            doctrine.selected_tactics = tactics
+
         tools = self._get_list_value(normalized, ("available_tools", "tools", "selected_tools"))
         if tools:
             doctrine.available_tools = tools

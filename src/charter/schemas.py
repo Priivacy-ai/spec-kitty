@@ -61,6 +61,7 @@ class DoctrineSelectionConfig(BaseModel):
 
     selected_paradigms: list[str] = Field(default_factory=list)
     selected_directives: list[str] = Field(default_factory=list)
+    selected_tactics: list[str] = Field(default_factory=list)
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
 

@@ -248,17 +248,41 @@ class TestCharterContextActive:
         lines: list[str] = []
         append_spdd_reasons_guidance(lines, "demo", "implement")
         joined = "\n".join(lines)
-        # All seven canvas letters should appear in the bullets.
-        for token in ("Requirements", "Entities", "Approach", "Structure", "Operations", "Non-functionals", "Steps"):
-            assert token in joined, f"implement guidance missing token {token!r}"
+        # All seven canonical canvas section names (REASONS) MUST appear in
+        # the implement bullets — Requirements, Entities, Approach, Structure,
+        # Operations, Norms, Safeguards. These match FR-005, the canvas
+        # template, DIRECTIVE_038, and docs/doctrine/spdd-reasons.md.
+        for token in (
+            "Requirements",
+            "Entities",
+            "Approach",
+            "Structure",
+            "Operations",
+            "Norms",
+            "Safeguards",
+        ):
+            assert token in joined, f"implement guidance missing canonical token {token!r}"
+
+    def test_active_implement_uses_canonical_section_names(self) -> None:
+        """Locked-in regression check: legacy non-canonical names must NOT appear."""
+        lines: list[str] = []
+        append_spdd_reasons_guidance(lines, "demo", "implement")
+        joined = "\n".join(lines)
+        # Drift guard: the pre-fix bullets used "Non-functionals" / "Steps".
+        # Those names are not part of the canonical REASONS canvas.
+        assert "Non-functionals" not in joined
+        assert "Non-functional" not in joined
 
     def test_active_review_contains_comparison_surface(self) -> None:
         lines: list[str] = []
         append_spdd_reasons_guidance(lines, "demo", "review")
         joined = "\n".join(lines)
-        # Review canvas surface is R, O, N, S.
-        for token in ("Requirements", "Operations", "Non-functionals", "Steps"):
-            assert token in joined, f"review guidance missing token {token!r}"
+        # Review canvas comparison surface is the canonical R, O, N, S
+        # quartet — Requirements, Operations, Norms, Safeguards.
+        for token in ("Requirements", "Operations", "Norms", "Safeguards"):
+            assert token in joined, f"review guidance missing canonical token {token!r}"
+        # Legacy non-canonical names must NOT leak into the review surface.
+        assert "Non-functionals" not in joined
 
     def test_performance_under_2s_active(self, tmp_path: Path) -> None:
         # NFR-002: one render call must complete well under 2s. The renderer
@@ -318,4 +342,59 @@ class TestParadigmRoundTrip:
         with (charter_dir / "governance.yaml").open("w", encoding="utf-8") as fh:
             yaml.dump(gov.model_dump(mode="json"), fh)
 
+        assert is_spdd_reasons_active(tmp_path) is True
+
+
+# ---------------------------------------------------------------------------
+# D-2 — selected_tactics round-trip through the charter pipeline
+# ---------------------------------------------------------------------------
+
+
+class TestSelectedTacticsRoundTrip:
+    """End-to-end coverage for tactic-only activation (FR-007, contracts/activation.md cases 4-5).
+
+    Pre-fix, ``selected_tactics`` was read by the activation helper but never
+    written by the charter compiler. This test exercises the full pipeline:
+    interview answers carrying ``selected_tactics`` -> compiled charter.md ->
+    re-extracted governance.yaml -> activation helper recognising the pack.
+    """
+
+    def setup_method(self) -> None:
+        clear_activation_cache()
+
+    def test_tactic_only_selection_round_trips_to_governance_and_activates(
+        self, tmp_path: Path
+    ) -> None:
+        from charter.compiler import compile_charter
+        from charter.extractor import Extractor
+        from charter.interview import default_interview, apply_answer_overrides
+        from charter.schemas import emit_yaml
+
+        # 1. Build an interview that selects only the canvas-fill tactic.
+        base = default_interview(mission="software-dev")
+        interview = apply_answer_overrides(
+            base,
+            selected_tactics=["reasons-canvas-fill"],
+        )
+        assert interview.selected_tactics == ["reasons-canvas-fill"]
+
+        # 2. Compile the charter — selected_tactics must reach the markdown
+        #    Governance Activation block AND the CompiledCharter dataclass.
+        compiled = compile_charter(mission="software-dev", interview=interview)
+        assert "reasons-canvas-fill" in compiled.selected_tactics
+        assert "selected_tactics: [reasons-canvas-fill]" in compiled.markdown
+
+        # 3. Round-trip: re-extract the charter back into a GovernanceConfig
+        #    and confirm selected_tactics survived the markdown -> YAML hop.
+        extractor = Extractor()
+        result = extractor.extract(compiled.markdown)
+        assert "reasons-canvas-fill" in result.governance.doctrine.selected_tactics
+
+        # 4. Write governance.yaml as the charter sync pipeline would, then
+        #    let the activation helper read it back from disk.
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        emit_yaml(result.governance, charter_dir / "governance.yaml")
+
+        clear_activation_cache()
         assert is_spdd_reasons_active(tmp_path) is True

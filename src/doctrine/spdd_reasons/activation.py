@@ -61,23 +61,19 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
     Loader exceptions (e.g. malformed YAML) propagate unchanged so callers see
     the same error surface as existing charter loaders.
 
-    The helper routes its read through the canonical
-    ``ensure_charter_bundle_fresh`` chokepoint (FR-016) so worktree callers
-    see the same bundle the main checkout materialized.
+    The helper reads the charter bundle directly from disk under
+    ``<repo_root>/.kittify/charter/``. Bundle freshness is the responsibility
+    of upstream charter-context callers (which have their own freshness
+    machinery via ``_load_action_doctrine_bundle``); this helper does not
+    import the ``charter`` layer (architectural rule:
+    ``kernel <- doctrine <- charter <- specify_cli``).
     """
     charter_dir = repo_root / _KITTIFY / _CHARTER
     if not charter_dir.exists():
         return False
 
-    # Route through the canonical chokepoint so worktrees see fresh
-    # bundle artifacts. The returned canonical_root anchors subsequent
-    # reads — see ``charter.sync.load_governance_config`` for the same
-    # pattern.
-    bundle_root = _resolve_bundle_root(repo_root)
-    bundle_charter_dir = bundle_root / _KITTIFY / _CHARTER
-
-    governance_path = bundle_charter_dir / _GOVERNANCE
-    directives_path = bundle_charter_dir / _DIRECTIVES
+    governance_path = charter_dir / _GOVERNANCE
+    directives_path = charter_dir / _DIRECTIVES
 
     cache_key = str(governance_path.resolve()) if governance_path.exists() else str(governance_path)
     governance_mtime = governance_path.stat().st_mtime_ns if governance_path.exists() else 0
@@ -91,27 +87,6 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
     result = _compute_active(governance_path, directives_path)
     _cache[cache_key] = (composite_mtime, result)
     return result
-
-
-def _resolve_bundle_root(repo_root: Path) -> Path:
-    """Resolve the canonical bundle root via the charter sync chokepoint.
-
-    Falls back to ``repo_root`` when the chokepoint declines (no charter.md,
-    or no canonical_root patched onto the result). This keeps the helper
-    side-effect-light for tests that drop a bare ``governance.yaml`` into a
-    tmp directory without a full charter.md.
-    """
-    try:
-        from charter.sync import ensure_charter_bundle_fresh
-
-        sync_result = ensure_charter_bundle_fresh(repo_root)
-    except Exception:
-        return repo_root
-
-    if sync_result is not None and sync_result.canonical_root is not None:
-        canonical: Path = sync_result.canonical_root
-        return canonical
-    return repo_root
 
 
 def _compute_active(governance_path: Path, directives_path: Path) -> bool:
