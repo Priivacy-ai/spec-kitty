@@ -29,8 +29,8 @@ WP02 and WP03 can run in parallel after WP01 lands. WP04 depends on the activati
 | T009  | Extend `build_charter_context` to inject SPDD/REASONS guidance         | WP02 |          | [D] |
 | T010  | Verify `bundle.py`/`targets.py` paradigm flow; patch if needed         | WP02 |          | [D] |
 | T011  | Add `tests/charter/test_charter_context_spdd_reasons.py`               | WP02 |          | [D] |
-| T012  | Author `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md`          | WP03 |          |
-| T013  | Wire skill discovery test (smoke assertion the skill loads)            | WP03 |          |
+| T012  | Author `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md`          | WP03 |          | [D] |
+| T013  | Wire skill discovery test (smoke assertion the skill loads)            | WP03 |          | [D] |
 | T014  | Add SPDD reasons-block markers to `specify.md` template                | WP04 | [P]      |
 | T015  | Add SPDD reasons-block markers to `plan.md` template                   | WP04 | [P]      |
 | T016  | Add SPDD reasons-block markers to `tasks.md` template                  | WP04 | [P]      |
@@ -137,8 +137,8 @@ Author the agent-facing skill that drives canvas authoring and review per spec F
 
 ### Included subtasks
 
-- [ ] T012 Author `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md` matching the shape of `spec-kitty-charter-doctrine/SKILL.md` (frontmatter + body). Triggers, instructions, and warnings per `data-model.md`.
-- [ ] T013 Add or extend an existing skill discovery test in `tests/doctrine/` to include `spec-kitty-spdd-reasons` among loaded skills.
+- [x] T012 Author `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md` matching the shape of `spec-kitty-charter-doctrine/SKILL.md` (frontmatter + body). Triggers, instructions, and warnings per `data-model.md`.
+- [x] T013 Add or extend an existing skill discovery test in `tests/doctrine/` to include `spec-kitty-spdd-reasons` among loaded skills.
 
 ### Implementation sketch
 
