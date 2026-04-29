@@ -15,7 +15,8 @@ subtasks:
 - T003
 - T004
 phase: Phase 1 - Verification baseline
-agent: claude
+agent: "claude:opus-4-7:researcher-robbie:researcher"
+shell_pid: "27620"
 history:
 - timestamp: '2026-04-28T20:35:00Z'
   lane: planned
@@ -221,3 +222,7 @@ The deliverable is a single evidence file:
 ```bash
 spec-kitty agent action implement WP01 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-29T05:14:53Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=27620 – Started implementation via action command
