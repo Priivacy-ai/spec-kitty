@@ -73,11 +73,37 @@ def get_package_asset_root() -> Path:
     Raises:
         FileNotFoundError: If no valid asset root can be found.
     """
+    def _looks_like_missions_root(path: Path) -> bool:
+        if path.name == "missions":
+            return True
+        for mission_name in ("software-dev", "documentation", "research", "plan"):
+            mission_dir = path / mission_name
+            if (mission_dir / "mission.yaml").is_file() or (mission_dir / "mission-runtime.yaml").is_file():
+                return True
+            if (mission_dir / "command-templates").is_dir():
+                return True
+        return False
+
+    def _resolve_env_root(root: Path) -> Path:
+        candidates = (
+            root,
+            root / "missions",
+            root / "src" / "doctrine" / "missions",
+            root / "src" / "specify_cli" / "missions",
+        )
+        for candidate in candidates:
+            if candidate.is_dir() and _looks_like_missions_root(candidate):
+                return candidate
+        raise FileNotFoundError(
+            "SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: "
+            f"{root}. Expected a missions directory or a Spec Kitty checkout root."
+        )
+
     # CI/testing override
     if env_root := os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
         root = Path(env_root)
         if root.is_dir():
-            return root
+            return _resolve_env_root(root)
         raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}")
 
     # Canonical location: doctrine.missions

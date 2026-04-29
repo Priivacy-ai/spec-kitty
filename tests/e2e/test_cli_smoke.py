@@ -21,6 +21,51 @@ from pathlib import Path
 import pytest
 
 
+SUBSTANTIVE_SPEC = """# E2E Smoke Spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | Exercise the E2E smoke workflow. | setup-plan can run against committed spec content. | proposed |
+"""
+
+
+SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan
+
+## Technical Context
+
+**Language/Version**: Python 3.12
+**Primary Dependencies**: spec-kitty-cli
+**Storage**: Filesystem fixtures
+"""
+
+
+def _prepare_setup_plan_inputs(repo: Path, feature_dir: Path) -> None:
+    """Seed committed spec/plan content that satisfies setup-plan gates."""
+    (feature_dir / "spec.md").write_text(SUBSTANTIVE_SPEC, encoding="utf-8")
+
+    template_dir = repo / ".kittify" / "templates"
+    template_dir.mkdir(parents=True, exist_ok=True)
+    (template_dir / "plan-template.md").write_text(
+        SUBSTANTIVE_PLAN_TEMPLATE,
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Seed substantive setup-plan inputs"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
 @pytest.mark.e2e
 @pytest.mark.slow
 class TestFullCLIWorkflow:
@@ -69,6 +114,7 @@ class TestFullCLIWorkflow:
         output = json.loads(result.stdout)
         feature_dir = Path(output["feature_dir"])
         mission_slug = output["mission_slug"]
+        _prepare_setup_plan_inputs(e2e_project, feature_dir)
 
         # Run setup-plan
         result = run_cli(
@@ -113,6 +159,7 @@ class TestFullCLIWorkflow:
         feature_dir = Path(create_output["feature_dir"])
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
+        _prepare_setup_plan_inputs(repo, feature_dir)
 
         # === Step 2: Setup plan ===
         result = run_cli(
