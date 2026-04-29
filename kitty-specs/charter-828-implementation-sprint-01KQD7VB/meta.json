@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-04-29T18:26:03.322221+00:00",
+  "documentation_state": {
+    "generators_configured": [
+      {
+        "config_path": "",
+        "language": "javascript",
+        "name": "jsdoc"
+      },
+      {
+        "config_path": "",
+        "language": "python",
+        "name": "sphinx"
+      }
+    ]
+  },
+  "friendly_name": "Charter #828 Implementation Sprint",
+  "mission_id": "01KQD7VBXQ7T6NKN34PFA99XJX",
+  "mission_number": null,
+  "mission_slug": "charter-828-implementation-sprint-01KQD7VB",
+  "mission_type": "documentation",
+  "purpose_context": "Mission charter-end-user-docs-828-01KQCSYD has 10 fully-planned work packages covering gap analysis, navigation architecture, 14 new documentation pages, 5 updated pages, a validation pass, and a release handoff. This sprint mission runs those WPs in order via spec-kitty next, enforces pre-flight checks, and produces a single verified docs PR to Priivacy-ai/spec-kitty:main.",
+  "purpose_tldr": "Execute the planned WP01–WP10 implementation sprint for Charter end-user docs parity and ship a merged docs PR to main.",
+  "slug": "charter-828-implementation-sprint-01KQD7VB",
+  "target_branch": "docs/charter-end-user-docs-828"
+}

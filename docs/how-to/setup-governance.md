@@ -9,8 +9,8 @@ Spec Kitty uses a charter to govern how agents behave during workflow actions. T
 
 ## Prerequisites
 
-- Spec Kitty 2.x installed
-- A project initialized with `spec-kitty init`
+- Spec Kitty 3.x installed — verify with `uv run spec-kitty --version`
+- A project initialized with `uv run spec-kitty init` inside a git working tree
 
 ## Understanding the 3-Layer Model
 
@@ -28,9 +28,12 @@ Machine-readable config derived deterministically from your charter. These files
 - `directives.yaml` -- Numbered project rules with severity levels and action scopes
 - `metadata.yaml` -- Hash of the charter, timestamp of last sync
 
-### Layer 3: Doctrine References (`library/*.md`)
+### Layer 3: Doctrine References and Project Doctrine
 
-Detailed guidance documents for the paradigms, directives, and tools you selected. These are copied from the packaged doctrine library during generation.
+`references.yaml` records the shipped and local doctrine references selected by the charter.
+`charter synthesize` can then promote project-local doctrine artifacts into `.kittify/doctrine/`.
+Current `charter generate` does not copy doctrine pages into an authoritative `library/*.md`
+tree; runtime context resolves doctrine through the reference manifest and doctrine service.
 
 ### How the Layers Connect
 
@@ -42,10 +45,13 @@ charter.md    (you edit this)
        +-- governance.yaml     (auto-generated)
        +-- directives.yaml     (auto-generated)
        +-- metadata.yaml       (auto-generated)
-       +-- library/*.md        (auto-generated)
+       +-- references.yaml     (auto-generated)
+       +-- synthesis state     (after synthesize)
 ```
 
-When you run a workflow action (`/spec-kitty.specify`, `/spec-kitty.implement`, etc.), the runtime reads the extracted config and injects relevant governance context into the agent prompt.
+When you run a governed workflow action through `spec-kitty next`, the runtime reads the
+extracted config and doctrine references, then renders relevant governance context into the
+prompt file returned to the agent.
 
 ---
 
@@ -195,11 +201,13 @@ spec-kitty charter sync --force --json
 
 ## Step 5: Understand Context Loading
 
-During workflow actions, the runtime automatically loads governance context into agent prompts. You do not need to call this manually during normal use.
+During governed workflow actions, the runtime automatically loads governance context into agent
+prompts. You do not need to call this manually during normal use.
 
 ### How It Works
 
-When you run `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.implement`, or `/spec-kitty.review`, the runtime calls:
+When `spec-kitty next` builds a prompt for a mission action, the runtime uses the same context
+builder exposed for debugging as:
 
 ```bash
 spec-kitty charter context --action <action> --json
@@ -233,7 +241,9 @@ This is useful when diagnosing unexpected agent behavior during a workflow step.
 
 ### Editing Derived Files Directly
 
-`governance.yaml`, `directives.yaml`, and `library/*.md` are overwritten on every sync or generate. Any manual changes to these files will be lost. Always edit `charter.md` instead, then run sync.
+`governance.yaml`, `directives.yaml`, `metadata.yaml`, `references.yaml`, runtime state, and
+synthesis outputs are owned by CLI commands. Manual changes can be overwritten or can make bundle
+validation misleading. Edit `charter.md` instead, then run sync and synthesis as needed.
 
 ### Skipping the Interview
 
@@ -261,7 +271,7 @@ spec-kitty charter generate --from-interview --json
 spec-kitty charter status --json
 
 # 4. Start working -- governance context loads automatically
-/spec-kitty.specify "Build user authentication module"
+uv run spec-kitty specify "Build user authentication module"
 ```
 
 Later, after updating your charter:
@@ -279,12 +289,49 @@ spec-kitty charter status --json
 
 ---
 
+## Charter Synthesis Flow (3.x)
+
+After setting up and syncing your governance (steps 1–4 above), run the Charter synthesis flow
+to promote doctrine artifacts for runtime context injection. This is a 3.x addition to the
+governance setup workflow.
+
+**`charter synthesize` vs `charter sync` distinction**:
+- `charter sync` syncs `charter.md` to YAML config files (`governance.yaml`, `directives.yaml`,
+  `metadata.yaml`). Run it after manually editing `charter.md`.
+- `charter synthesize` validates and promotes agent-generated doctrine artifacts to
+  `.kittify/doctrine/` via the DRG-backed synthesis pipeline. Run it to make doctrine available
+  for governed mission context injection.
+- They are different operations. You typically run `charter sync` first (after editing), then
+  `charter synthesize` to complete the promotion.
+
+```bash
+# 1. Check for graph-native decay before synthesis
+uv run spec-kitty charter lint
+
+# 2. Synthesize (dry-run first)
+uv run spec-kitty charter synthesize --dry-run
+uv run spec-kitty charter synthesize
+
+# 3. Validate the bundle
+uv run spec-kitty charter bundle validate
+
+# 4. Confirm status
+uv run spec-kitty charter status
+```
+
+Once synthesis completes successfully, governed mission actions via `spec-kitty next` will
+automatically receive the current Charter context.
+
+---
+
 ## Command Reference
 
 - [CLI Commands](../reference/cli-commands.md) -- Full CLI reference including charter subcommands
 
 ## See Also
 
+- [How Charter Works](../3x/charter-overview.md) -- Charter mental model and synthesis flow
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Full synthesis workflow
 - [Create a Specification](create-specification.md) -- Start a feature with governance active
 - [Switch Missions](switch-missions.md) -- How missions interact with governance
 - [Non-Interactive Init](non-interactive-init.md) -- Automated project setup including charter

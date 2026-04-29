@@ -1,3 +1,8 @@
+---
+title: Documentation Mission Guide
+description: The Documentation Kitty mission — Divio 4-type system, gap analysis, generators, and Charter-era governance integration.
+---
+
 # Documentation Mission Guide
 
 This guide covers the Documentation Kitty mission, which helps you create and maintain high-quality software documentation following Write the Docs and Divio principles.
@@ -887,11 +892,53 @@ For contributors interested in the implementation:
 
 These files are in the Spec Kitty source repository.
 
+## Charter 3.x: Documentation Mission Under Governance
+
+In Charter 3.x, documentation missions run under full governance. This changes three aspects of
+the workflow:
+
+**Context injection**: When you run a documentation mission step via `spec-kitty next`, Charter
+context is automatically injected into each step's prompt. Agents authoring tutorials, how-to
+guides, and explanation pages receive the project's directive set, glossary terms, and relevant
+doctrine as part of their context.
+
+**Governed profiles**: Each documentation step (discover, audit, design, generate, validate,
+publish) is assigned to a specific agent profile (`researcher-robbie`, `architect-alphonso`,
+`implementer-ivan`, `reviewer-renata`). Mission execution through `spec-kitty next` returns a
+governed prompt file for that profile and action. Standalone commands such as `ask`, `advise`, and
+`do` additionally create profile-invocation audit records; see
+[Understanding Governed Profile Invocation](governed-profile-invocation.md) for that model.
+
+**Retrospective learning**: When a documentation mission completes, the retrospective gate
+activates. The facilitator captures findings and proposals for doctrine improvements based on
+gaps encountered during documentation authoring (for example, glossary terms that were missing
+or directives that were unhelpful). Apply synthesis proposals with
+`spec-kitty agent retrospect synthesize --mission <slug>` to feed improvements back into
+governance.
+
+To run a documentation mission under governance:
+
+```bash
+# Create a documentation mission
+uv run spec-kitty specify my-docs-project --mission-type documentation
+
+# Drive the mission with Charter context injection
+uv run spec-kitty next --agent researcher-robbie --mission my-docs-project --json
+uv run spec-kitty next --agent researcher-robbie --mission my-docs-project --result success --json
+# ... continue through all 6 phases
+```
+
+The mission phases (discover → audit → design → generate → validate → publish) are defined in
+`src/specify_cli/missions/documentation/mission-runtime.yaml` and are the authoritative source
+for step ordering and profile assignments.
+
 ## Try It
+- [Tutorial: Governed Charter Workflow End-to-End](../tutorials/charter-governed-workflow.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [How to Run a Governed Mission](../how-to/run-governed-mission.md)
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
 
 ## Reference

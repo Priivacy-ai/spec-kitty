@@ -10,3 +10,5 @@
   href: claude-code-integration.md
 - name: Claude Code Workflow
   href: claude-code-workflow.md
+- name: Charter Governed Workflow (End-to-End)
+  href: charter-governed-workflow.md

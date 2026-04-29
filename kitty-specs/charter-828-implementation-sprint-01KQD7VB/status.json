@@ -1,0 +1,49 @@
+{
+  "event_count": 28,
+  "last_event_id": "01KQDBKJVX2WSKZ7FJBK2PNBBM",
+  "materialized_at": "2026-04-29T19:31:42.589077+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-828-implementation-sprint-01KQD7VB",
+  "mission_type": "documentation",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQDBKE1B2FV2RXG3AV06X7H4",
+      "last_transition_at": "2026-04-29T19:31:37.643500+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQDBKFQGN4PVXWV1XAEFB8S6",
+      "last_transition_at": "2026-04-29T19:31:39.376222+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQDBKH9CSSFZZRT3RPZ7H1MT",
+      "last_transition_at": "2026-04-29T19:31:40.972209+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQDBKJVX2WSKZ7FJBK2PNBBM",
+      "last_transition_at": "2026-04-29T19:31:42.589077+00:00"
+    }
+  }
+}

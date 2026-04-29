@@ -383,8 +383,99 @@ Over time, artifacts may gradually diverge from glossary definitions. Catch drif
 
 ---
 
+## Charter 3.x: Glossary Integration with Governance
+
+In Charter 3.x, the glossary is integrated with the governance layer. This section covers the
+four aspects of that integration.
+
+For background on the Charter model, see [How Charter Works](../3x/charter-overview.md).
+
+### Glossary as runtime doctrine
+
+Spec Kitty exposes active glossary terms as part of the doctrine/DRG context so agents receive
+consistent terminology during governed work. When a governed mission action is run via
+`spec-kitty next`, the prompt can include glossary terms relevant to the current action.
+
+To add a durable glossary term:
+
+1. Add the term to the appropriate seed file under `.kittify/glossaries/`.
+2. Run `spec-kitty glossary list --scope <scope>` to verify the term is active.
+3. Run `charter synthesize` if your project-local doctrine/DRG overlay also needs to be refreshed:
+   ```bash
+   uv run spec-kitty charter synthesize
+   ```
+4. Validate the governance bundle and synthesis state:
+   ```bash
+   uv run spec-kitty charter bundle validate
+   uv run spec-kitty charter status
+   ```
+
+### Glossary and the DRG
+
+Active glossary terms are represented as glossary nodes in the Directive Relationship Graph
+(DRG). The glossary DRG builder adds vocabulary edges from action nodes to active glossary terms,
+making those terms reachable as part of action-scoped context.
+
+For example, a term like `lifecycle-terminus` can be made available to governed prompts through
+the glossary store and DRG vocabulary layer, ensuring the agent sees the project-canonical
+definition when the context builder includes glossary material.
+
+### Glossary as project-local doctrine
+
+The durable glossary seed files live under `.kittify/glossaries/`. Those files are the operator
+curation surface for glossary CLI workflows. Retrospective synthesis may also write project-local
+glossary overlay files under `.kittify/glossary/`.
+
+Adding or changing a durable term usually means:
+
+1. Editing the appropriate `.kittify/glossaries/<scope>.yaml` seed file.
+2. Re-running `spec-kitty glossary list` to verify it loads.
+3. Re-running `charter synthesize` when the doctrine overlay needs to reflect the change.
+
+Do not add terms by editing generated doctrine files under `.kittify/doctrine/` directly.
+
+### Glossary and retrospective proposals
+
+The retrospective synthesizer can emit glossary-change proposals (`add_glossary_term`,
+`update_glossary_term`) when the retrospective facilitator identifies terms that were missing
+or incorrect during a mission.
+
+Preview proposals for a completed mission:
+```bash
+uv run spec-kitty agent retrospect synthesize --mission my-feature-slug
+```
+
+Sample output showing a glossary proposal:
+```
+Mode: dry-run (default)
+
+Planned applications: 1
+  ✔ P1  add_glossary_term  "lifecycle-terminus-hook"  (scope: team_domain)
+
+Apply: not run (use --apply to mutate)
+```
+
+Apply accepted proposals:
+```bash
+uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
+```
+
+When `--apply` is used, accepted glossary proposals are written to the project-local glossary
+overlay under `.kittify/glossary/` with provenance sidecars. If you want the change to become
+part of the durable curated glossary, port it into the appropriate `.kittify/glossaries/<scope>.yaml`
+seed file. Run `charter synthesize` afterward when the DRG/doctrine overlay should reflect the
+updated terms:
+```bash
+uv run spec-kitty charter synthesize
+```
+
+---
+
 ## See Also
 
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Propagate glossary changes
+- [How Charter Works](../3x/charter-overview.md) -- Charter mental model
+- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) -- How proposals flow from retrospectives to glossary
 - [Create a Specification](create-specification.md) -- Where terms first appear in your workflow
 - [Switch Missions](switch-missions.md) -- Mission-level glossary configuration
 - [Install and Upgrade](install-spec-kitty.md) -- Initial project setup including glossary initialization

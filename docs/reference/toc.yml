@@ -1,5 +1,11 @@
 - name: CLI Commands
   href: cli-commands.md
+- name: Charter CLI Reference
+  href: charter-commands.md
+- name: Profile Invocation Reference
+  href: profile-invocation.md
+- name: Retrospective Schema Reference
+  href: retrospective-schema.md
 - name: Orchestrator API
   href: orchestrator-api.md
 - name: Slash Commands
