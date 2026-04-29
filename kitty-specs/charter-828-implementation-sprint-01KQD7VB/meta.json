@@ -1,5 +1,19 @@
 {
   "created_at": "2026-04-29T18:26:03.322221+00:00",
+  "documentation_state": {
+    "generators_configured": [
+      {
+        "config_path": "",
+        "language": "javascript",
+        "name": "jsdoc"
+      },
+      {
+        "config_path": "",
+        "language": "python",
+        "name": "sphinx"
+      }
+    ]
+  },
   "friendly_name": "Charter #828 Implementation Sprint",
   "mission_id": "01KQD7VBXQ7T6NKN34PFA99XJX",
   "mission_number": null,
