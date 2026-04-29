@@ -10,16 +10,17 @@ You are looking at Spec Kitty 3.x Charter-era documentation. This is the current
 ## What is Charter?
 
 Charter is the governance layer introduced in Spec Kitty 3.x. A single human-edited file
-(`charter.md`) drives a synthesis pipeline that produces structured context for every agent
-mission action. The flow is:
+(`charter.md`) drives a synthesis pipeline that produces structured context for governed mission
+actions and standalone profile invocations. The flow is:
 
 ```
-charter.md  →  charter synthesize  →  charter bundle  →  governed agent invocation
+charter.md  ->  charter synthesize  ->  validated Charter state  ->  governed prompt/context
 ```
 
 When you run `spec-kitty next --agent <name> --mission <slug>`, the runtime automatically injects
-the relevant Charter context into the agent prompt. Governance is enforced without manual
-intervention on every mission action.
+the relevant Charter context into the prompt file it returns for the next mission action. Separate
+profile-invocation commands such as `ask`, `advise`, and `do` use the same governed-context model
+for standalone work.
 
 For the full mental model, see [How Charter Works](charter-overview.md).
 

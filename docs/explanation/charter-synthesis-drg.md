@@ -17,11 +17,14 @@ The **charter bundle** is the machine-readable synthesis of your `charter.md` go
 It is not a simple copy of the prose — it is a structured set of YAML artifacts that the runtime
 can traverse, merge, and inject as context for specific workflow actions.
 
-The bundle lives in `.kittify/charter/` and consists of:
+The core bundle lives in `.kittify/charter/` and consists of:
 
-- `governance.yaml` — resolved directives in structured form
-- `directives.yaml` — extracted directive list with severity and action scope
+- `governance.yaml` — testing, quality, performance, branch, and doctrine-selection config
+- `directives.yaml` — extracted directive list with IDs, descriptions, and severity
 - `metadata.yaml` — bundle metadata: charter hash, last-sync timestamp, provenance
+
+`references.yaml`, `context-state.json`, synthesis manifests, and provenance sidecars are also
+Charter-era files, but they are outside the narrow CharterBundleManifest v1.0.0 core scope.
 
 Why is the bundle needed rather than raw prose? Because the runtime context injection requires a
 structured artifact. When `spec-kitty next` prepares a prompt for the `implement` action, it
@@ -39,17 +42,17 @@ The synthesis pipeline has four logical phases:
    agent-generated YAML from `.kittify/charter/generated/` (artifacts the LLM harness has written).
 
 2. **DRG edge computation**: The synthesizer constructs the Directive Relationship Graph (DRG) by
-   resolving relationships between directives, tactics, and glossary terms. Edges encode
-   relationships such as "directive A implies directive B" or "tactic C specializes directive D."
+   resolving typed relationships between actions, directives, tactics, procedures, profiles,
+   templates, and glossary terms.
 
 3. **Directive resolution**: With the DRG computed, the synthesizer determines which artifacts
    need to be generated or updated. Artifacts whose provenance points to unchanged inputs are
    left intact (this is what makes `charter resynthesize --topic <selector>` work — only affected
    artifacts are regenerated).
 
-4. **Emit bundle**: The synthesizer writes the resolved artifacts to `.kittify/doctrine/` (project-
-   local doctrine) and updates the bundle files in `.kittify/charter/`. The `--dry-run` flag stops
-   after validation, before the emit step.
+4. **Promote artifacts**: The synthesizer writes resolved artifacts to `.kittify/doctrine/`
+   (project-local doctrine) and records synthesis state under `.kittify/charter/`. The `--dry-run`
+   flag stops after validation, before promotion.
 
 The authoritative file throughout is always `charter.md`. The synthesizer reads it; it does not
 write to it. Doctrine artifacts are outputs, not inputs.
@@ -58,18 +61,22 @@ write to it. Doctrine artifacts are outputs, not inputs.
 
 ## DRG edge computation
 
-The **Directive Relationship Graph (DRG)** is a directed graph with three node types:
-**directives**, **tactics**, and **glossary terms**. Edges encode relationships:
+The **Directive Relationship Graph (DRG)** is a directed graph with typed nodes such as actions,
+directives, tactics, procedures, profiles, templates, and glossary terms. Edges use these
+relations:
 
-- *implies*: directive A's presence logically requires directive B to be active
-- *overrides*: directive A supersedes directive B for the same concern area
-- *specializes*: tactic C is a specific application of directive D
-- *scopes-to*: glossary term E is most relevant for action F
+- `scope`: action-to-artifact scoping
+- `requires`: hard dependencies between artifacts
+- `suggests`: softer recommendations traversed to a bounded depth
+- `vocabulary`: links from resolved artifacts to glossary scope/term context
+- `instantiates`, `replaces`, `delegates_to`: additional graph relations used by specific
+  doctrine surfaces
 
 When the runtime prepares context for a specific mission action (e.g., `implement`), it traverses
-the DRG from the action's entry node and collects the relevant subgraph. The traversal follows
-only the edges that are in-scope for that action, ensuring that agents for the `implement` action
-receive implementation-relevant directives and tactics, not specification-phase concerns.
+the DRG from the action's entry node. It follows `scope` edges first, then transitive `requires`
+edges, bounded-depth `suggests` edges, and one-hop `vocabulary` edges from the resolved nodes.
+That keeps implementation prompts focused on implementation-relevant doctrine instead of
+specification-phase concerns.
 
 The DRG is not stored as a standalone file that you can inspect directly. It is computed by the
 synthesizer and manifests as the structured content of the bundle artifacts.
@@ -101,13 +108,19 @@ First-load state is tracked per action in `.kittify/charter/context-state.json`.
 
 Charter governance is built on a strict read/write boundary:
 
-- **Authoritative files**: `charter.md` — human-edited, the source of truth
-- **Generated files**: everything else in `.kittify/charter/` and `.kittify/doctrine/` — written
-  by the synthesizer, never by hand
+- **Authoritative policy source**: `.kittify/charter/charter.md` — human-edited, the source of
+  truth for project governance policy.
+- **Derived config and runtime state**: `governance.yaml`, `directives.yaml`, `metadata.yaml`,
+  `references.yaml`, `context-state.json`, synthesis manifests, and provenance sidecars — owned
+  by their respective CLI commands.
+- **Project-local doctrine overlay**: `.kittify/doctrine/` — promoted by `charter synthesize` and
+  read alongside shipped doctrine.
+- **Agent-generated synthesis input**: `.kittify/charter/generated/` — written by the harness and
+  validated by `charter synthesize`.
 
-If you edit a generated file (for example, add a directive to `governance.yaml` directly), the
-edit will be silently lost on the next `charter synthesize` run. The synthesizer rewrites generated
-files from the authoritative source. There is no merge step.
+If you edit a derived file (for example, add a directive to `governance.yaml` directly), the edit
+can be lost on the next `charter sync` or `charter generate` run because those files are
+re-derived from `charter.md`. There is no merge step for derived config.
 
 `charter status` detects drift between `charter.md` and the bundle hash. `charter lint` detects
 decay within the DRG (orphaned artifacts, contradictions, staleness). Both tools exist precisely

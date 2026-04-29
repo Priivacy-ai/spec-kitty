@@ -392,22 +392,19 @@ For background on the Charter model, see [How Charter Works](../3x/charter-overv
 
 ### Glossary as runtime doctrine
 
-Charter exposes the project glossary as part of the doctrine surface so that agents receive
-consistent terminology at every invocation. When a governed mission action is run via
-`spec-kitty next`, the DRG-derived context includes glossary terms relevant to the current action.
+Spec Kitty exposes active glossary terms as part of the doctrine/DRG context so agents receive
+consistent terminology during governed work. When a governed mission action is run via
+`spec-kitty next`, the prompt can include glossary terms relevant to the current action.
 
-To add a glossary term and make it available in the governed context:
+To add a durable glossary term:
 
-1. Add the term to `charter.md` under the glossary section.
-2. Run `charter sync` to update the YAML config:
-   ```bash
-   uv run spec-kitty charter sync
-   ```
-3. Run `charter synthesize` to promote the updated doctrine:
+1. Add the term to the appropriate seed file under `.kittify/glossaries/`.
+2. Run `spec-kitty glossary list --scope <scope>` to verify the term is active.
+3. Run `charter synthesize` if your project-local doctrine/DRG overlay also needs to be refreshed:
    ```bash
    uv run spec-kitty charter synthesize
    ```
-4. Verify the term appears in the bundle:
+4. Validate the governance bundle and synthesis state:
    ```bash
    uv run spec-kitty charter bundle validate
    uv run spec-kitty charter status
@@ -415,25 +412,27 @@ To add a glossary term and make it available in the governed context:
 
 ### Glossary and the DRG
 
-Glossary terms are nodes in the Directive Relationship Graph (DRG). Terms can be connected to
-directives and tactics via `scopes-to` edges, making them reachable as part of the context
-subgraph for specific actions. This means agents consistently encounter the correct term
-definitions when working in the areas those terms govern.
+Active glossary terms are represented as glossary nodes in the Directive Relationship Graph
+(DRG). The glossary DRG builder adds vocabulary edges from action nodes to active glossary terms,
+making those terms reachable as part of action-scoped context.
 
-For example, a term like `lifecycle-terminus` scoped to the `retrospect` action will appear in
-the context every time an agent runs the retrospective facilitator, ensuring the agent uses the
-project-canonical definition of that term.
+For example, a term like `lifecycle-terminus` can be made available to governed prompts through
+the glossary store and DRG vocabulary layer, ensuring the agent sees the project-canonical
+definition when the context builder includes glossary material.
 
 ### Glossary as project-local doctrine
 
-The glossary is project-local human policy. Glossary terms live in the authoritative `charter.md`
-surface — they are not generated state. Adding or changing a term requires:
+The durable glossary seed files live under `.kittify/glossaries/`. Those files are the operator
+curation surface for glossary CLI workflows. Retrospective synthesis may also write project-local
+glossary overlay files under `.kittify/glossary/`.
 
-1. Editing `charter.md` directly
-2. Running `charter sync` then `charter synthesize`
+Adding or changing a durable term usually means:
 
-Do not add terms to the generated glossary files under `.kittify/doctrine/` directly — those files
-are overwritten on the next synthesis run.
+1. Editing the appropriate `.kittify/glossaries/<scope>.yaml` seed file.
+2. Re-running `spec-kitty glossary list` to verify it loads.
+3. Re-running `charter synthesize` when the doctrine overlay needs to reflect the change.
+
+Do not add terms by editing generated doctrine files under `.kittify/doctrine/` directly.
 
 ### Glossary and retrospective proposals
 
@@ -461,9 +460,11 @@ Apply accepted proposals:
 uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
 ```
 
-When `--apply` is used, accepted glossary proposals are written to `charter.md` (or the
-project's glossary layer) with full provenance. Run `charter synthesize` afterward to propagate
-the updated terms into the DRG:
+When `--apply` is used, accepted glossary proposals are written to the project-local glossary
+overlay under `.kittify/glossary/` with provenance sidecars. If you want the change to become
+part of the durable curated glossary, port it into the appropriate `.kittify/glossaries/<scope>.yaml`
+seed file. Run `charter synthesize` afterward when the DRG/doctrine overlay should reflect the
+updated terms:
 ```bash
 uv run spec-kitty charter synthesize
 ```

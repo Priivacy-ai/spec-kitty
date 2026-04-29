@@ -17,7 +17,9 @@ Confirm your governance is ready before running a mission:
 
 1. Charter bundle is current: `uv run spec-kitty charter status`
 2. Bundle validates: `uv run spec-kitty charter bundle validate`
-3. Doctrine is synthesized: check that `.kittify/doctrine/` is present and populated
+3. Doctrine is synthesized: check that `.kittify/doctrine/` is present. Fresh projects may only
+   have `PROVENANCE.md`; in that state the runtime falls back to shipped doctrine until
+   agent-generated artifacts are promoted.
 
 If the bundle is stale, run the synthesis flow first. See
 [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md).
@@ -33,8 +35,8 @@ guards, and returns the next deterministic action with its prompt file:
 uv run spec-kitty next --agent claude --mission my-feature-slug --json
 ```
 
-`--agent` identifies the agent profile to invoke. `--mission` is the mission slug (the
-human-readable identifier, e.g., `my-feature-slug`).
+`--agent` identifies the agent name used for the issued action. `--mission` is the mission slug
+(the human-readable identifier, e.g., `my-feature-slug`).
 
 When `--result` is omitted, `next` operates in **query mode**: it reads and returns the current
 mission state without advancing it. This is safe to call repeatedly to check what step is next.
@@ -44,9 +46,9 @@ mission state without advancing it. This is safe to call repeatedly to check wha
 uv run spec-kitty next --mission my-feature-slug --json
 ```
 
-Charter context is injected automatically. When the bundle is current and `.kittify/doctrine/`
-is populated, each invoked agent profile receives the relevant DRG-derived governance context
-for the current action. You do not need to pass governance flags manually.
+Charter context is rendered automatically into the prompt file returned by `next`. The command
+does not spawn the agent itself; it emits the action, state, and `prompt_file` for the caller to
+read and execute. You do not need to pass governance flags manually.
 
 ---
 
@@ -56,11 +58,16 @@ for the current action. You do not need to pass governance flags manually.
 
 | Field | Type | Description |
 |---|---|---|
-| `action` | string | The action the agent should perform (e.g., `specify`, `plan`, `implement`) |
-| `mission_state` | string | Current state machine state (`not_started`, `in_progress`, `for_review`, etc.) |
-| `step` | object | Current step details including step ID and prompt file path |
-| `preview_step` | object | Next step preview (on fresh-run query) |
-| `governance_context_loaded` | boolean | Whether Charter context was successfully injected |
+| `kind` | string | Decision kind: `query`, `step`, `decision_required`, `blocked`, or `terminal` |
+| `action` | string/null | The action the agent should perform (e.g., `specify`, `plan`, `implement`) |
+| `mission_state` | string | Current state machine state |
+| `step_id` | string/null | Runtime step identifier for the issued step |
+| `prompt_file` | string/null | Absolute path to the prompt file. Non-null and resolvable for `kind: "step"` |
+| `preview_step` | string/null | Next step preview in query mode |
+| `decision_id` | string/null | Pending decision identifier for `decision_required` responses |
+| `question` / `options` | string/list/null | Decision prompt data when input is required |
+| `reason` / `guard_failures` | string/list | Explanation for blocked or guarded states |
+| `progress` | object/null | Work-package progress summary when available |
 
 A fresh-run query returns `mission_state: "not_started"` and a `preview_step` showing the first
 step. Do not depend on `unknown` as the fresh-run state — that is a legacy value.
@@ -91,10 +98,10 @@ to the next step. The runtime returns the action and prompt file for that step.
 ## 4. Prompt resolution
 
 `spec-kitty next` resolves which prompt template to use for the current step from the mission's
-`mission-runtime.yaml` configuration. The step's `prompt_template` field points to a file in the
-packaged doctrine missions directory.
+`mission-runtime.yaml` configuration. The step's `prompt_template` field points to a packaged
+mission template or resolved local prompt template.
 
-When prompt resolution succeeds, the output includes a `step.prompt_file` path. When it fails
+When prompt resolution succeeds, the output includes a `prompt_file` path. When it fails
 (for example, the mission type is unrecognized or the step template is missing), `next` returns a
 non-zero exit code with a structured error explaining the resolution failure.
 

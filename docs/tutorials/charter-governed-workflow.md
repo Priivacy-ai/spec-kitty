@@ -54,8 +54,9 @@ Generate `charter.md` and all derived governance files from your interview answe
 uv run spec-kitty charter generate --from-interview --json
 ```
 
-This renders `charter.md` from your answers and doctrine templates, then automatically stages the
-file via `git add`. After this step, `.kittify/charter/` contains the full governance bundle.
+This renders `charter.md` and `references.yaml` from your answers and doctrine templates, runs
+`charter sync` to derive YAML config, then automatically stages the tracked `charter.md` via
+`git add`. After this step, `.kittify/charter/` contains the core governance bundle.
 
 > **Note**: `charter generate` requires a git working tree. If you run it outside a git repo it
 > will exit non-zero with an error message directing you to run `git init` first.
@@ -147,8 +148,8 @@ First, create a mission to work on (if you don't have one already):
 uv run spec-kitty specify my-first-feature
 ```
 
-Then drive the mission using `spec-kitty next`. The `--agent` flag identifies which agent profile
-to invoke; `--mission` identifies the mission by its slug:
+Then drive the mission using `spec-kitty next`. The `--agent` flag identifies the agent name used
+for the issued action; `--mission` identifies the mission by its slug:
 
 ```bash
 uv run spec-kitty next --agent claude --mission my-first-feature --json
@@ -164,8 +165,8 @@ uv run spec-kitty next --agent claude --mission my-first-feature --result succes
 ```
 
 The runtime resolves the next step from the mission's state machine, builds the governed prompt
-(injecting Charter context from `.kittify/doctrine/`), and returns the action and prompt file for
-the agent to execute.
+(including Charter context resolved from the bundle and doctrine layers), and returns the action
+and `prompt_file` for the agent to execute. `next` itself does not spawn the agent.
 
 > **What governed means**: each prompt the agent receives includes the relevant DRG-derived
 > governance context for the current action (specify, plan, implement, review, etc.). The agent

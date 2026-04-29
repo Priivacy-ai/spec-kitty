@@ -18,29 +18,53 @@ Retrospective records are stored at:
 .kittify/missions/<mission_id>/retrospective.yaml
 ```
 
-The file is keyed by canonical mission ULID, not display number.
+The file is keyed by canonical mission ULID, not display number. The schema is implemented by
+`specify_cli.retrospective.schema.RetrospectiveRecord`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `mission_id` | ULID string | Yes | Canonical mission identity |
-| `mission_slug` | string | Yes | Human-readable mission slug |
-| `status` | string | Yes | `pending`, `started`, `completed`, `skipped`, `failed` |
-| `skip_reason` | string | No | Populated when `status: skipped`; records the operator-stated reason |
-| `helped` | list | No | Artifacts, directives, and tactics that the agent found helpful |
-| `not_helpful` | list | No | Artifacts flagged as not helpful during this mission |
-| `gaps` | list | No | Governance or context gaps identified during this mission |
-| `proposals` | list | No | Structured change proposals (see Proposal kinds below) |
-| `evidence_event_ids` | list | Yes | Event IDs that serve as evidence for the retrospective record |
-| `facilitator_profile` | string | No | Profile ID of the facilitator that ran the retrospective |
-| `started_at` | ISO 8601 timestamp | No | When the retrospective facilitator was dispatched |
-| `completed_at` | ISO 8601 timestamp | No | When the retrospective completed |
+| `schema_version` | string | Yes | Literal `"1"` |
+| `mission` | object | Yes | Mission identity: `mission_id`, `mid8`, `mission_slug`, `mission_type`, timestamps |
+| `mode` | object | Yes | Retrospective mode: `autonomous` or `human_in_command`, plus source signal |
+| `status` | string | Yes | Persisted values: `completed`, `skipped`, or `failed`. `pending` exists in the model but the writer refuses to persist it. |
+| `started_at` | ISO 8601 timestamp | Yes | When retrospective handling started |
+| `completed_at` | ISO 8601 timestamp | Conditional | Required when `status: completed` |
+| `actor` | object | Yes | Actor that authored the record |
+| `helped` | list[Finding] | No | Artifacts, directives, tactics, tests, or context that helped |
+| `not_helpful` | list[Finding] | No | Targets flagged as not helpful during the mission |
+| `gaps` | list[Finding] | No | Governance or context gaps identified during the mission |
+| `proposals` | list[Proposal] | No | Structured change proposals (see Proposal kinds below) |
+| `provenance` | object | Yes | Record author, runtime version, write timestamp, schema version |
+| `skip_reason` | string | Conditional | Required when `status: skipped` |
+| `failure` | object | Conditional | Required when `status: failed` |
+| `successor_mission_id` | ULID string | No | Follow-up mission identity when one is created |
+
+### Finding shape
+
+`helped`, `not_helpful`, and `gaps` entries share the same shape:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Finding identifier unique within the record |
+| `target.kind` | string | One of `doctrine_directive`, `doctrine_tactic`, `doctrine_procedure`, `drg_edge`, `drg_node`, `glossary_term`, `prompt_template`, `test`, `context_artifact` |
+| `target.urn` | string | Target URN |
+| `note` | string | Human-readable note, max 2000 characters |
+| `provenance.source_mission_id` | ULID string | Mission that produced the evidence |
+| `provenance.evidence_event_ids` | list[ULID] | Event IDs that support the finding |
+| `provenance.actor` | object | Actor that captured the finding |
+| `provenance.captured_at` | timestamp | Capture timestamp |
 
 ---
 
 ## Proposal kinds
 
-Each proposal in the `proposals` list has a `kind` field that determines what it applies to and
-what fields are required.
+Each proposal in the `proposals` list has `id`, `kind`, `payload`, `rationale`, `state`, and
+`provenance`. Proposal IDs and evidence event IDs are ULIDs. `state.status` is one of `pending`,
+`accepted`, `rejected`, `applied`, or `superseded`.
+
+The synthesizer applies the **effective batch**: accepted proposal IDs plus every
+`flag_not_helpful` proposal. `flag_not_helpful` is auto-included in that batch, but no proposal
+mutates project state unless the operator passes `--apply`.
 
 ### add_glossary_term
 
@@ -48,12 +72,11 @@ Add a new term to the project glossary.
 
 | Field | Required | Description |
 |---|---|---|
-| `kind` | Yes | `add_glossary_term` |
-| `surface` | Yes | Lowercase normalized term string (e.g., `lifecycle-terminus`) |
-| `scope` | Yes | One of: `mission_local`, `team_domain`, `audience_domain`, `spec_kitty_core` |
-| `definition` | Yes | Human-readable definition |
-| `confidence` | No | Float 0.0–1.0 (default 1.0) |
-| `rationale` | No | Why this term is proposed |
+| `payload.kind` | Yes | `add_glossary_term` |
+| `payload.term_key` | Yes | Safe term key, e.g. `lifecycle-terminus` |
+| `payload.definition` | Yes | Human-readable definition |
+| `payload.definition_hash` | Yes | Hash of the proposed definition |
+| `payload.related_terms` | No | Related term keys |
 
 ### update_glossary_term
 
@@ -61,34 +84,59 @@ Update an existing glossary term's definition or scope.
 
 | Field | Required | Description |
 |---|---|---|
-| `kind` | Yes | `update_glossary_term` |
-| `surface` | Yes | Existing term surface to update |
-| `definition` | No | New definition |
-| `scope` | No | New scope |
-| `rationale` | No | Why this change is proposed |
+| `payload.kind` | Yes | `update_glossary_term` |
+| `payload.term_key` | Yes | Existing term key to update |
+| `payload.definition` | Yes | New definition |
+| `payload.definition_hash` | Yes | Hash of the proposed definition |
+| `payload.related_terms` | No | Related term keys |
 
 ### flag_not_helpful
 
-Flag a DRG artifact (directive, tactic, or edge) as not helpful. This is the only proposal kind
-that is auto-applied without `--apply`.
+Flag a DRG or doctrine artifact as not helpful. This proposal kind is auto-included in the
+effective apply batch, but it still writes only when `--apply` is used.
 
 | Field | Required | Description |
 |---|---|---|
-| `kind` | Yes | `flag_not_helpful` |
-| `target` | Yes | DRG URN of the artifact (e.g., `drg:edge:doctrine_directive_017->action_specify`) |
-| `rationale` | No | Why the artifact was not helpful |
+| `payload.kind` | Yes | `flag_not_helpful` |
+| `payload.target.kind` | Yes | Target kind |
+| `payload.target.urn` | Yes | Target URN |
 
 ### add_edge
 
-Add a new relationship to the DRG.
+Add a relationship in the project-local DRG overlay.
 
 | Field | Required | Description |
 |---|---|---|
-| `kind` | Yes | `add_edge` |
-| `from` | Yes | Source node URN |
-| `to` | Yes | Target node URN |
-| `relationship` | Yes | Edge type (e.g., `implies`, `specializes`, `scopes-to`) |
-| `rationale` | No | Why this edge is proposed |
+| `payload.kind` | Yes | `add_edge` |
+| `payload.edge.from_node` | Yes | Source node URN |
+| `payload.edge.to_node` | Yes | Target node URN |
+| `payload.edge.kind` | Yes | Edge kind |
+
+The schema also defines `remove_edge` for compatibility, but the current apply path does not
+provide an operator-facing apply handler for it.
+
+### rewire_edge
+
+Replace one edge with another.
+
+| Field | Required | Description |
+|---|---|---|
+| `payload.kind` | Yes | `rewire_edge` |
+| `payload.edge_old` | Yes | Existing edge object |
+| `payload.edge_new` | Yes | Replacement edge object |
+
+### synthesize_directive / synthesize_tactic / synthesize_procedure
+
+Create or update project-local doctrine artifacts.
+
+| Field | Required | Description |
+|---|---|---|
+| `payload.kind` | Yes | One of the three `synthesize_*` kinds |
+| `payload.artifact_id` | Yes | Safe artifact identifier |
+| `payload.body` | Yes | Artifact body |
+| `payload.body_hash` | Yes | Hash of the body |
+| `payload.scope.actions` | No | Action scope list |
+| `payload.scope.profiles` | No | Profile scope list |
 
 ### Synthesizer acceptance criteria
 
@@ -99,8 +147,8 @@ The synthesizer accepts a proposal when:
 
 The synthesizer rejects a proposal when:
 - Required fields are missing
-- The target URN does not exist in the DRG (for `flag_not_helpful`)
-- The term surface is malformed (for glossary proposals)
+- Referenced evidence event IDs no longer resolve in the source mission event log
+- The term key or artifact ID is malformed
 - A conflicting proposal exists (fail-closed: the entire conflicting set is rejected)
 
 ---
@@ -119,6 +167,7 @@ other mission lifecycle events. Filter by event name prefix `retrospective.` to 
 | `retrospective.skipped` | Operator skipped | The operator explicitly skipped (HiC mode only) |
 | `retrospective.failed` | Facilitator failed | The facilitator encountered an error |
 | `retrospective.proposal.applied` | Per applied proposal | One event per applied proposal (×N) |
+| `retrospective.proposal.rejected` | Per rejected proposal | One event per proposal rejected during apply |
 
 The `retrospective.skipped` event and the corresponding `status: skipped` in the YAML record are
 both required. Neither alone is sufficient to record a valid skip.
@@ -132,10 +181,14 @@ both required. Neither alone is sufficient to record a valid skip.
 | Exit code | Meaning | Action required |
 |---|---|---|
 | 0 | Success — dry-run complete (no changes) or proposals applied successfully | None |
-| Non-zero | Failure — consult the command output for the structured error message | See output for conflict details, schema errors, or missing records |
+| 1 | Invalid project root, unresolvable mission handle, or other command error | Fix invocation/project state |
+| 2 | I/O error reading retrospective data | Inspect filesystem permissions and paths |
+| 3 | Retrospective record missing or malformed | Create or repair `.kittify/missions/<mission_id>/retrospective.yaml` |
+| 4 | Conflicts present during `--apply` | Resolve conflicts before applying |
+| 5 | Stale evidence or invalid payload rejection during `--apply` | Refresh evidence or fix proposal payloads |
 
 The `--apply` flag is required for any mutations. Omitting `--apply` always exits 0 on a valid
-dry-run regardless of proposal count.
+dry-run regardless of proposal count or detected conflicts.
 
 For the current exit code list, run:
 ```bash

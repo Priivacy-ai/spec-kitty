@@ -1361,6 +1361,10 @@ spec-kitty migrate normalize-lifecycle --mission 083-private-teamspace
 - `context` - Render charter context for a specific workflow action
 - `sync` - Sync charter.md to structured YAML config files
 - `status` - Display charter sync status
+- `synthesize` - Validate and promote agent-generated project-local doctrine artifacts
+- `resynthesize` - Regenerate a bounded set of project-local doctrine artifacts
+- `lint` - Detect decay in charter artifacts via graph-native checks
+- `bundle` - Charter bundle validation commands
 
 ### spec-kitty charter interview
 
@@ -1372,12 +1376,13 @@ spec-kitty migrate normalize-lifecycle --mission 083-private-teamspace
 
 | Flag | Description |
 | --- | --- |
-| `--mission TEXT` | Mission key for charter defaults (default: `software-dev`) |
+| `--mission-type TEXT` | Mission type for charter defaults (default: `software-dev`) |
 | `--profile TEXT` | Interview profile: `minimal` or `comprehensive` (default: `minimal`) |
 | `--defaults` | Use deterministic defaults without prompts |
 | `--selected-paradigms TEXT` | Comma-separated paradigm IDs override |
 | `--selected-directives TEXT` | Comma-separated directive IDs override |
 | `--available-tools TEXT` | Comma-separated tool IDs override |
+| `--mission-slug TEXT` | Mission slug for Decision Moment paper trail (optional) |
 | `--json` | Output JSON |
 | `--help` | Show this message and exit |
 
@@ -1391,7 +1396,7 @@ spec-kitty migrate normalize-lifecycle --mission 083-private-teamspace
 
 | Flag | Description |
 | --- | --- |
-| `--mission TEXT` | Mission key for template-set defaults |
+| `--mission-type TEXT` | Mission type for template-set defaults |
 | `--template-set TEXT` | Override doctrine template set (must exist in packaged doctrine missions) |
 | `--from-interview`, `--no-from-interview` | Load interview answers if present (default: `--from-interview`) |
 | `--profile TEXT` | Default profile when no interview is available (default: `minimal`) |
@@ -1506,7 +1511,7 @@ spec-kitty migrate normalize-lifecycle --mission 083-private-teamspace
 
 | Flag | Description |
 | --- | --- |
-| `--json` | Emit structured JSON |
+| `--json` | Emit structured JSON to stdout instead of a human-readable report |
 | `--help` | Show this message and exit |
 
 ---

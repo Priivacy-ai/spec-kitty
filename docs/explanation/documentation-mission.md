@@ -902,11 +902,12 @@ context is automatically injected into each step's prompt. Agents authoring tuto
 guides, and explanation pages receive the project's directive set, glossary terms, and relevant
 doctrine as part of their context.
 
-**Governed profile invocation**: Each documentation step (discover, audit, design, generate,
-validate, publish) uses a specific agent profile (`researcher-robbie`, `architect-alphonso`,
-`implementer-ivan`, `reviewer-renata`). These profiles are governed invocations — they follow the
-`(profile, action, governance-context)` triple pattern. See
-[Understanding Governed Profile Invocation](governed-profile-invocation.md) for the model.
+**Governed profiles**: Each documentation step (discover, audit, design, generate, validate,
+publish) is assigned to a specific agent profile (`researcher-robbie`, `architect-alphonso`,
+`implementer-ivan`, `reviewer-renata`). Mission execution through `spec-kitty next` returns a
+governed prompt file for that profile and action. Standalone commands such as `ask`, `advise`, and
+`do` additionally create profile-invocation audit records; see
+[Understanding Governed Profile Invocation](governed-profile-invocation.md) for that model.
 
 **Retrospective learning**: When a documentation mission completes, the retrospective gate
 activates. The facilitator captures findings and proposals for doctrine improvements based on

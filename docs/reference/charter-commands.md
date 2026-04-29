@@ -5,8 +5,8 @@ description: Full reference for all spec-kitty charter subcommands, verified aga
 
 # Charter CLI Reference
 
-> **Note**: All Charter commands use `uv run spec-kitty charter`, not the ambient `spec-kitty`
-> binary. Flags in this reference are verified against spec-kitty 3.x.
+> **Note**: Examples use `uv run spec-kitty ...`, which is the source-checkout invocation. If
+> Spec Kitty is installed on your PATH, the same flags work with `spec-kitty ...`.
 
 This reference covers all `charter` subcommands. For a task-oriented walkthrough, see
 [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md).

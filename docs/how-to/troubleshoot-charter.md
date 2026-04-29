@@ -164,16 +164,16 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug
 
 # 2. Read the conflict report — it names the conflicting proposals and the conflicting field
 
-# 3. Manually resolve the conflict by editing charter.md to pre-apply the correct version
-$EDITOR .kittify/charter/charter.md
+# 3. Apply only the non-conflicting proposals, or edit the durable target surface manually
+uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --proposal-id P1 --apply
 
-# 4. Re-run synthesis to propagate the manual edit
+# 4. If you changed charter-derived state manually, re-run synthesis/validation as needed
 uv run spec-kitty charter sync
 uv run spec-kitty charter synthesize
 uv run spec-kitty charter bundle validate
 
-# 5. Re-run retrospect synthesize — conflicting proposals should now be resolved
-uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
+# 5. Re-run retrospect synthesize for the surviving proposal set
+uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --proposal-id P1 --apply
 ```
 
 ---

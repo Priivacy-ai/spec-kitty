@@ -72,10 +72,12 @@ Apply: not run (use --apply to mutate)
 
 **Proposal kinds** include:
 - `add_glossary_term` / `update_glossary_term` — add or update a glossary term in the doctrine
-- `flag_not_helpful` — mark a DRG artifact as not helpful; auto-applied without `--apply`
+- `flag_not_helpful` — mark a DRG artifact as not helpful; auto-included in the apply batch
 - `add_edge` / `synthesize_*` — DRG graph changes; require `--apply`
 
-Only `flag_not_helpful` auto-applies. All other proposal kinds require explicit `--apply`.
+No proposal writes during dry-run. `flag_not_helpful` is automatically included when you run
+with `--apply`, even if you did not name its proposal ID explicitly. All mutations still require
+explicit `--apply`.
 
 You can restrict the batch to specific proposals:
 
@@ -93,9 +95,11 @@ When the dry-run looks correct, apply with `--apply`:
 uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
 ```
 
-Applied proposals mutate project state: glossary terms are written to doctrine files, DRG edges
-are updated, and `flag_not_helpful` records are written. Provenance is recorded for every change,
-linking the application back to its originating retrospective and mission.
+Applied proposals mutate project state: glossary terms are written under `.kittify/glossary/`,
+DRG edges are updated under `.kittify/drg/`, synthesized doctrine artifacts are written under
+`.kittify/doctrine/`, and `flag_not_helpful` records are written under `.kittify/doctrine/.flags/`.
+Provenance is recorded for every change, linking the application back to its originating
+retrospective and mission.
 
 Write the JSON envelope to a file in addition to console output:
 
@@ -125,10 +129,13 @@ Conflict detection is fail-closed: no proposals applied.
 
 To resolve:
 1. Read the conflict output carefully to understand which proposals conflict.
-2. Manually edit `.kittify/charter/charter.md` to pre-apply the correct version of the term.
-3. Re-run `charter synthesize` to propagate the manual edit.
-4. Re-run `agent retrospect synthesize --mission <slug>` — the conflicting proposal(s) should
-   now be resolved since the term already exists.
+2. Apply only the non-conflicting proposal IDs with repeated `--proposal-id` flags, or update the
+   source retrospective record so only the intended proposal remains accepted.
+3. If you resolve the issue manually, edit the durable target surface for the proposal type:
+   `.kittify/glossaries/<scope>.yaml` for curated glossary terms, `.kittify/drg/edges.yaml` for
+   project DRG edges, or `.kittify/doctrine/` for project-local doctrine artifacts.
+4. Re-run `agent retrospect synthesize --mission <slug>` and then apply the surviving batch with
+   `--apply`.
 
 ---
 

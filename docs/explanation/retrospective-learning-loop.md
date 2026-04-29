@@ -103,8 +103,9 @@ Proposals are stored in `.kittify/missions/<mission_id>/retrospective.yaml` and 
 4. **Provenance recorded**: Every applied change carries provenance back to the originating
    mission, proposal ID, and evidence event IDs.
 
-Only `flag_not_helpful` is auto-applied. All other proposal kinds require explicit `--apply` to
-mutate governance state.
+`flag_not_helpful` is auto-included in the effective apply batch, so the operator does not need
+to approve it by proposal ID. It still does not mutate governance state during dry-run; all writes
+require `agent retrospect synthesize --apply`.
 
 ---
 

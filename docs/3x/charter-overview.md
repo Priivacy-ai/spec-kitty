@@ -10,9 +10,11 @@ structured context that every agent mission action automatically receives. This 
 mental model. For a step-by-step walkthrough, see the
 [Governed Charter Workflow Tutorial](../tutorials/charter-governed-workflow.md).
 
-> **Key invariant**: `charter.md` is the only file you should ever edit in your governance layer.
-> Every other file under `.kittify/charter/` is auto-generated and will be overwritten on the next
-> synthesis run.
+> **Key invariant**: `.kittify/charter/charter.md` is the human policy source of truth. Do not
+> hand-edit derived files such as `governance.yaml`, `directives.yaml`, `metadata.yaml`,
+> `references.yaml`, `context-state.json`, synthesis manifests, or provenance sidecars. Agent
+> synthesis input under `.kittify/charter/generated/` is produced by the harness, not by routine
+> operator edits.
 
 ---
 
@@ -83,8 +85,8 @@ uv run spec-kitty charter resynthesize --topic directive:PROJECT_001
 
 The charter bundle is not a flat file — it is backed by a **Directive Relationship Graph (DRG)**.
 The DRG is a directed graph whose nodes are directives, tactics, and glossary terms, and whose
-edges encode relationships: directive A implies directive B, tactic C specializes directive D,
-glossary term E scopes to action F.
+edges use typed relations such as `scope`, `requires`, `suggests`, `vocabulary`, `instantiates`,
+`replaces`, and `delegates_to`.
 
 When `spec-kitty next` prepares a prompt for a mission action (for example, `implement`), the
 runtime traverses the DRG from the entry point for that action and collects the relevant subgraph.
@@ -118,10 +120,13 @@ compact-context mode, causing agents to receive less detail.
 | File | Written by | Purpose |
 |---|---|---|
 | `.kittify/charter/charter.md` | **Human** | Policy source of truth — the only file you edit |
-| `.kittify/charter/governance.yaml` | Auto-generated (synthesis) | Resolved directives in structured form |
-| `.kittify/charter/directives.yaml` | Auto-generated | Extracted directive list |
-| `.kittify/charter/metadata.yaml` | Auto-generated | Bundle metadata and provenance |
-| `.kittify/charter/library/*.md` | Auto-generated | Doctrine pages derived from charter.md |
+| `.kittify/charter/governance.yaml` | Auto-generated (`charter sync`) | Testing, quality, performance, branch, and doctrine-selection config |
+| `.kittify/charter/directives.yaml` | Auto-generated (`charter sync`) | Extracted directive list |
+| `.kittify/charter/metadata.yaml` | Auto-generated (`charter sync`) | Charter hash, extraction timestamp, and parser metadata |
+| `.kittify/charter/references.yaml` | Auto-generated (`charter generate`) | Reference manifest for shipped and local doctrine content |
+| `.kittify/charter/generated/` | Agent harness | Candidate doctrine YAML consumed by `charter synthesize` |
+| `.kittify/charter/synthesis-manifest.yaml` | Auto-generated (`charter synthesize`) | Manifest for promoted project-local doctrine artifacts |
+| `.kittify/charter/provenance/*.yaml` | Auto-generated (`charter synthesize`) | Provenance sidecars for synthesized doctrine artifacts |
 | `.kittify/doctrine/` | Auto-generated (synthesize) | Project-local doctrine promoted by synthesizer |
 
 See [Governance Files Reference](governance-files.md) for the full table.
