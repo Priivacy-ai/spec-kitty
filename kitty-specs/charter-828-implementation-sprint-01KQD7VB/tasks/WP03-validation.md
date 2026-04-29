@@ -15,7 +15,8 @@ subtasks:
 - T008
 - T009
 phase: Phase 3 - Quality Gate
-agent: claude
+agent: "claude:sonnet:researcher-robbie:implementer"
+shell_pid: "91142"
 history:
 - at: '2026-04-29T18:44:20Z'
   actor: system
@@ -155,3 +156,7 @@ For any product bug: write `kitty-specs/charter-828-implementation-sprint-01KQD7
 - Smoke-test may leave temp files in the source repo if the cleanup step was skipped by the source WP09 agent — run `git status --short` after WP09 and clean up any untracked temp files
 - CLI flag mismatch may be systemic (multiple pages) — scan all reference pages with `grep -rn` before declaring fixed
 - Product bug boundary is sometimes ambiguous — when in doubt, write a bug report and surface to the user for judgment
+
+## Activity Log
+
+- 2026-04-29T19:23:14Z – claude:sonnet:researcher-robbie:implementer – shell_pid=91142 – Started implementation via action command
