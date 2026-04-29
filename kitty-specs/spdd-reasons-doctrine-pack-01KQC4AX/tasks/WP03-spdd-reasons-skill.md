@@ -14,7 +14,8 @@ created_at: '2026-04-29T08:15:46Z'
 subtasks:
 - T012
 - T013
-agent: claude
+agent: "claude:opus:curator-carla:implementer"
+shell_pid: "39132"
 history:
 - date: '2026-04-29'
   author: spec-kitty.tasks
@@ -171,3 +172,7 @@ def test_skill_body_mentions_seven_canvas_sections():
 - Prompt fragment rendering (WP04).
 - Review gate (WP05).
 - Docs (WP06).
+
+## Activity Log
+
+- 2026-04-29T08:50:05Z – claude:opus:curator-carla:implementer – shell_pid=39132 – Started implementation via action command
