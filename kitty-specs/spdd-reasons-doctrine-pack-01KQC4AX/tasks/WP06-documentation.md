@@ -208,3 +208,4 @@ Do NOT modify other docs' tone or structure; insert minimal link entries only.
 ## Activity Log
 
 - 2026-04-29T09:20:43Z – claude:opus:curator-carla:implementer – shell_pid=49611 – Started implementation via action command
+- 2026-04-29T09:26:31Z – claude:opus:curator-carla:implementer – shell_pid=49611 – Ready for review: docs/doctrine/spdd-reasons.md + inbound links
