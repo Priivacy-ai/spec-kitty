@@ -296,3 +296,4 @@ For inactive baselines: capture each template's pre-feature output as `tests/pro
 - 2026-04-29T08:57:39Z – claude:opus:python-pedro:implementer – shell_pid=43330 – Started implementation via action command
 - 2026-04-29T09:09:42Z – claude:opus:python-pedro:implementer – shell_pid=43330 – Ready for review: 4 templates + renderer hook + 13 tests
 - 2026-04-29T09:10:10Z – claude:opus:reviewer-renata:reviewer – shell_pid=46103 – Started review via action command
+- 2026-04-29T09:13:40Z – claude:opus:reviewer-renata:reviewer – shell_pid=46103 – Review passed: 4 templates marked; review.md untouched; renderer hook wired into 3 materialization seams via shared helper; 22 prompt-rendering tests green; no regressions in tests/prompts tests/doctrine tests/charter; pre-existing tests/specify_cli/skills snapshot drift unrelated to WP04.
