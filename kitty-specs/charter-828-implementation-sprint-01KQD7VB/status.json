@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KQDB0XYB2B5EXCHDWEQXJNSR",
-  "materialized_at": "2026-04-29T19:21:31.339164+00:00",
+  "event_count": 13,
+  "last_event_id": "01KQDB200NRAREJT1R7SKQ1GHF",
+  "materialized_at": "2026-04-29T19:22:06.229266+00:00",
   "mission_number": "",
   "mission_slug": "charter-828-implementation-sprint-01KQD7VB",
   "mission_type": "documentation",
@@ -11,9 +11,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 2
   },
   "work_packages": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-29T19:07:37.807771+00:00"
     },
     "WP02": {
-      "actor": "user",
+      "actor": "claude:sonnet:researcher-robbie:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KQDB0XYB2B5EXCHDWEQXJNSR",
-      "last_transition_at": "2026-04-29T19:21:31.339164+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KQDB200NRAREJT1R7SKQ1GHF",
+      "last_transition_at": "2026-04-29T19:22:06.229266+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",

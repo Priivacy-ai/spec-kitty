@@ -15,8 +15,8 @@ subtasks:
 - T005
 - T006
 phase: Phase 2 - Content Generation
-agent: "claude:sonnet:researcher-robbie:implementer"
-shell_pid: "86978"
+agent: "claude:sonnet:researcher-robbie:reviewer"
+shell_pid: "90890"
 history:
 - at: '2026-04-29T18:44:20Z'
   actor: system
@@ -234,3 +234,4 @@ If any match is found, fix it in the relevant page before proceeding to WP03.
 
 - 2026-04-29T19:07:44Z – claude:sonnet:researcher-robbie:implementer – shell_pid=86978 – Started implementation via action command
 - 2026-04-29T19:21:32Z – claude:sonnet:researcher-robbie:implementer – shell_pid=86978 – Content generation complete: 14 new + 5 updated pages, stale checks passed, CLI verified
+- 2026-04-29T19:22:07Z – claude:sonnet:researcher-robbie:reviewer – shell_pid=90890 – Started review via action command
