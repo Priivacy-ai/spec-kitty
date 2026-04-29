@@ -11,10 +11,10 @@
 
 | Task | Description | Work Package | Parallel |
 |------|-------------|--------------|----------|
-| T001 | Run regression-guard test suite against feature branch and capture per-test evidence | WP01 | |
-| T002 | Inspect `runtime_bridge.py` and `retrospective/schema.py` invariants by reading current code | WP01 | [P] |
-| T003 | Inspect golden-path helpers (`_parse_first_json_object`, `_run_next_and_assert_lifecycle`) and the synthesizer-call path in the E2E | WP01 | [P] |
-| T004 | Author `verification-evidence.md` with results, FR-009/FR-010 disposition, and any escalation flags | WP01 | |
+| T001 | Run regression-guard test suite against feature branch and capture per-test evidence | WP01 | | [D] |
+| T002 | Inspect `runtime_bridge.py` and `retrospective/schema.py` invariants by reading current code | WP01 | [D] |
+| T003 | Inspect golden-path helpers (`_parse_first_json_object`, `_run_next_and_assert_lifecycle`) and the synthesizer-call path in the E2E | WP01 | [D] |
+| T004 | Author `verification-evidence.md` with results, FR-009/FR-010 disposition, and any escalation flags | WP01 | | [D] |
 | T005 | Refactor `charter synthesize --json` branch in `src/specify_cli/cli/commands/charter.py` to keep stdout strict-JSON, emit contracted envelope fields, source `written_artifacts` from staged entries, drive dry-run from same source, and eliminate user-visible `PROJECT_000` | WP02 | |
 | T006 | Extend `src/charter/synthesizer/write_pipeline.py` staged-artifact return shape **only if** WP01/T005 inspection shows the existing return is insufficient | WP02 | |
 | T007 | Add/harden regression test in `tests/integration/test_json_envelope_strict.py` proving `json.loads(stdout)` succeeds when evidence warnings exist | WP02 | [P] |
@@ -50,10 +50,10 @@
   - `verification-evidence.md` exists at `kitty-specs/charter-contract-cleanup-tranche-1-01KQATS4/research/verification-evidence.md` and lists per-test results plus a Go/No-Go statement.
 - **Independent test:** `uv run pytest tests/next/test_retrospective_terminus_wiring.py tests/retrospective/test_gate_decision.py tests/doctrine_synthesizer/test_path_traversal_rejection.py -q` exits 0.
 - **Included subtasks:**
-  - [ ] T001 Run regression-guard test suite against feature branch and capture per-test evidence (WP01)
-  - [ ] T002 Inspect `runtime_bridge.py` and `retrospective/schema.py` invariants by reading current code (WP01)
-  - [ ] T003 Inspect golden-path helpers and the synthesizer-call path in the E2E (WP01)
-  - [ ] T004 Author `verification-evidence.md` with results, FR-009/FR-010 disposition, and any escalation flags (WP01)
+  - [x] T001 Run regression-guard test suite against feature branch and capture per-test evidence (WP01)
+  - [x] T002 Inspect `runtime_bridge.py` and `retrospective/schema.py` invariants by reading current code (WP01)
+  - [x] T003 Inspect golden-path helpers and the synthesizer-call path in the E2E (WP01)
+  - [x] T004 Author `verification-evidence.md` with results, FR-009/FR-010 disposition, and any escalation flags (WP01)
 - **Implementation sketch:** read code → run tests → write evidence file. No production-code edits unless evidence shows a regression.
 - **Parallel opportunities:** T002 and T003 can run in parallel after T001.
 - **Dependencies:** none.
