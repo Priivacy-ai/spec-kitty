@@ -21,7 +21,8 @@ subtasks:
 - T022
 - T023
 phase: Phase 3 - Release ops
-agent: claude
+agent: "claude:opus-4-7:implementer-ivan:implementer"
+shell_pid: "57867"
 history:
 - timestamp: '2026-04-28T20:35:00Z'
   lane: planned
@@ -324,3 +325,7 @@ This WP closes spec FR-011, FR-012, FR-013 and finalises the mission.
 ```bash
 spec-kitty agent action implement WP05 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-29T05:51:58Z – claude:opus-4-7:implementer-ivan:implementer – shell_pid=57867 – Started implementation via action command
