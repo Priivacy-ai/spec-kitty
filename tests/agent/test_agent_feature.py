@@ -37,7 +37,12 @@ SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan Template
 
 def _write_committed_substantive_spec(repo_root: Path, feature_dir: Path) -> None:
     """Create a committed spec.md that satisfies setup-plan's entry gate."""
-    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
     spec_file = feature_dir / "spec.md"
     spec_file.write_text(SUBSTANTIVE_SPEC, encoding="utf-8")
     subprocess.run(
