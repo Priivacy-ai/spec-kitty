@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from enum import StrEnum
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 class Safety(StrEnum):
@@ -64,11 +64,7 @@ class _InvocationProtocol(Protocol):
         ...
 
 
-if TYPE_CHECKING:
-    # Only imported for type annotations; never executed at runtime.
-    _Invocation = _InvocationProtocol
-else:
-    _Invocation = _InvocationProtocol
+_Invocation = _InvocationProtocol
 
 # Public type alias — used by callers that want to register a predicate.
 SafetyPredicate = Callable[[_InvocationProtocol], Safety]
@@ -145,11 +141,11 @@ def classify(invocation: _InvocationProtocol) -> Safety:
     - Found with ``None`` value → ``Safety.SAFE``.
     - Found with callable → call the predicate; any exception → ``Safety.UNSAFE``.
     """
-    predicate = SAFETY_REGISTRY.get(invocation.command_path)
-
-    if predicate is None and invocation.command_path not in SAFETY_REGISTRY:
-        # Key was absent (get() returned default None for missing keys)
+    if invocation.command_path not in SAFETY_REGISTRY:
+        # Missing registry entries must fail closed.
         return Safety.UNSAFE
+
+    predicate = SAFETY_REGISTRY[invocation.command_path]
 
     if predicate is None:
         # Key present, value explicitly None → always safe
@@ -158,7 +154,7 @@ def classify(invocation: _InvocationProtocol) -> Safety:
     # Key present with a callable predicate
     try:
         return predicate(invocation)
-    except Exception:  # noqa: BLE001 — defensive, any exception → UNSAFE
+    except Exception:  # noqa: BLE001 - defensive: any exception -> UNSAFE
         return Safety.UNSAFE
 
 

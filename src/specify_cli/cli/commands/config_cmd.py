@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.tasks_support import find_repo_root
+from specify_cli.task_utils import find_repo_root
 
 console = Console()
 

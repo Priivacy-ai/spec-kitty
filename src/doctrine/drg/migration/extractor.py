@@ -33,11 +33,12 @@ _KIND_MAP: dict[str, NodeKind] = {
     "toolguide": NodeKind.TOOLGUIDE,
     "procedure": NodeKind.PROCEDURE,
     "agent_profile": NodeKind.AGENT_PROFILE,
+    "template": NodeKind.TEMPLATE,
     "action": NodeKind.ACTION,
 }
 
 # Reference types that are NOT DRG node kinds (skipped during extraction).
-_SKIP_REF_TYPES: frozenset[str] = frozenset({"template"})
+_SKIP_REF_TYPES: frozenset[str] = frozenset()
 
 
 def _ensure_node(
@@ -78,14 +79,14 @@ def _kind_for_type(ref_type: str) -> NodeKind | None:
 
 
 # ---------------------------------------------------------------------------
-# T012: Artifact walker (directives, tactics, paradigms)
+# T012: Artifact walker (directives, tactics, paradigms, procedures)
 # ---------------------------------------------------------------------------
 
 
-def extract_artifact_edges(
+def extract_artifact_edges(  # noqa: C901
     doctrine_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
-    """Walk shipped directives, tactics, and paradigms; return (nodes, edges).
+    """Walk shipped directives, tactics, paradigms, and procedures; return (nodes, edges).
 
     Every inline reference field is converted to a typed DRG edge.
     Nodes are deduplicated by URN.
@@ -272,6 +273,36 @@ def extract_artifact_edges(
                         target=tgt_urn,
                         relation=Relation.REPLACES,
                         reason=opp.get("reason"),
+                    )
+                )
+
+    # --- Procedures ---
+    procedures_dir = doctrine_root / "procedures" / "shipped"
+    if procedures_dir.is_dir():
+        for path in sorted(procedures_dir.glob("*.procedure.yaml")):
+            data = _load_yaml(path)
+            if data is None:
+                continue
+            procedure_id = data.get("id", "")
+            procedure_name = data.get("name", "")
+            src_urn = artifact_to_urn("procedure", procedure_id)
+            _ensure_node(nodes_by_urn, src_urn, NodeKind.PROCEDURE, procedure_name)
+
+            for ref in data.get("references", []) or []:
+                ref_type = ref.get("type", "")
+                ref_id = ref.get("id", "")
+                if not ref_type or not ref_id:
+                    continue
+                tgt_kind = _kind_for_type(ref_type)
+                if tgt_kind is None:
+                    continue
+                tgt_urn = artifact_to_urn(ref_type, ref_id)
+                _ensure_node(nodes_by_urn, tgt_urn, tgt_kind)
+                _add_edge(
+                    DRGEdge(
+                        source=src_urn,
+                        target=tgt_urn,
+                        relation=_relation_for_ref_type(ref_type),
                     )
                 )
 

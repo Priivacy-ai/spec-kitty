@@ -10,7 +10,7 @@ import pytest
 from specify_cli.core.worktree_topology import materialize_worktree_topology, render_topology_json
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.workspace_context import clear_workspace_resolution_caches
+from specify_cli.workspace.context import clear_workspace_resolution_caches
 
 pytestmark = pytest.mark.fast
 

@@ -20,7 +20,8 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
 
 logger = logging.getLogger(__name__)
@@ -1849,11 +1850,87 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
     return _validation_callback
 
 
+def _read_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, str]]:
+    """Read manifest entries for the strict synthesize success envelope."""
+    try:
+        from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml as _load_manifest
+    except Exception:
+        return []
+    manifest_path = repo_root / MANIFEST_PATH
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest = _load_manifest(manifest_path)
+    except Exception:
+        return []
+    return [{"path": entry.path, "kind": entry.kind} for entry in manifest.artifacts]
+
+
+def _provenance_to_planned_artifacts(
+    results: list[tuple[Any, Any]],
+) -> list[dict[str, str]]:
+    """Convert synthesis provenance entries into planned doctrine paths."""
+    from charter.synthesizer.artifact_naming import (
+        artifact_filename,
+        doctrine_kind_subdir,
+    )
+
+    planned: list[dict[str, str]] = []
+    for _body, prov in results:
+        kind = prov.artifact_kind
+        slug = prov.artifact_slug
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = prov.artifact_urn.split(":", 1)[1]
+        try:
+            filename = artifact_filename(kind, slug, artifact_id)
+            subdir = doctrine_kind_subdir(kind)
+        except Exception:  # noqa: S112
+            continue
+        planned.append(
+            {
+                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "kind": kind,
+            }
+        )
+    return planned
+
+
+def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]]:
+    """Convert legacy staged ``kind:slug`` selectors to planned artifacts."""
+    from charter.synthesizer.artifact_naming import (
+        artifact_filename,
+        doctrine_kind_subdir,
+    )
+
+    planned: list[dict[str, str]] = []
+    for selector in staged_files:
+        if ":" not in selector:
+            continue
+        kind, slug = selector.split(":", 1)
+        artifact_id: str | None = None
+        if kind == "directive":
+            artifact_id = "PROJECT_000"
+        try:
+            filename = artifact_filename(kind, slug, artifact_id)
+            subdir = doctrine_kind_subdir(kind)
+        except Exception:  # noqa: S112
+            continue
+        planned.append(
+            {
+                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "kind": kind,
+            }
+        )
+    return planned
+
+
 def _run_synthesis_dry_run(
     request: Any,
     syn_adapter: Any,
     repo_root: Path,
-) -> list[str]:
+) -> list[dict[str, str]]:
+    """Stage + validate without promoting, returning typed planned artifacts."""
     from charter.synthesizer.staging import StagingDir
     from charter.synthesizer.synthesize_pipeline import run_all
     from charter.synthesizer.write_pipeline import stage_and_validate
@@ -1862,7 +1939,7 @@ def _run_synthesis_dry_run(
     validation_callback = _build_synthesis_validation_callback(request)
 
     with StagingDir.create(repo_root, request.run_id) as staging_dir:
-        staged_artifacts = stage_and_validate(
+        stage_and_validate(
             request,
             staging_dir,
             results,
@@ -1870,7 +1947,7 @@ def _run_synthesis_dry_run(
         )
         staging_dir.wipe()
 
-    return staged_artifacts
+    return _provenance_to_planned_artifacts(results)
 
 
 def _list_resynthesis_topics(
@@ -2004,7 +2081,7 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
 
 
 @app.command("synthesize")
-def charter_synthesize(
+def charter_synthesize(  # noqa: C901
     adapter: str = typer.Option(
         "generated",
         "--adapter",
@@ -2167,8 +2244,9 @@ def charter_synthesize(
             skip_code_evidence=skip_code_evidence,
             skip_corpus=skip_corpus,
         )
-        for warning in evidence_result.warnings:
-            console.print(f"[yellow]\u26a0 {warning}[/yellow]")
+        if not json_output:
+            for warning in evidence_result.warnings:
+                console.print(f"[yellow]\u26a0 {warning}[/yellow]")
 
         if dry_run_evidence:
             bundle = evidence_result.bundle
@@ -2194,20 +2272,26 @@ def charter_synthesize(
         request, syn_adapter = _build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
         if dry_run:
-            staged_files = _run_synthesis_dry_run(request, syn_adapter, repo_root)
+            planned_artifacts = _run_synthesis_dry_run(request, syn_adapter, repo_root)
 
             if json_output:
                 print(json.dumps({
-                    "result": "dry_run",
-                    "staged_artifacts": staged_files,
-                    "artifact_count": len(staged_files),
-                    "validated": True,
+                    "result": "success",
+                    "adapter": adapter,
+                    "planned_artifacts": planned_artifacts,
+                    "warnings": [
+                        {"code": "evidence_warning", "message": w}
+                        for w in evidence_result.warnings
+                    ],
                 }, indent=2))
+                mark_invocation_succeeded()
                 return
 
             console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
-            for f in staged_files:
-                console.print(f"  [dim]staged:[/dim] {f}")
+            for entry in planned_artifacts:
+                console.print(
+                    f"  [dim]staged:[/dim] {entry.get('kind', '?')} -> {entry.get('path', '?')}"
+                )
             return
 
         from charter.synthesizer import synthesize
@@ -2215,14 +2299,22 @@ def charter_synthesize(
         result = synthesize(request, adapter=syn_adapter, repo_root=repo_root)
 
         if json_output:
+            written_artifacts = _read_written_artifacts_from_manifest(repo_root)
             print(json.dumps({
                 "result": "success",
+                "adapter": result.effective_adapter_id,
+                "written_artifacts": written_artifacts,
                 "target_kind": result.target_kind,
                 "target_slug": result.target_slug,
                 "inputs_hash": result.inputs_hash,
                 "adapter_id": result.effective_adapter_id,
                 "adapter_version": result.effective_adapter_version,
+                "warnings": [
+                    {"code": "evidence_warning", "message": w}
+                    for w in evidence_result.warnings
+                ],
             }, indent=2))
+            mark_invocation_succeeded()
             return
 
         console.print("[green]Charter synthesis complete[/green]")

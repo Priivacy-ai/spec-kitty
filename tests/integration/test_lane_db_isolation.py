@@ -150,7 +150,7 @@ class TestLaneIsolationContract:
         consumers (e.g. agents that resurrect a previously-allocated lane)
         cannot see it unless it lives in the persisted WorkspaceContext.
         """
-        from specify_cli.workspace_context import WorkspaceContext
+        from specify_cli.workspace.context import WorkspaceContext
 
         ctx = WorkspaceContext(
             wp_id="WP01",

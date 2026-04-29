@@ -366,7 +366,7 @@ See `references/runtime-result-taxonomy.md` for the complete taxonomy.
 
 | Kind | Next Action |
 |------|-------------|
-| `step` | Read `prompt_file` and execute (the runtime guarantees it is non-null and resolves on disk) |
+| `step` | Read and execute `prompt_file` (always non-empty and resolvable on disk) |
 | `decision_required` | Answer with `--answer` and `--decision-id` |
 | `blocked` | Read `reason` + `guard_failures`, resolve blockers |
 | `terminal` | Run `/spec-kitty.accept` for final validation |
@@ -376,15 +376,12 @@ not just `blocked`.
 
 **The `kind="step"` prompt-file contract is a hard runtime invariant (C1/C2).**
 A `kind="step"` envelope MUST carry a `prompt_file` (or its consumer-side
-`prompt_path` alias) that is non-null, non-empty, and resolves on disk. A
-`kind="step"` decision with a missing or non-resolvable prompt is a runtime
-invariant violation — it is **not** a substitute for `kind="blocked"`.
-
-When the runtime cannot produce an actionable step (no composed action,
-guard failure, blocked dependency, prompt build error, etc.), it returns
-`kind="blocked"` with a `reason` field. Do **not** treat a `kind="step"`
-with a null prompt as "safe to ignore"; if you see one, the runtime has
-a bug — file an issue rather than work around it.
+`prompt_path` alias) that is non-null, non-empty, and resolves on disk. If
+the runtime cannot produce an actionable step (no composed action, guard
+failure, blocked dependency, prompt build error, etc.), it returns
+`kind="blocked"` with a non-empty `reason` (and optional machine-readable
+code such as `no_prompt_template`). There is no third state: an agent loop
+should never observe a `kind="step"` decision with `prompt_file == null`.
 
 **Always check `progress` for completion.** If `progress.done_wps` equals
 `progress.total_wps` but `kind` is not `terminal`, the mission is actually
@@ -457,10 +454,9 @@ while [ "$KIND" = "step" ] || [ "$KIND" = "decision_required" ]; do
   if [ "$KIND" = "step" ]; then
     PROMPT=$(echo "$DECISION" | jq -r '.prompt_file')
 
-    # Per the C1/C2 contract, a kind="step" decision is guaranteed to carry
-    # a non-null prompt_file that resolves on disk. If you ever observe a
-    # null/empty prompt here it is a runtime invariant violation, not a
-    # state the agent should silently work around.
+    # Contract (C1/C2, post-#336 fix): kind=step always carries a
+    # non-empty prompt_file resolvable on disk. If a prompt cannot be
+    # resolved, the runtime emits kind=blocked with a populated reason.
 
     # Read and execute the prompt...
     RESULT="success"  # or "failed" or "blocked"
@@ -508,13 +504,12 @@ runtime run state, it creates a new run starting at `discovery` instead of
 recognizing the mission is complete. **Workaround:** Check
 `progress.done_wps == progress.total_wps` as a secondary completion signal.
 
-**#336 — historical: `prompt_file` could be `null` on `step` decisions.**
-This was reclassified as a hard runtime invariant violation (C1/C2 in the
-charter-e2e-followups contract). The runtime now refuses to construct a
-`kind="step"` envelope without a non-null, on-disk-resolvable prompt; if
-prompt resolution fails, it emits `kind="blocked"` with a `reason`
-instead. There is no longer an agent-side workaround — a `kind="step"`
-with a null prompt should be treated as a runtime bug and reported.
+**#336 — fixed.** `prompt_file` is always non-empty and resolvable on disk
+on `kind: step` decisions. When no prompt is available, the runtime now emits
+a structured `kind: blocked` decision with a non-empty `reason` (and optional
+machine-readable code such as `no_prompt_template`). Agent loops no longer
+need to defensively null-check `prompt_file`; a `kind: step` decision with a
+null prompt is a runtime bug.
 
 ---
 

@@ -26,7 +26,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.cli.commands.agent.workflow import _resolve_review_context
-from specify_cli.workspace_context import ResolvedWorkspace
+from specify_cli.workspace.context import ResolvedWorkspace
 
 pytestmark = [pytest.mark.git_repo]
 

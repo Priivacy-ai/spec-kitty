@@ -26,7 +26,7 @@ from specify_cli.mission_brief import (
     read_mission_brief,
     write_mission_brief,
 )
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.task_utils import TaskCliError, find_repo_root
 
 console = Console()
 err_console = Console(stderr=True)

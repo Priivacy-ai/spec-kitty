@@ -23,7 +23,7 @@ from doctrine.drg.migration.extractor import (
     extract_artifact_edges,
     generate_graph,
 )
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
+from doctrine.drg.models import NodeKind, Relation
 from doctrine.drg.validator import validate_graph
 
 # Path to the shipped doctrine root inside the repo.
@@ -32,7 +32,7 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 _yaml = YAML(typ="safe")
 
 
-def _count_inline_refs(doctrine_root: Path) -> int:
+def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
     """Count every inline reference field entry across all shipped artifacts.
 
     This mirrors the extraction logic but only counts -- used for the T017
@@ -81,6 +81,17 @@ def _count_inline_refs(doctrine_root: Path) -> int:
             total += len(data.get("directive_refs", []) or [])
             for opp in data.get("opposed_by", []) or []:
                 if opp.get("type", "") not in _SKIP_REF_TYPES:
+                    total += 1
+
+    # Procedures
+    procedures_dir = doctrine_root / "procedures" / "shipped"
+    if procedures_dir.is_dir():
+        for path in sorted(procedures_dir.glob("*.procedure.yaml")):
+            data = _yaml.load(path)
+            if not data:
+                continue
+            for ref in data.get("references", []) or []:
+                if ref.get("type", "") not in _SKIP_REF_TYPES:
                     total += 1
 
     # Action indices
@@ -179,6 +190,20 @@ class TestExtractArtifactEdges:
         targets = {e.target for e in pd_suggests}
         assert "tactic:eisenhower-prioritisation" in targets
 
+    def test_procedure_template_references_produce_template_edges(self) -> None:
+        """Procedure template references should be represented in the DRG."""
+        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        issue_triage_suggests = [
+            e
+            for e in edges
+            if e.source == "procedure:issue-triage-state-machine"
+            and e.relation == Relation.SUGGESTS
+        ]
+
+        targets = {e.target for e in issue_triage_suggests}
+        assert "template:agent-brief-template" in targets
+        assert "template:out-of-scope-record-template" in targets
+
     def test_walks_all_shipped_directives(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
         directive_count = len(
@@ -256,14 +281,14 @@ class TestExtractActionEdges:
         # specify has 2 directives + 1 tactic = 3 scope edges
         assert len(specify_edges) == 3
 
-    def test_tasks_action_has_six_refs(self) -> None:
-        """The new tasks action index should produce 6 scope edges."""
+    def test_tasks_action_has_seven_refs(self) -> None:
+        """The tasks action index should produce 7 scope edges."""
         _, edges = extract_action_edges(DOCTRINE_ROOT)
         tasks_edges = [
             e for e in edges
             if e.source == "action:software-dev/tasks"
         ]
-        assert len(tasks_edges) == 6
+        assert len(tasks_edges) == 7
 
     def test_nonexistent_doctrine_root(self) -> None:
         nodes, edges = extract_action_edges(Path("/nonexistent"))

@@ -117,7 +117,12 @@ class TestSynthesizeHappyPath:
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
             "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-            return_value=["directive:test-directive"],
+            return_value=[
+                {
+                    "path": ".kittify/doctrine/directives/001-test-directive.directive.yaml",
+                    "kind": "directive",
+                }
+            ],
         ):
             result = runner.invoke(app, ["synthesize", "--dry-run"])
 
@@ -137,22 +142,42 @@ class TestSynthesizeHappyPath:
             mock_result.effective_adapter_id = "fixture"
             mock_result.effective_adapter_version = "1.0.0"
 
-            with patch("charter.synthesizer.synthesize", return_value=mock_result):
+            with patch("charter.synthesizer.synthesize", return_value=mock_result), patch(
+                "specify_cli.cli.commands.charter._read_written_artifacts_from_manifest",
+                return_value=[
+                    {
+                        "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                        "kind": "directive",
+                    }
+                ],
+            ):
                 result = runner.invoke(
                     app, ["synthesize", "--adapter", "fixture", "--json"]
                 )
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         data = json.loads(result.output)
-        assert data["result"] in {"success", "dry_run"}
+        assert data["result"] == "success"
+        assert data["adapter"] == "fixture"
+        assert data["written_artifacts"] == [
+            {
+                "path": ".kittify/doctrine/directives/001-test.directive.yaml",
+                "kind": "directive",
+            }
+        ]
 
     def test_synthesize_dry_run_json(self, tmp_path: Path) -> None:
-        """--dry-run --json returns staged artifacts and validated=true."""
+        """--dry-run --json returns the strict planned-artifacts envelope."""
         _write_interview_answers(tmp_path)
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
             "specify_cli.cli.commands.charter._run_synthesis_dry_run",
-            return_value=["directive:test-directive"],
+            return_value=[
+                {
+                    "path": ".kittify/doctrine/directives/001-test-directive.directive.yaml",
+                    "kind": "directive",
+                }
+            ],
         ):
             result = runner.invoke(
                 app,
@@ -161,9 +186,40 @@ class TestSynthesizeHappyPath:
 
         assert result.exit_code == 0
         data = json.loads(result.output)
-        assert data["result"] == "dry_run"
-        assert "staged_artifacts" in data
-        assert data["validated"] is True
+        assert data["result"] == "success"
+        assert data["adapter"] == "generated"
+        assert data["planned_artifacts"] == [
+            {
+                "path": ".kittify/doctrine/directives/001-test-directive.directive.yaml",
+                "kind": "directive",
+            }
+        ]
+
+    def test_dry_run_planned_path_uses_provenance_artifact_id(self) -> None:
+        """Dry-run paths use the real directive id, not a PROJECT_000 fallback."""
+        from types import SimpleNamespace
+
+        from specify_cli.cli.commands.charter import _provenance_to_planned_artifacts
+
+        planned = _provenance_to_planned_artifacts(
+            [
+                (
+                    {},
+                    SimpleNamespace(
+                        artifact_kind="directive",
+                        artifact_slug="mission-type-scope-directive",
+                        artifact_urn="directive:PROJECT_001",
+                    ),
+                )
+            ]
+        )
+
+        assert planned == [
+            {
+                "path": ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml",
+                "kind": "directive",
+            }
+        ]
 
 
 # ---------------------------------------------------------------------------

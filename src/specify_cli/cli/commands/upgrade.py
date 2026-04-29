@@ -784,7 +784,7 @@ def _run_planner_json(
 
 def list_legacy_features() -> None:
     """List legacy worktrees blocking 0.11.0 upgrade."""
-    from specify_cli.tasks_support import find_repo_root
+    from specify_cli.task_utils import find_repo_root
     from specify_cli.upgrade.migrations.m_0_11_0_workspace_per_wp import (
         detect_legacy_worktrees,
     )

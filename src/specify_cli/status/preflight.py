@@ -50,10 +50,7 @@ def is_dossier_snapshot(path: str | Path) -> bool:
         True when *path* is a dossier snapshot file that the dirty-state
         preflight must ignore. False otherwise.
     """
-    if isinstance(path, Path):
-        posix = path.as_posix()
-    else:
-        posix = str(path).replace("\\", "/")
+    posix = path.as_posix() if isinstance(path, Path) else str(path).replace("\\", "/")
 
     # Strip any leading "./" so patterns anchored at the repo root still match.
     if posix.startswith("./"):

@@ -37,6 +37,7 @@ class NodeKind(StrEnum):
     TOOLGUIDE = "toolguide"
     PROCEDURE = "procedure"
     AGENT_PROFILE = "agent_profile"
+    TEMPLATE = "template"
     ACTION = "action"
     GLOSSARY_SCOPE = "glossary_scope"
     GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"

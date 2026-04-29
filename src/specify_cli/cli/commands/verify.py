@@ -16,7 +16,7 @@ from specify_cli.cli.helpers import console, get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.verify_enhanced import run_enhanced_verify
 
 

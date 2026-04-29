@@ -91,11 +91,7 @@ def _has_substantive_fr_row(body: str) -> bool:
                 return True
 
     # Bullet-form rows: - **FR-###**: <description>
-    for m in _FR_BULLET_ROW.finditer(body):
-        if _is_substantive_text(m.group("desc")):
-            return True
-
-    return False
+    return any(_is_substantive_text(m.group("desc")) for m in _FR_BULLET_ROW.finditer(body))
 
 
 # Recognises the empty user-story scaffold ("As a , I want  so that .") that
@@ -111,13 +107,21 @@ def _is_substantive_text(raw: str) -> bool:
     cleaned = _strip_placeholders(raw).strip()
     if not cleaned:
         return False
-    if _USER_STORY_SCAFFOLD.match(cleaned):
+    return not _USER_STORY_SCAFFOLD.match(cleaned)
+
+
+def _is_real_technical_context_value(raw: str) -> bool:
+    """Return True iff a Technical Context field value is non-placeholder."""
+    value = _strip_placeholders(raw).strip()
+    if not value:
         return False
-    return True
+    # Reject pure "NEEDS CLARIFICATION" residue and other obvious placeholders
+    # that survived the strip pass (e.g. a bare "NEEDS CLARIFICATION").
+    return not re.fullmatch(r"NEEDS CLARIFICATION\.?", value)
 
 
 def _has_substantive_technical_context(body: str) -> bool:
-    """Return True iff Technical Context has a real Language/Version value."""
+    """Return True iff Technical Context has Language/Version plus a peer field."""
     section = re.search(
         r"##\s+Technical Context\s*\n(?P<body>.*?)(?=\n##\s+|\Z)",
         body,
@@ -135,14 +139,20 @@ def _has_substantive_technical_context(body: str) -> bool:
     )
     if lang_match is None:
         return False
-    value = lang_match.group("val").strip()
-    if not value:
+    if not _is_real_technical_context_value(lang_match.group("val")):
         return False
-    # Reject pure "NEEDS CLARIFICATION" residue and other obvious placeholders
-    # that survived the strip pass (e.g. a bare "NEEDS CLARIFICATION").
-    if re.fullmatch(r"NEEDS CLARIFICATION\.?", value):
-        return False
-    return True
+
+    peer_fields = re.finditer(
+        r"^\s*\*\*(?P<label>[^*\n]+)\*\*[ \t]*:[ \t]*(?P<val>[^\n]*)",
+        sec_body,
+        flags=re.MULTILINE,
+    )
+    for field in peer_fields:
+        if field.group("label").strip() == "Language/Version":
+            continue
+        if _is_real_technical_context_value(field.group("val")):
+            return True
+    return False
 
 
 def is_substantive(file_path: Path, kind: Kind) -> bool:

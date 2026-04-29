@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.state_contract import get_runtime_gitignore_entries
+from specify_cli.state.contract import get_runtime_gitignore_entries
 
 
 @dataclass

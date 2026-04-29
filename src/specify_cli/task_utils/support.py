@@ -1,0 +1,414 @@
+#!/usr/bin/env python3
+"""Shared utilities for manipulating Spec Kitty work package prompts and frontmatter."""
+
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+
+from specify_cli.core.paths import get_main_repo_root, locate_project_root
+from specify_cli.legacy_detector import is_legacy_format
+
+# Canonical lane tuple — imported from the status package (single source of truth).
+from specify_cli.status import CANONICAL_LANES
+
+LANES: tuple[str, ...] = CANONICAL_LANES
+LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
+TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+class TaskCliError(RuntimeError):
+    """Raised when task operations cannot be completed safely."""
+
+
+def find_repo_root(start: Path | None = None) -> Path:
+    """Find the MAIN repository root, even when inside a worktree.
+
+    This function correctly handles git worktrees by detecting when .git is a
+    file (worktree pointer) vs a directory (main repo), and following the
+    pointer back to the main repository.
+
+    Args:
+        start: Starting directory for search (defaults to cwd)
+
+    Returns:
+        Path to the main repository root
+
+    Raises:
+        TaskCliError: If repository root cannot be found
+    """
+    current = (start or Path.cwd()).resolve()
+
+    detected_root = locate_project_root(current)
+    if detected_root is not None:
+        return get_main_repo_root(detected_root)
+
+    # Fallback: support plain git repositories that do not contain .kittify yet.
+    for candidate in [current, *current.parents]:
+        git_path = candidate / ".git"
+
+        if git_path.is_dir():
+            return get_main_repo_root(candidate)
+
+        if git_path.is_file():
+            resolved = get_main_repo_root(candidate)
+            if resolved != candidate:
+                return resolved
+
+    raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
+
+
+def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+    """Run a git command inside the repository."""
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=str(cwd),
+            check=check,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+        )
+    except FileNotFoundError as exc:
+        raise TaskCliError("git is not available on PATH.") from exc
+    except subprocess.CalledProcessError as exc:
+        if check:
+            message = exc.stderr.strip() or exc.stdout.strip() or "Unknown git error"
+            raise TaskCliError(message) from exc
+        return exc
+
+
+def ensure_lane(value: str) -> str:
+    lane = value.strip().lower()
+    # Resolve aliases (e.g., "doing" -> "in_progress")
+    lane = LANE_ALIASES.get(lane, lane)
+    if lane not in LANES:
+        raise TaskCliError(f"Invalid lane '{value}'. Expected one of {', '.join(LANES)}.")
+    return lane
+
+
+def now_utc() -> str:
+    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+
+
+def git_status_lines(repo_root: Path) -> list[str]:
+    result = run_git(["status", "--porcelain"], cwd=repo_root, check=True)
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def normalize_note(note: str | None, target_lane: str) -> str:
+    default = f"Moved to {target_lane}"
+    cleaned = (note or default).strip()
+    return cleaned or default
+
+
+def detect_conflicting_wp_status(status_lines: list[str], feature: str, old_path: Path, new_path: Path) -> list[str]:
+    """Return staged work-package entries unrelated to the requested move."""
+    prefix = f"kitty-specs/{feature}/tasks/"
+    allowed = {
+        str(old_path).lstrip("./"),
+        str(new_path).lstrip("./"),
+    }
+    conflicts = []
+    for line in status_lines:
+        path = line[3:] if len(line) > 3 else ""
+        if not path.startswith(prefix):
+            continue
+        clean = path.strip()
+        if clean not in allowed:
+            conflicts.append(line)
+    return conflicts
+
+
+def match_frontmatter_line(frontmatter: str, key: str) -> re.Match | None:
+    pattern = re.compile(
+        rf"^({re.escape(key)}:\s*)(\".*?\"|'.*?'|[^#\n]*)(.*)$",
+        flags=re.MULTILINE,
+    )
+    return pattern.search(frontmatter)
+
+
+def extract_scalar(frontmatter: str, key: str) -> str | None:
+    match = match_frontmatter_line(frontmatter, key)
+    if not match:
+        return None
+    raw_value = match.group(2).strip()
+    if raw_value.startswith('"') and raw_value.endswith('"'):
+        return raw_value[1:-1]
+    if raw_value.startswith("'") and raw_value.endswith("'"):
+        return raw_value[1:-1]
+    return raw_value.strip() or None
+
+
+def set_scalar(frontmatter: str, key: str, value: str) -> str:
+    """Replace or insert a scalar value while preserving trailing comments."""
+    match = match_frontmatter_line(frontmatter, key)
+    replacement_line = f'{key}: "{value}"'
+    if match:
+        prefix = match.group(1)
+        comment = match.group(3)
+        comment_suffix = f"{comment}" if comment else ""
+        return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
+
+    insertion = f"{replacement_line}\n"
+    history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
+    if history_match:
+        idx = history_match.start()
+        return frontmatter[:idx] + insertion + frontmatter[idx:]
+
+    if frontmatter and not frontmatter.endswith("\n"):
+        frontmatter += "\n"
+    return frontmatter + insertion
+
+
+def split_frontmatter(text: str) -> tuple[str, str, str]:
+    """Return (frontmatter, body, padding) while preserving spacing after frontmatter."""
+    normalized = text.replace("\r\n", "\n")
+    if not normalized.startswith("---\n"):
+        return "", normalized, ""
+
+    closing_idx = normalized.find("\n---", 4)
+    if closing_idx == -1:
+        return "", normalized, ""
+
+    front = normalized[4:closing_idx]
+    tail = normalized[closing_idx + 4 :]
+    padding = ""
+    while tail.startswith("\n"):
+        padding += "\n"
+        tail = tail[1:]
+    return front, tail, padding
+
+
+def build_document(frontmatter: str, body: str, padding: str) -> str:
+    frontmatter = frontmatter.rstrip("\n")
+    doc = f"---\n{frontmatter}\n---"
+    if padding or body:
+        doc += padding or "\n"
+    doc += body
+    if not doc.endswith("\n"):
+        doc += "\n"
+    return doc
+
+
+def append_activity_log(body: str, entry: str) -> str:
+    header = "## Activity Log"
+    if header not in body:
+        block = f"{header}\n\n{entry}\n"
+        if body and not body.endswith("\n\n"):
+            return body.rstrip() + "\n\n" + block
+        return body + "\n" + block if body else block
+
+    pattern = re.compile(r"(## Activity Log.*?)(?=\n## |\Z)", flags=re.DOTALL)
+    match = pattern.search(body)
+    if not match:
+        return body + ("\n" if not body.endswith("\n") else "") + entry + "\n"
+
+    section = match.group(1).rstrip()
+    if not section.endswith("\n"):
+        section += "\n"
+    section += f"{entry}\n"
+    return body[: match.start(1)] + section + body[match.end(1) :]
+
+
+def activity_entries(body: str) -> list[dict[str, str]]:
+    # Match both en-dash (–) and hyphen (-) as separators
+    # Agent names can contain hyphens (e.g., "cursor-agent", "claude-reviewer")
+    # Use \S+ to match non-whitespace including hyphens within the agent name
+    pattern = re.compile(
+        r"^\s*-\s*"
+        r"(?P<timestamp>[0-9T:-]+Z)\s+[–-]\s+"
+        r"(?P<agent>\S+(?:\s+\S+)*?)\s+[–-]\s+"
+        r"(?:shell_pid=(?P<shell>\S*)\s+[–-]\s+)?"
+        r"lane=(?P<lane>[a-z_]+)\s+[–-]\s+"
+        r"(?P<note>.*)$",
+        flags=re.MULTILINE,
+    )
+    entries: list[dict[str, str]] = []
+    for match in pattern.finditer(body):
+        entries.append(
+            {
+                "timestamp": match.group("timestamp").strip(),
+                "agent": match.group("agent").strip(),
+                "lane": match.group("lane").strip(),
+                "note": match.group("note").strip(),
+                "shell_pid": (match.group("shell") or "").strip(),
+            }
+        )
+    return entries
+
+
+@dataclass
+class WorkPackage:
+    feature: str
+    path: Path
+    current_lane: str
+    relative_subpath: Path
+    frontmatter: str
+    body: str
+    padding: str
+
+    @property
+    def work_package_id(self) -> str | None:
+        return extract_scalar(self.frontmatter, "work_package_id")
+
+    @property
+    def title(self) -> str | None:
+        return extract_scalar(self.frontmatter, "title")
+
+    @property
+    def assignee(self) -> str | None:
+        return extract_scalar(self.frontmatter, "assignee")
+
+    @property
+    def agent(self) -> str | None:
+        return extract_scalar(self.frontmatter, "agent")
+
+    @property
+    def shell_pid(self) -> str | None:
+        return extract_scalar(self.frontmatter, "shell_pid")
+
+    @property
+    def lane(self) -> str | None:
+        from specify_cli.status.lane_reader import get_wp_lane
+
+        # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
+        # feature_dir is the parent of the tasks/ directory
+        feature_dir = self.path.parent.parent
+        wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
+        return get_wp_lane(feature_dir, wp_id)
+
+
+def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
+    """Locate a work package by ID, supporting both legacy and new formats.
+
+    Always uses main repo's kitty-specs/ regardless of current directory.
+    Main branch is authoritative for planning artifacts.
+
+    Legacy format: WP files in tasks/{lane}/ subdirectories
+    New format: WP files in flat tasks/ directory with lane in frontmatter
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    # Always use main repo's kitty-specs - it's the source of truth
+    # This fixes the bug where worktree's stale kitty-specs/ would be used
+    main_root = get_main_repo_root(repo_root)
+    feature_path = main_root / "kitty-specs" / feature
+
+    tasks_root = feature_path / "tasks"
+    if not tasks_root.exists():
+        raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
+
+    # Use exact WP ID matching with word boundary to avoid WP04 matching WP04b
+    # Matches: WP04.md, WP04-something.md, WP04_something.md
+    # Does NOT match: WP04b.md, WP04b-something.md
+    wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
+
+    use_legacy = is_legacy_format(feature_path)
+    candidates = []
+
+    if use_legacy:
+        # Legacy format: search lane subdirectories
+        for lane_dir in tasks_root.iterdir():
+            if not lane_dir.is_dir():
+                continue
+            lane = lane_dir.name
+            for path in lane_dir.rglob("*.md"):
+                if wp_pattern.match(path.name):
+                    candidates.append((lane, path, lane_dir))
+    else:
+        # New format: search flat tasks/ directory
+        for path in tasks_root.glob("*.md"):
+            if path.name.lower() == "readme.md":
+                continue
+            if wp_pattern.match(path.name):
+                # Get lane from frontmatter
+                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+                candidates.append((lane, path, tasks_root))
+
+    if not candidates:
+        raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
+    if len(candidates) > 1:
+        joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
+        raise TaskCliError(f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}")
+
+    lane, path, base_dir = candidates[0]
+    text = path.read_text(encoding="utf-8-sig")
+    front, body, padding = split_frontmatter(text)
+    relative = path.relative_to(base_dir)
+    return WorkPackage(
+        feature=feature,
+        path=path,
+        current_lane=lane,
+        relative_subpath=relative,
+        frontmatter=front,
+        body=body,
+        padding=padding,
+    )
+
+
+def load_meta(meta_path: Path) -> dict:
+    if not meta_path.exists():
+        raise TaskCliError(f"Meta file not found at {meta_path}")
+    return json.loads(meta_path.read_text(encoding="utf-8-sig"))
+
+
+def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:  # noqa: ARG001
+    """Return canonical lane for a WP from the event log.
+
+    Reads exclusively from the canonical event log via ``get_wp_lane()``.
+    Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
+
+    Args:
+        wp_path: Path to the work package markdown file
+        warn_on_missing: Unused; retained for call-site compatibility
+
+    Returns:
+        Lane value from event log, or ``"uninitialized"`` when WP has no events.
+    """
+    # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
+    feature_dir = wp_path.parent.parent
+
+    text = wp_path.read_text(encoding="utf-8-sig")
+    frontmatter, _body, _padding = split_frontmatter(text)
+    wp_id = extract_scalar(frontmatter, "work_package_id")
+    if not wp_id:
+        stem = wp_path.stem
+        wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", stem, re.IGNORECASE)
+        wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+
+    from specify_cli.status.lane_reader import get_wp_lane
+
+    return get_wp_lane(feature_dir, wp_id)
+
+
+__all__ = [
+    "LANES",
+    "LANE_ALIASES",
+    "TIMESTAMP_FORMAT",
+    "TaskCliError",
+    "WorkPackage",
+    "append_activity_log",
+    "activity_entries",
+    "build_document",
+    "detect_conflicting_wp_status",
+    "ensure_lane",
+    "extract_scalar",
+    "find_repo_root",
+    "get_lane_from_frontmatter",
+    "git_status_lines",
+    "is_legacy_format",
+    "load_meta",
+    "locate_work_package",
+    "match_frontmatter_line",
+    "normalize_note",
+    "now_utc",
+    "run_git",
+    "set_scalar",
+    "split_frontmatter",
+]

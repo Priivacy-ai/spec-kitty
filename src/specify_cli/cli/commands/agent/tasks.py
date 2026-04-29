@@ -23,6 +23,7 @@ from specify_cli.sync.events import (
 
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, TransitionRequest
+from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
@@ -38,7 +39,7 @@ from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.core.utils import write_text_within_directory
-from specify_cli.workspace_context import get_normalized_wp, resolve_workspace_for_wp
+from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -54,7 +55,7 @@ def resolve_primary_branch(repo_root: Path) -> str:
     return _resolve(repo_root)
 
 
-from specify_cli.tasks_support import (
+from specify_cli.task_utils import (
     append_activity_log,
     build_document,
     ensure_lane,
@@ -183,9 +184,6 @@ _RUNTIME_STATE_DENY_LIST: tuple[str, ...] = (".spec-kitty/", ".kittify/")
 # (single policy — see ``specify_cli.status.preflight``), it must be filtered
 # from any preflight that bypasses ``.gitignore`` so the writer's update does
 # not self-block the next ``move-task`` transition.
-from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
-
-
 def _filter_runtime_state_paths(porcelain_output: str) -> str:
     """Strip lines whose path falls under spec-kitty's own runtime-state dirs.
 

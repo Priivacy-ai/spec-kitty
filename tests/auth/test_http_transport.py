@@ -144,7 +144,7 @@ def install_fake_refresh_flow(monkeypatch):
 @pytest.fixture
 def seeded_token_manager(monkeypatch, install_fake_refresh_flow):
     """Install a TokenManager with a pre-populated session as the process-wide factory target."""
-    import specify_cli.auth as auth_pkg
+    import specify_cli.auth.manager as auth_manager
 
     storage = FakeStorage(session=_make_session(access_token="access-v1"))
 
@@ -156,7 +156,7 @@ def seeded_token_manager(monkeypatch, install_fake_refresh_flow):
     tm = TokenManager(storage)
     tm.load_from_storage_sync()
 
-    monkeypatch.setattr(auth_pkg, "_tm", tm, raising=False)
+    monkeypatch.setattr(auth_manager, "_tm", tm, raising=True)
 
     yield tm
 
@@ -260,14 +260,14 @@ async def test_500_passes_through_without_retry(seeded_token_manager, install_fa
 @pytest.mark.asyncio
 async def test_not_authenticated_when_no_session(install_fake_refresh_flow, monkeypatch):
     """If TokenManager has no session, a request raises NotAuthenticatedError before any HTTP call."""
-    import specify_cli.auth as auth_pkg
+    import specify_cli.auth.manager as auth_manager
 
     reset_token_manager()
     from specify_cli.auth.token_manager import TokenManager
 
     tm = TokenManager(FakeStorage(session=None))
     tm.load_from_storage_sync()
-    monkeypatch.setattr(auth_pkg, "_tm", tm, raising=False)
+    monkeypatch.setattr(auth_manager, "_tm", tm, raising=True)
 
     try:
         with respx.mock(

@@ -254,9 +254,12 @@ class TestBuildPromptSafe:
     def test_build_prompt_safe_suppresses_stdout_noise(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.next.decision import _build_prompt_safe
 
+        prompt_path = tmp_path / "prompt.md"
+        prompt_path.write_text("# prompt\n", encoding="utf-8")
+
         def noisy_build_prompt(**_kwargs):
             print("noisy stdout")
-            return None, tmp_path / "prompt.md"
+            return None, prompt_path
 
         with patch("specify_cli.next.prompt_builder.build_prompt", side_effect=noisy_build_prompt):
             result = _build_prompt_safe(
@@ -269,7 +272,7 @@ class TestBuildPromptSafe:
                 mission_type="software-dev",
             )
 
-        assert result == str(tmp_path / "prompt.md")
+        assert result == str(prompt_path)
         captured = capsys.readouterr()
         assert captured.out == ""
         assert captured.err == ""

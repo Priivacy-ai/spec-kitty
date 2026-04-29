@@ -957,7 +957,7 @@ def append_history(
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
-    from specify_cli.tasks_support import (
+    from specify_cli.task_utils import (
         split_frontmatter,
         build_document,
         append_activity_log,

@@ -141,6 +141,15 @@ _SCAFFOLD_PLAN = """\
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 """
 
+_PLAN_WITH_ONLY_LANGUAGE = """\
+# Plan — Test Mission
+
+## Technical Context
+
+**Language/Version**: Python 3.11
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+"""
+
 
 def _commit_file(repo: Path, rel_path: str, message: str) -> None:
     _git(repo, "add", rel_path)
@@ -170,6 +179,12 @@ def test_is_substantive_accepts_populated_fr_row(tmp_path: Path) -> None:
 def test_is_substantive_rejects_placeholder_technical_context(tmp_path: Path) -> None:
     plan = tmp_path / "plan.md"
     plan.write_text(_SCAFFOLD_PLAN, encoding="utf-8")
+    assert is_substantive(plan, "plan") is False
+
+
+def test_is_substantive_rejects_language_without_peer_context(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.md"
+    plan.write_text(_PLAN_WITH_ONLY_LANGUAGE, encoding="utf-8")
     assert is_substantive(plan, "plan") is False
 
 

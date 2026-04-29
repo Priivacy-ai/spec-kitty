@@ -88,7 +88,7 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type")
     @patch("subprocess.run")
     @patch("specify_cli.core.git_ops.get_current_branch", return_value="kitty/mission-008-feature-lane-a")
-    @patch("specify_cli.workspace_context.load_context", return_value=None)
+    @patch("specify_cli.workspace.context.load_context", return_value=None)
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_target_branch", return_value="main")
     def test_softwaredev_uncommitted_worktree_blocks_review(
         self,
@@ -154,7 +154,7 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type")
     @patch("subprocess.run")
     @patch("specify_cli.core.git_ops.get_current_branch", return_value="kitty/mission-008-feature-lane-a")
-    @patch("specify_cli.workspace_context.load_context", return_value=None)
+    @patch("specify_cli.workspace.context.load_context", return_value=None)
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_target_branch", return_value="main")
     def test_softwaredev_no_commits_blocks_review(
         self,
