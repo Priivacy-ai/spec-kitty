@@ -16,8 +16,8 @@ subtasks:
 - T017
 - T018
 phase: Phase 2 - Charter CLI contract
-agent: claude
-shell_pid: '29706'
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "30920"
 history:
 - timestamp: '2026-04-28T20:35:00Z'
   lane: planned
@@ -194,3 +194,4 @@ spec-kitty agent action implement WP04 --agent <name>
 ## Activity Log
 
 - 2026-04-29T05:26:13Z – claude – shell_pid=29706 – lint extra added to e2e-cross-cutting; local repro: mypy strict executor test passes; no other job depends on [test]-only state
+- 2026-04-29T05:26:41Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=30920 – Started review via action command
