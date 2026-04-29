@@ -8,5 +8,7 @@
   "purpose_context": "Release PR #864 shipped the Charter epic, but current main still has Charter CLI --json envelope contract gaps (warning leakage on stdout, missing result/adapter/written_artifacts fields, dry-run paths derived from placeholder PROJECT_000), a weak prompt-file assertion in the golden-path E2E (#844), and a CI Quality e2e-cross-cutting failure caused by missing mypy in that job. This mission produces one PR against Priivacy-ai/spec-kitty:main that closes those contract truths, hardens the E2E, restores green CI, and verifies (not rewrites) the retrospective/path-traversal regression guards. Out of scope: #827 Tranche 3 external/plain-English coverage, #828 docs, #469 Phase 7.",
   "purpose_tldr": "Make the landed Charter product gate truthful and CI-green via JSON synthesis contract fixes, golden-path E2E prompt-file hardening, and CI mypy hygiene — one product-repo PR.",
   "slug": "charter-contract-cleanup-tranche-1-01KQATS4",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-29T05:21:27.186558+00:00"
 }

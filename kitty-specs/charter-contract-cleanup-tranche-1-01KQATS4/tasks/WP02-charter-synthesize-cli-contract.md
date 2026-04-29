@@ -12,7 +12,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-created_at: '2026-04-28T20:35:00Z'
+base_branch: kitty/mission-charter-contract-cleanup-tranche-1-01KQATS4
+base_commit: 44fb73f6824db9b7592ae63a1387f7374a8ae368
+created_at: '2026-04-29T05:21:28.141402+00:00'
 subtasks:
 - T005
 - T006
@@ -23,6 +25,7 @@ subtasks:
 - T011
 phase: Phase 2 - Charter CLI contract
 agent: claude
+shell_pid: '29183'
 history:
 - timestamp: '2026-04-28T20:35:00Z'
   lane: planned
