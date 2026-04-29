@@ -15,7 +15,8 @@ subtasks:
 - T005
 - T006
 phase: Phase 2 - Content Generation
-agent: claude
+agent: "claude:sonnet:researcher-robbie:implementer"
+shell_pid: "86978"
 history:
 - at: '2026-04-29T18:44:20Z'
   actor: system
@@ -228,3 +229,7 @@ If any match is found, fix it in the relevant page before proceeding to WP03.
 - `spec-kitty next` may produce incomplete pages if an agent skips steps — verify each page has real content, not stubs
 - CLI spot-check may reveal a flag name discrepancy — stop and investigate (NFR-001 is a hard gate)
 - `charter resynthesize` may not exist in 3.2.0a5 — if `--help` returns "No such command", document that in charter-commands.md and update the relevant how-to page
+
+## Activity Log
+
+- 2026-04-29T19:07:44Z – claude:sonnet:researcher-robbie:implementer – shell_pid=86978 – Started implementation via action command
