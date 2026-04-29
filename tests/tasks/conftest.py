@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ulid import ULID
@@ -13,12 +13,13 @@ from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
 
 
 def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
-    """Create a mission in-process, bypassing CLI subprocess overhead.
+    """Create a post-spec mission in-process, bypassing CLI subprocess overhead.
 
-    Replicates the essential file structure that ``agent mission create``
-    produces.  Suitable for use as **test setup** — not for testing the
-    create command itself.  Saves ~1 s per call by avoiding a full Python
-    subprocess startup.
+    Replicates the essential file structure downstream planning tests need
+    after the specify phase: spec.md is already populated, committed, and
+    substantive enough for setup-plan's entry gate. Suitable for use as
+    **test setup** — not for testing the create command itself. Saves ~1 s per
+    call by avoiding a full Python subprocess startup.
     """
     mission_id = str(ULID())
     human_slug = strip_numeric_prefix(slug)
@@ -32,9 +33,16 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
 
-    # spec.md
+    # spec.md: setup-plan requires this to be committed and substantive.
     (feature_dir / "spec.md").write_text(
-        f"# {slug.replace('-', ' ').title()}\n\nTODO: Add specification.\n",
+        f"""# {slug.replace('-', ' ').title()}
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | {slug.replace('-', ' ').title()} has a planned implementation path. | The planning workflow creates and commits a valid plan. | proposed |
+""",
         encoding="utf-8",
     )
 
