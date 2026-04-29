@@ -28,10 +28,11 @@ Before any WP runs, the following checks must all pass:
 
 ```bash
 git status --short --branch
-git pull --ff-only origin main
+git pull --ff-only
 uv run spec-kitty --version
 uv run spec-kitty agent mission check-prerequisites \
   --mission charter-end-user-docs-828-01KQCSYD --json
+gh pr view 885 --json state,headRefName,baseRefName
 ```
 
 ## Execution Entry Point
