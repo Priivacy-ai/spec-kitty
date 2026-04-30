@@ -22,7 +22,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "20876"
 history:
 - date: '2026-04-30'
   event: created
@@ -344,3 +345,7 @@ async def test_replay_spent_token_never_resubmitted(storage, in_memory_session, 
 | Spent token re-submitted | Retry call uses `repersisted` object reference; structurally impossible to pass `persisted` |
 | `_identity_matches` used for replay comparison | Use `refresh_token ==` only (not session_id); a 409 doesn't change session_id |
 | Token manager outcome switch needs update | It doesn't — `REFRESHED` and `LOCK_TIMEOUT_ERROR` are already handled |
+
+## Activity Log
+
+- 2026-04-30T13:33:30Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=20876 – Started implementation via action command
