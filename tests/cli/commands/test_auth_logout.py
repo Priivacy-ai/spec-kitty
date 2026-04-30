@@ -1,19 +1,21 @@
-"""Unit + CliRunner tests for ``spec-kitty auth logout`` (feature 080, WP06).
+"""Unit + CliRunner tests for ``spec-kitty auth logout`` (WP02).
 
-Covers the four acceptance paths from WP06:
+Covers the acceptance paths from WP02:
 
 - **Not logged in**: prints a friendly notice, exits 0.
-- **Happy path (server 200)**: calls the server, clears local session.
-- **Server failure (FR-014)**: server call fails (network error), local
-  session is STILL cleared.
-- **``--force``**: skips the server call entirely, clears local session.
+- **Happy path (REVOKED)**: RevokeFlow returns REVOKED, local cleanup runs.
+- **Server failure**: RevokeFlow returns SERVER_FAILURE, local cleanup still runs.
+- **Network error**: RevokeFlow returns NETWORK_ERROR, local cleanup still runs.
+- **No refresh token**: RevokeFlow returns NO_REFRESH_TOKEN, local cleanup still runs.
+- **Local cleanup failure**: clear_session raises, exits 1 with error message.
+- **``--force``**: skips the revoke call entirely, clears local session.
+- **Missing SAAS URL**: config error short-circuits revoke, local cleanup still runs.
 
 Every test drives the real Typer ``app`` from
 ``specify_cli.cli.commands.auth`` via :class:`typer.testing.CliRunner`
 (T063 audit requirement) and mocks ``SecureStorage.from_environment`` so
-no real auth store is touched. HTTP is mocked at the ``httpx.AsyncClient``
-seam because the logout command uses :mod:`httpx` directly rather than
-the (not-yet-landed) ``OAuthHttpClient`` transport from WP08.
+no real auth store is touched. The revoke call is mocked at the
+``RevokeFlow.revoke`` seam via AsyncMock.
 """
 
 from __future__ import annotations
@@ -21,11 +23,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, UTC
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import httpx
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.flows.revoke import RevokeOutcome
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
@@ -56,6 +58,7 @@ def _make_session(
     *,
     access_remaining_seconds: int = 3600,
     refresh_remaining_days: int = 89,
+    refresh_token: str = "rt_xyz",
 ) -> StoredSession:
     """Build a concrete StoredSession for logout tests.
 
@@ -71,7 +74,7 @@ def _make_session(
         teams=[Team(id="tm_acme", name="Acme", role="admin")],
         default_team_id="tm_acme",
         access_token="at_xyz",
-        refresh_token="rt_xyz",
+        refresh_token=refresh_token,
         session_id="sess_xyz",
         issued_at=now,
         access_token_expires_at=now + timedelta(seconds=access_remaining_seconds),
@@ -87,7 +90,7 @@ def _mock_storage(session: StoredSession | None):
     """Build a Mock SecureStorage that returns ``session`` on ``read()``.
 
     ``delete`` is a ``MagicMock`` so tests can assert call counts to
-    verify FR-014 (local credentials ARE cleared even on server failure).
+    verify FR-004 (local credentials ARE cleared even on server failure).
     """
     storage = Mock()
     storage.read.return_value = session
@@ -95,32 +98,6 @@ def _mock_storage(session: StoredSession | None):
     storage.delete = MagicMock()
     storage.backend_name = "file"
     return storage
-
-
-def _make_async_client_mock(post_side_effect):
-    """Build a mock for ``httpx.AsyncClient`` whose ``post`` is awaitable.
-
-    ``post_side_effect`` is either:
-
-    - an object to return from ``await client.post(...)``, or
-    - an Exception instance/class to raise from ``await client.post(...)``.
-
-    The async-context-manager protocol is satisfied via ``AsyncMock`` so
-    ``async with httpx.AsyncClient(...) as client:`` works as written.
-    """
-    async_client = MagicMock()
-    async_client.__aenter__ = AsyncMock(return_value=async_client)
-    async_client.__aexit__ = AsyncMock(return_value=None)
-
-    if isinstance(post_side_effect, BaseException) or (
-        isinstance(post_side_effect, type)
-        and issubclass(post_side_effect, BaseException)
-    ):
-        async_client.post = AsyncMock(side_effect=post_side_effect)
-    else:
-        async_client.post = AsyncMock(return_value=post_side_effect)
-
-    return async_client
 
 
 # ---------------------------------------------------------------------------
@@ -143,17 +120,12 @@ class TestAuthLogoutCommand:
 
         assert result.exit_code == 0, result.stdout
         assert "Not logged in" in result.stdout
-        # No server call should have happened -> no local delete either,
-        # because there was no session to clear in the first place.
+        # No server call or local delete since there was nothing to clear.
         storage.delete.assert_not_called()
 
-    def test_logout_success_server_200(self):
-        """Happy path: server returns 200, local cleanup runs."""
+    def test_logout_success_revoked(self):
+        """Happy path: RevokeFlow returns REVOKED, local cleanup runs."""
         storage = _mock_storage(_make_session())
-
-        response = MagicMock()
-        response.status_code = 200
-        async_client = _make_async_client_mock(response)
 
         with (
             patch(
@@ -161,37 +133,25 @@ class TestAuthLogoutCommand:
                 return_value=storage,
             ),
             patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                new_callable=AsyncMock,
+                return_value=RevokeOutcome.REVOKED,
             ),
         ):
             reset_token_manager()
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
+        assert "Server revocation confirmed" in result.stdout
         assert "Logged out" in result.stdout
-        # Server was called.
-        async_client.post.assert_awaited_once()
-        called_url = async_client.post.call_args.args[0]
-        assert called_url == "https://saas.test/api/v1/logout"
-        # Verify bearer token header — kwargs-based assertion.
-        headers = async_client.post.call_args.kwargs["headers"]
-        assert headers == {"Authorization": "Bearer at_xyz"}
-        # Verify NO body was sent (bearer-only endpoint contract).
-        assert "json" not in async_client.post.call_args.kwargs
-        assert "data" not in async_client.post.call_args.kwargs
-        assert "content" not in async_client.post.call_args.kwargs
-        # Local cleanup happened.
         storage.delete.assert_called_once()
         # Tokens must NOT leak into stdout.
         assert "at_xyz" not in result.stdout
         assert "rt_xyz" not in result.stdout
 
     def test_logout_server_failure_still_clears_local(self):
-        """FR-014: network error MUST NOT block local credential deletion."""
+        """FR-004: SERVER_FAILURE must NOT block local credential deletion."""
         storage = _mock_storage(_make_session())
-
-        async_client = _make_async_client_mock(httpx.RequestError("network down"))
 
         with (
             patch(
@@ -199,27 +159,25 @@ class TestAuthLogoutCommand:
                 return_value=storage,
             ),
             patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                new_callable=AsyncMock,
+                return_value=RevokeOutcome.SERVER_FAILURE,
             ),
         ):
             reset_token_manager()
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
-        # Warning printed.
-        assert "Server logout failed" in result.stdout
-        # Local cleanup still happened — THIS is the FR-014 assertion.
+        assert "not confirmed" in result.stdout
+        # Rich may wrap long lines; check the key phrase ignoring newlines.
+        assert "still" in result.stdout
+        assert "deleted" in result.stdout
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
 
-    def test_logout_server_500_still_clears_local(self):
-        """Server-side 5xx is downgraded to warning; local cleanup still runs."""
+    def test_logout_network_error_still_clears_local(self):
+        """FR-004: NETWORK_ERROR must NOT block local credential deletion."""
         storage = _mock_storage(_make_session())
-
-        response = MagicMock()
-        response.status_code = 500
-        async_client = _make_async_client_mock(response)
 
         with (
             patch(
@@ -227,25 +185,25 @@ class TestAuthLogoutCommand:
                 return_value=storage,
             ),
             patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                new_callable=AsyncMock,
+                return_value=RevokeOutcome.NETWORK_ERROR,
             ),
         ):
             reset_token_manager()
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
-        assert "HTTP 500" in result.stdout
+        assert "not confirmed" in result.stdout
+        # Rich may wrap long lines; check the key phrase ignoring newlines.
+        assert "still" in result.stdout
+        assert "deleted" in result.stdout
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
 
-    def test_logout_server_401_treated_as_already_invalid(self):
-        """401 means the session was already invalid server-side — still clean locally."""
+    def test_logout_no_refresh_token_still_clears_local(self):
+        """NO_REFRESH_TOKEN: revocation not attempted, local cleanup still runs."""
         storage = _mock_storage(_make_session())
-
-        response = MagicMock()
-        response.status_code = 401
-        async_client = _make_async_client_mock(response)
 
         with (
             patch(
@@ -253,27 +211,59 @@ class TestAuthLogoutCommand:
                 return_value=storage,
             ),
             patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                new_callable=AsyncMock,
+                return_value=RevokeOutcome.NO_REFRESH_TOKEN,
             ),
         ):
             reset_token_manager()
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
-        # Friendly warning — session was already invalid.
-        assert "already invalid" in result.stdout
+        assert "could not be attempted" in result.stdout
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
+
+    def test_logout_local_cleanup_failure_exits_1(self):
+        """clear_session raises -> error message, exit code 1.
+
+        TokenManager.clear_session() internally swallows storage exceptions
+        (by design), so we must patch clear_session on the TokenManager
+        instance directly to simulate a failure that reaches logout_impl.
+        """
+        storage = _mock_storage(_make_session())
+
+        with (
+            patch(
+                "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+                return_value=storage,
+            ),
+            patch(
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                new_callable=AsyncMock,
+                return_value=RevokeOutcome.REVOKED,
+            ),
+            patch(
+                "specify_cli.cli.commands._auth_logout.get_token_manager"
+            ) as mock_get_tm,
+        ):
+            mock_tm = MagicMock()
+            mock_tm.get_current_session.return_value = _make_session()
+            mock_tm.clear_session.side_effect = OSError("disk full")
+            mock_get_tm.return_value = mock_tm
+
+            result = runner.invoke(app, ["logout"])
+
+        assert result.exit_code == 1, result.stdout
+        assert "could not be deleted" in result.stdout
+        assert "OSError" in result.stdout
+        # "Logged out" must NOT appear when local cleanup fails.
+        assert "Logged out" not in result.stdout
 
     def test_logout_force_skips_server(self):
-        """``--force`` must skip the HTTP call and only delete locally."""
+        """``--force`` must skip the RevokeFlow call and only delete locally."""
         storage = _mock_storage(_make_session())
-
-        # Even though we patch AsyncClient, we expect it to NOT be called.
-        response = MagicMock()
-        response.status_code = 200
-        async_client = _make_async_client_mock(response)
+        revoke_mock = AsyncMock(return_value=RevokeOutcome.REVOKED)
 
         with (
             patch(
@@ -281,16 +271,16 @@ class TestAuthLogoutCommand:
                 return_value=storage,
             ),
             patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                revoke_mock,
             ),
         ):
             reset_token_manager()
             result = runner.invoke(app, ["logout", "--force"])
 
         assert result.exit_code == 0, result.stdout
-        # Server was NOT called.
-        async_client.post.assert_not_called()
+        # Revoke was NOT called.
+        revoke_mock.assert_not_called()
         # Force-skip banner printed.
         assert "Skipping server revocation" in result.stdout
         # Local cleanup still ran.
@@ -301,12 +291,7 @@ class TestAuthLogoutCommand:
         """Missing ``SPEC_KITTY_SAAS_URL`` must NOT block local cleanup."""
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         storage = _mock_storage(_make_session())
-
-        # Patch AsyncClient to a mock that would explode if called — we
-        # expect the config error to short-circuit before any HTTP attempt.
-        async_client = _make_async_client_mock(
-            httpx.RequestError("should not be called"),
-        )
+        revoke_mock = AsyncMock(return_value=RevokeOutcome.REVOKED)
 
         with (
             patch(
@@ -314,8 +299,8 @@ class TestAuthLogoutCommand:
                 return_value=storage,
             ),
             patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                revoke_mock,
             ),
         ):
             reset_token_manager()
@@ -324,33 +309,9 @@ class TestAuthLogoutCommand:
         assert result.exit_code == 0, result.stdout
         # Warning about config error.
         assert "config error" in result.stdout.lower()
-        # Server was NOT called (config error short-circuited).
-        async_client.post.assert_not_called()
+        # RevokeFlow was NOT called (config error short-circuited).
+        revoke_mock.assert_not_called()
         # Local cleanup still ran.
-        assert "Logged out" in result.stdout
-        storage.delete.assert_called_once()
-
-    def test_logout_generic_exception_still_clears_local(self):
-        """Unexpected exception during server call must not block local cleanup."""
-        storage = _mock_storage(_make_session())
-
-        async_client = _make_async_client_mock(RuntimeError("boom"))
-
-        with (
-            patch(
-                "specify_cli.auth.secure_storage.SecureStorage.from_environment",
-                return_value=storage,
-            ),
-            patch(
-                "specify_cli.cli.commands._auth_logout.httpx.AsyncClient",
-                return_value=async_client,
-            ),
-        ):
-            reset_token_manager()
-            result = runner.invoke(app, ["logout"])
-
-        assert result.exit_code == 0, result.stdout
-        assert "Server logout failed" in result.stdout
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
 

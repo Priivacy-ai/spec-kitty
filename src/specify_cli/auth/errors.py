@@ -32,6 +32,22 @@ class SessionInvalidError(TokenRefreshError):
     """Raised when SaaS reports the session has been invalidated server-side."""
 
 
+class RefreshReplayError(TokenRefreshError):
+    """Raised when the server returns 409 refresh_replay_benign_retry.
+
+    Indicates the presented refresh token was spent within the server's
+    reuse-grace window. The token family is NOT revoked. The retry decision
+    is made by run_refresh_transaction._run_locked, not the caller.
+    """
+
+    def __init__(self, retry_after: int = 0) -> None:
+        super().__init__(
+            f"Refresh token was just rotated by another process "
+            f"(retry_after={retry_after}s)."
+        )
+        self.retry_after: int = retry_after
+
+
 class NetworkError(AuthenticationError):
     """Raised on network-level failures (timeouts, DNS, connection refused)."""
 

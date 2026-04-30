@@ -1,8 +1,8 @@
 """E2E test for ``spec-kitty auth logout`` via CliRunner.
 
-Covers FR-013 (server-side session invalidation via ``POST /api/v1/logout``)
-and FR-014 (local cleanup is unconditional — server failure must not
-block local credential deletion).
+Covers FR-001/FR-002 (server-side session revocation via ``POST /oauth/revoke``
+with RFC 7009 form-encoded body) and FR-004 (local cleanup is unconditional —
+server failure must not block local credential deletion).
 
 Test isolation: imports :class:`CliRunner` and drives the real Typer app.
 Does not import any flow class directly.
@@ -67,24 +67,22 @@ class TestLogoutE2E:
         self,
         fake_storage: FakeSecureStorage,
     ) -> None:
-        """FR-013: normal logout POSTs ``/api/v1/logout`` and clears locally."""
+        """FR-001/FR-002: normal logout POSTs ``/oauth/revoke`` and clears locally."""
         fake_storage._session = _authenticated_session()
-        captured_posts: list[tuple[str, dict[str, str] | None]] = []
+        captured_posts: list[tuple[str, dict[str, Any]]] = []
 
-        async def _post(
-            url: str,
-            headers: dict[str, str] | None = None,
-            **kwargs: Any,
-        ) -> MagicMock:
-            captured_posts.append((url, headers))
-            return _mock_httpx_response(200, {})
+        async def _post(url: str, **kwargs: Any) -> MagicMock:
+            captured_posts.append((url, kwargs))
+            return _mock_httpx_response(200, {"revoked": True})
 
         with (
             patch(
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch(
+                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
+            ) as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -94,37 +92,43 @@ class TestLogoutE2E:
 
         assert result.exit_code == 0, result.stdout
         assert "Logged out" in result.stdout
+        assert "Server revocation confirmed" in result.stdout
 
-        # FR-013: the server-side logout endpoint was called.
+        # FR-001/FR-002: the server-side revoke endpoint was called.
         assert len(captured_posts) == 1
-        url, headers = captured_posts[0]
-        assert url.endswith("/api/v1/logout")
-        assert headers is not None
-        assert headers.get("Authorization") == "Bearer at_logout_fixture"
+        url, kwargs = captured_posts[0]
+        assert url.endswith("/oauth/revoke"), f"Expected /oauth/revoke, got {url}"
 
-        # FR-013 + FR-014: the local session was deleted.
+        # Body must be form-encoded with token and token_type_hint.
+        data = kwargs.get("data", {})
+        assert data.get("token") == "rt_logout_fixture"
+        assert data.get("token_type_hint") == "refresh_token"
+
+        # NO Authorization header on the revoke call.
+        headers = kwargs.get("headers", {})
+        assert "Authorization" not in headers
+        assert "authorization" not in headers
+
+        # FR-004: the local session was deleted.
         assert fake_storage.deletes == 1
         assert fake_storage.read() is None
 
         # Raw tokens must not leak into stdout.
         assert "at_logout_fixture" not in result.stdout
+        assert "rt_logout_fixture" not in result.stdout
 
     def test_logout_server_failure_still_clears_local(
         self,
         fake_storage: FakeSecureStorage,
     ) -> None:
-        """FR-014: server failure must not block local credential deletion.
+        """FR-004: server failure must not block local credential deletion.
 
-        Simulates a network error during the ``/api/v1/logout`` call and
+        Simulates a network error during the ``/oauth/revoke`` call and
         asserts that local cleanup still happened.
         """
         fake_storage._session = _authenticated_session()
 
-        async def _post(
-            url: str,
-            headers: dict[str, str] | None = None,
-            **kwargs: Any,
-        ) -> MagicMock:
+        async def _post(url: str, **kwargs: Any) -> MagicMock:
             raise httpx.ConnectError("DNS failure")
 
         with (
@@ -132,7 +136,9 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch(
+                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
+            ) as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -141,9 +147,10 @@ class TestLogoutE2E:
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
-        # The FR-014 path emits a yellow warning about the server failure
+        # The FR-004 path emits a yellow warning about the server failure
         # AND still runs local cleanup. Both must surface.
         assert "Logged out" in result.stdout
+        assert "not confirmed" in result.stdout
         assert fake_storage.deletes == 1
         assert fake_storage.read() is None
 
@@ -151,14 +158,10 @@ class TestLogoutE2E:
         self,
         fake_storage: FakeSecureStorage,
     ) -> None:
-        """FR-014: HTTP 5xx must not block local cleanup either."""
+        """FR-004: HTTP 5xx must not block local cleanup either."""
         fake_storage._session = _authenticated_session()
 
-        async def _post(
-            url: str,
-            headers: dict[str, str] | None = None,
-            **kwargs: Any,
-        ) -> MagicMock:
+        async def _post(url: str, **kwargs: Any) -> MagicMock:
             return _mock_httpx_response(500, {"error": "internal"})
 
         with (
@@ -166,7 +169,9 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch(
+                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
+            ) as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -176,6 +181,7 @@ class TestLogoutE2E:
 
         assert result.exit_code == 0, result.stdout
         assert "Logged out" in result.stdout
+        assert "not confirmed" in result.stdout
         assert fake_storage.deletes == 1
 
     def test_logout_force_skips_server_call(
@@ -191,14 +197,16 @@ class TestLogoutE2E:
 
         async def _post(url: str, **kwargs: Any) -> MagicMock:
             post_calls.append(url)
-            return _mock_httpx_response(200, {})
+            return _mock_httpx_response(200, {"revoked": True})
 
         with (
             patch(
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch(
+                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
+            ) as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -208,7 +216,7 @@ class TestLogoutE2E:
 
         assert result.exit_code == 0, result.stdout
         assert "Logged out" in result.stdout
-        # FR-014 force path: NO server call was made.
+        # FR-004 force path: NO server call was made.
         assert post_calls == []
         assert fake_storage.deletes == 1
 
@@ -239,14 +247,16 @@ class TestLogoutE2E:
         fake_storage._session = _authenticated_session()
 
         async def _post(url: str, **kwargs: Any) -> MagicMock:
-            return _mock_httpx_response(200, {})
+            return _mock_httpx_response(200, {"revoked": True})
 
         with (
             patch(
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch(
+                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
+            ) as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)

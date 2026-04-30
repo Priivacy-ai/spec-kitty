@@ -117,6 +117,11 @@ def doctor(
             "Age (seconds) above which the refresh lock is considered stuck."
         ),
     ),
+    server: bool = typer.Option(
+        False,
+        "--server",
+        help="Check live server session status (makes outbound call).",
+    ),
 ) -> None:
     """Diagnose CLI auth and sync-daemon state. Default invocation is read-only."""
     from specify_cli.cli.commands._auth_doctor import doctor_impl
@@ -127,6 +132,7 @@ def doctor(
             reset=reset,
             unstick_lock=unstick_lock,
             stuck_threshold=stuck_threshold,
+            server=server,
         )
     except Exception as exc:  # noqa: BLE001 — we want to surface every failure
         console.print(f"[red]Internal error during doctor: {exc}[/red]")

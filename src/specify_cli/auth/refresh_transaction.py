@@ -46,7 +46,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..core.file_lock import LockAcquireTimeout, MachineFileLock
-from .errors import RefreshTokenExpiredError, SessionInvalidError
+from .errors import RefreshReplayError, RefreshTokenExpiredError, SessionInvalidError
 from .secure_storage import SecureStorage
 from .session import StoredSession
 
@@ -347,6 +347,61 @@ async def _run_locked(
         return RefreshResult(
             outcome=RefreshOutcome.STALE_REJECTION_PRESERVED,
             session=repersisted,
+            network_call_made=True,
+        )
+
+    except RefreshReplayError:
+        # Server says the presented token was just spent (benign network race).
+        # Re-read persisted session and retry once if a newer token is available.
+        repersisted = storage.read()
+
+        if repersisted is None:
+            # Session cleared concurrently; surface as retryable.
+            log.warning("409 replay: session cleared concurrently; surfacing as LOCK_TIMEOUT_ERROR")
+            return RefreshResult(
+                outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
+                session=in_memory_session,
+                network_call_made=True,
+            )
+
+        if repersisted.refresh_token == persisted.refresh_token:
+            # Persisted token matches the spent one — no newer token in storage yet.
+            # Do NOT retry; surfacing LOCK_TIMEOUT_ERROR signals "please retry later",
+            # which is the correct caller behavior. This is NOT machine lock contention;
+            # the log below distinguishes it from actual _run_locked timeout cases.
+            log.warning(
+                "409 replay: no newer token in storage yet; "
+                "surfacing LOCK_TIMEOUT_ERROR to trigger caller retry. "
+                "This is a benign replay outcome, not lock contention."
+            )
+            return RefreshResult(
+                outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
+                session=repersisted,
+                network_call_made=True,
+            )
+
+        # Persisted token differs from spent — another process already rotated it.
+        # Retry ONCE with the newer token. CRITICAL: never use `persisted` here.
+        try:
+            updated = await asyncio.wait_for(
+                refresh_flow.refresh(repersisted), timeout=max_hold_s
+            )
+        except Exception:
+            # Catch all failures on the second attempt: TokenRefreshError and
+            # subclasses (expired, session-invalid, another replay), asyncio
+            # TimeoutError, httpx network errors, and anything else.
+            # Any second failure surfaces as LOCK_TIMEOUT_ERROR — no third attempt.
+            log.warning("409 replay: second refresh attempt also failed; surfacing LOCK_TIMEOUT_ERROR")
+            return RefreshResult(
+                outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
+                session=repersisted,
+                network_call_made=True,
+            )
+
+        storage.write(updated)
+        return RefreshResult(
+            outcome=RefreshOutcome.REFRESHED,
+            session=updated,
             network_call_made=True,
         )
 

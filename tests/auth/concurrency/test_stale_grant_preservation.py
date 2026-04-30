@@ -33,10 +33,15 @@ import sys
 import types
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
-from specify_cli.auth.errors import RefreshTokenExpiredError
+from specify_cli.auth.errors import RefreshReplayError, RefreshTokenExpiredError
+from specify_cli.auth.refresh_transaction import (
+    RefreshOutcome,
+    run_refresh_transaction,
+)
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
@@ -303,3 +308,260 @@ async def test_current_rejection_clears_with_message(
     ]
     assert len(outcomes) == 1
     assert "current_rejection_cleared" in outcomes[0]
+
+
+# ---------------------------------------------------------------------------
+# T013 — RefreshReplayError handler tests in _run_locked (WP03)
+# ---------------------------------------------------------------------------
+
+
+def _make_replay_session(
+    *,
+    refresh_token: str,
+    access_token: str = "at_v1",
+    session_id: str = "sess_replay",
+) -> StoredSession:
+    """Build a StoredSession for replay tests."""
+    now = datetime.now(UTC)
+    return StoredSession(
+        user_id="user_replay",
+        email="replay@example.com",
+        name="Replay User",
+        teams=[Team(id="t-replay", name="T", role="owner")],
+        default_team_id="t-replay",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        session_id=session_id,
+        issued_at=now - timedelta(seconds=900),
+        access_token_expires_at=now - timedelta(seconds=1),  # expired
+        refresh_token_expires_at=now + timedelta(days=30),
+        scope="openid offline_access",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
+
+
+def _make_refreshed_session(base: StoredSession, *, refresh_token: str, access_token: str) -> StoredSession:
+    """Build a refreshed StoredSession with rotated tokens."""
+    now = datetime.now(UTC)
+    return StoredSession(
+        user_id=base.user_id,
+        email=base.email,
+        name=base.name,
+        teams=list(base.teams),
+        default_team_id=base.default_team_id,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        session_id=base.session_id,
+        issued_at=now,
+        access_token_expires_at=now + timedelta(seconds=900),
+        refresh_token_expires_at=base.refresh_token_expires_at,
+        scope=base.scope,
+        storage_backend=base.storage_backend,
+        last_used_at=now,
+        auth_method=base.auth_method,
+    )
+
+
+@pytest.mark.asyncio
+async def test_replay_newer_persisted_retries_and_refreshes(
+    auth_store_root: Path,
+) -> None:
+    """
+    Scenario: flow.refresh(persisted) raises RefreshReplayError.
+    Persisted session has a different (newer) refresh_token.
+    Expected: _run_locked retries with repersisted; returns REFRESHED.
+    Verify: mock_flow.refresh was called with repersisted, NOT with persisted.
+    """
+    # Initial persisted session (the "spent" token)
+    persisted = _make_replay_session(refresh_token="spent_token")
+    storage = FileFallbackStorage(base_dir=auth_store_root)
+    storage.write(persisted)
+
+    # The repersisted session (newer token another process already wrote)
+    repersisted = _make_replay_session(refresh_token="fresh_token")
+
+    # The result of a successful second refresh
+    refreshed = _make_refreshed_session(repersisted, refresh_token="rotated_v2", access_token="at_v2")
+
+    call_count = 0
+
+    class _MockFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call: update storage to simulate another process having rotated
+                storage.write(repersisted)
+                raise RefreshReplayError(retry_after=0)
+            # Second call (with repersisted): succeed
+            assert session.refresh_token == "fresh_token", (
+                f"Second call must use repersisted token, got {session.refresh_token!r}"
+            )
+            return refreshed
+
+    result = await run_refresh_transaction(
+        storage=storage,
+        in_memory_session=persisted,
+        refresh_flow=_MockFlow(),  # type: ignore[arg-type]
+        lock_path=auth_store_root / "replay_test.lock",
+        max_hold_s=5.0,
+    )
+
+    assert result.outcome == RefreshOutcome.REFRESHED
+    assert result.session is not None
+    assert result.session.refresh_token == "rotated_v2"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_replay_same_token_returns_lock_timeout(
+    auth_store_root: Path,
+) -> None:
+    """
+    Scenario: flow.refresh(persisted) raises RefreshReplayError.
+    Persisted session has the SAME refresh_token as persisted.
+    Expected: returns LOCK_TIMEOUT_ERROR; mock_flow.refresh called exactly once.
+    """
+    persisted = _make_replay_session(refresh_token="same_token")
+    storage = FileFallbackStorage(base_dir=auth_store_root)
+    storage.write(persisted)
+
+    call_count = 0
+
+    class _MockFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            nonlocal call_count
+            call_count += 1
+            # Storage still has the same token (no rotation happened yet)
+            raise RefreshReplayError(retry_after=0)
+
+    result = await run_refresh_transaction(
+        storage=storage,
+        in_memory_session=persisted,
+        refresh_flow=_MockFlow(),  # type: ignore[arg-type]
+        lock_path=auth_store_root / "replay_same.lock",
+        max_hold_s=5.0,
+    )
+
+    assert result.outcome == RefreshOutcome.LOCK_TIMEOUT_ERROR
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_replay_none_persisted_returns_lock_timeout(
+    auth_store_root: Path,
+) -> None:
+    """
+    Scenario: flow.refresh(persisted) raises RefreshReplayError.
+    storage.read() returns None (session cleared concurrently).
+    Expected: returns LOCK_TIMEOUT_ERROR.
+    """
+    persisted = _make_replay_session(refresh_token="some_token")
+    storage = FileFallbackStorage(base_dir=auth_store_root)
+    storage.write(persisted)
+
+    class _MockFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            # Clear storage to simulate concurrent logout
+            storage.delete()
+            raise RefreshReplayError(retry_after=0)
+
+    result = await run_refresh_transaction(
+        storage=storage,
+        in_memory_session=persisted,
+        refresh_flow=_MockFlow(),  # type: ignore[arg-type]
+        lock_path=auth_store_root / "replay_none.lock",
+        max_hold_s=5.0,
+    )
+
+    assert result.outcome == RefreshOutcome.LOCK_TIMEOUT_ERROR
+
+
+@pytest.mark.asyncio
+async def test_replay_retry_also_fails_returns_lock_timeout(
+    auth_store_root: Path,
+) -> None:
+    """
+    Scenario: first call raises RefreshReplayError; second call also raises RefreshReplayError.
+    Expected: returns LOCK_TIMEOUT_ERROR; no third call.
+    Verify no infinite loop: mock_flow.refresh.call_count == 2.
+    """
+    persisted = _make_replay_session(refresh_token="spent_token")
+    repersisted = _make_replay_session(refresh_token="fresh_token")
+    storage = FileFallbackStorage(base_dir=auth_store_root)
+    storage.write(persisted)
+
+    call_count = 0
+
+    class _MockFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call: update storage with newer token, then replay
+                storage.write(repersisted)
+                raise RefreshReplayError(retry_after=0)
+            # Second call: also replay — no third attempt allowed
+            raise RefreshReplayError(retry_after=0)
+
+    result = await run_refresh_transaction(
+        storage=storage,
+        in_memory_session=persisted,
+        refresh_flow=_MockFlow(),  # type: ignore[arg-type]
+        lock_path=auth_store_root / "replay_double.lock",
+        max_hold_s=5.0,
+    )
+
+    assert result.outcome == RefreshOutcome.LOCK_TIMEOUT_ERROR
+    assert call_count == 2, f"Expected exactly 2 calls, got {call_count}"
+
+
+@pytest.mark.asyncio
+async def test_replay_spent_token_never_resubmitted(
+    auth_store_root: Path,
+) -> None:
+    """
+    Critical invariant test: after a 409, the retry MUST NOT use persisted.refresh_token.
+    Arrange: persisted.refresh_token = "spent"; repersisted.refresh_token = "fresh".
+    Assert: the second refresh call received a session with refresh_token="fresh".
+    Assert: no call ever received refresh_token="spent" after the 409.
+    """
+    persisted = _make_replay_session(refresh_token="spent")
+    repersisted = _make_replay_session(refresh_token="fresh")
+    refreshed = _make_refreshed_session(repersisted, refresh_token="rotated", access_token="at_rotated")
+    storage = FileFallbackStorage(base_dir=auth_store_root)
+    storage.write(persisted)
+
+    calls: list[str] = []  # Record the refresh_token used in each call
+
+    class _MockFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            calls.append(session.refresh_token)
+            if len(calls) == 1:
+                # First call: simulate another process already rotated
+                storage.write(repersisted)
+                raise RefreshReplayError(retry_after=0)
+            return refreshed
+
+    result = await run_refresh_transaction(
+        storage=storage,
+        in_memory_session=persisted,
+        refresh_flow=_MockFlow(),  # type: ignore[arg-type]
+        lock_path=auth_store_root / "replay_spent.lock",
+        max_hold_s=5.0,
+    )
+
+    assert result.outcome == RefreshOutcome.REFRESHED
+
+    # The first call used the persisted (spent) token — that's expected
+    assert calls[0] == "spent"
+    # The second call MUST use the fresh (repersisted) token — NEVER the spent one
+    assert calls[1] == "fresh", (
+        f"Second call must use repersisted token 'fresh', got {calls[1]!r}"
+    )
+    # No call after the 409 used the spent token
+    assert "spent" not in calls[1:], (
+        "Spent token was re-submitted after the 409 replay"
+    )

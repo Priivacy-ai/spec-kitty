@@ -182,6 +182,14 @@ def test_no_hardcoded_90_days_in_session_module():
     assert "timedelta(days=90)" not in text
 
 
+def test_from_dict_backward_compat_no_generation():
+    """StoredSession.from_dict must not raise KeyError when 'generation' is absent (legacy sessions)."""
+    d = _make_session(refresh_token_expires_at=None).to_dict()
+    del d["generation"]
+    session = StoredSession.from_dict(d)
+    assert session.generation is None
+
+
 def test_session_with_empty_teams_list():
     """Sessions must handle the edge case where the user belongs to no team."""
     now = _now()
