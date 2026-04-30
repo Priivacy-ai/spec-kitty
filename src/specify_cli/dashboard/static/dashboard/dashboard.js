@@ -1189,13 +1189,15 @@ function updateFeatureList(features, activeFeatureId = null) {
             currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
         }
 
-        select.replaceChildren(...features.map(f => {
+        const options = document.createDocumentFragment();
+        features.forEach(f => {
             const option = document.createElement('option');
             option.value = f.id;
             option.textContent = getFeatureDisplayName(f);
             option.selected = f.id === currentFeature;
-            return option;
-        }));
+            options.appendChild(option);
+        });
+        select.replaceChildren(options);
         select.value = currentFeature;
     }
 
