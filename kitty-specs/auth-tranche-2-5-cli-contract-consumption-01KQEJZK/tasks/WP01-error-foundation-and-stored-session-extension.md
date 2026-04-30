@@ -8,12 +8,16 @@ requirement_refs:
 planning_base_branch: auth-tranche-2-5-cli-contract-consumption
 merge_target_branch: auth-tranche-2-5-cli-contract-consumption
 branch_strategy: Planning artifacts for this feature were generated on auth-tranche-2-5-cli-contract-consumption. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into auth-tranche-2-5-cli-contract-consumption unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-auth-tranche-2-5-cli-contract-consumption-01KQEJZK
+base_commit: bc3d205cc57f7d50786b83c99b1a5bb1e15a7b1c
+created_at: '2026-04-30T12:49:18.179828+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
 agent: claude
+shell_pid: '88259'
 history:
 - date: '2026-04-30'
   event: created
