@@ -10,10 +10,12 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
+from charter.synthesizer.synthesize_pipeline import canonical_yaml
 from specify_cli.cli.commands import charter_bundle
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
@@ -84,16 +86,15 @@ def _add_synthesis_manifest(
     artifact_rel: str,
     content: str,
     corrupt_hash: bool = False,
+    corrupt_manifest_hash: bool = False,
 ) -> Path:
     """Write synthesis-manifest.yaml referencing one artifact.
 
     Writes a valid SynthesisManifest YAML so load_yaml() succeeds.
     When corrupt_hash=True the stored content_hash doesn't match on-disk bytes,
     causing verify() to raise ManifestIntegrityError (tests FR-003).
-
-    NOTE: verify() checks per-artifact content_hash only. The manifest self-hash
-    field (manifest_hash) is NOT currently verified by validate_synthesis_state().
-    This helper tests the per-artifact content_hash mismatch path only.
+    When corrupt_manifest_hash=True the manifest_hash self-hash is wrong,
+    causing verify_manifest_hash() to raise ValueError.
     """
     artifact_path = Path(artifact_rel)
     name = artifact_path.name
@@ -114,8 +115,29 @@ def _add_synthesis_manifest(
     provenance_rel = f".kittify/charter/provenance/{kind}-{slug}.yaml"
     real_hash = hashlib.sha256(content.encode()).hexdigest()
     stored_hash = "deadbeef" * 8 if corrupt_hash else real_hash
-    # manifest_hash must be 64 hex chars; verify() does not check it.
-    dummy_manifest_hash = "c" * 64
+
+    # Compute the real manifest_hash from the canonical YAML of all non-hash fields
+    # (mirrors SynthesisManifest.model_dump(mode="python") minus manifest_hash).
+    data_without_hash: dict[str, Any] = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2026-04-30T00:00:00+00:00",
+        "run_id": "01HTEST00000000000000TEST01",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [
+            {
+                "kind": kind,
+                "slug": slug,
+                "path": full_artifact_rel,
+                "provenance_path": provenance_rel,
+                "content_hash": stored_hash,
+            }
+        ],
+    }
+    real_manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = "e" * 64 if corrupt_manifest_hash else real_manifest_hash
 
     manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -129,7 +151,8 @@ def _add_synthesis_manifest(
         f"  provenance_path: {provenance_rel}\n"
         f"  slug: {slug}\n"
         f"created_at: '2026-04-30T00:00:00+00:00'\n"
-        f"manifest_hash: {dummy_manifest_hash}\n"
+        f"manifest_hash: {manifest_hash}\n"
+        f"mission_id: null\n"
         f"run_id: '01HTEST00000000000000TEST01'\n"
         f"schema_version: '2'\n"
         f"synthesizer_version: 3.2.0a5\n",
@@ -545,3 +568,38 @@ def test_validate_passes_complete_v2_bundle(compliant_repo: Path) -> None:
     assert ss["passed"] is True
     assert ss["errors"] == []
     assert payload["errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# T014 — RISK-2 fix: manifest self-hash mismatch surfaces as error
+# ---------------------------------------------------------------------------
+
+
+def test_validate_fails_on_manifest_self_hash_mismatch(compliant_repo: Path) -> None:
+    """Manifest self-hash (manifest_hash field) mismatch must fail validation.
+
+    Exercises the verify_manifest_hash() call added to _check_manifest_integrity()
+    by the RISK-2 post-mission remediation. A valid per-artifact content_hash
+    but a tampered manifest_hash field must produce a synthesis_state error.
+    """
+    content = "# self-hash test directive\n"
+    _add_doctrine_artifact(
+        compliant_repo, "directives/006-selfhash.directive.yaml", content
+    )
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="selfhash")
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/006-selfhash.directive.yaml",
+        content=content,
+        corrupt_manifest_hash=True,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is False
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    assert any("manifest" in e.lower() for e in ss["errors"]), ss["errors"]
+    assert any("synthesis_state:" in e for e in payload["errors"]), payload["errors"]

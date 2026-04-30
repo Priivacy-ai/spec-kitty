@@ -337,7 +337,7 @@ def validate(
     # FR-009: Block reads of incompatible bundles before any structure checks.
     charter_dir = canonical_root / ".kittify" / "charter"
     if (charter_dir / "metadata.yaml").exists():
-        _assert_bundle_compatible_bundle(charter_dir, console)
+        _assert_bundle_compatible_bundle(charter_dir, err_console if json_output else console)
 
     manifest = CANONICAL_MANIFEST
 

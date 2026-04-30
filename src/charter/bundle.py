@@ -249,7 +249,7 @@ def _check_provenance_have_artifacts(
 
 
 def _check_manifest_integrity(repo_root: Path, result: BundleValidationResult) -> None:
-    """Step 3: verify synthesis manifest content hashes if manifest is present."""
+    """Step 3: verify synthesis manifest content hashes and self-hash if present."""
     manifest_path = repo_root / SYNTHESIS_MANIFEST_PATH
     if not manifest_path.exists():
         return
@@ -257,14 +257,20 @@ def _check_manifest_integrity(repo_root: Path, result: BundleValidationResult) -
         from .synthesizer.manifest import (  # noqa: PLC0415
             load_yaml as load_manifest,
             verify as verify_manifest,
+            verify_manifest_hash,
         )
         manifest = load_manifest(manifest_path)
-        try:
-            verify_manifest(manifest, repo_root)
-        except Exception as exc:
-            result.errors.append(f"Synthesis manifest integrity check failed: {exc}")
     except Exception as exc:
         result.errors.append(f"Could not load synthesis manifest: {exc}")
+        return
+    try:
+        verify_manifest(manifest, repo_root)
+    except Exception as exc:
+        result.errors.append(f"Synthesis manifest integrity check failed: {exc}")
+    try:
+        verify_manifest_hash(manifest)
+    except Exception as exc:
+        result.errors.append(f"Synthesis manifest self-hash mismatch: {exc}")
 
 
 def _kind_and_slug_from_artifact(path: Path) -> tuple[str | None, str | None]:

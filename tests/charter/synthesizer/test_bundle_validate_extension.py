@@ -408,3 +408,54 @@ def test_find_artifact_returns_none_for_unknown_kind(tmp_path: Path) -> None:
     doctrine_root.mkdir(parents=True)
 
     assert _find_artifact(doctrine_root, "unknown", "slug") is None
+
+
+# ---------------------------------------------------------------------------
+# RISK-2 remediation: manifest self-hash verification
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
+    """A tampered manifest_hash field produces a structured self-hash error.
+
+    Exercises verify_manifest_hash() wired into _check_manifest_integrity().
+    Valid per-artifact content_hash + corrupt manifest_hash must fail.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    body = _tactic_body("selfhash-tactic")
+    content_hash = hashlib.sha256(body).hexdigest()
+    _write_artifact(repo, "tactic", "selfhash-tactic", "selfhash-tactic.tactic.yaml", body)
+    _write_provenance(
+        repo, "tactic", "selfhash-tactic",
+        _prov_yaml("tactic", "selfhash-tactic", content_hash),
+    )
+
+    guard = PathGuard(repo, extra_allowed_prefixes=[repo])
+    manifest = _make_v2_manifest(
+        artifacts=[
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="selfhash-tactic",
+                path=".kittify/doctrine/tactics/selfhash-tactic.tactic.yaml",
+                provenance_path=".kittify/charter/provenance/tactic-selfhash-tactic.yaml",
+                content_hash=content_hash,
+            )
+        ],
+    )
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    dump_manifest(manifest, manifest_path, guard)
+
+    # Corrupt the manifest_hash field on disk (tampered manifest simulation).
+    text = manifest_path.read_text(encoding="utf-8")
+    manifest_path.write_text(text.replace(manifest.manifest_hash, "0" * 64), encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any(
+        "manifest" in e.lower() or "self-hash" in e.lower() or "mismatch" in e.lower()
+        for e in result.errors
+    ), result.errors
