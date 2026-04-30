@@ -20,7 +20,7 @@
   href: multi-agent-orchestration.md
 - name: Runtime Loop
   href: runtime-loop.md
-- name: Understanding Charter: Synthesis, DRG, and Governed Context
+- name: "Understanding Charter: Synthesis, DRG, and Governed Context"
   href: charter-synthesis-drg.md
 - name: Understanding Governed Profile Invocation
   href: governed-profile-invocation.md

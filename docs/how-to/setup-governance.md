@@ -260,17 +260,20 @@ If you edit `charter.md` but forget to sync, agents will work with outdated poli
 Set up governance for a new project from scratch:
 
 ```bash
-# 1. Run the interview
-spec-kitty charter interview \
+# 1. Create the Spec Kitty project scaffold
+uv run spec-kitty init --ai claude --non-interactive
+
+# 2. Run the interview
+uv run spec-kitty charter interview \
   --profile comprehensive
 
-# 2. Generate charter and extracted config
-spec-kitty charter generate --from-interview --json
+# 3. Generate charter and extracted config
+uv run spec-kitty charter generate --from-interview --json
 
-# 3. Verify everything is in sync
-spec-kitty charter status --json
+# 4. Verify everything is in sync
+uv run spec-kitty charter status --json
 
-# 4. Start working -- governance context loads automatically
+# 5. Start working -- governance context loads automatically
 uv run spec-kitty specify "Build user authentication module"
 ```
 

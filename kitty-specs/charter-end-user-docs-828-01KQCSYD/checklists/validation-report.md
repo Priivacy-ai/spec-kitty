@@ -117,44 +117,55 @@ The `accept` step in the runtime yaml is administrative and is intentionally omi
 
 **Result**: PASS
 
-**Temp dir**: `/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.oJonzxwiby`
+**Temp dir**: `/tmp/spec-kitty-docs-tutorial-iOe23F`
+
+**Command surface**: used `uv --project /Users/robert/spec-kitty-dev/spec-kitty-docs-pages-fix-20260430 run spec-kitty ...` from the temp project so the source checkout was not used as the command working directory.
 
 **Commands run**:
 ```bash
-mkdir my-test-project && cd my-test-project
 git init
 git config user.email "test@test.com"
 git config user.name "Test"
-uv run spec-kitty --version
-# Output: spec-kitty-cli version 3.2.0a5
+uv --project "$REPO" run spec-kitty init --ai claude --non-interactive
+uv --project "$REPO" run spec-kitty charter interview --profile minimal --defaults --json
+uv --project "$REPO" run spec-kitty charter generate --from-interview --json
+uv --project "$REPO" run spec-kitty charter lint
+uv --project "$REPO" run spec-kitty charter bundle validate --json
+uv --project "$REPO" run spec-kitty charter status --json
+uv --project "$REPO" run spec-kitty charter synthesize --dry-run --json
+uv --project "$REPO" run spec-kitty charter synthesize --json
+uv --project "$REPO" run spec-kitty charter status --json
+uv --project "$REPO" run spec-kitty specify my-first-feature --json
+MISSION_SLUG="$(parse mission_slug from specify JSON)"
+uv --project "$REPO" run spec-kitty next --agent claude --mission "$MISSION_SLUG" --json
+uv --project "$REPO" run spec-kitty next --agent claude --mission "$MISSION_SLUG" --result success --json
+uv --project "$REPO" run spec-kitty retrospect summary --json
 ```
 
-**CLI output**: `spec-kitty-cli version 3.2.0a5` — CLI accessible and functional from isolated temp directory.
+**Evidence**:
+- `charter bundle validate --json` returned `result: success` and `bundle_compliant: true`.
+- `charter synthesize --dry-run --json` returned `result: dry_run`, `adapter.id: fresh-seed`, and `written_artifacts[0].path: .kittify/doctrine/PROVENANCE.md`.
+- `charter synthesize --json` returned `result: success` and wrote `.kittify/doctrine/PROVENANCE.md`.
+- `specify my-first-feature --json` returned `mission_slug: my-first-feature-01KQEE76`.
+- `next --agent claude --mission my-first-feature-01KQEE76 --json` returned `mission_type: software-dev`, `mission_state: not_started`, and `preview_step: discovery`.
+- `next --agent claude --mission my-first-feature-01KQEE76 --result success --json` returned `kind: step`, `action: research`, `step_id: discovery`, and a non-empty `prompt_file`.
+- `retrospect summary --json` returned `command: retrospect.summary` and `mission_count: 0`, which is expected for a fresh project with no completed missions.
 
-**Source repo clean after**: yes — only pre-existing snapshot file modified (not part of WP03 work).
+**Source repo clean after**: yes — source checkout status was unchanged by the temp-project smoke run.
 
 ---
 
-## Check 6: setup-governance Smoke-test (NFR-002)
+## Check 6: DocFX Build
 
 **Result**: PASS
 
-**Temp dir**: `/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.uun4u49hdq`
-
-**Commands run**:
+**Command run**:
 ```bash
-mkdir test-project && cd test-project
-git init
-git config user.email "test@test.com"
-git config user.name "Test"
-uv run spec-kitty charter --help | head -5
-# Output: Usage: spec-kitty charter [OPTIONS] COMMAND [ARGS]...
-#          Charter management commands
+cd docs
+docfx docfx.json
 ```
 
-**CLI output**: `charter --help` accessible and shows expected output from isolated temp directory.
-
-**Source repo clean after**: yes — only pre-existing snapshot file modified (not part of WP03 work).
+**Result**: build succeeded with 48 warnings and 0 errors. The warnings are pre-existing invalid `~/...` file-link warnings outside this follow-up fix; the previous blocking `InvalidTocFile` error in `docs/explanation/toc.yml` is resolved.
 
 ---
 
@@ -167,8 +178,8 @@ uv run spec-kitty charter --help | head -5
 | 3. CLI flag accuracy | PASS |
 | 4. Phase accuracy | PASS |
 | 5. Tutorial smoke-test | PASS |
-| 6. setup-governance smoke-test | PASS |
+| 6. DocFX build | PASS |
 
 **Overall**: PASS
 
-No fixes required during T009 triage. All six checks passed on first run. No product bugs encountered.
+Follow-up validation on 2026-04-30 resolved the DocFX TOC build blocker and replaced the earlier shallow tutorial smoke with an executable fresh-project Charter spine.
