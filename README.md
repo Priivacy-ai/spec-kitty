@@ -141,6 +141,7 @@ The former `1.x` line is deprecated and lives on `1.x-maintenance` for maintenan
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
 **For testers following `main`:** use a source checkout or published prerelease builds to get the intake, profile-invocation, hosted tracker-read, and Teamspace-routing work that is newer than stable `3.1.x`.
+After `3.2.0a6` is published, testers can install the exact prerelease with `pip install "spec-kitty-cli==3.2.0a6"` or opt into prereleases with `pip install --pre spec-kitty-cli`.
 **For existing 3.0.x users:** upgrade to `3.1.x` and run `spec-kitty upgrade` in each project — the charter rename, mission identity, and prompt-neutrality migrations remain automatic.
 **For existing 1.x or 2.x users:** migrate to `3.1.x`; `1.x-maintenance` is maintenance-only and will no longer publish new PyPI releases.
 
