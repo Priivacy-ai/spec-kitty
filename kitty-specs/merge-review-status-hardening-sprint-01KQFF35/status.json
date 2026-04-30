@@ -1,16 +1,16 @@
 {
-  "event_count": 36,
-  "last_event_id": "01KQFQTVWF52S26EQH5N0YMCNX",
-  "materialized_at": "2026-04-30T17:43:52.975247+00:00",
-  "mission_number": "",
+  "event_count": 38,
+  "last_event_id": "01KQFRNJQYBHB726XFCWFQ0VKH",
+  "materialized_at": "2026-04-30T17:58:28.350529+00:00",
+  "mission_number": "109",
   "mission_slug": "merge-review-status-hardening-sprint-01KQFF35",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 6,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,18 +18,18 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KQFQTQTYJ1MKQDV36JHWZPBX",
-      "last_transition_at": "2026-04-30T17:43:48.830999+00:00"
+      "lane": "done",
+      "last_event_id": "01KQFQWGAAQJ7JB7Q698AJ89H6",
+      "last_transition_at": "2026-04-30T17:44:46.666650+00:00"
     },
     "WP02": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KQFQS29Q7DYCZQAS2R3B3T48",
-      "last_transition_at": "2026-04-30T17:42:54.007873+00:00"
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQFRNJQYBHB726XFCWFQ0VKH",
+      "last_transition_at": "2026-04-30T17:58:28.350529+00:00"
     },
     "WP03": {
       "actor": "user",
