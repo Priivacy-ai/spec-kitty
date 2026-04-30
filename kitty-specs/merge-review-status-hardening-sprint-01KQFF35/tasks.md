@@ -14,14 +14,14 @@
 | T004 | Add conditional `git merge --abort` for in-progress git merges | WP01 | | [D] |
 | T005 | Annotate `merge.py` BLE001 suppressions (L1026, L1275) | WP01 | [D] |
 | T006 | Write tests: `test_abort_clears_lock_and_state`, `test_abort_idempotent` | WP01 | | [D] |
-| T007 | Add `_get_latest_review_cycle_verdict(wp_dir)` helper to `agent/tasks.py` | WP02 | |
-| T008 | Add verdict enum validation (warn on unknown values) | WP02 | [P] |
-| T009 | Add rejected-verdict guard to `move_task()` for `--force` transitions to `approved`/`done` | WP02 | |
-| T010 | Add `--skip-review-artifact-check` option to `move_task()` | WP02 | [P] |
-| T011 | Locate lane guard block (~L1003), load `planning_base_branch` from meta.json | WP02 | |
-| T012 | Rewrite lane guard error message to name planning branch and suggest `git show` | WP02 | |
-| T013 | Add legacy-mission fallback when `meta.json` is absent or missing the field | WP02 | [P] |
-| T014 | Write tests: verdict guard + skip option + lane guard message | WP02 | |
+| T007 | Add `_get_latest_review_cycle_verdict(wp_dir)` helper to `agent/tasks.py` | WP02 | | [D] |
+| T008 | Add verdict enum validation (warn on unknown values) | WP02 | [D] |
+| T009 | Add rejected-verdict guard to `move_task()` for `--force` transitions to `approved`/`done` | WP02 | | [D] |
+| T010 | Add `--skip-review-artifact-check` option to `move_task()` | WP02 | [D] |
+| T011 | Locate lane guard block (~L1003), load `planning_base_branch` from meta.json | WP02 | | [D] |
+| T012 | Rewrite lane guard error message to name planning branch and suggest `git show` | WP02 | | [D] |
+| T013 | Add legacy-mission fallback when `meta.json` is absent or missing the field | WP02 | [D] |
+| T014 | Write tests: verdict guard + skip option + lane guard message | WP02 | | [D] |
 | T015 | Annotate bare BLE001 suppressions in `src/specify_cli/cli/helpers.py` | WP03 | [D] |
 | T016 | Annotate bare suppressions in `src/specify_cli/cli/commands/charter.py` | WP03 | [D] |
 | T017 | Annotate bare suppressions in `materialize.py`, `tracker.py`, `mission_type.py` | WP03 | [D] |
@@ -78,14 +78,14 @@
 **Independent test**: Run `move-task WP01 --to approved --force` on a WP whose review-cycle-1.md has `verdict: rejected`; command exits 1 with a named warning.
 
 **Subtasks**:
-- [ ] T007 Add `_get_latest_review_cycle_verdict(wp_dir)` helper to `agent/tasks.py` (WP02)
-- [ ] T008 Add verdict enum validation: warn on unknown values (WP02)
-- [ ] T009 Add rejected-verdict guard to `move_task()` for `--force` to `approved`/`done` (WP02)
-- [ ] T010 Add `--skip-review-artifact-check` option to `move_task()` (WP02)
-- [ ] T011 Locate lane guard block (~L1003) and load `planning_base_branch` from meta.json (WP02)
-- [ ] T012 Rewrite lane guard error to name planning branch + suggest `git show` (WP02)
-- [ ] T013 Add legacy-mission fallback when `meta.json`/field is absent (WP02)
-- [ ] T014 Write tests: verdict guard, skip option, lane guard message variants (WP02)
+- [x] T007 Add `_get_latest_review_cycle_verdict(wp_dir)` helper to `agent/tasks.py` (WP02)
+- [x] T008 Add verdict enum validation: warn on unknown values (WP02)
+- [x] T009 Add rejected-verdict guard to `move_task()` for `--force` to `approved`/`done` (WP02)
+- [x] T010 Add `--skip-review-artifact-check` option to `move_task()` (WP02)
+- [x] T011 Locate lane guard block (~L1003) and load `planning_base_branch` from meta.json (WP02)
+- [x] T012 Rewrite lane guard error to name planning branch + suggest `git show` (WP02)
+- [x] T013 Add legacy-mission fallback when `meta.json`/field is absent (WP02)
+- [x] T014 Write tests: verdict guard, skip option, lane guard message variants (WP02)
 
 **Owned files**: `src/specify_cli/cli/commands/agent/tasks.py`, `tests/specify_cli/cli/commands/agent/test_tasks.py` (create if absent)
 **Dependencies**: none
