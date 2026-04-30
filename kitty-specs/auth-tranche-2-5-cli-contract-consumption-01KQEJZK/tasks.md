@@ -21,12 +21,12 @@
 | T011 | Capture `generation` from response in `TokenRefreshFlow._update_session()` | WP03 | No | [D] |
 | T012 | Add 409 test cases in `tests/auth/test_refresh_flow.py` | WP03 | No | [D] |
 | T013 | Add replay transaction test cases in `tests/auth/concurrency/test_stale_grant_preservation.py` | WP03 | No | [D] |
-| T014 | Add `ServerSessionStatus` frozen dataclass to `_auth_doctor.py` | WP04 | No |
-| T015 | Add `async def _check_server_session()` to `_auth_doctor.py` | WP04 | No |
-| T016 | Extend `doctor_impl` with `server: bool = False` parameter and server-check branch | WP04 | No |
-| T017 | Add default doctor hint: "Run `spec-kitty auth doctor --server` to verify server session status." | WP04 | No |
-| T018 | Wire `--server` flag in `auth.py` doctor command; pass to `doctor_impl` | WP04 | No |
-| T019 | Add `--server` tests in `tests/auth/test_auth_doctor_report.py` and verify offline tests unchanged in `tests/auth/test_auth_doctor_offline.py` | WP04 | No |
+| T014 | Add `ServerSessionStatus` frozen dataclass to `_auth_doctor.py` | WP04 | No | [D] |
+| T015 | Add `async def _check_server_session()` to `_auth_doctor.py` | WP04 | No | [D] |
+| T016 | Extend `doctor_impl` with `server: bool = False` parameter and server-check branch | WP04 | No | [D] |
+| T017 | Add default doctor hint: "Run `spec-kitty auth doctor --server` to verify server session status." | WP04 | No | [D] |
+| T018 | Wire `--server` flag in `auth.py` doctor command; pass to `doctor_impl` | WP04 | No | [D] |
+| T019 | Add `--server` tests in `tests/auth/test_auth_doctor_report.py` and verify offline tests unchanged in `tests/auth/test_auth_doctor_offline.py` | WP04 | No | [D] |
 | T020 | Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations | WP02 | No | [D] |
 | T021 | Run focused logout + doctor test suites; confirm zero legacy `/api/v1/logout` assertions | WP05 | No |
 | T022 | Run full auth + status test suite; confirm doctor offline tests pass unchanged | WP05 | No |
@@ -111,12 +111,12 @@
 **Goal**: Add `auth doctor --server` as an opt-in server-aware path. Default offline behavior and all existing doctor tests remain unchanged. New `ServerSessionStatus` dataclass. Refresh-then-check-status sequence.
 
 **Subtasks**:
-- [ ] T014 Add `ServerSessionStatus` frozen dataclass to `_auth_doctor.py` (WP04)
-- [ ] T015 Add `async def _check_server_session()` to `_auth_doctor.py` (WP04)
-- [ ] T016 Extend `doctor_impl` with `server: bool = False` parameter (WP04)
-- [ ] T017 Add default doctor hint text (WP04)
-- [ ] T018 Wire `--server` flag in `auth.py` doctor command (WP04)
-- [ ] T019 Add `--server` tests; verify offline tests unchanged (WP04)
+- [x] T014 Add `ServerSessionStatus` frozen dataclass to `_auth_doctor.py` (WP04)
+- [x] T015 Add `async def _check_server_session()` to `_auth_doctor.py` (WP04)
+- [x] T016 Extend `doctor_impl` with `server: bool = False` parameter (WP04)
+- [x] T017 Add default doctor hint text (WP04)
+- [x] T018 Wire `--server` flag in `auth.py` doctor command (WP04)
+- [x] T019 Add `--server` tests; verify offline tests unchanged (WP04)
 
 **Risks**: Must not call `asyncio.run()` if already inside an event loop (use `anyio.from_thread.run_sync` or check event loop state). Default doctor must make zero outbound calls even after this change.
 
