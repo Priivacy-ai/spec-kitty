@@ -18,7 +18,9 @@ from pathlib import Path
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult as BaseMigrationResult
 from doctrine.versioning import (
+    BundleCompatibilityStatus,
     CURRENT_BUNDLE_SCHEMA_VERSION,
+    check_bundle_compatibility,
     get_bundle_schema_version,
     run_migration,
 )
@@ -49,6 +51,13 @@ class CharterBundleV2Migration(BaseMigration):
         charter_dir = project_path / ".kittify" / "charter"
         if not charter_dir.exists():
             return False, "No charter directory found at .kittify/charter"
+        bundle_version = get_bundle_schema_version(charter_dir)
+        compatibility = check_bundle_compatibility(bundle_version)
+        if compatibility.status in (
+            BundleCompatibilityStatus.INCOMPATIBLE_OLD,
+            BundleCompatibilityStatus.INCOMPATIBLE_NEW,
+        ):
+            return False, compatibility.message
         return True, ""
 
     def apply(
@@ -58,10 +67,20 @@ class CharterBundleV2Migration(BaseMigration):
         charter_dir = project_path / ".kittify" / "charter"
 
         bundle_version = get_bundle_schema_version(charter_dir)
-        if bundle_version is None:
-            bundle_version = 1  # Treat missing version field as v1.
+        compatibility = check_bundle_compatibility(bundle_version)
+        if compatibility.status in (
+            BundleCompatibilityStatus.INCOMPATIBLE_OLD,
+            BundleCompatibilityStatus.INCOMPATIBLE_NEW,
+        ):
+            return BaseMigrationResult(
+                success=False,
+                changes_made=[],
+                errors=[compatibility.message],
+            )
 
-        if bundle_version >= CURRENT_BUNDLE_SCHEMA_VERSION:
+        current = bundle_version if bundle_version is not None else 1
+
+        if current >= CURRENT_BUNDLE_SCHEMA_VERSION:
             # Bundle is already current — nothing to do.
             return BaseMigrationResult(
                 success=True,
@@ -71,7 +90,6 @@ class CharterBundleV2Migration(BaseMigration):
 
         all_changes: list[str] = []
         all_errors: list[str] = []
-        current = bundle_version
 
         while current < CURRENT_BUNDLE_SCHEMA_VERSION:
             result = run_migration(current, charter_dir, dry_run=dry_run)
