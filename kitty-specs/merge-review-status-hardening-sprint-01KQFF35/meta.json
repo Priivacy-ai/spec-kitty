@@ -8,5 +8,6 @@
   "purpose_context": "Seven issues (#903–#909) were filed after completing mission auth-tranche-2-5-cli-contract-consumption. Two are confirmed bugs (merge --abort leaves orphaned lock files; force-approving a WP leaves rejected verdicts silently in place) and five are targeted enhancements that close gaps in review quality, error-message usability, linting discipline, status visibility, and post-merge lifecycle governance.",
   "purpose_tldr": "Fix merge abort cleanup, stale review verdict drift, opaque lane guard errors, and add mission review CLI gate plus stalled-reviewer detection.",
   "slug": "merge-review-status-hardening-sprint-01KQFF35",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git"
 }
