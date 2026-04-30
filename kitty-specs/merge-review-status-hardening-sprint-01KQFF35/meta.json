@@ -2,7 +2,7 @@
   "created_at": "2026-04-30T15:11:08.383540+00:00",
   "friendly_name": "Merge Abort, Review, and Status Hardening Sprint",
   "mission_id": "01KQFF35BPH2H8971KR0TEY8ST",
-  "mission_number": null,
+  "mission_number": 109,
   "mission_slug": "merge-review-status-hardening-sprint-01KQFF35",
   "mission_type": "software-dev",
   "purpose_context": "Seven issues (#903–#909) were filed after completing mission auth-tranche-2-5-cli-contract-consumption. Two are confirmed bugs (merge --abort leaves orphaned lock files; force-approving a WP leaves rejected verdicts silently in place) and five are targeted enhancements that close gaps in review quality, error-message usability, linting discipline, status visibility, and post-merge lifecycle governance.",

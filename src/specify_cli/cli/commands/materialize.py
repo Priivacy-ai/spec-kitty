@@ -107,7 +107,7 @@ def materialize(
                 "files_written": files_written,
                 "timestamp": datetime.now(UTC).isoformat(),
             })
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — per-mission derived-view failure must not abort the full materialize pass
             errors.append(f"{slug}: {exc}")
 
     summary = {

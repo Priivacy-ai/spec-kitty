@@ -100,7 +100,7 @@ def _resolve_active_feature_slug(repo_root: Path) -> str | None:
         data = json.loads(meta_path.read_text(encoding="utf-8"))
         slug = data.get("feature_slug") or data.get("slug")
         return str(slug) if slug else None
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — meta.json may be absent or malformed; fall back to None (no active feature)
         return None
 
 
@@ -117,7 +117,7 @@ def _check_readiness(
     if require_mission_binding:
         try:
             repo_root = require_repo_root()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — repo-root resolution failure is reported to stderr then converted to Exit(1)
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
             raise typer.Exit(1) from exc
     else:

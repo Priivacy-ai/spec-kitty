@@ -248,7 +248,7 @@ def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
         for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
             try:
                 raw = yaml_loader.load(sidecar_path)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001 — per-sidecar YAML parse failure must not abort the full validation pass
                 sidecar_errors.append(f"{sidecar_path.name}: could not parse YAML: {e}")
                 continue
             if not isinstance(raw, dict):
@@ -267,7 +267,7 @@ def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
 
     try:
         raw_manifest = yaml_loader.load(manifest_path)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — manifest YAML parse failure is recorded as an error; remaining checks are skipped
         sidecar_errors.append(f"synthesis-manifest.yaml: could not parse YAML: {e}")
         return sidecar_errors
     if not isinstance(raw_manifest, dict):

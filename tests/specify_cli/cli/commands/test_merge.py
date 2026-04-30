@@ -1,4 +1,6 @@
-"""Tests for WP06: Migrate Slice 4 — merge.py typed Lane enum migration.
+"""Tests for merge.py.
+
+WP06 slice: Migrate Slice 4 — merge.py typed Lane enum migration.
 
 Verifies that:
 - _assert_merged_wps_reached_done() uses typed Lane enum (Lane.DONE), not raw "done"
@@ -6,18 +8,28 @@ Verifies that:
 - approved|done merge-ready check is EXPLICIT (not delegated to is_terminal)
 - is_terminal covers done|canceled — not the same as merge-ready approved|done
 - All 9 lanes are correctly classified as merge-ready or not
+
+WP01 slice: merge --abort cleanup.
+
+Verifies that:
+- --abort removes .kittify/runtime/merge/__global_merge__/lock when present
+- --abort removes .kittify/merge-state.json (legacy) when present
+- --abort is idempotent — exits 0 when neither file is present
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
+import typer
+from typer.testing import CliRunner
 
 from specify_cli.cli.commands.merge import (
     _assert_merged_wps_reached_done,
     _mark_wp_merged_done,
+    merge,
 )
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
@@ -276,3 +288,50 @@ def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(
     _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
 
     emit_mock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T006: merge --abort cleanup tests (WP01)
+# ---------------------------------------------------------------------------
+
+def test_abort_clears_lock_and_state(tmp_path: Path) -> None:
+    """--abort removes the global lock file and legacy merge-state JSON when both exist."""
+    # Setup: create global merge lock
+    lock_path = tmp_path / ".kittify" / "runtime" / "merge" / "__global_merge__" / "lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text("2026-04-30T00:00:00+00:00", encoding="utf-8")
+
+    # Setup: create legacy merge-state JSON
+    legacy_state_path = tmp_path / ".kittify" / "merge-state.json"
+    legacy_state_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_state_path.write_text('{"feature_slug": "test"}', encoding="utf-8")
+
+    # Build a minimal typer app wrapping `merge` so we can invoke via CliRunner
+    app = typer.Typer()
+    app.command()(merge)
+
+    runner = CliRunner()
+    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
+        result = runner.invoke(app, ["--abort"])
+
+    # Both files must be gone
+    assert not lock_path.exists(), "Global merge lock file should have been removed"
+    assert not legacy_state_path.exists(), "Legacy merge-state.json should have been removed"
+    assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}\nOutput: {result.output}"
+
+
+def test_abort_idempotent(tmp_path: Path) -> None:
+    """--abort exits 0 with no error when neither lock nor state file is present."""
+    # Ensure the .kittify dir doesn't even exist
+    assert not (tmp_path / ".kittify").exists()
+
+    app = typer.Typer()
+    app.command()(merge)
+
+    runner = CliRunner()
+    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
+        result = runner.invoke(app, ["--abort"])
+
+    assert result.exit_code == 0, (
+        f"Expected exit 0 on idempotent abort, got {result.exit_code}\nOutput: {result.output}"
+    )

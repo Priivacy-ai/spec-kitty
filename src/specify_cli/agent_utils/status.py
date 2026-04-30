@@ -6,7 +6,9 @@ to display beautiful status boards without going through the CLI.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -17,12 +19,52 @@ from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.wp_state import wp_state_for
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 console = Console()
+
+
+def _get_wp_review_verdict(wp_dir: Path) -> str | None:
+    """Return the verdict from the latest review-cycle-N.md in wp_dir, or None.
+
+    Globs review-cycle-*.md files sorted by N (highest = latest), parses YAML
+    frontmatter, and returns the ``verdict`` field.  Returns None on any error
+    (file absent, malformed YAML, no frontmatter).
+    """
+    cycles = sorted(
+        wp_dir.glob("review-cycle-*.md"),
+        key=lambda p: int(m.group(1)) if (m := re.search(r"review-cycle-(\d+)\.md", p.name)) else 0,
+    )
+    if not cycles:
+        return None
+    try:
+        text = cycles[-1].read_text(encoding="utf-8")
+        match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+        if not match:
+            return None
+        import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
+        fm = yaml.safe_load(match.group(1)) or {}
+        return fm.get("verdict")
+    except Exception:  # noqa: BLE001 — review artifact may be absent or malformed; fail-open
+        return None
+
+
+def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
+    """Return the ``at`` datetime of the most recent event for wp_id, or None."""
+    wp_events = [e for e in events if e.wp_id == wp_id]
+    if not wp_events:
+        return None
+    latest = max(wp_events, key=lambda e: e.at)
+    at_str = latest.at
+    if not at_str:
+        return None
+    try:
+        return datetime.fromisoformat(at_str)
+    except ValueError:
+        return None
 
 
 def show_kanban_status(mission_slug: str | None = None) -> dict:
@@ -76,6 +118,21 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             return {"error": f"Tasks directory not found: {tasks_dir}"}
 
         identity = resolve_mission_identity(feature_dir)
+
+        # Load project config for stall threshold
+        config_file = main_repo_root / ".kittify" / "config.yaml"
+        config: dict = {}
+        if config_file.exists():
+            try:
+                import yaml as _yaml  # noqa: PLC0415
+                config = _yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+            except Exception:  # noqa: BLE001
+                config = {}
+        threshold_minutes: int = (
+            int(config.get("review", {}).get("stall_threshold_minutes", 30))
+            if isinstance(config, dict)
+            else 30
+        )
 
         # Build lane map from event log (canonical source of truth)
         from specify_cli.status.reducer import reduce
@@ -171,6 +228,41 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         done_wp_ids = {wp["id"] for wp in work_packages if wp["lane"] == Lane.DONE}
         parallel_info = _analyze_parallelization(work_packages, done_wp_ids)
 
+        # --- Stale verdict detection (T023) ---
+        # Warn if approved/done WPs have a review artifact with verdict=rejected
+        stale_verdicts: list[dict[str, str]] = []
+        for wp in work_packages:
+            if wp["lane"] not in (Lane.APPROVED, Lane.DONE):
+                continue
+            wp_id = wp["id"]
+            if not wp_id:
+                continue
+            wp_dir = tasks_dir / wp_id
+            verdict = _get_wp_review_verdict(wp_dir)
+            if verdict == "rejected":
+                stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
+                wp["_stale_verdict"] = True
+
+        # --- Stall detection (T025) ---
+        # Flag in_review WPs whose last event is older than the threshold
+        now_utc = datetime.now(timezone.utc)
+        stalled_wps: list[dict] = []
+        for wp in by_lane.get(Lane.IN_REVIEW, []):
+            wp_id = wp["id"]
+            if not wp_id:
+                continue
+            last_event_time = _get_last_event_time(events, wp_id)
+            if last_event_time is not None:
+                age_minutes = (now_utc - last_event_time).total_seconds() / 60
+                if age_minutes > threshold_minutes:
+                    stall_label = f"STALLED — no move-task in {int(age_minutes)}m"
+                    wp["_stall_label"] = stall_label
+                    stalled_wps.append({
+                        "wp_id": wp_id,
+                        "age_minutes": int(age_minutes),
+                        "mission_slug": mission_slug,
+                    })
+
         # Display the status board
         _display_status_board(mission_slug, work_packages, by_lane, total, done_count,
                             in_progress, planned_count, progress_pct, parallel_info)
@@ -188,7 +280,9 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             "done_count": done_count,
             "in_progress_count": in_progress,
             "planned_count": planned_count,
-            "parallelization": parallel_info
+            "parallelization": parallel_info,
+            "stalled_wps": stalled_wps,
+            "stale_verdicts": stale_verdicts,
         }
 
     except Exception as e:
@@ -360,7 +454,21 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
     if by_lane[Lane.APPROVED]:
         console.print("[bold magenta]👍 Approved Awaiting Merge:[/bold magenta]")
         for wp in by_lane[Lane.APPROVED]:
-            console.print(f"  • {wp['id']} - {wp['title']}")
+            line = f"  • {wp['id']} - {wp['title']}"
+            if wp.get("_stale_verdict"):
+                line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            console.print(line)
+        console.print()
+
+    # Show done WPs with stale verdict warnings (if any)
+    done_stale = [wp for wp in by_lane[Lane.DONE] if wp.get("_stale_verdict")]
+    if done_stale:
+        console.print("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
+        for wp in done_stale:
+            console.print(
+                f"  • {wp['id']} - {wp['title']}"
+                f"  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            )
         console.print()
 
     if by_lane[Lane.IN_PROGRESS]:
@@ -384,7 +492,10 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
     if by_lane.get(Lane.IN_REVIEW):
         console.print("[bold bright_cyan]🔍 In Review (shown in In Progress column):[/bold bright_cyan]")
         for wp in by_lane[Lane.IN_REVIEW]:
-            console.print(f"  • {wp['id']} - {wp['title']}")
+            line = f"  • {wp['id']} - {wp['title']}"
+            if wp.get("_stall_label"):
+                line += f"  [bold yellow]⚠ {wp['_stall_label']}[/bold yellow]"
+            console.print(line)
         console.print()
 
     if by_lane[Lane.PLANNED]:

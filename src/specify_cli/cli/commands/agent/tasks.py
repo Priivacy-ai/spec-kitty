@@ -103,6 +103,56 @@ def _normalize_task_id_input(raw: str) -> str:
     return candidate
 
 
+# ---------------------------------------------------------------------------
+# FR-005 / FR-007: verdict guard helpers
+# ---------------------------------------------------------------------------
+
+# Known verdict values from the review-cycle schema.
+# Unknown values warn but do NOT block (backward compatibility).
+_VALID_VERDICTS: frozenset[str] = frozenset(
+    {"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"}
+)
+
+
+def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
+    """Return (verdict_value, artifact_path) for the latest review-cycle-N.md.
+
+    Scans *wp_dir* for ``review-cycle-<N>.md`` files, picks the highest-numbered
+    one, and returns the ``verdict`` frontmatter value together with the artifact
+    path so callers can name the file in error messages.
+
+    Returns (None, None) when no review-cycle artifacts exist.
+    Returns (None, artifact_path) when the artifact exists but verdict is absent
+    or malformed.
+
+    If the verdict is present but not in :data:`_VALID_VERDICTS`, a warning is
+    logged (but the value is still returned — callers decide what to do with it).
+    """
+    cycles = sorted(
+        wp_dir.glob("review-cycle-*.md"),
+        key=lambda p: int(m.group(1)) if (m := re.search(r"review-cycle-(\d+)\.md", p.name)) else 0,
+    )
+    if not cycles:
+        return None, None
+    artifact = cycles[-1]
+    try:
+        text = artifact.read_text(encoding="utf-8")
+        frontmatter_str, _, _ = split_frontmatter(text)
+        if not frontmatter_str:
+            return None, artifact
+        verdict = extract_scalar(frontmatter_str, "verdict")
+        if verdict is not None and verdict not in _VALID_VERDICTS:
+            logger.warning(
+                "Warning: %s has unrecognized verdict '%s' — expected one of %s",
+                artifact.name,
+                verdict,
+                sorted(_VALID_VERDICTS),
+            )
+        return verdict, artifact
+    except Exception:  # noqa: BLE001 — review-cycle artifact may be malformed; fail-open
+        return None, artifact
+
+
 def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     """Return paths to all deterministic status artifacts that exist on disk.
 
@@ -1000,13 +1050,39 @@ def _validate_ready_for_review(
                 base_branch=check_branch,
             )
             if contamination_files:
-                guidance.append("Lane branch contains forbidden planning changes under kitty-specs/!")
-                guidance.append("")
+                # FR-009 / FR-010: resolve the planning branch from meta.json so
+                # the error message names the branch and gives a `git show` example.
+                # Falls back gracefully for legacy missions without meta.json.
+                _planning_branch: str | None = None
+                try:
+                    from specify_cli.mission_metadata import load_meta as _load_meta_lggrd
+
+                    _meta = _load_meta_lggrd(feature_dir)
+                    if _meta:
+                        _planning_branch = _meta.get("planning_base_branch") or _meta.get("target_branch")
+                except Exception as _lane_meta_exc:  # noqa: BLE001
+                    logger.debug(
+                        "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
+                    )
+
                 guidance.append("Committed kitty-specs files on this lane branch:")
                 for path in contamination_files[:5]:
                     guidance.append(f"  {path}")
                 if len(contamination_files) > 5:
                     guidance.append(f"  ... and {len(contamination_files) - 5} more")
+                guidance.append("")
+                if _planning_branch:
+                    guidance.append(
+                        f"kitty-specs/ changes are not allowed on lane branches.\n"
+                        f"Planning artifacts must live on: {_planning_branch}\n\n"
+                        f"To verify a file exists on the planning branch:\n"
+                        f"  git show {_planning_branch}:kitty-specs/<path-to-file>"
+                    )
+                else:
+                    guidance.append(
+                        "kitty-specs/ changes are not allowed on lane branches "
+                        "(planning branch unknown — check kitty-specs/ on the base branch)."
+                    )
                 guidance.append("")
                 guidance.append(f"Clean the branch before moving to {target_lane}:")
                 guidance.append(f"  cd {worktree_path}")
@@ -1126,6 +1202,13 @@ def move_task(
         typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason"),
     ] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
+    skip_review_artifact_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-review-artifact-check",
+            help="Suppress the rejected-verdict check when force-approving a WP.",
+        ),
+    ] = False,
     auto_commit: Annotated[
         bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch (default: from project config)")
     ] = None,
@@ -1208,6 +1291,22 @@ def move_task(
                 console.print()
             _output_error(json_output, f"Agent mismatch: {task_id} is assigned to '{current_agent}', not '{agent}'. Use --force to override.")
             raise typer.Exit(1)
+
+        # FR-005 / FR-007: rejected-verdict guard.
+        # When --force is used to approve/done a WP whose latest review-cycle
+        # artifact carries verdict: rejected, block and surface the file name.
+        # Bypass with --skip-review-artifact-check when the stale verdict is
+        # acknowledged.
+        if force and target_lane in (Lane.APPROVED, Lane.DONE) and not skip_review_artifact_check:
+            _verdict_wp_dir = wp.path.parent / wp.path.stem
+            _verdict, _artifact_path = _get_latest_review_cycle_verdict(_verdict_wp_dir)
+            if _verdict == "rejected" and _artifact_path is not None:
+                _output_error(
+                    json_output,
+                    f"{task_id} {_artifact_path.name} has verdict: rejected.\n"
+                    "Update the review artifact or pass --skip-review-artifact-check to suppress.",
+                )
+                raise typer.Exit(1)
 
         resolved_feedback_source: Path | None = None
         if review_feedback_file is not None:
