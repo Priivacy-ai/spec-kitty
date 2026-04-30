@@ -493,3 +493,7 @@ WP02 shares the same lane as WP01 if they are sequenced. Do not implement WP02 u
 - Every `--json` test calls `json.loads(result.stdout)` without a try/except — a parse error IS the failure signal.
 - The `_add_synthesis_manifest` helper: confirm `corrupt_hash=True` actually produces a non-matching hash (i.e., content is written to disk before the manifest is created, and the manifest stores a different hash). Fixture order matters: write artifact → write sidecar → write manifest (so the manifest can reference real content and compute the correct hash for the non-corrupt case).
 - T012 (legacy bundle): the `compliant_repo` fixture has no `.kittify/doctrine/` directory. Confirm the test does not accidentally create one.
+
+## Activity Log
+
+- 2026-04-30T14:46:59Z – claude – shell_pid=57391 – 87 tests pass; ruff clean; all T007-T014 implemented
