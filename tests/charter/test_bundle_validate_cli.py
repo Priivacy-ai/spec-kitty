@@ -472,10 +472,9 @@ def test_validate_fails_on_manifest_content_hash_mismatch(
 ) -> None:
     """FR-003: mismatched synthesis manifest per-artifact content_hash must fail.
 
-    validate_synthesis_state() → _check_manifest_integrity() → verify() checks
-    per-artifact content_hash values only. Manifest self-hash (manifest_hash field)
-    is not verified by the current implementation; this test covers the
-    per-artifact mismatch path.
+    validate_synthesis_state() → _check_manifest_integrity() checks both
+    per-artifact content_hash values and the manifest self-hash. This test covers
+    the per-artifact mismatch path; a separate regression covers manifest_hash.
     """
     artifact_content = "# directive content\n"
     _add_doctrine_artifact(

@@ -154,11 +154,9 @@ def _add_synthesis_manifest(
     When corrupt_hash=True, tampers with the stored content_hash after dumping so that
     verify_manifest raises on the per-artifact content_hash mismatch (FR-003).
 
-    NOTE: validate_synthesis_state() → _check_manifest_integrity() → verify_manifest()
-    only checks per-artifact content_hash values. The manifest self-hash field
-    (manifest_hash) is NOT verified by the current implementation. T010 therefore tests
-    per-artifact content_hash mismatch only; manifest self-hash verification is out of
-    scope for this mission.
+    NOTE: validate_synthesis_state() → _check_manifest_integrity() verifies both
+    per-artifact content_hash values and the manifest self-hash. T010 targets the
+    per-artifact mismatch path; the self-hash mismatch path has its own regression.
     """
     from charter.synthesizer.manifest import SynthesisManifest, dump_manifest  # noqa: PLC0415
 
@@ -258,7 +256,7 @@ def test_validate_fails_when_sidecar_references_missing_artifact(
 
 **Purpose**: Synthesis manifest exists with a per-artifact `content_hash` that does not match on-disk bytes → validation fails (FR-003).
 
-**Scope note**: `validate_synthesis_state()` → `_check_manifest_integrity()` → `verify_manifest()` checks **per-artifact `content_hash` values only**. The manifest self-hash field (`manifest_hash`) is not verified by the current implementation. This test covers the per-artifact content_hash mismatch path; manifest self-hash verification is explicitly out of scope for this mission.
+**Scope note**: `validate_synthesis_state()` → `_check_manifest_integrity()` checks both per-artifact `content_hash` values and the manifest self-hash. This test covers the per-artifact content_hash mismatch path; manifest self-hash mismatch is covered by the dedicated RISK-2 remediation regression.
 
 ```python
 def test_validate_fails_on_manifest_content_hash_mismatch(

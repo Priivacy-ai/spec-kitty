@@ -85,6 +85,32 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
     )
 
 
+def _make_manifest_for_artifacts(
+    artifacts: list[ManifestArtifactEntry],
+    run_id: str = "01KPE222TESTRUNID0000000001",
+) -> SynthesisManifest:
+    data_without_hash = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2026-04-17T12:00:00+00:00",
+        "run_id": run_id,
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [a.model_dump(mode="python") for a in artifacts],
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    return SynthesisManifest(
+        created_at="2026-04-17T12:00:00+00:00",
+        run_id=run_id,
+        adapter_id="fixture",
+        adapter_version="1.0.0",
+        synthesizer_version="3.2.0a5",
+        manifest_hash=manifest_hash,
+        artifacts=artifacts,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -304,6 +330,89 @@ def test_verify_raises_on_missing_artifact(tmp_path: Path) -> None:
         verify(manifest, tmp_path)
 
 
+def test_verify_rejects_absolute_artifact_path(tmp_path: Path) -> None:
+    """Manifest verification must not read absolute paths outside the repo."""
+    outside = tmp_path / "outside.tactic.yaml"
+    outside.write_bytes(b"id: outside\n")
+    manifest = _make_manifest_for_artifacts(
+        [
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="outside",
+                path=str(outside),
+                provenance_path=".kittify/charter/provenance/tactic-outside.yaml",
+                content_hash=hashlib.sha256(outside.read_bytes()).hexdigest(),
+            )
+        ]
+    )
+
+    with pytest.raises(ValueError, match="repo-relative"):
+        verify(manifest, tmp_path / "repo")
+
+
+def test_verify_rejects_traversal_artifact_path(tmp_path: Path) -> None:
+    """Manifest artifact paths must stay within .kittify/doctrine."""
+    manifest = _make_manifest_for_artifacts(
+        [
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="escape",
+                path=".kittify/doctrine/../charter/provenance/tactic-escape.yaml",
+                provenance_path=".kittify/charter/provenance/tactic-escape.yaml",
+                content_hash="a" * 64,
+            )
+        ]
+    )
+
+    with pytest.raises(ValueError, match="repo-relative"):
+        verify(manifest, tmp_path)
+
+
+def test_verify_rejects_provenance_path_outside_provenance_tree(tmp_path: Path) -> None:
+    """Manifest provenance paths must stay within .kittify/charter/provenance."""
+    artifact_rel = ".kittify/doctrine/tactics/my-tactic.tactic.yaml"
+    artifact_path = tmp_path / artifact_rel
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_bytes(b"id: my-tactic\n")
+    manifest = _make_manifest_for_artifacts(
+        [
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="my-tactic",
+                path=artifact_rel,
+                provenance_path=".kittify/charter/../doctrine/tactic-my-tactic.yaml",
+                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+            )
+        ]
+    )
+
+    with pytest.raises(ValueError, match="repo-relative"):
+        verify(manifest, tmp_path)
+
+
+def test_verify_accepts_manifest_paths_with_windows_separators(tmp_path: Path) -> None:
+    """Windows-written manifest paths are normalized before validation."""
+    artifact_rel = ".kittify/doctrine/tactics/windows-path.tactic.yaml"
+    artifact_path = tmp_path / artifact_rel
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_bytes(b"id: windows-path\n")
+    manifest = _make_manifest_for_artifacts(
+        [
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="windows-path",
+                path=artifact_rel.replace("/", "\\"),
+                provenance_path=".kittify/charter/provenance/tactic-windows-path.yaml".replace(
+                    "/", "\\"
+                ),
+                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+            )
+        ]
+    )
+
+    verify(manifest, tmp_path)
+
+
 # ---------------------------------------------------------------------------
 # Ordering (deterministic)
 # ---------------------------------------------------------------------------
@@ -383,7 +492,6 @@ def test_manifest_hash_validates(tmp_path: Path, guard: PathGuard) -> None:
 
 def test_manifest_synthesizer_version_empty_raises() -> None:
     """SynthesisManifest with synthesizer_version='' must raise ValidationError."""
-    artifacts: list[ManifestArtifactEntry] = []
     data_without_hash = {
         "schema_version": "2",
         "mission_id": None,
