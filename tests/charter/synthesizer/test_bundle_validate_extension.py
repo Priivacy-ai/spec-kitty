@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any
 
 
 from charter.bundle import (
@@ -74,9 +75,39 @@ def _directive_body(artifact_id: str = "PROJECT_001", slug: str = "my-directive"
     })
 
 
+def _make_v2_manifest(
+    artifacts: list[ManifestArtifactEntry],
+    run_id: str = "01KPE222TESTRUNID0000000001",
+    created_at: str = "2026-04-17T12:00:00+00:00",
+    adapter_id: str = "fixture",
+    adapter_version: str = "1.0.0",
+) -> SynthesisManifest:
+    """Build a valid v2 SynthesisManifest with computed manifest_hash."""
+    data_without_hash: dict[str, Any] = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": created_at,
+        "run_id": run_id,
+        "adapter_id": adapter_id,
+        "adapter_version": adapter_version,
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [a.model_dump(mode="python") for a in artifacts],
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    return SynthesisManifest(
+        created_at=created_at,
+        run_id=run_id,
+        adapter_id=adapter_id,
+        adapter_version=adapter_version,
+        synthesizer_version="3.2.0a5",
+        manifest_hash=manifest_hash,
+        artifacts=artifacts,
+    )
+
+
 def _prov_yaml(kind: str, slug: str, content_hash: str) -> str:
     return (
-        f"schema_version: '1'\n"
+        f"schema_version: '2'\n"
         f"artifact_urn: '{kind}:{slug}'\n"
         f"artifact_kind: {kind}\n"
         f"artifact_slug: {slug}\n"
@@ -84,9 +115,15 @@ def _prov_yaml(kind: str, slug: str, content_hash: str) -> str:
         f"inputs_hash: {'b' * 64}\n"
         f"adapter_id: fixture\n"
         f"adapter_version: 1.0.0\n"
+        f"synthesizer_version: '3.2.0a5'\n"
         f"source_urns:\n"
         f"- directive:DIRECTIVE_003\n"
+        f"source_input_ids:\n"
+        f"- directive:DIRECTIVE_003\n"
         f"generated_at: '2026-04-17T12:00:00+00:00'\n"
+        f"produced_at: '2026-01-01T00:00:00+00:00'\n"
+        f"corpus_snapshot_id: '(none)'\n"
+        f"synthesis_run_id: '01HTEST00000000000000TEST01'\n"
     )
 
 
@@ -148,11 +185,7 @@ def test_valid_synthesis_bundle_passes(tmp_path: Path) -> None:
 
     # Write synthesis manifest with matching hash
     guard = PathGuard(repo, extra_allowed_prefixes=[repo])
-    manifest = SynthesisManifest(
-        created_at="2026-04-17T12:00:00+00:00",
-        run_id="01KPE222TESTRUNID0000000001",
-        adapter_id="fixture",
-        adapter_version="1.0.0",
+    manifest = _make_v2_manifest(
         artifacts=[
             ManifestArtifactEntry(
                 kind="tactic",
@@ -239,11 +272,7 @@ def test_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
 
     # Write manifest with WRONG hash
     guard = PathGuard(repo, extra_allowed_prefixes=[repo])
-    manifest = SynthesisManifest(
-        created_at="2026-04-17T12:00:00+00:00",
-        run_id="01KPE222TESTRUNID0000000001",
-        adapter_id="fixture",
-        adapter_version="1.0.0",
+    manifest = _make_v2_manifest(
         artifacts=[
             ManifestArtifactEntry(
                 kind="tactic",

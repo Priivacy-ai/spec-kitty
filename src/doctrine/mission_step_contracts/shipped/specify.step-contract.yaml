@@ -15,7 +15,9 @@ steps:
         optional: true
 
   - id: capture_intent
-    description: Capture the feature description and user intent
+    description: >
+      Conduct or verify the human discovery interview, then capture confirmed
+      user intent
     delegates_to:
       kind: directive
       candidates:

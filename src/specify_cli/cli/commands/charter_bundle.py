@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 
 from charter.bundle import CANONICAL_MANIFEST, CharterBundleManifest
@@ -26,6 +27,9 @@ from charter.resolution import (
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
 )
+from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
+from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
+from ruamel.yaml import YAML as _YAML
 
 app = typer.Typer(
     name="bundle",
@@ -221,6 +225,19 @@ def _render_human(report: dict[str, Any], console: Console) -> None:
         console.print("[red]Bundle is NOT compliant (v1.0.0).[/red]")
 
 
+def _assert_bundle_compatible_bundle(charter_dir: Path, console: Console) -> None:
+    """Check bundle compatibility and exit 1 with an upgrade prompt if needed.
+
+    Only called when the charter directory is known to exist; never called
+    for a fresh-synthesis path (where metadata.yaml is absent).
+    """
+    bundle_version = get_bundle_schema_version(charter_dir)
+    result = check_bundle_compatibility(bundle_version)
+    if not result.is_compatible:
+        console.print(f"[red]Error:[/red] {result.message}")
+        raise typer.Exit(code=1)
+
+
 @app.command("validate")
 def validate(
     json_output: bool = typer.Option(
@@ -239,6 +256,11 @@ def validate(
         # Exit 2: resolver failure. Message on stderr per contract.
         err_console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=2)
+
+    # FR-009: Block reads of incompatible bundles before any structure checks.
+    charter_dir = canonical_root / ".kittify" / "charter"
+    if (charter_dir / "metadata.yaml").exists():
+        _assert_bundle_compatible_bundle(charter_dir, console)
 
     manifest = CANONICAL_MANIFEST
 
@@ -289,6 +311,43 @@ def validate(
         "out_of_scope_files": out_of_scope,
         "warnings": warnings,
     }
+
+    # FR-006 / FR-007: Validate provenance sidecar content.
+    # Parse each sidecar as ProvenanceEntry; fail closed on validation errors.
+    _yaml_loader = _YAML(typ="safe")
+    provenance_dir = canonical_root / ".kittify" / "charter" / "provenance"
+    sidecar_errors: list[str] = []
+    if provenance_dir.exists():
+        for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
+            raw = _yaml_loader.load(sidecar_path)
+            if isinstance(raw, dict):
+                try:
+                    ProvenanceEntry(**raw)
+                except ValidationError as e:
+                    sidecar_errors.append(f"{sidecar_path.name}: {e}")
+
+    # FR-007: Every artifact listed in synthesis-manifest.yaml must have a
+    # provenance sidecar file on disk.  Missing sidecars fail closed.
+    manifest_yaml_path = canonical_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    if manifest_yaml_path.exists():
+        raw_manifest = _yaml_loader.load(manifest_yaml_path)
+        if isinstance(raw_manifest, dict):
+            for artifact in raw_manifest.get("artifacts", []) or []:
+                if not isinstance(artifact, dict):
+                    continue
+                prov_rel = artifact.get("provenance_path")
+                if not prov_rel:
+                    continue
+                if not (canonical_root / prov_rel).exists():
+                    slug = artifact.get("slug", "?")
+                    sidecar_errors.append(
+                        f"Missing provenance sidecar for artifact '{slug}': {prov_rel}"
+                    )
+
+    if sidecar_errors:
+        for msg in sidecar_errors:
+            console.print(f"[red]Provenance validation error:[/red] {msg}")
+        raise typer.Exit(code=1)
 
     if json_output:
         # Use plain stdout for JSON; the contract requires the exact JSON

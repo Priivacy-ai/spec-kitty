@@ -54,7 +54,7 @@ def _make_provenance(
     yaml_bytes = canonical_yaml(body)
     ch = content_hash or hashlib.sha256(yaml_bytes).hexdigest()
     return ProvenanceEntry(
-        schema_version="1",
+        schema_version="2",
         artifact_urn=f"{kind}:{slug}",
         artifact_kind=kind,  # type: ignore[arg-type]
         artifact_slug=slug,
@@ -62,9 +62,14 @@ def _make_provenance(
         inputs_hash="b" * 64,
         adapter_id="fixture",
         adapter_version="1.0.0",
+        synthesizer_version="3.2.0a5",
         source_section=None,
         source_urns=["directive:DIRECTIVE_003"],
+        source_input_ids=["directive:DIRECTIVE_003"],
         generated_at="2026-04-17T12:00:00+00:00",
+        produced_at="2026-01-01T00:00:00+00:00",
+        corpus_snapshot_id="(none)",
+        synthesis_run_id="01HTEST00000000000000TEST01",
     )
 
 

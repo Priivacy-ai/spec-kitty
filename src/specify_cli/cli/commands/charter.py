@@ -23,6 +23,7 @@ from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
+from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,19 @@ def _display_path(path: Path, repo_root: Path) -> str:
         return str(path.relative_to(repo_root))
     except ValueError:
         return str(path)
+
+
+def _assert_bundle_compatible(charter_dir: Path) -> None:
+    """Raise TaskCliError if the bundle at charter_dir is not compatible with this CLI.
+
+    Called by ``status``, ``resynthesize``, and ``bundle validate`` when the
+    charter bundle directory is known to exist.  Fresh synthesis (no prior
+    bundle) must NOT call this function — ``metadata.yaml`` would be absent.
+    """
+    bundle_version = get_bundle_schema_version(charter_dir)
+    result = check_bundle_compatibility(bundle_version)
+    if not result.is_compatible:
+        raise TaskCliError(result.message)
 
 
 def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
@@ -318,6 +332,8 @@ def _collect_provenance_status(
                     "artifact_urn": entry.artifact_urn,
                     "adapter_id": entry.adapter_id,
                     "adapter_version": entry.adapter_version,
+                    "synthesizer_version": getattr(entry, "synthesizer_version", None),  # v2
+                    "produced_at": getattr(entry, "produced_at", None),  # v2
                     "corpus_snapshot_id": entry.corpus_snapshot_id,
                     "evidence_bundle_hash": entry.evidence_bundle_hash,
                     "generated_at": entry.generated_at,
@@ -1522,6 +1538,9 @@ def status(  # noqa: C901
     """Display charter sync status plus synthesis/operator state."""
     try:
         repo_root = find_repo_root()
+        charter_dir = repo_root / ".kittify" / "charter"
+        if (charter_dir / "metadata.yaml").exists():
+            _assert_bundle_compatible(charter_dir)
         payload = {
             "result": "success",
             "charter_sync": _collect_charter_sync_status(repo_root),
@@ -2719,6 +2738,9 @@ def charter_resynthesize(  # noqa: C901
 
     try:
         repo_root = find_repo_root()
+        charter_dir = repo_root / ".kittify" / "charter"
+        if (charter_dir / "metadata.yaml").exists():
+            _assert_bundle_compatible(charter_dir)
         evidence_result = _collect_evidence_result(
             repo_root,
             skip_code_evidence=skip_code_evidence,

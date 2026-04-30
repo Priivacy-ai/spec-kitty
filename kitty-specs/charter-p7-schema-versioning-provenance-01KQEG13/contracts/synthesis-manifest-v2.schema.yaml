@@ -1,0 +1,94 @@
+# SynthesisManifest v2 contract
+# Storage: .kittify/charter/synthesis-manifest.yaml
+# Phase 7 additions: synthesizer_version, manifest_hash.
+# schema_version bumped from "1" to "2".
+
+$schema: "https://json-schema.org/draft/2020-12"
+title: SynthesisManifest
+description: Top-of-bundle commit marker (v2, Phase 7 hardened)
+type: object
+
+required:
+  - schema_version
+  - created_at
+  - run_id
+  - adapter_id
+  - adapter_version
+  - synthesizer_version
+  - manifest_hash
+  - artifacts
+
+properties:
+  schema_version:
+    type: string
+    const: "2"
+    description: "Manifest format version. Must be '2' for Phase 7 manifests."
+
+  mission_id:
+    type: ["string", "null"]
+    description: "Optional ULID of the Spec Kitty mission that triggered synthesis."
+
+  created_at:
+    type: string
+    description: "ISO 8601 UTC timestamp when this manifest was created."
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+
+  run_id:
+    type: string
+    minLength: 1
+    description: "ULID identifying this synthesis run. Matches the StagingDir.run_id."
+
+  adapter_id:
+    type: string
+    description: "Primary adapter id. Empty string for mixed-identity runs."
+
+  adapter_version:
+    type: string
+    description: "Primary adapter version. Empty string for mixed-identity runs."
+
+  synthesizer_version:
+    type: string
+    minLength: 1
+    description: "spec-kitty-cli version string at synthesis time."
+
+  manifest_hash:
+    type: string
+    minLength: 64
+    maxLength: 64
+    description: |
+      SHA-256 hex digest of canonical_yaml(all manifest fields EXCEPT manifest_hash itself).
+      Validation: strip manifest_hash key, re-serialize, re-hash, compare.
+
+  artifacts:
+    type: array
+    items:
+      $ref: "#/$defs/ManifestArtifactEntry"
+    description: "One entry per committed artifact, in deterministic order."
+
+$defs:
+  ManifestArtifactEntry:
+    type: object
+    required:
+      - kind
+      - slug
+      - path
+      - provenance_path
+      - content_hash
+    properties:
+      kind:
+        type: string
+        enum: ["directive", "tactic", "styleguide"]
+      slug:
+        type: string
+      path:
+        type: string
+        description: "Repo-relative path to the artifact YAML under .kittify/doctrine/."
+      provenance_path:
+        type: string
+        description: "Repo-relative path to the provenance sidecar under .kittify/charter/."
+      content_hash:
+        type: string
+        description: "SHA-256 hex digest of the artifact YAML bytes."
+    additionalProperties: false
+
+additionalProperties: false
