@@ -395,3 +395,4 @@ All existing offline tests must pass without modification.
 ## Activity Log
 
 - 2026-04-30T13:47:24Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=34402 – Started implementation via action command
+- 2026-04-30T13:52:48Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=34402 – Ready for review: implemented auth doctor --server flag with ServerSessionStatus dataclass, _check_server_session async function, server=False default keeps C-007 offline invariant, all 30 tests pass
