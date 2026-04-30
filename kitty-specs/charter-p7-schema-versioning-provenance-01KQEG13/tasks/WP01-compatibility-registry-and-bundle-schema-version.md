@@ -299,3 +299,7 @@ Must show ≥90% line coverage.
 - **ruamel.yaml int serialization**: Confirm that `bundle_schema_version: 2` (Python `int`) round-trips through ruamel.yaml as an integer, not a string. Test this in T007.
 - **Import path for `doctrine.versioning` in `charter/extractor.py`**: Check how other `charter/` modules import from `doctrine/` (e.g., `from doctrine.xxx import ...` or `from specify_cli.doctrine.xxx import ...`). Match the existing pattern.
 - **`tests/doctrine/__init__.py` missing**: Create it (empty file) if it does not exist, otherwise pytest cannot discover the module.
+
+## Activity Log
+
+- 2026-04-30T07:07:20Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=54664 – Ready for review: compatibility registry (doctrine/versioning.py) + ExtractionMetadata bundle_schema_version field + extractor stamping. All 36 tests pass, 100% coverage, mypy --strict clean on owned files.
