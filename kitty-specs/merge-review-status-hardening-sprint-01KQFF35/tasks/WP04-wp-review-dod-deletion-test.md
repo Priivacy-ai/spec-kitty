@@ -142,3 +142,4 @@ The change is purely to the source template file. The generated agent copies (`.
 ## Activity Log
 
 - 2026-04-30T15:50:02Z – claude – shell_pid=46345 – Ready for review: deletion-test checklist item added to source template under Check Quality section
+- 2026-04-30T17:59:02Z – claude – shell_pid=46345 – Done override: Mission squash-merged at cbca2025 on main; merge command recorded WP01 done but hung on remaining WPs
