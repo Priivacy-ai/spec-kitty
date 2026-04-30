@@ -6,13 +6,16 @@ that — so these tests target ``charter_bundle.app`` via import.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
+from charter.synthesizer.synthesize_pipeline import canonical_yaml
 from specify_cli.cli.commands import charter_bundle
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
@@ -30,6 +33,132 @@ _DERIVED = [
 ]
 _TRACKED = ".kittify/charter/charter.md"
 _GITIGNORE_REQUIRED = sorted(_DERIVED)
+
+
+def _add_doctrine_artifact(repo_root: Path, rel_path: str, content: str = "# artifact\n") -> Path:
+    """Write a doctrine artifact under .kittify/doctrine/."""
+    full = repo_root / ".kittify" / "doctrine" / rel_path
+    full.parent.mkdir(parents=True, exist_ok=True)
+    full.write_text(content, encoding="utf-8")
+    return full
+
+
+def _add_provenance_sidecar(
+    repo_root: Path,
+    kind: str,
+    slug: str,
+    content_hash: str | None = None,
+) -> Path:
+    """Write a valid ProvenanceEntry v2 sidecar under .kittify/charter/provenance/.
+
+    Filename is always '{kind}-{slug}.yaml' — the convention that
+    _check_artifacts_have_provenance and _check_provenance_have_artifacts rely on.
+    """
+    prov_dir = repo_root / ".kittify" / "charter" / "provenance"
+    prov_dir.mkdir(parents=True, exist_ok=True)
+    sidecar = prov_dir / f"{kind}-{slug}.yaml"
+    if content_hash is None:
+        content_hash = "a" * 64
+    sidecar.write_text(
+        f"schema_version: '2'\n"
+        f"artifact_urn: '{kind}:{slug}'\n"
+        f"artifact_kind: {kind}\n"
+        f"artifact_slug: {slug}\n"
+        f"artifact_content_hash: {content_hash}\n"
+        f"inputs_hash: {'b' * 64}\n"
+        f"adapter_id: fixture\n"
+        f"adapter_version: 1.0.0\n"
+        f"synthesizer_version: '3.2.0a5'\n"
+        f"source_section: null\n"
+        f"source_urns:\n- directive:DIRECTIVE_003\n"
+        f"source_input_ids:\n- directive:DIRECTIVE_003\n"
+        f"generated_at: '2026-04-30T00:00:00+00:00'\n"
+        f"produced_at: '2026-01-01T00:00:00+00:00'\n"
+        f"corpus_snapshot_id: '(none)'\n"
+        f"synthesis_run_id: '01HTEST00000000000000TEST01'\n",
+        encoding="utf-8",
+    )
+    return sidecar
+
+
+def _add_synthesis_manifest(
+    repo_root: Path,
+    artifact_rel: str,
+    content: str,
+    corrupt_hash: bool = False,
+    corrupt_manifest_hash: bool = False,
+) -> Path:
+    """Write synthesis-manifest.yaml referencing one artifact.
+
+    Writes a valid SynthesisManifest YAML so load_yaml() succeeds.
+    When corrupt_hash=True the stored content_hash doesn't match on-disk bytes,
+    causing verify() to raise ManifestIntegrityError (tests FR-003).
+    When corrupt_manifest_hash=True the manifest_hash self-hash is wrong,
+    causing verify_manifest_hash() to raise ValueError.
+    """
+    artifact_path = Path(artifact_rel)
+    name = artifact_path.name
+    # Derive kind/slug from filename to populate ManifestArtifactEntry fields.
+    if name.endswith(".directive.yaml"):
+        kind = "directive"
+        base = name[: -len(".directive.yaml")]
+        parts = base.split("-", 1)
+        slug = parts[1] if len(parts) == 2 and parts[0].isdigit() else base
+    elif name.endswith(".tactic.yaml"):
+        kind, slug = "tactic", name[: -len(".tactic.yaml")]
+    elif name.endswith(".styleguide.yaml"):
+        kind, slug = "styleguide", name[: -len(".styleguide.yaml")]
+    else:
+        raise ValueError(f"Cannot derive kind from artifact name: {name}")
+
+    full_artifact_rel = f".kittify/doctrine/{artifact_rel}"
+    provenance_rel = f".kittify/charter/provenance/{kind}-{slug}.yaml"
+    real_hash = hashlib.sha256(content.encode()).hexdigest()
+    stored_hash = "deadbeef" * 8 if corrupt_hash else real_hash
+
+    # Compute the real manifest_hash from the canonical YAML of all non-hash fields
+    # (mirrors SynthesisManifest.model_dump(mode="python") minus manifest_hash).
+    data_without_hash: dict[str, Any] = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2026-04-30T00:00:00+00:00",
+        "run_id": "01HTEST00000000000000TEST01",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [
+            {
+                "kind": kind,
+                "slug": slug,
+                "path": full_artifact_rel,
+                "provenance_path": provenance_rel,
+                "content_hash": stored_hash,
+            }
+        ],
+    }
+    real_manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = "e" * 64 if corrupt_manifest_hash else real_manifest_hash
+
+    manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        f"adapter_id: fixture\n"
+        f"adapter_version: 1.0.0\n"
+        f"artifacts:\n"
+        f"- content_hash: {stored_hash}\n"
+        f"  kind: {kind}\n"
+        f"  path: {full_artifact_rel}\n"
+        f"  provenance_path: {provenance_rel}\n"
+        f"  slug: {slug}\n"
+        f"created_at: '2026-04-30T00:00:00+00:00'\n"
+        f"manifest_hash: {manifest_hash}\n"
+        f"mission_id: null\n"
+        f"run_id: '01HTEST00000000000000TEST01'\n"
+        f"schema_version: '2'\n"
+        f"synthesizer_version: 3.2.0a5\n",
+        encoding="utf-8",
+    )
+    return manifest_path
 
 
 def _git_init(repo_root: Path) -> None:
@@ -240,17 +369,21 @@ def test_validate_json_shape_matches_contract(compliant_repo: Path) -> None:
     result = _invoke_validate_json()
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    # Required keys per contracts/bundle-validate-cli.contract.md.
+    # Required keys per contracts/bundle-validate-cli.contract.md and
+    # kitty-specs/charter-p7-release-closure-01KQF9B9/contracts/validate-json-output.md.
     required_keys = {
         "result",
         "canonical_root",
         "manifest_schema_version",
         "bundle_compliant",
+        "passed",
+        "errors",
         "tracked_files",
         "derived_files",
         "gitignore",
         "out_of_scope_files",
         "warnings",
+        "synthesis_state",
     }
     assert required_keys <= set(payload.keys())
     for section in ("tracked_files", "derived_files"):
@@ -258,3 +391,264 @@ def test_validate_json_shape_matches_contract(compliant_repo: Path) -> None:
     assert {"expected_entries", "present_entries", "missing_entries"} <= set(
         payload["gitignore"].keys()
     )
+    ss = payload["synthesis_state"]
+    assert {"present", "passed", "errors", "warnings"} <= set(ss.keys())
+    assert isinstance(ss["present"], bool)
+    assert isinstance(ss["passed"], bool)
+    assert isinstance(ss["errors"], list)
+    assert isinstance(ss["warnings"], list)
+
+
+# ---------------------------------------------------------------------------
+# T008 — FR-001: doctrine artifact without provenance sidecar
+# ---------------------------------------------------------------------------
+
+
+def test_validate_fails_when_doctrine_artifact_has_no_sidecar(
+    compliant_repo: Path,
+) -> None:
+    """FR-001: synthesized artifact without a provenance sidecar must fail validation."""
+    _add_doctrine_artifact(compliant_repo, "directives/001-foo.directive.yaml")
+    # No sidecar written — expected sidecar is directive-foo.yaml.
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is False
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    # Error message references the artifact or expected sidecar path.
+    assert any("foo" in e for e in ss["errors"]), ss["errors"]
+    # Mirrored into top-level errors with synthesis_state: prefix.
+    assert any("synthesis_state:" in e for e in payload["errors"]), payload["errors"]
+
+
+# ---------------------------------------------------------------------------
+# T009 — FR-002: provenance sidecar referencing absent artifact
+# ---------------------------------------------------------------------------
+
+
+def test_validate_fails_when_sidecar_references_missing_artifact(
+    compliant_repo: Path,
+) -> None:
+    """FR-002: provenance sidecar must reference an existing artifact file."""
+    # Create doctrine/ so validate_synthesis_state() doesn't early-return with present=False.
+    (compliant_repo / ".kittify" / "doctrine").mkdir(parents=True, exist_ok=True)
+    # Write directive-bar.yaml sidecar but no corresponding doctrine artifact.
+    # _check_provenance_have_artifacts derives kind=directive, slug=bar from filename
+    # and calls _find_artifact — finds nothing → error.
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="bar")
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is False
+    assert payload["synthesis_state"]["passed"] is False
+
+
+def test_validate_fails_when_sidecar_exists_without_doctrine_tree(
+    compliant_repo: Path,
+) -> None:
+    """FR-002: sidecar-only synthesis state is not legacy and must fail closed."""
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="orphan")
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    assert any("orphan" in e for e in ss["errors"]), ss["errors"]
+
+
+# ---------------------------------------------------------------------------
+# T010 — FR-003: synthesis manifest with per-artifact content_hash mismatch
+# ---------------------------------------------------------------------------
+
+
+def test_validate_fails_on_manifest_content_hash_mismatch(
+    compliant_repo: Path,
+) -> None:
+    """FR-003: mismatched synthesis manifest per-artifact content_hash must fail.
+
+    validate_synthesis_state() → _check_manifest_integrity() → verify() checks
+    per-artifact content_hash values only. Manifest self-hash (manifest_hash field)
+    is not verified by the current implementation; this test covers the
+    per-artifact mismatch path.
+    """
+    artifact_content = "# directive content\n"
+    _add_doctrine_artifact(
+        compliant_repo,
+        "directives/002-baz.directive.yaml",
+        content=artifact_content,
+    )
+    # Sidecar: directive-baz.yaml (kind=directive, slug=baz).
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="baz")
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/002-baz.directive.yaml",
+        content=artifact_content,
+        corrupt_hash=True,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is False
+    assert payload["synthesis_state"]["passed"] is False
+
+
+def test_validate_fails_when_manifest_exists_without_doctrine_tree(
+    compliant_repo: Path,
+) -> None:
+    """FR-003: manifest-only synthesis state is not legacy and must be verified."""
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/007-manifestonly.directive.yaml",
+        content="# missing artifact\n",
+        corrupt_manifest_hash=True,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    assert any("manifest" in e.lower() or "artifact" in e.lower() for e in ss["errors"])
+
+
+# ---------------------------------------------------------------------------
+# T011 — FR-005/FR-006: --json stdout is strict JSON on every failure type
+# ---------------------------------------------------------------------------
+
+
+def test_validate_json_is_strict_on_missing_sidecar(compliant_repo: Path) -> None:
+    """FR-005/FR-006: --json stdout must parse as JSON even on synthesis failure."""
+    _add_doctrine_artifact(compliant_repo, "directives/003-strict.directive.yaml")
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)  # must not raise
+    assert "synthesis_state" in payload
+    assert "errors" in payload
+    assert payload["passed"] is False
+
+
+def test_validate_json_is_strict_on_manifest_mismatch(compliant_repo: Path) -> None:
+    """FR-005/FR-006: --json stdout must parse as JSON on manifest hash failure."""
+    content = "# artifact\n"
+    _add_doctrine_artifact(compliant_repo, "directives/004-manifest.directive.yaml", content)
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="manifest")
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/004-manifest.directive.yaml",
+        content,
+        corrupt_hash=True,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)  # must not raise
+    assert payload["synthesis_state"]["passed"] is False
+
+
+def test_validate_json_is_strict_on_incompatible_bundle(compliant_repo: Path) -> None:
+    """FR-005/FR-006: incompatible bundle failures still emit JSON to stdout."""
+    (compliant_repo / ".kittify" / "charter" / "metadata.yaml").write_text(
+        "bundle_schema_version: 999\n", encoding="utf-8"
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)  # must not raise and must not be empty
+    assert payload["passed"] is False
+    assert any("compatibility:" in e for e in payload["errors"]), payload["errors"]
+    assert "synthesis_state" in payload
+
+
+# ---------------------------------------------------------------------------
+# T012 — FR-004 / C-012: legacy bundle (no synthesis state) still passes
+# ---------------------------------------------------------------------------
+
+
+def test_validate_passes_legacy_bundle_without_synthesis_state(
+    compliant_repo: Path,
+) -> None:
+    """FR-004 / C-012: legacy bundles with no synthesis state must still pass."""
+    # compliant_repo has no .kittify/doctrine/, no provenance sidecars, no manifest.
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is True
+    ss = payload["synthesis_state"]
+    assert ss["present"] is False
+    assert ss["passed"] is True
+    assert ss["errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# T013 — FR-009: complete v2 bundle passes end-to-end
+# ---------------------------------------------------------------------------
+
+
+def test_validate_passes_complete_v2_bundle(compliant_repo: Path) -> None:
+    """FR-009 regression: a complete v2 bundle with synthesis state must still pass."""
+    artifact_content = "# complete directive\n"
+    _add_doctrine_artifact(
+        compliant_repo, "directives/005-complete.directive.yaml", artifact_content
+    )
+    # Sidecar: directive-complete.yaml (kind=directive, slug=complete).
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="complete")
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/005-complete.directive.yaml",
+        content=artifact_content,
+        corrupt_hash=False,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is True
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is True
+    assert ss["errors"] == []
+    assert payload["errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# T014 — RISK-2 fix: manifest self-hash mismatch surfaces as error
+# ---------------------------------------------------------------------------
+
+
+def test_validate_fails_on_manifest_self_hash_mismatch(compliant_repo: Path) -> None:
+    """Manifest self-hash (manifest_hash field) mismatch must fail validation.
+
+    Exercises the verify_manifest_hash() call added to _check_manifest_integrity()
+    by the RISK-2 post-mission remediation. A valid per-artifact content_hash
+    but a tampered manifest_hash field must produce a synthesis_state error.
+    """
+    content = "# self-hash test directive\n"
+    _add_doctrine_artifact(
+        compliant_repo, "directives/006-selfhash.directive.yaml", content
+    )
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="selfhash")
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/006-selfhash.directive.yaml",
+        content=content,
+        corrupt_manifest_hash=True,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["passed"] is False
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    assert any("manifest" in e.lower() for e in ss["errors"]), ss["errors"]
+    assert any("synthesis_state:" in e for e in payload["errors"]), payload["errors"]

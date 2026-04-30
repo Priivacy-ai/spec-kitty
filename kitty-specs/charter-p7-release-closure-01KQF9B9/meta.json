@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-30T13:30:42.287323+00:00",
+  "friendly_name": "Charter Phase 7 Release Closure",
+  "mission_id": "01KQF9B97EV87WK6753J9KTGEC",
+  "mission_number": 109,
+  "mission_slug": "charter-p7-release-closure-01KQF9B9",
+  "mission_type": "software-dev",
+  "purpose_context": "Close the remaining Charter Phase 7 release blockers after PR #900 by making charter bundle validate enforce full synthesis-state provenance and by preserving strict JSON stdout for validation failures.",
+  "purpose_tldr": "Make the public Charter bundle validation gate release-ready for Phase 7.",
+  "slug": "charter-p7-release-closure-01KQF9B9",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-30T14:31:27.651171+00:00"
+}

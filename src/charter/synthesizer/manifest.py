@@ -159,6 +159,27 @@ def load_yaml(path: Path) -> SynthesisManifest:
     return SynthesisManifest.model_validate(raw)
 
 
+def verify_manifest_hash(manifest: SynthesisManifest) -> None:
+    """Verify the manifest self-hash field.
+
+    Recomputes SHA-256 of the canonical YAML serialization of all manifest
+    fields except ``manifest_hash`` itself and compares to the stored value.
+
+    Raises
+    ------
+    ValueError
+        If the computed hash does not match ``manifest.manifest_hash``.
+    """
+    data = manifest.model_dump(mode="python")
+    data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
+    computed = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    if computed != manifest.manifest_hash:
+        raise ValueError(
+            f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., "
+            f"computed {computed[:12]}...)"
+        )
+
+
 def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
     """Verify that every artifact listed in the manifest exists with matching hash.
 
@@ -202,4 +223,5 @@ __all__ = [
     "dump_yaml",
     "load_yaml",
     "verify",
+    "verify_manifest_hash",
 ]
