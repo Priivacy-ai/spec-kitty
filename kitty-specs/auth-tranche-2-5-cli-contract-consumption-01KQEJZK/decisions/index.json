@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-30T07:00:51.892684Z",
+      "decision_id": "01KQEK1F1M3C6SY1H15RXGA0J1",
+      "final_answer": "Add --server flag (offline remains default)",
+      "input_key": "auth_doctor_server_strategy",
+      "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+      "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+      "options": [
+        "Add --server flag (offline remains default)",
+        "Revise default to server-aware (update all offline tests)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should auth doctor server-aware behavior be opt-in via --server flag, or should server-aware behavior become the new default?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T07:00:55.501745Z",
+      "resolved_by": null,
+      "slot_key": "specify.auth_doctor.server_flag_strategy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+  "version": 1
+}
