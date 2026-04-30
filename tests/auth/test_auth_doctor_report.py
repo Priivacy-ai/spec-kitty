@@ -370,6 +370,31 @@ def test_renders_recorded_unhealthy_daemon(monkeypatch: pytest.MonkeyPatch) -> N
     assert "12345" in rendered
 
 
+def test_unhealthy_daemon_finding_points_to_reset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rollout-enabled unhealthy singleton should tell users to run ``--reset``."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    daemon_status = SyncDaemonStatus(
+        healthy=False, port=9402, pid=12835
+    )
+    _patch_state(
+        monkeypatch,
+        session=session,
+        daemon_status=daemon_status,
+        daemon_state_exists=True,
+        rollout_enabled=True,
+    )
+
+    report = assemble_report()
+
+    finding = next(f for f in report.findings if f.id == "F-005")
+    assert "not healthy" in finding.summary
+    assert finding.remediation_command == "spec-kitty auth doctor --reset"
+
+
 def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """F-007 fires when the lock holder host differs from the local hostname."""
     session = _make_session(

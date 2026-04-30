@@ -64,6 +64,7 @@ from specify_cli.sync.daemon import (
     DAEMON_STATE_FILE,
     SyncDaemonStatus,
     get_sync_daemon_status,
+    stop_sync_daemon,
 )
 from specify_cli.sync.orphan_sweep import (
     OrphanDaemon,
@@ -396,7 +397,7 @@ def _compute_findings(
         rollout_enabled = bool(is_saas_sync_enabled())
     except Exception:
         rollout_enabled = False
-    if rollout_enabled and (daemon is None or not daemon.active):
+    if rollout_enabled and daemon is None:
         findings.append(
             Finding(
                 id="F-005",
@@ -404,6 +405,16 @@ def _compute_findings(
                 summary="Daemon not running; next CLI command will start it.",
                 remediation_command=None,
                 remediation_description=None,
+            )
+        )
+    elif rollout_enabled and not daemon.active:
+        findings.append(
+            Finding(
+                id="F-005",
+                severity="info",
+                summary="Recorded daemon is not healthy; reset it or let the next remote command restart it.",
+                remediation_command="spec-kitty auth doctor --reset",
+                remediation_description="Clear unhealthy daemon metadata and stop any recorded daemon process.",
             )
         )
 
@@ -798,14 +809,23 @@ def doctor_impl(
     repair_messages: list[str] = []
 
     if reset:
+        repaired = False
         if any(f.id == "F-002" for f in report.findings):
             sweep = sweep_orphans(list(report.orphans))
             repair_messages.append(
                 f"--reset: {len(sweep.swept)} orphan(s) swept, "
                 f"{len(sweep.failed)} failed."
             )
+            repaired = True
             report = assemble_report(stuck_threshold_s=stuck_threshold)
-        else:
+
+        if report.daemon is not None and not report.daemon.active:
+            _stopped, message = stop_sync_daemon()
+            repair_messages.append(f"--reset: {message}")
+            repaired = True
+            report = assemble_report(stuck_threshold_s=stuck_threshold)
+
+        if not repaired:
             repair_messages.append("--reset: no orphans detected; no-op.")
 
     if unstick_lock:

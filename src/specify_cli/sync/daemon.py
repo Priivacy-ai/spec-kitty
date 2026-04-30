@@ -797,8 +797,10 @@ def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
         return False, "Sync daemon metadata was invalid and has been cleared."
 
     if not _check_sync_daemon_health(port, token):
-        DAEMON_STATE_FILE.unlink(missing_ok=True)
-        return False, "Sync daemon was already stopped. Metadata has been cleared."
+        _kill_and_cleanup(pid)
+        if pid is None:
+            return True, "Unhealthy sync daemon metadata has been cleared."
+        return True, "Unhealthy sync daemon process stopped. Metadata has been cleared."
 
     _stop_daemon_by_http(url or f"http://127.0.0.1:{port}", token)
 
