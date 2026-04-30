@@ -18,6 +18,7 @@ subtasks:
 - T005
 - T006
 agent: claude
+shell_pid: '41457'
 history:
 - date: '2026-04-30'
   event: created
