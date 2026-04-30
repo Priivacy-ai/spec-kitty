@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -402,6 +403,71 @@ class TestSkipReviewArtifactCheck:
 
 
 # ---------------------------------------------------------------------------
+# T023 / T025: user-facing status command warnings
+# ---------------------------------------------------------------------------
+
+
+class TestTasksStatusReviewWarnings:
+    """`spec-kitty agent tasks status` surfaces review artifact problems."""
+
+    def _invoke_status(self, tmp_path: Path, mission_slug: str):
+        with (
+            patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=mission_slug),
+            patch(
+                "specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out",
+                return_value=(tmp_path, "main"),
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.tasks.resolve_workspace_for_wp",
+                side_effect=FileNotFoundError,
+            ),
+            patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False),
+        ):
+            return runner.invoke(app, ["status", "--mission", mission_slug])
+
+    def test_status_warns_for_done_wp_with_rejected_review_artifact(
+        self, tmp_path: Path
+    ) -> None:
+        """The CLI status command checks tasks/<WP-slug>/review-cycle-N.md."""
+        mission_slug = "test-status-stale-verdict"
+        feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+        _seed_wp_event(feature_dir, "WP01", "done")
+
+        wp_dir = wp_file.parent / wp_file.stem
+        _write_review_cycle(wp_dir, 1, "rejected")
+
+        result = self._invoke_status(tmp_path, mission_slug)
+
+        assert result.exit_code == 0, result.output
+        assert "review artifact: verdict=rejected" in result.output
+
+    def test_status_warns_for_stalled_in_review_wp(self, tmp_path: Path) -> None:
+        """The CLI status command flags in_review WPs past the review threshold."""
+        mission_slug = "test-status-stalled-review"
+        feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+        event_time = datetime.now(UTC) - timedelta(minutes=45)
+        event = StatusEvent(
+            event_id="test-WP01-in-review",
+            mission_slug=feature_dir.name,
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+            at=event_time.isoformat(),
+            actor="test",
+            force=False,
+            execution_mode="worktree",
+        )
+        append_event(feature_dir, event)
+
+        result = self._invoke_status(tmp_path, mission_slug)
+
+        assert result.exit_code == 0, result.output
+        assert "STALLED" in result.output
+        assert "no move-task" in result.output
+
+
+# ---------------------------------------------------------------------------
 # T011 / T012 / T013: lane guard error message variants
 # ---------------------------------------------------------------------------
 
@@ -504,6 +570,7 @@ class TestLaneGuardErrorMessage:
         assert "git show" in guidance_text, (
             f"Expected git show example in guidance; got:\n{guidance_text}"
         )
+        assert "git show my-planning-branch:kitty-specs/test-lane-guard-001/extra-plan.md" in guidance_text
 
     def test_lane_guard_fallback_no_meta(self, tmp_path: Path) -> None:
         """When meta.json is absent, error says 'planning branch unknown'."""

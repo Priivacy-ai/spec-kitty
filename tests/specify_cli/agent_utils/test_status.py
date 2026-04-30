@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import textwrap
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -387,7 +387,7 @@ def test_get_last_event_time_returns_most_recent(tmp_path: Path) -> None:
     ]
     result = _get_last_event_time(events, "WP01")
     assert result is not None
-    assert result == datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 1, 1, 11, 0, 0, tzinfo=UTC)
 
 
 def test_get_last_event_time_returns_none_for_unknown_wp() -> None:
@@ -440,7 +440,7 @@ def test_stall_detected_above_threshold(monkeypatch: pytest.MonkeyPatch, tmp_pat
     """WP in in_review with last event 45m ago is flagged as stalled (threshold=30m)."""
     mission_slug = "test-stall"
     # Place event 45 minutes in the past
-    fake_now = datetime(2026, 4, 30, 12, 0, 0, tzinfo=timezone.utc)
+    fake_now = datetime(2026, 4, 30, 12, 0, 0, tzinfo=UTC)
     event_time = fake_now - timedelta(minutes=45)
     at_str = event_time.isoformat()
 
@@ -465,7 +465,7 @@ def test_stall_detected_above_threshold(monkeypatch: pytest.MonkeyPatch, tmp_pat
 def test_stall_not_detected_below_threshold(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """WP in in_review with last event 10m ago is NOT stalled (threshold=30m)."""
     mission_slug = "test-no-stall"
-    fake_now = datetime(2026, 4, 30, 12, 0, 0, tzinfo=timezone.utc)
+    fake_now = datetime(2026, 4, 30, 12, 0, 0, tzinfo=UTC)
     event_time = fake_now - timedelta(minutes=10)
     at_str = event_time.isoformat()
 
@@ -503,8 +503,10 @@ def test_stale_verdict_warning_shown_in_done_lane(
     _create_meta_json(feature_dir, mission_slug)
     _create_wp_file(tasks_dir, "WP01", "Done Work")
 
-    # Write review-cycle-1.md with rejected verdict in the WP01 directory
-    wp_dir = tasks_dir / "WP01"
+    # Write review-cycle-1.md with rejected verdict in the WP slug directory.
+    # Review artifacts live beside the WP markdown file under tasks/<WP-slug>/,
+    # not tasks/<WP_ID>/.
+    wp_dir = tasks_dir / "WP01-stub"
     wp_dir.mkdir()
     (wp_dir / "review-cycle-1.md").write_text(
         "---\nverdict: rejected\n---\n# Review\n", encoding="utf-8"
@@ -551,7 +553,7 @@ def test_stale_verdict_clean_no_warning(
     _create_meta_json(feature_dir, mission_slug)
     _create_wp_file(tasks_dir, "WP01", "Done Work")
 
-    wp_dir = tasks_dir / "WP01"
+    wp_dir = tasks_dir / "WP01-stub"
     wp_dir.mkdir()
     (wp_dir / "review-cycle-1.md").write_text(
         "---\nverdict: approved\n---\n# Review\n", encoding="utf-8"
@@ -588,7 +590,7 @@ class _FakeDatetime:
     def __init__(self, fixed_now: datetime) -> None:
         self._now = fixed_now
 
-    def now(self, tz: "timezone | None" = None) -> datetime:
+    def now(self, tz: timezone | None = None) -> datetime:
         if tz is not None:
             return self._now.astimezone(tz)
         return self._now

@@ -22,7 +22,7 @@ from specify_cli.sync.events import (
 )
 
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane, TransitionRequest
+from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
@@ -151,6 +151,97 @@ def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | N
         return verdict, artifact
     except Exception:  # noqa: BLE001 — review-cycle artifact may be malformed; fail-open
         return None, artifact
+
+
+def _review_artifact_dir_for_wp(tasks_dir: Path, wp: dict) -> Path | None:
+    """Return the review-cycle artifact dir for a WP status row."""
+    wp_file = wp.get("file")
+    if isinstance(wp_file, str) and wp_file.endswith(".md"):
+        return tasks_dir / Path(wp_file).stem
+    wp_id = wp.get("id")
+    return tasks_dir / str(wp_id) if wp_id else None
+
+
+def _review_stall_threshold_minutes(repo_root: Path) -> int:
+    """Read review.stall_threshold_minutes from .kittify/config.yaml."""
+    config_file = repo_root / ".kittify" / "config.yaml"
+    if not config_file.exists():
+        return 30
+    try:
+        import yaml  # noqa: PLC0415
+
+        config = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+        value = config.get("review", {}).get("stall_threshold_minutes", 30)
+        return int(value)
+    except (AttributeError, OSError, TypeError, ValueError):
+        return 30
+
+
+def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
+    """Return the latest parsed event time for a WP."""
+    latest: datetime | None = None
+    for event in events:
+        if event.wp_id != wp_id or not event.at:
+            continue
+        try:
+            parsed = datetime.fromisoformat(event.at)
+        except ValueError:
+            continue
+        parsed = parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+        if latest is None or parsed > latest:
+            latest = parsed
+    return latest
+
+
+def _apply_review_status_flags(
+    work_packages: list[dict],
+    *,
+    tasks_dir: Path,
+    events: list[StatusEvent],
+    stall_threshold_minutes: int,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Annotate status rows with stale verdict and stalled-review warnings."""
+    stale_verdicts: list[dict[str, object]] = []
+    stalled_wps: list[dict[str, object]] = []
+    now = datetime.now(UTC)
+
+    for wp in work_packages:
+        wp_id = wp.get("id")
+        if not isinstance(wp_id, str) or not wp_id:
+            continue
+
+        lane = wp.get("lane")
+        if lane in (Lane.APPROVED, Lane.DONE):
+            wp_dir = _review_artifact_dir_for_wp(tasks_dir, wp)
+            if wp_dir is not None:
+                verdict, artifact = _get_latest_review_cycle_verdict(wp_dir)
+                if verdict == "rejected" and artifact is not None:
+                    warning = {
+                        "wp_id": wp_id,
+                        "artifact": artifact.name,
+                        "verdict": verdict,
+                    }
+                    stale_verdicts.append(warning)
+                    wp["_stale_verdict"] = True
+                    wp["stale_review_artifact"] = warning
+
+        if lane == Lane.IN_REVIEW:
+            last_event_time = _latest_status_event_time(events, wp_id)
+            if last_event_time is None:
+                continue
+            age_minutes = int((now - last_event_time).total_seconds() / 60)
+            if age_minutes > stall_threshold_minutes:
+                stall_label = f"STALLED — no move-task in {age_minutes}m"
+                warning = {
+                    "wp_id": wp_id,
+                    "age_minutes": age_minutes,
+                    "threshold_minutes": stall_threshold_minutes,
+                }
+                stalled_wps.append(warning)
+                wp["_stall_label"] = stall_label
+                wp["review_stall"] = warning
+
+    return stale_verdicts, stalled_wps
 
 
 def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
@@ -1072,11 +1163,14 @@ def _validate_ready_for_review(
                     guidance.append(f"  ... and {len(contamination_files) - 5} more")
                 guidance.append("")
                 if _planning_branch:
+                    _first_planning_path = (
+                        contamination_files[0] if contamination_files else "kitty-specs/<path-to-file>"
+                    )
                     guidance.append(
                         f"kitty-specs/ changes are not allowed on lane branches.\n"
                         f"Planning artifacts must live on: {_planning_branch}\n\n"
                         f"To verify a file exists on the planning branch:\n"
-                        f"  git show {_planning_branch}:kitty-specs/<path-to-file>"
+                        f"  git show {_planning_branch}:{_first_planning_path}"
                     )
                 else:
                     guidance.append(
@@ -2803,17 +2897,19 @@ def status(
 
         # Load canonical lanes from event log (lane is event-log-only)
         _st_snapshot = None
+        _st_events: list[StatusEvent] = []
+        _st_lanes: dict = {}
         try:
             from specify_cli.status.store import read_events as _st_read_events
             from specify_cli.status.reducer import reduce as _st_reduce
 
             _st_events = _st_read_events(feature_dir)
             _st_snapshot = _st_reduce(_st_events) if _st_events else None
-            _st_lanes: dict = {}
             if _st_snapshot:
                 for _st_wp_id, _st_state in _st_snapshot.work_packages.items():
                     _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.PLANNED))
         except Exception:
+            _st_events = []
             _st_lanes = {}
 
         # Collect all work packages
@@ -2870,6 +2966,14 @@ def status(
             console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
             raise typer.Exit(0)
 
+        review_stall_threshold = _review_stall_threshold_minutes(main_repo_root)
+        stale_verdicts, stalled_wps = _apply_review_status_flags(
+            work_packages,
+            tasks_dir=tasks_dir,
+            events=_st_events,
+            stall_threshold_minutes=review_stall_threshold,
+        )
+
         # JSON output
         if json_output:
             # Check for stale WPs first (need to do this before JSON output too)
@@ -2901,6 +3005,8 @@ def status(
                 "work_packages": work_packages,
                 "progress_percentage": round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0,
                 "stale_wps": stale_count,
+                "stale_verdicts": stale_verdicts,
+                "stalled_wps": stalled_wps,
                 "auto_commit": auto_commit_enabled,
             }
             print(json.dumps(result, indent=2))
@@ -3010,8 +3116,12 @@ def status(
                     display_id = f"{marker}{wp['id']}"
 
                     # Add stale indicator for in_progress WPs
-                    if lane == Lane.IN_PROGRESS and wp.get("is_stale"):
+                    if wp.get("_stale_verdict"):
+                        cell = f"[yellow]⚠ {display_id}[/yellow]\n{title_truncated}"
+                    elif lane == Lane.IN_PROGRESS and wp.get("is_stale"):
                         cell = f"[red]⚠️ {display_id}[/red]\n{title_truncated}"
+                    elif wp.get("_stall_label"):
+                        cell = f"[yellow]⚠ {display_id} (review)[/yellow]\n{title_truncated}"
                     elif wp.get("_display_in_review"):
                         cell = f"[bright_cyan]{display_id} (review)[/bright_cyan]\n{title_truncated}"
                     else:
@@ -3069,8 +3179,22 @@ def status(
             console.print("[bold magenta]👍 Approved (merge when all WPs approved):[/bold magenta]")
             for wp in by_lane[Lane.APPROVED]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
-                console.print(f"  • {marker}{wp['id']} - {wp['title']}")
+                line = f"  • {marker}{wp['id']} - {wp['title']}"
+                if wp.get("_stale_verdict"):
+                    line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+                console.print(line)
             console.print("[dim]   Approved WPs stay here until feature merge. Dependents can start immediately.[/dim]")
+            console.print()
+
+        done_stale = [wp for wp in by_lane[Lane.DONE] if wp.get("_stale_verdict")]
+        if done_stale:
+            console.print("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
+            for wp in done_stale:
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                console.print(
+                    f"  • {marker}{wp['id']} - {wp['title']}"
+                    "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+                )
             console.print()
 
         if by_lane[Lane.IN_PROGRESS]:
@@ -3099,7 +3223,10 @@ def status(
             console.print("[bold bright_cyan]🔍 In Review (shown in Doing column):[/bold bright_cyan]")
             for wp in by_lane[Lane.IN_REVIEW]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
-                console.print(f"  • {marker}{wp['id']} - {wp['title']}")
+                line = f"  • {marker}{wp['id']} - {wp['title']}"
+                if wp.get("_stall_label"):
+                    line += f"  [bold yellow]⚠ {wp['_stall_label']}[/bold yellow]"
+                console.print(line)
             console.print()
 
         if by_lane[Lane.PLANNED]:

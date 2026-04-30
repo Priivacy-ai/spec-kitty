@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -172,6 +171,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
                 "lane": lane,
                 "phase": phase,
                 "file": wp_file.name,
+                "artifact_dir": wp_file.stem,
                 "dependencies": dependencies
             })
 
@@ -237,7 +237,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             wp_id = wp["id"]
             if not wp_id:
                 continue
-            wp_dir = tasks_dir / wp_id
+            wp_dir = tasks_dir / str(wp.get("artifact_dir") or wp_id)
             verdict = _get_wp_review_verdict(wp_dir)
             if verdict == "rejected":
                 stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
@@ -245,7 +245,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
 
         # --- Stall detection (T025) ---
         # Flag in_review WPs whose last event is older than the threshold
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         stalled_wps: list[dict] = []
         for wp in by_lane.get(Lane.IN_REVIEW, []):
             wp_id = wp["id"]
