@@ -18,16 +18,31 @@ policy-backed context on every action.
 
 - Spec Kitty 3.x installed — verify with `uv run spec-kitty --version`
 - A git repository (new or existing). Charter requires a git working tree.
+- A Spec Kitty project scaffold. For a fresh repository, run `uv run spec-kitty init --ai claude --non-interactive` before the Charter interview.
 - Optional: a Spec Kitty account if you want SaaS sync enabled. Steps that require SaaS sync are
   labeled with a note.
 
 ---
 
-## Step 1: Initialize governance
+## Step 1: Initialize Spec Kitty and governance
 
-The first step captures your project's policy decisions and generates the charter bundle.
+The first step creates the Spec Kitty project scaffold, captures your project's policy decisions,
+and generates the charter bundle.
 
-### 1a. Run the interview
+### 1a. Initialize the project scaffold
+
+If this is a fresh git repository, initialize Spec Kitty first:
+
+```bash
+uv run spec-kitty init --ai claude --non-interactive
+```
+
+`init` creates `.kittify/config.yaml`, agent command templates, and ignore files. It is
+idempotent, so rerunning it in an already-initialized project exits cleanly. Use the agent key
+that matches your workflow; this tutorial uses `claude` because the later `next` examples use
+`--agent claude`.
+
+### 1b. Run the interview
 
 The interview collects your project's policy decisions and saves them as structured answers. Use
 the minimal profile to start; upgrade to comprehensive later if needed.
@@ -46,7 +61,7 @@ saved to `.kittify/charter/interview/answers.yaml`.
 
 This step is interactive when you omit `--defaults`. Follow the prompts to describe your project.
 
-### 1b. Generate the charter bundle
+### 1c. Generate the charter bundle
 
 Generate `charter.md` and all derived governance files from your interview answers:
 
@@ -148,11 +163,15 @@ First, create a mission to work on (if you don't have one already):
 uv run spec-kitty specify my-first-feature
 ```
 
+The command returns a `mission_slug` such as `my-first-feature-01KQEE5E`. Use that full slug
+for `spec-kitty next`; the short feature name alone is not enough once Spec Kitty has appended
+the mission identity suffix.
+
 Then drive the mission using `spec-kitty next`. The `--agent` flag identifies the agent name used
-for the issued action; `--mission` identifies the mission by its slug:
+for the issued action; `--mission` identifies the mission by its full slug:
 
 ```bash
-uv run spec-kitty next --agent claude --mission my-first-feature --json
+uv run spec-kitty next --agent claude --mission my-first-feature-01KQEE5E --json
 ```
 
 In query mode (when `--result` is omitted), `next` reads and prints the current mission state
@@ -161,7 +180,7 @@ without advancing it. This is useful to see what step is next before acting.
 To advance the mission after completing a step, pass `--result`:
 
 ```bash
-uv run spec-kitty next --agent claude --mission my-first-feature --result success --json
+uv run spec-kitty next --agent claude --mission my-first-feature-01KQEE5E --result success --json
 ```
 
 The runtime resolves the next step from the mission's state machine, builds the governed prompt
