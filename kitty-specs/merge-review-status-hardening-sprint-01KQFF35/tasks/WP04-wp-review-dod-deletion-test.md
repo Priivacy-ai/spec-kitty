@@ -138,3 +138,7 @@ The change is purely to the source template file. The generated agent copies (`.
 - Read the modified section and confirm the checklist item is actionable: can a reviewer follow the instructions as written without additional context?
 - Grep for "deletion test" in the source file to confirm presence.
 - Grep for "deletion test" in `.claude/commands/` to confirm it is NOT there yet (it will appear after the next `spec-kitty upgrade` run).
+
+## Activity Log
+
+- 2026-04-30T15:50:02Z – claude – shell_pid=46345 – Ready for review: deletion-test checklist item added to source template under Check Quality section
