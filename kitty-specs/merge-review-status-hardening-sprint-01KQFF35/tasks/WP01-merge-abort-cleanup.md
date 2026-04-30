@@ -211,3 +211,7 @@ The BLE001 changes are bundled here because WP01 already owns `merge.py`; keepin
 - Verify the lock path used in the cleanup matches the actual path created by `acquire_merge_lock`.
 - Run `spec-kitty merge --abort` manually (no lock/state present); confirm exit 0 and clean output.
 - Confirm BLE001 justifications describe WHY (not just WHAT) the swallow is safe.
+
+## Activity Log
+
+- 2026-04-30T17:39:51Z – claude – shell_pid=41457 – Ready for review: idempotent abort cleanup + BLE001 annotations
