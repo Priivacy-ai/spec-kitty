@@ -12,10 +12,10 @@
 | T002 | Add `generation: int \| None = None` field to `StoredSession` | WP01 | No | [D] |
 | T003 | Update `to_dict()` and `from_dict()` for `generation` field (backward-compat) | WP01 | No | [D] |
 | T004 | Verify existing `StoredSession` round-trip tests pass with new field | WP01 | No | [D] |
-| T005 | Create `auth/flows/revoke.py` with `RevokeOutcome` enum and `RevokeFlow` class | WP02 | No |
-| T006 | Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes to three output states | WP02 | No |
-| T007 | Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths | WP02 | No |
-| T008 | Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions, add `/oauth/revoke` assertions | WP02 | No |
+| T005 | Create `auth/flows/revoke.py` with `RevokeOutcome` enum and `RevokeFlow` class | WP02 | No | [D] |
+| T006 | Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes to three output states | WP02 | No | [D] |
+| T007 | Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths | WP02 | No | [D] |
+| T008 | Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions, add `/oauth/revoke` assertions | WP02 | No | [D] |
 | T009 | Add 409 branch in `TokenRefreshFlow.refresh()` — raise `RefreshReplayError` | WP03 | No |
 | T010 | Add `except RefreshReplayError` handler in `_run_locked`: reload, compare, one retry | WP03 | No |
 | T011 | Capture `generation` from response in `TokenRefreshFlow._update_session()` | WP03 | No |
@@ -27,7 +27,7 @@
 | T017 | Add default doctor hint: "Run `spec-kitty auth doctor --server` to verify server session status." | WP04 | No |
 | T018 | Wire `--server` flag in `auth.py` doctor command; pass to `doctor_impl` | WP04 | No |
 | T019 | Add `--server` tests in `tests/auth/test_auth_doctor_report.py` and verify offline tests unchanged in `tests/auth/test_auth_doctor_offline.py` | WP04 | No |
-| T020 | Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations | WP02 | No |
+| T020 | Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations | WP02 | No | [D] |
 | T021 | Run focused logout + doctor test suites; confirm zero legacy `/api/v1/logout` assertions | WP05 | No |
 | T022 | Run full auth + status test suite; confirm doctor offline tests pass unchanged | WP05 | No |
 | T023 | Produce `dev-smoke-checklist.md` with step-by-step commands and expected output | WP05 | No |
@@ -67,11 +67,11 @@
 **Goal**: Replace the retired `/api/v1/logout` bearer call with RFC 7009 `/oauth/revoke`, create a dedicated `RevokeFlow` class with testable outcome enum, update all logout tests including the e2e integration test, and surface local cleanup failure as exit 1.
 
 **Subtasks**:
-- [ ] T005 Create `auth/flows/revoke.py` with `RevokeOutcome` enum and `RevokeFlow` class (WP02)
-- [ ] T006 Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes, wrap `clear_session()` with exit-1 failure path (WP02)
-- [ ] T007 Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths (WP02)
-- [ ] T008 Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions, add cleanup-failure test (WP02)
-- [ ] T020 Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations (WP02)
+- [x] T005 Create `auth/flows/revoke.py` with `RevokeOutcome` enum and `RevokeFlow` class (WP02)
+- [x] T006 Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes, wrap `clear_session()` with exit-1 failure path (WP02)
+- [x] T007 Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths (WP02)
+- [x] T008 Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions, add cleanup-failure test (WP02)
+- [x] T020 Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations (WP02)
 
 **Risks**: Must not report `REVOKED` on 5xx. `typer.Exit(code=1)` propagates through `asyncio.run()` correctly. No spent refresh token in any output or log.
 
