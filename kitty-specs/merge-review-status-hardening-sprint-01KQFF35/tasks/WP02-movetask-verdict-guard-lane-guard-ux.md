@@ -23,8 +23,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: claude
-shell_pid: '45728'
+agent: "claude:claude-sonnet-4-6:python-pedro:reviewer"
+shell_pid: "5660"
 history:
 - date: '2026-04-30'
   event: created
@@ -297,3 +297,4 @@ Two independent improvements to `src/specify_cli/cli/commands/agent/tasks.py`:
 ## Activity Log
 
 - 2026-04-30T17:38:16Z – claude – shell_pid=45728 – Ready for review: verdict guard + lane guard UX improvements
+- 2026-04-30T17:40:32Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=5660 – Started review via action command
