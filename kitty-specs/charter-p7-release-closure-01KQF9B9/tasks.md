@@ -23,12 +23,12 @@ WP02 depends on WP01.
 
 | ID | Description | WP | Parallel |
 |----|--------------|----|----------|
-| T001 | Extend `charter_bundle.py` import to include `validate_synthesis_state` and `BundleValidationResult` from `charter.bundle` | WP01 | |
-| T002 | Refactor sidecar error handling: remove early exit before json_output branch; collect sidecar errors into a local list; redirect Rich rendering to `err_console` | WP01 | |
-| T003 | Call `validate_synthesis_state(canonical_root)` after sidecar collection; capture `BundleValidationResult` | WP01 | |
-| T004 | Build `synthesis_state` dict; compute mirrored `errors` list (sidecar errors + `"synthesis_state: "` prefixed synth errors); add both to `report` | WP01 | |
-| T005 | Update `result`/`passed` in report to reflect combined compliance (bundle_compliant AND no provenance errors AND synth passed); single exit gate | WP01 | |
-| T006 | Extend `_render_human` to display `synthesis_state` section; confirm `mypy --strict` passes; existing tests pass | WP01 | |
+| T001 | Extend `charter_bundle.py` import to include `validate_synthesis_state` and `BundleValidationResult` from `charter.bundle` | WP01 | | [D] |
+| T002 | Refactor sidecar error handling: remove early exit before json_output branch; collect sidecar errors into a local list; redirect Rich rendering to `err_console` | WP01 | | [D] |
+| T003 | Call `validate_synthesis_state(canonical_root)` after sidecar collection; capture `BundleValidationResult` | WP01 | | [D] |
+| T004 | Build `synthesis_state` dict; compute mirrored `errors` list (sidecar errors + `"synthesis_state: "` prefixed synth errors); add both to `report` | WP01 | | [D] |
+| T005 | Update `result`/`passed` in report to reflect combined compliance (bundle_compliant AND no provenance errors AND synth passed); single exit gate | WP01 | | [D] |
+| T006 | Extend `_render_human` to display `synthesis_state` section; confirm `mypy --strict` passes; existing tests pass | WP01 | | [D] |
 | T007 | Add fixture helpers (`_add_doctrine_artifact`, `_add_provenance_sidecar`, `_add_synthesis_manifest`) to `test_bundle_validate_cli.py` | WP02 | |
 | T008 | Test: doctrine artifact without sidecar → exits 1; `synthesis_state.errors` non-empty | WP02 | [P] |
 | T009 | Test: provenance sidecar referencing absent artifact → exits 1 | WP02 | [P] |
@@ -54,12 +54,12 @@ Fix two bugs in `src/specify_cli/cli/commands/charter_bundle.py`:
 
 ### Included subtasks
 
-- [ ] T001 Extend import to include `validate_synthesis_state` and `BundleValidationResult` (WP01)
-- [ ] T002 Refactor sidecar error handling: remove early exit, collect locally, fix stdout leakage (WP01)
-- [ ] T003 Call `validate_synthesis_state(canonical_root)` after sidecar collection (WP01)
-- [ ] T004 Build `synthesis_state` dict and mirrored `errors` list; add to `report` (WP01)
-- [ ] T005 Update `result`/`passed` to reflect combined compliance; single exit gate (WP01)
-- [ ] T006 Extend `_render_human` for synthesis_state; mypy --strict; existing tests green (WP01)
+- [x] T001 Extend import to include `validate_synthesis_state` and `BundleValidationResult` (WP01)
+- [x] T002 Refactor sidecar error handling: remove early exit, collect locally, fix stdout leakage (WP01)
+- [x] T003 Call `validate_synthesis_state(canonical_root)` after sidecar collection (WP01)
+- [x] T004 Build `synthesis_state` dict and mirrored `errors` list; add to `report` (WP01)
+- [x] T005 Update `result`/`passed` to reflect combined compliance; single exit gate (WP01)
+- [x] T006 Extend `_render_human` for synthesis_state; mypy --strict; existing tests green (WP01)
 
 ### Implementation sketch
 
