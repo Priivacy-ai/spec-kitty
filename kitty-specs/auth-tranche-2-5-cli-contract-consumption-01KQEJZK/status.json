@@ -1,7 +1,7 @@
 {
-  "event_count": 25,
-  "last_event_id": "01KQFAQPMHRSRKPN2C285FEBZP",
-  "materialized_at": "2026-04-30T13:54:57.809763+00:00",
+  "event_count": 27,
+  "last_event_id": "01KQFARM855S8176NH1VTYMMZ5",
+  "materialized_at": "2026-04-30T13:55:28.133479+00:00",
   "mission_number": "",
   "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-04-30T13:54:57.809763+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude:claude-sonnet-4-6:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQEMVMAKJ18G5TX198EV70GT",
-      "last_transition_at": "2026-04-30T07:32:37.843533+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQFARM855S8176NH1VTYMMZ5",
+      "last_transition_at": "2026-04-30T13:55:28.133479+00:00"
     }
   }
 }

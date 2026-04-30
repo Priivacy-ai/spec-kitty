@@ -15,7 +15,8 @@ subtasks:
 - T021
 - T022
 - T023
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "39407"
 history:
 - date: '2026-04-30'
   event: created
@@ -258,3 +259,7 @@ This is pre-existing issue #889 and is not related to Tranche 2.5 auth changes.
 | Full suite failures from pre-existing issues (#889) | Document as pre-existing; do not block Tranche 2.5 on them |
 | Dev server unreachable at smoke time | Smoke checklist is manual; note in checklist that env vars must be set |
 | `grep` misses a reference in a comment | Review any grep hits manually; comments referencing `/api/v1/logout` should also be removed |
+
+## Activity Log
+
+- 2026-04-30T13:55:30Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=39407 – Started implementation via action command
