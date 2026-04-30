@@ -57,6 +57,36 @@ def test_specify_template_creates_requirements_checklist() -> None:
     )
 
 
+def test_specify_template_blocks_artifacts_until_intent_confirmed() -> None:
+    """`specify.md` must keep discovery before artifact creation.
+
+    The `/spec-kitty.specify` flow is prompt-driven for agent hosts. This static
+    check protects the instruction that prevents agents from skipping the user
+    interview and calling `mission create` before confirming intent.
+    """
+    assert SPECIFY_TEMPLATE.exists(), (
+        f"Source template missing: {SPECIFY_TEMPLATE}.\n"
+        "The software-dev /spec-kitty.specify template is the canonical "
+        "owner of the discovery gate."
+    )
+    text = SPECIFY_TEMPLATE.read_text(encoding="utf-8")
+    required_phrases = [
+        'This workflow answers "What are we building?"',
+        "Before `mission create`, before writing `spec.md`, and before committing",
+        "A completed discovery interview with an acknowledged Intent Summary.",
+        "A brief-intake summary and extracted requirement set explicitly confirmed",
+        "primary actor",
+        "one rule or invariant",
+        "canonical domain term",
+    ]
+    for phrase in required_phrases:
+        assert phrase in text, (
+            f"specify.md no longer contains the discovery-gate phrase: {phrase!r}. "
+            "Do not weaken /spec-kitty.specify's interview-first invariant "
+            "without an explicit migration plan."
+        )
+
+
 def test_software_dev_mission_declares_checklists_directory() -> None:
     """`mission.yaml` must list `checklists/` as an optional artifact.
 
