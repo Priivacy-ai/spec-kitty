@@ -11,13 +11,13 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|---------|
-| T001 | Create `src/doctrine/versioning.py`: constants, enums, dataclasses | WP01 | [P] |
-| T002 | Implement `check_bundle_compatibility()` in versioning.py | WP01 | [P] |
-| T003 | Implement `get_bundle_schema_version()` in versioning.py | WP01 | [P] |
-| T004 | Stub `migrate_v1_to_v2()` and `run_migration()` in versioning.py | WP01 | [P] |
-| T005 | Add `bundle_schema_version: int \| None = None` to ExtractionMetadata | WP01 | [P] |
-| T006 | Stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` in extractor.py | WP01 | [P] |
-| T007 | Write `tests/doctrine/test_versioning.py` (≥90% coverage) | WP01 | [P] |
+| T001 | Create `src/doctrine/versioning.py`: constants, enums, dataclasses | WP01 | [P] | [D] |
+| T002 | Implement `check_bundle_compatibility()` in versioning.py | WP01 | [D] |
+| T003 | Implement `get_bundle_schema_version()` in versioning.py | WP01 | [D] |
+| T004 | Stub `migrate_v1_to_v2()` and `run_migration()` in versioning.py | WP01 | [D] |
+| T005 | Add `bundle_schema_version: int \| None = None` to ExtractionMetadata | WP01 | [D] |
+| T006 | Stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` in extractor.py | WP01 | [D] |
+| T007 | Write `tests/doctrine/test_versioning.py` (≥90% coverage) | WP01 | [D] |
 | T008 | Bump ProvenanceEntry → schema_version Literal["2"]; add 5 new/promoted fields | WP02 | [P] |
 | T009 | Bump SynthesisManifest → schema_version Literal["2"]; add synthesizer_version, manifest_hash | WP02 | [P] |
 | T010 | Update provenance.py dump_yaml() to stamp produced_at at write time | WP02 | [P] |
@@ -48,13 +48,13 @@
 
 **Included subtasks**:
 
-- [ ] T001 Create `src/doctrine/versioning.py`: constants, enums, dataclasses (WP01)
-- [ ] T002 Implement `check_bundle_compatibility()` in versioning.py (WP01)
-- [ ] T003 Implement `get_bundle_schema_version()` in versioning.py (WP01)
-- [ ] T004 Stub `migrate_v1_to_v2()` and `run_migration()` in versioning.py (WP01)
-- [ ] T005 Add `bundle_schema_version: int | None = None` to ExtractionMetadata (WP01)
-- [ ] T006 Stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` in extractor.py (WP01)
-- [ ] T007 Write `tests/doctrine/test_versioning.py` (≥90% coverage) (WP01)
+- [x] T001 Create `src/doctrine/versioning.py`: constants, enums, dataclasses (WP01)
+- [x] T002 Implement `check_bundle_compatibility()` in versioning.py (WP01)
+- [x] T003 Implement `get_bundle_schema_version()` in versioning.py (WP01)
+- [x] T004 Stub `migrate_v1_to_v2()` and `run_migration()` in versioning.py (WP01)
+- [x] T005 Add `bundle_schema_version: int | None = None` to ExtractionMetadata (WP01)
+- [x] T006 Stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` in extractor.py (WP01)
+- [x] T007 Write `tests/doctrine/test_versioning.py` (≥90% coverage) (WP01)
 
 **Success criteria**:
 - `check_bundle_compatibility(None)` → `MISSING_VERSION`
