@@ -567,6 +567,45 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     assert "tok" not in result.error
 
 
+@pytest.mark.asyncio
+async def test_check_server_session_refresh_expired(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RefreshTokenExpiredError → user-friendly re-authenticate error, not class name."""
+    from specify_cli.auth.errors import RefreshTokenExpiredError
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(side_effect=RefreshTokenExpiredError("expired"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "re-authenticate" in result.error
+    # Must NOT expose the class name as raw diagnostic output.
+    assert "RefreshTokenExpiredError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SessionInvalidError → user-friendly re-authenticate error, not class name."""
+    from specify_cli.auth.errors import SessionInvalidError
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(side_effect=SessionInvalidError("invalidated"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "re-authenticate" in result.error
+    assert "SessionInvalidError" not in result.error
+
+
 # ---------------------------------------------------------------------------
 # T019: doctor_impl server flag tests
 # ---------------------------------------------------------------------------

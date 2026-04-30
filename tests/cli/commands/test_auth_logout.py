@@ -227,9 +227,8 @@ class TestAuthLogoutCommand:
     def test_logout_local_cleanup_failure_exits_1(self):
         """clear_session raises -> error message, exit code 1.
 
-        TokenManager.clear_session() internally swallows storage exceptions
-        (by design), so we must patch clear_session on the TokenManager
-        instance directly to simulate a failure that reaches logout_impl.
+        Patches clear_session on the TokenManager instance to raise OSError,
+        verifying that logout_impl surfaces the error and exits 1.
         """
         storage = _mock_storage(_make_session())
 
@@ -258,6 +257,34 @@ class TestAuthLogoutCommand:
         assert "could not be deleted" in result.stdout
         assert "OSError" in result.stdout
         # "Logged out" must NOT appear when local cleanup fails.
+        assert "Logged out" not in result.stdout
+
+    def test_logout_storage_delete_failure_propagates(self):
+        """storage.delete() raising flows through clear_session() to logout_impl.
+
+        TokenManager.clear_session() no longer swallows storage.delete() errors.
+        This test exercises the real clear_session() path with a storage backend
+        whose delete() raises, confirming the real failure mode is surfaced.
+        """
+        storage = _mock_storage(_make_session())
+        storage.delete.side_effect = OSError("permission denied")
+
+        with (
+            patch(
+                "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+                return_value=storage,
+            ),
+            patch(
+                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
+                new_callable=AsyncMock,
+                return_value=RevokeOutcome.REVOKED,
+            ),
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["logout"])
+
+        assert result.exit_code == 1, result.stdout
+        assert "could not be deleted" in result.stdout
         assert "Logged out" not in result.stdout
 
     def test_logout_force_skips_server(self):

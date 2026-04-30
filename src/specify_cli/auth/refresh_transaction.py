@@ -126,6 +126,7 @@ class RefreshResult:
     session: StoredSession | None
     network_call_made: bool
     rejection_cause: RefreshRejectionCause | None = None
+    lock_timeout_message: str | None = None
 
 
 class RefreshLockTimeoutError(Exception):
@@ -355,6 +356,8 @@ async def _run_locked(
         # Re-read persisted session and retry once if a newer token is available.
         repersisted = storage.read()
 
+        _REPLAY_MSG = "Token was already rotated by another process; retry in a moment."
+
         if repersisted is None:
             # Session cleared concurrently; surface as retryable.
             log.warning("409 replay: session cleared concurrently; surfacing as LOCK_TIMEOUT_ERROR")
@@ -362,6 +365,7 @@ async def _run_locked(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
                 session=in_memory_session,
                 network_call_made=True,
+                lock_timeout_message=_REPLAY_MSG,
             )
 
         if repersisted.refresh_token == persisted.refresh_token:
@@ -378,6 +382,7 @@ async def _run_locked(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
                 session=repersisted,
                 network_call_made=True,
+                lock_timeout_message=_REPLAY_MSG,
             )
 
         # Persisted token differs from spent — another process already rotated it.
@@ -396,6 +401,7 @@ async def _run_locked(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
                 session=repersisted,
                 network_call_made=True,
+                lock_timeout_message=_REPLAY_MSG,
             )
 
         storage.write(updated)

@@ -119,12 +119,13 @@ class TokenManager:
         self._storage.write(session)
 
     def clear_session(self) -> None:
-        """Delete the current session (called by logout or on session-invalid)."""
+        """Delete the current session (called by logout or on session-invalid).
+
+        Raises whatever ``storage.delete()`` raises so that callers (e.g.
+        ``_auth_logout.py``) can surface the failure to the user.
+        """
         self._session = None
-        try:
-            self._storage.delete()
-        except Exception as exc:  # noqa: BLE001 — logout must not raise on storage quirks
-            log.warning("Could not delete session from storage: %s", exc)
+        self._storage.delete()
 
     def get_current_session(self) -> StoredSession | None:
         """Return the in-memory session (for ``auth status`` and diagnostics)."""
@@ -264,4 +265,6 @@ class TokenManager:
                     "Refresh token expired. Run `spec-kitty auth login` to log in again."
                 )
             # outcome is RefreshOutcome.LOCK_TIMEOUT_ERROR
+            if result.lock_timeout_message is not None:
+                raise RefreshLockTimeoutError(result.lock_timeout_message)
             raise RefreshLockTimeoutError()

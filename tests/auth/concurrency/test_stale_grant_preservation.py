@@ -565,3 +565,34 @@ async def test_replay_spent_token_never_resubmitted(
     assert "spent" not in calls[1:], (
         "Spent token was re-submitted after the 409 replay"
     )
+
+
+@pytest.mark.asyncio
+async def test_replay_lock_timeout_carries_replay_message(
+    auth_store_root: Path,
+) -> None:
+    """LOCK_TIMEOUT_ERROR from a replay path carries a replay-specific message.
+
+    The message must NOT say "Another spec-kitty process is refreshing" —
+    that wording implies lock contention, which is false for a benign replay.
+    """
+    persisted = _make_replay_session(refresh_token="same_token")
+    storage = FileFallbackStorage(base_dir=auth_store_root)
+    storage.write(persisted)
+
+    class _MockFlow:
+        async def refresh(self, session: StoredSession) -> StoredSession:
+            raise RefreshReplayError(retry_after=0)
+
+    result = await run_refresh_transaction(
+        storage=storage,
+        in_memory_session=persisted,
+        refresh_flow=_MockFlow(),  # type: ignore[arg-type]
+        lock_path=auth_store_root / "replay_msg.lock",
+        max_hold_s=5.0,
+    )
+
+    assert result.outcome == RefreshOutcome.LOCK_TIMEOUT_ERROR
+    assert result.lock_timeout_message is not None
+    assert "rotated" in result.lock_timeout_message
+    assert "Another spec-kitty process" not in result.lock_timeout_message

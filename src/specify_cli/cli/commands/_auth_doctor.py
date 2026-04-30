@@ -479,9 +479,15 @@ async def _check_server_session() -> ServerSessionStatus:
     from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
     import httpx  # noqa: PLC0415
 
+    from specify_cli.auth.errors import RefreshTokenExpiredError, SessionInvalidError  # noqa: PLC0415
+
     tm = get_token_manager()
     try:
         access_token = await tm.get_access_token()
+    except (RefreshTokenExpiredError, SessionInvalidError):
+        return ServerSessionStatus(
+            active=False, error="re-authenticate (run `spec-kitty auth login`)"
+        )
     except Exception as exc:
         return ServerSessionStatus(active=False, error=f"Could not obtain access token: {type(exc).__name__}")
 

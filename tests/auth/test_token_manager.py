@@ -227,14 +227,21 @@ def test_clear_session_deletes_from_storage():
     assert storage.deletes == 1
 
 
-def test_clear_session_swallows_delete_errors():
+def test_clear_session_propagates_delete_errors():
+    """clear_session() must re-raise storage.delete() failures.
+
+    Callers (e.g. _auth_logout.py) are responsible for catching and surfacing
+    storage errors to the user; TokenManager must not swallow them.
+    """
     class DeleteFailsStorage(FakeStorage):
         def delete(self):
             raise RuntimeError("nope")
 
     tm = TokenManager(DeleteFailsStorage())
     tm.set_session(_make_session())
-    tm.clear_session()  # must not raise
+    with pytest.raises(RuntimeError, match="nope"):
+        tm.clear_session()
+    # In-memory session is cleared regardless of storage failure.
     assert tm.get_current_session() is None
 
 
