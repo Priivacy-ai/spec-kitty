@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "mission_slug": "p1-dependency-cycle-cleanup-01KQFXVC",
+  "mission_id": "01KQFXVC2BRZZZJ0V0MQXXSXXR",
+  "mission_branch": "kitty/mission-p1-dependency-cycle-cleanup-01KQFXVC",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/dossier/drift_detector.py",
+        "src/specify_cli/identity/project.py",
+        "src/specify_cli/sync/project_identity.py",
+        "tests/architectural/test_dossier_sync_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/adapters.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/sync/__init__.py",
+        "tests/architectural/test_status_sync_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-30T20:30:35.546574+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
