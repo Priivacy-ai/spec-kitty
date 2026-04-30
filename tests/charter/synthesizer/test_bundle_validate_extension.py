@@ -161,6 +161,18 @@ def test_empty_doctrine_tree_without_provenance_is_treated_as_legacy(tmp_path: P
     assert not result.synthesis_state_present
 
 
+def test_empty_provenance_tree_without_sidecars_is_treated_as_legacy(tmp_path: Path) -> None:
+    """An empty provenance directory alone must not flip synthesis_state_present."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True)
+
+    result = validate_synthesis_state(repo)
+
+    assert result.passed
+    assert result.errors == []
+    assert not result.synthesis_state_present
+
+
 def test_legacy_canonical_manifest_still_valid() -> None:
     """CANONICAL_MANIFEST from v1.0.0 is still importable and valid (C-012)."""
     assert CANONICAL_MANIFEST.schema_version == SCHEMA_VERSION
@@ -252,6 +264,25 @@ def test_provenance_without_artifact_is_error(tmp_path: Path) -> None:
     assert any("ghost-tactic" in e for e in result.errors)
 
 
+def test_provenance_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
+    """A provenance sidecar alone is synthesis state and must fail closed."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    _write_provenance(
+        repo,
+        "tactic",
+        "sidecar-only",
+        _prov_yaml("tactic", "sidecar-only", "a" * 64),
+    )
+
+    result = validate_synthesis_state(repo)
+
+    assert result.synthesis_state_present
+    assert not result.passed
+    assert any("sidecar-only" in e for e in result.errors)
+
+
 # ---------------------------------------------------------------------------
 # Fixture 4: Schema-invalid artifact (manifest hash mismatch) → error
 # ---------------------------------------------------------------------------
@@ -305,6 +336,21 @@ def test_invalid_manifest_yaml_is_reported(tmp_path: Path) -> None:
 
     result = validate_synthesis_state(repo)
 
+    assert not result.passed
+    assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
+
+
+def test_manifest_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
+    """A synthesis manifest alone is synthesis state and must be validated."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("artifacts: [\n", encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert result.synthesis_state_present
     assert not result.passed
     assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
 

@@ -242,8 +242,8 @@ def _render_human(report: dict[str, Any], console: Console) -> None:
             console.print("[dim]Synthesis state: not present (legacy bundle).[/dim]")
 
 
-def _assert_bundle_compatible_bundle(charter_dir: Path, console: Console) -> None:
-    """Check bundle compatibility and exit 1 with an upgrade prompt if needed.
+def _bundle_compatibility_error(charter_dir: Path) -> str | None:
+    """Return a bundle compatibility error message, if the bundle is unsupported.
 
     Only called when the charter directory is known to exist; never called
     for a fresh-synthesis path (where metadata.yaml is absent).
@@ -251,8 +251,8 @@ def _assert_bundle_compatible_bundle(charter_dir: Path, console: Console) -> Non
     bundle_version = get_bundle_schema_version(charter_dir)
     result = check_bundle_compatibility(bundle_version)
     if not result.is_compatible:
-        console.print(f"[red]Error:[/red] {result.message}")
-        raise typer.Exit(code=1)
+        return result.message
+    return None
 
 
 def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
@@ -334,10 +334,12 @@ def validate(
         err_console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
 
-    # FR-009: Block reads of incompatible bundles before any structure checks.
+    # FR-009: Incompatible bundles fail validation, but --json still emits the
+    # same parseable envelope as other public validation failures.
     charter_dir = canonical_root / ".kittify" / "charter"
+    compatibility_error: str | None = None
     if (charter_dir / "metadata.yaml").exists():
-        _assert_bundle_compatible_bundle(charter_dir, err_console if json_output else console)
+        compatibility_error = _bundle_compatibility_error(charter_dir)
 
     manifest = CANONICAL_MANIFEST
 
@@ -398,9 +400,12 @@ def validate(
 
     # Build mirrored top-level errors list (FR-007).
     # Provenance sidecar errors get a "provenance:" prefix so consumers can distinguish them.
+    compatibility_error_strings = (
+        [f"compatibility: {compatibility_error}"] if compatibility_error else []
+    )
     provenance_error_strings = [f"provenance: {e}" for e in sidecar_errors]
     synthesis_error_strings = [f"synthesis_state: {e}" for e in synth_result.errors]
-    all_errors = provenance_error_strings + synthesis_error_strings
+    all_errors = compatibility_error_strings + provenance_error_strings + synthesis_error_strings
 
     # Extend the report with synthesis state (FR-005 / FR-007).
     report["errors"] = all_errors
@@ -412,7 +417,12 @@ def validate(
     }
 
     # Overall gate: pass only if charter manifest, sidecar content, AND synthesis state all pass.
-    overall_passed = bundle_compliant and not sidecar_errors and synth_result.passed
+    overall_passed = (
+        bundle_compliant
+        and compatibility_error is None
+        and not sidecar_errors
+        and synth_result.passed
+    )
     report["passed"] = overall_passed
     report["result"] = "success" if overall_passed else "failure"
 

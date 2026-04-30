@@ -447,6 +447,21 @@ def test_validate_fails_when_sidecar_references_missing_artifact(
     assert payload["synthesis_state"]["passed"] is False
 
 
+def test_validate_fails_when_sidecar_exists_without_doctrine_tree(
+    compliant_repo: Path,
+) -> None:
+    """FR-002: sidecar-only synthesis state is not legacy and must fail closed."""
+    _add_provenance_sidecar(compliant_repo, kind="directive", slug="orphan")
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    assert any("orphan" in e for e in ss["errors"]), ss["errors"]
+
+
 # ---------------------------------------------------------------------------
 # T010 — FR-003: synthesis manifest with per-artifact content_hash mismatch
 # ---------------------------------------------------------------------------
@@ -484,6 +499,26 @@ def test_validate_fails_on_manifest_content_hash_mismatch(
     assert payload["synthesis_state"]["passed"] is False
 
 
+def test_validate_fails_when_manifest_exists_without_doctrine_tree(
+    compliant_repo: Path,
+) -> None:
+    """FR-003: manifest-only synthesis state is not legacy and must be verified."""
+    _add_synthesis_manifest(
+        compliant_repo,
+        "directives/007-manifestonly.directive.yaml",
+        content="# missing artifact\n",
+        corrupt_manifest_hash=True,
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    ss = payload["synthesis_state"]
+    assert ss["present"] is True
+    assert ss["passed"] is False
+    assert any("manifest" in e.lower() or "artifact" in e.lower() for e in ss["errors"])
+
+
 # ---------------------------------------------------------------------------
 # T011 — FR-005/FR-006: --json stdout is strict JSON on every failure type
 # ---------------------------------------------------------------------------
@@ -517,6 +552,20 @@ def test_validate_json_is_strict_on_manifest_mismatch(compliant_repo: Path) -> N
     assert result.exit_code == 1
     payload = json.loads(result.stdout)  # must not raise
     assert payload["synthesis_state"]["passed"] is False
+
+
+def test_validate_json_is_strict_on_incompatible_bundle(compliant_repo: Path) -> None:
+    """FR-005/FR-006: incompatible bundle failures still emit JSON to stdout."""
+    (compliant_repo / ".kittify" / "charter" / "metadata.yaml").write_text(
+        "bundle_schema_version: 999\n", encoding="utf-8"
+    )
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)  # must not raise and must not be empty
+    assert payload["passed"] is False
+    assert any("compatibility:" in e for e in payload["errors"]), payload["errors"]
+    assert "synthesis_state" in payload
 
 
 # ---------------------------------------------------------------------------

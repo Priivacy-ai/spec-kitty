@@ -162,15 +162,15 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
     _check_stale_failed_dirs(repo_root, result)
 
     doctrine_root = repo_root / DOCTRINE_DIR
-    if not doctrine_root.exists():
-        return result
+    provenance_root = repo_root / PROVENANCE_DIR
+    manifest_path = repo_root / SYNTHESIS_MANIFEST_PATH
 
-    artifact_files = _collect_artifact_files(doctrine_root)
-    if not artifact_files and not (repo_root / PROVENANCE_DIR).exists():
+    artifact_files = _collect_artifact_files(doctrine_root) if doctrine_root.exists() else []
+    provenance_files = sorted(provenance_root.glob("*.yaml")) if provenance_root.exists() else []
+    if not artifact_files and not provenance_files and not manifest_path.exists():
         return result
 
     result.synthesis_state_present = True
-    provenance_root = repo_root / PROVENANCE_DIR
 
     _check_artifacts_have_provenance(repo_root, artifact_files, provenance_root, result)
     _check_provenance_have_artifacts(repo_root, doctrine_root, provenance_root, result)

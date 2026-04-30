@@ -4,14 +4,39 @@
 
 ---
 
-## Pre-mission shape (unchanged)
+## Existing bundle fields retained
 
 ```json
 {
+  "result": "success",
+  "canonical_root": "/path/to/repo",
+  "manifest_schema_version": "1.0.0",
+  "bundle_compliant": true,
   "passed": true,
   "errors": [],
+  "tracked_files": {
+    "expected": [".kittify/charter/charter.md"],
+    "present": [".kittify/charter/charter.md"],
+    "missing": []
+  },
+  "derived_files": {
+    "expected": [".kittify/charter/governance.yaml"],
+    "present": [".kittify/charter/governance.yaml"],
+    "missing": []
+  },
+  "gitignore": {
+    "expected_entries": [".kittify/charter/governance.yaml"],
+    "present_entries": [".kittify/charter/governance.yaml"],
+    "missing_entries": []
+  },
+  "out_of_scope_files": [],
   "warnings": [],
-  "manifest": { "...": "existing shape unchanged" }
+  "synthesis_state": {
+    "present": false,
+    "passed": true,
+    "errors": [],
+    "warnings": []
+  }
 }
 ```
 
@@ -25,8 +50,11 @@
   "errors": [
     "synthesis_state: missing provenance sidecar for 'directives/001-example.directive.yaml'"
   ],
+  "tracked_files": { "...": "existing tracked_files section retained" },
+  "derived_files": { "...": "existing derived_files section retained" },
+  "gitignore": { "...": "existing gitignore section retained" },
+  "out_of_scope_files": [],
   "warnings": [],
-  "manifest": { "...": "existing shape unchanged" },
   "synthesis_state": {
     "present": true,
     "passed": false,
@@ -44,8 +72,11 @@
 {
   "passed": true,
   "errors": [],
+  "tracked_files": { "...": "existing tracked_files section retained" },
+  "derived_files": { "...": "existing derived_files section retained" },
+  "gitignore": { "...": "existing gitignore section retained" },
+  "out_of_scope_files": [],
   "warnings": [],
-  "manifest": { "...": "existing shape unchanged" },
   "synthesis_state": {
     "present": false,
     "passed": true,
@@ -61,8 +92,11 @@
 {
   "passed": true,
   "errors": [],
+  "tracked_files": { "...": "existing tracked_files section retained" },
+  "derived_files": { "...": "existing derived_files section retained" },
+  "gitignore": { "...": "existing gitignore section retained" },
+  "out_of_scope_files": [],
   "warnings": [],
-  "manifest": { "...": "existing shape unchanged" },
   "synthesis_state": {
     "present": true,
     "passed": true,
