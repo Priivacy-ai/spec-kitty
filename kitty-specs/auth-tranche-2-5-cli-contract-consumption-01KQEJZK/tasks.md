@@ -16,11 +16,11 @@
 | T006 | Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes to three output states | WP02 | No | [D] |
 | T007 | Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths | WP02 | No | [D] |
 | T008 | Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions, add `/oauth/revoke` assertions | WP02 | No | [D] |
-| T009 | Add 409 branch in `TokenRefreshFlow.refresh()` — raise `RefreshReplayError` | WP03 | No |
-| T010 | Add `except RefreshReplayError` handler in `_run_locked`: reload, compare, one retry | WP03 | No |
-| T011 | Capture `generation` from response in `TokenRefreshFlow._update_session()` | WP03 | No |
-| T012 | Add 409 test cases in `tests/auth/test_refresh_flow.py` | WP03 | No |
-| T013 | Add replay transaction test cases in `tests/auth/concurrency/test_stale_grant_preservation.py` | WP03 | No |
+| T009 | Add 409 branch in `TokenRefreshFlow.refresh()` — raise `RefreshReplayError` | WP03 | No | [D] |
+| T010 | Add `except RefreshReplayError` handler in `_run_locked`: reload, compare, one retry | WP03 | No | [D] |
+| T011 | Capture `generation` from response in `TokenRefreshFlow._update_session()` | WP03 | No | [D] |
+| T012 | Add 409 test cases in `tests/auth/test_refresh_flow.py` | WP03 | No | [D] |
+| T013 | Add replay transaction test cases in `tests/auth/concurrency/test_stale_grant_preservation.py` | WP03 | No | [D] |
 | T014 | Add `ServerSessionStatus` frozen dataclass to `_auth_doctor.py` | WP04 | No |
 | T015 | Add `async def _check_server_session()` to `_auth_doctor.py` | WP04 | No |
 | T016 | Extend `doctor_impl` with `server: bool = False` parameter and server-check branch | WP04 | No |
@@ -89,11 +89,11 @@
 **Goal**: Handle `refresh_replay_benign_retry` inside `_run_locked` — reload persisted, compare tokens, one retry if newer token available. Zero additional submissions of the spent token. Capture `generation` from successful refresh responses.
 
 **Subtasks**:
-- [ ] T009 Add 409 branch in `TokenRefreshFlow.refresh()` — raise `RefreshReplayError` (WP03)
-- [ ] T010 Add `except RefreshReplayError` handler in `_run_locked` (WP03)
-- [ ] T011 Capture `generation` from response in `TokenRefreshFlow._update_session()` (WP03)
-- [ ] T012 Add 409 test cases in `tests/auth/test_refresh_flow.py` (WP03)
-- [ ] T013 Add replay transaction test cases in `tests/auth/concurrency/test_stale_grant_preservation.py` (WP03)
+- [x] T009 Add 409 branch in `TokenRefreshFlow.refresh()` — raise `RefreshReplayError` (WP03)
+- [x] T010 Add `except RefreshReplayError` handler in `_run_locked` (WP03)
+- [x] T011 Capture `generation` from response in `TokenRefreshFlow._update_session()` (WP03)
+- [x] T012 Add 409 test cases in `tests/auth/test_refresh_flow.py` (WP03)
+- [x] T013 Add replay transaction test cases in `tests/auth/concurrency/test_stale_grant_preservation.py` (WP03)
 
 **Risks**: Infinite retry loop if `RefreshReplayError` from the second attempt is not caught. Spent token re-submission if retry is called with `persisted` instead of `repersisted`.
 
