@@ -1,7 +1,7 @@
 {
-  "event_count": 28,
-  "last_event_id": "01KQFQMM736T2F4HY4RWMMN1XR",
-  "materialized_at": "2026-04-30T17:40:28.516009+00:00",
+  "event_count": 29,
+  "last_event_id": "01KQFQN7DBXCN4DRRZ23D2ASRE",
+  "materialized_at": "2026-04-30T17:40:48.171506+00:00",
   "mission_number": "",
   "mission_slug": "merge-review-status-hardening-sprint-01KQFF35",
   "mission_type": "software-dev",
@@ -11,9 +11,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 0,
-    "in_review": 2,
+    "in_review": 3,
     "planned": 0
   },
   "work_packages": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-30T17:40:28.516009+00:00"
     },
     "WP03": {
-      "actor": "user",
+      "actor": "claude:claude-sonnet-4-6:python-pedro:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KQFQF8B93YJ1XGGQ80CNG4A5",
-      "last_transition_at": "2026-04-30T17:37:32.521249+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KQFQN7DBXCN4DRRZ23D2ASRE",
+      "last_transition_at": "2026-04-30T17:40:48.171506+00:00"
     },
     "WP04": {
       "actor": "claude:claude-sonnet-4-6:python-pedro:reviewer",

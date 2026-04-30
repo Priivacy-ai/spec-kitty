@@ -16,8 +16,8 @@ subtasks:
 - T017
 - T018
 - T019
-agent: claude
-shell_pid: '46106'
+agent: "claude:claude-sonnet-4-6:python-pedro:reviewer"
+shell_pid: "6129"
 history:
 - date: '2026-04-30'
   event: created
@@ -187,3 +187,4 @@ The goal is not to remove suppressions — most are legitimately needed for robu
 ## Activity Log
 
 - 2026-04-30T17:37:34Z – claude – shell_pid=46106 – Ready for review: all BLE001 suppressions annotated, ruff clean
+- 2026-04-30T17:40:51Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Started review via action command
