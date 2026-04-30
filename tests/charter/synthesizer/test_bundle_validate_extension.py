@@ -355,6 +355,37 @@ def test_manifest_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
     assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
 
 
+def test_manifest_absolute_artifact_path_fails_closed(tmp_path: Path) -> None:
+    """A manifest cannot make validation read artifacts outside the repo root."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    outside = tmp_path / "outside.tactic.yaml"
+    outside.write_bytes(_tactic_body("outside"))
+    content_hash = hashlib.sha256(outside.read_bytes()).hexdigest()
+
+    guard = PathGuard(repo, extra_allowed_prefixes=[repo])
+    manifest = _make_v2_manifest(
+        artifacts=[
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="outside",
+                path=str(outside),
+                provenance_path=".kittify/charter/provenance/tactic-outside.yaml",
+                content_hash=content_hash,
+            )
+        ],
+    )
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    dump_manifest(manifest, manifest_path, guard)
+
+    result = validate_synthesis_state(repo)
+
+    assert result.synthesis_state_present
+    assert not result.passed
+    assert any("repo-relative" in error for error in result.errors), result.errors
+
+
 # ---------------------------------------------------------------------------
 # Stale .failed/ staging dirs produce warnings
 # ---------------------------------------------------------------------------

@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 
 # Canonical location of the synthesis manifest.
 MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
+_ARTIFACT_PATH_PREFIX = Path(".kittify/doctrine")
+_PROVENANCE_PATH_PREFIX = Path(".kittify/charter/provenance")
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +182,36 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
         )
 
 
+def _validate_manifest_path(raw_path: str, *, field_name: str, required_prefix: Path) -> Path:
+    """Return a safe repo-relative manifest path under ``required_prefix``."""
+    path = Path(raw_path.replace("\\", "/"))
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(
+            f"{field_name} must be repo-relative and stay under "
+            f"{required_prefix.as_posix()}: {raw_path}"
+        )
+    try:
+        path.relative_to(required_prefix)
+    except ValueError as exc:
+        raise ValueError(
+            f"{field_name} must be under {required_prefix.as_posix()}: {raw_path}"
+        ) from exc
+    return path
+
+
+def _resolve_under_repo(repo_root: Path, rel_path: Path, *, field_name: str) -> Path:
+    """Resolve ``rel_path`` and fail if symlinks escape ``repo_root``."""
+    repo_resolved = repo_root.resolve(strict=False)
+    resolved = (repo_root / rel_path).resolve(strict=False)
+    try:
+        resolved.relative_to(repo_resolved)
+    except ValueError as exc:
+        raise ValueError(
+            f"{field_name} resolves outside repository root: {rel_path.as_posix()}"
+        ) from exc
+    return resolved
+
+
 def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
     """Verify that every artifact listed in the manifest exists with matching hash.
 
@@ -201,7 +233,21 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
     """
     manifest_path = str(MANIFEST_PATH)
     for entry in manifest.artifacts:
-        artifact_path = repo_root / entry.path
+        artifact_rel = _validate_manifest_path(
+            entry.path,
+            field_name="manifest artifact path",
+            required_prefix=_ARTIFACT_PATH_PREFIX,
+        )
+        _validate_manifest_path(
+            entry.provenance_path,
+            field_name="manifest provenance path",
+            required_prefix=_PROVENANCE_PATH_PREFIX,
+        )
+        artifact_path = _resolve_under_repo(
+            repo_root,
+            artifact_rel,
+            field_name="manifest artifact path",
+        )
         if not artifact_path.exists():
             raise ManifestIntegrityError(
                 manifest_path=manifest_path,
