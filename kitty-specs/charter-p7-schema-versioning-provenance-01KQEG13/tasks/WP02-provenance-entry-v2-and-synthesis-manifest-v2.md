@@ -17,7 +17,8 @@ subtasks:
 - T013
 - T014
 phase: Phase 1 - Foundation
-agent: claude:opus-4-7:reviewer-renata:reviewer
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "60724"
 history:
 - at: '2026-04-30T06:23:33Z'
   actor: system
@@ -350,3 +351,7 @@ Use `getattr(..., None)` for forward compatibility with any v1 sidecars that mig
 - **`corpus_snapshot_id` promotion breaks existing calls**: Search for every `ProvenanceEntry(` call with `corpus_snapshot_id=None` or missing `corpus_snapshot_id`. All must be updated to `corpus_snapshot_id=corpus_id or "(none)"`.
 - **Fixture hash values**: Set the manifest_hash in fixtures to any 64-char hex string; do not try to compute a valid hash for fixture files.
 - **`test_synthesize_path_parity.py`**: This test verifies byte-for-byte determinism of serialized sidecars. Adding new fields may break it if the field order or serialization changes. Run it early to detect breakage.
+
+## Activity Log
+
+- 2026-04-30T07:10:15Z – claude:sonnet-4-6:implementer:implementer – shell_pid=60724 – Started implementation via action command
