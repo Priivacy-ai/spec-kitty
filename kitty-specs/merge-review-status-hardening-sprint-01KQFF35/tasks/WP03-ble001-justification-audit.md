@@ -189,3 +189,4 @@ The goal is not to remove suppressions — most are legitimately needed for robu
 - 2026-04-30T17:37:34Z – claude – shell_pid=46106 – Ready for review: all BLE001 suppressions annotated, ruff clean
 - 2026-04-30T17:40:51Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Started review via action command
 - 2026-04-30T17:43:12Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Review passed: all BLE001 suppressions have meaningful justifications, zero new ruff errors, auth/ and merge.py untouched
+- 2026-04-30T17:58:47Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Done override: Mission squash-merged at cbca2025 on main; merge command recorded WP01 done but hung on remaining WPs
