@@ -8,10 +8,10 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Add `RefreshReplayError(TokenRefreshError)` to `auth/errors.py` | WP01 | No |
-| T002 | Add `generation: int \| None = None` field to `StoredSession` | WP01 | No |
-| T003 | Update `to_dict()` and `from_dict()` for `generation` field (backward-compat) | WP01 | No |
-| T004 | Verify existing `StoredSession` round-trip tests pass with new field | WP01 | No |
+| T001 | Add `RefreshReplayError(TokenRefreshError)` to `auth/errors.py` | WP01 | No | [D] |
+| T002 | Add `generation: int \| None = None` field to `StoredSession` | WP01 | No | [D] |
+| T003 | Update `to_dict()` and `from_dict()` for `generation` field (backward-compat) | WP01 | No | [D] |
+| T004 | Verify existing `StoredSession` round-trip tests pass with new field | WP01 | No | [D] |
 | T005 | Create `auth/flows/revoke.py` with `RevokeOutcome` enum and `RevokeFlow` class | WP02 | No |
 | T006 | Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes to three output states | WP02 | No |
 | T007 | Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths | WP02 | No |
@@ -46,10 +46,10 @@
 **Goal**: Establish the two new types — `RefreshReplayError` and `StoredSession.generation` — that every subsequent WP depends on. Small surface, zero risk of regression beyond the session round-trip.
 
 **Subtasks**:
-- [ ] T001 Add `RefreshReplayError(TokenRefreshError)` to `auth/errors.py` (WP01)
-- [ ] T002 Add `generation: int | None = None` field to `StoredSession` (WP01)
-- [ ] T003 Update `to_dict()` and `from_dict()` for `generation` field (WP01)
-- [ ] T004 Verify existing `StoredSession` round-trip tests pass with new field (WP01)
+- [x] T001 Add `RefreshReplayError(TokenRefreshError)` to `auth/errors.py` (WP01)
+- [x] T002 Add `generation: int | None = None` field to `StoredSession` (WP01)
+- [x] T003 Update `to_dict()` and `from_dict()` for `generation` field (WP01)
+- [x] T004 Verify existing `StoredSession` round-trip tests pass with new field (WP01)
 
 **Risks**: Session deserialization regression if `from_dict()` uses `data["generation"]` instead of `data.get("generation")`. Must use `.get()` for backward compat.
 
