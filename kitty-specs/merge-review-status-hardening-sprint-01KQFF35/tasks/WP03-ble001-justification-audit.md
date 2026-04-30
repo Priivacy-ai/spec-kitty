@@ -183,3 +183,7 @@ The goal is not to remove suppressions — most are legitimately needed for robu
 - Run `grep -rn "noqa: BLE001" src/specify_cli/cli/` and scan every line. Any line without text after `BLE001` is a miss.
 - Spot-check 3-4 justifications for accuracy: do they actually explain WHY the swallow is safe, or are they just renaming the exception? A justification like `— exception caught` is not sufficient.
 - No tests needed for this WP — the grep + ruff + mypy checks are the validation surface.
+
+## Activity Log
+
+- 2026-04-30T17:37:34Z – claude – shell_pid=46106 – Ready for review: all BLE001 suppressions annotated, ruff clean
