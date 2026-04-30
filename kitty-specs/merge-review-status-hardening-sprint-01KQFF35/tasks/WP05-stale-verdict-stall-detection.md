@@ -289,3 +289,4 @@ Two improvements to the status board and `spec-kitty next` output:
 
 - 2026-04-30T17:41:07Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Started review via action command
 - 2026-04-30T17:43:16Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Review passed: stall detection and stale verdict warnings verified with passing tests
+- 2026-04-30T17:59:17Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Done override: Mission squash-merged at cbca2025 on main; merge command recorded WP01 done but hung on remaining WPs
