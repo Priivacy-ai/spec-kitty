@@ -36,12 +36,12 @@
 | T026 | Return stalled WP list from `show_kanban_status()` in return dict | WP05 | | [D] |
 | T027 | Surface stalled WP intervention block in `next_cmd.py` | WP05 | | [D] |
 | T028 | Write tests: stale verdict warning, stall detection (below/at/above threshold), next output | WP05 | | [D] |
-| T029 | Create `review.py` with mission resolver, WP lane check (FR-013) | WP06 | |
-| T030 | Implement dead-code scan step (FR-014) | WP06 | |
-| T031 | Implement BLE001 unjustified-suppression audit step (FR-015) | WP06 | |
-| T032 | Implement report writer: `mission-review-report.md` with frontmatter (FR-016) | WP06 | |
-| T033 | Register `review` command in `cli/commands/__init__.py` | WP06 | |
-| T034 | Write integration test for `spec-kitty review --mission` | WP06 | |
+| T029 | Create `review.py` with mission resolver, WP lane check (FR-013) | WP06 | | [D] |
+| T030 | Implement dead-code scan step (FR-014) | WP06 | | [D] |
+| T031 | Implement BLE001 unjustified-suppression audit step (FR-015) | WP06 | | [D] |
+| T032 | Implement report writer: `mission-review-report.md` with frontmatter (FR-016) | WP06 | | [D] |
+| T033 | Register `review` command in `cli/commands/__init__.py` | WP06 | | [D] |
+| T034 | Write integration test for `spec-kitty review --mission` | WP06 | | [D] |
 
 ## Work Packages
 
@@ -168,12 +168,12 @@
 **Independent test**: `spec-kitty review --mission merge-review-status-hardening-sprint-01KQFF35` exits 0 after mission is done; `mission-review-report.md` is written with `verdict: pass`.
 
 **Subtasks**:
-- [ ] T029 Create `review.py` with mission resolver and WP lane check (FR-013) (WP06)
-- [ ] T030 Implement dead-code scan step: diff + grep for unreferenced symbols (FR-014) (WP06)
-- [ ] T031 Implement BLE001 unjustified-suppression audit step (FR-015) (WP06)
-- [ ] T032 Implement report writer: `mission-review-report.md` with frontmatter (FR-016) (WP06)
-- [ ] T033 Register `review` command in `cli/commands/__init__.py` (WP06)
-- [ ] T034 Write integration test for `spec-kitty review --mission` (WP06)
+- [x] T029 Create `review.py` with mission resolver and WP lane check (FR-013) (WP06)
+- [x] T030 Implement dead-code scan step: diff + grep for unreferenced symbols (FR-014) (WP06)
+- [x] T031 Implement BLE001 unjustified-suppression audit step (FR-015) (WP06)
+- [x] T032 Implement report writer: `mission-review-report.md` with frontmatter (FR-016) (WP06)
+- [x] T033 Register `review` command in `cli/commands/__init__.py` (WP06)
+- [x] T034 Write integration test for `spec-kitty review --mission` (WP06)
 
 **Owned files**: `src/specify_cli/cli/commands/review.py`, `src/specify_cli/cli/commands/__init__.py`, tests
 **Dependencies**: none
