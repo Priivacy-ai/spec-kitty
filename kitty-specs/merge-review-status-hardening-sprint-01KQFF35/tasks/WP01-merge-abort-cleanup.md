@@ -20,8 +20,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
-shell_pid: '41457'
+agent: "claude:claude-sonnet-4-6:python-pedro:reviewer"
+shell_pid: "5241"
 history:
 - date: '2026-04-30'
   event: created
@@ -215,3 +215,4 @@ The BLE001 changes are bundled here because WP01 already owns `merge.py`; keepin
 ## Activity Log
 
 - 2026-04-30T17:39:51Z – claude – shell_pid=41457 – Ready for review: idempotent abort cleanup + BLE001 annotations
+- 2026-04-30T17:40:13Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=5241 – Started review via action command
