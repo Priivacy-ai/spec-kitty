@@ -13,7 +13,7 @@ requirement_refs:
 - FR-011
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this feature were generated on main. WP03 depends on WP01 and WP02. During /spec-kitty.implement this WP runs in the execution workspace for its computed lane after WP01 and WP02 are merged. Completed changes must merge back into main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T015
 - T016
@@ -30,7 +30,6 @@ history:
 authoritative_surface: src/specify_cli/upgrade/migrations/
 execution_mode: code_change
 owned_files:
-- src/doctrine/versioning.py
 - src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py
 - src/specify_cli/cli/commands/charter.py
 - tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py

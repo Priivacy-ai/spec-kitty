@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "mission_slug": "charter-p7-schema-versioning-provenance-01KQEG13",
+  "mission_id": "01KQEG13YGZN77AMY6Q8DVNKQX",
+  "mission_branch": "kitty/mission-charter-p7-schema-versioning-provenance-01KQEG13",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/extractor.py",
+        "src/charter/schemas.py",
+        "src/charter/synthesizer/manifest.py",
+        "src/charter/synthesizer/provenance.py",
+        "src/charter/synthesizer/resynthesize_pipeline.py",
+        "src/charter/synthesizer/synthesize_pipeline.py",
+        "src/charter/synthesizer/write_pipeline.py",
+        "src/doctrine/versioning.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py",
+        "tests/charter/fixtures/synthesizer/**",
+        "tests/charter/synthesizer/test_adapter_contract.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/charter/synthesizer/test_provenance.py",
+        "tests/charter/synthesizer/test_schema_conformance.py",
+        "tests/doctrine/__init__.py",
+        "tests/doctrine/test_versioning.py",
+        "tests/specify_cli/cli/commands/test_charter_status_provenance.py",
+        "tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-30T06:35:56.874286+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}
