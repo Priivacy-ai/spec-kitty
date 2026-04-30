@@ -90,6 +90,7 @@ runtime dependencies were introduced.
 
 ### Fixed
 
+- CLI auth now consumes the server Tranche 2 contract end to end: logout posts refresh tokens to `/oauth/revoke`, local credential cleanup failures are reported truthfully, refresh handles benign 409 replay without resubmitting a spent token, and `auth doctor --server` checks `/api/v1/session-status` with safe re-authentication guidance (#902).
 - Fix `spec-kitty upgrade` silently leaving projects in PROJECT_MIGRATION_NEEDED state by stamping `schema_version` after metadata save (#705, WP01).
 - `spec-kitty init` in a non-git directory now prints an actionable "run `git init`" message (#636, WP05).
 - Suppress misleading "shutdown / final-sync" red error lines after a successful `spec-kitty agent mission create --json` payload (#735, WP06).
