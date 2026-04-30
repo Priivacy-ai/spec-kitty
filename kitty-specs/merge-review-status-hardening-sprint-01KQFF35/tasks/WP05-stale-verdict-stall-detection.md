@@ -19,8 +19,8 @@ subtasks:
 - T026
 - T027
 - T028
-agent: claude
-shell_pid: '46581'
+agent: "claude:claude-sonnet-4-6:python-pedro:reviewer"
+shell_pid: "6129"
 history:
 - date: '2026-04-30'
   event: created
@@ -284,3 +284,7 @@ Two improvements to the status board and `spec-kitty next` output:
 - Create a mock `status.events.jsonl` with an `in_review` event 35 minutes in the past; run `spec-kitty agent tasks status` and verify the `STALLED` marker appears.
 - Verify the intervention commands in `spec-kitty next` output include the correct WP ID and mission slug.
 - Confirm the stall check is purely read-only (no files written, no events emitted).
+
+## Activity Log
+
+- 2026-04-30T17:41:07Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=6129 – Started review via action command
