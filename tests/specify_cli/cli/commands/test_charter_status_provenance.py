@@ -366,6 +366,35 @@ def test_bundle_validate_fails_on_missing_synthesizer_version(
     )
 
 
+def test_bundle_validate_fails_on_non_mapping_sidecar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-006: bundle validate exits 1 when a sidecar is not a YAML mapping."""
+    _setup_charter_v2_project(tmp_path)
+    sidecar_path = (
+        tmp_path
+        / ".kittify"
+        / "charter"
+        / "provenance"
+        / "directive-review-policy.yaml"
+    )
+    sidecar_path.write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    with patch(
+        "specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root",
+        return_value=tmp_path,
+    ):
+        result = runner.invoke(charter_bundle_app, ["validate"])
+
+    assert result.exit_code == 1, (
+        f"Expected exit 1 for malformed sidecar; got {result.exit_code}.\nOutput: {result.output}"
+    )
+    assert "must be a YAML mapping" in result.output, (
+        f"Expected mapping error in output.\nOutput: {result.output}"
+    )
+
+
 def test_bundle_validate_passes_complete_v2_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -418,7 +447,7 @@ def test_bundle_validate_fails_when_manifest_artifact_has_missing_sidecar(
             }
         ],
     }
-    manifest_hash = _compute_manifest_hash({k: v for k, v in manifest_fields.items()})
+    manifest_hash = _compute_manifest_hash(manifest_fields)
     _write_yaml(
         charter_dir / "synthesis-manifest.yaml",
         {**manifest_fields, "manifest_hash": manifest_hash},

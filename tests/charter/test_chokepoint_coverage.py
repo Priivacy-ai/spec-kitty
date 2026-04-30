@@ -73,6 +73,11 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         # The activation helper reads governance.yaml/directives.yaml directly
         # from disk; charter-context callers upstream of it own bundle freshness.
         "src/doctrine/spdd_reasons/activation.py",
+        # Bundle schema-version helpers intentionally read charter metadata
+        # directly. This is not a v1.0.0 manifest derivative read; it is the
+        # compatibility gate that decides whether normal readers may proceed.
+        "src/doctrine/versioning.py",
+        "src/specify_cli/cli/commands/charter_bundle.py",
     }
 )
 

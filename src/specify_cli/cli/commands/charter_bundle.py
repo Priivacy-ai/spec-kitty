@@ -238,6 +238,66 @@ def _assert_bundle_compatible_bundle(charter_dir: Path, console: Console) -> Non
         raise typer.Exit(code=1)
 
 
+def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
+    """Return provenance validation errors for sidecars and manifest references."""
+    yaml_loader = _YAML(typ="safe")
+    sidecar_errors: list[str] = []
+    provenance_dir = canonical_root / ".kittify" / "charter" / "provenance"
+
+    if provenance_dir.exists():
+        for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
+            try:
+                raw = yaml_loader.load(sidecar_path)
+            except Exception as e:  # noqa: BLE001
+                sidecar_errors.append(f"{sidecar_path.name}: could not parse YAML: {e}")
+                continue
+            if not isinstance(raw, dict):
+                sidecar_errors.append(
+                    f"{sidecar_path.name}: provenance sidecar must be a YAML mapping"
+                )
+                continue
+            try:
+                ProvenanceEntry(**raw)
+            except ValidationError as e:
+                sidecar_errors.append(f"{sidecar_path.name}: {e}")
+
+    manifest_path = canonical_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    if not manifest_path.exists():
+        return sidecar_errors
+
+    try:
+        raw_manifest = yaml_loader.load(manifest_path)
+    except Exception as e:  # noqa: BLE001
+        sidecar_errors.append(f"synthesis-manifest.yaml: could not parse YAML: {e}")
+        return sidecar_errors
+    if not isinstance(raw_manifest, dict):
+        sidecar_errors.append(
+            "synthesis-manifest.yaml: synthesis manifest must be a YAML mapping"
+        )
+        return sidecar_errors
+
+    artifacts = raw_manifest.get("artifacts", [])
+    if not isinstance(artifacts, list):
+        sidecar_errors.append("synthesis-manifest.yaml: artifacts must be a list")
+        return sidecar_errors
+
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            sidecar_errors.append(
+                "synthesis-manifest.yaml: artifact entries must be YAML mappings"
+            )
+            continue
+        prov_rel = artifact.get("provenance_path")
+        if not prov_rel:
+            continue
+        if not (canonical_root / prov_rel).exists():
+            slug = artifact.get("slug", "?")
+            sidecar_errors.append(
+                f"Missing provenance sidecar for artifact '{slug}': {prov_rel}"
+            )
+    return sidecar_errors
+
+
 @app.command("validate")
 def validate(
     json_output: bool = typer.Option(
@@ -255,7 +315,7 @@ def validate(
     except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
         # Exit 2: resolver failure. Message on stderr per contract.
         err_console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from exc
 
     # FR-009: Block reads of incompatible bundles before any structure checks.
     charter_dir = canonical_root / ".kittify" / "charter"
@@ -314,35 +374,7 @@ def validate(
 
     # FR-006 / FR-007: Validate provenance sidecar content.
     # Parse each sidecar as ProvenanceEntry; fail closed on validation errors.
-    _yaml_loader = _YAML(typ="safe")
-    provenance_dir = canonical_root / ".kittify" / "charter" / "provenance"
-    sidecar_errors: list[str] = []
-    if provenance_dir.exists():
-        for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
-            raw = _yaml_loader.load(sidecar_path)
-            if isinstance(raw, dict):
-                try:
-                    ProvenanceEntry(**raw)
-                except ValidationError as e:
-                    sidecar_errors.append(f"{sidecar_path.name}: {e}")
-
-    # FR-007: Every artifact listed in synthesis-manifest.yaml must have a
-    # provenance sidecar file on disk.  Missing sidecars fail closed.
-    manifest_yaml_path = canonical_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
-    if manifest_yaml_path.exists():
-        raw_manifest = _yaml_loader.load(manifest_yaml_path)
-        if isinstance(raw_manifest, dict):
-            for artifact in raw_manifest.get("artifacts", []) or []:
-                if not isinstance(artifact, dict):
-                    continue
-                prov_rel = artifact.get("provenance_path")
-                if not prov_rel:
-                    continue
-                if not (canonical_root / prov_rel).exists():
-                    slug = artifact.get("slug", "?")
-                    sidecar_errors.append(
-                        f"Missing provenance sidecar for artifact '{slug}': {prov_rel}"
-                    )
+    sidecar_errors = _collect_provenance_validation_errors(canonical_root)
 
     if sidecar_errors:
         for msg in sidecar_errors:

@@ -55,7 +55,12 @@ def _write_compliant_bundle(repo_root: Path) -> None:
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# charter\n", encoding="utf-8")
     for rel in _DERIVED:
-        (repo_root / rel).write_text("# derived\n", encoding="utf-8")
+        if rel == ".kittify/charter/metadata.yaml":
+            (repo_root / rel).write_text(
+                "bundle_schema_version: 2\n", encoding="utf-8"
+            )
+        else:
+            (repo_root / rel).write_text("# derived\n", encoding="utf-8")
     gitignore = repo_root / ".gitignore"
     gitignore.write_text(
         "\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8"
@@ -173,7 +178,12 @@ def test_validate_fails_when_charter_md_is_untracked(
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# charter\n", encoding="utf-8")
     for rel in _DERIVED:
-        (tmp_path / rel).write_text("# derived\n", encoding="utf-8")
+        if rel == ".kittify/charter/metadata.yaml":
+            (tmp_path / rel).write_text(
+                "bundle_schema_version: 2\n", encoding="utf-8"
+            )
+        else:
+            (tmp_path / rel).write_text("# derived\n", encoding="utf-8")
     gitignore = tmp_path / ".gitignore"
     gitignore.write_text(
         "\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8"

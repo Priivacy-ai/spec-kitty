@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2 import (
@@ -146,6 +145,18 @@ def _create_v2_bundle(project_path: Path) -> None:
     )
 
 
+def _create_bundle_with_metadata_version(project_path: Path, version: int) -> None:
+    """Create a charter bundle whose metadata advertises a specific version."""
+    charter_dir = project_path / ".kittify" / "charter"
+    _write_yaml(
+        charter_dir / "metadata.yaml",
+        {
+            "bundle_schema_version": version,
+            "timestamp_utc": "2026-01-01T00:00:00Z",
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # detect() tests
 # ---------------------------------------------------------------------------
@@ -169,6 +180,14 @@ def test_detect_no_charter_returns_false(tmp_path: Path) -> None:
     """detect() returns False when no charter directory exists."""
     migration = CharterBundleV2Migration()
     assert migration.detect(tmp_path) is False
+
+
+def test_can_apply_rejects_incompatible_old_bundle(tmp_path: Path) -> None:
+    """Version 0 bundles are too old and must not enter the v1->v2 migration."""
+    _create_bundle_with_metadata_version(tmp_path, 0)
+    can_apply, reason = CharterBundleV2Migration().can_apply(tmp_path)
+    assert can_apply is False
+    assert "predates the earliest supported version" in reason
 
 
 # ---------------------------------------------------------------------------
@@ -269,3 +288,13 @@ def test_apply_result_success_true(tmp_path: Path) -> None:
     _create_v1_bundle(tmp_path)
     result = CharterBundleV2Migration().apply(tmp_path)
     assert result.success is True
+
+
+def test_apply_incompatible_old_bundle_returns_error(tmp_path: Path) -> None:
+    """apply() returns a structured failure instead of raising on version 0."""
+    _create_bundle_with_metadata_version(tmp_path, 0)
+    result = CharterBundleV2Migration().apply(tmp_path)
+    assert result.success is False
+    assert result.changes_made == []
+    assert result.errors
+    assert "predates the earliest supported version" in result.errors[0]
