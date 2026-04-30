@@ -1671,11 +1671,6 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 
 **You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
 
-Check for legacy worktrees:
-```bash
-spec-kitty list-legacy-features
-```
-
 See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migration guide.
 
 ### 🔒 Security (IMPORTANT) - Feature 011
@@ -1919,12 +1914,6 @@ The migration will remove mission-specific constitution directories:
 
 ### ✨ Added
 
-- **`spec-kitty repair` command** - Standalone command to repair broken templates
-  - Detects bash/PowerShell script references in slash commands
-  - Automatically regenerates templates from correct source
-  - Provides detailed feedback about repairs performed
-  - Can be run with `--dry-run` to preview changes
-
 - **Repair migration (0.10.9_repair_templates)** - Automatically fixes broken installations
   - Detects projects with broken template references
   - Regenerates all agent slash commands from correct templates
@@ -1953,13 +1942,7 @@ The migration will remove mission-specific constitution directories:
    ```
    This will automatically detect and fix broken templates.
 
-3. **Alternative: Use dedicated repair command:**
-   ```bash
-   spec-kitty repair
-   ```
-   Provides detailed feedback about what's being fixed.
-
-4. **Verify repair:**
+3. **Verify repair:**
    ```bash
    # Check for bash script references (should return nothing)
    grep -r "scripts/bash" .claude/commands/

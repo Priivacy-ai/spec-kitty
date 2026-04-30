@@ -782,28 +782,4 @@ def _run_planner_json(
     raise typer.Exit(exit_code)
 
 
-def list_legacy_features() -> None:
-    """List legacy worktrees blocking 0.11.0 upgrade."""
-    from specify_cli.task_utils import find_repo_root
-    from specify_cli.upgrade.migrations.m_0_11_0_workspace_per_wp import (
-        detect_legacy_worktrees,
-    )
-
-    repo_root = find_repo_root()
-    legacy = detect_legacy_worktrees(repo_root)
-
-    if not legacy:
-        console.print("[green]✓[/green] No legacy worktrees found")
-        console.print("Project is ready for 0.11.0 upgrade")
-        return
-
-    console.print(f"[yellow]Legacy worktrees found:[/yellow] {len(legacy)}\n")
-    for worktree in legacy:
-        console.print(f"  - {worktree.name}")
-
-    console.print("\n[cyan]Action required:[/cyan]")
-    console.print("  Complete: spec-kitty merge <feature>")
-    console.print("  OR Delete: git worktree remove .worktrees/<feature>")
-
-
-__all__ = ["upgrade", "list_legacy_features"]
+__all__ = ["upgrade"]

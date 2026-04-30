@@ -330,7 +330,7 @@ The upgrade command automatically migrates your project structure across version
 
 | Version | Migration                                                           |
 |---------|---------------------------------------------------------------------|
-| **0.10.9** | Repair broken templates with bash script references (#62, #63, #64) |
+| **0.10.9** | Legacy template bundling compatibility marker (#62, #63, #64) |
 | **0.10.8** | Move memory/ and AGENTS.md to .kittify/                             |
 | **0.10.6** | Simplify implement/review templates to use workflow commands        |
 | **0.10.2** | Update slash commands to Python CLI and flat structure              |
@@ -821,7 +821,6 @@ The `spec-kitty` command now spans core workflow commands, hosted tracker/sync w
 | `migrate` | Migrate project `.kittify/` state to newer models |
 | `ops` | Show operation history / reflog helpers |
 | `orchestrator-api` | Host contract for external orchestrators |
-| `repair` | Repair broken templates or worktree scaffolding |
 | `research` | Scaffold Phase 0 research artifacts |
 | `upgrade` | Upgrade a project to the current CLI/project contract |
 | `verify-setup` | Verify tooling, mission files, and environment health |

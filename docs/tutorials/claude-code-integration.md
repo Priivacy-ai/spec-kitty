@@ -437,7 +437,6 @@ claude
 pip install --upgrade spec-kitty-cli  # Get v0.10.9+
 cd myproject
 spec-kitty upgrade  # Auto-repairs templates
-# or: spec-kitty repair
 ```
 
 ### Claude ignores slash commands
@@ -481,7 +480,6 @@ spec-kitty dashboard         # Restart
 |---------|-------------|--------------|
 | `spec-kitty init` | New project | Initialize Spec Kitty in project |
 | `spec-kitty upgrade` | After pip upgrade | Apply migrations, fix templates |
-| `spec-kitty repair` | Broken templates | Fix bash script references |
 | `spec-kitty dashboard` | Anytime | Open live kanban dashboard |
 | `spec-kitty verify-setup` | Troubleshooting | Check tools and project health |
 

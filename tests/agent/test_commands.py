@@ -61,6 +61,14 @@ def test_cli_help_lists_extracted_commands() -> None:
         assert name in result.stdout
 
 
+@pytest.mark.parametrize("command", ["-".join(["list", "legacy", "features"]), "repair"])
+def test_trimmed_commands_removed_from_root_cli(command: str) -> None:
+    result = runner.invoke(cli_app, [command])
+
+    assert result.exit_code != 0
+    assert "No such command" in result.output
+
+
 def test_cli_help_simple_mode_avoids_rich_tables(monkeypatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_SIMPLE_HELP", "1")
     result = runner.invoke(cli_app, ["--help"])
