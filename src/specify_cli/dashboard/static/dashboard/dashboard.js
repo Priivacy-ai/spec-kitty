@@ -296,22 +296,9 @@ function loadOverview() {
     const feature = allFeatures.find(f => f.id === currentFeature);
     if (!feature) return;
 
-    const mergeBadge = (() => {
-const meta = feature.meta || {};
-const mergedAt = meta.merged_at || meta.merge_at;
-const mergedInto = meta.merged_into || meta.merge_into || meta.merged_target;
-if (!mergedAt || !mergedInto) {
-    return '';
-}
-const date = new Date(mergedAt);
-const dateStr = Number.isNaN(date.valueOf()) ? mergedAt : date.toLocaleDateString();
-return `
-    <span class="merge-badge" title="Merged into ${escapeHtml(mergedInto)} on ${escapeHtml(dateStr)}">
-        <span class="icon">✅</span>
-        <span>merged → ${escapeHtml(mergedInto)}</span>
-    </span>
-`;
-    })();
+    const meta = feature.meta || {};
+    const mergedAt = meta.merged_at || meta.merge_at;
+    const mergedInto = meta.merged_into || meta.merge_into || meta.merged_target;
 
     const stats = feature.kanban_stats;
     const total = stats.total;
@@ -321,13 +308,6 @@ return `
         : (total > 0 ? Math.round((completed / total) * 100) : 0);
     const purposeTldr = (meta.purpose_tldr || '').trim();
     const purposeContext = (meta.purpose_context || '').trim();
-    const overviewIntro = purposeTldr
-        ? `<p style="color: #374151; font-weight: 600; margin-top: 12px;">${escapeHtml(purposeTldr)}</p>`
-        : '<p style="color: #6b7280;">View and track all artifacts for this feature</p>';
-    const overviewContext = purposeContext
-        ? `<p style="color: #6b7280; margin-top: 10px; max-width: 72ch;">${escapeHtml(purposeContext)}</p>`
-        : '';
-
     const artifacts = feature.artifacts;
     const artifactList = [
         {name: 'Project Charter', key: 'charter', icon: '⚖️'},
@@ -340,55 +320,128 @@ return `
         {name: 'Data Model', key: 'data_model', icon: '💾'},
         {name: 'Contracts', key: 'contracts', icon: '📜'},
         {name: 'Checklists', key: 'checklists', icon: '✅'},
-    ].map(a => {
-        const isAvailable = artifacts[a.key]?.exists;
-        return `
-        <div style="padding: 10px; background: ${isAvailable ? '#ecfdf5' : '#fef2f2'};
-             border-radius: 6px; border-left: 3px solid ${isAvailable ? '#10b981' : '#ef4444'};">
-            ${a.icon} ${a.name}: ${isAvailable ? '✅ Available' : '❌ Not created'}
-        </div>
-    `}).join('');
+    ];
+    const overviewContent = document.getElementById('overview-content');
+    const header = document.createElement('div');
+    header.style.marginBottom = '30px';
 
-    document.getElementById('overview-content').innerHTML = `
-<div style="margin-bottom: 30px;">
-    <h3>Mission Run: ${feature.name} ${mergeBadge}</h3>
-    ${overviewIntro}
-    ${overviewContext}
-</div>
+    const title = document.createElement('h3');
+    title.textContent = `Mission Run: ${feature.name}`;
+    if (mergedAt && mergedInto) {
+        const date = new Date(mergedAt);
+        const dateStr = Number.isNaN(date.valueOf()) ? mergedAt : date.toLocaleDateString();
+        const mergeBadge = document.createElement('span');
+        mergeBadge.className = 'merge-badge';
+        mergeBadge.title = `Merged into ${mergedInto} on ${dateStr}`;
 
-<div class="status-summary">
-    <div class="status-card total">
-                <div class="status-label">Total Tasks</div>
-                <div class="status-value">${total}</div>
-                <div class="status-detail">${stats.planned} planned</div>
-            </div>
-            <div class="status-card progress">
-                <div class="status-label">In Progress</div>
-                <div class="status-value">${stats.doing}</div>
-            </div>
-            <div class="status-card review">
-                <div class="status-label">Review</div>
-                <div class="status-value">${stats.for_review}</div>
-            </div>
-            <div class="status-card approved">
-                <div class="status-label">Approved</div>
-                <div class="status-value">${stats.approved || 0}</div>
-            </div>
-            <div class="status-card completed">
-                <div class="status-label">Completed</div>
-                <div class="status-value">${completed}</div>
-                <div class="status-detail">${completionRate}% done</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${completionRate}%"></div>
-                </div>
-            </div>
-        </div>
+        const icon = document.createElement('span');
+        icon.className = 'icon';
+        icon.textContent = '✅';
 
-        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #1f2937;">Available Artifacts</h3>
-        <div style="display: grid; gap: 10px;">
-            ${artifactList}
-        </div>
-    `;
+        const label = document.createElement('span');
+        label.textContent = `merged → ${mergedInto}`;
+
+        mergeBadge.append(icon, label);
+        title.append(' ', mergeBadge);
+    }
+    header.appendChild(title);
+
+    const intro = document.createElement('p');
+    intro.style.color = purposeTldr ? '#374151' : '#6b7280';
+    if (purposeTldr) {
+        intro.style.fontWeight = '600';
+        intro.style.marginTop = '12px';
+        intro.textContent = purposeTldr;
+    } else {
+        intro.textContent = 'View and track all artifacts for this feature';
+    }
+    header.appendChild(intro);
+
+    if (purposeContext) {
+        const context = document.createElement('p');
+        context.style.color = '#6b7280';
+        context.style.marginTop = '10px';
+        context.style.maxWidth = '72ch';
+        context.textContent = purposeContext;
+        header.appendChild(context);
+    }
+
+    const statusSummary = document.createElement('div');
+    statusSummary.className = 'status-summary';
+    [
+        ['total', 'Total Tasks', total, `${stats.planned} planned`],
+        ['progress', 'In Progress', stats.doing, null],
+        ['review', 'Review', stats.for_review, null],
+        ['approved', 'Approved', stats.approved || 0, null],
+    ].forEach(([cardClass, labelText, valueText, detailText]) => {
+        const card = document.createElement('div');
+        card.className = `status-card ${cardClass}`;
+
+        const label = document.createElement('div');
+        label.className = 'status-label';
+        label.textContent = labelText;
+
+        const value = document.createElement('div');
+        value.className = 'status-value';
+        value.textContent = String(valueText);
+
+        card.append(label, value);
+        if (detailText) {
+            const detail = document.createElement('div');
+            detail.className = 'status-detail';
+            detail.textContent = detailText;
+            card.appendChild(detail);
+        }
+        statusSummary.appendChild(card);
+    });
+
+    const completedCard = document.createElement('div');
+    completedCard.className = 'status-card completed';
+
+    const completedLabel = document.createElement('div');
+    completedLabel.className = 'status-label';
+    completedLabel.textContent = 'Completed';
+
+    const completedValue = document.createElement('div');
+    completedValue.className = 'status-value';
+    completedValue.textContent = String(completed);
+
+    const completedDetail = document.createElement('div');
+    completedDetail.className = 'status-detail';
+    completedDetail.textContent = `${completionRate}% done`;
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+
+    const progressFill = document.createElement('div');
+    progressFill.className = 'progress-fill';
+    progressFill.style.width = `${completionRate}%`;
+
+    progressBar.appendChild(progressFill);
+    completedCard.append(completedLabel, completedValue, completedDetail, progressBar);
+    statusSummary.appendChild(completedCard);
+
+    const artifactsHeading = document.createElement('h3');
+    artifactsHeading.style.marginTop = '30px';
+    artifactsHeading.style.marginBottom = '15px';
+    artifactsHeading.style.color = '#1f2937';
+    artifactsHeading.textContent = 'Available Artifacts';
+
+    const artifactsGrid = document.createElement('div');
+    artifactsGrid.style.display = 'grid';
+    artifactsGrid.style.gap = '10px';
+    artifactList.forEach(({name, key, icon}) => {
+        const isAvailable = artifacts[key]?.exists;
+        const item = document.createElement('div');
+        item.style.padding = '10px';
+        item.style.background = isAvailable ? '#ecfdf5' : '#fef2f2';
+        item.style.borderRadius = '6px';
+        item.style.borderLeft = `3px solid ${isAvailable ? '#10b981' : '#ef4444'}`;
+        item.textContent = `${icon} ${name}: ${isAvailable ? '✅ Available' : '❌ Not created'}`;
+        artifactsGrid.appendChild(item);
+    });
+
+    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
 }
 
 function loadKanban() {
@@ -1171,9 +1224,14 @@ function updateFeatureList(features, activeFeatureId = null) {
             currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
         }
 
-        select.innerHTML = features.map(f =>
-            `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${escapeHtml(getFeatureDisplayName(f))}</option>`
-        ).join('');
+        const options = features.map(f => {
+            const option = document.createElement('option');
+            option.value = f.id;
+            option.textContent = getFeatureDisplayName(f);
+            option.selected = f.id === currentFeature;
+            return option;
+        });
+        select.replaceChildren(...options);
         select.value = currentFeature;
     }
 

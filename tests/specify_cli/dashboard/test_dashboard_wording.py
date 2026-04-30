@@ -7,7 +7,6 @@ Asserts:
    JS function names, Python diagnostic keys) stay unchanged — FR-004 / C-007.
 """
 from pathlib import Path
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DASHBOARD = REPO_ROOT / "src/specify_cli/dashboard"
@@ -23,7 +22,7 @@ class TestUserVisibleMissionRunWording:
 
     def test_index_html_selector_label_is_mission_run(self) -> None:
         content = INDEX_HTML.read_text()
-        assert "<label>Mission Run:</label>" in content
+        assert '<label for="feature-select">Mission Run:</label>' in content
         assert "<label>Feature:</label>" not in content
 
     def test_index_html_overview_heading(self) -> None:
@@ -50,7 +49,7 @@ class TestUserVisibleMissionRunWording:
 
     def test_dashboard_js_feature_heading_renamed(self) -> None:
         content = DASHBOARD_JS.read_text()
-        assert "<h3>Mission Run: ${feature.name}" in content
+        assert "title.textContent = `Mission Run: ${feature.name}`;" in content
         assert "<h3>Feature: ${feature.name}" not in content
 
     def test_dashboard_js_unknown_fallback_renamed(self) -> None:
