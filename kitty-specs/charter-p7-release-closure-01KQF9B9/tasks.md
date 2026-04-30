@@ -117,5 +117,4 @@ WP01 (validate_synthesis_state must be wired before tests can pass).
 
 ### Risks
 
-- Fixture helpers must create `synthesis-manifest.yaml` with real `content_hash` values so the valid-bundle test passes.
-- `manifest_hash` integrity check in `validate_synthesis_state()` uses `content_hash` per artifact, not a single top-level hash — test fixtures must match that structure exactly.
+- Fixture helpers must create `synthesis-manifest.yaml` with real `content_hash` and `manifest_hash` values so the valid-bundle test passes; corrupt fixture variants should target only the field under test.

@@ -76,23 +76,23 @@ Gate 4 failure does not block the overall verdict when the only affected FR is a
 
 ## Risk Findings
 
-### RISK-1: `_assert_bundle_compatible_bundle` leaks Rich text to stdout in `--json` mode (pre-existing, not a regression)
+### RISK-1: Incompatible bundle failures leaked Rich text to stdout in `--json` mode — RESOLVED
 
 **Type**: BOUNDARY-CONDITION
-**Severity**: LOW (pre-existing; only fires for bundles with an incompatible `metadata.yaml` schema version)
-**Location**: `src/specify_cli/cli/commands/charter_bundle.py:245–255` (unchanged by this mission)
+**Severity**: RESOLVED in commit `5a6e0737`
+**Location**: `src/specify_cli/cli/commands/charter_bundle.py` (`_bundle_compatibility_error` and unified JSON exit gate)
 **Trigger condition**: `charter bundle validate --json` invoked on a bundle whose `metadata.yaml` carries a schema version that `check_bundle_compatibility()` rejects.
 
-**Analysis**: `_assert_bundle_compatible_bundle(charter_dir, console)` passes `console = Console()` (stdout) and calls `console.print(f"[red]Error:[/red] {result.message}")` before raising `typer.Exit(code=1)`. When `--json` is active, this leaks a Rich-formatted line to stdout before the JSON envelope — violating FR-006 for this specific code path. WP01 fixed the sidecar-path stdout leak (the mission's target) but did not fix the pre-existing compatibility-check path. The git diff confirms this line is unchanged since the baseline `a9d8cab2`. No test exercises this path with `--json`, so no regression was introduced by this mission. Recommend a follow-up fix to redirect the compatibility error to `err_console` (stderr) when `json_output` is True.
+**Analysis**: The old early-exit compatibility helper printed to stdout before raising. It has been replaced by `_bundle_compatibility_error()`, which returns the message so the main validation command can include it in the parseable JSON envelope and exit through the same gate as other failures. `test_validate_json_is_strict_on_incompatible_bundle` now covers this path.
 
-### RISK-2: `manifest_hash` self-integrity is stored but never verified
+### RISK-2: `manifest_hash` self-integrity gap — RESOLVED
 
 **Type**: BOUNDARY-CONDITION
-**Severity**: LOW (explicitly accepted as out-of-scope; documented in test helper comments)
-**Location**: `src/charter/synthesizer/manifest.py:verify()` (not changed by this mission)
-**Trigger condition**: A synthesis manifest whose `manifest_hash` field is tampered with passes `validate_synthesis_state()` as long as per-artifact `content_hash` values match.
+**Severity**: RESOLVED in commit `5a6e0737`
+**Location**: `src/charter/synthesizer/manifest.py:verify_manifest_hash()` and `src/charter/bundle.py:_check_manifest_integrity()`
+**Trigger condition**: A synthesis manifest whose `manifest_hash` field is tampered with while per-artifact `content_hash` values still match.
 
-**Analysis**: `SynthesisManifest` carries a `manifest_hash` field (SHA-256 of all other fields), but `verify()` only cross-checks per-artifact `content_hash` against on-disk artifact bytes. The manifest self-hash is cosmetic from validation's perspective. The `_add_synthesis_manifest` test helper uses `"c" * 64` as a dummy `manifest_hash` and passes; this is documented explicitly as in-scope ("verify() does not check manifest_hash"). Per C-002 the accepted audit-linkage design was not to be reopened. Recommend a follow-up mission to wire manifest self-hash verification if the threat model requires it.
+**Analysis**: `verify_manifest_hash()` now recomputes SHA-256 over the canonical manifest fields excluding `manifest_hash` and `_check_manifest_integrity()` reports a structured error on mismatch. CLI and direct validator regressions cover tampered self-hash failures.
 
 ---
 
@@ -108,7 +108,7 @@ None introduced by this mission. The diff adds no `except Exception: return ""` 
 |---------|----------|------------|----------------|
 | No new subprocess calls | — | — | None |
 | No `shell=True` | — | — | None |
-| No new file path operations without anchoring | — | — | None |
+| Manifest-listed paths are anchored | `src/charter/synthesizer/manifest.py` | Path traversal / local file read | Manifest artifact paths must stay under `.kittify/doctrine`; provenance paths must stay under `.kittify/charter/provenance`; symlink escapes are rejected. |
 | No `type: ignore` or `noqa` added | — | — | None |
 | No new HTTP/network calls | — | — | None |
 
@@ -118,7 +118,7 @@ The diff is clean from a security perspective. The only existing subprocess call
 
 ## Contract Compliance Note
 
-The `contracts/validate-json-output.md` file uses `"manifest": { "...": "existing shape unchanged" }` as a documentation placeholder in its JSON examples. The actual implementation emits no `"manifest"` key — the real shape has `tracked_files`, `derived_files`, `gitignore`, `out_of_scope_files`, etc. This is a documentation-only drift (the placeholder is misleading) that does not affect runtime behavior. The test `test_validate_json_shape_matches_contract` is the authoritative contract surface and does not require a `"manifest"` key.
+The `contracts/validate-json-output.md` examples now use the real envelope keys emitted by the implementation (`tracked_files`, `derived_files`, `gitignore`, `out_of_scope_files`, `warnings`, and `synthesis_state`) instead of the stale placeholder `"manifest"` key. The test `test_validate_json_shape_matches_contract` remains the executable contract guard.
 
 ---
 
@@ -130,10 +130,10 @@ The `contracts/validate-json-output.md` file uses `"manifest": { "...": "existin
 
 All nine code-level FRs (FR-001 through FR-009) are adequately tested and correctly implemented. The diff is minimal (59 lines in the CLI module, 289 lines of new tests), architecturally clean, and introduces no security issues or silent failure modes. Gate 1 (contract) and Gate 2 (architectural) pass. Gate 3 is an environmental exception with no code implication. Gate 4 fails solely because FR-010 (GitHub issue hygiene) was not assigned to a WP — not because of any runtime defect.
 
-FR-010 is being remediated as part of this review's follow-up actions (GitHub issues #515 and #469). RISK-1 (`_assert_bundle_compatible_bundle` stdout leak in `--json` mode for incompatible bundles) is pre-existing and out of this mission's scope; it does not affect the two fixed blockers.
+FR-010 is a post-merge hygiene action for GitHub issues #515 and #469. RISK-1 and RISK-2 were both remediated in commit `5a6e0737` and now have regression coverage.
 
 ### Open items (non-blocking)
 
-1. **RISK-1** ✅ **RESOLVED** (commit `5a6e0737`): `_assert_bundle_compatible_bundle` now passes `err_console` when `json_output` is True.
+1. **RISK-1** ✅ **RESOLVED** (commit `5a6e0737`): incompatible-bundle errors now flow through `_bundle_compatibility_error()` and the unified JSON exit gate.
 2. **RISK-2** ✅ **RESOLVED** (commit `5a6e0737`): `verify_manifest_hash()` added to `synthesizer/manifest.py` and wired into `_check_manifest_integrity()`; tests updated to compute real manifest hashes and cover the mismatch failure path.
-3. **Documentation**: Update `contracts/validate-json-output.md` to replace the `"manifest"` placeholder with the actual key names used by the implementation.
+3. **Documentation** ✅ **RESOLVED**: `contracts/validate-json-output.md` now shows the actual key names used by the implementation.
