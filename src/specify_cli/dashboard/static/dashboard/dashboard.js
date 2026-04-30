@@ -296,22 +296,13 @@ function loadOverview() {
     const feature = allFeatures.find(f => f.id === currentFeature);
     if (!feature) return;
 
-    const mergeBadge = (() => {
-const meta = feature.meta || {};
-const mergedAt = meta.merged_at || meta.merge_at;
-const mergedInto = meta.merged_into || meta.merge_into || meta.merged_target;
-if (!mergedAt || !mergedInto) {
-    return '';
-}
-const date = new Date(mergedAt);
-const dateStr = Number.isNaN(date.valueOf()) ? mergedAt : date.toLocaleDateString();
-return `
-    <span class="merge-badge" title="Merged into ${escapeHtml(mergedInto)} on ${escapeHtml(dateStr)}">
-        <span class="icon">✅</span>
-        <span>merged → ${escapeHtml(mergedInto)}</span>
-    </span>
-`;
-    })();
+    const meta = feature.meta || {};
+    const mergedAt = meta.merged_at || meta.merge_at;
+    const mergedInto = meta.merged_into || meta.merge_into || meta.merged_target;
+    const mergeDate = mergedAt ? new Date(mergedAt) : null;
+    const mergeDateText = !mergeDate || Number.isNaN(mergeDate.valueOf())
+        ? mergedAt
+        : mergeDate.toLocaleDateString();
 
     const stats = feature.kanban_stats;
     const total = stats.total;
@@ -321,12 +312,6 @@ return `
         : (total > 0 ? Math.round((completed / total) * 100) : 0);
     const purposeTldr = (meta.purpose_tldr || '').trim();
     const purposeContext = (meta.purpose_context || '').trim();
-    const overviewIntro = purposeTldr
-        ? `<p style="color: #374151; font-weight: 600; margin-top: 12px;">${escapeHtml(purposeTldr)}</p>`
-        : '<p style="color: #6b7280;">View and track all artifacts for this feature</p>';
-    const overviewContext = purposeContext
-        ? `<p style="color: #6b7280; margin-top: 10px; max-width: 72ch;">${escapeHtml(purposeContext)}</p>`
-        : '';
 
     const artifacts = feature.artifacts;
     const artifactList = [
@@ -349,11 +334,12 @@ return `
         </div>
     `}).join('');
 
-    document.getElementById('overview-content').innerHTML = `
+    const overviewContent = document.getElementById('overview-content');
+    overviewContent.innerHTML = `
 <div style="margin-bottom: 30px;">
-    <h3>Mission Run: ${feature.name} ${mergeBadge}</h3>
-    ${overviewIntro}
-    ${overviewContext}
+    <h3 id="overview-title"></h3>
+    <p id="overview-intro" style="color: #6b7280;">View and track all artifacts for this feature</p>
+    <p id="overview-context" style="color: #6b7280; margin-top: 10px; max-width: 72ch; display: none;"></p>
 </div>
 
 <div class="status-summary">
@@ -385,10 +371,42 @@ return `
         </div>
 
         <h3 style="margin-top: 30px; margin-bottom: 15px; color: #1f2937;">Available Artifacts</h3>
-        <div style="display: grid; gap: 10px;">
-            ${artifactList}
-        </div>
-    `;
+    <div style="display: grid; gap: 10px;">
+        ${artifactList}
+    </div>
+`;
+
+    const titleEl = document.getElementById('overview-title');
+    titleEl.textContent = `Mission Run: ${feature.name}`;
+    if (mergedInto && mergeDateText) {
+        const badge = document.createElement('span');
+        badge.className = 'merge-badge';
+        badge.title = `Merged into ${mergedInto} on ${mergeDateText}`;
+
+        const icon = document.createElement('span');
+        icon.className = 'icon';
+        icon.textContent = '✅';
+
+        const text = document.createElement('span');
+        text.textContent = `merged → ${mergedInto}`;
+
+        badge.append(icon, text);
+        titleEl.append(' ', badge);
+    }
+
+    const introEl = document.getElementById('overview-intro');
+    if (purposeTldr) {
+        introEl.textContent = purposeTldr;
+        introEl.style.color = '#374151';
+        introEl.style.fontWeight = '600';
+        introEl.style.marginTop = '12px';
+    }
+
+    const contextEl = document.getElementById('overview-context');
+    if (purposeContext) {
+        contextEl.textContent = purposeContext;
+        contextEl.style.display = 'block';
+    }
 }
 
 function loadKanban() {
@@ -1171,9 +1189,13 @@ function updateFeatureList(features, activeFeatureId = null) {
             currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
         }
 
-        select.innerHTML = features.map(f =>
-            `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${escapeHtml(getFeatureDisplayName(f))}</option>`
-        ).join('');
+        select.replaceChildren(...features.map(f => {
+            const option = document.createElement('option');
+            option.value = f.id;
+            option.textContent = getFeatureDisplayName(f);
+            option.selected = f.id === currentFeature;
+            return option;
+        }));
         select.value = currentFeature;
     }
 
@@ -1272,7 +1294,7 @@ function fetchData(isInitialLoad = false) {
             return response.json();
         })
         .then(data => {
-            const features = normalizeFeatureList(data && data.features);
+            const features = normalizeFeatureList(data?.features);
             if (!data || !Array.isArray(data.features)) {
                 console.warn('GET /api/features returned no features array; rendering an empty feature list', data);
             }
