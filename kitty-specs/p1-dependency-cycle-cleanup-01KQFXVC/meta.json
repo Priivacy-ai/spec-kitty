@@ -8,5 +8,6 @@
   "purpose_context": "The spec-kitty codebase has two priority-1 circular import paths from GitHub issue #862. The dossier package and sync package import each other, and status/emit imports directly from sync. These cycles prevent clean package separation, complicate testing, and risk transitive dependency leaks. This mission removes both cycles through targeted structural refactoring with no behavioral changes to existing sync, dossier, status, or SaaS fan-out functionality.",
   "purpose_tldr": "Remove two circular import cycles between the dossier/sync and status/sync packages to restore clean architectural boundaries.",
   "slug": "p1-dependency-cycle-cleanup-01KQFXVC",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git"
 }
