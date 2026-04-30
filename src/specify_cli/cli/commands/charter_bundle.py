@@ -326,6 +326,24 @@ def validate(
                 except ValidationError as e:
                     sidecar_errors.append(f"{sidecar_path.name}: {e}")
 
+    # FR-007: Every artifact listed in synthesis-manifest.yaml must have a
+    # provenance sidecar file on disk.  Missing sidecars fail closed.
+    manifest_yaml_path = canonical_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    if manifest_yaml_path.exists():
+        raw_manifest = _yaml_loader.load(manifest_yaml_path)
+        if isinstance(raw_manifest, dict):
+            for artifact in raw_manifest.get("artifacts", []) or []:
+                if not isinstance(artifact, dict):
+                    continue
+                prov_rel = artifact.get("provenance_path")
+                if not prov_rel:
+                    continue
+                if not (canonical_root / prov_rel).exists():
+                    slug = artifact.get("slug", "?")
+                    sidecar_errors.append(
+                        f"Missing provenance sidecar for artifact '{slug}': {prov_rel}"
+                    )
+
     if sidecar_errors:
         for msg in sidecar_errors:
             console.print(f"[red]Provenance validation error:[/red] {msg}")

@@ -385,3 +385,55 @@ def test_bundle_validate_passes_complete_v2_bundle(
     assert "Provenance validation error" not in result.output, (
         f"Unexpected provenance error for complete v2 bundle.\nOutput: {result.output}"
     )
+
+
+def test_bundle_validate_fails_when_manifest_artifact_has_missing_sidecar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-007: bundle validate exits 1 when a manifest artifact has no sidecar file."""
+    # Set up a v2 bundle whose synthesis-manifest.yaml declares an artifact
+    # but the corresponding provenance sidecar is absent.
+    charter_dir = tmp_path / ".kittify" / "charter"
+    _write_yaml(
+        charter_dir / "metadata.yaml",
+        {"bundle_schema_version": 2, "timestamp_utc": "2026-01-01T00:00:00Z"},
+    )
+    (charter_dir / "charter.md").write_text("# Test Charter\n", encoding="utf-8")
+
+    # synthesis-manifest.yaml references a provenance sidecar that does NOT exist.
+    manifest_fields: dict = {
+        "schema_version": "2",
+        "created_at": "2026-01-01T00:00:00Z",
+        "run_id": "01TEST000000000000000000002",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.6",
+        "artifacts": [
+            {
+                "kind": "directive",
+                "slug": "orphan-directive",
+                "path": ".kittify/doctrine/directives/orphan-directive.yaml",
+                "provenance_path": ".kittify/charter/provenance/orphan-directive.yaml",
+                "content_hash": "c" * 64,
+            }
+        ],
+    }
+    manifest_hash = _compute_manifest_hash({k: v for k, v in manifest_fields.items()})
+    _write_yaml(
+        charter_dir / "synthesis-manifest.yaml",
+        {**manifest_fields, "manifest_hash": manifest_hash},
+    )
+
+    monkeypatch.chdir(tmp_path)
+    with patch(
+        "specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root",
+        return_value=tmp_path,
+    ):
+        result = runner.invoke(charter_bundle_app, ["validate"])
+
+    assert result.exit_code == 1, (
+        f"Expected exit 1 for missing sidecar; got {result.exit_code}.\nOutput: {result.output}"
+    )
+    assert "orphan-directive" in result.output, (
+        f"Expected artifact slug in error output.\nOutput: {result.output}"
+    )

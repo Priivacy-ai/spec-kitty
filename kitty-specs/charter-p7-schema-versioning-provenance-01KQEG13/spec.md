@@ -144,7 +144,7 @@ An operator on a fully-migrated, Phase 7 bundle runs `spec-kitty charter sync`, 
 2. "Bundle integer schema_version" is distinct from the existing `schema_version: 1.0.0` semver string in `metadata.yaml` and the per-artifact `schema_version: "1"` literal field. A new integer key (e.g., `bundle_schema_version`) is the most likely implementation approach.
 3. The Phase 3 baseline for provenance (`src/charter/synthesizer/synthesize_pipeline.py` ProvenanceEntry) is the starting point; hardening adds fields and promotes optionals to mandatories.
 4. "Fails closed" means: any code path that cannot verify complete provenance returns an error, never silently proceeds as if provenance were valid.
-5. Pre-Phase 7 bundles (no integer schema_version) are treated as version 0 by the compatibility registry and are subject to migration rather than immediate hard-block, unless they also have no migration registered.
+5. Pre-Phase 7 bundles (no integer schema_version, i.e. `bundle_schema_version` absent from `metadata.yaml`) are treated as version 1 (`MISSING_VERSION` → `needs_migration=True`) by the compatibility registry. Treating them as version 0 would require a two-hop migration. Version 0 and negative versions are classified as `INCOMPATIBLE_OLD` (below `MIN_READABLE_BUNDLE_SCHEMA=1`) with no registered migration path — those produce a hard block, not a migration offer.
 
 ---
 

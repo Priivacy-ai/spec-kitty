@@ -256,10 +256,18 @@ def test_run_migration_raises_key_error_for_unregistered_version(tmp_path: Path)
         run_migration(99, tmp_path)
 
 
-def test_run_migration_raises_not_implemented_for_v1_stub(tmp_path: Path) -> None:
-    """The v1 migration stub (WP03) raises NotImplementedError."""
-    with pytest.raises(NotImplementedError):
-        run_migration(1, tmp_path)
+def test_run_migration_v1_returns_migration_result(tmp_path: Path) -> None:
+    """The v1 migration (WP03 implementation) returns a MigrationResult; does not raise."""
+    # A metadata.yaml without bundle_schema_version is treated as v1 and gets stamped.
+    (tmp_path / "metadata.yaml").write_text(
+        "charter_slug: test-charter\n", encoding="utf-8"
+    )
+    result = run_migration(1, tmp_path)
+    assert isinstance(result, MigrationResult)
+    assert result.from_version == 1
+    assert result.to_version == 2
+    assert result.errors == []
+    assert any("metadata.yaml" in change for change in result.changes_made)
 
 
 # ---------------------------------------------------------------------------
