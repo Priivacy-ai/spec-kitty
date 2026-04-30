@@ -19,7 +19,8 @@ subtasks:
 - T017
 - T018
 - T019
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "34402"
 history:
 - date: '2026-04-30'
   event: created
@@ -390,3 +391,7 @@ All existing offline tests must pass without modification.
 | Access token in error messages | All error strings use `type(exc).__name__`, never exc args or token values |
 | `additionalProperties: false` means session_id is always present on 200 | Use `.get("session_id")` defensively; test with missing key |
 | Default doctor tests assert no outbound calls | `server=False` path never calls `asyncio.run` or `_check_server_session` |
+
+## Activity Log
+
+- 2026-04-30T13:47:24Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=34402 – Started implementation via action command
