@@ -194,6 +194,23 @@ _TEST_PORT_START = 9425
 _TEST_PORT_END = 9450  # exclusive
 
 
+def test_lookup_listening_pid_falls_back_to_lsof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """macOS can hide listener PIDs from psutil; lsof should recover them."""
+
+    def fake_net_connections(*_args: Any, **_kwargs: Any) -> list[Any]:
+        raise psutil.AccessDenied(pid=None)
+
+    def fake_run(cmd: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 0, stdout="12345\n", stderr="")
+
+    monkeypatch.setattr(orphan_sweep.psutil, "net_connections", fake_net_connections)
+    monkeypatch.setattr(orphan_sweep.subprocess, "run", fake_run)
+
+    assert orphan_sweep._lookup_listening_pid(9401) == 12345
+
+
 @pytest.fixture
 def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_DaemonHarness]:
     """Provide a harness with an isolated DAEMON_STATE_FILE and narrowed scan range."""
