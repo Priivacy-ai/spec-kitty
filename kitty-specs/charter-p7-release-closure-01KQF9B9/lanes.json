@@ -35,8 +35,8 @@
         "legacy-cleanup",
         "workspace"
       ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
+      "depends_on_lanes": ["lane-a"],
+      "parallel_group": 1
     }
   ],
   "computed_at": "2026-04-30T14:06:18.859997+00:00",
