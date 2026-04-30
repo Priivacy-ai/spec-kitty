@@ -134,6 +134,6 @@ FR-010 is being remediated as part of this review's follow-up actions (GitHub is
 
 ### Open items (non-blocking)
 
-1. **RISK-1**: Fix `_assert_bundle_compatible_bundle` to use `err_console` (stderr) when `json_output` is True, so the incompatible-bundle path also satisfies FR-006.
-2. **RISK-2**: Consider a follow-up mission to add manifest self-hash (`manifest_hash`) verification to `validate_synthesis_state()`.
+1. **RISK-1** ✅ **RESOLVED** (commit `5a6e0737`): `_assert_bundle_compatible_bundle` now passes `err_console` when `json_output` is True.
+2. **RISK-2** ✅ **RESOLVED** (commit `5a6e0737`): `verify_manifest_hash()` added to `synthesizer/manifest.py` and wired into `_check_manifest_integrity()`; tests updated to compute real manifest hashes and cover the mismatch failure path.
 3. **Documentation**: Update `contracts/validate-json-output.md` to replace the `"manifest"` placeholder with the actual key names used by the implementation.
