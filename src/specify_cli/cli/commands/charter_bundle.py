@@ -21,7 +21,12 @@ import typer
 from pydantic import ValidationError
 from rich.console import Console
 
-from charter.bundle import CANONICAL_MANIFEST, CharterBundleManifest
+from charter.bundle import (
+    CANONICAL_MANIFEST,
+    BundleValidationResult,
+    CharterBundleManifest,
+    validate_synthesis_state,
+)
 from charter.resolution import (
     GitCommonDirUnavailableError,
     NotInsideRepositoryError,
@@ -224,6 +229,18 @@ def _render_human(report: dict[str, Any], console: Console) -> None:
     else:
         console.print("[red]Bundle is NOT compliant (v1.0.0).[/red]")
 
+    synth = report.get("synthesis_state")
+    if synth:
+        if synth["present"]:
+            if synth["passed"]:
+                console.print("[green]Synthesis state: valid (all artifacts have provenance).[/green]")
+            else:
+                console.print("[red]Synthesis state: INVALID.[/red]")
+                for err in synth["errors"]:
+                    console.print(f"  [red]• {err}[/red]")
+        else:
+            console.print("[dim]Synthesis state: not present (legacy bundle).[/dim]")
+
 
 def _assert_bundle_compatible_bundle(charter_dir: Path, console: Console) -> None:
     """Check bundle compatibility and exit 1 with an upgrade prompt if needed.
@@ -372,20 +389,42 @@ def validate(
         "warnings": warnings,
     }
 
-    # FR-006 / FR-007: Validate provenance sidecar content.
-    # Parse each sidecar as ProvenanceEntry; fail closed on validation errors.
+    # FR-006 / FR-007: Collect provenance sidecar content validation errors.
+    # Do NOT exit here — accumulate into report and let the unified exit gate below handle it.
     sidecar_errors = _collect_provenance_validation_errors(canonical_root)
 
-    if sidecar_errors:
-        for msg in sidecar_errors:
-            console.print(f"[red]Provenance validation error:[/red] {msg}")
-        raise typer.Exit(code=1)
+    # FR-001 to FR-004: Call the full synthesis-state gate.
+    synth_result: BundleValidationResult = validate_synthesis_state(canonical_root)
+
+    # Build mirrored top-level errors list (FR-007).
+    # Provenance sidecar errors get a "provenance:" prefix so consumers can distinguish them.
+    provenance_error_strings = [f"provenance: {e}" for e in sidecar_errors]
+    synthesis_error_strings = [f"synthesis_state: {e}" for e in synth_result.errors]
+    all_errors = provenance_error_strings + synthesis_error_strings
+
+    # Extend the report with synthesis state (FR-005 / FR-007).
+    report["errors"] = all_errors
+    report["synthesis_state"] = {
+        "present": synth_result.synthesis_state_present,
+        "passed": synth_result.passed,
+        "errors": list(synth_result.errors),
+        "warnings": list(synth_result.warnings),
+    }
+
+    # Overall gate: pass only if charter manifest, sidecar content, AND synthesis state all pass.
+    overall_passed = bundle_compliant and not sidecar_errors and synth_result.passed
+    report["passed"] = overall_passed
+    report["result"] = "success" if overall_passed else "failure"
 
     if json_output:
-        # Use plain stdout for JSON; the contract requires the exact JSON
-        # shape to be parseable without Rich markup.
+        # Strict JSON to stdout — no Rich output on this path (FR-006).
         sys.stdout.write(_json.dumps(report, indent=2) + "\n")
     else:
         _render_human(report, console)
+        # Surface all errors in human mode using stderr.
+        if all_errors:
+            err_console.print("")
+            for msg in all_errors:
+                err_console.print(f"[red]Validation error:[/red] {msg}")
 
-    raise typer.Exit(code=0 if bundle_compliant else 1)
+    raise typer.Exit(code=0 if overall_passed else 1)
