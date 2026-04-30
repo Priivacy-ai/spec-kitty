@@ -29,14 +29,14 @@ WP02 depends on WP01.
 | T004 | Build `synthesis_state` dict; compute mirrored `errors` list (sidecar errors + `"synthesis_state: "` prefixed synth errors); add both to `report` | WP01 | | [D] |
 | T005 | Update `result`/`passed` in report to reflect combined compliance (bundle_compliant AND no provenance errors AND synth passed); single exit gate | WP01 | | [D] |
 | T006 | Extend `_render_human` to display `synthesis_state` section; confirm `mypy --strict` passes; existing tests pass | WP01 | | [D] |
-| T007 | Add fixture helpers (`_add_doctrine_artifact`, `_add_provenance_sidecar`, `_add_synthesis_manifest`) to `test_bundle_validate_cli.py` | WP02 | |
-| T008 | Test: doctrine artifact without sidecar → exits 1; `synthesis_state.errors` non-empty | WP02 | [P] |
-| T009 | Test: provenance sidecar referencing absent artifact → exits 1 | WP02 | [P] |
-| T010 | Test: synthesis manifest with mismatched `content_hash` → exits 1 | WP02 | [P] |
-| T011 | Test: `--json` for each failure type → `json.loads(result.stdout)` succeeds; `passed` is False; `synthesis_state` key present | WP02 | [P] |
-| T012 | Test: legacy bundle (no synthesis state) → exits 0; `synthesis_state.present` False; `synthesis_state.passed` True | WP02 | [P] |
-| T013 | Test: complete v2 bundle (valid artifacts, sidecars, manifest) → exits 0; `synthesis_state.passed` True | WP02 | [P] |
-| T014 | Update `test_validate_json_shape_matches_contract` to assert `synthesis_state` key in required keys | WP02 | |
+| T007 | Add fixture helpers (`_add_doctrine_artifact`, `_add_provenance_sidecar`, `_add_synthesis_manifest`) to `test_bundle_validate_cli.py` | WP02 | | [D] |
+| T008 | Test: doctrine artifact without sidecar → exits 1; `synthesis_state.errors` non-empty | WP02 | [D] |
+| T009 | Test: provenance sidecar referencing absent artifact → exits 1 | WP02 | [D] |
+| T010 | Test: synthesis manifest with mismatched `content_hash` → exits 1 | WP02 | [D] |
+| T011 | Test: `--json` for each failure type → `json.loads(result.stdout)` succeeds; `passed` is False; `synthesis_state` key present | WP02 | [D] |
+| T012 | Test: legacy bundle (no synthesis state) → exits 0; `synthesis_state.present` False; `synthesis_state.passed` True | WP02 | [D] |
+| T013 | Test: complete v2 bundle (valid artifacts, sidecars, manifest) → exits 0; `synthesis_state.passed` True | WP02 | [D] |
+| T014 | Update `test_validate_json_shape_matches_contract` to assert `synthesis_state` key in required keys | WP02 | | [D] |
 
 ---
 
@@ -94,14 +94,14 @@ Extend `tests/charter/test_bundle_validate_cli.py` with regression tests that ex
 
 ### Included subtasks
 
-- [ ] T007 Add fixture helpers for synthesis state to `test_bundle_validate_cli.py` (WP02)
-- [ ] T008 Test: missing sidecar → exits 1, synthesis_state.errors non-empty (WP02)
-- [ ] T009 Test: sidecar referencing absent artifact → exits 1 (WP02)
-- [ ] T010 Test: manifest with bad content_hash → exits 1 (WP02)
-- [ ] T011 Test: `--json` for each failure type → strict JSON, passed=False (WP02)
-- [ ] T012 Test: legacy bundle → exits 0, synthesis_state.present=False (WP02)
-- [ ] T013 Test: complete v2 bundle → exits 0, synthesis_state.passed=True (WP02)
-- [ ] T014 Update `test_validate_json_shape_matches_contract` to assert `synthesis_state` key (WP02)
+- [x] T007 Add fixture helpers for synthesis state to `test_bundle_validate_cli.py` (WP02)
+- [x] T008 Test: missing sidecar → exits 1, synthesis_state.errors non-empty (WP02)
+- [x] T009 Test: sidecar referencing absent artifact → exits 1 (WP02)
+- [x] T010 Test: manifest with bad content_hash → exits 1 (WP02)
+- [x] T011 Test: `--json` for each failure type → strict JSON, passed=False (WP02)
+- [x] T012 Test: legacy bundle → exits 0, synthesis_state.present=False (WP02)
+- [x] T013 Test: complete v2 bundle → exits 0, synthesis_state.passed=True (WP02)
+- [x] T014 Update `test_validate_json_shape_matches_contract` to assert `synthesis_state` key (WP02)
 
 ### Implementation sketch
 
