@@ -216,3 +216,4 @@ The BLE001 changes are bundled here because WP01 already owns `merge.py`; keepin
 
 - 2026-04-30T17:39:51Z – claude – shell_pid=41457 – Ready for review: idempotent abort cleanup + BLE001 annotations
 - 2026-04-30T17:40:13Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=5241 – Started review via action command
+- 2026-04-30T17:43:52Z – claude:claude-sonnet-4-6:python-pedro:reviewer – shell_pid=5241 – Review passed: idempotent abort cleanup and BLE001 annotations verified
