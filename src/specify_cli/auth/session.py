@@ -107,6 +107,8 @@ class StoredSession:
     last_used_at: datetime
     auth_method: AuthMethod
 
+    generation: int | None = None  # Tranche 2 token-family generation counter; None for pre-Tranche-2 sessions
+
     def is_access_token_expired(self, buffer_seconds: int = 0) -> bool:
         """Return True if the access token expires within ``buffer_seconds``.
 
@@ -154,6 +156,7 @@ class StoredSession:
             "storage_backend": self.storage_backend,
             "last_used_at": self.last_used_at.isoformat(),
             "auth_method": self.auth_method,
+            "generation": self.generation,
         }
 
     @classmethod
@@ -179,6 +182,7 @@ class StoredSession:
             storage_backend=data["storage_backend"],
             last_used_at=datetime.fromisoformat(data["last_used_at"]),
             auth_method=data["auth_method"],
+            generation=data.get("generation"),
         )
 
     def to_json(self) -> str:
