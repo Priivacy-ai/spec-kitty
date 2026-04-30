@@ -133,6 +133,8 @@ class TestSpecifyContractStructure:
     def test_capture_intent_includes_examples_directive(self, contract: MissionStepContract) -> None:
         capture_intent = next((s for s in contract.steps if s.id == "capture_intent"), None)
         assert capture_intent is not None
+        assert "human discovery interview" in capture_intent.description
+        assert "confirmed user intent" in capture_intent.description
         assert capture_intent.delegates_to is not None
         assert capture_intent.delegates_to.kind == ArtifactKind.DIRECTIVE
         assert "037-living-documentation-sync" in capture_intent.delegates_to.candidates

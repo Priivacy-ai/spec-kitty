@@ -62,6 +62,24 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Primary Invariant: What Are We Building?
+
+This workflow answers "What are we building?" before it creates artifacts. The
+raw invocation text is only a starting point for discovery, not the final truth.
+
+Before `mission create`, before writing `spec.md`, and before committing
+anything, you **MUST** have one of these:
+
+- A completed discovery interview with an acknowledged Intent Summary.
+- A brief-intake summary and extracted requirement set explicitly confirmed by
+  the user.
+- An explicit user instruction to minimize or skip discovery; even then, record
+  the minimal confirmed scenario and assumptions in the Intent Summary.
+
+For non-trivial work, the confirmed Intent Summary must cover the primary actor,
+trigger, desired outcome, one rule or invariant, and any canonical domain term
+or boundary that materially affects the work.
+
 ## Branch Strategy Confirmation (MANDATORY)
 
 Before discovery, resolve branch intent through the Python helper, not by probing git directly:
@@ -167,7 +185,7 @@ Check in priority order:
    | Partial (goal statement only) | 4–5 questions |
    | Empty / missing | Proceed to normal Discovery Gate below |
 
-5. **Show the extracted requirement set.** Present the full FR/NFR/C table to the user: "I extracted X functional requirements and Y non-functional requirements. Does this look right?" Wait for one round of confirmation. The user may correct or supplement before you write the spec.
+5. **Show the extracted requirement set.** Present the full FR/NFR/C table to the user: "I extracted X functional requirements and Y non-functional requirements. Does this look right?" Wait for one round of confirmation. This confirmation is the discovery gate for brief-intake mode; do not write or commit `spec.md` before it happens unless the user explicitly asks to minimize or skip discovery. The user may correct or supplement before you write the spec.
 
 6. **Write spec.md normally.** Apply the same quality checklist and readiness gate as standard specify. Brief-intake mode does NOT lower the quality bar — spec.md must still pass all validation items.
 
@@ -238,7 +256,7 @@ Before asking **any** interview question during this command, you MUST:
 
 ## Discovery Gate (mandatory)
 
-Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
+Before running `mission create`, writing `spec.md`, committing, or otherwise creating planning artifacts, you **must** conduct or verify a structured discovery interview.
 
 - **Scope proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
   - **Trivial/Test Features** (hello world, simple pages, proof-of-concept): Ask 1-2 questions maximum, then proceed. Examples: "a simple hello world page", "tic-tac-toe game", "basic contact form"
