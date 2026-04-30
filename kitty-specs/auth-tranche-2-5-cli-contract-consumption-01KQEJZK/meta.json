@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-30T06:59:51.203737+00:00",
+  "friendly_name": "CLI Auth Tranche 2.5 Contract Consumption",
+  "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+  "mission_number": null,
+  "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+  "mission_type": "software-dev",
+  "purpose_context": "Server Tranche 2 has landed token-family lineage, refresh replay semantics, /oauth/revoke, and /api/v1/session-status. The CLI still consumes an older contract in logout, refresh, and diagnostics. Tranche 2.5 aligns these four surfaces with the shipped server contract, ensuring logout is truthful about server revocation, refresh handles 409 benign replay without resending spent tokens, and auth doctor can optionally verify live session status.",
+  "purpose_tldr": "Update the CLI to consume the server's Tranche 2 auth contract: revocation via /oauth/revoke, refresh replay safety, and server-aware auth doctor.",
+  "slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+  "target_branch": "auth-tranche-2-5-cli-contract-consumption"
+}
