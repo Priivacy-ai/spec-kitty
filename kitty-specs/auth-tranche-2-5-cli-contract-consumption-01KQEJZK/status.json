@@ -1,19 +1,19 @@
 {
-  "event_count": 29,
-  "last_event_id": "01KQFAZDTBB6SKT6FSF43VR17M",
-  "materialized_at": "2026-04-30T13:59:10.923556+00:00",
+  "event_count": 30,
+  "last_event_id": "01KQFBAX34GHW4H6J9GKGAF9P9",
+  "materialized_at": "2026-04-30T14:05:27.012913+00:00",
   "mission_number": "",
   "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 4,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-04-30T13:54:57.809763+00:00"
     },
     "WP05": {
-      "actor": "claude:claude-sonnet-4-6:reviewer:reviewer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KQFAZDTBB6SKT6FSF43VR17M",
-      "last_transition_at": "2026-04-30T13:59:10.923556+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQFBAX34GHW4H6J9GKGAF9P9",
+      "last_transition_at": "2026-04-30T14:05:27.012913+00:00"
     }
   }
 }
