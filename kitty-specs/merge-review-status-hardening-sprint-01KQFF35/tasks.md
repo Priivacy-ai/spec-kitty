@@ -8,12 +8,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Locate `_GLOBAL_MERGE_LOCK_ID` constant and derive lock file path | WP01 | |
-| T002 | Add idempotent lock file deletion to `--abort` handler | WP01 | |
-| T003 | Add idempotent merge-state JSON deletion to `--abort` handler | WP01 | [P] |
-| T004 | Add conditional `git merge --abort` for in-progress git merges | WP01 | |
-| T005 | Annotate `merge.py` BLE001 suppressions (L1026, L1275) | WP01 | [P] |
-| T006 | Write tests: `test_abort_clears_lock_and_state`, `test_abort_idempotent` | WP01 | |
+| T001 | Locate `_GLOBAL_MERGE_LOCK_ID` constant and derive lock file path | WP01 | | [D] |
+| T002 | Add idempotent lock file deletion to `--abort` handler | WP01 | | [D] |
+| T003 | Add idempotent merge-state JSON deletion to `--abort` handler | WP01 | [D] |
+| T004 | Add conditional `git merge --abort` for in-progress git merges | WP01 | | [D] |
+| T005 | Annotate `merge.py` BLE001 suppressions (L1026, L1275) | WP01 | [D] |
+| T006 | Write tests: `test_abort_clears_lock_and_state`, `test_abort_idempotent` | WP01 | | [D] |
 | T007 | Add `_get_latest_review_cycle_verdict(wp_dir)` helper to `agent/tasks.py` | WP02 | |
 | T008 | Add verdict enum validation (warn on unknown values) | WP02 | [P] |
 | T009 | Add rejected-verdict guard to `move_task()` for `--force` transitions to `approved`/`done` | WP02 | |
@@ -57,12 +57,12 @@
 **Independent test**: Run `spec-kitty merge --abort` twice on a repo with no lock/state; both invocations exit 0.
 
 **Subtasks**:
-- [ ] T001 Locate `_GLOBAL_MERGE_LOCK_ID` constant and derive lock file path (WP01)
-- [ ] T002 Add idempotent lock file deletion to `--abort` handler (WP01)
-- [ ] T003 Add idempotent merge-state JSON deletion to `--abort` handler (WP01)
-- [ ] T004 Add conditional `git merge --abort` for in-progress git merges (WP01)
-- [ ] T005 Annotate `merge.py` BLE001 suppressions at L1026 and L1275 (WP01)
-- [ ] T006 Write tests: `test_abort_clears_lock_and_state`, `test_abort_idempotent` (WP01)
+- [x] T001 Locate `_GLOBAL_MERGE_LOCK_ID` constant and derive lock file path (WP01)
+- [x] T002 Add idempotent lock file deletion to `--abort` handler (WP01)
+- [x] T003 Add idempotent merge-state JSON deletion to `--abort` handler (WP01)
+- [x] T004 Add conditional `git merge --abort` for in-progress git merges (WP01)
+- [x] T005 Annotate `merge.py` BLE001 suppressions at L1026 and L1275 (WP01)
+- [x] T006 Write tests: `test_abort_clears_lock_and_state`, `test_abort_idempotent` (WP01)
 
 **Owned files**: `src/specify_cli/cli/commands/merge.py`, `tests/specify_cli/cli/commands/test_merge.py` (create if absent)
 **Dependencies**: none
