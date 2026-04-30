@@ -230,3 +230,7 @@ def from_dict(cls, data: dict[str, Any]) -> StoredSession:
 | `from_dict()` uses `data["generation"]` → `KeyError` on old sessions | Use `data.get("generation")` — always |
 | New field breaks positional `StoredSession(...)` calls | Field is last with default; positional callers don't pass it |
 | Test uses exact `to_dict()` output comparison | Extend expected dict to include `"generation": None` |
+
+## Activity Log
+
+- 2026-04-30T12:51:48Z – claude – shell_pid=88259 – T001-T004 complete, test_session.py passes (20/20), RefreshReplayError and StoredSession.generation added with backward compat
