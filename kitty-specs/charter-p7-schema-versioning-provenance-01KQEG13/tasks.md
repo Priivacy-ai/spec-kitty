@@ -25,12 +25,12 @@
 | T012 | Update resynthesize_pipeline.py with same v2 provenance field additions | WP02 | [D] |
 | T013 | Update YAML sidecar fixtures in tests/charter/fixtures/synthesizer/ | WP02 | [D] |
 | T014 | Update test_provenance.py, test_manifest.py, test_adapter_contract.py for v2 | WP02 | [D] |
-| T015 | Complete migrate_v1_to_v2() in versioning.py (add sentinel values, stamp v2) | WP03 | — |
-| T016 | Create CharterBundleV2Migration(BaseMigration) in m_3_2_6_charter_bundle_v2.py | WP03 | — |
-| T017 | Add _assert_bundle_compatible() to charter.py; call from status, resynthesize, validate | WP03 | — |
-| T018 | Create test_charter_bundle_v2_migration.py (migration integration tests) | WP03 | — |
-| T019 | Create test_charter_status_provenance.py (regression tests) | WP03 | — |
-| T020 | Update test_schema_conformance.py for v2 schema version assertions | WP03 | — |
+| T015 | Complete migrate_v1_to_v2() in versioning.py (add sentinel values, stamp v2) | WP03 | — | [D] |
+| T016 | Create CharterBundleV2Migration(BaseMigration) in m_3_2_6_charter_bundle_v2.py | WP03 | — | [D] |
+| T017 | Add _assert_bundle_compatible() to charter.py; call from status, resynthesize, validate | WP03 | — | [D] |
+| T018 | Create test_charter_bundle_v2_migration.py (migration integration tests) | WP03 | — | [D] |
+| T019 | Create test_charter_status_provenance.py (regression tests) | WP03 | — | [D] |
+| T020 | Update test_schema_conformance.py for v2 schema version assertions | WP03 | — | [D] |
 
 ---
 
@@ -108,12 +108,12 @@
 
 **Included subtasks**:
 
-- [ ] T015 Complete migrate_v1_to_v2() in versioning.py (add sentinel values, stamp v2) (WP03)
-- [ ] T016 Create CharterBundleV2Migration(BaseMigration) in m_3_2_6_charter_bundle_v2.py (WP03)
-- [ ] T017 Add _assert_bundle_compatible() to charter.py; call from status, resynthesize, validate (WP03)
-- [ ] T018 Create test_charter_bundle_v2_migration.py (migration integration tests) (WP03)
-- [ ] T019 Create test_charter_status_provenance.py (regression tests) (WP03)
-- [ ] T020 Update test_schema_conformance.py for v2 schema version assertions (WP03)
+- [x] T015 Complete migrate_v1_to_v2() in versioning.py (add sentinel values, stamp v2) (WP03)
+- [x] T016 Create CharterBundleV2Migration(BaseMigration) in m_3_2_6_charter_bundle_v2.py (WP03)
+- [x] T017 Add _assert_bundle_compatible() to charter.py; call from status, resynthesize, validate (WP03)
+- [x] T018 Create test_charter_bundle_v2_migration.py (migration integration tests) (WP03)
+- [x] T019 Create test_charter_status_provenance.py (regression tests) (WP03)
+- [x] T020 Update test_schema_conformance.py for v2 schema version assertions (WP03)
 
 **Success criteria**:
 - `CharterBundleV2Migration.detect(v1_project)` returns `True`; `detect(v2_project)` returns `False`
