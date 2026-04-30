@@ -22,8 +22,8 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Foundation
-agent: claude:opus-4-7:reviewer-renata:reviewer
-shell_pid: '54664'
+agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "59288"
 history:
 - at: '2026-04-30T06:23:33Z'
   actor: system
@@ -303,3 +303,4 @@ Must show ≥90% line coverage.
 ## Activity Log
 
 - 2026-04-30T07:07:20Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=54664 – Ready for review: compatibility registry (doctrine/versioning.py) + ExtractionMetadata bundle_schema_version field + extractor stamping. All 36 tests pass, 100% coverage, mypy --strict clean on owned files.
+- 2026-04-30T07:07:51Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=59288 – Started review via action command
