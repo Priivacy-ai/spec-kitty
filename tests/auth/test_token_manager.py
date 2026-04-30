@@ -717,6 +717,40 @@ async def test_lock_timeout_error_when_persisted_is_unusable(
 
 
 @pytest.mark.asyncio
+async def test_lock_timeout_error_uses_transaction_message(
+    install_fake_refresh_flow, monkeypatch
+):
+    """TokenManager must preserve replay-specific messages from the transaction."""
+    storage = FakeStorage()
+    tm = TokenManager(storage)
+    in_memory = _make_session(access_expires_in=-1, access_token="stale")
+    tm._session = in_memory
+    storage._session = _replace(in_memory)
+
+    async def _fake_transaction(**kwargs):  # type: ignore[no-untyped-def]
+        return rtx.RefreshResult(
+            outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
+            session=in_memory,
+            network_call_made=True,
+            lock_timeout_message=(
+                "Refresh token replay detected and no newer local token is available. "
+                "Run `spec-kitty auth login` if this persists."
+            ),
+        )
+
+    monkeypatch.setattr(tm_module, "run_refresh_transaction", _fake_transaction)
+
+    with pytest.raises(RefreshLockTimeoutError) as exc_info:
+        await tm.refresh_if_needed()
+
+    message = str(exc_info.value)
+    assert "replay detected" in message
+    assert "auth login" in message
+    assert "Another spec-kitty process" not in message
+    assert install_fake_refresh_flow.call_count == 0
+
+
+@pytest.mark.asyncio
 async def test_refresh_logs_outcome_at_info(install_fake_refresh_flow, caplog):
     """FR-019: every transaction emits a single INFO log line keyed by outcome."""
     storage = FakeStorage()

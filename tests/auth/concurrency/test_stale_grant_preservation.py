@@ -33,8 +33,6 @@ import sys
 import types
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from unittest.mock import AsyncMock
-
 import pytest
 
 from specify_cli.auth.errors import RefreshReplayError, RefreshTokenExpiredError
@@ -594,5 +592,6 @@ async def test_replay_lock_timeout_carries_replay_message(
 
     assert result.outcome == RefreshOutcome.LOCK_TIMEOUT_ERROR
     assert result.lock_timeout_message is not None
-    assert "rotated" in result.lock_timeout_message
+    assert "replay detected" in result.lock_timeout_message
+    assert "auth login" in result.lock_timeout_message
     assert "Another spec-kitty process" not in result.lock_timeout_message

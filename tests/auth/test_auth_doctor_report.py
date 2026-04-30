@@ -588,6 +588,32 @@ async def test_check_server_session_refresh_expired(monkeypatch: pytest.MonkeyPa
 
 
 @pytest.mark.asyncio
+async def test_check_server_session_refresh_lock_timeout_uses_safe_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RefreshLockTimeoutError → safe recovery text, not an implementation class name."""
+    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(
+        side_effect=RefreshLockTimeoutError(
+            "Refresh token replay detected and no newer local token is available. "
+            "Run `spec-kitty auth login` if this persists."
+        )
+    )
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "replay detected" in result.error
+    assert "RefreshLockTimeoutError" not in result.error
+
+
+@pytest.mark.asyncio
 async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
     """SessionInvalidError → user-friendly re-authenticate error, not class name."""
     from specify_cli.auth.errors import SessionInvalidError
@@ -604,6 +630,24 @@ async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPa
     assert result.error is not None
     assert "re-authenticate" in result.error
     assert "SessionInvalidError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_check_server_session_generic_access_token_failure_no_class_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unexpected access-token failures should stay non-sensitive and user-safe."""
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(side_effect=RuntimeError("boom"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error == "Could not obtain access token."
+    assert "RuntimeError" not in result.error
 
 
 # ---------------------------------------------------------------------------

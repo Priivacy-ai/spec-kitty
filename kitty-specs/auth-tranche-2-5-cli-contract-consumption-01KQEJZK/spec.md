@@ -32,7 +32,7 @@ The server returns HTTP 500 on `/oauth/revoke`. The CLI treats this as unconfirm
 
 ### Scenario 5: Token refresh — benign replay (409)
 
-Background: a refresh was attempted, the network dropped after the server processed the request, and the CLI retries. The server returns HTTP 409 with `error_code: refresh_replay_benign_retry`. The CLI reloads the persisted session from disk. If the persisted refresh token differs from the spent one (the server already advanced it), the CLI retries with the newer token. If the persisted token matches the spent one, the CLI surfaces an ambiguous retryable error and does not resend the spent token.
+Background: a refresh was attempted, the network dropped after the server processed the request, and the CLI retries. The server returns HTTP 409 with `error: refresh_replay_benign_retry`. The CLI reloads the persisted session from disk. If the persisted refresh token differs from the spent one (the server already advanced it), the CLI retries with the newer token. If the persisted token matches the spent one, the CLI surfaces an ambiguous failure/re-authentication path and does not resend the spent token.
 
 ### Scenario 6: Token refresh — suspicious/invalid (401)
 
@@ -61,7 +61,7 @@ A developer runs the full auth flow — login, status, doctor, doctor --server, 
 | FR-003 | Local credential deletion must complete even when `/oauth/revoke` is unreachable, times out, or returns a network error. | Proposed |
 | FR-004 | If no refresh token is available in local state, `auth logout` performs best-effort local cleanup and reports that server revocation could not be attempted. | Proposed |
 | FR-005 | A genuine server failure (HTTP 5xx) on `/oauth/revoke` must not be reported as successful server revocation. | Proposed |
-| FR-006 | The refresh flow detects HTTP 409 with `error_code: refresh_replay_benign_retry` as a benign replay condition. | Proposed |
+| FR-006 | The refresh flow detects HTTP 409 with `error: refresh_replay_benign_retry` as a benign replay condition. | Proposed |
 | FR-007 | On benign 409 replay, the CLI reloads the persisted auth session under the existing local lock/transaction model, then retries the refresh only if the reloaded refresh token differs from the spent token. | Proposed |
 | FR-008 | On benign 409 replay, if the persisted refresh token matches the spent token, the CLI surfaces an ambiguous retryable error without resending the spent token. | Proposed |
 | FR-009 | On refresh HTTP 401 (invalid grant or suspicious token), the CLI stops retrying and instructs the user to re-authenticate. | Proposed |

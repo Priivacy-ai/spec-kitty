@@ -139,8 +139,8 @@ async def _check_server_session() -> ServerSessionStatus:
     tm = get_token_manager()
     try:
         access_token = await tm.get_access_token()
-    except Exception as exc:
-        return ServerSessionStatus(active=False, error=f"Could not obtain access token: {type(exc).__name__}")
+    except Exception:
+        return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
     try:
         saas_url = get_saas_base_url()

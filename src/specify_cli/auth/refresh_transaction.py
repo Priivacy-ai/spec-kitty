@@ -356,7 +356,10 @@ async def _run_locked(
         # Re-read persisted session and retry once if a newer token is available.
         repersisted = storage.read()
 
-        _REPLAY_MSG = "Token was already rotated by another process; retry in a moment."
+        _REPLAY_MSG = (
+            "Refresh token replay detected and no newer local token is available. "
+            "Run `spec-kitty auth login` if this persists."
+        )
 
         if repersisted is None:
             # Session cleared concurrently; surface as retryable.

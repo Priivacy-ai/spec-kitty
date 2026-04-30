@@ -479,17 +479,32 @@ async def _check_server_session() -> ServerSessionStatus:
     from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
     import httpx  # noqa: PLC0415
 
-    from specify_cli.auth.errors import RefreshTokenExpiredError, SessionInvalidError  # noqa: PLC0415
+    from specify_cli.auth.errors import (  # noqa: PLC0415
+        NotAuthenticatedError,
+        RefreshTokenExpiredError,
+        SessionInvalidError,
+        TokenRefreshError,
+    )
+    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError  # noqa: PLC0415
 
     tm = get_token_manager()
     try:
         access_token = await tm.get_access_token()
-    except (RefreshTokenExpiredError, SessionInvalidError):
+    except (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError):
+        return ServerSessionStatus(active=False, error="re-authenticate")
+    except RefreshLockTimeoutError as exc:
+        message = str(exc) or "Auth refresh is busy; retry later."
+        return ServerSessionStatus(active=False, error=message)
+    except TokenRefreshError:
         return ServerSessionStatus(
-            active=False, error="re-authenticate (run `spec-kitty auth login`)"
+            active=False,
+            error=(
+                "Could not refresh access token; "
+                "run `spec-kitty auth login` if this persists."
+            ),
         )
-    except Exception as exc:
-        return ServerSessionStatus(active=False, error=f"Could not obtain access token: {type(exc).__name__}")
+    except Exception:
+        return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
     try:
         saas_url = get_saas_base_url()

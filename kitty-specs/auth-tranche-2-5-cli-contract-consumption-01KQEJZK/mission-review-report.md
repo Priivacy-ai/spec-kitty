@@ -40,7 +40,7 @@ Three contract documents were present and fully specified:
 - `contracts/refresh-replay.md`: 409 benign replay handling with state machine, invariants on spent token
 - `contracts/session-status-call.md`: GET /api/v1/session-status, refresh-then-check sequence
 
-All three contracts were used faithfully in the implementation. One cross-document inconsistency: the spec (FR-006) uses the term `error_code` while `contracts/refresh-replay.md` explicitly clarifies: "Note: the field is `error`, not `error_code`." The implementation correctly uses `body.get("error")` per the contract document. This is a spec wording defect, not an implementation defect.
+All three contracts were used faithfully in the implementation. The spec and implementation both use the server's canonical 409 field, `error: "refresh_replay_benign_retry"`, per `contracts/refresh-replay.md`.
 
 ---
 
@@ -123,9 +123,9 @@ Exit code 0 in all non-failure outcomes (only `clear_session()` failure triggers
 
 ### FR-006: Refresh flow detects 409 + refresh_replay_benign_retry
 
-**Status: PASS** (with spec wording note)
+**Status: PASS**
 
-`refresh.py` checks `if response.status_code == 409` then `if body.get("error") == "refresh_replay_benign_retry"`, raises `RefreshReplayError`. The spec says `error_code` but the contract document clarifies the field is `error`. The implementation matches the contract.
+`refresh.py` checks `if response.status_code == 409` then `if body.get("error") == "refresh_replay_benign_retry"`, raises `RefreshReplayError`. The implementation matches the contract.
 
 Test: `test_refresh_409_benign_replay_raises` verifies `RefreshReplayError` is raised with `retry_after=2`.
 
@@ -292,13 +292,11 @@ Test: `test_server_session_status_frozen` verifies the dataclass is frozen.
 
 ### Notes (Non-Blocking)
 
-1. **FR-006 spec wording inconsistency**: The spec says `error_code: refresh_replay_benign_retry` but the server contract and implementation both use `error`. The implementation is correct per the contract document (`contracts/refresh-replay.md` line 17). The spec text should be corrected in a future iteration.
+1. **WP05 review cycle**: `dev-smoke-checklist.md` was temporarily deleted by a lane-cleanup commit during WP05, requiring a second review cycle. The file is present and correct at final HEAD. No ongoing concern.
 
-2. **WP05 review cycle**: `dev-smoke-checklist.md` was temporarily deleted by a lane-cleanup commit during WP05, requiring a second review cycle. The file is present and correct at final HEAD. No ongoing concern.
+2. **asyncio.run() in doctor_impl**: The implementation calls `asyncio.run(_check_server_session())` inside `doctor_impl`. Since `doctor_impl` is called from a synchronous typer command (no enclosing event loop), this is safe in the current context. However, if `doctor_impl` were ever called from an async context (e.g. tests using asyncio), this would raise `RuntimeError: This event loop is already running`. The current test suite avoids this because all doctor tests call `doctor_impl` synchronously. This is a latent fragility, not a current defect.
 
-3. **asyncio.run() in doctor_impl**: The implementation calls `asyncio.run(_check_server_session())` inside `doctor_impl`. Since `doctor_impl` is called from a synchronous typer command (no enclosing event loop), this is safe in the current context. However, if `doctor_impl` were ever called from an async context (e.g. tests using asyncio), this would raise `RuntimeError: This event loop is already running`. The current test suite avoids this because all doctor tests call `doctor_impl` synchronously. This is a latent fragility, not a current defect.
-
-4. **No issue-matrix.md**: Not required by this mission's spec or tasks; absence is expected.
+3. **No issue-matrix.md**: Not required by this mission's spec or tasks; absence is expected.
 
 ---
 
@@ -330,4 +328,4 @@ Test: `test_server_session_status_frozen` verifies the dataclass is frozen.
 
 **PASS WITH NOTES**
 
-The implementation correctly delivers all 17 functional requirements with strong test coverage. All hard gates pass. The single spec wording inconsistency (FR-006 `error_code` vs. actual `error`) is a documentation defect in the spec, not an implementation defect — the code matches the contract document which is authoritative. The latent `asyncio.run` fragility in `doctor_impl` is noted for awareness but is not a defect in the current test and usage context.
+The implementation correctly delivers all 17 functional requirements with strong test coverage. All hard gates pass. The latent `asyncio.run` fragility in `doctor_impl` is noted for awareness but is not a defect in the current test and usage context.

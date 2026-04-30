@@ -3,7 +3,7 @@
 ## Prerequisites
 
 ```bash
-cd /Users/robert/spec-kitty-dev/spec-kitty-20260430-084609-5Y0VM4/spec-kitty
+cd /path/to/spec-kitty
 export SPEC_KITTY_ENABLE_SAAS_SYNC=1
 export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
 ```
