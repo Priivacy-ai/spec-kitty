@@ -143,6 +143,7 @@ Add the import at the top of the file (not inline) if not already present — ch
 
         if repersisted is None:
             # Session cleared concurrently; surface as retryable.
+            log.warning("409 replay: session cleared concurrently; surfacing as LOCK_TIMEOUT_ERROR")
             return RefreshResult(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
                 session=in_memory_session,
@@ -150,23 +151,33 @@ Add the import at the top of the file (not inline) if not already present — ch
             )
 
         if repersisted.refresh_token == persisted.refresh_token:
-            # Persisted token matches the spent one — no newer token available yet.
-            # Do NOT retry; surface as retryable without re-sending spent token.
+            # Persisted token matches the spent one — no newer token in storage yet.
+            # Do NOT retry; surfacing LOCK_TIMEOUT_ERROR signals "please retry later",
+            # which is the correct caller behavior. This is NOT machine lock contention;
+            # the log below distinguishes it from actual _run_locked timeout cases.
+            log.warning(
+                "409 replay: no newer token in storage yet; "
+                "surfacing LOCK_TIMEOUT_ERROR to trigger caller retry. "
+                "This is a benign replay outcome, not lock contention."
+            )
             return RefreshResult(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
                 session=repersisted,
                 network_call_made=True,
             )
 
-        # Persisted token differs from spent — another process rotated it.
-        # Retry ONCE with the newer token. Never use `persisted` here.
+        # Persisted token differs from spent — another process already rotated it.
+        # Retry ONCE with the newer token. CRITICAL: never use `persisted` here.
         try:
             updated = await asyncio.wait_for(
                 refresh_flow.refresh(repersisted), timeout=max_hold_s
             )
-        except (RefreshTokenExpiredError, SessionInvalidError,
-                RefreshReplayError, TimeoutError):
-            # Second attempt also failed; surface as retryable.
+        except Exception:
+            # Catch all failures on the second attempt: TokenRefreshError and
+            # subclasses (expired, session-invalid, another replay), asyncio
+            # TimeoutError, httpx network errors, and anything else.
+            # Any second failure surfaces as LOCK_TIMEOUT_ERROR — no third attempt.
+            log.warning("409 replay: second refresh attempt also failed; surfacing LOCK_TIMEOUT_ERROR")
             return RefreshResult(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
                 session=repersisted,
@@ -183,10 +194,15 @@ Add the import at the top of the file (not inline) if not already present — ch
 
 Add `RefreshReplayError` to the imports at the top of `refresh_transaction.py` (it comes from `.errors`).
 
+**Why `except Exception` on the second attempt**: The original spec listed only `(RefreshTokenExpiredError, SessionInvalidError, RefreshReplayError, TimeoutError)`, but `TokenRefreshFlow.refresh()` can also raise the `TokenRefreshError` base class directly (generic HTTP failures) and httpx network errors (`httpx.RequestError`), which are neither `TokenRefreshError` nor `TimeoutError`. A bare `except Exception` is appropriate here because we're in a bounded, already-retried code path where all failures should collapse to the same "surface as retryable" outcome. The log line distinguishes this from actual lock contention.
+
+**Why `LOCK_TIMEOUT_ERROR` for the no-newer-token case**: `token_manager.py` is explicitly out of scope for this WP. Adding a new `RefreshOutcome` would require modifying its outcome-handling switch. `LOCK_TIMEOUT_ERROR` maps to "please retry later" semantics in `token_manager`, which is the correct caller behavior: the spent token cannot be reused, and the rotated token hasn't propagated to local storage yet. The log warning above ensures this is distinguishable from genuine lock contention in debugging.
+
 **Validation**:
 - [ ] `RefreshReplayError` is imported at the top of the file.
 - [ ] The retry call uses `repersisted` not `persisted` (verify by reading the code).
-- [ ] `RefreshReplayError` is caught in the second attempt's except clause — no loop possible.
+- [ ] Second attempt uses `except Exception` — covers `TokenRefreshError`, httpx errors, `TimeoutError`, and further replays.
+- [ ] Log warning on the no-newer-token branch contains "benign replay outcome, not lock contention".
 - [ ] `token_manager.py` is NOT changed (its outcome-handling switch is sufficient).
 
 ---

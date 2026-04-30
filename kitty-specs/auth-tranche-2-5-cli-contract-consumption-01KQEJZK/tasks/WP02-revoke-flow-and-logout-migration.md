@@ -19,6 +19,7 @@ subtasks:
 - T006
 - T007
 - T008
+- T020
 agent: claude
 history:
 - date: '2026-04-30'
@@ -31,6 +32,7 @@ owned_files:
 - src/specify_cli/cli/commands/_auth_logout.py
 - tests/auth/test_revoke_flow.py
 - tests/cli/commands/test_auth_logout.py
+- tests/auth/integration/test_logout_e2e.py
 role: implementer
 tags: []
 ---
@@ -184,7 +186,7 @@ __all__ = ["RevokeFlow", "RevokeOutcome"]
 
 **Purpose**: Wire `RevokeFlow` into logout, map outcomes to the three required output states, remove `_call_server_logout` entirely.
 
-**Output mapping** (these are the exact three states from spec FR-002):
+**Output mapping** (all states):
 
 | Outcome | Console message (informational line) | Exit |
 |---------|-------------------------------------|------|
@@ -192,13 +194,14 @@ __all__ = ["RevokeFlow", "RevokeOutcome"]
 | `SERVER_FAILURE` | `[yellow]! Server revocation not confirmed (server error). Local credentials will still be deleted.[/yellow]` | 0 |
 | `NETWORK_ERROR` | `[yellow]! Server revocation not confirmed (network error). Local credentials will still be deleted.[/yellow]` | 0 |
 | `NO_REFRESH_TOKEN` | `[yellow]! Server revocation could not be attempted (no refresh token). Local credentials will still be deleted.[/yellow]` | 0 |
+| Local cleanup failure | `[red]✗ Local credentials could not be deleted: {ErrorType}. You may need to delete them manually.[/red]` | **1** |
 
-The final `[green]+ Logged out.[/green]` line after `tm.clear_session()` runs in all cases.
+The final `[green]+ Logged out.[/green]` line runs only when `tm.clear_session()` succeeds.
 
 **Steps**:
 
 1. Remove the `_call_server_logout` function entirely.
-2. Add `from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome` import.
+2. Add imports: `from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome` and `import typer`.
 3. Rewrite `logout_impl`:
 
 ```python
@@ -224,7 +227,15 @@ async def logout_impl(*, force: bool) -> None:
             outcome = await RevokeFlow().revoke(session)
             _print_revoke_outcome(outcome)
 
-    tm.clear_session()
+    try:
+        tm.clear_session()
+    except Exception as exc:
+        console.print(
+            f"[red]✗ Local credentials could not be deleted: {type(exc).__name__}. "
+            f"You may need to delete them manually.[/red]"
+        )
+        raise typer.Exit(code=1)
+
     console.print("[green]+ Logged out.[/green]")
 
 
@@ -248,11 +259,14 @@ def _print_revoke_outcome(outcome: RevokeOutcome) -> None:
         )
 ```
 
+**`typer.Exit(code=1)` propagation**: `logout_impl` is called via `asyncio.run(logout_impl(...))` in auth.py. `typer.Exit` is an `Exception` subclass; it propagates out of `asyncio.run()` and is caught by typer's command runner, which exits with the given code. No changes to `auth.py` are required.
+
 **Validation**:
 - [ ] `_call_server_logout` is gone — no reference to `/api/v1/logout` remains.
 - [ ] `tm.clear_session()` is called after the revoke call in all non-`force` paths.
 - [ ] `tm.clear_session()` is called in the `force=True` path.
-- [ ] `tm.clear_session()` is called even on `ConfigurationError`.
+- [ ] `tm.clear_session()` raises → output contains "could not be deleted" and exit code is 1.
+- [ ] `tm.clear_session()` succeeds → exit code 0 in all revoke outcomes.
 
 ---
 
@@ -323,24 +337,54 @@ with patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client:
 3. Update the server-failure test: mock `RevokeFlow.revoke` to return `RevokeOutcome.SERVER_FAILURE`; assert output contains "not confirmed" and "still be deleted"; assert exit code 0.
 4. Update the network-error test: mock to return `RevokeOutcome.NETWORK_ERROR`.
 5. Add a no-refresh-token test: mock to return `RevokeOutcome.NO_REFRESH_TOKEN`; assert output contains "could not be attempted".
-6. The `--force` test should still pass (skips revoke call entirely).
-7. The "not logged in" test should still pass.
+6. Add a **local-cleanup-failure test**: mock `tm.clear_session` to raise `OSError("disk full")`; assert output contains "could not be deleted"; assert exit code 1.
+7. The `--force` test should still pass (skips revoke call entirely).
+8. The "not logged in" test should still pass.
 
-**Mock approach**: Patch `specify_cli.cli.commands._auth_logout.RevokeFlow.revoke` as an `AsyncMock` returning the desired `RevokeOutcome`.
+**Mock approach**: Patch `specify_cli.cli.commands._auth_logout.RevokeFlow.revoke` as an `AsyncMock` returning the desired `RevokeOutcome`. For the cleanup-failure test, patch `clear_session` on the token manager returned by `get_token_manager`.
 
 **Validation**:
 - [ ] `uv run pytest tests/cli/commands/test_auth_logout.py -v` passes.
 - [ ] `grep -r "api/v1/logout" tests/` returns nothing.
 - [ ] All four revoke outcome states are covered by at least one test.
+- [ ] Local cleanup failure test asserts exit code 1 and error message containing "could not be deleted".
+
+---
+
+---
+
+## Subtask T020 — Update `tests/auth/integration/test_logout_e2e.py`
+
+**File**: `tests/auth/integration/test_logout_e2e.py`
+
+**Purpose**: The e2e logout test exercises the full CLI runner path including the server call. Update it now so that WP02 is independently approvable — leaving it broken until WP05 would block focused integration test runs.
+
+**Steps**:
+
+1. Read the test file to understand the current mock seam and assertion pattern.
+2. Update server-call assertions:
+   - Old: `POST /api/v1/logout` with `Authorization: Bearer <token>`, no body.
+   - New: `POST /oauth/revoke` with form body `token=<refresh_token>&token_type_hint=refresh_token`, **no** `Authorization` header.
+3. Update output assertions to match the new messages:
+   - Mock 200 + `{"revoked": true}` → assert output contains "Server revocation confirmed"
+   - Mock 5xx → assert output contains "not confirmed" and exit code 0
+4. The local-cleanup assertion (credentials deleted) remains unchanged.
+5. If the test covers `--force`, confirm it still skips the server call.
+
+**Validation**:
+- [ ] `uv run pytest tests/auth/integration/test_logout_e2e.py -v` passes.
+- [ ] No assertion in the file references `/api/v1/logout` after this change.
+- [ ] `grep "api/v1/logout" tests/auth/integration/test_logout_e2e.py` returns no results.
 
 ---
 
 ## Definition of Done
 
 - [ ] `src/specify_cli/auth/flows/revoke.py` exists with `RevokeFlow` and `RevokeOutcome`.
-- [ ] `_auth_logout.py` uses `RevokeFlow`; `_call_server_logout` removed.
+- [ ] `_auth_logout.py` uses `RevokeFlow`; `_call_server_logout` removed; `tm.clear_session()` wrapped in try/except with exit 1 on failure.
 - [ ] No reference to `/api/v1/logout` remains in source or tests.
-- [ ] `uv run pytest tests/auth/test_revoke_flow.py tests/cli/commands/test_auth_logout.py -v` passes.
+- [ ] `uv run pytest tests/auth/test_revoke_flow.py tests/cli/commands/test_auth_logout.py tests/auth/integration/test_logout_e2e.py -v` passes.
+- [ ] Local cleanup failure test in `test_auth_logout.py` asserts exit code 1.
 - [ ] No modification to files outside `owned_files`.
 
 ## Risks
@@ -349,5 +393,7 @@ with patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client:
 |------|-----------|
 | 5xx reported as REVOKED | Explicit `body.get("revoked") is True` check; any other path is SERVER_FAILURE |
 | Refresh token in log output | `log.warning` calls use `type(exc).__name__`, never token content |
-| Local cleanup skipped on exception | `tm.clear_session()` is outside try/except; runs unconditionally |
+| `typer.Exit` not caught by asyncio.run caller | typer catches `typer.Exit` at the command boundary; it propagates through asyncio.run correctly |
+| `clear_session()` currently never raises | Wrap it anyway — the contract is "if it raises, exit 1"; defensive future-proofing |
 | Test patches wrong symbol | Patch `specify_cli.cli.commands._auth_logout.RevokeFlow` (where it is used, not where it is defined) |
+| Integration test mock seam differs | Read the test file before editing; match the existing httpx or subprocess mock pattern |

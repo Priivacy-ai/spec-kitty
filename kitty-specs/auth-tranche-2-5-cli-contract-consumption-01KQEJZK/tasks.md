@@ -27,7 +27,7 @@
 | T017 | Add default doctor hint: "Run `spec-kitty auth doctor --server` to verify server session status." | WP04 | No |
 | T018 | Wire `--server` flag in `auth.py` doctor command; pass to `doctor_impl` | WP04 | No |
 | T019 | Add `--server` tests in `tests/auth/test_auth_doctor_report.py` and verify offline tests unchanged in `tests/auth/test_auth_doctor_offline.py` | WP04 | No |
-| T020 | Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations | WP05 | No |
+| T020 | Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations | WP02 | No |
 | T021 | Run focused logout + doctor test suites; confirm zero legacy `/api/v1/logout` assertions | WP05 | No |
 | T022 | Run full auth + status test suite; confirm doctor offline tests pass unchanged | WP05 | No |
 | T023 | Produce `dev-smoke-checklist.md` with step-by-step commands and expected output | WP05 | No |
@@ -64,15 +64,16 @@
 **Dependencies**: WP01
 **Lane**: A (sequential with WP01)
 
-**Goal**: Replace the retired `/api/v1/logout` bearer call with RFC 7009 `/oauth/revoke`, create a dedicated `RevokeFlow` class with testable outcome enum, and update all logout tests.
+**Goal**: Replace the retired `/api/v1/logout` bearer call with RFC 7009 `/oauth/revoke`, create a dedicated `RevokeFlow` class with testable outcome enum, update all logout tests including the e2e integration test, and surface local cleanup failure as exit 1.
 
 **Subtasks**:
 - [ ] T005 Create `auth/flows/revoke.py` with `RevokeOutcome` enum and `RevokeFlow` class (WP02)
-- [ ] T006 Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes to three output states (WP02)
+- [ ] T006 Rewrite `_auth_logout.py` to use `RevokeFlow`, map outcomes, wrap `clear_session()` with exit-1 failure path (WP02)
 - [ ] T007 Write `tests/auth/test_revoke_flow.py` covering all `RevokeOutcome` paths (WP02)
-- [ ] T008 Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions (WP02)
+- [ ] T008 Update `tests/cli/commands/test_auth_logout.py`: remove `/api/v1/logout` assertions, add cleanup-failure test (WP02)
+- [ ] T020 Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations (WP02)
 
-**Risks**: Must not report `REVOKED` on 5xx. Local cleanup must remain unconditional. No spent refresh token in any output or log.
+**Risks**: Must not report `REVOKED` on 5xx. `typer.Exit(code=1)` propagates through `asyncio.run()` correctly. No spent refresh token in any output or log.
 
 **Prompt file**: `tasks/WP02-revoke-flow-and-logout-migration.md`
 
@@ -130,10 +131,9 @@
 **Dependencies**: WP03, WP04
 **Lane**: merge (both lanes complete)
 
-**Goal**: Update the e2e logout integration test for `/oauth/revoke`, run the full suite to confirm zero legacy assertions and no regressions in offline doctor, and produce the dev smoke checklist.
+**Goal**: Run the full suite to confirm zero legacy assertions and no regressions in offline doctor (e2e test was updated in WP02), and produce the dev smoke checklist.
 
 **Subtasks**:
-- [ ] T020 Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` (WP05)
 - [ ] T021 Run focused test suites; confirm zero legacy `/api/v1/logout` assertions (WP05)
 - [ ] T022 Run full auth + status test suite; confirm offline doctor tests unchanged (WP05)
 - [ ] T023 Produce `dev-smoke-checklist.md` with step-by-step commands and expected output (WP05)
