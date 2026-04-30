@@ -384,3 +384,7 @@ app.command(name="review")(review_module.review_mission)
 - Check `spec-kitty review --help` for `--mission` option and docstring mentioning known false-positives.
 - Read `mission-review-report.md` — verify frontmatter is valid YAML and findings are human-readable.
 - The dead-code scan is heuristic: confirm the docstring documents known false-positive scenarios (`__all__` exports, entry points).
+
+## Activity Log
+
+- 2026-04-30T17:38:51Z – claude – shell_pid=46826 – Ready for review: spec-kitty review --mission command implemented
