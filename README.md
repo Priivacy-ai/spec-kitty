@@ -45,7 +45,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get on `main` (`3.2.0a5`)
+## 🚀 What You Get on `main` (`3.2.0a6`)
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
@@ -105,9 +105,9 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current stable release: `3.1.6` on GitHub Releases and PyPI)
+**Current stable release line:** `v3.1.x` (current stable release: `3.1.8` on GitHub Releases and PyPI)
 
-**Current `main` development version:** `3.2.0a5`
+**Current `main` development version:** `3.2.0a6`
 
 **Current `main` highlights:**
 - **Brief-first and ticket-first intake** — `spec-kitty intake` ingests external plans into `.kittify/mission-brief.md`, and `spec-kitty mission create --from-ticket <provider:KEY>` seeds tracker context before `/spec-kitty.specify`
@@ -115,7 +115,7 @@ graph LR
 - **Hosted tracker reads and Teamspace-aware sync** — `issue-search`, `tracker discover` / `tracker list-tickets`, encrypted local auth sessions, `sync routes`, repository sharing, and Private Teamspace routing tighten the SaaS workflow
 - **Charter synthesis is harness-owned and inspectable** — generated-artifact adapters, `charter status --provenance`, `charter resynthesize --list-topics`, bundle validation, and stronger neutrality rules make synthesis auditable
 - **Compatibility and release governance are stricter** — `doctor shim-registry`, mutation-testing guidance, shared-package drift checks, SBOM-attached prereleases, and safer publish validation harden upgrades and releases
-- **Review and runtime recovery keep improving** — sparse-checkout defenses, offline/auth refresh fixes, provider-aware tracker readiness, action-routing hardening, and post-merge fixes to the profile-invocation flow reduce recovery work
+- **Review and runtime recovery keep improving** — `spec-kitty review`, stale review-artifact warnings, merge-abort cleanup, provider-aware tracker readiness, action-routing hardening, and profile-invocation pairing reduce recovery work
 - **15 AI integrations are supported** — 13 user-global slash/prompt surfaces plus Codex CLI and Mistral Vibe via shared Agent Skills, with Kiro fully documented and legacy `q` retained for compatibility
 
 **Jump to:**
@@ -130,13 +130,13 @@ graph LR
 
 ## 📌 Release Channels
 
-Spec Kitty currently ships stable `3.1.x` releases while `main` carries the active `3.2.0a5` prerelease/dev line.
+Spec Kitty currently ships stable `3.1.x` releases while `main` carries the active `3.2.0a6` prerelease/dev line.
 The former `1.x` line is deprecated and lives on `1.x-maintenance` for maintenance-only fixes.
 
 | Source | Version | Status | Install |
 |--------|---------|--------|---------|
-| **PyPI / GitHub Releases** | **3.1.6** | Current stable line | `pip install spec-kitty-cli` |
-| **main** | **3.2.0a5** | Active prerelease / development line | Install from a source checkout or a published prerelease tag |
+| **PyPI / GitHub Releases** | **3.1.8** | Current stable line | `pip install spec-kitty-cli` |
+| **main** | **3.2.0a6** | Active prerelease / development line | Install from a source checkout or a published prerelease tag |
 | **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.

@@ -19,13 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0a6] - 2026-04-30
 
-Tranche 2 of the 3.2.0a6 release is a bug-only sweep that restores the
-documented fresh-project golden path (`init` → charter `setup`/`generate`/
+3.2.0a6 is a prerelease hardening sweep that restores the documented
+fresh-project golden path (`init` → charter `setup`/`generate`/
 `synthesize` → `next`), locks in strict JSON for covered `--json` commands
 under any SaaS state, fixes agent identity parsing and review-cycle
-accounting, and adds paired profile-invocation lifecycle observability for
-`spec-kitty next`. No new public CLI subcommands and no new top-level
-runtime dependencies were introduced.
+accounting, adds paired profile-invocation lifecycle observability for
+`spec-kitty next`, and tightens merge/review/status recovery paths. The
+release introduces the new top-level `spec-kitty review` mission-review
+command and no new top-level runtime dependencies.
 
 ### Fixed
 
@@ -66,6 +67,27 @@ runtime dependencies were introduced.
   with no hand-seeded `.kittify/doctrine/`; the bounded fresh-project
   path materialises a minimal doctrine tree (`PROVENANCE.md`) so the
   shipped doctrine layer can supply content (#839, WP06).
+- `spec-kitty merge --abort` now clears the global merge lock, removes
+  legacy merge-state files, aborts an in-progress Git merge when present,
+  and remains idempotent when no merge is active (#903).
+- Approved/done work packages with stale `verdict: rejected` review
+  artifacts are now surfaced across status views, including
+  `spec-kitty agent tasks status` and `show_kanban_status()`. Review
+  artifact lookup follows the real `tasks/<WP-slug>/review-cycle-N.md`
+  layout, and `in_review` work packages now warn when reviewer movement
+  stalls beyond the configured threshold (#904, #909).
+- Review lane-guard failures now name the planning branch and include a
+  concrete `git show <planning-branch>:<path>` command for the first
+  contaminated path, instead of a placeholder path (#905).
+- Work-package review definition-of-done coverage now includes real error
+  path and artifact-deletion regressions, not only happy-path review
+  behavior (#906).
+- Broad `except Exception` / BLE001 suppressions in touched runtime paths
+  were audited and now carry inline justification where fail-open behavior
+  is intentional (#907).
+- `spec-kitty review <mission>` is now a first-class mission-review CLI
+  command with structured status/exit behavior for post-merge mission
+  fidelity checks (#908).
 
 ### Internal
 
@@ -81,6 +103,10 @@ runtime dependencies were introduced.
   `charter generate` now auto-tracks `charter.md`, removing any
   expectation that operators run `git add` between `generate` and
   `bundle validate` (WP07).
+- Added regression coverage for merge abort cleanup, stale rejected review
+  artifacts, stalled in-review work packages, lane-guard remediation text,
+  mission-review command behavior, review DoD deletion/error cases, and
+  agent-shard coverage for status warning paths (#903-#909).
 
 ### Tranche-2 acceptance pass (SC-001..SC-008)
 
@@ -91,7 +117,7 @@ runtime dependencies were introduced.
 - **SC-005 (Lifecycle observability)** — `tests/integration/test_next_lifecycle_records.py` (WP05) covers ≥5 issuances with mid-cycle orphan; the consolidated E2E asserts at least one `started` record after `next` issues an action and that the `canonical_action_id` matches the issued step id.
 - **SC-006 (Charter parity rate)** — `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py` (WP06) covers the auto-track + non-git fail-fast contract; the consolidated E2E exercises `generate → bundle validate` with no intervening git ops.
 - **SC-007 (Documentation/CLI agreement)** — `docs/how-to/setup-governance.md` updated; no documented governance-setup flow contains a `git add charter.md` step between `charter generate` and `charter bundle validate`.
-- **SC-008 (Bug-only discipline)** — Diff inventory: zero new public CLI subcommands at the top level, zero new top-level runtime dependencies. WP05 added `spec-kitty doctor invocation-pairing` — that is a SUBCOMMAND under the existing `doctor` top-level command, not a new top-level public CLI surface, and is the minimum viable observability wiring required by FR-011/FR-012. No additions to `pyproject.toml` `[project.dependencies]` in the tranche-2 diff.
+- **SC-008 (Release-surface discipline)** — Diff inventory: one new top-level public CLI command, `spec-kitty review`, added for mission-review fidelity checks (#908); one new `spec-kitty doctor invocation-pairing` subcommand under the existing `doctor` group for lifecycle observability; zero new top-level runtime dependencies in `pyproject.toml` `[project.dependencies]`.
 
 ## [3.2.0a5] - 2026-04-27
 
