@@ -22,7 +22,8 @@ subtasks:
 - T019
 - T020
 phase: Phase 2 - Integration
-agent: claude:opus-4-7:reviewer-renata:reviewer
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "68505"
 history:
 - at: '2026-04-30T06:23:33Z'
   actor: system
@@ -502,3 +503,7 @@ cd src && pytest ../tests/charter/synthesizer/test_schema_conformance.py -v
 - **`_assert_bundle_compatible` for fresh synthesize**: The check MUST NOT run before a first-ever synthesis (when `metadata.yaml` doesn't exist yet). Only add the check inside branches where `metadata.yaml` is known to exist.
 - **CliRunner output format**: `charter status --provenance` output may be a table (Rich). The regression test checks for field name presence as a string in the output — this works for Rich table headers. If it outputs JSON, parse it instead.
 - **import `canonical_yaml` from within versioning.py**: The `migrate_v1_to_v2` function needs `canonical_yaml` (from `charter.synthesizer.synthesize_pipeline`). This creates a `doctrine → charter` import — which is the WRONG direction per the constraint. Use a local alternative: serialize to YAML via ruamel.yaml with sorted keys, or inline the canonical serialization logic. Do NOT import from `charter.*` in `versioning.py`. One clean option: extract `canonical_yaml` to a shared utility module (e.g., `src/doctrine/yaml_utils.py`) and import from there in both `versioning.py` and `synthesize_pipeline.py`. Ask the user if the right approach is unclear.
+
+## Activity Log
+
+- 2026-04-30T07:30:08Z – claude:sonnet-4-6:implementer:implementer – shell_pid=68505 – Started implementation via action command
