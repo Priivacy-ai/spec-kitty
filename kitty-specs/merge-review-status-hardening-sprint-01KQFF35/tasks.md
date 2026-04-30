@@ -22,11 +22,11 @@
 | T012 | Rewrite lane guard error message to name planning branch and suggest `git show` | WP02 | |
 | T013 | Add legacy-mission fallback when `meta.json` is absent or missing the field | WP02 | [P] |
 | T014 | Write tests: verdict guard + skip option + lane guard message | WP02 | |
-| T015 | Annotate bare BLE001 suppressions in `src/specify_cli/cli/helpers.py` | WP03 | [P] |
-| T016 | Annotate bare suppressions in `src/specify_cli/cli/commands/charter.py` | WP03 | [P] |
-| T017 | Annotate bare suppressions in `materialize.py`, `tracker.py`, `mission_type.py` | WP03 | [P] |
-| T018 | Annotate bare suppressions in `charter_bundle.py` | WP03 | [P] |
-| T019 | Run `uv run ruff check src/` end-to-end; fix any breakage | WP03 | |
+| T015 | Annotate bare BLE001 suppressions in `src/specify_cli/cli/helpers.py` | WP03 | [D] |
+| T016 | Annotate bare suppressions in `src/specify_cli/cli/commands/charter.py` | WP03 | [D] |
+| T017 | Annotate bare suppressions in `materialize.py`, `tracker.py`, `mission_type.py` | WP03 | [D] |
+| T018 | Annotate bare suppressions in `charter_bundle.py` | WP03 | [D] |
+| T019 | Run `uv run ruff check src/` end-to-end; fix any breakage | WP03 | | [D] |
 | T020 | Read `command-templates/review.md` and identify insertion point | WP04 | | [D] |
 | T021 | Add deletion-test checklist item to error-path coverage section | WP04 | | [D] |
 | T022 | Confirm no generated agent copies were modified | WP04 | | [D] |
@@ -105,11 +105,11 @@
 **Independent test**: `grep "noqa: BLE001" src/specify_cli/cli/ src/specify_cli/auth/` — every match has text after `BLE001`. `uv run ruff check src/` passes.
 
 **Subtasks**:
-- [ ] T015 Annotate bare BLE001 suppressions in `src/specify_cli/cli/helpers.py` (WP03)
-- [ ] T016 Annotate bare suppressions in `src/specify_cli/cli/commands/charter.py` (WP03)
-- [ ] T017 Annotate bare suppressions in `materialize.py`, `tracker.py`, `mission_type.py` (WP03)
-- [ ] T018 Annotate bare suppressions in `charter_bundle.py` (WP03)
-- [ ] T019 Run `uv run ruff check src/`; fix any breakage (WP03)
+- [x] T015 Annotate bare BLE001 suppressions in `src/specify_cli/cli/helpers.py` (WP03)
+- [x] T016 Annotate bare suppressions in `src/specify_cli/cli/commands/charter.py` (WP03)
+- [x] T017 Annotate bare suppressions in `materialize.py`, `tracker.py`, `mission_type.py` (WP03)
+- [x] T018 Annotate bare suppressions in `charter_bundle.py` (WP03)
+- [x] T019 Run `uv run ruff check src/`; fix any breakage (WP03)
 
 **Owned files**: `src/specify_cli/cli/helpers.py`, `src/specify_cli/cli/commands/charter.py`, `src/specify_cli/cli/commands/materialize.py`, `src/specify_cli/cli/commands/tracker.py`, `src/specify_cli/cli/commands/mission_type.py`, `src/specify_cli/cli/commands/charter_bundle.py`
 **Dependencies**: none
