@@ -28,9 +28,9 @@
 | T018 | Wire `--server` flag in `auth.py` doctor command; pass to `doctor_impl` | WP04 | No | [D] |
 | T019 | Add `--server` tests in `tests/auth/test_auth_doctor_report.py` and verify offline tests unchanged in `tests/auth/test_auth_doctor_offline.py` | WP04 | No | [D] |
 | T020 | Update `tests/auth/integration/test_logout_e2e.py` for `/oauth/revoke` expectations | WP02 | No | [D] |
-| T021 | Run focused logout + doctor test suites; confirm zero legacy `/api/v1/logout` assertions | WP05 | No |
-| T022 | Run full auth + status test suite; confirm doctor offline tests pass unchanged | WP05 | No |
-| T023 | Produce `dev-smoke-checklist.md` with step-by-step commands and expected output | WP05 | No |
+| T021 | Run focused logout + doctor test suites; confirm zero legacy `/api/v1/logout` assertions | WP05 | No | [D] |
+| T022 | Run full auth + status test suite; confirm doctor offline tests pass unchanged | WP05 | No | [D] |
+| T023 | Produce `dev-smoke-checklist.md` with step-by-step commands and expected output | WP05 | No | [D] |
 
 ---
 
@@ -134,9 +134,9 @@
 **Goal**: Run the full suite to confirm zero legacy assertions and no regressions in offline doctor (e2e test was updated in WP02), and produce the dev smoke checklist.
 
 **Subtasks**:
-- [ ] T021 Run focused test suites; confirm zero legacy `/api/v1/logout` assertions (WP05)
-- [ ] T022 Run full auth + status test suite; confirm offline doctor tests unchanged (WP05)
-- [ ] T023 Produce `dev-smoke-checklist.md` with step-by-step commands and expected output (WP05)
+- [x] T021 Run focused test suites; confirm zero legacy `/api/v1/logout` assertions (WP05)
+- [x] T022 Run full auth + status test suite; confirm offline doctor tests unchanged (WP05)
+- [x] T023 Produce `dev-smoke-checklist.md` with step-by-step commands and expected output (WP05)
 
 **Risks**: Integration test environment differences (SPEC_KITTY_SAAS_URL not set). Dev smoke requires live dev server access.
 
