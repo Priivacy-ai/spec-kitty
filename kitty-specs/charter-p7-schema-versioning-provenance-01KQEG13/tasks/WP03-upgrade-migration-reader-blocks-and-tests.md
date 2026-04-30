@@ -32,6 +32,7 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py
 - src/specify_cli/cli/commands/charter.py
+- src/specify_cli/cli/commands/charter_bundle.py
 - tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py
 - tests/specify_cli/cli/commands/test_charter_status_provenance.py
 - tests/charter/synthesizer/test_schema_conformance.py
@@ -94,6 +95,10 @@ source_input_ids: <copy of existing source_urns field>
 corpus_snapshot_id: <existing value or "(none)" if was null>
 ```
 
+**Sentinel values are valid strings — do not reject them in FR-006 validation**: Strings like `"(pre-phase7-migration)"` and `"(none)"` are syntactically valid, non-empty values. FR-006 ("fails closed on missing or malformed mandatory fields") triggers only when a mandatory field is absent or its Pydantic type is violated. A migrated sidecar with `synthesizer_version: "(pre-phase7-migration)"` satisfies `synthesizer_version: str` and WILL pass `ProvenanceEntry` validation. Do NOT add logic to reject sentinel strings; they are the intended post-migration state.
+
+**All three WPs land in lane-a**: `lanes.json` assigns WP01, WP02, and WP03 to a single lane (`lane-a`) because WP03 depends on both earlier WPs. The implementing agent works sequentially within that one lane worktree.
+
 **BaseMigration pattern**: Read `src/specify_cli/upgrade/migrations/base.py` to understand `detect()` / `apply()` signatures. Follow the exact same pattern as existing migrations (e.g., `m_3_2_5_*.py` if present).
 
 **Working directory**: `src/` for mypy and imports; `cd src && pytest ../tests/specify_cli/upgrade/` for migration tests.
@@ -148,7 +153,7 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
      fields_for_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
      import hashlib
      from charter.synthesizer.synthesize_pipeline import canonical_yaml
-     manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash).encode()).hexdigest()
+     manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()
      data["manifest_hash"] = manifest_hash
      ```
    - Write back.
@@ -170,7 +175,14 @@ Run `mypy --strict src/doctrine/versioning.py` after.
 
 **File**: `src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py` (new file)
 
-Read `src/specify_cli/upgrade/migrations/base.py` first. Then read one existing migration (e.g., the most recently added `m_3_2_*.py`) to understand the full pattern.
+Read `src/specify_cli/upgrade/migrations/base.py` **first** to get the exact `BaseMigration` and `MigrationResult` interfaces. Then read an existing recent migration (e.g., `m_3_2_5_fix_prompt_file_workaround.py`) to see the decorator and registration pattern in use.
+
+**Key interface facts** (verify against `base.py` before writing code):
+- `MigrationResult` is a `@dataclass` with `success: bool` as the **first required field**, plus `changes_made`, `errors`, `warnings`, `manual_review_required`, `preserved_paths`
+- `BaseMigration` has class-level string fields: `migration_id`, `target_version`, `description`
+- `detect(self, project_path)` and `can_apply(self, project_path)` are instance methods (NOT classmethods)
+- `can_apply()` returns `tuple[bool, str]`
+- Migrations are registered via `@MigrationRegistry.register` decorator (import from `specify_cli.upgrade.migrations.registry`)
 
 Create the migration class:
 
@@ -179,7 +191,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult as BaseMigrationResult
+from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
+from specify_cli.upgrade.migrations.registry import MigrationRegistry
 from doctrine.versioning import (
     get_bundle_schema_version,
     run_migration,
@@ -187,32 +200,37 @@ from doctrine.versioning import (
 )
 
 
+@MigrationRegistry.register
 class CharterBundleV2Migration(BaseMigration):
     """Upgrades charter doctrine bundles from v1 to v2 (Phase 7 hardening)."""
 
-    version = "3.2.6"
-    description = "Upgrade charter bundle schema from v1 to v2 (Phase 7 provenance hardening)"
+    migration_id: str = "3.2.6_charter_bundle_v2"
+    target_version: str = "3.2.6"
+    description: str = "Upgrade charter bundle schema from v1 to v2 (Phase 7 provenance hardening)"
 
-    @classmethod
-    def detect(cls, project_path: Path) -> bool:
+    def detect(self, project_path: Path) -> bool:
         """Return True if the project has a charter bundle that needs migration."""
         charter_dir = project_path / ".kittify" / "charter"
         if not charter_dir.exists():
             return False
         bundle_version = get_bundle_schema_version(charter_dir)
-        # None = missing (treated as v1) or version < current
         return bundle_version is None or bundle_version < CURRENT_BUNDLE_SCHEMA_VERSION
 
-    def apply(self, project_path: Path, dry_run: bool = False) -> BaseMigrationResult:
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        charter_dir = project_path / ".kittify" / "charter"
+        if not charter_dir.exists():
+            return False, "No charter directory found at .kittify/charter"
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         charter_dir = project_path / ".kittify" / "charter"
         bundle_version = get_bundle_schema_version(charter_dir)
         if bundle_version is None:
             bundle_version = 1  # treat missing as v1
 
         if bundle_version >= CURRENT_BUNDLE_SCHEMA_VERSION:
-            return BaseMigrationResult(changes_made=[], errors=[])
+            return MigrationResult(success=True, changes_made=[], errors=[])
 
-        # Migrate from bundle_version up to CURRENT
         all_changes: list[str] = []
         all_errors: list[str] = []
         current = bundle_version
@@ -222,10 +240,14 @@ class CharterBundleV2Migration(BaseMigration):
             all_errors.extend(result.errors)
             current += 1
 
-        return BaseMigrationResult(changes_made=all_changes, errors=all_errors)
+        return MigrationResult(
+            success=len(all_errors) == 0,
+            changes_made=all_changes,
+            errors=all_errors,
+        )
 ```
 
-Check `BaseMigrationResult` — it may be named differently or have different fields. Match the actual `BaseMigration` interface exactly.
+**After writing the file**, verify the migration is picked up by the upgrade runner. Check `src/specify_cli/upgrade/runner.py` (or wherever migrations are discovered). If they are loaded by explicit import, add an import of `m_3_2_6_charter_bundle_v2` there.
 
 Run `mypy --strict src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py`.
 
@@ -263,7 +285,36 @@ Then call `_assert_bundle_compatible(charter_dir)` at the start of:
 - `charter sync` (operates on charter.md, not the bundle)
 - Fresh `charter synthesize` (produces a new v2 bundle; would wrongly block first-time synthesis)
 
-Run `mypy --strict src/specify_cli/cli/commands/charter.py` after.
+**Also update `charter_bundle.py` — provenance sidecar content validation (FR-006, FR-007)**:
+
+Read `src/specify_cli/cli/commands/charter_bundle.py` in full. The current `validate()` function validates canonical bundle structure (tracked/derived files, gitignore entries) but does **NOT** parse or validate provenance sidecar content. You must add a provenance validation pass.
+
+After the existing structure checks pass, add:
+
+```python
+from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
+from pydantic import ValidationError
+
+provenance_dir = charter_dir / "provenance"
+sidecar_errors: list[str] = []
+if provenance_dir.exists():
+    for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
+        raw = yaml.load(sidecar_path)
+        if isinstance(raw, dict):
+            try:
+                ProvenanceEntry(**raw)
+            except ValidationError as e:
+                sidecar_errors.append(f"{sidecar_path.name}: {e}")
+
+if sidecar_errors:
+    for msg in sidecar_errors:
+        console.print(f"[red]Provenance validation error:[/red] {msg}")
+    raise typer.Exit(code=1)
+```
+
+Place `_assert_bundle_compatible(charter_dir)` BEFORE the structure checks, so an incompatible bundle fails fast with an upgrade prompt rather than a structure error.
+
+Run `mypy --strict src/specify_cli/cli/commands/charter_bundle.py` after.
 
 ### T018 — Create `test_charter_bundle_v2_migration.py`
 
@@ -369,21 +420,33 @@ def test_status_v2_bundle_exits_0(tmp_path, monkeypatch):
     result = runner.invoke(app, ["charter", "status"])
     assert result.exit_code == 0
 
-def test_status_provenance_includes_synthesizer_version(tmp_path, monkeypatch):
-    """FR-010: regression guard for charter status --provenance output shape."""
+def test_status_provenance_json_includes_synthesizer_version(tmp_path, monkeypatch):
+    """FR-010: regression guard — synthesizer_version present in --json --provenance output."""
     _setup_charter_v2_project(tmp_path)
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, ["charter", "status", "--provenance"])
+    result = runner.invoke(app, ["charter", "status", "--provenance", "--json"])
     assert result.exit_code == 0
-    assert "synthesizer_version" in result.output
+    data = json.loads(result.output)
+    # charter status --json --provenance returns either a dict with a "provenance" list
+    # or a list of provenance entries directly; read charter.py to confirm the exact shape.
+    provenance_entries = data.get("provenance", data) if isinstance(data, dict) else data
+    assert isinstance(provenance_entries, list), "Expected a list of provenance entries"
+    assert any(
+        "synthesizer_version" in entry for entry in provenance_entries
+    ), "synthesizer_version not found in any provenance entry"
 
-def test_status_provenance_includes_produced_at(tmp_path, monkeypatch):
-    """FR-010: regression guard for produced_at field in provenance output."""
+def test_status_provenance_json_includes_produced_at(tmp_path, monkeypatch):
+    """FR-010: regression guard — produced_at present in --json --provenance output."""
     _setup_charter_v2_project(tmp_path)
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, ["charter", "status", "--provenance"])
+    result = runner.invoke(app, ["charter", "status", "--provenance", "--json"])
     assert result.exit_code == 0
-    assert "produced_at" in result.output
+    data = json.loads(result.output)
+    provenance_entries = data.get("provenance", data) if isinstance(data, dict) else data
+    assert isinstance(provenance_entries, list), "Expected a list of provenance entries"
+    assert any(
+        "produced_at" in entry for entry in provenance_entries
+    ), "produced_at not found in any provenance entry"
 
 def test_bundle_validate_fails_on_missing_synthesizer_version(tmp_path, monkeypatch):
     """FR-006: validation fails closed on incomplete provenance."""
@@ -422,11 +485,12 @@ cd src && pytest ../tests/charter/synthesizer/test_schema_conformance.py -v
 
 ## Definition of Done
 
-- [ ] `migrate_v1_to_v2()` fully implemented; replaces `NotImplementedError` stub
-- [ ] `CharterBundleV2Migration` created; `detect()` and `apply()` work correctly; migration registered in upgrade runner
-- [ ] `_assert_bundle_compatible()` added to `charter.py`; called from `status`, `resynthesize`, `bundle validate`
+- [ ] `migrate_v1_to_v2()` fully implemented; replaces `NotImplementedError` stub; uses `canonical_yaml(data)` directly (no `.encode()`)
+- [ ] `CharterBundleV2Migration` created with `@MigrationRegistry.register`, correct `migration_id`/`target_version`/`can_apply()` fields, and `MigrationResult(success=..., ...)` return type; registered in upgrade runner
+- [ ] `_assert_bundle_compatible()` added to `charter.py`; called from `status`, `resynthesize`, and `bundle validate`
+- [ ] `charter_bundle.py` `validate()` iterates provenance sidecars, parses each as `ProvenanceEntry`, exits 1 on `ValidationError` (FR-006/FR-007)
 - [ ] `test_charter_bundle_v2_migration.py` passes (migration, detect, idempotency, dry_run, metadata stamp)
-- [ ] `test_charter_status_provenance.py` passes (v1 block, future-version block, v2 passes, --provenance regression)
+- [ ] `test_charter_status_provenance.py` passes (v1 block, future-version block, v2 passes, `--json --provenance` regression assertions)
 - [ ] `test_schema_conformance.py` passes with v2 assertions
 - [ ] `mypy --strict` passes on all new/modified source files
 - [ ] No changes to any file outside `owned_files`

@@ -60,7 +60,9 @@ Create `src/doctrine/versioning.py` — the compatibility registry that maps bun
 
 ## Context
 
-Charter synthesis bundles currently have no integer schema version field. This WP creates the foundation: a pure-Python compatibility registry that other modules call to decide whether a bundle can be read or needs migration. WP02 runs in parallel (Lane B) on the Pydantic model layer. WP03 depends on both WP01 and WP02; it completes the `migrate_v1_to_v2()` implementation and wires the reader blocks into the CLI.
+Charter synthesis bundles currently have no integer schema version field. This WP creates the foundation: a pure-Python compatibility registry that other modules call to decide whether a bundle can be read or needs migration. WP02 works on the Pydantic model layer. WP03 depends on both WP01 and WP02; it completes the `migrate_v1_to_v2()` implementation and wires the reader blocks into the CLI.
+
+**Execution workspace**: all three WPs are in **lane-a**. WP01 and WP02 can be done in either order within the lane; WP03 must come after both.
 
 **Working directory**: `src/` (run `cd src && mypy --strict doctrine/versioning.py` for type-checks; run `cd src && pytest ../tests/doctrine/` for tests).
 
@@ -69,8 +71,8 @@ Charter synthesis bundles currently have no integer schema version field. This W
 - `CURRENT_BUNDLE_SCHEMA_VERSION = 2` (the version Phase 7 synthesis will write)
 - `MIN_READABLE_BUNDLE_SCHEMA = 1` (oldest version this CLI can read after migration)
 - `MAX_READABLE_BUNDLE_SCHEMA = 2` (newest version this CLI reads natively)
-- `bundle_schema_version = None` (field absent) is treated as **v1** (NEEDS_MIGRATION), not an error
-- `bundle_schema_version = 0` or negative → INCOMPATIBLE_OLD (no migration registered below v1)
+- **`bundle_schema_version = None` (field absent) is treated as v1 (NEEDS_MIGRATION), NOT as v0.** Phase 3 bundles have `schema_version: "1"` on their sidecars; treating absent metadata as v0 would require a two-hop migration. The spec.md assumption 5 ("treated as version 0") was written before this research decision — the correct behavior is None → v1 → NEEDS_MIGRATION. This is consistent with the `check_bundle_compatibility(None)` → `MISSING_VERSION` → needs_migration=True contract.
+- `bundle_schema_version = 0` or negative → INCOMPATIBLE_OLD (below MIN_READABLE; no migration)
 - `bundle_schema_version = 3+` → INCOMPATIBLE_NEW
 
 **Import safety**: `doctrine.versioning` must not import from `charter.*`. The dependency direction is charter → doctrine, never the reverse. Circular import risk is low as long as this is respected.

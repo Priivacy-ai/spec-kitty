@@ -22,6 +22,7 @@
         "src/charter/synthesizer/write_pipeline.py",
         "src/doctrine/versioning.py",
         "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/charter_bundle.py",
         "src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py",
         "tests/charter/fixtures/synthesizer/**",
         "tests/charter/synthesizer/test_adapter_contract.py",
@@ -45,7 +46,7 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-04-30T06:35:56.874286+00:00",
+  "computed_at": "2026-04-30T07:01:14.442718+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
   "collapse_report": {

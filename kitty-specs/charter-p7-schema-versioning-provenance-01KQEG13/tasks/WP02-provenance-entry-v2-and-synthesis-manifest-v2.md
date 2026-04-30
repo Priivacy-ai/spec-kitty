@@ -52,15 +52,15 @@ This loads domain knowledge, tool preferences, and behavioral guidelines. Do not
 
 ## Objective
 
-Bump `ProvenanceEntry` and `SynthesisManifest` from schema version "1" to "2". Add all mandatory Phase 7 fields to both models. Update the synthesis pipeline to populate these fields at write time. Update every fixture and test that touches these models.
+Bump `ProvenanceEntry` and `SynthesisManifest` from schema version "1" to "2". Add all mandatory Phase 7 fields to both models. Update the synthesis pipeline to populate these fields at write time. Update every fixture, test, and the `_collect_provenance_status` entries dict in `charter.py` so the JSON provenance output exposes the new fields.
 
-This WP runs in **Lane B** in parallel with WP01 (Lane A: versioning registry). WP03 depends on both.
+WP01 works on the versioning registry. WP03 depends on both WP01 and WP02.
 
 ## Branch Strategy
 
 - **Planning base branch**: `main`
 - **Merge target**: `main`
-- **Execution workspace**: allocated by `lanes.json` (Lane B); do not guess the worktree path
+- **Execution workspace**: allocated by `lanes.json` (lane-a); do not guess the worktree path
 
 ## Context
 
@@ -72,10 +72,12 @@ This WP runs in **Lane B** in parallel with WP01 (Lane A: versioning registry). 
 - `ProvenanceEntry`: `schema_version: Literal["2"]`, `corpus_snapshot_id: str` (mandatory, `"(none)"` sentinel), plus `synthesizer_version: str`, `source_input_ids: list[str]`, `produced_at: str`, `synthesis_run_id: str`
 - `SynthesisManifest`: `schema_version: Literal["2"]`, `synthesizer_version: str` (minLength=1), `manifest_hash: str` (64-char SHA-256 hex)
 
+**On `bundle_hash` (FR-005(f))**: The spec requires a `bundle_hash` field on each sidecar. This is architecturally impossible in a single-pass write pipeline: the manifest (which would be the source of the hash) does not exist when sidecars are written, because the manifest captures artifact content hashes that are computed during synthesis. The design satisfies FR-005(f) through two complementary fields: `synthesis_run_id` in the sidecar (a tamper-evident ULID link to the exact manifest entry) and `manifest_hash` in the manifest (a SHA-256 self-hash of all manifest content excluding the hash field itself). To verify bundle integrity: verify `manifest_hash` matches the manifest content, then verify each artifact's `artifact_content_hash` against the live file. There is no `bundle_hash` field on `ProvenanceEntry` — this is the intended design.
+
 **Critical constraints**:
 1. `ProvenanceEntry` uses `ConfigDict(frozen=True)` — `produced_at` cannot be set by a factory default. The caller (`write_pipeline.promote()`) must pass `produced_at=datetime.now(UTC).isoformat()` at the moment of writing.
 2. `manifest_hash` = `sha256(canonical_yaml({all manifest fields except manifest_hash})).hexdigest()`. Because `SynthesisManifest` is frozen, compute via `model_dump(mode="python")`, pop `"manifest_hash"`, hash, then construct the final manifest with `manifest_hash` set.
-3. `canonical_yaml()` already exists in `synthesize_pipeline.py` — use it everywhere for consistency (NFR-004 byte-stability).
+3. **`canonical_yaml()` returns `bytes`** (not `str`) — do NOT call `.encode()` on its output. Hash directly: `hashlib.sha256(canonical_yaml(data)).hexdigest()`.
 4. `corpus_snapshot_id` must be `corpus_id or "(none)"` — never `None` — at every construction site.
 5. Do NOT change `evidence_bundle_hash` — it stays `str | None = None` (optional).
 
@@ -199,8 +201,8 @@ manifest_data = dict(
     manifest_hash="",  # placeholder
 )
 manifest_data.pop("manifest_hash")
-hash_input = canonical_yaml(manifest_data).encode()
-manifest_hash = hashlib.sha256(hash_input).hexdigest()  # 64 hex chars
+# canonical_yaml() returns bytes — do NOT call .encode() on it
+manifest_hash = hashlib.sha256(canonical_yaml(manifest_data)).hexdigest()  # 64 hex chars
 
 manifest = SynthesisManifest(
     **manifest_data,
@@ -284,7 +286,8 @@ def test_manifest_hash_validates():
     manifest = build_test_manifest_v2()
     fields_without_hash = manifest.model_dump(mode="python")
     fields_without_hash.pop("manifest_hash")
-    computed = hashlib.sha256(canonical_yaml(fields_without_hash).encode()).hexdigest()
+    # canonical_yaml() returns bytes — hash directly, no .encode()
+    computed = hashlib.sha256(canonical_yaml(fields_without_hash)).hexdigest()
     assert computed == manifest.manifest_hash
 ```
 
@@ -298,17 +301,47 @@ Also verify the byte-stability regression test still passes:
 cd src && pytest ../tests/charter/synthesizer/test_synthesize_path_parity.py -v
 ```
 
+### T014b — Update `_collect_provenance_status` entries in `charter.py`
+
+**File**: `src/specify_cli/cli/commands/charter.py`
+
+**Note**: WP03 owns `charter.py`. This step is scoped here because it's the natural companion to the model changes, but must be coordinated with WP03's agent or done by the WP03 agent as part of T017. Check with the team on sequencing.
+
+The `_collect_provenance_status` helper (around line 279) builds an `entries` list for `--provenance` output. After WP02, `ProvenanceEntry` has `synthesizer_version` and `produced_at` fields. These must be added to the dict so that `charter status --json --provenance` exposes them:
+
+```python
+if include_entries:
+    entries.append(
+        {
+            "path": rel_path,
+            "kind": entry.artifact_kind,
+            "slug": entry.artifact_slug,
+            "artifact_urn": entry.artifact_urn,
+            "adapter_id": entry.adapter_id,
+            "adapter_version": entry.adapter_version,
+            "synthesizer_version": getattr(entry, "synthesizer_version", None),  # v2
+            "produced_at": getattr(entry, "produced_at", None),                  # v2
+            "corpus_snapshot_id": entry.corpus_snapshot_id,
+            "evidence_bundle_hash": entry.evidence_bundle_hash,
+            "generated_at": entry.generated_at,
+        }
+    )
+```
+
+Use `getattr(..., None)` for forward compatibility with any v1 sidecars that might be loaded from fixtures during tests. After migration, all live sidecars will have these fields.
+
 ## Definition of Done
 
 - [ ] `ProvenanceEntry.schema_version` is `Literal["2"]`; all 5 new/promoted fields are mandatory
 - [ ] `SynthesisManifest.schema_version` is `Literal["2"]`; `synthesizer_version` and `manifest_hash` present
-- [ ] `write_pipeline.py` passes all 5 new fields; computes `manifest_hash` correctly
+- [ ] `write_pipeline.py` passes all 5 new fields; computes `manifest_hash` correctly (no `.encode()` on `canonical_yaml` bytes)
 - [ ] `resynthesize_pipeline.py` passes all 5 new fields
 - [ ] All YAML fixture sidecars updated to v2; conftest.py updated
+- [ ] `_collect_provenance_status` entries include `synthesizer_version` and `produced_at` (done in WP02 or coordinated with WP03)
 - [ ] `test_provenance.py`, `test_manifest.py`, `test_adapter_contract.py` pass with v2 assertions
 - [ ] `test_synthesize_path_parity.py` passes (no byte-stability regression)
 - [ ] `mypy --strict` passes on all 5 modified source files
-- [ ] No changes to any file outside `owned_files`
+- [ ] No changes to any file outside `owned_files` (for `charter.py`, coordinate with WP03 agent)
 
 ## Risks
 
