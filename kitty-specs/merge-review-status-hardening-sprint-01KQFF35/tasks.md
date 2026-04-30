@@ -27,9 +27,9 @@
 | T017 | Annotate bare suppressions in `materialize.py`, `tracker.py`, `mission_type.py` | WP03 | [P] |
 | T018 | Annotate bare suppressions in `charter_bundle.py` | WP03 | [P] |
 | T019 | Run `uv run ruff check src/` end-to-end; fix any breakage | WP03 | |
-| T020 | Read `command-templates/review.md` and identify insertion point | WP04 | |
-| T021 | Add deletion-test checklist item to error-path coverage section | WP04 | |
-| T022 | Confirm no generated agent copies were modified | WP04 | |
+| T020 | Read `command-templates/review.md` and identify insertion point | WP04 | | [D] |
+| T021 | Add deletion-test checklist item to error-path coverage section | WP04 | | [D] |
+| T022 | Confirm no generated agent copies were modified | WP04 | | [D] |
 | T023 | Add `_get_wp_review_verdict()` helper and stale-verdict warning in `show_kanban_status()` | WP05 | |
 | T024 | Add `_get_last_event_time()` helper for stall age computation | WP05 | [P] |
 | T025 | Add stall detection loop in `show_kanban_status()` with config-loaded threshold | WP05 | |
@@ -125,9 +125,9 @@
 **Independent test**: The word "deletion test" appears in `src/specify_cli/missions/software-dev/command-templates/review.md`; no `.claude/commands/` or other agent-copy files are modified.
 
 **Subtasks**:
-- [ ] T020 Read `command-templates/review.md` and identify insertion point (WP04)
-- [ ] T021 Add deletion-test checklist item under error-path test coverage section (WP04)
-- [ ] T022 Confirm no generated agent copies were modified (WP04)
+- [x] T020 Read `command-templates/review.md` and identify insertion point (WP04)
+- [x] T021 Add deletion-test checklist item under error-path test coverage section (WP04)
+- [x] T022 Confirm no generated agent copies were modified (WP04)
 
 **Owned files**: `src/specify_cli/missions/software-dev/command-templates/review.md`
 **Dependencies**: none
