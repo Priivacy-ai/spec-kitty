@@ -8,5 +8,6 @@
   "purpose_context": "Charter synthesis bundles currently carry optional provenance fields and have no runtime mechanism to detect or migrate schema-incompatible bundles. This mission closes that gap by making provenance mandatory (every synthesized artifact must carry its synthesizer version, source corpus identity, content hash, and bundle hash), adding a per-bundle integer schema_version that the upgrade pipeline reads and gates on, and creating a central compatibility registry that maps old bundle versions to migration functions. The result is that CI and operators can trust provenance chains completely and that stale or incompatible bundles are rejected with clear, actionable errors rather than silently misread.",
   "purpose_tldr": "Harden charter doctrine bundles with mandatory provenance metadata, a compatibility registry for schema migrations, and fail-closed validation so incompatible bundles are caught early and old bundles can be automatically upgraded.",
   "slug": "charter-p7-schema-versioning-provenance-01KQEG13",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git"
 }
