@@ -20,7 +20,8 @@ subtasks:
 - T007
 - T008
 - T020
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "12879"
 history:
 - date: '2026-04-30'
   event: created
@@ -397,3 +398,7 @@ with patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client:
 | `clear_session()` currently never raises | Wrap it anyway — the contract is "if it raises, exit 1"; defensive future-proofing |
 | Test patches wrong symbol | Patch `specify_cli.cli.commands._auth_logout.RevokeFlow` (where it is used, not where it is defined) |
 | Integration test mock seam differs | Read the test file before editing; match the existing httpx or subprocess mock pattern |
+
+## Activity Log
+
+- 2026-04-30T13:13:48Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=12879 – Started implementation via action command
