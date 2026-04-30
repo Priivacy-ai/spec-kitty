@@ -30,12 +30,12 @@
 | T020 | Read `command-templates/review.md` and identify insertion point | WP04 | | [D] |
 | T021 | Add deletion-test checklist item to error-path coverage section | WP04 | | [D] |
 | T022 | Confirm no generated agent copies were modified | WP04 | | [D] |
-| T023 | Add `_get_wp_review_verdict()` helper and stale-verdict warning in `show_kanban_status()` | WP05 | |
-| T024 | Add `_get_last_event_time()` helper for stall age computation | WP05 | [P] |
-| T025 | Add stall detection loop in `show_kanban_status()` with config-loaded threshold | WP05 | |
-| T026 | Return stalled WP list from `show_kanban_status()` in return dict | WP05 | |
-| T027 | Surface stalled WP intervention block in `next_cmd.py` | WP05 | |
-| T028 | Write tests: stale verdict warning, stall detection (below/at/above threshold), next output | WP05 | |
+| T023 | Add `_get_wp_review_verdict()` helper and stale-verdict warning in `show_kanban_status()` | WP05 | | [D] |
+| T024 | Add `_get_last_event_time()` helper for stall age computation | WP05 | | [D] |
+| T025 | Add stall detection loop in `show_kanban_status()` with config-loaded threshold | WP05 | | [D] |
+| T026 | Return stalled WP list from `show_kanban_status()` in return dict | WP05 | | [D] |
+| T027 | Surface stalled WP intervention block in `next_cmd.py` | WP05 | | [D] |
+| T028 | Write tests: stale verdict warning, stall detection (below/at/above threshold), next output | WP05 | | [D] |
 | T029 | Create `review.py` with mission resolver, WP lane check (FR-013) | WP06 | |
 | T030 | Implement dead-code scan step (FR-014) | WP06 | |
 | T031 | Implement BLE001 unjustified-suppression audit step (FR-015) | WP06 | |
@@ -143,12 +143,12 @@
 **Independent test**: Create a mock `in_review` WP with last event 45 min ago; `show_kanban_status()` returns `⚠ STALLED — no move-task in 45m`; running `spec-kitty next` prints intervention commands.
 
 **Subtasks**:
-- [ ] T023 Add `_get_wp_review_verdict()` helper + stale-verdict warning in `show_kanban_status()` (WP05)
-- [ ] T024 Add `_get_last_event_time()` helper for age computation (WP05)
-- [ ] T025 Add stall detection loop in `show_kanban_status()` with config-loaded threshold (WP05)
-- [ ] T026 Return stalled WP list from `show_kanban_status()` in return dict (WP05)
-- [ ] T027 Surface stalled WP intervention block in `next_cmd.py` (WP05)
-- [ ] T028 Write tests: stale verdict warning, stall detection, next output (WP05)
+- [x] T023 Add `_get_wp_review_verdict()` helper + stale-verdict warning in `show_kanban_status()` (WP05)
+- [x] T024 Add `_get_last_event_time()` helper for age computation (WP05)
+- [x] T025 Add stall detection loop in `show_kanban_status()` with config-loaded threshold (WP05)
+- [x] T026 Return stalled WP list from `show_kanban_status()` in return dict (WP05)
+- [x] T027 Surface stalled WP intervention block in `next_cmd.py` (WP05)
+- [x] T028 Write tests: stale verdict warning, stall detection, next output (WP05)
 
 **Owned files**: `src/specify_cli/agent_utils/status.py`, `src/specify_cli/cli/commands/next_cmd.py`, tests
 **Dependencies**: none
