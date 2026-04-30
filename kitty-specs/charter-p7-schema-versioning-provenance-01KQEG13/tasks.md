@@ -18,13 +18,13 @@
 | T005 | Add `bundle_schema_version: int \| None = None` to ExtractionMetadata | WP01 | [D] |
 | T006 | Stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` in extractor.py | WP01 | [D] |
 | T007 | Write `tests/doctrine/test_versioning.py` (≥90% coverage) | WP01 | [D] |
-| T008 | Bump ProvenanceEntry → schema_version Literal["2"]; add 5 new/promoted fields | WP02 | [P] |
-| T009 | Bump SynthesisManifest → schema_version Literal["2"]; add synthesizer_version, manifest_hash | WP02 | [P] |
-| T010 | Update provenance.py dump_yaml() to stamp produced_at at write time | WP02 | [P] |
-| T011 | Update write_pipeline.py promote() to pass all v2 ProvenanceEntry fields; compute manifest_hash | WP02 | [P] |
-| T012 | Update resynthesize_pipeline.py with same v2 provenance field additions | WP02 | [P] |
-| T013 | Update YAML sidecar fixtures in tests/charter/fixtures/synthesizer/ | WP02 | [P] |
-| T014 | Update test_provenance.py, test_manifest.py, test_adapter_contract.py for v2 | WP02 | [P] |
+| T008 | Bump ProvenanceEntry → schema_version Literal["2"]; add 5 new/promoted fields | WP02 | [D] |
+| T009 | Bump SynthesisManifest → schema_version Literal["2"]; add synthesizer_version, manifest_hash | WP02 | [D] |
+| T010 | Update provenance.py dump_yaml() to stamp produced_at at write time | WP02 | [D] |
+| T011 | Update write_pipeline.py promote() to pass all v2 ProvenanceEntry fields; compute manifest_hash | WP02 | [D] |
+| T012 | Update resynthesize_pipeline.py with same v2 provenance field additions | WP02 | [D] |
+| T013 | Update YAML sidecar fixtures in tests/charter/fixtures/synthesizer/ | WP02 | [D] |
+| T014 | Update test_provenance.py, test_manifest.py, test_adapter_contract.py for v2 | WP02 | [D] |
 | T015 | Complete migrate_v1_to_v2() in versioning.py (add sentinel values, stamp v2) | WP03 | — |
 | T016 | Create CharterBundleV2Migration(BaseMigration) in m_3_2_6_charter_bundle_v2.py | WP03 | — |
 | T017 | Add _assert_bundle_compatible() to charter.py; call from status, resynthesize, validate | WP03 | — |
@@ -78,13 +78,13 @@
 
 **Included subtasks**:
 
-- [ ] T008 Bump ProvenanceEntry → schema_version Literal["2"]; add 5 new/promoted fields (WP02)
-- [ ] T009 Bump SynthesisManifest → schema_version Literal["2"]; add synthesizer_version, manifest_hash (WP02)
-- [ ] T010 Update provenance.py dump_yaml() to stamp produced_at at write time (WP02)
-- [ ] T011 Update write_pipeline.py promote() to pass all v2 ProvenanceEntry fields; compute manifest_hash (WP02)
-- [ ] T012 Update resynthesize_pipeline.py with same v2 provenance field additions (WP02)
-- [ ] T013 Update YAML sidecar fixtures in tests/charter/fixtures/synthesizer/ (WP02)
-- [ ] T014 Update test_provenance.py, test_manifest.py, test_adapter_contract.py for v2 (WP02)
+- [x] T008 Bump ProvenanceEntry → schema_version Literal["2"]; add 5 new/promoted fields (WP02)
+- [x] T009 Bump SynthesisManifest → schema_version Literal["2"]; add synthesizer_version, manifest_hash (WP02)
+- [x] T010 Update provenance.py dump_yaml() to stamp produced_at at write time (WP02)
+- [x] T011 Update write_pipeline.py promote() to pass all v2 ProvenanceEntry fields; compute manifest_hash (WP02)
+- [x] T012 Update resynthesize_pipeline.py with same v2 provenance field additions (WP02)
+- [x] T013 Update YAML sidecar fixtures in tests/charter/fixtures/synthesizer/ (WP02)
+- [x] T014 Update test_provenance.py, test_manifest.py, test_adapter_contract.py for v2 (WP02)
 
 **Success criteria**:
 - `ProvenanceEntry(corpus_snapshot_id=None, ...)` raises `ValidationError`
