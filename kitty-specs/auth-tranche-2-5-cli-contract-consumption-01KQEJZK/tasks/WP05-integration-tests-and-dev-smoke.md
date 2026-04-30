@@ -10,7 +10,7 @@ requirement_refs:
 - FR-017
 planning_base_branch: auth-tranche-2-5-cli-contract-consumption
 merge_target_branch: auth-tranche-2-5-cli-contract-consumption
-branch_strategy: All changes land on auth-tranche-2-5-cli-contract-consumption. WP05 merges both lanes (WP03 and WP04 must be complete). Execution worktree is allocated per lane from lanes.json.
+branch_strategy: Planning artifacts for this feature were generated on auth-tranche-2-5-cli-contract-consumption. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into auth-tranche-2-5-cli-contract-consumption unless the human explicitly redirects the landing branch.
 subtasks:
 - T020
 - T021

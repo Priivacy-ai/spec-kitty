@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+  "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+  "mission_branch": "kitty/mission-auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+  "target_branch": "auth-tranche-2-5-cli-contract-consumption",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/auth-tranche-2-5-cli-contract-consumption-01KQEJZK/dev-smoke-checklist.md",
+        "src/specify_cli/auth/errors.py",
+        "src/specify_cli/auth/flows/refresh.py",
+        "src/specify_cli/auth/flows/revoke.py",
+        "src/specify_cli/auth/refresh_transaction.py",
+        "src/specify_cli/auth/session.py",
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/cli/commands/_auth_logout.py",
+        "src/specify_cli/cli/commands/auth.py",
+        "tests/auth/concurrency/test_stale_grant_preservation.py",
+        "tests/auth/integration/test_logout_e2e.py",
+        "tests/auth/test_auth_doctor_offline.py",
+        "tests/auth/test_auth_doctor_report.py",
+        "tests/auth/test_refresh_flow.py",
+        "tests/auth/test_revoke_flow.py",
+        "tests/auth/test_session.py",
+        "tests/cli/commands/test_auth_logout.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-30T07:32:39.857092+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP03"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}
