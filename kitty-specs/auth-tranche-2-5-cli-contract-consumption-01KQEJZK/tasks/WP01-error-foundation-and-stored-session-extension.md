@@ -234,3 +234,4 @@ def from_dict(cls, data: dict[str, Any]) -> StoredSession:
 ## Activity Log
 
 - 2026-04-30T12:51:48Z – claude – shell_pid=88259 – T001-T004 complete, test_session.py passes (20/20), RefreshReplayError and StoredSession.generation added with backward compat
+- 2026-04-30T13:13:22Z – claude – shell_pid=88259 – Review passed: all acceptance criteria met
