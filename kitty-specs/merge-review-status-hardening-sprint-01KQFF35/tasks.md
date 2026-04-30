@@ -8,7 +8,7 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Locate `_GLOBAL_MERGE_LOCK_ID` constant and derive lock file path | WP01 | | [D] |
+| T001 | Locate `_GLOBAL_MERGE_LOCK_ID` constant and derive lock file path | WP01 | | [D] | [D] |
 | T002 | Add idempotent lock file deletion to `--abort` handler | WP01 | | [D] |
 | T003 | Add idempotent merge-state JSON deletion to `--abort` handler | WP01 | [D] |
 | T004 | Add conditional `git merge --abort` for in-progress git merges | WP01 | | [D] |
