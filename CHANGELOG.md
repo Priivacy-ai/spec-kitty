@@ -15,17 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `charter bundle validate --json` now fail-closes on incomplete Charter
-  synthesis state while preserving strict JSON stdout. Sidecar-only bundles,
-  manifest-only bundles, incompatible bundle versions, missing provenance
-  sidecars, dangling sidecar references, and synthesis manifest integrity
-  failures all produce parseable failure envelopes with actionable
-  `synthesis_state` details (#914, closes the final Phase 7 release gap for
-  #469/#515).
-
 ### Removed
 
-## [3.2.0a6] — Tranche 2 (bug-only)
+## [3.2.0a6] - 2026-04-30
 
 Tranche 2 of the 3.2.0a6 release is a bug-only sweep that restores the
 documented fresh-project golden path (`init` → charter `setup`/`generate`/
@@ -37,6 +29,13 @@ runtime dependencies were introduced.
 
 ### Fixed
 
+- `charter bundle validate --json` now fail-closes on incomplete Charter
+  synthesis state while preserving strict JSON stdout. Sidecar-only bundles,
+  manifest-only bundles, incompatible bundle versions, missing provenance
+  sidecars, dangling sidecar references, and synthesis manifest integrity
+  failures all produce parseable failure envelopes with actionable
+  `synthesis_state` details (#914, closes the final Phase 7 release gap for
+  #469/#515).
 - Stamp `schema_version` and a `schema_capabilities` block in
   `.kittify/metadata.yaml` on `spec-kitty init` so a fresh project no
   longer requires hand-edits before subsequent CLI commands; existing
