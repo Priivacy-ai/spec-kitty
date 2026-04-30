@@ -8,6 +8,9 @@ from specify_cli.dashboard.templates import get_dashboard_html
 
 pytestmark = pytest.mark.fast
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DASHBOARD_JS = REPO_ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"
+
 
 def test_dashboard_template_references_static_assets():
     html = get_dashboard_html()
@@ -39,10 +42,8 @@ def test_dashboard_javascript_has_valid_syntax():
     if shutil.which("node") is None:
         pytest.skip("node is required for dashboard.js syntax validation")
 
-    repo_root = Path(__file__).resolve().parents[2]
-    dashboard_js = repo_root / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"
     result = subprocess.run(
-        ["node", "--check", str(dashboard_js)],
+        ["node", "--check", str(DASHBOARD_JS)],
         capture_output=True,
         text=True,
         check=False,
@@ -52,10 +53,30 @@ def test_dashboard_javascript_has_valid_syntax():
 
 
 def test_dashboard_features_polling_guards_malformed_payloads():
-    repo_root = Path(__file__).resolve().parents[2]
-    dashboard_js = repo_root / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"
-    source = dashboard_js.read_text(encoding="utf-8")
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
 
     assert "function normalizeFeatureList(features)" in source
     assert "Array.isArray(data.features)" in source
     assert "response.ok" in source
+
+
+def test_dashboard_overview_mission_copy_uses_text_nodes():
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+
+    assert '<h3 id="overview-title"></h3>' in source
+    assert "titleEl.textContent = `Mission Run: ${feature.name}`;" in source
+    assert "introEl.textContent = purposeTldr;" in source
+    assert "contextEl.textContent = purposeContext;" in source
+    assert "<h3>Mission Run: ${feature.name}" not in source
+    assert "${purposeTldr}</p>" not in source
+    assert "${purposeContext}</p>" not in source
+
+
+def test_dashboard_selector_options_use_dom_text_nodes():
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+
+    assert "document.createElement('option')" in source
+    assert "option.textContent = getFeatureDisplayName(f);" in source
+    assert "select.replaceChildren(options);" in source
+    assert "select.innerHTML = features.map" not in source
+    assert '<option value="${f.id}"' not in source
