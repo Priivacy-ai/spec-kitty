@@ -263,3 +263,4 @@ This is pre-existing issue #889 and is not related to Tranche 2.5 auth changes.
 ## Activity Log
 
 - 2026-04-30T13:55:30Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=39407 – Started implementation via action command
+- 2026-04-30T13:58:48Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=39407 – Ready for review: all focused test suites pass (15 logout + 30 doctor + 356 auth/status), zero legacy api/v1/logout references, dev smoke checklist written
