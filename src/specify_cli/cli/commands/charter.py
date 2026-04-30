@@ -78,7 +78,7 @@ def _resolve_actor() -> str:
         email = result.stdout.strip()
         if email:
             return email
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — git may be absent or misconfigured; fall back to "cli" identity
         pass
     return "cli"
 
@@ -124,7 +124,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         try:
             from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer
             GlossaryEntityPageRenderer(repo_root).generate_all()
-        except Exception as _ep_exc:  # noqa: BLE001
+        except Exception as _ep_exc:  # noqa: BLE001 — entity-page generation is optional; failure is logged and ignored
             logger.debug("entity page generation failed (non-fatal): %s", _ep_exc)
         canonical_root = (
             sync_result.canonical_root
@@ -243,10 +243,10 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
             verify(manifest, repo_root)
             state = "valid"
             error = None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — manifest verification errors are non-fatal; record as invalid state
             state = "invalid"
             error = str(exc)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — manifest YAML load failure is non-fatal; return invalid status dict
         return (
             {
                 "path": _display_path(manifest_path, repo_root),
@@ -315,7 +315,7 @@ def _collect_provenance_status(
         rel_path = _display_path(path, repo_root)
         try:
             entry = load_provenance(path)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — per-provenance-file failure must not abort the full provenance scan
             warnings.append(f"{rel_path}: {exc}")
             continue
 
@@ -979,7 +979,7 @@ def interview(  # noqa: C901
                 if prereq_state.all_satisfied:
                     widen_flow = WidenFlow(_saas_client, repo_root, console)
                     widen_store = WidenPendingStore(repo_root, mission_slug)
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001 — SaaS prereq check is optional; failure keeps prereq_state ABSENT (non-fatal)
                 pass  # non-fatal; prereq_state stays ABSENT
 
         # Resolve mission_id for widen endpoint (ULID from meta.json)

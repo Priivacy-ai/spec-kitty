@@ -336,7 +336,7 @@ def create_cmd(
     # Locate repo root and load tracker config
     try:
         repo_root = require_repo_root()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — repo-root resolution failure is reported to stderr then converted to Exit(1)
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
         raise typer.Exit(1) from exc
 

@@ -52,6 +52,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import ops as ops_module
     from . import profiles_cmd as profiles_cmd_module
     from . import research as research_module
+    from . import review as review_module
     from . import sync as sync_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
@@ -89,6 +90,7 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
     app.command()(research_module.research)
+    app.command(name="review")(review_module.review_mission)
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")

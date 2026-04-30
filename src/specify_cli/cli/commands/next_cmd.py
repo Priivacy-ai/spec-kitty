@@ -113,6 +113,9 @@ def next_step(
 
     _print_decision(decision, json_output, answered_id, answer)
 
+    if not json_output:
+        _print_stalled_wp_interventions(mission_slug, repo_root)
+
     if decision.kind == "blocked":
         raise typer.Exit(1)
 
@@ -501,3 +504,36 @@ def _print_progress(decision) -> None:
         if total > 0:
             pct = int(p.get("weighted_percentage", 0))
             print(f"  Progress: {pct}% ({done}/{total} done)")
+
+
+def _print_stalled_wp_interventions(mission_slug: str, repo_root: object) -> None:
+    """Print intervention commands for any stalled in_review WPs.
+
+    Calls show_kanban_status() in silent mode and surfaces stalled WPs found
+    in the return dict.  Failures are swallowed — this is observability only.
+    """
+    try:
+        import io
+        import contextlib
+        from specify_cli.agent_utils.status import show_kanban_status
+
+        # Suppress board output — we only want the stalled_wps data
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            status_result = show_kanban_status(mission_slug)
+
+        stalled = status_result.get("stalled_wps", [])
+        for stall in stalled:
+            wp_id = stall["wp_id"]
+            age_m = stall["age_minutes"]
+            slug = stall.get("mission_slug", mission_slug)
+            print(
+                f"\n⚠  {wp_id} has been in_review for {age_m}m — reviewer may be stalled.\n"
+                f"   Intervention options:\n"
+                f"     spec-kitty agent tasks move-task {wp_id} --to approved --force "
+                f"--note 'Approved after {age_m}m stall' --mission {slug}\n"
+                f"     spec-kitty agent tasks move-task {wp_id} --to planned "
+                f"--review-feedback-file <path> --mission {slug}"
+            )
+    except Exception:  # noqa: BLE001 — stall check is observability only
+        pass

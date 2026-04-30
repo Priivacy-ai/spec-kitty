@@ -62,7 +62,7 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     try:
         if not sys.stdout.isatty():
             return True
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — isatty() can raise on exotic stream objects; treat as non-tty (safe to suppress)
         return True
 
     return False
@@ -256,10 +256,10 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
                     last_shown_at=now,
                 )
             nag_cache.write(updated_record)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 — nag-cache write is best-effort; failure must not block the CLI
             pass  # Cache update failure is non-fatal.
 
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — nag rendering must never crash the CLI; planner errors are suppressed here
         # Fail open for nag rendering: if the planner errors, don't block the CLI.
         pass
 

@@ -123,6 +123,14 @@ For each subtask:
 - Code follows project conventions (run linter if configured)
 - No unintended side effects or regressions
 - Changes are well-documented where appropriate
+- [ ] **Error-path reachability (deletion test)**: For each test that validates
+  an error path, verify the test would fail if the implementation fix were
+  deleted. A test that validates only the *structure* of an exception handler
+  (e.g., that a `try/except` exists) without exercising the real dependency is
+  insufficient. Apply the deletion test: temporarily delete the implementation
+  change, run the test, confirm it fails. If it does not fail, the error path
+  is untested — the test validates structure, not behaviour. Restore the fix
+  before proceeding.
 
 ---
 
