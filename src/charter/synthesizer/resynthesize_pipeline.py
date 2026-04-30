@@ -47,7 +47,7 @@ from .manifest import (
     load_yaml as load_manifest,
 )
 from .request import SynthesisRequest, SynthesisTarget
-from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
+from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version, canonical_yaml
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
 
 
@@ -140,7 +140,7 @@ def _rewrite_manifest(
         rel_prov = f".kittify/charter/provenance/{kind}-{slug}.yaml"
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
-            kind=kind,  # type: ignore[arg-type]
+            kind=kind,
             slug=slug,
             path=rel_content,
             provenance_path=rel_prov,
@@ -161,8 +161,9 @@ def _rewrite_manifest(
             merged.append(entry)
 
     # Add genuinely new artifacts (not previously in the manifest)
-    for key, new_entry in new_entries_by_key.items():
-        if key not in existing_keys:
+    for raw_key, new_entry in new_entries_by_key.items():
+        str_key: tuple[str, str] = (raw_key[0], raw_key[1])
+        if str_key not in existing_keys:
             merged.append(new_entry)
 
     # Adapter identity (aggregate from new results; fall back to existing)
@@ -173,14 +174,33 @@ def _rewrite_manifest(
         primary_adapter_id = existing.adapter_id
         primary_adapter_version = existing.adapter_version
 
+    synthesizer_ver = _get_synthesizer_version()
+    sorted_merged = sorted(merged, key=lambda e: (e.kind, e.slug))
+    created_at = datetime.now(tz=UTC).isoformat()
+
+    # Compute manifest_hash over all fields except manifest_hash itself.
+    # canonical_yaml() returns bytes — do NOT call .encode() on its result.
+    manifest_data_without_hash: dict[str, Any] = {
+        "schema_version": "2",
+        "mission_id": existing.mission_id,
+        "created_at": created_at,
+        "run_id": run_id,
+        "adapter_id": primary_adapter_id,
+        "adapter_version": primary_adapter_version,
+        "synthesizer_version": synthesizer_ver,
+        "artifacts": [e.model_dump(mode="python") for e in sorted_merged],
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()
+
     return SynthesisManifest(
-        schema_version="1",
         mission_id=existing.mission_id,
-        created_at=datetime.now(tz=UTC).isoformat(),
+        created_at=created_at,
         run_id=run_id,
         adapter_id=primary_adapter_id,
         adapter_version=primary_adapter_version,
-        artifacts=sorted(merged, key=lambda e: (e.kind, e.slug)),
+        synthesizer_version=synthesizer_ver,
+        manifest_hash=manifest_hash,
+        artifacts=sorted_merged,
     )
 
 
@@ -522,15 +542,15 @@ def _load_merged_drg(
 
     project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
     if not project_graph_path.exists():
-        return request.drg_snapshot
+        return request.drg_snapshot  # type: ignore[no-any-return]
 
     yaml = YAML()
     try:
         project_graph = yaml.load(project_graph_path.read_text(encoding="utf-8"))
         if not isinstance(project_graph, dict):
-            return request.drg_snapshot
+            return request.drg_snapshot  # type: ignore[no-any-return]
     except Exception:  # noqa: BLE001
-        return request.drg_snapshot
+        return request.drg_snapshot  # type: ignore[no-any-return]
 
     # Merge: combine nodes from both graphs (project overlay + shipped snapshot)
     shipped_nodes = list(request.drg_snapshot.get("nodes", []))

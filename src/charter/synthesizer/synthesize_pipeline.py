@@ -37,9 +37,10 @@ import hashlib
 import io
 import json
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from ruamel.yaml import YAML
 
 from .adapter import AdapterOutput, SynthesisAdapter
@@ -48,6 +49,20 @@ from .interview_mapping import resolve_sections
 from .orchestrator import SynthesisResult
 from .request import SynthesisRequest, SynthesisTarget, compute_inputs_hash, _evidence_to_jsonable
 from .targets import build_targets, detect_duplicates, order_targets
+
+
+def _get_synthesizer_version() -> str:
+    """Return the installed spec-kitty-cli version, falling back to a dev sentinel."""
+    try:
+        from importlib.metadata import version
+        return version("spec-kitty-cli")
+    except Exception:  # noqa: BLE001
+        try:
+            import specify_cli
+            v: str = str(specify_cli.__version__)
+            return v
+        except Exception:  # noqa: BLE001
+            return "0.0.0-dev"
 
 
 # ---------------------------------------------------------------------------
@@ -63,11 +78,14 @@ class ProvenanceEntry(BaseModel):
     so that WP03's on-disk YAML bytes produce the same hash.
 
     See data-model.md §E-4 for full field documentation.
+
+    Schema version 2 (Phase 7): added synthesizer_version, source_input_ids,
+    produced_at, synthesis_run_id; promoted corpus_snapshot_id to non-Optional.
     """
 
     model_config = ConfigDict(frozen=True)
 
-    schema_version: Literal["1"] = "1"
+    schema_version: Literal["2"] = "2"
     artifact_urn: str
     artifact_kind: Literal["directive", "tactic", "styleguide"]
     artifact_slug: str
@@ -79,17 +97,30 @@ class ProvenanceEntry(BaseModel):
 
     adapter_id: str
     adapter_version: str
+    synthesizer_version: str = Field(..., min_length=1)
+    """Version of the spec-kitty-cli package that produced this provenance entry."""
+
     source_section: str | None
     source_urns: list[str]
+    source_input_ids: list[str]
+    """Mirror of source_urns at write time — stable list of input URN identifiers."""
+
     generated_at: str
     """ISO 8601 UTC string from ``AdapterOutput.generated_at``."""
 
-    adapter_notes: str | None = None
+    produced_at: str
+    """ISO 8601 UTC string stamped at write time by the promote pipeline."""
+
+    corpus_snapshot_id: str
+    """snapshot_id from EvidenceBundle.corpus_snapshot, or ``"(none)"`` sentinel."""
+
+    synthesis_run_id: str = Field(..., min_length=1)
+    """ULID of the staging run that wrote this provenance sidecar."""
+
     evidence_bundle_hash: str | None = None
     """SHA-256 hex digest of the serialized EvidenceBundle, or None if absent."""
 
-    corpus_snapshot_id: str | None = None
-    """snapshot_id from EvidenceBundle.corpus_snapshot, or None if absent."""
+    adapter_notes: str | None = None
 
     @model_validator(mode="after")
     def _check_source_provenance(self) -> ProvenanceEntry:
@@ -398,18 +429,22 @@ def run(
 
         provenance = ProvenanceEntry(
             artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=target.kind,  # type: ignore[arg-type]
+            artifact_kind=target.kind,
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
             inputs_hash=inputs_hash,
             adapter_id=effective_adapter_id,
             adapter_version=effective_adapter_version,
+            synthesizer_version=_get_synthesizer_version(),
             source_section=target.source_section,
             source_urns=list(target.source_urns),
+            source_input_ids=list(target.source_urns),
             generated_at=generated_at_str,
-            adapter_notes=output.notes,
+            produced_at=datetime.now(timezone.utc).isoformat(),
+            corpus_snapshot_id=corpus_id or "(none)",
+            synthesis_run_id=request.run_id,
             evidence_bundle_hash=evidence_hash,
-            corpus_snapshot_id=corpus_id,
+            adapter_notes=output.notes,
         )
 
         results.append((output.body, provenance))
@@ -528,18 +563,22 @@ def run_all(
 
         provenance = ProvenanceEntry(
             artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=target.kind,  # type: ignore[arg-type]
+            artifact_kind=target.kind,
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
             inputs_hash=inputs_hash,
             adapter_id=effective_adapter_id,
             adapter_version=effective_adapter_version,
+            synthesizer_version=_get_synthesizer_version(),
             source_section=target.source_section,
             source_urns=list(target.source_urns),
+            source_input_ids=list(target.source_urns),
             generated_at=generated_at_str,
-            adapter_notes=output.notes,
+            produced_at=datetime.now(timezone.utc).isoformat(),
+            corpus_snapshot_id=corpus_id or "(none)",
+            synthesis_run_id=request.run_id,
             evidence_bundle_hash=evidence_hash,
-            corpus_snapshot_id=corpus_id,
+            adapter_notes=output.notes,
         )
 
         results.append((output.body, provenance))

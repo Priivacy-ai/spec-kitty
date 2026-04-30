@@ -64,11 +64,15 @@ class SynthesisManifest(BaseModel):
     partial-promote states: manifest absent → partial; manifest present but
     hash mismatch → corrupt; manifest present + all hashes pass → live tree
     is authoritative.
+
+    Schema version 2 (Phase 7): added synthesizer_version and manifest_hash.
+    ``manifest_hash`` is the SHA-256 hex digest of ``canonical_yaml(all fields
+    except manifest_hash)`` — allows readers to verify manifest self-integrity.
     """
 
     model_config = ConfigDict(frozen=True)
 
-    schema_version: Literal["1"] = "1"
+    schema_version: Literal["2"] = "2"
     mission_id: str | None = None
     created_at: str
     """ISO 8601 UTC timestamp."""
@@ -81,6 +85,12 @@ class SynthesisManifest(BaseModel):
 
     adapter_version: str
     """Primary adapter version.  Empty string for mixed-identity runs."""
+
+    synthesizer_version: str = Field(..., min_length=1)
+    """Version of the spec-kitty-cli package that produced this manifest."""
+
+    manifest_hash: str = Field(..., min_length=64, max_length=64)
+    """SHA-256 hex digest of canonical_yaml(all manifest fields except manifest_hash)."""
 
     artifacts: list[ManifestArtifactEntry] = Field(default_factory=list)
     """One entry per committed artifact, in deterministic order."""

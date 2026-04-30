@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.hasher import hash_content
+from doctrine.versioning import CURRENT_BUNDLE_SCHEMA_VERSION
 from charter.parser import CharterParser, CharterSection
 from charter.schemas import (
     BranchStrategyConfig,
@@ -333,6 +334,7 @@ class Extractor:
             source_path=".kittify/charter/charter.md",
             extraction_mode=extraction_mode,
             sections_parsed=sections_parsed,
+            bundle_schema_version=CURRENT_BUNDLE_SCHEMA_VERSION,
         )
 
     def _classify_section(self, heading: str) -> tuple[str, str] | None:

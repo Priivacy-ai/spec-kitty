@@ -527,8 +527,8 @@ class TestProvenanceEntryFields:
         results = run_all(request, adapter=adapter)
         _, prov = results[0]
 
-        # All required fields from data-model.md §E-4
-        assert prov.schema_version == "1"
+        # All required fields from data-model.md §E-4 (v2)
+        assert prov.schema_version == "2"
         assert prov.artifact_urn
         assert prov.artifact_kind in {"directive", "tactic", "styleguide"}
         assert prov.artifact_slug
@@ -536,7 +536,11 @@ class TestProvenanceEntryFields:
         assert prov.inputs_hash
         assert prov.adapter_id
         assert prov.adapter_version
+        assert prov.synthesizer_version
         assert prov.generated_at
+        assert prov.produced_at
+        assert prov.corpus_snapshot_id
+        assert prov.synthesis_run_id
 
     def test_provenance_inputs_hash_is_hex(self) -> None:
         """inputs_hash is a full hex string."""

@@ -116,6 +116,7 @@ class ExtractionMetadata(BaseModel):
     source_path: str = ".kittify/charter/charter.md"
     extraction_mode: str = "deterministic"  # "deterministic" | "hybrid" | "ai_only"
     sections_parsed: SectionsParsed = Field(default_factory=SectionsParsed)
+    bundle_schema_version: int | None = None
 
 
 def emit_yaml(model: BaseModel, path: Path) -> None:
