@@ -507,3 +507,4 @@ cd src && pytest ../tests/charter/synthesizer/test_schema_conformance.py -v
 ## Activity Log
 
 - 2026-04-30T07:30:08Z – claude:sonnet-4-6:implementer:implementer – shell_pid=68505 – Started implementation via action command
+- 2026-04-30T07:40:04Z – claude:sonnet-4-6:implementer:implementer – shell_pid=68505 – Ready for review: migrate_v1_to_v2 implemented, CharterBundleV2Migration registered, reader blocks in charter status/resynthesize/bundle validate, 41 tests passing
