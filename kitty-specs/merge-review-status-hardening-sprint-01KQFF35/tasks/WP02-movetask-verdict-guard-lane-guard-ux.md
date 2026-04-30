@@ -293,3 +293,7 @@ Two independent improvements to `src/specify_cli/cli/commands/agent/tasks.py`:
 - Manually run: `spec-kitty agent tasks move-task WP01 --to approved --force` on a WP whose review-cycle-1.md has `verdict: rejected`. Confirm exit 1 and the named file in the error.
 - Check `--help` output for `--skip-review-artifact-check`.
 - The lane guard test verifies the message content; also read the changed message in the source to confirm it's human-readable.
+
+## Activity Log
+
+- 2026-04-30T17:38:16Z – claude – shell_pid=45728 – Ready for review: verdict guard + lane guard UX improvements
