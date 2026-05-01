@@ -21,6 +21,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from specify_cli.dossier.emitter_adapter import fire_dossier_event
+
 logger = logging.getLogger(__name__)
 
 
@@ -227,17 +229,13 @@ def emit_artifact_indexed(
         if namespace is not None:
             payload_dict["namespace"] = namespace
 
-        # Route via sync emitter API
-        from specify_cli.sync.events import get_emitter
-
-        emitter = get_emitter()
-        event = emitter._emit(
+        # Route via the registered dossier emitter (inversion of dossier→sync)
+        return fire_dossier_event(
             event_type="MissionDossierArtifactIndexed",
             aggregate_id=f"{mission_slug}:{artifact_key}",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
-        return event
 
     except ValueError as e:
         logger.error(f"Payload validation failed for artifact_indexed: {e}")
@@ -293,17 +291,13 @@ def emit_artifact_missing(
         if namespace is not None:
             payload_dict["namespace"] = namespace
 
-        # Route via sync emitter API
-        from specify_cli.sync.events import get_emitter
-
-        emitter = get_emitter()
-        event = emitter._emit(
+        # Route via the registered dossier emitter (inversion of dossier→sync)
+        return fire_dossier_event(
             event_type="MissionDossierArtifactMissing",
             aggregate_id=f"{mission_slug}:{artifact_key}",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
-        return event
 
     except ValueError as e:
         logger.error(f"Payload validation failed for artifact_missing: {e}")
@@ -365,17 +359,13 @@ def emit_snapshot_computed(
         if namespace is not None:
             payload_dict["namespace"] = namespace
 
-        # Route via sync emitter API
-        from specify_cli.sync.events import get_emitter
-
-        emitter = get_emitter()
-        event = emitter._emit(
+        # Route via the registered dossier emitter (inversion of dossier→sync)
+        return fire_dossier_event(
             event_type="MissionDossierSnapshotComputed",
             aggregate_id=f"{mission_slug}:{snapshot_id}",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
-        return event
 
     except ValueError as e:
         logger.error(f"Payload validation failed for snapshot_computed: {e}")
@@ -428,17 +418,13 @@ def emit_parity_drift_detected(
         if namespace is not None:
             payload_dict["namespace"] = namespace
 
-        # Route via sync emitter API
-        from specify_cli.sync.events import get_emitter
-
-        emitter = get_emitter()
-        event = emitter._emit(
+        # Route via the registered dossier emitter (inversion of dossier→sync)
+        return fire_dossier_event(
             event_type="MissionDossierParityDriftDetected",
             aggregate_id=f"{mission_slug}:drift",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
-        return event
 
     except ValueError as e:
         logger.error(f"Payload validation failed for parity_drift_detected: {e}")

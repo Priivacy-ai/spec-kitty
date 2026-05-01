@@ -121,3 +121,70 @@ __all__ = [
     "saas_sync_disabled_message",
     "emit_diagnostic",
 ]
+
+
+# ─── Adapter registration (run at import time) ─────────────────────────
+# Register handlers so that canonical status events trigger SaaS sync
+# and dossier-sync side effects, and dossier event emission routes
+# through the existing sync emitter, without status/emit.py or
+# dossier/events.py depending on the sync package.
+#
+# This block must remain at the BOTTOM of the file (after all imports
+# and __all__). We narrow contextlib.suppress to ImportError only so
+# that real bugs (SyntaxError, AttributeError, broken APIs) surface
+# during sync package init rather than producing a silent no-op
+# fan-out. ImportError covers the legitimate compatibility case where
+# optional sync sub-modules are absent (0.1x environments / test
+# stubs); anything else is a defect.
+import contextlib as _contextlib  # noqa: E402
+
+with _contextlib.suppress(ImportError):
+    from specify_cli.status.adapters import (
+        register_dossier_sync_handler,
+        register_saas_fanout_handler,
+    )
+
+    # Late-binding wrappers: look up sync targets at call time so that
+    # tests which patch the underlying module attributes (e.g.
+    # ``patch("specify_cli.sync.events.emit_wp_status_changed")``)
+    # observe the patch on every invocation. Registering the targets
+    # directly would capture the original function reference and bypass
+    # such patches.
+    def _dossier_sync_handler(feature_dir, mission_slug, repo_root):  # type: ignore[no-untyped-def]
+        from specify_cli.sync.dossier_pipeline import (
+            trigger_feature_dossier_sync_if_enabled,
+        )
+
+        trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
+
+    def _saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
+        from specify_cli.sync.events import emit_wp_status_changed
+
+        emit_wp_status_changed(**kwargs)
+
+    register_dossier_sync_handler(_dossier_sync_handler)
+    register_saas_fanout_handler(_saas_fanout_handler)
+
+with _contextlib.suppress(ImportError):
+    # Register dossier emitter (WP01 inversion). The wrapper routes
+    # through get_emitter() lazily so the late-binding behavior of the
+    # emitter singleton is preserved across resets.
+    from specify_cli.dossier.emitter_adapter import register_dossier_emitter
+
+    def _dossier_emit_via_sync(
+        *,
+        event_type: str,
+        aggregate_id: str,
+        aggregate_type: str,
+        payload: dict,
+    ) -> dict:
+        from specify_cli.sync.events import get_emitter
+
+        return get_emitter()._emit(
+            event_type=event_type,
+            aggregate_id=aggregate_id,
+            aggregate_type=aggregate_type,
+            payload=payload,
+        )
+
+    register_dossier_emitter(_dossier_emit_via_sync)

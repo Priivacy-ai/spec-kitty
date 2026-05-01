@@ -105,12 +105,12 @@ def _stub_dossier_resolvers(monkeypatch, tmp_path):
     These are imported from their source modules at call time, so we patch
     at the source — not on dossier_pipeline itself.
     """
-    from specify_cli.sync.project_identity import ProjectIdentity
+    from specify_cli.identity.project import ProjectIdentity
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from uuid import uuid4
 
     monkeypatch.setattr(
-        "specify_cli.sync.project_identity.ensure_identity",
+        "specify_cli.identity.project.ensure_identity",
         lambda _root: ProjectIdentity(project_uuid=uuid4(), project_slug="p"),
     )
     monkeypatch.setattr(
@@ -199,10 +199,10 @@ class TestDossierPipelineNoRuntime:
     def test_no_project_uuid_returns_none(self, _flag, tmp_path, monkeypatch):
         """When project_uuid is None, returns None without touching runtime."""
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-        from specify_cli.sync.project_identity import ProjectIdentity
+        from specify_cli.identity.project import ProjectIdentity
 
         monkeypatch.setattr(
-            "specify_cli.sync.project_identity.ensure_identity",
+            "specify_cli.identity.project.ensure_identity",
             lambda _root: ProjectIdentity(),  # no project_uuid
         )
 
@@ -217,7 +217,7 @@ class TestDossierPipelineNoRuntime:
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 
         monkeypatch.setattr(
-            "specify_cli.sync.project_identity.ensure_identity",
+            "specify_cli.identity.project.ensure_identity",
             MagicMock(side_effect=RuntimeError("boom")),
         )
 

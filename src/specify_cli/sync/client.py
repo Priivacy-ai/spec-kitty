@@ -32,7 +32,7 @@ from specify_cli.sync.feature_flags import (
     is_saas_sync_enabled,
     saas_sync_disabled_message,
 )
-from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.identity.project import ProjectIdentity
 
 
 class ConnectionStatus:

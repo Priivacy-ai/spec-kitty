@@ -611,7 +611,7 @@ class TestBindMissionOrigin:
         )
 
         with (
-            patch("specify_cli.sync.project_identity.ensure_identity", return_value=identity),
+            patch("specify_cli.identity.project.ensure_identity", return_value=identity),
             patch("specify_cli.sync.events.get_emitter"),
         ):
             result, _ = bind_mission_origin(

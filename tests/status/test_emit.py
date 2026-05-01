@@ -972,9 +972,11 @@ class TestSaasFanOut:
                 "specify_cli.sync.events.emit_wp_status_changed",
                 side_effect=RuntimeError("network error"),
             ),
-            patch("specify_cli.status.emit.logger") as mock_logger,
+            patch("specify_cli.status.adapters.logger") as mock_logger,
         ):
-            # Should not raise
+            # Should not raise. After P1.3 the warning is logged by the
+            # adapter (specify_cli.status.adapters) rather than by
+            # status.emit, since the try/except moved into fire_saas_fanout.
             _saas_fan_out(event, "034-test-feature", None)
             mock_logger.warning.assert_called_once()
 

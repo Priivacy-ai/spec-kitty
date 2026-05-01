@@ -12,7 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -364,17 +364,15 @@ class TestMissionDossierParityDriftDetectedPayload:
 class TestEmitArtifactIndexed:
     """Tests for emit_artifact_indexed emitter function."""
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_artifact_indexed_success(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_artifact_indexed_success(self, mock_fire):
         """emit_artifact_indexed should emit event to sync infrastructure."""
-        mock_emitter = MagicMock()
         mock_event = {
             "event_id": "event-001",
             "event_type": "MissionDossierArtifactIndexed",
             "timestamp": "2026-02-21T12:00:00+00:00",
         }
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_artifact_indexed(
             mission_slug="042-feature",
@@ -389,8 +387,8 @@ class TestEmitArtifactIndexed:
         )
 
         assert result == mock_event
-        mock_emitter._emit.assert_called_once()
-        call_args = mock_emitter._emit.call_args
+        mock_fire.assert_called_once()
+        call_args = mock_fire.call_args
         assert call_args[1]["event_type"] == "MissionDossierArtifactIndexed"
         assert call_args[1]["aggregate_type"] == "MissionDossier"
 
@@ -409,13 +407,11 @@ class TestEmitArtifactIndexed:
         assert result is None
         assert "Payload validation failed" in caplog.text
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_artifact_indexed_with_minimal_fields(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_artifact_indexed_with_minimal_fields(self, mock_fire):
         """emit_artifact_indexed should work with minimal fields."""
-        mock_emitter = MagicMock()
         mock_event = {"event_id": "event-001", "event_type": "MissionDossierArtifactIndexed"}
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_artifact_indexed(
             mission_slug="042-feature",
@@ -433,16 +429,14 @@ class TestEmitArtifactIndexed:
 class TestEmitArtifactMissing:
     """Tests for emit_artifact_missing emitter function."""
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_artifact_missing_blocking_true(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_artifact_missing_blocking_true(self, mock_fire):
         """emit_artifact_missing should emit event when blocking=True."""
-        mock_emitter = MagicMock()
         mock_event = {
             "event_id": "event-002",
             "event_type": "MissionDossierArtifactMissing",
         }
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_artifact_missing(
             mission_slug="042-feature",
@@ -454,7 +448,7 @@ class TestEmitArtifactMissing:
         )
 
         assert result == mock_event
-        mock_emitter._emit.assert_called_once()
+        mock_fire.assert_called_once()
 
     def test_emit_artifact_missing_blocking_false(self, caplog):
         """emit_artifact_missing should skip event when blocking=False."""
@@ -489,16 +483,14 @@ class TestEmitArtifactMissing:
 class TestEmitSnapshotComputed:
     """Tests for emit_snapshot_computed emitter function."""
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_snapshot_computed_complete(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_snapshot_computed_complete(self, mock_fire):
         """emit_snapshot_computed should emit event with complete status."""
-        mock_emitter = MagicMock()
         mock_event = {
             "event_id": "event-003",
             "event_type": "MissionDossierSnapshotComputed",
         }
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_snapshot_computed(
             mission_slug="042-feature",
@@ -514,18 +506,16 @@ class TestEmitSnapshotComputed:
         )
 
         assert result == mock_event
-        mock_emitter._emit.assert_called_once()
+        mock_fire.assert_called_once()
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_snapshot_computed_incomplete(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_snapshot_computed_incomplete(self, mock_fire):
         """emit_snapshot_computed should emit event with incomplete status."""
-        mock_emitter = MagicMock()
         mock_event = {
             "event_id": "event-003",
             "event_type": "MissionDossierSnapshotComputed",
         }
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_snapshot_computed(
             mission_slug="042-feature",
@@ -564,16 +554,14 @@ class TestEmitSnapshotComputed:
 class TestEmitParityDriftDetected:
     """Tests for emit_parity_drift_detected emitter function."""
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_parity_drift_detected_with_drift(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_parity_drift_detected_with_drift(self, mock_fire):
         """emit_parity_drift_detected should emit event when hashes differ."""
-        mock_emitter = MagicMock()
         mock_event = {
             "event_id": "event-004",
             "event_type": "MissionDossierParityDriftDetected",
         }
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_parity_drift_detected(
             mission_slug="042-feature",
@@ -585,7 +573,7 @@ class TestEmitParityDriftDetected:
         )
 
         assert result == mock_event
-        mock_emitter._emit.assert_called_once()
+        mock_fire.assert_called_once()
 
     def test_emit_parity_drift_detected_no_drift(self, caplog):
         """emit_parity_drift_detected should skip event when hashes match."""
@@ -612,13 +600,11 @@ class TestEmitParityDriftDetected:
         assert result is None
         assert "Payload validation failed" in caplog.text
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emit_parity_drift_detected_error_severity(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emit_parity_drift_detected_error_severity(self, mock_fire):
         """emit_parity_drift_detected should emit with error severity."""
-        mock_emitter = MagicMock()
         mock_event = {"event_id": "event-004", "event_type": "MissionDossierParityDriftDetected"}
-        mock_emitter._emit.return_value = mock_event
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = mock_event
 
         result = emit_parity_drift_detected(
             mission_slug="042-feature",
@@ -633,12 +619,10 @@ class TestEmitParityDriftDetected:
 class TestEventEnvelopeMetadata:
     """Tests for event envelope metadata auto-population."""
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emitter_calls_with_correct_aggregate_type(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emitter_calls_with_correct_aggregate_type(self, mock_fire):
         """All dossier events should use 'MissionDossier' aggregate_type."""
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {}
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = {}
 
         emit_artifact_indexed(
             mission_slug="042-feature",
@@ -650,15 +634,13 @@ class TestEventEnvelopeMetadata:
             required_status="required",
         )
 
-        call_kwargs = mock_emitter._emit.call_args[1]
+        call_kwargs = mock_fire.call_args[1]
         assert call_kwargs["aggregate_type"] == "MissionDossier"
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_emitter_constructs_aggregate_id(self, mock_get_emitter):
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_emitter_constructs_aggregate_id(self, mock_fire):
         """Events should construct aggregate_id from mission_slug and key."""
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {}
-        mock_get_emitter.return_value = mock_emitter
+        mock_fire.return_value = {}
 
         emit_artifact_indexed(
             mission_slug="042-feature",
@@ -670,5 +652,5 @@ class TestEventEnvelopeMetadata:
             required_status="required",
         )
 
-        call_kwargs = mock_emitter._emit.call_args[1]
+        call_kwargs = mock_fire.call_args[1]
         assert call_kwargs["aggregate_id"] == "042-feature:input.spec.main"

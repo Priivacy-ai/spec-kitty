@@ -168,7 +168,7 @@ def get_emitter() -> EventEmitter:
 
                 # Ensure identity exists before creating emitter
                 try:
-                    from .project_identity import ensure_identity
+                    from specify_cli.identity.project import ensure_identity
 
                     if repo_root is not None:
                         ensure_identity(repo_root)

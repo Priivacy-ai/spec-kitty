@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from specify_cli.sync.project_identity import ProjectIdentity
+    from specify_cli.identity.project import ProjectIdentity
 
 logger = logging.getLogger(__name__)
 
