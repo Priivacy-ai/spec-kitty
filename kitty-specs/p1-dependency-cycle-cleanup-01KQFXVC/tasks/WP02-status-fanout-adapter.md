@@ -23,8 +23,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: claude
-shell_pid: '90882'
+agent: "codex:gpt-4o:python-pedro:reviewer"
+shell_pid: "79820"
 history:
 - date: '2026-04-30'
   event: Created
@@ -624,3 +624,4 @@ This test guards against the regression where the registry pattern silently drop
 ## Activity Log
 
 - 2026-05-01T07:14:46Z – claude – shell_pid=90882 – WP02 complete: status/adapters.py + emit.py + sync/__init__.py registration + 2 architectural tests + fan-out preservation regression test. 537 status + 1456 sync tests pass.
+- 2026-05-01T07:15:16Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=79820 – Started review via action command
