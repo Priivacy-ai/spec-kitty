@@ -13,11 +13,11 @@
 | T003 | Update `src/specify_cli/dossier/drift_detector.py`: change 1 runtime import line to use `identity.project` | WP01 | [D] |
 | T004 | Create `tests/architectural/test_dossier_sync_boundary.py`: AST-based guard asserting no `dossier → sync` imports | WP01 | [D] |
 | T005 | Verify WP01: ruff clean + dossier/sync/architectural tests pass; zero `dossier → sync` grep | WP01 | | [D] |
-| T006 | Create `src/specify_cli/status/adapters.py`: callback registry with `DossierSyncHandler`, `SaasFanOutHandler`, `register_*`, `fire_*` | WP02 | [P] |
-| T007 | Update `src/specify_cli/status/emit.py`: remove lazy `from specify_cli.sync.*` imports; call `fire_dossier_sync` / `fire_saas_fanout` | WP02 | [P] |
-| T008 | Register sync handlers at startup in `src/specify_cli/sync/__init__.py` (or daemon entry) | WP02 | [P] |
-| T009 | Create `tests/architectural/test_status_sync_boundary.py`: AST-based guard asserting no `status → sync` imports | WP02 | [P] |
-| T010 | Verify WP02: ruff clean + status/sync/contract/architectural tests pass; zero `status → sync` grep | WP02 | |
+| T006 | Create `src/specify_cli/status/adapters.py`: callback registry with `DossierSyncHandler`, `SaasFanOutHandler`, `register_*`, `fire_*` | WP02 | [D] |
+| T007 | Update `src/specify_cli/status/emit.py`: remove lazy `from specify_cli.sync.*` imports; call `fire_dossier_sync` / `fire_saas_fanout` | WP02 | [D] |
+| T008 | Register sync handlers at startup in `src/specify_cli/sync/__init__.py` (or daemon entry) | WP02 | [D] |
+| T009 | Create `tests/architectural/test_status_sync_boundary.py`: AST-based guard asserting no `status → sync` imports | WP02 | [D] |
+| T010 | Verify WP02: ruff clean + status/sync/contract/architectural tests pass; zero `status → sync` grep | WP02 | | [D] |
 
 ## Work Packages
 
@@ -70,11 +70,11 @@
 - `uv run ruff check src/specify_cli/status/adapters.py src/specify_cli/status/emit.py src/specify_cli/sync/__init__.py` exits 0
 
 **Included subtasks**:
-- [ ] T006 Create `src/specify_cli/status/adapters.py` (WP02)
-- [ ] T007 Update `src/specify_cli/status/emit.py` (WP02)
-- [ ] T008 Register handlers at sync startup (WP02)
-- [ ] T009 Create `tests/architectural/test_status_sync_boundary.py` (WP02)
-- [ ] T010 Full verification run (WP02)
+- [x] T006 Create `src/specify_cli/status/adapters.py` (WP02)
+- [x] T007 Update `src/specify_cli/status/emit.py` (WP02)
+- [x] T008 Register handlers at sync startup (WP02)
+- [x] T009 Create `tests/architectural/test_status_sync_boundary.py` (WP02)
+- [x] T010 Full verification run (WP02)
 
 **Implementation sketch**:
 1. Create `status/adapters.py` with two typed callback lists and `register_*` / `fire_*` API.
