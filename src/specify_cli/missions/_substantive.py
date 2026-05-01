@@ -63,10 +63,7 @@ _FR_TABLE_ROW = re.compile(
     r"^\s*\|\s*\*{0,2}FR-\d{3}\*{0,2}\s*\|(?P<rest>[^\n]+)$",
     re.MULTILINE,
 )
-_FR_BULLET_ROW = re.compile(
-    r"^\s*[-*]\s*\*{0,2}FR-\d{3}\*{0,2}\s*[:\-]\s*(?P<desc>.+)$",
-    re.MULTILINE,
-)
+_FR_BULLET_PREFIXES: Final[tuple[str, ...]] = ("FR-", "**FR-")
 
 
 def _has_substantive_fr_row(body: str) -> bool:
@@ -91,14 +88,49 @@ def _has_substantive_fr_row(body: str) -> bool:
                 return True
 
     # Bullet-form rows: - **FR-###**: <description>
-    return any(_is_substantive_text(m.group("desc")) for m in _FR_BULLET_ROW.finditer(body))
+    return any(
+        _is_substantive_text(desc)
+        for line in body.splitlines()
+        if (desc := _extract_fr_bullet_description(line)) is not None
+    )
+
+
+def _extract_fr_bullet_description(line: str) -> str | None:
+    """Return a bullet FR description when ``line`` matches the scaffold shape."""
+    stripped = line.lstrip()
+    if not stripped or stripped[0] not in "-*":
+        return None
+    remainder = stripped[1:].lstrip()
+
+    for prefix in _FR_BULLET_PREFIXES:
+        if not remainder.startswith(prefix):
+            continue
+        if len(remainder) < len(prefix) + 3:
+            return None
+        digits = remainder[len(prefix) : len(prefix) + 3]
+        if not digits.isdigit():
+            return None
+        suffix = remainder[len(prefix) + 3 :]
+        if prefix.startswith("**"):
+            if not suffix.startswith("**"):
+                return None
+            suffix = suffix[2:]
+        suffix = suffix.lstrip()
+        if not suffix or suffix[0] not in ":-":
+            return None
+        desc = suffix[1:].strip()
+        return desc or None
+    return None
 
 
 # Recognises the empty user-story scaffold ("As a , I want  so that .") that
 # remains after placeholder stripping. Permits the single-letter article and
 # tolerates trailing punctuation/whitespace.
-_USER_STORY_SCAFFOLD = re.compile(
-    r"^As an?\s*,?\s*I want\s*,?\s*so that\s*\.?\s*$"
+_EMPTY_USER_STORY_SCAFFOLDS: Final[frozenset[str]] = frozenset(
+    {
+        "as a i want so that",
+        "as an i want so that",
+    }
 )
 
 
@@ -107,7 +139,8 @@ def _is_substantive_text(raw: str) -> bool:
     cleaned = _strip_placeholders(raw).strip()
     if not cleaned:
         return False
-    return not _USER_STORY_SCAFFOLD.match(cleaned)
+    normalized = " ".join(cleaned.rstrip(".").replace(",", " ").split()).lower()
+    return normalized not in _EMPTY_USER_STORY_SCAFFOLDS
 
 
 def _is_real_technical_context_value(raw: str) -> bool:

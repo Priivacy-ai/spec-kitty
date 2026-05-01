@@ -43,6 +43,13 @@ class ConnectionStatus:
     BATCH_MODE = "OfflineBatchMode"
 
 
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_WS_SCHEME_MAP = {
+    "http": "ws",
+    "https": "wss",
+}
+
+
 class WebSocketClient:
     """
     WebSocket client for spec-kitty sync protocol.
@@ -260,24 +267,27 @@ class WebSocketClient:
     @staticmethod
     def _normalize_ws_url(ws_url: str) -> str:
         """Convert provisioned HTTP(S) URLs to WS(S), rejecting insecure remote hosts."""
-        if ws_url.startswith("wss://"):
-            return ws_url
-        if ws_url.startswith("ws://"):
-            host = (urlparse(ws_url).hostname or "").lower()
-            if host not in {"127.0.0.1", "localhost", "::1"}:
+        parsed = urlparse(ws_url)
+        scheme = parsed.scheme.lower()
+
+        if scheme == "wss":
+            return parsed.geturl()
+        if scheme == "ws":
+            host = (parsed.hostname or "").lower()
+            if host not in _LOOPBACK_HOSTS:
                 raise AuthenticationError(
                     "Refusing insecure WebSocket provisioning URL outside loopback."
                 )
-            return ws_url
-        if ws_url.startswith("https://"):
-            return "wss://" + ws_url[len("https://") :]
-        if ws_url.startswith("http://"):
-            host = (urlparse(ws_url).hostname or "").lower()
-            if host not in {"127.0.0.1", "localhost", "::1"}:
+            return parsed.geturl()
+        if scheme == "https":
+            return parsed._replace(scheme=_WS_SCHEME_MAP[scheme]).geturl()
+        if scheme == "http":
+            host = (parsed.hostname or "").lower()
+            if host not in _LOOPBACK_HOSTS:
                 raise AuthenticationError(
                     "Refusing insecure WebSocket provisioning URL outside loopback."
                 )
-            return "ws://" + ws_url[len("http://") :]
+            return parsed._replace(scheme=_WS_SCHEME_MAP[scheme]).geturl()
         raise AuthenticationError(
             f"Unsupported WebSocket provisioning URL scheme: {ws_url!r}"
         )
