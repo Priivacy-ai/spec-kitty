@@ -23,8 +23,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: "claude:sonnet:python-pedro:implementer"
-shell_pid: "13904"
+agent: "codex:gpt-4o:python-pedro:reviewer"
+shell_pid: "14453"
 history:
 - date: '2026-04-30'
   event: Created
@@ -444,3 +444,4 @@ print('All import chains OK')
 - 2026-05-01T05:18:45Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=4258 – Moved to planned
 - 2026-05-01T05:24:04Z – claude:sonnet:python-pedro:implementer – shell_pid=13904 – Started implementation via action command
 - 2026-05-01T05:24:32Z – claude:sonnet:python-pedro:implementer – shell_pid=13904 – Cycle 2: docstring reworded; new test_emitter_adapter.py exercises real registration; WP02 dependency declared.
+- 2026-05-01T05:25:01Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=14453 – Started review via action command
