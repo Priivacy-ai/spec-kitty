@@ -45,7 +45,7 @@ def list_profiles(
         from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
         from doctrine.agent_profiles.profile import Role
 
-        caps = DEFAULT_ROLE_CAPABILITIES.get(p.role) if isinstance(p.role, Role) else None  # type: ignore[call-overload]
+        caps = DEFAULT_ROLE_CAPABILITIES.get(p.role) if isinstance(p.role, Role) else None
         canonical_verbs = list(caps.canonical_verbs) if caps else []
         # domain_keywords lives in specialization_context (SpecializationContext), NOT specialization
         sc = getattr(p, "specialization_context", None)
@@ -73,5 +73,5 @@ def list_profiles(
         table.add_column("Role")
         table.add_column("Source")
         for d in descriptors:
-            table.add_row(d["profile_id"], d["name"], d["role"], d["source"])
+            table.add_row(str(d["profile_id"]), str(d["name"]), str(d["role"]), str(d["source"]))
         console.print(table)

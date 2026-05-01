@@ -200,7 +200,8 @@ def _fetch_access_token_sync() -> str | None:
     if not tm.is_authenticated:
         return None
     try:
-        return _run_in_fresh_loop(tm.get_access_token())
+        token = _run_in_fresh_loop(tm.get_access_token())
+        return str(token) if token is not None else None
     except AuthenticationError:
         return None
 

@@ -110,6 +110,22 @@ class TestGlossaryHealth:
         assert data["entity_pages_generated"] is False
         assert data["last_conflict_at"] is None
 
+    def test_health_returns_zero_counts_without_project_dir(self, tmp_path):
+        """Returns safe zero-count payload when project_dir is not configured."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+        handler.project_dir = None
+
+        gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        data = _read_response(handler)
+        assert data["total_terms"] == 0
+        assert data["high_severity_drift_count"] == 0
+        assert data["entity_pages_generated"] is False
+        assert data["last_conflict_at"] is None
+
     def test_health_counts_high_severity_events(self, tmp_path):
         """Reads canonical glossary event logs and counts high/critical findings."""
         from specify_cli.dashboard.handlers import glossary as gloss_module
@@ -233,6 +249,19 @@ class TestGlossaryTerms:
 
         with patch.object(gloss_module, "_collect_all_senses", side_effect=RuntimeError("oops")):
             gloss_module.GlossaryHandler.handle_glossary_terms(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        records = _read_response(handler)
+        assert records == []
+
+    def test_terms_returns_empty_list_without_project_dir(self, tmp_path):
+        """Returns [] without raising when project_dir is not configured."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+        handler.project_dir = None
+
+        gloss_module.GlossaryHandler.handle_glossary_terms(handler)
 
         handler.send_response.assert_called_once_with(200)
         records = _read_response(handler)

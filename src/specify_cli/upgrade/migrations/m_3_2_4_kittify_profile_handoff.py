@@ -205,7 +205,7 @@ def _apply_patch_to_file(
     if not path.exists():
         return []
     content = path.read_text(encoding="utf-8")
-    new_content, changes = patch_fn(content)  # type: ignore[call-arg,operator]
+    new_content, changes = patch_fn(content)  # type: ignore[operator]
     if changes and not dry_run:
         path.write_text(new_content, encoding="utf-8")
     return [f"{path}: {c}" for c in changes]

@@ -407,7 +407,7 @@ def _compute_findings(
                 remediation_description=None,
             )
         )
-    elif rollout_enabled and not daemon.active:
+    elif rollout_enabled and daemon is not None and not daemon.active:
         findings.append(
             Finding(
                 id="F-005",

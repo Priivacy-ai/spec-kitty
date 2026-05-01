@@ -108,7 +108,11 @@ def evaluate_merge_gates(
     )
     identity = resolve_mission_identity(feature_dir)
     evaluation.mission_slug = identity.mission_slug
-    evaluation.mission_number = identity.mission_number
+    evaluation.mission_number = (
+        str(identity.mission_number)
+        if identity.mission_number is not None
+        else None
+    )
     evaluation.mission_type = identity.mission_type
 
     if not policy.enabled or policy.mode == "off":

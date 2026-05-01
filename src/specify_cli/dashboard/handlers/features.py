@@ -38,6 +38,8 @@ class FeatureHandler(DashboardHandler):
     def handle_features_list(self) -> None:
         """Return summary data for all features."""
         try:
+            if self.project_dir is None:
+                raise RuntimeError("dashboard project_dir is not configured")
             project_path = Path(self.project_dir).resolve()
             features = scan_all_features(project_path)
 
@@ -127,6 +129,8 @@ class FeatureHandler(DashboardHandler):
         parts = path.split("/")
         if len(parts) >= 4:
             feature_id = parts[3]
+            if self.project_dir is None:
+                raise RuntimeError("dashboard project_dir is not configured")
             project_path = Path(self.project_dir).resolve()
             kanban_data = scan_feature_kanban(project_path, feature_id)
 
@@ -173,6 +177,8 @@ class FeatureHandler(DashboardHandler):
             return
 
         feature_id = parts[3]
+        if self.project_dir is None:
+            raise RuntimeError("dashboard project_dir is not configured")
         project_path = Path(self.project_dir)
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
@@ -273,6 +279,8 @@ class FeatureHandler(DashboardHandler):
             return
 
         feature_id = parts[3]
+        if self.project_dir is None:
+            raise RuntimeError("dashboard project_dir is not configured")
         project_path = Path(self.project_dir)
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
@@ -362,6 +370,8 @@ class FeatureHandler(DashboardHandler):
         feature_id = parts[3]
         artifact_name = parts[4] if len(parts) > 4 else ""
 
+        if self.project_dir is None:
+            raise RuntimeError("dashboard project_dir is not configured")
         project_path = Path(self.project_dir)
         feature_dir = resolve_feature_dir(project_path, feature_id)
 

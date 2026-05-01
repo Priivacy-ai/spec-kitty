@@ -38,6 +38,8 @@ class LintTileHandler(DashboardHandler):
         self.end_headers()
 
         try:
+            if self.project_dir is None:
+                raise RuntimeError("dashboard project_dir is not configured")
             report_path = Path(self.project_dir) / ".kittify" / "lint-report.json"
 
             if not report_path.exists():

@@ -16,6 +16,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from specify_cli.glossary.semantic_events import iter_semantic_conflicts
 
@@ -56,7 +57,7 @@ class TermNotFoundError(Exception):
 # ---------------------------------------------------------------------------
 
 
-def _load_merged_drg(repo_root: Path):  # type: ignore[return]
+def _load_merged_drg(repo_root: Path) -> Any | None:
     """Load the merged DRG from ``graph.yaml``.
 
     Returns a ``DRGGraph`` instance, or ``None`` if:
@@ -65,8 +66,8 @@ def _load_merged_drg(repo_root: Path):  # type: ignore[return]
     - any other error occurs.
     """
     try:
-        from doctrine.drg.models import DRGGraph  # type: ignore[import]
-        from ruamel.yaml import YAML  # type: ignore[import]
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
 
         drg_dir = repo_root / ".kittify" / "doctrine"
         candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
@@ -144,7 +145,7 @@ class GlossaryEntityPageRenderer:
     # DRG traversal
     # ------------------------------------------------------------------
 
-    def _extract_term_records(self, drg) -> list[_TermRecord]:
+    def _extract_term_records(self, drg: Any) -> list[_TermRecord]:
         """Build ``_TermRecord`` objects for every ``glossary:*`` node."""
         backlink_index = self._build_backlink_index(drg)
         records: list[_TermRecord] = []
@@ -172,13 +173,13 @@ class GlossaryEntityPageRenderer:
             )
         return records
 
-    def _build_backlink_index(self, drg) -> dict[str, list[BacklinkEntry]]:
+    def _build_backlink_index(self, drg: Any) -> dict[str, list[BacklinkEntry]]:
         """Return ``{ glossary_urn -> [BacklinkEntry, ...] }`` for vocabulary edges."""
         index: dict[str, list[BacklinkEntry]] = {}
         for edge in drg.edges:
             # DRGEdge uses ``relation`` (a Relation enum / str) not ``type``
             relation = getattr(edge, "relation", None)
-            relation_val = relation.value if hasattr(relation, "value") else str(relation)
+            relation_val = getattr(relation, "value", str(relation) if relation else "")
             if relation_val != "vocabulary":
                 continue
             target = getattr(edge, "target", "")
@@ -196,12 +197,12 @@ class GlossaryEntityPageRenderer:
             index.setdefault(target, []).append(entry)
         return index
 
-    def _classify_node_type(self, node, urn: str) -> str:
+    def _classify_node_type(self, node: Any | None, urn: str) -> str:
         """Map a DRG node to a BacklinkEntry source_type string."""
         if node is not None:
             urn = getattr(node, "urn", urn)
             kind = getattr(node, "kind", None)
-            kind_val = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+            kind_val = getattr(kind, "value", str(kind) if kind else "")
             if kind_val in ("agent_profile", "action"):
                 prefix_map = {
                     "agent_profile": "other",
@@ -222,21 +223,22 @@ class GlossaryEntityPageRenderer:
         return mapping.get(prefix, "other")
 
     @staticmethod
-    def _node_label(node, urn: str) -> str:
+    def _node_label(node: Any | None, urn: str) -> str:
         """Return a human-readable label for a DRG node."""
         if node is None:
             return urn
         label = getattr(node, "label", None)
         if label:
-            return label
-        return getattr(node, "urn", urn)
+            return str(label)
+        return str(getattr(node, "urn", urn))
 
     @staticmethod
-    def _node_artifact_path(node) -> str | None:
+    def _node_artifact_path(node: Any | None) -> str | None:
         """Return the artifact file path for a DRG node, if available."""
         if node is None:
             return None
-        return getattr(node, "artifact_path", None) or getattr(node, "path", None)
+        raw_path = getattr(node, "artifact_path", None) or getattr(node, "path", None)
+        return str(raw_path) if raw_path else None
 
     # ------------------------------------------------------------------
     # Markdown rendering
@@ -311,8 +313,8 @@ class GlossaryEntityPageRenderer:
 
         return "\n".join(lines)
 
-    def _load_conflict_history(self, term_urn: str) -> list[dict]:
-        result: list[dict] = []
+    def _load_conflict_history(self, term_urn: str) -> list[dict[str, str]]:
+        result: list[dict[str, str]] = []
         for conflict in iter_semantic_conflicts(self._repo_root):
             if conflict.term_id != term_urn:
                 continue

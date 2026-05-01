@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from specify_cli.intake.brief_writer import write_brief_atomic
 from specify_cli.intake.errors import (

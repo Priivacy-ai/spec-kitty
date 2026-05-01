@@ -38,7 +38,7 @@ import io
 import json
 from collections.abc import Mapping
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from ruamel.yaml import YAML
@@ -297,7 +297,7 @@ def _dispatch_batch(
 ) -> list[AdapterOutput]:
     """Dispatch generate_batch() if available, else fall back to sequential."""
     if hasattr(adapter, "generate_batch"):
-        raw = adapter.generate_batch(per_target_requests)  # type: ignore[union-attr]
+        raw = adapter.generate_batch(per_target_requests)
         return list(raw)
     return _dispatch_single(adapter, per_target_requests)
 
@@ -359,7 +359,7 @@ def run(
         )
 
     # Stage 1: resolve sections from the interview snapshot
-    sections = resolve_sections(request.interview_snapshot)
+    sections = resolve_sections(dict(request.interview_snapshot))
 
     # Stage 2: build targets (validates source URNs against drg_snapshot)
     all_targets = build_targets(
@@ -429,7 +429,7 @@ def run(
 
         provenance = ProvenanceEntry(
             artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=target.kind,
+            artifact_kind=cast(Literal["directive", "tactic", "styleguide"], target.kind),
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
             inputs_hash=inputs_hash,
@@ -507,7 +507,7 @@ def run_all(
             "Production adapter wiring is not yet implemented (WP05)."
         )
 
-    sections = resolve_sections(request.interview_snapshot)
+    sections = resolve_sections(dict(request.interview_snapshot))
     all_targets = build_targets(
         interview_snapshot=dict(request.interview_snapshot),
         mappings=sections,
@@ -563,7 +563,7 @@ def run_all(
 
         provenance = ProvenanceEntry(
             artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=target.kind,
+            artifact_kind=cast(Literal["directive", "tactic", "styleguide"], target.kind),
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
             inputs_hash=inputs_hash,

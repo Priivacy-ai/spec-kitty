@@ -6,6 +6,7 @@ import importlib.resources
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from ruamel.yaml import YAML
 
@@ -228,7 +229,12 @@ def default_interview(
     """Return deterministic default interview answers."""
     catalog = doctrine_catalog or load_doctrine_catalog()
     defaults = _load_packaged_defaults()
-    answers: dict[str, str] = dict(defaults.get("answers", {}))
+    raw_default_answers = defaults.get("answers", {})
+    answers: dict[str, str] = (
+        dict(cast(dict[str, str], raw_default_answers))
+        if isinstance(raw_default_answers, dict)
+        else {}
+    )
 
     if profile == "minimal":
         answers = {key: answers[key] for key in MINIMAL_QUESTION_ORDER}
@@ -249,19 +255,19 @@ def default_interview(
         profile=profile,
         answers=answers,
         selected_paradigms=_normalize_iterable(
-            defaults.get("selected_paradigms"),
+            cast(Iterable[str] | None, defaults.get("selected_paradigms")),
             fallback=default_paradigms,
         ),
         selected_directives=_normalize_iterable(
-            defaults.get("selected_directives"),
+            cast(Iterable[str] | None, defaults.get("selected_directives")),
             fallback=default_directives,
         ),
         available_tools=_normalize_iterable(
-            defaults.get("available_tools"),
+            cast(Iterable[str] | None, defaults.get("available_tools")),
             fallback=sorted(DEFAULT_TOOL_REGISTRY),
         ),
         selected_tactics=_normalize_iterable(
-            defaults.get("selected_tactics"),
+            cast(Iterable[str] | None, defaults.get("selected_tactics")),
             fallback=[],
         ),
     )
@@ -315,11 +321,11 @@ def apply_answer_overrides(
 
     resolved_local: list[LocalSupportDeclaration]
     if local_supporting_files is _UNSET:
-        resolved_local = list(interview.local_supporting_files)
+        resolved_local = list(interview.local_supporting_files or [])
     elif local_supporting_files is None:
         resolved_local = []
     else:
-        resolved_local = list(local_supporting_files)  # type: ignore[call-overload]
+        resolved_local = list(cast(list[LocalSupportDeclaration], local_supporting_files))
 
     return CharterInterview(
         mission=interview.mission,
@@ -380,7 +386,7 @@ def _normalize_optional_string(raw: object) -> str | None:
 
 def _load_packaged_defaults() -> dict[str, object]:
     """Load authoritative default interview content from ``defaults.yaml``."""
-    empty = {
+    empty: dict[str, object] = {
         "answers": {},
         "selected_paradigms": [],
         "selected_directives": [],

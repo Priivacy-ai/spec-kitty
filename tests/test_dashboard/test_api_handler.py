@@ -60,6 +60,21 @@ class TestHealthEndpointNoSideEffects:
 class TestFeaturesEndpointErrorHandling:
     """Feature list handler should return JSON errors, not partial responses."""
 
+    def test_features_endpoint_returns_structured_error_without_project_dir(self):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        handler = MagicMock()
+        handler.project_dir = None
+        handler._send_json = MagicMock()
+
+        features_module.FeatureHandler.handle_features_list(handler)
+
+        handler._send_json.assert_called_once()
+        status_code, payload = handler._send_json.call_args.args
+        assert status_code == 500
+        assert payload["error"] == "failed_to_scan_features"
+        assert "project_dir" in payload["detail"]
+
     def test_features_endpoint_returns_structured_error_on_scan_failure(self, tmp_path):
         from specify_cli.dashboard.handlers import features as features_module
 
@@ -187,6 +202,25 @@ class TestFeaturesEndpointErrorHandling:
         assert payload["features"] == []
         assert payload["worktrees_root"] is None
         assert payload["active_worktree"] is not None
+
+    def test_feature_subhandlers_require_project_dir(self):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        handler = MagicMock()
+        handler.project_dir = None
+
+        with pytest.raises(RuntimeError, match="project_dir"):
+            features_module.FeatureHandler.handle_kanban(handler, "/api/kanban/001-test")
+        with pytest.raises(RuntimeError, match="project_dir"):
+            features_module.FeatureHandler.handle_research(handler, "/api/research/001-test")
+        with pytest.raises(RuntimeError, match="project_dir"):
+            features_module.FeatureHandler._handle_artifact_directory(
+                handler,
+                "/api/contracts/001-test",
+                "contracts",
+            )
+        with pytest.raises(RuntimeError, match="project_dir"):
+            features_module.FeatureHandler.handle_artifact(handler, "/api/artifact/001-test/spec")
 
 
 class TestDossierEndpointRouting:

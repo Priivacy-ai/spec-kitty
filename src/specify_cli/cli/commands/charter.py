@@ -42,7 +42,7 @@ app.add_typer(charter_bundle_app, name="bundle")
 console = Console()
 
 
-def default_interview(*args, **kwargs):
+def default_interview(*args: Any, **kwargs: Any) -> Any:
     """Patchable lazy wrapper for default charter interview generation."""
     from charter.interview import default_interview as _default_interview
 
@@ -1541,7 +1541,7 @@ def status(  # noqa: C901
         charter_dir = repo_root / ".kittify" / "charter"
         if (charter_dir / "metadata.yaml").exists():
             _assert_bundle_compatible(charter_dir)
-        payload = {
+        payload: dict[str, Any] = {
             "result": "success",
             "charter_sync": _collect_charter_sync_status(repo_root),
             "synthesis": _collect_synthesis_status(
@@ -1814,6 +1814,7 @@ def _build_synthesis_request(
         evidence=evidence,
     )
 
+    adapter_obj: Any
     if adapter_name == "generated":
         adapter_obj = GeneratedArtifactAdapter(repo_root=repo_root)
     elif adapter_name == "fixture":

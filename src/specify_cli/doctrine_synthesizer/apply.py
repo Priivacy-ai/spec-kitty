@@ -29,7 +29,7 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-import yaml as _yaml  # type: ignore[import-untyped]  # types-PyYAML not installed in this env
+import yaml as _yaml
 
 from pydantic import BaseModel, ConfigDict
 

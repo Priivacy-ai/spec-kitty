@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 import ulid as _ulid_mod
 
@@ -50,7 +51,7 @@ __all__ = [
 
 _EVENTS_FILENAME = "status.events.jsonl"
 _MISSION_TYPE = "software-dev"  # default; V1 always software-dev
-_ACTOR_TYPE = "human"  # default; override for automated actors
+_ACTOR_TYPE: Literal["human", "llm", "service"] = "human"  # default; override for automated actors
 
 
 def _generate_ulid() -> str:

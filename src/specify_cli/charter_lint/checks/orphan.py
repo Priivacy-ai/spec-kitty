@@ -45,9 +45,7 @@ class OrphanChecker:
         for node in getattr(drg, "nodes", []):
             urn: str = getattr(node, "urn", "") or ""
             kind = getattr(node, "kind", None)
-            kind_val: str = (
-                kind.value if hasattr(kind, "value") else str(kind) if kind else ""
-            )
+            kind_val: str = getattr(kind, "value", str(kind) if kind else "")
 
             if kind_val not in _ORPHAN_RULES:
                 continue

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from typing import Annotated
+from typing import Annotated, Literal, cast
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
@@ -41,6 +41,7 @@ from specify_cli.core.worktree import (
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 from specify_cli.mission import get_mission_type
+from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.validation import validate_glob_matches
@@ -221,7 +222,7 @@ def _enforce_git_preflight(
         _emit_json(payload)
     else:
         console.print(f"[red]Error:[/red] {payload['error']}")
-        for cmd in payload.get("remediation", []):
+        for cmd in cast(list[str], payload.get("remediation", [])):
             console.print(f"  - Run: {cmd}")
     raise typer.Exit(1)
 
@@ -501,7 +502,7 @@ def branch_context(
             raise typer.Exit(1)
 
         resolved_target_branch = str(target_branch).strip() if target_branch and str(target_branch).strip() else current_branch
-        payload = {
+        payload: dict[str, object] = {
             "result": "success",
             "repo_root": str(repo_root.resolve()),
             "target_branch_source": "cli_arg" if target_branch else "current_branch",
@@ -805,7 +806,7 @@ def check_prerequisites(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in payload.get("available_missions", [])[:10]:
+                for slug in cast(list[str], payload.get("available_missions", []))[:10]:
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
@@ -916,7 +917,7 @@ def setup_plan(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in payload.get("available_missions", [])[:10]:
+                for slug in cast(list[str], payload.get("available_missions", []))[:10]:
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
@@ -945,7 +946,7 @@ def setup_plan(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for step in payload["remediation"]:
+                for step in cast(list[str], payload["remediation"]):
                     console.print(f"  - {step}")
             raise typer.Exit(1)
 
@@ -1006,7 +1007,7 @@ def setup_plan(
                 shutil.copy2(plan_template, plan_file)
             else:
                 package_template = files("specify_cli").joinpath("templates", "plan-template.md")
-                if not package_template.exists():
+                if not package_template.is_file():
                     raise FileNotFoundError("Plan template not found in repository or package")
                 with package_template.open("rb") as src, open(plan_file, "wb") as dst:
                     shutil.copyfileobj(src, dst)
@@ -1031,7 +1032,7 @@ def setup_plan(
         # T014 + T016: Documentation mission wiring for plan
         mission_type = get_mission_type(feature_dir)
         gap_analysis_path = None
-        generators_detected = []
+        generators_detected: list[GeneratorConfig] = []
 
         if mission_type == "documentation":
             from specify_cli.doc_analysis.doc_state import (
@@ -1041,6 +1042,7 @@ def setup_plan(
             )
             from specify_cli.doc_analysis.gap_analysis import generate_gap_analysis_report
             from specify_cli.doc_analysis.doc_generators import (
+                DocGenerator,
                 JSDocGenerator,
                 SphinxGenerator,
                 RustdocGenerator,
@@ -1085,13 +1087,14 @@ def setup_plan(
                             console.print("[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis")
 
             # T016: Detect and configure generators
-            all_generators = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
+            all_generators: list[DocGenerator] = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
             for gen in all_generators:
                 with contextlib.suppress(Exception):  # Skip generators that fail detection
                     if gen.detect(repo_root):
+                        generator_name = cast(Literal["sphinx", "jsdoc", "rustdoc"], gen.name)
                         generators_detected.append(
                             {
-                                "name": gen.name,
+                                "name": generator_name,
                                 "language": gen.languages[0],
                                 "config_path": "",
                             }
@@ -1392,10 +1395,10 @@ def merge_feature(
                 dry_run=dry_run,
                 json_output=False,
                 mission=(resolved_feature or ""),
-                feature=None,
+                feature=cast(str, None),
                 resume=False,  # Agent commands don't support resume
                 abort=False,  # Agent commands don't support abort
-                context_token=None,
+                context_token=cast(str, None),
                 keep_workspace=False,
             )
         except typer.Exit:
@@ -1492,7 +1495,7 @@ def finalize_tasks(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in payload.get("available_missions", [])[:10]:
+                for slug in cast(list[str], payload.get("available_missions", []))[:10]:
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
@@ -1867,7 +1870,9 @@ def finalize_tasks(
         # in memory but does NOT write to disk.  Re-reading from disk would miss
         # the inferred ownership fields, silently skipping ownership/lane
         # validation.  We therefore use the in-memory state when available.
-        wp_manifests: dict[str, object] = {}
+        from specify_cli.ownership.models import OwnershipManifest
+
+        wp_manifests: dict[str, OwnershipManifest] = {}
         wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
             wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
@@ -1882,12 +1887,10 @@ def finalize_tasks(
                     fm_meta, wp_body = read_wp_frontmatter(wp_file)
                 wp_bodies[wp_id] = wp_body
                 if fm_meta.execution_mode and fm_meta.owned_files:
-                    from specify_cli.ownership.models import OwnershipManifest
-
                     wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm_meta)
 
         if wp_manifests:
-            ownership_result = validate_ownership(wp_manifests)  # type: ignore[arg-type]
+            ownership_result = validate_ownership(wp_manifests)
             for warning in ownership_result.warnings:
                 if not json_output:
                     console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
@@ -1902,7 +1905,7 @@ def finalize_tasks(
                 raise typer.Exit(1) from None
 
             # Soft check: warn when owned_files globs match zero files (T013)
-            glob_warnings = validate_glob_matches(wp_manifests, repo_root)  # type: ignore[arg-type]
+            glob_warnings = validate_glob_matches(wp_manifests, repo_root)
             all_ownership_warnings.extend(glob_warnings)
             if not json_output:
                 for warning in glob_warnings:
@@ -1951,13 +1954,15 @@ def finalize_tasks(
             if wp_manifests and wp_dependencies:
                 from specify_cli.lanes.compute import compute_lanes as _compute_lanes_validate
 
+                raw_mission_id = meta.get("mission_id") if meta else None
+                mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
                 lanes_manifest_dry = _compute_lanes_validate(
                     dependency_graph=wp_dependencies,
-                    ownership_manifests=wp_manifests,  # type: ignore[arg-type]
+                    ownership_manifests=wp_manifests,
                     mission_slug=mission_slug,
                     target_branch=target_branch,
                     wp_bodies=wp_bodies,
-                    mission_id=meta.get("mission_id") if meta else None,
+                    mission_id=mission_id,
                 )
                 _cr_dry = lanes_manifest_dry.collapse_report
                 lanes_stats = {
@@ -1996,9 +2001,10 @@ def finalize_tasks(
                 if lanes_stats.get("computed"):
                     console.print(f"  Lanes: {lanes_stats['count']} lane(s) would be computed")
                     _cr_info = lanes_stats.get("collapse_report")
-                    if _cr_info and _cr_info.get("independent_wps_collapsed", 0) > 0:
+                    collapse_report = _cr_info if isinstance(_cr_info, dict) else {}
+                    if collapse_report.get("independent_wps_collapsed", 0) > 0:
                         console.print(
-                            f"[yellow]⚠[/yellow] {_cr_info['independent_wps_collapsed']} independent WP pair(s) "
+                            f"[yellow]⚠[/yellow] {collapse_report['independent_wps_collapsed']} independent WP pair(s) "
                             f"collapsed into same lane. Run with --json to see details."
                         )
             return
@@ -2019,13 +2025,15 @@ def finalize_tasks(
             from specify_cli.lanes.compute import compute_lanes
             from specify_cli.lanes.persistence import write_lanes_json
 
+            raw_mission_id = meta.get("mission_id") if meta else None
+            mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
             lanes_manifest = compute_lanes(
                 dependency_graph=wp_dependencies,
-                ownership_manifests=wp_manifests,  # type: ignore[arg-type]
+                ownership_manifests=wp_manifests,
                 mission_slug=mission_slug,
                 target_branch=target_branch,
                 wp_bodies=wp_bodies,
-                mission_id=meta.get("mission_id") if meta else None,
+                mission_id=mission_id,
             )
             lanes_path = write_lanes_json(feature_dir, lanes_manifest)
             if not json_output:
@@ -2163,7 +2171,7 @@ def finalize_tasks(
                 emit_wp_created(
                     wp_id=str(wp["id"]),
                     title=str(wp["title"]),
-                    dependencies=list(wp["dependencies"]),
+                    dependencies=list(cast(list[str], wp["dependencies"])),
                     mission_slug=mission_slug,
                     causation_id=causation_id,
                 )

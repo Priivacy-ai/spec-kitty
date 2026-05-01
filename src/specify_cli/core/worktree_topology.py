@@ -200,7 +200,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
 
     return FeatureTopology(
         mission_slug=identity.mission_slug,
-        mission_number=identity.mission_number,
+        mission_number=str(identity.mission_number) if identity.mission_number is not None else "",
         mission_type=identity.mission_type,
         target_branch=target_branch,
         mission_branch=lanes_manifest.mission_branch if lanes_manifest is not None else target_branch,

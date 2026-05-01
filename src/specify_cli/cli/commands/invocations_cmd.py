@@ -88,7 +88,8 @@ def _read_last_line(path: Path) -> dict | None:  # type: ignore[type-arg]
         lines = [ln.strip() for ln in tail.splitlines() if ln.strip()]
         if not lines:
             return None
-        return json.loads(lines[-1])
+        data = json.loads(lines[-1])
+        return data if isinstance(data, dict) else None
     except (OSError, json.JSONDecodeError):
         return None
 

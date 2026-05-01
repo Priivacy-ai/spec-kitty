@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -356,7 +356,7 @@ def _error(message: str) -> None:
     err_console.print(f"[red]Error:[/red] {message}")
 
 
-def _normalize_lifecycle_payload(results: list, *, dry_run: bool) -> dict[str, object]:
+def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
     normalized = [r for r in results if r.status == "normalized"]
     skipped = [r for r in results if r.status == "skipped"]
     errored = [r for r in results if r.status == "error"]
@@ -384,7 +384,7 @@ def _normalize_lifecycle_payload(results: list, *, dry_run: bool) -> dict[str, o
     }
 
 
-def _print_normalize_lifecycle_summary(results: list, *, dry_run: bool) -> None:
+def _print_normalize_lifecycle_summary(results: list[Any], *, dry_run: bool) -> None:
     normalized = [r for r in results if r.status == "normalized"]
     skipped = [r for r in results if r.status == "skipped"]
     errored = [r for r in results if r.status == "error"]

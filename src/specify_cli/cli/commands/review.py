@@ -200,11 +200,11 @@ def review_mission(
         repo_root / "src" / "specify_cli" / "cli" / "commands",
     ]
     ble001_findings: list[dict[str, str]] = []
-    for d in search_dirs:
-        if not d.exists():
+    for search_dir in search_dirs:
+        if not search_dir.exists():
             continue
         grep_result = subprocess.run(
-            ["grep", "-rn", "noqa: BLE001", str(d)],
+            ["grep", "-rn", "noqa: BLE001", str(search_dir)],
             capture_output=True,
             text=True,
         )

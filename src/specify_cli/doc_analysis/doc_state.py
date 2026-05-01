@@ -41,7 +41,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict, cast
 
 from specify_cli.mission_metadata import load_meta, write_meta
 
@@ -238,7 +238,8 @@ def read_documentation_state(meta_file: Path) -> DocumentationState | None:
         return None
 
     # Get documentation_state (may be missing for old features)
-    return meta.get("documentation_state")
+    state = meta.get("documentation_state")
+    return cast(DocumentationState, state) if isinstance(state, dict) else None
 
 
 def write_documentation_state(meta_file: Path, state: DocumentationState) -> None:
@@ -313,7 +314,7 @@ def initialize_documentation_state(
     return state
 
 
-def update_documentation_state(meta_file: Path, **updates) -> DocumentationState:
+def update_documentation_state(meta_file: Path, **updates: Any) -> DocumentationState:
     """Update specific fields in documentation state.
 
     Args:

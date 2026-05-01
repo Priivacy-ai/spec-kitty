@@ -95,7 +95,7 @@ def _empty_snapshot(mission_slug: str, mission_number: int | None, mission_type:
         last_event_id=None,
         work_packages={},
         summary={lane.value: 0 for lane in Lane},
-        mission_number=mission_number,
+        mission_number=str(mission_number) if mission_number is not None else None,
         mission_type=mission_type,
     )
 
@@ -176,7 +176,11 @@ def derive_mission_lifecycle(
         from specify_cli.status.reducer import reduce
 
         snapshot = reduce(read_events(feature_dir))
-        snapshot.mission_number = identity.mission_number
+        snapshot.mission_number = (
+            str(identity.mission_number)
+            if identity.mission_number is not None
+            else None
+        )
         snapshot.mission_type = identity.mission_type
         if not snapshot.mission_slug:
             snapshot.mission_slug = identity.mission_slug or feature_dir.name
@@ -196,14 +200,14 @@ def derive_mission_lifecycle(
             lane = Lane(str(lane_value))
         except ValueError:
             lane = Lane.PLANNED
-        state = wp_state_for(lane)
+        wp_lifecycle_state = wp_state_for(lane)
         if lane in _ACTIVE_LANES:
             active_wp_count += 1
-        if state.is_blocked:
+        if wp_lifecycle_state.is_blocked:
             blocked_wp_count += 1
-        if state.progress_bucket() == "review":
+        if wp_lifecycle_state.progress_bucket() == "review":
             review_wp_count += 1
-        if state.is_terminal:
+        if wp_lifecycle_state.is_terminal:
             terminal_wp_count += 1
 
     last_transition_at = _derive_last_transition_at(snapshot)
@@ -213,7 +217,7 @@ def derive_mission_lifecycle(
         age_delta = now - last_activity_at
         age_days = max(0, int(age_delta / timedelta(days=1)))
 
-    state, surface_state, reason = _classify_state(
+    mission_state, surface_state, reason = _classify_state(
         total_wps=total_wps,
         active_wp_count=active_wp_count,
         terminal_wp_count=terminal_wp_count,
@@ -224,7 +228,7 @@ def derive_mission_lifecycle(
         mission_slug=snapshot.mission_slug or identity.mission_slug or feature_dir.name,
         mission_number=identity.mission_number,
         mission_type=identity.mission_type,
-        state=state,
+        state=mission_state,
         surface_state=surface_state,
         reason=reason,
         last_activity_at=last_activity_at,

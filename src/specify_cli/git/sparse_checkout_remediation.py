@@ -395,10 +395,12 @@ def remediate(
     )
 
     worktree_results: list[SparseCheckoutRemediationResult] = []
-    for wt_path, wt_state, _is_wt in targets[1:]:
+    for wt_path, maybe_wt_state, _is_wt in targets[1:]:
+        if maybe_wt_state is None:
+            continue
         wt_result = _remediate_single_target(
             wt_path,
-            state=wt_state,
+            state=maybe_wt_state,
             is_worktree=True,
             interactive=interactive,
             confirm=confirm,

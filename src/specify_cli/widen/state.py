@@ -173,7 +173,7 @@ def validate_entry_schema(entry: WidenPendingEntry) -> None:
     path in strict mode.
     """
     try:
-        import jsonschema  # type: ignore[import-untyped]
+        import jsonschema
     except ImportError:
         return  # jsonschema is optional; skip validation if not installed
 

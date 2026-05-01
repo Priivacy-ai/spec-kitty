@@ -292,7 +292,11 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     events = read_events(feature_dir)
     snapshot = reduce(events)
     identity = resolve_mission_identity(feature_dir)
-    snapshot.mission_number = identity.mission_number
+    snapshot.mission_number = (
+        str(identity.mission_number)
+        if identity.mission_number is not None
+        else None
+    )
     snapshot.mission_type = identity.mission_type
 
     # Additive WP03: compute RetrospectiveSnapshot from raw events (includes

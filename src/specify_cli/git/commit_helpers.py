@@ -48,12 +48,12 @@ class SafeCommitBackstopError(RuntimeError):
             "",
             "Requested paths (what safe_commit was told to commit):",
         ]
-        for p in requested:
-            message_lines.append(f"  {p}")
+        for requested_path in requested:
+            message_lines.append(f"  {requested_path}")
         message_lines.append("")
         message_lines.append("Unexpected paths staged (would have been committed):")
-        for p in unexpected:
-            message_lines.append(f"  {p.status_code} {p.path}")
+        for unexpected_path in unexpected:
+            message_lines.append(f"  {unexpected_path.status_code} {unexpected_path.path}")
         message_lines.append("")
         message_lines.append("This usually means the working tree is behind HEAD.")
         message_lines.append("Investigate before committing:")

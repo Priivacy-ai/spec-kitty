@@ -69,9 +69,9 @@ async def list_repository_shares(*, source_project_uuid: str | None = None) -> l
 
     data = response.json()
     if isinstance(data, dict) and isinstance(data.get("results"), list):
-        return data["results"]
+        return [item for item in data["results"] if isinstance(item, dict)]
     if isinstance(data, list):
-        return data
+        return [item for item in data if isinstance(item, dict)]
     raise RepositorySharingClientError("Unexpected repository share response shape.")
 
 

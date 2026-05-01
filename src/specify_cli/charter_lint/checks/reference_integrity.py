@@ -60,12 +60,8 @@ class ReferenceIntegrityChecker:
             if target not in node_urns:
                 source: str = getattr(edge, "source", None) or ""
                 relation = getattr(edge, "relation", None)
-                relation_val: str = (
-                    relation.value
-                    if hasattr(relation, "value")
-                    else str(relation)
-                    if relation
-                    else ""
+                relation_val: str = getattr(
+                    relation, "value", str(relation) if relation else ""
                 )
                 findings.append(
                     LintFinding(
@@ -98,12 +94,8 @@ class ReferenceIntegrityChecker:
         superseded_adrs: set[str] = set()
         for edge in getattr(drg, "edges", []):
             relation = getattr(edge, "relation", None)
-            relation_val: str = (
-                relation.value
-                if hasattr(relation, "value")
-                else str(relation)
-                if relation
-                else ""
+            relation_val: str = getattr(
+                relation, "value", str(relation) if relation else ""
             )
             if relation_val == "replaces":
                 # The *source* of a "replaces" edge is the newer ADR.

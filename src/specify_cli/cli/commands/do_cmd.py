@@ -62,11 +62,12 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
     console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
-    if payload.glossary_observations.high_severity:
+    observations = payload.glossary_observations
+    if observations is not None and observations.high_severity:
         warning_lines = [
             "High-severity terminology conflicts detected before this invocation.",
         ]
-        for conflict in payload.glossary_observations.high_severity:
+        for conflict in observations.high_severity:
             scopes = ", ".join(sorted({sense.scope for sense in conflict.candidate_senses}))
             detail = f"{conflict.term.surface_text} ({conflict.conflict_type.value})"
             if scopes:

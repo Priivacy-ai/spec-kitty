@@ -117,11 +117,17 @@ def _annotate_glossary_refs(content: str, term_surfaces: dict[str, str]) -> str:
         ``try/except`` for additional safety.
     """
     # Process longest surfaces first so "deployment target" wins over "target"
-    for surface_lower, term_id in sorted(term_surfaces.items(), key=lambda x: -len(x[0])):
+    def _surface_sort_key(item: tuple[str, str]) -> int:
+        return -len(item[0])
+
+    for surface_lower, term_id in sorted(term_surfaces.items(), key=_surface_sort_key):
         pattern = re.compile(r"\b" + re.escape(surface_lower) + r"\b", re.IGNORECASE)
         # Capture term_id in the default arg to avoid the late-binding closure bug (B023)
+        def _annotate_match(match: re.Match[str], _tid: str = term_id) -> str:
+            return match.group(0) + f"<!-- glossary:{_tid} -->"
+
         content = pattern.sub(
-            lambda m, _tid=term_id: m.group(0) + f"<!-- glossary:{_tid} -->",
+            _annotate_match,
             content,
             count=1,
         )
@@ -153,8 +159,8 @@ def _annotate_glossary_refs_from_store(content: str, template_path: Path | None 
         return content
 
     # Import lazily to avoid hard dependency at module load time
-    from specify_cli.glossary.store import GlossaryStore  # type: ignore[import]
-    from specify_cli.glossary.scope import GlossaryScope, load_seed_file  # type: ignore[import]
+    from specify_cli.glossary.store import GlossaryStore
+    from specify_cli.glossary.scope import GlossaryScope, load_seed_file
 
     event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_renderer.events.jsonl"
     store = GlossaryStore(event_log_path)
