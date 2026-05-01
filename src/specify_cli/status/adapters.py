@@ -32,11 +32,18 @@ _saas_handlers: list[SaasFanOutHandler] = []
 def _handler_key(cb: Callable[..., Any]) -> str:
     """Return a stable identity key for a registered handler.
 
-    Uses ``__qualname__`` (falling back to ``__name__``) so that the
-    same logical handler is treated as identical across module reloads
-    that produce fresh function objects.
+    Uses ``__module__`` + ``__qualname__`` (falling back to ``__name__``)
+    so that the same logical handler is treated as identical across
+    module reloads that produce fresh function objects.
     """
-    return getattr(cb, "__qualname__", None) or getattr(cb, "__name__", repr(cb))
+    module = getattr(cb, "__module__", None)
+    qualname = getattr(cb, "__qualname__", None)
+    name = qualname if isinstance(qualname, str) else getattr(cb, "__name__", None)
+    if isinstance(module, str) and isinstance(name, str):
+        return f"{module}.{name}"
+    if isinstance(name, str):
+        return name
+    return repr(cb)
 
 
 def register_dossier_sync_handler(cb: DossierSyncHandler) -> None:
