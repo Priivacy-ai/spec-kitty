@@ -479,26 +479,29 @@ uv run ruff check \
   src/specify_cli/sync/__init__.py \
   tests/architectural/test_status_sync_boundary.py
 
-# 2. Confirm no status → sync imports remain
+# 2. mypy --strict on the new adapter file (charter requirement: zero new type errors)
+uv run mypy --strict src/specify_cli/status/adapters.py
+
+# 3. Confirm no status → sync imports remain
 grep -r "from specify_cli.sync" src/specify_cli/status/ --include="*.py"
 # Expected: empty
 
-# 3. Status test suite
+# 4. Status test suite
 uv run pytest tests/status -q
 
-# 4. Sync test suite (registration must not break sync internals)
+# 5. Sync test suite (registration must not break sync internals)
 uv run pytest tests/sync -q
 
-# 5. Contract tests (body sync and tracker bind behavior must be preserved)
+# 6. Contract tests (body sync and tracker bind behavior must be preserved)
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest \
   tests/contract/test_body_sync.py \
   tests/contract/test_tracker_bind.py \
   -q
 
-# 6. Architectural guard
+# 7. Architectural guard
 uv run pytest tests/architectural/test_status_sync_boundary.py -v
 
-# 7. Handler registration smoke test
+# 8. Handler registration smoke test
 uv run python -c "
 from specify_cli.status.adapters import _dossier_handlers, _saas_handlers
 import specify_cli.sync  # triggers registration
@@ -512,6 +515,7 @@ print('Handler registration OK')
 
 **Validation**:
 - [ ] All ruff checks pass (0 violations)
+- [ ] mypy --strict passes on `status/adapters.py`
 - [ ] grep for `from specify_cli.sync` in status returns empty
 - [ ] `tests/status` green
 - [ ] `tests/sync` green

@@ -28,6 +28,7 @@ agent_profile: python-pedro
 authoritative_surface: src/specify_cli/identity/
 execution_mode: code_change
 owned_files:
+- src/specify_cli/identity/__init__.py
 - src/specify_cli/identity/project.py
 - src/specify_cli/sync/project_identity.py
 - src/specify_cli/dossier/drift_detector.py
@@ -133,8 +134,15 @@ Only `dossier/drift_detector.py` gets updated to import from the new canonical p
    # Expected: empty output
    ```
 
+5. Add a convenience re-export to `src/specify_cli/identity/__init__.py`. Read the current `__init__.py` first, then append (do not replace existing content):
+   ```python
+   from specify_cli.identity.project import ProjectIdentity as ProjectIdentity  # noqa: F401
+   ```
+   This allows callers to use `from specify_cli.identity import ProjectIdentity` as a short-form import. Place it after any existing imports in `__init__.py`.
+
 **Files**:
 - `src/specify_cli/identity/project.py` (new, ~220 lines)
+- `src/specify_cli/identity/__init__.py` (modified: 1-line re-export added)
 
 **Validation**:
 - [ ] File exists with all classes and functions from original `sync/project_identity.py`
@@ -142,6 +150,7 @@ Only `dossier/drift_detector.py` gets updated to import from the new canonical p
 - [ ] `from __future__ import annotations` present at top
 - [ ] All existing type annotations preserved
 - [ ] `uv run python -c "from specify_cli.identity.project import ProjectIdentity; print('OK')"` succeeds
+- [ ] `uv run python -c "from specify_cli.identity import ProjectIdentity; print('OK')"` succeeds
 
 ---
 
@@ -343,24 +352,30 @@ Run each check in order. All must exit 0:
 # 1. Ruff on affected paths
 uv run ruff check \
   src/specify_cli/identity/project.py \
+  src/specify_cli/identity/__init__.py \
   src/specify_cli/sync/project_identity.py \
   src/specify_cli/dossier/drift_detector.py \
   tests/architectural/test_dossier_sync_boundary.py
 
-# 2. Confirm no dossier → sync imports remain
+# 2. mypy --strict on new files (charter requirement: zero new type errors)
+uv run mypy --strict \
+  src/specify_cli/identity/project.py \
+  src/specify_cli/identity/__init__.py
+
+# 3. Confirm no dossier → sync imports remain
 grep -r "from specify_cli.sync" src/specify_cli/dossier/ --include="*.py"
 # Expected: empty
 
-# 3. Dossier test suite
+# 4. Dossier test suite
 uv run pytest tests/dossier -q
 
-# 4. Sync test suite (shim must not break sync callers)
+# 5. Sync test suite (shim must not break sync callers)
 uv run pytest tests/sync -q
 
-# 5. Architectural guard
+# 6. Architectural guard
 uv run pytest tests/architectural/test_dossier_sync_boundary.py -v
 
-# 6. Quick smoke test of import chains
+# 7. Quick smoke test of import chains
 uv run python -c "
 from specify_cli.identity.project import ProjectIdentity, ensure_identity
 from specify_cli.sync.project_identity import ProjectIdentity as PI2, ensure_identity as ei2
@@ -372,6 +387,7 @@ print('All import chains OK')
 
 **Validation**:
 - [ ] All ruff checks pass (0 violations)
+- [ ] mypy --strict passes on `identity/project.py` and `identity/__init__.py`
 - [ ] grep for `from specify_cli.sync` in dossier returns empty
 - [ ] `tests/dossier` suite green
 - [ ] `tests/sync` suite green
