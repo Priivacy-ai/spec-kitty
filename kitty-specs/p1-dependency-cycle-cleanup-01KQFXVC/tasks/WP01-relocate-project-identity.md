@@ -429,3 +429,7 @@ print('All import chains OK')
 3. Confirm `drift_detector.py` has exactly ONE changed line (import path).
 4. Run the T005 verification commands directly — do not accept the PR without running them.
 5. The architectural guard test should FAIL if you revert T003 and run it again. Verify this manually once.
+
+## Activity Log
+
+- 2026-05-01T04:38:24Z – claude – shell_pid=88144 – WP01 complete: all 5 subtasks done, 311 dossier + 1456 sync tests pass, architectural guard green
