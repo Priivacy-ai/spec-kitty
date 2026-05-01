@@ -12,6 +12,10 @@ from specify_cli.status.reducer import reduce
 from specify_cli.status.store import append_event, read_events
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
+    WorkPackageStartRejected,
+    _actor_key,
+    _actors_compatible,
+    _repo_root_for_lock,
     start_implementation_status,
     start_review_status,
 )
@@ -140,6 +144,68 @@ def test_start_implementation_noops_in_progress_same_actor(tmp_path: Path) -> No
     assert len(read_events(feature_dir)) == 2
 
 
+def test_start_implementation_rejects_in_progress_different_actor(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    append_event(
+        feature_dir,
+        _event("01BBBB0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="other-agent"),
+    )
+
+    with pytest.raises(WorkPackageClaimConflict) as exc_info:
+        start_implementation_status(
+            feature_dir=feature_dir,
+            mission_slug="099-lifecycle-test",
+            wp_id="WP01",
+            actor="claude",
+            workspace_context="worktree:/tmp/wp01",
+            execution_mode="worktree",
+            repo_root=tmp_path,
+        )
+
+    assert exc_info.value.claimed_by == "other-agent"
+
+
+def test_start_implementation_allows_forced_rework_from_review_lane(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+    append_event(
+        feature_dir,
+        _event("01CCCC0000000000000000003C", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW, actor="implementer"),
+    )
+
+    result = start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="claude",
+        workspace_context="worktree:/tmp/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+        allow_rework=True,
+        rework_reason="review changes requested",
+    )
+
+    assert result.from_lane == Lane.FOR_REVIEW
+    assert result.to_lane == Lane.IN_PROGRESS
+    assert read_events(feature_dir)[-1].reason == "review changes requested"
+
+
+def test_start_implementation_rejects_unstartable_lane(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+    append_event(feature_dir, _event("01DDDD0000000000000000004D", from_lane=Lane.APPROVED, to_lane=Lane.DONE))
+
+    with pytest.raises(WorkPackageStartRejected, match="cannot start implementation"):
+        start_implementation_status(
+            feature_dir=feature_dir,
+            mission_slug="099-lifecycle-test",
+            wp_id="WP01",
+            actor="claude",
+            workspace_context="worktree:/tmp/wp01",
+            execution_mode="worktree",
+            repo_root=tmp_path,
+        )
+
+
 def test_start_review_allows_reviewer_after_implementer_for_review(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
     append_event(
@@ -161,6 +227,27 @@ def test_start_review_allows_reviewer_after_implementer_for_review(tmp_path: Pat
     assert read_events(feature_dir)[-1].to_lane == Lane.IN_REVIEW
 
 
+def test_start_review_noops_same_reviewer(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+    append_event(
+        feature_dir,
+        _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
+    )
+
+    result = start_review_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="reviewer-a",
+        workspace_context="review:/tmp/repo",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    assert result.no_op is True
+    assert len(read_events(feature_dir)) == 1
+
+
 def test_start_review_rejects_second_reviewer(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
     append_event(
@@ -180,6 +267,30 @@ def test_start_review_rejects_second_reviewer(tmp_path: Path) -> None:
         )
 
     assert exc_info.value.claimed_by == "reviewer-a"
+
+
+def test_start_review_rejects_non_review_lane(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+
+    with pytest.raises(WorkPackageStartRejected, match="cannot start review"):
+        start_review_status(
+            feature_dir=feature_dir,
+            mission_slug="099-lifecycle-test",
+            wp_id="WP01",
+            actor="reviewer-a",
+            workspace_context="review:/tmp/repo",
+            execution_mode="worktree",
+            repo_root=tmp_path,
+        )
+
+
+def test_lifecycle_helpers_normalize_lock_roots_and_actors(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "099-lifecycle-test"
+
+    assert _repo_root_for_lock(feature_dir, None) == tmp_path
+    assert _repo_root_for_lock(tmp_path / "loose-feature", None) == tmp_path / "loose-feature"
+    assert _actor_key(None) is None
+    assert _actors_compatible(None, "claude") is True
 
 
 def test_claimed_lane_surfaces_as_doing_in_dashboard() -> None:

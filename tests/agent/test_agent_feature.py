@@ -1036,7 +1036,7 @@ class TestSetupPlanCommand:
         # No template created and package template unavailable
         package_templates = Mock()
         package_template = Mock()
-        package_template.exists.return_value = False
+        package_template.is_file.return_value = False
         package_templates.joinpath.return_value = package_template
         mock_files.return_value = package_templates
 

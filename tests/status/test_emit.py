@@ -27,14 +27,16 @@ from specify_cli.status.emit import (
     _phase1_dual_write_enabled,
     _saas_fan_out,
     emit_status_transition,
+    emit_status_transition_batch,
 )
 from specify_cli.status.models import (
     DoneEvidence,
     Lane,
+    ReviewResult,
     StatusEvent,
     TransitionRequest,
 )
-from specify_cli.status.store import EVENTS_FILENAME, read_events
+from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
 
 pytestmark = pytest.mark.fast
 # ── Fixtures ──────────────────────────────────────────────────
@@ -1237,3 +1239,217 @@ class TestMergeLightweightEmit:
         mock_fanout.assert_called_once()
         assert mock_fanout.call_args.kwargs["ensure_sync_daemon"] is False
         mock_dossier.assert_not_called()
+
+
+class TestBatchEmit:
+    def test_empty_batch_returns_empty(self) -> None:
+        assert emit_status_transition_batch([]) == []
+
+    def test_batch_requires_first_request_identity(self) -> None:
+        with pytest.raises(TypeError, match="requires feature_dir"):
+            emit_status_transition_batch([TransitionRequest()])
+
+    def test_batch_requires_each_request_identity(self, feature_dir: Path) -> None:
+        with pytest.raises(TypeError, match="Each batch transition"):
+            emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="claimed",
+                        actor="agent",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                    ),
+                ]
+            )
+
+    def test_batch_rejects_mixed_work_packages(self, feature_dir: Path) -> None:
+        with pytest.raises(TypeError, match="one feature/mission/wp"):
+            emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="claimed",
+                        actor="agent",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="claimed",
+                        actor="agent",
+                    ),
+                ]
+            )
+
+    def test_batch_all_alias_collapses_returns_empty(self, feature_dir: Path) -> None:
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="01HXYZ0000000000000000CLPS",
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                from_lane=Lane.CLAIMED,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-02-08T12:00:00Z",
+                actor="agent",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+
+        events = emit_status_transition_batch(
+            [
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="doing",
+                    actor="agent",
+                )
+            ]
+        )
+
+        assert events == []
+        assert len(read_events(feature_dir)) == 1
+
+    def test_batch_invalid_transition_is_rejected_without_persisting(self, feature_dir: Path) -> None:
+        with pytest.raises(TransitionError, match="Illegal transition"):
+            emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="done",
+                        actor="agent",
+                    )
+                ]
+            )
+
+        assert read_events(feature_dir) == []
+
+    def test_batch_infers_review_readiness_and_builds_evidence(self, feature_dir: Path, valid_evidence_dict: dict) -> None:
+        with patch.object(emit_module, "_saas_fan_out"):
+            events = emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="claimed",
+                        actor="agent",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="in_progress",
+                        actor="agent",
+                        workspace_context="worktree:/tmp/wp01",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="for_review",
+                        actor="agent",
+                        force=True,
+                        reason="ready for review",
+                    ),
+                ],
+                sync_dossier=False,
+            )
+
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
+
+        with patch.object(emit_module, "_saas_fan_out"):
+            done = emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="claimed",
+                        actor="agent",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="in_progress",
+                        actor="agent",
+                        workspace_context="worktree:/tmp/wp02",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="for_review",
+                        actor="agent",
+                        force=True,
+                        reason="ready for review",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="in_review",
+                        actor="reviewer",
+                        review_ref="review-1",
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="approved",
+                        actor="reviewer",
+                        review_result=ReviewResult(
+                            reviewer="reviewer",
+                            verdict="approved",
+                            reference="review-1",
+                        ),
+                    ),
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP02",
+                        to_lane="done",
+                        actor="reviewer",
+                        evidence=valid_evidence_dict,
+                    ),
+                ],
+                sync_dossier=False,
+            )
+
+        assert done[-1].evidence is not None
+        assert done[-1].to_lane == Lane.DONE
+
+    def test_batch_materialize_failure_keeps_persisted_events(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+        with (
+            patch.object(emit_module, "_saas_fan_out"),
+            patch.object(emit_module._reducer, "materialize", side_effect=RuntimeError("boom")),
+        ):
+            events = emit_status_transition_batch(
+                [
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug="034-test-feature",
+                        wp_id="WP01",
+                        to_lane="claimed",
+                        actor="agent",
+                    )
+                ],
+                sync_dossier=False,
+            )
+
+        assert len(events) == 1
+        assert read_events(feature_dir)[0].to_lane == Lane.CLAIMED
+        assert "Materialization failed after batch" in caplog.text

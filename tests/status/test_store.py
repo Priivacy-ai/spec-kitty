@@ -90,6 +90,23 @@ def test_append_events_atomic_persists_full_batch(tmp_path: Path) -> None:
     ]
 
 
+def test_append_events_atomic_empty_batch_is_noop(tmp_path: Path) -> None:
+    append_events_atomic(tmp_path, [])
+
+    assert not (tmp_path / EVENTS_FILENAME).exists()
+
+
+def test_append_events_atomic_repairs_missing_trailing_newline(tmp_path: Path) -> None:
+    first = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
+    second = _make_event(event_id="01BBBB0000000000000000002B", wp_id="WP02")
+    events_path = tmp_path / EVENTS_FILENAME
+    events_path.write_text(json.dumps(first.to_dict(), sort_keys=True), encoding="utf-8")
+
+    append_events_atomic(tmp_path, [second])
+
+    assert [event.wp_id for event in read_events(tmp_path)] == ["WP01", "WP02"]
+
+
 def test_append_events_atomic_replace_failure_leaves_original(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     original = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
     append_event(tmp_path, original)

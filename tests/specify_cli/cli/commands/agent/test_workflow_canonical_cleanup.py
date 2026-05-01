@@ -28,7 +28,7 @@ from specify_cli.tasks_support import split_frontmatter
 pytestmark = pytest.mark.fast
 
 
-def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str, *, actor: str = "test") -> None:
     """Seed a WP into a specific lane in the event log."""
     _lane_alias = {"doing": "in_progress"}
     canonical_lane = _lane_alias.get(lane, lane)
@@ -39,7 +39,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
         at="2026-01-01T00:00:00+00:00",
-        actor="test",
+        actor=actor,
         force=True,
         execution_mode="worktree",
     )
@@ -146,7 +146,7 @@ class TestImplementBodyNoteLaneFree:
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="doing")
         # Seed canonical state as in_progress (= doing)
-        _seed_wp_lane(feature_dir, "WP01", "doing")
+        _seed_wp_lane(feature_dir, "WP01", "doing", actor="test-agent")
 
         workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
