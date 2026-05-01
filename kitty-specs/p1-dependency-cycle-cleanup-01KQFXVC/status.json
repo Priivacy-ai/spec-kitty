@@ -1,16 +1,16 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KQH6M0F3035PJKRYQ31XB39Z",
-  "materialized_at": "2026-05-01T07:21:31.363598+00:00",
-  "mission_number": "",
+  "event_count": 20,
+  "last_event_id": "01KQH6NQ8HT5YH449Z3XF56K4B",
+  "materialized_at": "2026-05-01T07:22:27.473579+00:00",
+  "mission_number": "110",
   "mission_slug": "p1-dependency-cycle-cleanup-01KQFXVC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 1,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,11 +18,11 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 5,
-      "lane": "approved",
-      "last_event_id": "01KQH0G4JCB3C9EQ2WZSGBGDA2",
-      "last_transition_at": "2026-05-01T05:34:33.036292+00:00"
+      "lane": "done",
+      "last_event_id": "01KQH6NQ8HT5YH449Z3XF56K4B",
+      "last_transition_at": "2026-05-01T07:22:27.473579+00:00"
     },
     "WP02": {
       "actor": "user",
