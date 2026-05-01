@@ -36,6 +36,7 @@ owned_files:
 - src/specify_cli/status/emit.py
 - src/specify_cli/sync/__init__.py
 - tests/architectural/test_status_sync_boundary.py
+- tests/status/test_emit.py
 - tests/status/test_emit_fanout_after_adapter.py
 role: implementer
 tags: []
@@ -619,3 +620,7 @@ This test guards against the regression where the registry pattern silently drop
 4. Run T010 verification commands directly — do not accept the PR without them.
 5. Check that contract tests pass with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` (this exercises the handler registration path).
 6. The architectural guard test should FAIL if you revert T007 and run it. Verify once.
+
+## Activity Log
+
+- 2026-05-01T07:14:46Z – claude – shell_pid=90882 – WP02 complete: status/adapters.py + emit.py + sync/__init__.py registration + 2 architectural tests + fan-out preservation regression test. 537 status + 1456 sync tests pass.
