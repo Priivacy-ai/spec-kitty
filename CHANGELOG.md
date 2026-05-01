@@ -17,6 +17,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0a8] - 2026-05-01
+
+3.2.0a8 is a prerelease that hardens direct SaaS sync ingress around the
+Private Teamspace boundary. CLI sync side effects now resolve a canonical
+Private Teamspace target, rehydrate session membership once when needed, and
+skip direct ingress with a diagnostic instead of falling back to a shared team.
+
+### Fixed
+
+- Direct sync ingress for `/api/v1/events/batch/` and `/api/v1/ws-token` now
+  uses a strict Private Teamspace resolver and refuses shared-team fallbacks
+  from stale `default_team_id`, `teams[0]`, or websocket state (#943).
+- Auth refresh and session rehydration now update team membership from
+  `/api/v1/me`, recomputing `default_team_id` from the refreshed private team
+  list instead of preserving stale shared defaults (#943).
+- `--json` command stdout remains parseable when SaaS sync cannot connect or
+  cannot resolve a Private Teamspace; sync diagnostics route to stderr or
+  structured logs rather than contaminating stdout (#943).
+
+### Internal
+
+- Added strict resolver, sync call-site, websocket, offline queue, and
+  strict-JSON regression coverage for the Private Teamspace ingress boundary.
+- Added mission review evidence for
+  `private-teamspace-ingress-safeguards-01KQH03Y`.
+
 ## [3.2.0a7] - 2026-05-01
 
 3.2.0a7 is a focused prerelease that bounds WebSocket sync startup and
