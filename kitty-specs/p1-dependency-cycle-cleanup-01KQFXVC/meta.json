@@ -2,7 +2,7 @@
   "created_at": "2026-04-30T19:29:01.004950+00:00",
   "friendly_name": "P1 Dependency Cycle Cleanup",
   "mission_id": "01KQFXVC2BRZZZJ0V0MQXXSXXR",
-  "mission_number": null,
+  "mission_number": 110,
   "mission_slug": "p1-dependency-cycle-cleanup-01KQFXVC",
   "mission_type": "software-dev",
   "purpose_context": "The spec-kitty codebase has two priority-1 circular import paths from GitHub issue #862. The dossier package and sync package import each other, and status/emit imports directly from sync. These cycles prevent clean package separation, complicate testing, and risk transitive dependency leaks. This mission removes both cycles through targeted structural refactoring with no behavioral changes to existing sync, dossier, status, or SaaS fan-out functionality.",

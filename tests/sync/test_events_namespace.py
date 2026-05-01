@@ -28,11 +28,9 @@ VALID_HASH = "a" * 64
 
 
 class TestArtifactIndexedNamespace:
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_includes_namespace_when_provided(self, mock_get_emitter: MagicMock) -> None:
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {"event_type": "test"}
-        mock_get_emitter.return_value = mock_emitter
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
+        mock_fire.return_value = {"event_type": "test"}
 
         ns = _make_namespace_dict()
         emit_artifact_indexed(
@@ -45,17 +43,15 @@ class TestArtifactIndexedNamespace:
             namespace=ns,
         )
 
-        call_kwargs = mock_emitter._emit.call_args
+        call_kwargs = mock_fire.call_args
         payload = call_kwargs.kwargs["payload"]
         assert "namespace" in payload
         assert payload["namespace"] == ns
         assert len(payload["namespace"]) == 5
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_omits_namespace_when_not_provided(self, mock_get_emitter: MagicMock) -> None:
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {"event_type": "test"}
-        mock_get_emitter.return_value = mock_emitter
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_omits_namespace_when_not_provided(self, mock_fire: MagicMock) -> None:
+        mock_fire.return_value = {"event_type": "test"}
 
         emit_artifact_indexed(
             mission_slug="047-feat",
@@ -66,17 +62,15 @@ class TestArtifactIndexedNamespace:
             size_bytes=100,
         )
 
-        call_kwargs = mock_emitter._emit.call_args
+        call_kwargs = mock_fire.call_args
         payload = call_kwargs.kwargs["payload"]
         assert "namespace" not in payload
 
 
 class TestArtifactMissingNamespace:
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_includes_namespace_when_provided(self, mock_get_emitter: MagicMock) -> None:
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {"event_type": "test"}
-        mock_get_emitter.return_value = mock_emitter
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
+        mock_fire.return_value = {"event_type": "test"}
 
         ns = _make_namespace_dict()
         emit_artifact_missing(
@@ -89,16 +83,14 @@ class TestArtifactMissingNamespace:
             namespace=ns,
         )
 
-        call_kwargs = mock_emitter._emit.call_args
+        call_kwargs = mock_fire.call_args
         payload = call_kwargs.kwargs["payload"]
         assert "namespace" in payload
         assert payload["namespace"] == ns
 
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_omits_namespace_when_not_provided(self, mock_get_emitter: MagicMock) -> None:
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {"event_type": "test"}
-        mock_get_emitter.return_value = mock_emitter
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_omits_namespace_when_not_provided(self, mock_fire: MagicMock) -> None:
+        mock_fire.return_value = {"event_type": "test"}
 
         emit_artifact_missing(
             mission_slug="047-feat",
@@ -109,17 +101,15 @@ class TestArtifactMissingNamespace:
             blocking=True,
         )
 
-        call_kwargs = mock_emitter._emit.call_args
+        call_kwargs = mock_fire.call_args
         payload = call_kwargs.kwargs["payload"]
         assert "namespace" not in payload
 
 
 class TestSnapshotComputedNamespace:
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_includes_namespace_when_provided(self, mock_get_emitter: MagicMock) -> None:
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {"event_type": "test"}
-        mock_get_emitter.return_value = mock_emitter
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
+        mock_fire.return_value = {"event_type": "test"}
 
         ns = _make_namespace_dict()
         emit_snapshot_computed(
@@ -136,18 +126,16 @@ class TestSnapshotComputedNamespace:
             namespace=ns,
         )
 
-        call_kwargs = mock_emitter._emit.call_args
+        call_kwargs = mock_fire.call_args
         payload = call_kwargs.kwargs["payload"]
         assert "namespace" in payload
         assert payload["namespace"] == ns
 
 
 class TestParityDriftNamespace:
-    @patch("specify_cli.sync.events.get_emitter")
-    def test_includes_namespace_when_provided(self, mock_get_emitter: MagicMock) -> None:
-        mock_emitter = MagicMock()
-        mock_emitter._emit.return_value = {"event_type": "test"}
-        mock_get_emitter.return_value = mock_emitter
+    @patch("specify_cli.dossier.events.fire_dossier_event")
+    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
+        mock_fire.return_value = {"event_type": "test"}
 
         ns = _make_namespace_dict()
         emit_parity_drift_detected(
@@ -157,7 +145,7 @@ class TestParityDriftNamespace:
             namespace=ns,
         )
 
-        call_kwargs = mock_emitter._emit.call_args
+        call_kwargs = mock_fire.call_args
         payload = call_kwargs.kwargs["payload"]
         assert "namespace" in payload
         assert payload["namespace"] == ns

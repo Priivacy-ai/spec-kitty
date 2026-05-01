@@ -50,6 +50,7 @@ from .models import (
 from .transitions import resolve_lane_alias, validate_transition
 from . import store as _store
 from . import reducer as _reducer
+from .adapters import fire_dossier_sync, fire_saas_fanout
 
 logger = logging.getLogger(__name__)
 
@@ -483,18 +484,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
 
     # Step 8: Dossier sync (fire-and-forget, never blocks)
     if sync_dossier and repo_root is not None:
-        try:
-            from specify_cli.sync.dossier_pipeline import (
-                trigger_feature_dossier_sync_if_enabled,
-            )
-
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir,
-                mission_slug,
-                repo_root,
-            )
-        except Exception:
-            logger.debug("Dossier sync failed; never blocks status transitions", exc_info=True)
+        fire_dossier_sync(feature_dir, mission_slug, repo_root)
 
     # Step 9: Return the event
     return event
@@ -508,35 +498,26 @@ def _saas_fan_out(
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
 ) -> None:
-    """Conditionally emit a SaaS telemetry event via the sync pipeline.
+    """Conditionally fan out a SaaS telemetry event via the registered handlers.
 
-    Uses try/except ImportError to handle the 0.1x branch where
-    the sync module does not exist. A broad Exception catch ensures
-    SaaS failures NEVER block canonical persistence.
+    Routes through specify_cli.status.adapters.fire_saas_fanout, which
+    is non-raising and a no-op when no sync handler has been registered
+    (e.g., 0.1x branch or test environments without sync imported).
+    Canonical status persistence is never affected by handler failures.
     """
-    try:
-        from specify_cli.sync.events import emit_wp_status_changed
-
-        emit_wp_status_changed(
-            wp_id=event.wp_id,
-            from_lane=str(event.from_lane),
-            to_lane=str(event.to_lane),
-            actor=event.actor,
-            mission_slug=mission_slug,
-            mission_id=event.mission_id,
-            causation_id=event.event_id,
-            policy_metadata=policy_metadata,
-            force=event.force,
-            reason=event.reason,
-            review_ref=event.review_ref,
-            execution_mode=event.execution_mode,
-            evidence=event.evidence.to_dict() if event.evidence else None,
-            ensure_daemon=ensure_sync_daemon,
-        )
-    except ImportError:
-        pass  # SaaS sync not available (0.1x branch)
-    except Exception:
-        logger.warning(
-            "SaaS fan-out failed for event %s; canonical log unaffected",
-            event.event_id,
-        )
+    fire_saas_fanout(
+        wp_id=event.wp_id,
+        from_lane=str(event.from_lane),
+        to_lane=str(event.to_lane),
+        actor=event.actor,
+        mission_slug=mission_slug,
+        mission_id=event.mission_id,
+        causation_id=event.event_id,
+        policy_metadata=policy_metadata,
+        force=event.force,
+        reason=event.reason,
+        review_ref=event.review_ref,
+        execution_mode=event.execution_mode,
+        evidence=event.evidence.to_dict() if event.evidence else None,
+        ensure_daemon=ensure_sync_daemon,
+    )

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from specify_cli.dossier.events import emit_parity_drift_detected
 from specify_cli.dossier.models import MissionDossierSnapshot
-from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.identity.project import ProjectIdentity
 
 logger = logging.getLogger(__name__)
 
