@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any, Protocol
 
-import toml
+import toml  # type: ignore[import-untyped]
 
 
 class _BatchEventResultLike(Protocol):
@@ -191,34 +191,47 @@ def _read_server_url_for_scope() -> str:
 def read_queue_scope_from_session() -> str | None:
     """Read queue scope from the real encrypted auth session store.
 
-    Returns None when the session is missing, unreadable, or incomplete.
+    Returns None when the session is missing, unreadable, or incomplete, or
+    when the session lacks a Private Teamspace (FR-002/FR-004 — direct ingress
+    requires a Private Teamspace; the shared helper emits the structured
+    warning and the queue-scope path skips by returning ``None``).
     """
+    # FR-002/FR-004/NFR-002 + NFR-001: ingress team-id derivation must go
+    # through the shared helper, AND must use the process-wide TokenManager
+    # singleton so the rehydrate negative cache + threading.Lock state
+    # persist across queue-scope reads in the same process. Constructing a
+    # fresh TokenManager per call would zero the cache and could trigger
+    # repeated /api/v1/me probes for a single shared-only session.
     try:
-        from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
-    except Exception:
+        from specify_cli.auth import get_token_manager
+        from specify_cli.sync._team import resolve_private_team_id_for_ingress
+    except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "read_queue_scope_from_session: import failed: %s", exc
+        )
         return None
 
-    try:
-        session = FileFallbackStorage(base_dir=_auth_session_store_dir()).read()
-    except Exception:
-        return None
-
+    token_manager = get_token_manager()
+    session = token_manager.get_current_session()
     if session is None or not session.email:
         return None
 
-    team_id = session.default_team_id
-    if not team_id and session.teams:
-        for team in session.teams:
-            if team.is_private_teamspace:
-                team_id = team.id
-                break
-        if not team_id:
-            team_id = session.teams[0].id
+    team_id = resolve_private_team_id_for_ingress(
+        token_manager,
+        endpoint="/api/v1/events/batch/",
+    )
+    if team_id is None:
+        # Queue scope cannot be safely derived without a Private Teamspace;
+        # leave events in any existing scoped queue and return None so
+        # callers fall back to non-ingress paths.
+        return None
 
     return build_queue_scope(
         server_url=_read_server_url_for_scope(),
         username=session.email,
-        team_slug=team_id or "no-team",
+        team_slug=team_id,
     )
 
 
@@ -661,7 +674,16 @@ class OfflineQueue:
             conn.commit()
             return True
         except Exception as e:
-            print(f"Failed to queue event: {e}")
+            # FR-009/NFR-003: sync side-effect failures during a `--json` agent
+            # command (mission create / task update / status read) MUST NOT
+            # leak to stdout. Route through stderr-routed logger instead of
+            # print() so json.loads(stdout) stays parseable when a queue
+            # insert fails (e.g., transient SQLite contention).
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to queue event: %s", e
+            )
             return False
         finally:
             conn.close()
@@ -736,7 +758,7 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                 event_ids,
             )
             conn.commit()
@@ -757,7 +779,7 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
+                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                 event_ids,
             )
             conn.commit()
@@ -814,7 +836,7 @@ class OfflineQueue:
 
             placeholders = ",".join("?" * len(matching_ids))
             conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                 matching_ids,
             )
             conn.commit()
@@ -846,13 +868,13 @@ class OfflineQueue:
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 conn.execute(
-                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
+                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                     synced_or_duplicate,
                 )
             if rejected:
                 placeholders = ",".join("?" * len(rejected))
                 conn.execute(
-                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
+                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                     rejected,
                 )
             conn.commit()

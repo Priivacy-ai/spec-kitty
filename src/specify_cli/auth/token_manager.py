@@ -28,8 +28,10 @@ fix.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import sys
+import threading
 from pathlib import Path
 
 from .errors import (
@@ -44,7 +46,12 @@ from .refresh_transaction import (
     run_refresh_transaction,
 )
 from .secure_storage import SecureStorage
-from .session import StoredSession
+from .session import (
+    StoredSession,
+    Team,
+    get_private_team_id,
+    pick_default_team_id,
+)
 
 log = logging.getLogger(__name__)
 
@@ -80,10 +87,24 @@ class TokenManager:
     thread-safe lazy initialization.
     """
 
-    def __init__(self, storage: SecureStorage) -> None:
+    def __init__(
+        self,
+        storage: SecureStorage,
+        saas_base_url: str | None = None,
+    ) -> None:
         self._storage = storage
         self._session: StoredSession | None = None
         self._refresh_lock: asyncio.Lock | None = None
+        # WP02 (private-teamspace-ingress-safeguards): sync rehydrate state.
+        # The threading.Lock serializes sync rehydrate callers (batch.py /
+        # queue.py / emitter.py) so a thundering herd produces exactly one
+        # /api/v1/me GET. The negative cache is process-scoped only — never
+        # persisted to disk. ``_saas_base_url`` is optional at construction
+        # time; when ``None`` we resolve it lazily via ``get_saas_base_url()``
+        # so existing call sites that pass only ``storage`` keep working.
+        self._saas_base_url: str | None = saas_base_url
+        self._membership_negative_cache: bool = False
+        self._membership_lock: threading.Lock = threading.Lock()
 
     # ---- lock lifecycle --------------------------------------------------
 
@@ -114,7 +135,16 @@ class TokenManager:
             self._session = None
 
     def set_session(self, session: StoredSession) -> None:
-        """Persist a new session (called by AuthorizationCodeFlow / DeviceCodeFlow)."""
+        """Persist a new session (called by AuthorizationCodeFlow / DeviceCodeFlow).
+
+        WP02 (private-teamspace-ingress-safeguards) T007: every login / repair /
+        identity-change boundary that flows through ``set_session`` resets the
+        membership negative cache unconditionally. Same-user re-login also clears
+        the cache — checking ``prior.email != new.email`` would miss that case.
+        """
+        # Clear the negative cache BEFORE persistence so a concurrent reader
+        # that wakes up post-write sees a fresh-cache state.
+        self._membership_negative_cache = False
         self._session = session
         self._storage.write(session)
 
@@ -167,6 +197,110 @@ class TokenManager:
         assert self._session is not None
         token: str = self._session.access_token
         return token
+
+    # ---- membership rehydrate (WP02) ------------------------------------
+
+    def _resolve_saas_base_url(self) -> str:
+        """Return the SaaS base URL, resolving lazily from config if unset.
+
+        Lazy resolution lets existing call sites that pass only ``storage`` to
+        ``TokenManager(...)`` continue to work; the URL is needed only on the
+        rehydrate code path.
+        """
+        if self._saas_base_url is not None:
+            return self._saas_base_url
+        from .config import get_saas_base_url  # noqa: PLC0415
+
+        url: str = get_saas_base_url()
+        return url
+
+    def rehydrate_membership_if_needed(self, *, force: bool = False) -> bool:
+        """Sync one-shot ``/api/v1/me`` rehydrate.
+
+        Returns ``True`` iff the in-memory session ends with a Private
+        Teamspace membership. Returns ``False`` for: no session loaded,
+        negative-cache hit (without ``force=True``), HTTP failure, or a
+        successful fetch that still contained no Private Teamspace.
+
+        Contract (see contracts/api.md §3):
+
+        - Early-return ``True`` when the current session already exposes a
+          Private Teamspace.
+        - Honor the process-scoped negative cache as a fast path; ``force=True``
+          bypasses it (refresh hook + explicit caller-driven retries).
+        - Single-flight via ``threading.Lock``: concurrent threads that race
+          on a shared-only session produce exactly one HTTP GET.
+        - Recompute ``default_team_id`` via ``pick_default_team_id(teams)`` —
+          the SaaS does NOT return ``default_team_id`` in ``/api/v1/me``, mirroring
+          ``auth/flows/authorization_code.py:281``.
+        - Persist via ``set_session`` (which also clears the negative cache).
+        - Transient HTTP errors return ``False`` and DO NOT poison the cache;
+          only an authoritative empty-private response sets the negative cache.
+        """
+        with self._membership_lock:
+            session = self._session
+            if session is None:
+                return False
+            if get_private_team_id(session.teams) is not None:
+                return True
+            if self._membership_negative_cache and not force:
+                return False
+
+            # Lazy import: ``auth.http.transport`` imports from
+            # ``specify_cli.auth`` (for ``get_token_manager``), which would
+            # circularly import this module if ``me_fetch`` were imported at
+            # module load time.
+            from .http.me_fetch import fetch_me_payload  # noqa: PLC0415
+
+            try:
+                payload = fetch_me_payload(
+                    self._resolve_saas_base_url(),
+                    session.access_token,
+                )
+            except Exception as exc:  # noqa: BLE001 — explicit log-and-skip boundary
+                log.warning(
+                    "rehydrate_membership_if_needed: /api/v1/me fetch failed: %s",
+                    exc,
+                )
+                return False
+
+            raw_teams = payload.get("teams", [])
+            teams = [Team.from_dict(t) for t in raw_teams]
+            if get_private_team_id(teams) is None:
+                # Authoritative: SaaS confirmed no Private Teamspace exists for
+                # this user. Set the process-scoped negative cache so direct
+                # ingress paths fail fast without re-issuing the GET.
+                self._membership_negative_cache = True
+                return False
+
+            # Recompute default_team_id from fresh teams (mirrors auth login at
+            # auth/flows/authorization_code.py:281; SaaS does NOT return this
+            # field in /api/v1/me).
+            new_default_team_id = pick_default_team_id(teams)
+            new_session = dataclasses.replace(
+                session,
+                teams=teams,
+                default_team_id=new_default_team_id,
+            )
+            # set_session clears _membership_negative_cache unconditionally (T007).
+            self.set_session(new_session)
+            return True
+
+    def _apply_post_refresh_membership_hook(self, session: StoredSession) -> None:
+        """T011: rehydrate membership when a just-adopted session lacks a private team.
+
+        Runs after every ``RefreshOutcome`` adoption branch in
+        ``refresh_if_needed``. ``force=True`` because token refresh is a
+        state-change boundary; the negative cache from earlier in this
+        process must not block recovery.
+
+        Sync call from inside an async method is intentional: the threading
+        lock window covers only the sync HTTP GET (which has its own
+        transport-level timeout), and the threading.Lock and asyncio.Lock
+        protect different state.
+        """
+        if get_private_team_id(session.teams) is None:
+            self.rehydrate_membership_if_needed(force=True)
 
     async def refresh_if_needed(self) -> bool:
         """Refresh the access token if it's near expiry. Single-flight.
@@ -234,20 +368,24 @@ class TokenManager:
                 # storage.write happened inside the transaction.
                 assert result.session is not None
                 self._session = result.session
+                self._apply_post_refresh_membership_hook(result.session)
                 return True
             if outcome is RefreshOutcome.ADOPTED_NEWER:
                 assert result.session is not None
                 self._session = result.session
+                self._apply_post_refresh_membership_hook(result.session)
                 return False
             if outcome is RefreshOutcome.LOCK_TIMEOUT_ADOPTED:
                 assert result.session is not None
                 self._session = result.session
+                self._apply_post_refresh_membership_hook(result.session)
                 return False
             if outcome is RefreshOutcome.STALE_REJECTION_PRESERVED:
                 # FR-006: another process rotated; preserve the freshly
                 # persisted session, do NOT clear.
                 assert result.session is not None
                 self._session = result.session
+                self._apply_post_refresh_membership_hook(result.session)
                 return False
             if outcome is RefreshOutcome.CURRENT_REJECTION_CLEARED:
                 # FR-005: storage.delete already happened inside the

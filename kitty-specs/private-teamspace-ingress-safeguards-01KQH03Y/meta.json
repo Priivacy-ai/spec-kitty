@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-01T05:27:53.915617+00:00",
+  "friendly_name": "CLI Private Teamspace Ingress Safeguards",
+  "mission_id": "01KQH03YSS4H9PQVJ5YCTGZYMR",
+  "mission_number": 110,
+  "mission_slug": "private-teamspace-ingress-safeguards-01KQH03Y",
+  "mission_type": "software-dev",
+  "purpose_context": "GitHub issue Priivacy-ai/spec-kitty-saas#142 exposed a cross-repo bug where a CLI session containing only shared Teamspaces could cause direct sync ingress to fall back to default_team_id or teams[0], which the SaaS rejects with 'Forbidden: Direct sync ingress must target Private Teamspace'. While the SaaS will eliminate shared-only authenticated users, the CLI must still defend itself so stale sessions, old servers, or malformed auth payloads can never cause direct ingress to target a shared Teamspace. This mission introduces a strict private-team resolver, a one-shot /api/v1/me rehydrate, and a clear skip-ingress failure mode that keeps strict-JSON command output parseable on stdout.",
+  "purpose_tldr": "Prevent CLI direct sync ingress from ever targeting a shared Teamspace, even with stale or malformed sessions.",
+  "slug": "private-teamspace-ingress-safeguards-01KQH03Y",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-01T08:13:54.132656+00:00"
+}

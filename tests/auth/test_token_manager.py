@@ -64,7 +64,9 @@ def _make_session(
         user_id="user-1",
         email="a@b.com",
         name="A B",
-        teams=[Team(id="t1", name="T1", role="owner")],
+        # WP02: include a Private Teamspace so the post-refresh hook in
+        # ``refresh_if_needed`` short-circuits (no synthetic /api/v1/me HTTP).
+        teams=[Team(id="t1", name="T1", role="owner", is_private_teamspace=True)],
         default_team_id="t1",
         access_token=access_token,
         refresh_token=refresh_token,
@@ -847,3 +849,289 @@ def test_file_lock_module_exposes_lock_acquire_timeout():
     """Smoke check on the WP01 dependency surface this WP relies on."""
     assert hasattr(file_lock_module, "LockAcquireTimeout")
     assert hasattr(file_lock_module, "MachineFileLock")
+
+
+# ===========================================================================
+# WP02 (private-teamspace-ingress-safeguards): rehydrate_membership_if_needed
+# ===========================================================================
+#
+# T009: 7 contract branches for sync rehydrate.
+# T010: concurrent-callers single-flight test.
+# Plus: set_session unconditional cache reset (T007).
+#
+# Tests are sync (no ``pytest.mark.asyncio``). ``respx.mock`` intercepts the
+# sync httpx calls inside ``request_with_fallback_sync``.
+
+
+import concurrent.futures  # noqa: E402
+
+import httpx  # noqa: E402
+import respx  # noqa: E402
+
+
+_SAAS_BASE_URL = "https://saas.example"
+
+
+def _make_session_with_teams(teams: list[Team]) -> StoredSession:
+    """Build a ``StoredSession`` with the supplied team list, otherwise a no-op session."""
+    now = _now()
+    return StoredSession(
+        user_id="user-1",
+        email="a@b.com",
+        name="A B",
+        teams=teams,
+        default_team_id=teams[0].id if teams else "",
+        access_token="access-v1",
+        refresh_token="refresh-v1",
+        session_id="sess",
+        issued_at=now,
+        access_token_expires_at=now + timedelta(seconds=900),
+        refresh_token_expires_at=None,
+        scope="openid",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
+
+
+@pytest.fixture
+def token_manager_with_private_session() -> TokenManager:
+    """A ``TokenManager`` whose loaded session already has a Private Teamspace."""
+    storage = FakeStorage()
+    tm = TokenManager(storage, saas_base_url=_SAAS_BASE_URL)
+    tm._session = _make_session_with_teams(
+        [
+            Team(
+                id="t-private",
+                name="Private",
+                role="owner",
+                is_private_teamspace=True,
+            ),
+        ]
+    )
+    return tm
+
+
+@pytest.fixture
+def token_manager_with_shared_only_session() -> TokenManager:
+    """A ``TokenManager`` whose loaded session has only a shared (non-private) team."""
+    storage = FakeStorage()
+    tm = TokenManager(storage, saas_base_url=_SAAS_BASE_URL)
+    tm._session = _make_session_with_teams(
+        [
+            Team(
+                id="t-shared",
+                name="Shared",
+                role="member",
+                is_private_teamspace=False,
+            ),
+        ]
+    )
+    return tm
+
+
+# --- T009 contract branches -------------------------------------------------
+
+
+@respx.mock
+def test_rehydrate_early_returns_when_session_already_has_private(
+    token_manager_with_private_session: TokenManager,
+) -> None:
+    """Branch (a): existing Private Teamspace short-circuits — no HTTP issued."""
+    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    assert token_manager_with_private_session.rehydrate_membership_if_needed() is True
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_rehydrate_fetches_persists_and_recomputes_default_team_id(
+    token_manager_with_shared_only_session: TokenManager,
+) -> None:
+    """Spec FR-003 + design: ``default_team_id`` is recomputed via
+    ``pick_default_team_id``, NOT preserved from the old shared-only session.
+
+    The SaaS does NOT return ``default_team_id`` in ``/api/v1/me`` (see
+    auth/flows/authorization_code.py:281).
+    """
+    respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-shared",
+                        "name": "Shared",
+                        "role": "member",
+                        "is_private_teamspace": False,
+                    },
+                    {
+                        "id": "t-private",
+                        "name": "Private",
+                        "role": "owner",
+                        "is_private_teamspace": True,
+                    },
+                ],
+            },
+        )
+    )
+    tm = token_manager_with_shared_only_session
+
+    assert tm.rehydrate_membership_if_needed() is True
+
+    updated = tm.get_current_session()
+    assert updated is not None
+    assert any(t.is_private_teamspace for t in updated.teams)
+    # pick_default_team_id prefers the Private Teamspace.
+    assert updated.default_team_id == "t-private"
+
+
+@respx.mock
+def test_rehydrate_sets_negative_cache_when_no_private_returned(
+    token_manager_with_shared_only_session: TokenManager,
+) -> None:
+    """Authoritative empty-private response sets the process-scoped cache."""
+    respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-shared",
+                        "name": "Shared",
+                        "role": "member",
+                        "is_private_teamspace": False,
+                    }
+                ],
+            },
+        )
+    )
+    tm = token_manager_with_shared_only_session
+
+    assert tm.rehydrate_membership_if_needed() is False
+    assert tm._membership_negative_cache is True
+
+
+@respx.mock
+def test_rehydrate_negative_cache_skips_http(
+    token_manager_with_shared_only_session: TokenManager,
+) -> None:
+    """Negative-cache fast path: no HTTP GET when cache is hot and ``force=False``."""
+    tm = token_manager_with_shared_only_session
+    tm._membership_negative_cache = True
+    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    assert tm.rehydrate_membership_if_needed() is False
+    assert route.call_count == 0
+
+
+@respx.mock
+def test_rehydrate_force_true_bypasses_negative_cache(
+    token_manager_with_shared_only_session: TokenManager,
+) -> None:
+    """``force=True`` ignores the negative cache; on success ``set_session``
+    clears it (T007 contract)."""
+    tm = token_manager_with_shared_only_session
+    tm._membership_negative_cache = True
+    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-private",
+                        "name": "Private",
+                        "role": "owner",
+                        "is_private_teamspace": True,
+                    }
+                ],
+            },
+        )
+    )
+
+    assert tm.rehydrate_membership_if_needed(force=True) is True
+    assert route.call_count == 1
+    assert tm._membership_negative_cache is False  # cleared via set_session in T007
+
+
+@respx.mock
+def test_rehydrate_returns_false_on_http_error_without_setting_cache(
+    token_manager_with_shared_only_session: TokenManager,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Transient errors (5xx) MUST NOT poison the cache — only authoritative
+    empty-private responses do. Failure path logs at WARNING."""
+    respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(500)
+    )
+    tm = token_manager_with_shared_only_session
+
+    with caplog.at_level(logging.WARNING, logger="specify_cli.auth.token_manager"):
+        assert tm.rehydrate_membership_if_needed() is False
+
+    assert tm._membership_negative_cache is False
+    assert any("/api/v1/me fetch failed" in rec.getMessage() for rec in caplog.records)
+
+
+def test_set_session_unconditionally_clears_negative_cache(
+    token_manager_with_shared_only_session: TokenManager,
+) -> None:
+    """T007: every set_session resets the cache, even for same-user re-login."""
+    tm = token_manager_with_shared_only_session
+    tm._membership_negative_cache = True
+
+    current = tm.get_current_session()
+    assert current is not None
+    # Same-user re-login: build a session with the same email.
+    tm.set_session(_make_session_with_teams(list(current.teams)))
+
+    assert tm._membership_negative_cache is False
+
+
+# --- T010 concurrent-callers single-flight ---------------------------------
+
+
+@respx.mock
+def test_rehydrate_concurrent_callers_serialize(
+    token_manager_with_shared_only_session: TokenManager,
+) -> None:
+    """Four concurrent threads must produce exactly one ``/api/v1/me`` GET.
+
+    The first thread acquires the threading.Lock, performs the GET, persists
+    the new session via ``set_session``, releases. The other three then
+    acquire the lock in turn and find ``get_private_team_id(session.teams)
+    is not None`` — they early-return without HTTP.
+    """
+    route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-private",
+                        "name": "Private",
+                        "role": "owner",
+                        "is_private_teamspace": True,
+                    }
+                ],
+            },
+        )
+    )
+    tm = token_manager_with_shared_only_session
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(tm.rehydrate_membership_if_needed) for _ in range(4)
+        ]
+        results = [f.result() for f in futures]
+
+    assert all(results)  # all four observed the now-private session
+    assert route.call_count == 1  # but only one GET hit the network

@@ -56,9 +56,13 @@ class Team:
 
 
 def pick_default_team_id(teams: list[Team]) -> str:
-    """Return the preferred default team id for a new session.
+    """Return the preferred default team id for new-session UI/login default display.
 
-    Private Teamspace wins when present; otherwise preserve the legacy first-team fallback.
+    Private Teamspace wins when present; otherwise preserves the legacy first-team
+    fallback. This is *display-only* — it is **not** valid as a fallback for direct
+    sync ingress. Direct-ingress code paths must use ``require_private_team_id`` paired
+    with ``TokenManager.rehydrate_membership_if_needed()`` instead, which fails closed
+    (returns ``None``) rather than returning a shared team.
     """
     for team in teams:
         if team.is_private_teamspace:
@@ -72,6 +76,25 @@ def get_private_team_id(teams: list[Team]) -> str | None:
         if bool(getattr(team, "is_private_teamspace", False)):
             return team.id
     return None
+
+
+def require_private_team_id(session: StoredSession) -> str | None:
+    """Return the Private Teamspace id for direct sync ingress, else None.
+
+    Pure function. No I/O. No mutation.
+
+    Contract:
+      - If any team in ``session.teams`` has ``is_private_teamspace=True``, return that team's id.
+        When more than one team has ``is_private_teamspace=True`` (today: not expected from SaaS),
+        the first such team is returned for determinism.
+      - Otherwise, return ``None``.
+      - NEVER returns ``session.default_team_id`` (even when set).
+      - NEVER returns ``session.teams[0].id`` as a fallback.
+
+    Pair with ``TokenManager.rehydrate_membership_if_needed()`` to recover from
+    a session whose ``teams`` list is stale.
+    """
+    return get_private_team_id(session.teams)
 
 
 @dataclass

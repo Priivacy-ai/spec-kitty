@@ -106,6 +106,17 @@ def mock_body_queue():
     with patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue.__init__", return_value=None):
         yield
 
+
+@pytest.fixture(autouse=True)
+def private_ingress_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests exercise identity-aware event payloads, not team resolution."""
+    monkeypatch.setattr(
+        EventEmitter,
+        "_current_team_slug",
+        staticmethod(lambda: "private-teamspace-id"),
+    )
+
+
 # ── T028: Init -> Implement Flow with Identity ───────────────────────
 
 class TestIdentityAwareFlow:

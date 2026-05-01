@@ -1,0 +1,56 @@
+{
+  "event_count": 61,
+  "last_event_id": "01KQHPX4NPC0DRM9B48T39Q50P",
+  "materialized_at": "2026-05-01T12:06:07.798351+00:00",
+  "mission_number": "110",
+  "mission_slug": "private-teamspace-ingress-safeguards-01KQH03Y",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQHPX46D68W05T0RMZF3R4WW",
+      "last_transition_at": "2026-05-01T12:06:07.309815+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KQHPX4HEW2XRR3N7VQH4MFJY",
+      "last_transition_at": "2026-05-01T12:06:07.662588+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQHPX4JVCVGVKYVBBJNKZ6FY",
+      "last_transition_at": "2026-05-01T12:06:07.707879+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KQHPX4M8Y7M7CPKCXQDAGJVH",
+      "last_transition_at": "2026-05-01T12:06:07.752391+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KQHPX4NPC0DRM9B48T39Q50P",
+      "last_transition_at": "2026-05-01T12:06:07.798351+00:00"
+    }
+  }
+}

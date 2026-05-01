@@ -9,8 +9,8 @@ state directly.
 
 import asyncio
 import json
+import logging
 import random
-import sys
 from contextlib import suppress
 from collections.abc import Callable
 from typing import Any
@@ -25,14 +25,16 @@ from specify_cli.auth.errors import (
     NotAuthenticatedError,
     TokenRefreshError,
 )
-from specify_cli.auth.session import get_private_team_id
 from specify_cli.auth.websocket import provision_ws_token
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.sync._team import resolve_private_team_id_for_ingress
 from specify_cli.sync.feature_flags import (
     is_saas_sync_enabled,
     saas_sync_disabled_message,
 )
-from specify_cli.identity.project import ProjectIdentity
+from specify_cli.sync.project_identity import ProjectIdentity
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionStatus:
@@ -42,13 +44,6 @@ class ConnectionStatus:
     RECONNECTING = "Reconnecting"
     OFFLINE = "Offline"
     BATCH_MODE = "OfflineBatchMode"
-
-
-_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
-_WS_SCHEME_MAP = {
-    "http": "ws",
-    "https": "wss",
-}
 
 
 class WebSocketClient:
@@ -71,9 +66,6 @@ class WebSocketClient:
     BASE_DELAY_SECONDS = 0.5  # 500ms
     MAX_DELAY_SECONDS = 30.0
     JITTER_RANGE = 1.0  # +/- 1 second
-    OPEN_TIMEOUT_SECONDS = 5.0
-    INITIAL_SNAPSHOT_TIMEOUT_SECONDS = 5.0
-    CLOSE_TIMEOUT_SECONDS = 2.0
 
     def __init__(
         self,
@@ -97,32 +89,6 @@ class WebSocketClient:
         self.reconnect_attempts = 0
         self._listen_task: asyncio.Task | None = None
 
-    def _current_team_id(self) -> str:
-        """Resolve the team id to use for ws-token provisioning.
-
-        Private Teamspace wins when present; otherwise fall back to the session default.
-        """
-        tm = get_token_manager()
-        session = tm.get_current_session()
-        if session is None:
-            raise NotAuthenticatedError(
-                "WebSocket connect requires an authenticated session. "
-                "Run `spec-kitty auth login`."
-            )
-        if not session.default_team_id:
-            if not session.teams:
-                raise NotAuthenticatedError(
-                    "No teams associated with the current session."
-                )
-            private_team_id = get_private_team_id(session.teams)
-            if private_team_id:
-                return private_team_id
-            return session.teams[0].id
-        private_team_id = get_private_team_id(session.teams)
-        if private_team_id:
-            return private_team_id
-        return session.default_team_id
-
     async def connect(self):
         """Establish WebSocket connection with authentication.
 
@@ -138,23 +104,35 @@ class WebSocketClient:
             self.status = ConnectionStatus.OFFLINE
             raise AuthenticationError(saas_sync_disabled_message())
 
+        # Resolve the Private Teamspace id via the strict shared helper.
+        # On None the helper has already emitted a structured warning, and the
+        # local command MUST still succeed (FR-010), so we silently go OFFLINE
+        # rather than raise.
+        team_id = resolve_private_team_id_for_ingress(
+            get_token_manager(),
+            endpoint="/api/v1/ws-token",
+        )
+        if team_id is None:
+            self.connected = False
+            self.status = ConnectionStatus.OFFLINE
+            return
+
         try:
-            team_id = self._current_team_id()
             ws_bundle = await provision_ws_token(team_id)
         except NotAuthenticatedError:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            print("❌ Not authenticated. Run `spec-kitty auth login`.")
+            logger.warning("Not authenticated; run `spec-kitty auth login`")
             raise
         except TokenRefreshError as exc:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            print(f"❌ Token refresh failed: {exc}")
+            logger.error("Token refresh failed: %s", exc)
             raise
         except Exception as exc:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            print(f"❌ Connection failed: {exc}")
+            logger.warning("Sync WebSocket connection failed: %s", exc)
             raise
 
         ws_url = ws_bundle.get("ws_url")
@@ -177,51 +155,38 @@ class WebSocketClient:
                 uri,
                 ping_interval=None,  # We handle heartbeat manually
                 ping_timeout=None,
-                open_timeout=self.OPEN_TIMEOUT_SECONDS,
-                close_timeout=self.CLOSE_TIMEOUT_SECONDS,
             )
             self.connected = True
             self.status = ConnectionStatus.CONNECTED
 
             # Receive initial snapshot
-            await asyncio.wait_for(
-                self._receive_snapshot(),
-                timeout=self.INITIAL_SNAPSHOT_TIMEOUT_SECONDS,
-            )
+            await self._receive_snapshot()
 
             # Start message listener
             self._listen_task = asyncio.create_task(self._listen())
 
-            print("✅ Connected to sync server")
+            logger.info("Connected to sync server")
             return
 
         except websockets.InvalidStatus as e:
             if e.response.status_code == 401:
-                print("❌ WebSocket rejected token. Please re-authenticate.")
+                logger.warning("WebSocket rejected token; user should re-authenticate")
             else:
-                print(f"❌ Connection failed: HTTP {e.response.status_code}")
+                logger.warning(
+                    "Sync WebSocket connection failed: HTTP %s",
+                    e.response.status_code,
+                )
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            raise
-        except TimeoutError:
-            await self._close_after_failed_connect()
-            print(
-                "Warning: WebSocket connection timed out; events will be queued for batch sync.",
-                file=sys.stderr,
-            )
-            self.connected = False
-            self.status = ConnectionStatus.BATCH_MODE
             raise
         except Exception as e:
-            await self._close_after_failed_connect()
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            print(f"❌ Connection failed: {e}")
+            logger.warning("Sync WebSocket connection failed: %s", e)
             raise
 
     async def disconnect(self):
         """Close WebSocket connection"""
-        had_ws = self.ws is not None
         if self._listen_task:
             self._listen_task.cancel()
             with suppress(asyncio.CancelledError):
@@ -229,28 +194,11 @@ class WebSocketClient:
             self._listen_task = None
 
         if self.ws:
-            with suppress(Exception):
-                await asyncio.wait_for(
-                    self.ws.close(),
-                    timeout=self.CLOSE_TIMEOUT_SECONDS,
-                )
-        self.ws = None
-        self.connected = False
-        self.status = ConnectionStatus.OFFLINE
-        if had_ws:
-            print("Disconnected from sync server")
-
-    async def _close_after_failed_connect(self) -> None:
-        """Best-effort cleanup when connect fails after a socket was opened."""
-        ws = self.ws
-        self.ws = None
-        if ws is None:
-            return
-        with suppress(Exception):
-            await asyncio.wait_for(
-                ws.close(),
-                timeout=self.CLOSE_TIMEOUT_SECONDS,
-            )
+            await self.ws.close()
+            self.ws = None
+            self.connected = False
+            self.status = ConnectionStatus.OFFLINE
+            logger.info("Disconnected from sync server")
 
     async def reconnect(self) -> bool:
         """
@@ -271,7 +219,11 @@ class WebSocketClient:
             delay = max(0, delay + jitter)
 
             attempt_num = self.reconnect_attempts + 1
-            print(f"🔄 Reconnecting... ({attempt_num}/{self.MAX_RECONNECT_ATTEMPTS})")
+            logger.info(
+                "Reconnecting to sync server (%s/%s)",
+                attempt_num,
+                self.MAX_RECONNECT_ATTEMPTS,
+            )
 
             await asyncio.sleep(delay)
 
@@ -282,19 +234,25 @@ class WebSocketClient:
                 return True
             except (NotAuthenticatedError, TokenRefreshError):
                 self.status = ConnectionStatus.BATCH_MODE
-                print("⚠️  Authentication failed. Please run 'spec-kitty auth login'")
+                logger.warning(
+                    "Authentication failed; please run 'spec-kitty auth login'"
+                )
                 return False
             except AuthenticationError:
                 self.status = ConnectionStatus.BATCH_MODE
-                print("⚠️  Authentication failed. Please run 'spec-kitty auth login'")
+                logger.warning(
+                    "Authentication failed; please run 'spec-kitty auth login'"
+                )
                 return False
             except Exception:
                 self.reconnect_attempts += 1
 
         # Max attempts reached - switch to batch mode
         self.status = ConnectionStatus.BATCH_MODE
-        print("⚠️  Max reconnection attempts reached. Switched to batch sync mode.")
-        print("    Events will be queued locally and synced when connection is restored.")
+        logger.warning(
+            "Max reconnection attempts reached; switched to batch sync mode. "
+            "Events will be queued locally and synced when connection is restored."
+        )
         return False
 
     def reset_reconnect_attempts(self):
@@ -304,27 +262,24 @@ class WebSocketClient:
     @staticmethod
     def _normalize_ws_url(ws_url: str) -> str:
         """Convert provisioned HTTP(S) URLs to WS(S), rejecting insecure remote hosts."""
-        parsed = urlparse(ws_url)
-        scheme = parsed.scheme.lower()
-
-        if scheme == "wss":
-            return parsed.geturl()
-        if scheme == "ws":
-            host = (parsed.hostname or "").lower()
-            if host not in _LOOPBACK_HOSTS:
+        if ws_url.startswith("wss://"):
+            return ws_url
+        if ws_url.startswith("ws://"):
+            host = (urlparse(ws_url).hostname or "").lower()
+            if host not in {"127.0.0.1", "localhost", "::1"}:
                 raise AuthenticationError(
                     "Refusing insecure WebSocket provisioning URL outside loopback."
                 )
-            return parsed.geturl()
-        if scheme == "https":
-            return parsed._replace(scheme=_WS_SCHEME_MAP[scheme]).geturl()
-        if scheme == "http":
-            host = (parsed.hostname or "").lower()
-            if host not in _LOOPBACK_HOSTS:
+            return ws_url
+        if ws_url.startswith("https://"):
+            return "wss://" + ws_url[len("https://") :]
+        if ws_url.startswith("http://"):
+            host = (urlparse(ws_url).hostname or "").lower()
+            if host not in {"127.0.0.1", "localhost", "::1"}:
                 raise AuthenticationError(
                     "Refusing insecure WebSocket provisioning URL outside loopback."
                 )
-            return parsed._replace(scheme=_WS_SCHEME_MAP[scheme]).geturl()
+            return "ws://" + ws_url[len("http://") :]
         raise AuthenticationError(
             f"Unsupported WebSocket provisioning URL scheme: {ws_url!r}"
         )
@@ -373,7 +328,7 @@ class WebSocketClient:
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            print("Connection closed by server")
+            logger.info("Sync WebSocket connection closed by server")
         finally:
             self._listen_task = None
 
@@ -397,9 +352,12 @@ class WebSocketClient:
         data = json.loads(message)
 
         if data.get("type") == "snapshot":
-            print(f"📦 Received snapshot: {len(data.get('work_packages', []))} work packages")
+            logger.info(
+                "Received sync snapshot: %d work packages",
+                len(data.get("work_packages", [])),
+            )
         else:
-            print(f"⚠️  Expected snapshot, got {data.get('type')}")
+            logger.warning("Expected snapshot, got %s", data.get("type"))
 
     async def _handle_snapshot(self, data: dict):
         """Process snapshot"""
