@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01KQGXA91YR6A77FT0SBHK58PJ",
-  "materialized_at": "2026-05-01T04:38:55.294779+00:00",
+  "event_count": 8,
+  "last_event_id": "01KQGYDHQ1DEFJDS13WG4JH0WF",
+  "materialized_at": "2026-05-01T04:58:11.041098+00:00",
   "mission_number": "",
   "mission_slug": "p1-dependency-cycle-cleanup-01KQFXVC",
   "mission_type": "software-dev",
@@ -11,18 +11,18 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 1,
+    "for_review": 0,
+    "in_progress": 2,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KQGX97X3D9NN64FY3V7SDTBC",
-      "last_transition_at": "2026-05-01T04:38:21.347792+00:00"
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KQGYDHQ1DEFJDS13WG4JH0WF",
+      "last_transition_at": "2026-05-01T04:58:11.041098+00:00"
     },
     "WP02": {
       "actor": "implement-command",
