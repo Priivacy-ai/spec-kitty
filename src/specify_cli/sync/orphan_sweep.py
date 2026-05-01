@@ -110,8 +110,7 @@ def _probe_health(port: int) -> dict[str, Any] | None:
     """Issue ``GET /api/health`` and return the parsed JSON dict, or ``None`` on any failure."""
     url = f"http://127.0.0.1:{port}/api/health"
     try:
-        # nosec B310 — URL is always 127.0.0.1 in the reserved daemon range.
-        with urllib.request.urlopen(url, timeout=_HEALTH_PROBE_TIMEOUT_S) as response:
+        with urllib.request.urlopen(url, timeout=_HEALTH_PROBE_TIMEOUT_S) as response:  # nosec B310 - URL is always 127.0.0.1 in the reserved daemon range.
             if response.status != 200:
                 return None
             payload = response.read()
@@ -233,8 +232,7 @@ def _http_shutdown_no_token(port: int) -> None:
         method="POST",
     )
     try:
-        # nosec B310 — request URL is 127.0.0.1 in the reserved daemon range.
-        with urllib.request.urlopen(request, timeout=1.0):
+        with urllib.request.urlopen(request, timeout=1.0):  # nosec B310 - request URL is 127.0.0.1 in the reserved daemon range.
             return
     except Exception:
         return

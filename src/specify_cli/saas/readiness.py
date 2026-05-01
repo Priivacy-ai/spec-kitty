@@ -182,7 +182,7 @@ def _probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool:
     """
     try:
         req = urllib.request.Request(server_url, method="HEAD")
-        with urllib.request.urlopen(req, timeout=timeout_s):  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout_s):  # noqa: S310  # nosec B310
             return True
     except Exception:  # noqa: BLE001
         return False

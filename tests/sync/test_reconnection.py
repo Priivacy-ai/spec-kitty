@@ -297,6 +297,27 @@ class _FakeWebSocket:
         raise StopAsyncIteration
 
 
+class _NeverSnapshotWebSocket(_FakeWebSocket):
+    """Websocket stub that accepts the upgrade but never sends a snapshot."""
+
+    def __init__(self):
+        self.closed = False
+
+    async def recv(self):
+        await asyncio.sleep(60)
+        return '{"type":"snapshot","work_packages":[]}'
+
+    async def close(self):
+        self.closed = True
+
+
+class _StalledCloseWebSocket(_FakeWebSocket):
+    """Websocket stub whose close handshake never completes."""
+
+    async def close(self):
+        await asyncio.sleep(60)
+
+
 class TestClientLifecycle:
     """Tests for connect/disconnect task lifecycle hygiene."""
 
@@ -364,3 +385,63 @@ class TestClientLifecycle:
                 and getattr(t.get_coro(), "__qualname__", "") == "WebSocketClient._listen"
             ]
             assert leaked_listeners == []
+
+    @pytest.mark.asyncio
+    async def test_connect_times_out_when_initial_snapshot_never_arrives(self, monkeypatch):
+        """A stalled initial recv must not keep short-lived CLI calls alive."""
+        client = WebSocketClient()
+        client.INITIAL_SNAPSHOT_TIMEOUT_SECONDS = 0.01
+        client.CLOSE_TIMEOUT_SECONDS = 0.01
+        fake_ws = _NeverSnapshotWebSocket()
+
+        class _Team:
+            id = "team-42"
+            is_private_teamspace = False
+
+        class _Session:
+            default_team_id = "team-42"
+            teams = [_Team()]
+
+        class _TM:
+            def get_current_session(self):
+                return _Session()
+
+        async def fake_provision(_team_id):
+            return {
+                "ws_url": "https://example.test/ws",
+                "ws_token": "provisioned-token",
+                "expires_in": 60,
+            }
+
+        async def fake_connect(*_args, **_kwargs):
+            return fake_ws
+
+        monkeypatch.setattr("specify_cli.sync.client.get_token_manager", lambda: _TM())
+        monkeypatch.setattr("specify_cli.sync.client.provision_ws_token", fake_provision)
+        monkeypatch.setattr("specify_cli.sync.client.is_saas_sync_enabled", lambda: True)
+
+        with (
+            patch("specify_cli.sync.client.websockets.connect", side_effect=fake_connect),
+            pytest.raises(TimeoutError),
+        ):
+            await client.connect()
+
+        assert fake_ws.closed is True
+        assert client.ws is None
+        assert client.connected is False
+        assert client.get_status() == ConnectionStatus.BATCH_MODE
+
+    @pytest.mark.asyncio
+    async def test_disconnect_bounds_stalled_close_handshake(self):
+        """A stuck websocket close handshake must not block process shutdown."""
+        client = WebSocketClient()
+        client.CLOSE_TIMEOUT_SECONDS = 0.01
+        client.ws = _StalledCloseWebSocket()
+        client.connected = True
+        client.status = ConnectionStatus.CONNECTED
+
+        await client.disconnect()
+
+        assert client.ws is None
+        assert client.connected is False
+        assert client.get_status() == ConnectionStatus.OFFLINE
