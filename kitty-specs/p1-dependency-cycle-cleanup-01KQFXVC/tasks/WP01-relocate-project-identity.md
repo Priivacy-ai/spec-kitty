@@ -446,3 +446,4 @@ print('All import chains OK')
 - 2026-05-01T05:24:32Z – claude:sonnet:python-pedro:implementer – shell_pid=13904 – Cycle 2: docstring reworded; new test_emitter_adapter.py exercises real registration; WP02 dependency declared.
 - 2026-05-01T05:25:01Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=14453 – Started review via action command
 - 2026-05-01T05:34:33Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=14453 – Review passed: cycle 1 blockers resolved; quality gates pass
+- 2026-05-01T07:53:32Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=14453 – Done override: Mission merged to main; final approval was cycle 4 (codex), prior cycles 1-3 superseded
