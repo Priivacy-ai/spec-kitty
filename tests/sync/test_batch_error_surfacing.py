@@ -80,6 +80,15 @@ def small_queue(temp_queue):
     return temp_queue
 
 
+@pytest.fixture(autouse=True)
+def private_ingress_scope(monkeypatch):
+    """These tests exercise batch response handling, not auth/team resolution."""
+    monkeypatch.setattr(
+        "specify_cli.sync.batch._current_team_slug",
+        lambda: "private-teamspace-id",
+    )
+
+
 # ────────────────────────────────────────────────────────────────
 # T006: Error categorisation
 # ────────────────────────────────────────────────────────────────

@@ -370,7 +370,8 @@ url = "https://legacy.example.com"
     def test_legacy_queue_migrates_into_scoped_queue(self, monkeypatch, tmp_path):
         """Legacy queue.db contents should be rehomed into the scoped queue."""
         monkeypatch.setenv("HOME", str(tmp_path))
-        self._write_session(tmp_path)
+        session = self._write_session(tmp_path)
+        self._patch_token_manager(monkeypatch, session)
 
         spec_kitty_dir = tmp_path / ".spec-kitty"
         spec_kitty_dir.mkdir(parents=True, exist_ok=True)
