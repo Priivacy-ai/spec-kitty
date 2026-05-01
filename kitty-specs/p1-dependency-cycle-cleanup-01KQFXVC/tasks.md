@@ -8,11 +8,11 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|----------|
-| T001 | Create `src/specify_cli/identity/project.py` (move all content from `sync/project_identity.py`, inline `generate_node_id`) | WP01 | [P] |
-| T002 | Replace `src/specify_cli/sync/project_identity.py` with backward-compat shim re-exporting from `identity.project` | WP01 | [P] |
-| T003 | Update `src/specify_cli/dossier/drift_detector.py`: change 1 runtime import line to use `identity.project` | WP01 | [P] |
-| T004 | Create `tests/architectural/test_dossier_sync_boundary.py`: AST-based guard asserting no `dossier → sync` imports | WP01 | [P] |
-| T005 | Verify WP01: ruff clean + dossier/sync/architectural tests pass; zero `dossier → sync` grep | WP01 | |
+| T001 | Create `src/specify_cli/identity/project.py` (move all content from `sync/project_identity.py`, inline `generate_node_id`) | WP01 | [P] | [D] |
+| T002 | Replace `src/specify_cli/sync/project_identity.py` with backward-compat shim re-exporting from `identity.project` | WP01 | [D] |
+| T003 | Update `src/specify_cli/dossier/drift_detector.py`: change 1 runtime import line to use `identity.project` | WP01 | [D] |
+| T004 | Create `tests/architectural/test_dossier_sync_boundary.py`: AST-based guard asserting no `dossier → sync` imports | WP01 | [D] |
+| T005 | Verify WP01: ruff clean + dossier/sync/architectural tests pass; zero `dossier → sync` grep | WP01 | | [D] |
 | T006 | Create `src/specify_cli/status/adapters.py`: callback registry with `DossierSyncHandler`, `SaasFanOutHandler`, `register_*`, `fire_*` | WP02 | [P] |
 | T007 | Update `src/specify_cli/status/emit.py`: remove lazy `from specify_cli.sync.*` imports; call `fire_dossier_sync` / `fire_saas_fanout` | WP02 | [P] |
 | T008 | Register sync handlers at startup in `src/specify_cli/sync/__init__.py` (or daemon entry) | WP02 | [P] |
@@ -38,11 +38,11 @@
 - `uv run ruff check src/specify_cli/identity/ src/specify_cli/sync/project_identity.py src/specify_cli/dossier/drift_detector.py` exits 0
 
 **Included subtasks**:
-- [ ] T001 Create `src/specify_cli/identity/project.py` with inlined `generate_node_id` (WP01)
-- [ ] T002 Replace `src/specify_cli/sync/project_identity.py` with shim (WP01)
-- [ ] T003 Update 1 import in `src/specify_cli/dossier/drift_detector.py` (WP01)
-- [ ] T004 Create `tests/architectural/test_dossier_sync_boundary.py` (WP01)
-- [ ] T005 Full verification run (WP01)
+- [x] T001 Create `src/specify_cli/identity/project.py` with inlined `generate_node_id` (WP01)
+- [x] T002 Replace `src/specify_cli/sync/project_identity.py` with shim (WP01)
+- [x] T003 Update 1 import in `src/specify_cli/dossier/drift_detector.py` (WP01)
+- [x] T004 Create `tests/architectural/test_dossier_sync_boundary.py` (WP01)
+- [x] T005 Full verification run (WP01)
 
 **Implementation sketch**:
 1. Create `identity/project.py` by copying `sync/project_identity.py` verbatim, then replace the `from specify_cli.sync.clock import generate_node_id as generate_machine_node_id` line with an inline 3-line stdlib implementation.
