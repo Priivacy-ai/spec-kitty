@@ -438,3 +438,4 @@ print('All import chains OK')
 
 - 2026-05-01T04:38:24Z – claude – shell_pid=88144 – WP01 complete: all 5 subtasks done, 311 dossier + 1456 sync tests pass, architectural guard green
 - 2026-05-01T04:58:12Z – claude – shell_pid=88144 – Reopening: dossier/events.py still has 4 sync imports; FR-002/NFR-001 not yet satisfied. Expanding scope to invert the emitter dependency.
+- 2026-05-01T05:10:59Z – claude – shell_pid=88144 – Amended: dossier/events.py inverted to use emitter_adapter; guard test no longer carries pre-existing exceptions; 1769 dossier+sync tests pass
