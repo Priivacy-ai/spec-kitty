@@ -53,6 +53,7 @@ from specify_cli.core.paths import get_main_repo_root, is_worktree_context, loca
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
+from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import AgentAssignment, Lane
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
@@ -1455,53 +1456,54 @@ def review(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            try:
-                start_review_status(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=normalized_wp_id,
-                    actor=agent,
-                    review_ref="action-review-claim",
-                    workspace_context=f"action-review:{main_repo_root}",
-                    execution_mode=status_execution_mode,
-                    repo_root=main_repo_root,
+            with feature_status_lock(main_repo_root, mission_slug):
+                try:
+                    start_review_status(
+                        feature_dir=feature_dir,
+                        mission_slug=mission_slug,
+                        wp_id=normalized_wp_id,
+                        actor=agent,
+                        review_ref="action-review-claim",
+                        workspace_context=f"action-review:{main_repo_root}",
+                        execution_mode=status_execution_mode,
+                        repo_root=main_repo_root,
+                    )
+                except WorkPackageClaimConflict as exc:
+                    print(f"Error: {exc}")
+                    raise typer.Exit(1) from exc
+                except WorkPackageStartRejected as exc:
+                    print(f"Error: {exc}")
+                    raise typer.Exit(1) from exc
+
+                # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
+                wp_content = wp.path.read_text(encoding="utf-8-sig")
+                updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+                updated_front = set_scalar(updated_front, "agent", agent)
+                updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+
+                # Build history entry (no lane= segment; event log is sole lane authority)
+                timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
+
+                # Add history entry to body
+                updated_body = append_activity_log(updated_body, history_entry)
+
+                # Build and write updated document
+                updated_doc = build_document(updated_front, updated_body, updated_padding)
+                write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+
+                # Atomic commit: WP file + all status artifacts (#211, #212)
+                actual_wp_path = wp.path.resolve()
+                status_artifacts = _collect_status_artifacts(feature_dir)
+                commit_success = safe_commit(
+                    repo_path=main_repo_root,
+                    files_to_commit=[actual_wp_path] + status_artifacts,
+                    commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
+                    allow_empty=True,  # OK if already in this state
                 )
-            except WorkPackageClaimConflict as exc:
-                print(f"Error: {exc}")
-                raise typer.Exit(1) from exc
-            except WorkPackageStartRejected as exc:
-                print(f"Error: {exc}")
-                raise typer.Exit(1) from exc
-
-            # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
-            wp_content = wp.path.read_text(encoding="utf-8-sig")
-            updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-            updated_front = set_scalar(updated_front, "agent", agent)
-            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
-
-            # Build history entry (no lane= segment; event log is sole lane authority)
-            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
-
-            # Add history entry to body
-            updated_body = append_activity_log(updated_body, history_entry)
-
-            # Build and write updated document
-            updated_doc = build_document(updated_front, updated_body, updated_padding)
-            write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
-
-            # Atomic commit: WP file + all status artifacts (#211, #212)
-            actual_wp_path = wp.path.resolve()
-            status_artifacts = _collect_status_artifacts(feature_dir)
-            commit_success = safe_commit(
-                repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path] + status_artifacts,
-                commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
-                allow_empty=True,  # OK if already in this state
-            )
-            if not commit_success:
-                print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Review claim aborted.")
-                raise typer.Exit(1)
+                if not commit_success:
+                    print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Review claim aborted.")
+                    raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
