@@ -10,6 +10,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
   schedule:
     # Nightly Sonar run on the default branch. Offset from the top of the hour
