@@ -39,6 +39,7 @@ owned_files:
 - src/specify_cli/dossier/emitter_adapter.py
 - src/specify_cli/dossier/events.py
 - tests/architectural/test_dossier_sync_boundary.py
+- tests/dossier/test_emitter_adapter.py
 - tests/dossier/test_events.py
 - tests/sync/test_events_namespace.py
 role: implementer

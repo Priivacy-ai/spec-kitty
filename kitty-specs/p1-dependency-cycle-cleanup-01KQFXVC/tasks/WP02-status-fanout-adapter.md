@@ -1,7 +1,8 @@
 ---
 work_package_id: WP02
 title: 'P1.3: Status Fan-out Adapter'
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - C-001
 - FR-005
