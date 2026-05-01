@@ -13,6 +13,7 @@ from specify_cli.status.store import (
     _SlugResolver,
     StoreError,
     append_event,
+    append_events_atomic,
     read_events,
     read_events_raw,
 )
@@ -69,6 +70,52 @@ def test_multiple_appends_preserve_order(tmp_path: Path) -> None:
     assert events[0].wp_id == "WP01"
     assert events[1].wp_id == "WP02"
     assert events[2].wp_id == "WP03"
+
+
+def test_append_events_atomic_persists_full_batch(tmp_path: Path) -> None:
+    e1 = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
+    e2 = _make_event(
+        event_id="01BBBB0000000000000000002B",
+        wp_id="WP01",
+        from_lane=Lane.CLAIMED,
+        to_lane=Lane.IN_PROGRESS,
+    )
+
+    append_events_atomic(tmp_path, [e1, e2])
+
+    events = read_events(tmp_path)
+    assert [(event.from_lane, event.to_lane) for event in events] == [
+        (Lane.PLANNED, Lane.CLAIMED),
+        (Lane.CLAIMED, Lane.IN_PROGRESS),
+    ]
+
+
+def test_append_events_atomic_replace_failure_leaves_original(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    original = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
+    append_event(tmp_path, original)
+
+    def _raise_replace(_src: Path, _dst: Path) -> None:
+        raise OSError("replace failed")
+
+    import specify_cli.status.store as status_store
+
+    monkeypatch.setattr(status_store.os, "replace", _raise_replace)
+
+    with pytest.raises(OSError, match="replace failed"):
+        append_events_atomic(
+            tmp_path,
+            [
+                _make_event(
+                    event_id="01BBBB0000000000000000002B",
+                    wp_id="WP01",
+                    from_lane=Lane.CLAIMED,
+                    to_lane=Lane.IN_PROGRESS,
+                )
+            ],
+        )
+
+    events = read_events(tmp_path)
+    assert events == [original]
 
 
 def test_read_events_skips_retrospective_events(tmp_path: Path) -> None:

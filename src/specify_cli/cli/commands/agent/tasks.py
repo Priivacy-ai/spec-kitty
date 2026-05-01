@@ -3014,7 +3014,7 @@ def status(
 
         # Rich table output
         # Group by lane
-        by_lane = {Lane.PLANNED: [], Lane.IN_PROGRESS: [], Lane.IN_REVIEW: [], Lane.FOR_REVIEW: [], Lane.APPROVED: [], Lane.DONE: []}
+        by_lane = {lane: [] for lane in Lane}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:
@@ -3053,7 +3053,7 @@ def status(
         # Calculate metrics
         total = len(work_packages)
         done_count = len(by_lane[Lane.DONE])
-        in_progress = len(by_lane[Lane.IN_PROGRESS]) + len(by_lane[Lane.IN_REVIEW]) + len(by_lane[Lane.FOR_REVIEW])
+        in_progress = len(by_lane[Lane.CLAIMED]) + len(by_lane[Lane.IN_PROGRESS]) + len(by_lane[Lane.IN_REVIEW]) + len(by_lane[Lane.FOR_REVIEW])
         planned_count = len(by_lane[Lane.PLANNED])
         progress_pct = round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0
 
@@ -3081,8 +3081,12 @@ def status(
         console.print()
 
         # Kanban board table
-        # Fold in_review WPs into the "Doing" column with a review marker
-        display_in_progress = list(by_lane[Lane.IN_PROGRESS])
+        # Fold claimed and in_review WPs into the "Doing" column with markers.
+        display_in_progress = []
+        for wp in by_lane[Lane.CLAIMED]:
+            wp["_display_claimed"] = True
+            display_in_progress.append(wp)
+        display_in_progress.extend(by_lane[Lane.IN_PROGRESS])
         for wp in by_lane.get(Lane.IN_REVIEW, []):
             wp["_display_in_review"] = True
             display_in_progress.append(wp)
@@ -3122,6 +3126,8 @@ def status(
                         cell = f"[red]⚠️ {display_id}[/red]\n{title_truncated}"
                     elif wp.get("_stall_label"):
                         cell = f"[yellow]⚠ {display_id} (review)[/yellow]\n{title_truncated}"
+                    elif wp.get("_display_claimed"):
+                        cell = f"[blue]{display_id} (claimed)[/blue]\n{title_truncated}"
                     elif wp.get("_display_in_review"):
                         cell = f"[bright_cyan]{display_id} (review)[/bright_cyan]\n{title_truncated}"
                     else:
@@ -3134,7 +3140,7 @@ def status(
         # Add count row
         table.add_row(
             f"[bold]{len(by_lane[Lane.PLANNED])} WPs[/bold]",
-            f"[bold]{len(by_lane[Lane.IN_PROGRESS])} WPs[/bold]",
+            f"[bold]{len(display_in_progress)} WPs[/bold]",
             f"[bold]{len(by_lane[Lane.FOR_REVIEW])} WPs[/bold]",
             f"[bold]{len(by_lane[Lane.APPROVED])} WPs[/bold]",
             f"[bold]{len(by_lane[Lane.DONE])} WPs[/bold]",
@@ -3195,6 +3201,14 @@ def status(
                     f"  • {marker}{wp['id']} - {wp['title']}"
                     "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
                 )
+            console.print()
+
+        if by_lane[Lane.CLAIMED]:
+            console.print("[bold blue]🔄 Claimed (shown in Doing column):[/bold blue]")
+            for wp in by_lane[Lane.CLAIMED]:
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                agent = wp.get("agent", "unknown")
+                console.print(f"  • {marker}{wp['id']} - {wp['title']} [dim](agent: {agent})[/dim]")
             console.print()
 
         if by_lane[Lane.IN_PROGRESS]:

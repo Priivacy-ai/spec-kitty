@@ -625,94 +625,35 @@ def start_implementation(
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
-    from specify_cli.status.reducer import materialize
-    from specify_cli.status.emit import emit_status_transition, TransitionError
-    from specify_cli.status.models import TransitionRequest
-
-    snapshot = materialize(mission_dir)
-    wp_snapshot = snapshot.work_packages.get(wp, {})
-    current_lane = wp_snapshot.get("lane", Lane.PLANNED)
-    state = wp_state_for(current_lane)
-    last_actor = _get_last_actor(mission_dir, wp)
+    from specify_cli.status.emit import TransitionError
+    from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
 
     workspace_path = str(main_repo_root / ".worktrees" / f"{mission}-{wp}")
     prompt_path = str(wp_path)
 
     try:
-        if state.lane == Lane.PLANNED:
-            # Composite: planned -> claimed -> in_progress
-            emit_status_transition(TransitionRequest(
-                feature_dir=mission_dir,
-                mission_slug=mission,
-                wp_id=wp,
-                to_lane=Lane.CLAIMED,
-                actor=actor,
-                policy_metadata=policy_dict,
-            ))
-            emit_status_transition(TransitionRequest(
-                feature_dir=mission_dir,
-                mission_slug=mission,
-                wp_id=wp,
-                to_lane=Lane.IN_PROGRESS,
-                actor=actor,
-                workspace_context=workspace_path,
-                execution_mode="worktree",
-                policy_metadata=policy_dict,
-            ))
-            from_lane_reported = Lane.PLANNED
-            no_op = False
-
-        elif state.lane == Lane.CLAIMED:
-            if last_actor is not None and last_actor != actor:
-                _fail(
-                    cmd,
-                    "WP_ALREADY_CLAIMED",
-                    f"WP {wp} is already claimed by '{last_actor}'",
-                    {
-                        **_mission_identity_payload(mission_dir),
-                        "claimed_by": last_actor,
-                        "requesting_actor": actor,
-                    },
-                )
-                return
-            emit_status_transition(TransitionRequest(
-                feature_dir=mission_dir,
-                mission_slug=mission,
-                wp_id=wp,
-                to_lane=Lane.IN_PROGRESS,
-                actor=actor,
-                workspace_context=workspace_path,
-                execution_mode="worktree",
-                policy_metadata=policy_dict,
-            ))
-            from_lane_reported = Lane.CLAIMED
-            no_op = False
-
-        elif state.lane == Lane.IN_PROGRESS:
-            if last_actor is not None and last_actor != actor:
-                _fail(
-                    cmd,
-                    "WP_ALREADY_CLAIMED",
-                    f"WP {wp} is already in_progress by '{last_actor}'",
-                    {
-                        **_mission_identity_payload(mission_dir),
-                        "claimed_by": last_actor,
-                        "requesting_actor": actor,
-                    },
-                )
-                return
-            # Idempotent success
-            from_lane_reported = Lane.IN_PROGRESS
-            no_op = True
-
-        else:
-            _fail(
-                cmd,
-                "TRANSITION_REJECTED",
-                f"WP {wp} is in '{current_lane}', cannot start implementation",
-            )
-            return
-
+        start_result = start_implementation_status(
+            feature_dir=mission_dir,
+            mission_slug=mission,
+            wp_id=wp,
+            actor=actor,
+            workspace_context=workspace_path,
+            execution_mode="worktree",
+            repo_root=main_repo_root,
+            policy_metadata=policy_dict,
+        )
+    except WorkPackageClaimConflict as exc:
+        _fail(
+            cmd,
+            "WP_ALREADY_CLAIMED",
+            str(exc),
+            {
+                **_mission_identity_payload(mission_dir),
+                "claimed_by": exc.claimed_by,
+                "requesting_actor": exc.requesting_actor,
+            },
+        )
+        return
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
@@ -720,12 +661,12 @@ def start_implementation(
     data = {
         **_mission_identity_payload(mission_dir),
         "wp_id": wp,
-        "from_lane": from_lane_reported,
+        "from_lane": start_result.from_lane,
         "to_lane": Lane.IN_PROGRESS,
         "workspace_path": workspace_path,
         "prompt_path": prompt_path,
         "policy_metadata_recorded": True,
-        "no_op": no_op,
+        "no_op": start_result.no_op,
     }
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
@@ -773,27 +714,35 @@ def start_review(
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
-    from specify_cli.status.reducer import materialize
-    from specify_cli.status.emit import emit_status_transition, TransitionError
-    from specify_cli.status.models import TransitionRequest
-
-    snapshot = materialize(mission_dir)
-    wp_snapshot = snapshot.work_packages.get(wp, {})
-    from_lane = wp_snapshot.get("lane", Lane.PLANNED)
+    from specify_cli.status.emit import TransitionError
+    from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_review_status
 
     prompt_path = str(wp_path)
 
     try:
-        emit_status_transition(TransitionRequest(
+        start_result = start_review_status(
             feature_dir=mission_dir,
             mission_slug=mission,
             wp_id=wp,
-            to_lane=Lane.IN_REVIEW,
             actor=actor,
             review_ref=review_ref,
+            workspace_context=f"orchestrator-api:{main_repo_root}",
             execution_mode="worktree",
+            repo_root=main_repo_root,
             policy_metadata=policy_dict,
-        ))
+        )
+    except WorkPackageClaimConflict as exc:
+        _fail(
+            cmd,
+            "WP_ALREADY_CLAIMED",
+            str(exc),
+            {
+                **_mission_identity_payload(mission_dir),
+                "claimed_by": exc.claimed_by,
+                "requesting_actor": exc.requesting_actor,
+            },
+        )
+        return
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
@@ -801,10 +750,11 @@ def start_review(
     data = {
         **_mission_identity_payload(mission_dir),
         "wp_id": wp,
-        "from_lane": from_lane,
+        "from_lane": start_result.from_lane,
         "to_lane": Lane.IN_REVIEW,
         "prompt_path": prompt_path,
         "policy_metadata_recorded": True,
+        "no_op": start_result.no_op,
     }
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(

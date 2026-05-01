@@ -23,7 +23,7 @@ from specify_cli.text_sanitization import sanitize_file
 # distinguishes it from ``for_review`` (both have display_category "Review").
 _KANBAN_COLUMN_FOR_LANE: dict[Lane, str] = {
     Lane.PLANNED: "planned",
-    Lane.CLAIMED: "planned",
+    Lane.CLAIMED: "doing",
     Lane.IN_PROGRESS: "doing",
     Lane.FOR_REVIEW: "for_review",
     Lane.IN_REVIEW: "for_review",
