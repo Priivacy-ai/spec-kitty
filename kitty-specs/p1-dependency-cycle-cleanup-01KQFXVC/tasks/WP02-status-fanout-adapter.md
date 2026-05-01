@@ -35,6 +35,7 @@ owned_files:
 - src/specify_cli/status/emit.py
 - src/specify_cli/sync/__init__.py
 - tests/architectural/test_status_sync_boundary.py
+- tests/status/test_emit_fanout_after_adapter.py
 role: implementer
 tags: []
 ---
@@ -324,24 +325,30 @@ status/emit.py  ──imports──▶  status/adapters.py  ◀──registers�
 
 ## Subtask T008 — Register Sync Handlers at Startup
 
-**Purpose**: Make sync register its own callbacks into the adapter registry, so fan-out still works end-to-end even though `emit.py` no longer imports from sync.
+**Purpose**: Make sync register its own callbacks into the adapter registry (and the dossier emitter adapter from WP01), so fan-out still works end-to-end even though `emit.py` no longer imports from sync.
 
 **Steps**:
 
-1. First, read `src/specify_cli/sync/__init__.py` to understand its current content. If it is empty or minimal, adding registration there is correct. If it has an explicit `__all__` or re-export structure, add the registration at the end.
+1. Read `src/specify_cli/sync/__init__.py` first. The current file has a docstring and module-level imports/exports. The `from __future__ import annotations` directive (if any) **must** stay at the top of the file after the docstring. Do **NOT** add a duplicate future import at the bottom of the file — Python will raise `SyntaxError: from __future__ imports must occur at the beginning of the file`.
 
-2. Add handler registration. The sync package is allowed to import from `status.adapters` (sync → status is the clean direction):
+2. Append handler registration **after** all existing imports and `__all__` (i.e., at the very end of the file). Use only standard library names that are already in scope; do not add a `from __future__ import` here. The sync package is allowed to import from `status.adapters` and `dossier.emitter_adapter` (sync → status, sync → dossier are the clean directions):
 
    ```python
-   # At the bottom of src/specify_cli/sync/__init__.py
-   # Register status fan-out handlers so that canonical status events
-   # continue to trigger SaaS sync and dossier-sync side effects
-   # without status/emit.py importing from sync directly.
-   from __future__ import annotations
+   # ─── Adapter registration (run at import time) ──────────────────────
+   # Register handlers so that canonical status events trigger SaaS sync
+   # and dossier-sync side effects, and dossier event emission routes
+   # through the existing sync emitter, without status/emit.py or
+   # dossier/events.py importing from specify_cli.sync directly.
+   #
+   # NOTE: This block must remain at the BOTTOM of the file. The
+   # contextlib.suppress is intentional: if any sync sub-module fails to
+   # import in a minimal/test environment, registration is silently
+   # skipped and the fire_* / fire_dossier_event functions become no-ops.
+   # That preserves the existing behavior where SaaS sync is absent in
+   # 0.1x environments.
+   import contextlib as _contextlib
 
-   import contextlib
-
-   with contextlib.suppress(Exception):
+   with _contextlib.suppress(Exception):
        from specify_cli.status.adapters import (
            register_dossier_sync_handler,
            register_saas_fanout_handler,
@@ -349,29 +356,60 @@ status/emit.py  ──imports──▶  status/adapters.py  ◀──registers�
        from specify_cli.sync.dossier_pipeline import (
            trigger_feature_dossier_sync_if_enabled,
        )
-       from specify_cli.sync.events import emit_wp_status_changed
+       from specify_cli.sync.events import emit_wp_status_changed, get_emitter
 
        register_dossier_sync_handler(trigger_feature_dossier_sync_if_enabled)
        register_saas_fanout_handler(emit_wp_status_changed)
+
+   with _contextlib.suppress(Exception):
+       # Register dossier emitter (WP01 inversion). The lambda routes
+       # through get_emitter() lazily so the late-binding behavior of the
+       # emitter singleton is preserved.
+       from specify_cli.dossier.emitter_adapter import register_dossier_emitter
+
+       def _dossier_emit_via_sync(
+           *, event_type: str, aggregate_id: str, aggregate_type: str, payload: dict
+       ) -> dict:
+           return get_emitter()._emit(  # type: ignore[no-any-return]
+               event_type=event_type,
+               aggregate_id=aggregate_id,
+               aggregate_type=aggregate_type,
+               payload=payload,
+           )
+
+       register_dossier_emitter(_dossier_emit_via_sync)
    ```
 
-   **Why `contextlib.suppress(Exception)`?** The registration is best-effort at module import time. If any of the sync sub-modules fail to import (e.g., in a minimal test environment without all dependencies), the registration is silently skipped and `fire_*` remains a no-op. This preserves the existing behavior where SaaS fan-out is absent in 0.1x environments.
-
-3. **Important**: Check for circular import. When `sync/__init__.py` imports `status.adapters`, and `status/emit.py` imports `status.adapters` — there is no circular dependency because `adapters.py` does NOT import from sync. Verify this reasoning by running:
+3. **Verify no circular import**: `status/adapters.py` and `dossier/emitter_adapter.py` both have zero imports from `specify_cli.sync`, so the new edge is `sync → status.adapters` and `sync → dossier.emitter_adapter`, both clean. Verify:
    ```bash
    uv run python -c "import specify_cli.sync; print('sync import OK')"
    uv run python -c "import specify_cli.status.emit; print('emit import OK')"
+   uv run python -c "import specify_cli.dossier.events; print('dossier events import OK')"
    ```
 
-4. If registration in `__init__.py` causes issues (e.g., the module is imported very early before sync deps are ready), an alternative is to register inside the sync daemon startup function. Inspect `src/specify_cli/sync/` for the daemon entry point and add registration there instead. Document the decision in a comment.
+4. **Verify all four registrations happen on a fresh sync import**:
+   ```bash
+   uv run python -c "
+   from specify_cli.status.adapters import _dossier_handlers, _saas_handlers
+   from specify_cli.dossier.emitter_adapter import _emitter
+   import specify_cli.sync  # triggers registration
+   assert len(_dossier_handlers) == 1, f'expected 1 dossier-sync handler, got {len(_dossier_handlers)}'
+   assert len(_saas_handlers) == 1, f'expected 1 saas handler, got {len(_saas_handlers)}'
+   from specify_cli.dossier import emitter_adapter
+   assert emitter_adapter._emitter is not None, 'dossier emitter not registered'
+   print('All 3 handlers + 1 emitter registered OK')
+   "
+   ```
+
+5. **Bootstrap caveat for tests**: Status transitions called from a test process that has not imported `specify_cli.sync` will silently lose fan-out (`fire_*` becomes a no-op, `fire_dossier_event` returns `None`). This is correct for unit tests of status that don't want sync side effects. For integration tests that DO want fan-out (e.g., contract tests with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`), import `specify_cli.sync` once during fixture setup. The CLI itself imports sync transitively through its commands, so production paths are not affected.
 
 **Files**:
 - `src/specify_cli/sync/__init__.py` (modified)
 
 **Validation**:
-- [ ] Registration code added (with `contextlib.suppress` guard)
-- [ ] `uv run python -c "import specify_cli.sync; print('OK')"` succeeds
-- [ ] `uv run python -c "from specify_cli.status.adapters import _dossier_handlers; import specify_cli.sync; print(len(_dossier_handlers), 'dossier handlers registered')"` prints `1 dossier handlers registered`
+- [ ] Registration code added at the BOTTOM of the file (no `from __future__` at the bottom)
+- [ ] `uv run python -c "import specify_cli.sync"` succeeds without `SyntaxError`
+- [ ] All four registrations succeed on fresh import (verification step 4)
 - [ ] No circular import errors
 
 ---
@@ -505,17 +543,37 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest \
 # 7. Architectural guard
 uv run pytest tests/architectural/test_status_sync_boundary.py -v
 
-# 8. Handler registration smoke test
+# 8. Handler + emitter registration smoke test (verifies the
+#    inversion wired up by sync/__init__.py for both WP01 dossier
+#    emitter and WP02 status fan-out)
 uv run python -c "
 from specify_cli.status.adapters import _dossier_handlers, _saas_handlers
-import specify_cli.sync  # triggers registration
-print(f'Dossier handlers: {len(_dossier_handlers)}')
+from specify_cli.dossier import emitter_adapter
+import specify_cli.sync  # triggers registration of all 3
+print(f'Dossier sync handlers: {len(_dossier_handlers)}')
 print(f'SaaS handlers: {len(_saas_handlers)}')
-assert len(_dossier_handlers) == 1, 'Expected 1 dossier handler'
+print(f'Dossier emitter: {emitter_adapter._emitter is not None}')
+assert len(_dossier_handlers) == 1, 'Expected 1 dossier-sync handler'
 assert len(_saas_handlers) == 1, 'Expected 1 SaaS handler'
-print('Handler registration OK')
+assert emitter_adapter._emitter is not None, 'Dossier emitter not registered'
+print('All registrations OK')
 "
+
+# 9. Fan-out preservation regression test:
+#    Run a normal status transition with sync pre-imported and verify
+#    SaaS fan-out actually fires. This catches the failure mode where
+#    fire_* becomes a silent no-op because no handler was registered
+#    in time.
+uv run pytest tests/status/test_emit_fanout_after_adapter.py -v
 ```
+
+**Note**: subtask T009 must include a new test file `tests/status/test_emit_fanout_after_adapter.py` (added to owned_files) that:
+1. Imports `specify_cli.sync` first (simulating CLI bootstrap),
+2. Calls `emit_status_transition(...)` for a normal lane move,
+3. Asserts the SaaS fan-out handler was invoked with the expected kwargs (use `unittest.mock.patch` on `specify_cli.sync.events.emit_wp_status_changed` to capture the call without actually contacting SaaS),
+4. Also runs the same transition WITHOUT having imported `specify_cli.sync` and asserts fan-out is a silent no-op (documents the bootstrap requirement).
+
+This test guards against the regression where the registry pattern silently drops fan-out because registration never ran.
 
 **Validation**:
 - [ ] All ruff checks pass (0 violations)
@@ -525,7 +583,8 @@ print('Handler registration OK')
 - [ ] `tests/sync` green
 - [ ] Contract tests green (with SAAS_SYNC enabled)
 - [ ] Architectural guard green
-- [ ] Handler registration smoke test passes
+- [ ] Handler + emitter registration smoke test passes
+- [ ] Fan-out preservation regression test (`tests/status/test_emit_fanout_after_adapter.py`) green
 
 ---
 
