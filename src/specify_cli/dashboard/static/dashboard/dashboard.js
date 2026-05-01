@@ -325,58 +325,15 @@ function loadOverview() {
         {name: 'Data Model', key: 'data_model', icon: '💾'},
         {name: 'Contracts', key: 'contracts', icon: '📜'},
         {name: 'Checklists', key: 'checklists', icon: '✅'},
-    ].map(a => {
-        const isAvailable = artifacts[a.key]?.exists;
-        return `
-        <div style="padding: 10px; background: ${isAvailable ? '#ecfdf5' : '#fef2f2'};
-             border-radius: 6px; border-left: 3px solid ${isAvailable ? '#10b981' : '#ef4444'};">
-            ${a.icon} ${a.name}: ${isAvailable ? '✅ Available' : '❌ Not created'}
-        </div>
-    `}).join('');
+    ];
 
     const overviewContent = document.getElementById('overview-content');
-    overviewContent.innerHTML = `
-<div style="margin-bottom: 30px;">
-    <h3 id="overview-title"></h3>
-    <p id="overview-intro" style="color: #6b7280;">View and track all artifacts for this feature</p>
-    <p id="overview-context" style="color: #6b7280; margin-top: 10px; max-width: 72ch; display: none;"></p>
-</div>
 
-<div class="status-summary">
-    <div class="status-card total">
-                <div class="status-label">Total Tasks</div>
-                <div class="status-value">${total}</div>
-                <div class="status-detail">${stats.planned} planned</div>
-            </div>
-            <div class="status-card progress">
-                <div class="status-label">In Progress</div>
-                <div class="status-value">${stats.doing}</div>
-            </div>
-            <div class="status-card review">
-                <div class="status-label">Review</div>
-                <div class="status-value">${stats.for_review}</div>
-            </div>
-            <div class="status-card approved">
-                <div class="status-label">Approved</div>
-                <div class="status-value">${stats.approved || 0}</div>
-            </div>
-            <div class="status-card completed">
-                <div class="status-label">Completed</div>
-                <div class="status-value">${completed}</div>
-                <div class="status-detail">${completionRate}% done</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${completionRate}%"></div>
-                </div>
-            </div>
-        </div>
+    const header = document.createElement('div');
+    header.style.marginBottom = '30px';
 
-        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #1f2937;">Available Artifacts</h3>
-    <div style="display: grid; gap: 10px;">
-        ${artifactList}
-    </div>
-`;
-
-    const titleEl = document.getElementById('overview-title');
+    const titleEl = document.createElement('h3');
+    titleEl.id = 'overview-title';
     titleEl.textContent = `Mission Run: ${feature.name}`;
     if (mergedInto && mergeDateText) {
         const badge = document.createElement('span');
@@ -393,20 +350,93 @@ function loadOverview() {
         badge.append(icon, text);
         titleEl.append(' ', badge);
     }
+    header.appendChild(titleEl);
 
-    const introEl = document.getElementById('overview-intro');
+    const introEl = document.createElement('p');
+    introEl.id = 'overview-intro';
+    introEl.style.color = '#6b7280';
+    introEl.textContent = 'View and track all artifacts for this feature';
     if (purposeTldr) {
         introEl.textContent = purposeTldr;
         introEl.style.color = '#374151';
         introEl.style.fontWeight = '600';
         introEl.style.marginTop = '12px';
     }
+    header.appendChild(introEl);
 
-    const contextEl = document.getElementById('overview-context');
     if (purposeContext) {
+        const contextEl = document.createElement('p');
+        contextEl.id = 'overview-context';
+        contextEl.style.color = '#6b7280';
+        contextEl.style.marginTop = '10px';
+        contextEl.style.maxWidth = '72ch';
         contextEl.textContent = purposeContext;
-        contextEl.style.display = 'block';
+        header.appendChild(contextEl);
     }
+
+    const statusSummary = document.createElement('div');
+    statusSummary.className = 'status-summary';
+
+    const addStatusCard = (cardClass, labelText, valueText, detailText = null) => {
+        const card = document.createElement('div');
+        card.className = `status-card ${cardClass}`;
+
+        const label = document.createElement('div');
+        label.className = 'status-label';
+        label.textContent = labelText;
+
+        const value = document.createElement('div');
+        value.className = 'status-value';
+        value.textContent = String(valueText);
+
+        card.append(label, value);
+        if (detailText !== null) {
+            const detail = document.createElement('div');
+            detail.className = 'status-detail';
+            detail.textContent = detailText;
+            card.appendChild(detail);
+        }
+        statusSummary.appendChild(card);
+        return card;
+    };
+
+    addStatusCard('total', 'Total Tasks', total, `${stats.planned} planned`);
+    addStatusCard('progress', 'In Progress', stats.doing);
+    addStatusCard('review', 'Review', stats.for_review);
+    addStatusCard('approved', 'Approved', stats.approved || 0);
+    const completedCard = addStatusCard('completed', 'Completed', completed, `${completionRate}% done`);
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+
+    const progressFill = document.createElement('div');
+    progressFill.className = 'progress-fill';
+    progressFill.style.width = `${completionRate}%`;
+
+    progressBar.appendChild(progressFill);
+    completedCard.appendChild(progressBar);
+
+    const artifactsHeading = document.createElement('h3');
+    artifactsHeading.style.marginTop = '30px';
+    artifactsHeading.style.marginBottom = '15px';
+    artifactsHeading.style.color = '#1f2937';
+    artifactsHeading.textContent = 'Available Artifacts';
+
+    const artifactsGrid = document.createElement('div');
+    artifactsGrid.style.display = 'grid';
+    artifactsGrid.style.gap = '10px';
+    artifactList.forEach(({name, key, icon}) => {
+        const isAvailable = artifacts[key]?.exists;
+        const item = document.createElement('div');
+        item.style.padding = '10px';
+        item.style.background = isAvailable ? '#ecfdf5' : '#fef2f2';
+        item.style.borderRadius = '6px';
+        item.style.borderLeft = `3px solid ${isAvailable ? '#10b981' : '#ef4444'}`;
+        item.textContent = `${icon} ${name}: ${isAvailable ? '✅ Available' : '❌ Not created'}`;
+        artifactsGrid.appendChild(item);
+    });
+
+    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
 }
 
 function loadKanban() {
