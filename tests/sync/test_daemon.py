@@ -495,6 +495,34 @@ def test_get_sync_daemon_status_reads_health_metadata(monkeypatch, tmp_path):
     assert status.package_version == daemon._get_package_version()
 
 
+def test_stop_sync_daemon_clears_unhealthy_recorded_process(monkeypatch, tmp_path):
+    """stop/reset should kill the recorded PID even when health is already bad."""
+    daemon_file = tmp_path / "sync-daemon"
+    monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", daemon_file)
+    daemon._write_daemon_file(
+        daemon_file, "http://127.0.0.1:9402", 9402, "stale-token", 12835
+    )
+    monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
+
+    killed: list[int] = []
+
+    class FakeProcess:
+        def __init__(self, pid: int) -> None:
+            self.pid = pid
+
+        def kill(self) -> None:
+            killed.append(self.pid)
+
+    monkeypatch.setattr(daemon.psutil, "Process", FakeProcess)
+
+    stopped, message = daemon.stop_sync_daemon()
+
+    assert stopped is True
+    assert killed == [12835]
+    assert not daemon_file.exists()
+    assert "Unhealthy sync daemon process stopped" in message
+
+
 def test_get_package_version_queries_distribution_name_in_pyproject():
     """Regression: ``_get_package_version`` must query the actual installed
     distribution name (``spec-kitty-cli`` per ``pyproject.toml``).

@@ -1,7 +1,7 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.1.4
+> Version: 1.1.5
 
 ## Purpose
 
@@ -216,6 +216,10 @@ Operational reference:
 ## Tracker Ticket Assignment Rule
 
 1. When an agent starts implementing work from a tracker-backed issue for this repository, the agent must assign that ticket to the Human-in-Charge (HiC) before or as part of beginning the implementation. For Spec Kitty today, GitHub issues are the active tracker case and must follow this rule.
+
+## Pre-existing Failure Reporting Rule
+
+1. When an agent encounters pre-existing test failures while working in this repository, the agent MUST open a GitHub issue reporting them before treating those failures as accepted baseline context or continuing past them. The issue must include the command run, the relevant failure summary, and why the agent believes the failures are pre-existing rather than introduced by its current change.
 
 ---
 

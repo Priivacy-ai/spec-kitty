@@ -1,0 +1,35 @@
+{
+  "event_count": 14,
+  "last_event_id": "01KQFE532KQ1W9VQWXBRDWT1EP",
+  "materialized_at": "2026-04-30T14:54:42.259051+00:00",
+  "mission_number": "109",
+  "mission_slug": "charter-p7-release-closure-01KQF9B9",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQFDYEWY8WPKKV2HZMWZZSAM",
+      "last_transition_at": "2026-04-30T14:51:04.990997+00:00"
+    },
+    "WP02": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQFE532KQ1W9VQWXBRDWT1EP",
+      "last_transition_at": "2026-04-30T14:54:42.259051+00:00"
+    }
+  }
+}

@@ -18,14 +18,23 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 
-from charter.bundle import CANONICAL_MANIFEST, CharterBundleManifest
+from charter.bundle import (
+    CANONICAL_MANIFEST,
+    BundleValidationResult,
+    CharterBundleManifest,
+    validate_synthesis_state,
+)
 from charter.resolution import (
     GitCommonDirUnavailableError,
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
 )
+from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
+from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
+from ruamel.yaml import YAML as _YAML
 
 app = typer.Typer(
     name="bundle",
@@ -220,6 +229,91 @@ def _render_human(report: dict[str, Any], console: Console) -> None:
     else:
         console.print("[red]Bundle is NOT compliant (v1.0.0).[/red]")
 
+    synth = report.get("synthesis_state")
+    if synth:
+        if synth["present"]:
+            if synth["passed"]:
+                console.print("[green]Synthesis state: valid (all artifacts have provenance).[/green]")
+            else:
+                console.print("[red]Synthesis state: INVALID.[/red]")
+                for err in synth["errors"]:
+                    console.print(f"  [red]• {err}[/red]")
+        else:
+            console.print("[dim]Synthesis state: not present (legacy bundle).[/dim]")
+
+
+def _bundle_compatibility_error(charter_dir: Path) -> str | None:
+    """Return a bundle compatibility error message, if the bundle is unsupported.
+
+    Only called when the charter directory is known to exist; never called
+    for a fresh-synthesis path (where metadata.yaml is absent).
+    """
+    bundle_version = get_bundle_schema_version(charter_dir)
+    result = check_bundle_compatibility(bundle_version)
+    if not result.is_compatible:
+        return result.message
+    return None
+
+
+def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
+    """Return provenance validation errors for sidecars and manifest references."""
+    yaml_loader = _YAML(typ="safe")
+    sidecar_errors: list[str] = []
+    provenance_dir = canonical_root / ".kittify" / "charter" / "provenance"
+
+    if provenance_dir.exists():
+        for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
+            try:
+                raw = yaml_loader.load(sidecar_path)
+            except Exception as e:  # noqa: BLE001 — per-sidecar YAML parse failure must not abort the full validation pass
+                sidecar_errors.append(f"{sidecar_path.name}: could not parse YAML: {e}")
+                continue
+            if not isinstance(raw, dict):
+                sidecar_errors.append(
+                    f"{sidecar_path.name}: provenance sidecar must be a YAML mapping"
+                )
+                continue
+            try:
+                ProvenanceEntry(**raw)
+            except ValidationError as e:
+                sidecar_errors.append(f"{sidecar_path.name}: {e}")
+
+    manifest_path = canonical_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    if not manifest_path.exists():
+        return sidecar_errors
+
+    try:
+        raw_manifest = yaml_loader.load(manifest_path)
+    except Exception as e:  # noqa: BLE001 — manifest YAML parse failure is recorded as an error; remaining checks are skipped
+        sidecar_errors.append(f"synthesis-manifest.yaml: could not parse YAML: {e}")
+        return sidecar_errors
+    if not isinstance(raw_manifest, dict):
+        sidecar_errors.append(
+            "synthesis-manifest.yaml: synthesis manifest must be a YAML mapping"
+        )
+        return sidecar_errors
+
+    artifacts = raw_manifest.get("artifacts", [])
+    if not isinstance(artifacts, list):
+        sidecar_errors.append("synthesis-manifest.yaml: artifacts must be a list")
+        return sidecar_errors
+
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            sidecar_errors.append(
+                "synthesis-manifest.yaml: artifact entries must be YAML mappings"
+            )
+            continue
+        prov_rel = artifact.get("provenance_path")
+        if not prov_rel:
+            continue
+        if not (canonical_root / prov_rel).exists():
+            slug = artifact.get("slug", "?")
+            sidecar_errors.append(
+                f"Missing provenance sidecar for artifact '{slug}': {prov_rel}"
+            )
+    return sidecar_errors
+
 
 @app.command("validate")
 def validate(
@@ -238,7 +332,14 @@ def validate(
     except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
         # Exit 2: resolver failure. Message on stderr per contract.
         err_console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from exc
+
+    # FR-009: Incompatible bundles fail validation, but --json still emits the
+    # same parseable envelope as other public validation failures.
+    charter_dir = canonical_root / ".kittify" / "charter"
+    compatibility_error: str | None = None
+    if (charter_dir / "metadata.yaml").exists():
+        compatibility_error = _bundle_compatibility_error(charter_dir)
 
     manifest = CANONICAL_MANIFEST
 
@@ -290,11 +391,50 @@ def validate(
         "warnings": warnings,
     }
 
+    # FR-006 / FR-007: Collect provenance sidecar content validation errors.
+    # Do NOT exit here — accumulate into report and let the unified exit gate below handle it.
+    sidecar_errors = _collect_provenance_validation_errors(canonical_root)
+
+    # FR-001 to FR-004: Call the full synthesis-state gate.
+    synth_result: BundleValidationResult = validate_synthesis_state(canonical_root)
+
+    # Build mirrored top-level errors list (FR-007).
+    # Provenance sidecar errors get a "provenance:" prefix so consumers can distinguish them.
+    compatibility_error_strings = (
+        [f"compatibility: {compatibility_error}"] if compatibility_error else []
+    )
+    provenance_error_strings = [f"provenance: {e}" for e in sidecar_errors]
+    synthesis_error_strings = [f"synthesis_state: {e}" for e in synth_result.errors]
+    all_errors = compatibility_error_strings + provenance_error_strings + synthesis_error_strings
+
+    # Extend the report with synthesis state (FR-005 / FR-007).
+    report["errors"] = all_errors
+    report["synthesis_state"] = {
+        "present": synth_result.synthesis_state_present,
+        "passed": synth_result.passed,
+        "errors": list(synth_result.errors),
+        "warnings": list(synth_result.warnings),
+    }
+
+    # Overall gate: pass only if charter manifest, sidecar content, AND synthesis state all pass.
+    overall_passed = (
+        bundle_compliant
+        and compatibility_error is None
+        and not sidecar_errors
+        and synth_result.passed
+    )
+    report["passed"] = overall_passed
+    report["result"] = "success" if overall_passed else "failure"
+
     if json_output:
-        # Use plain stdout for JSON; the contract requires the exact JSON
-        # shape to be parseable without Rich markup.
+        # Strict JSON to stdout — no Rich output on this path (FR-006).
         sys.stdout.write(_json.dumps(report, indent=2) + "\n")
     else:
         _render_human(report, console)
+        # Surface all errors in human mode using stderr.
+        if all_errors:
+            err_console.print("")
+            for msg in all_errors:
+                err_console.print(f"[red]Validation error:[/red] {msg}")
 
-    raise typer.Exit(code=0 if bundle_compliant else 1)
+    raise typer.Exit(code=0 if overall_passed else 1)

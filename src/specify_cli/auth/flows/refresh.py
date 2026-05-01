@@ -33,6 +33,7 @@ from typing import Any
 from ..config import get_saas_base_url
 from ..errors import (
     NetworkError,
+    RefreshReplayError,
     RefreshTokenExpiredError,
     SessionInvalidError,
     TokenRefreshError,
@@ -94,6 +95,15 @@ class TokenRefreshFlow:
                     f"Refresh response was not JSON: {exc}"
                 ) from exc
             return self._update_session(session, tokens)
+
+        if response.status_code == 409:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            if body.get("error") == "refresh_replay_benign_retry":
+                raise RefreshReplayError(retry_after=int(body.get("retry_after", 0)))
+            # Non-replay 409 (unexpected) — fall through to generic TokenRefreshError below
 
         if response.status_code in {400, 401}:
             try:
@@ -169,6 +179,7 @@ class TokenRefreshFlow:
             storage_backend=session.storage_backend,
             last_used_at=now,
             auth_method=session.auth_method,
+            generation=tokens.get("generation"),  # None if server doesn't send it
         )
 
     @staticmethod

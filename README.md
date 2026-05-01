@@ -45,7 +45,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get on `main` (`3.2.0a4`)
+## 🚀 What You Get on `main` (`3.2.0a7`)
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
@@ -105,9 +105,9 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current stable release: `3.1.6` on GitHub Releases and PyPI)
+**Current stable release line:** `v3.1.x` (current stable release: `3.1.8` on GitHub Releases and PyPI)
 
-**Current `main` development version:** `3.2.0a4`
+**Current `main` development version:** `3.2.0a7`
 
 **Current `main` highlights:**
 - **Brief-first and ticket-first intake** — `spec-kitty intake` ingests external plans into `.kittify/mission-brief.md`, and `spec-kitty mission create --from-ticket <provider:KEY>` seeds tracker context before `/spec-kitty.specify`
@@ -115,7 +115,7 @@ graph LR
 - **Hosted tracker reads and Teamspace-aware sync** — `issue-search`, `tracker discover` / `tracker list-tickets`, encrypted local auth sessions, `sync routes`, repository sharing, and Private Teamspace routing tighten the SaaS workflow
 - **Charter synthesis is harness-owned and inspectable** — generated-artifact adapters, `charter status --provenance`, `charter resynthesize --list-topics`, bundle validation, and stronger neutrality rules make synthesis auditable
 - **Compatibility and release governance are stricter** — `doctor shim-registry`, mutation-testing guidance, shared-package drift checks, SBOM-attached prereleases, and safer publish validation harden upgrades and releases
-- **Review and runtime recovery keep improving** — sparse-checkout defenses, offline/auth refresh fixes, provider-aware tracker readiness, action-routing hardening, and post-merge fixes to the profile-invocation flow reduce recovery work
+- **Review and runtime recovery keep improving** — `spec-kitty review`, stale review-artifact warnings, merge-abort cleanup, provider-aware tracker readiness, action-routing hardening, and profile-invocation pairing reduce recovery work
 - **15 AI integrations are supported** — 13 user-global slash/prompt surfaces plus Codex CLI and Mistral Vibe via shared Agent Skills, with Kiro fully documented and legacy `q` retained for compatibility
 
 **Jump to:**
@@ -130,17 +130,18 @@ graph LR
 
 ## 📌 Release Channels
 
-Spec Kitty currently ships stable `3.1.x` releases while `main` carries the active `3.2.0a4` prerelease/dev line.
+Spec Kitty currently ships stable `3.1.x` releases while `main` carries the active `3.2.0a7` prerelease/dev line.
 The former `1.x` line is deprecated and lives on `1.x-maintenance` for maintenance-only fixes.
 
 | Source | Version | Status | Install |
 |--------|---------|--------|---------|
-| **PyPI / GitHub Releases** | **3.1.6** | Current stable line | `pip install spec-kitty-cli` |
-| **main** | **3.2.0a4** | Active prerelease / development line | Install from a source checkout or a published prerelease tag |
+| **PyPI / GitHub Releases** | **3.1.8** | Current stable line | `pip install spec-kitty-cli` |
+| **main** | **3.2.0a7** | Active prerelease / development line | Install from a source checkout or a published prerelease tag |
 | **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
 **For testers following `main`:** use a source checkout or published prerelease builds to get the intake, profile-invocation, hosted tracker-read, and Teamspace-routing work that is newer than stable `3.1.x`.
+After `3.2.0a7` is published, testers can install the exact prerelease with `pip install "spec-kitty-cli==3.2.0a7"` or opt into prereleases with `pip install --pre spec-kitty-cli`.
 **For existing 3.0.x users:** upgrade to `3.1.x` and run `spec-kitty upgrade` in each project — the charter rename, mission identity, and prompt-neutrality migrations remain automatic.
 **For existing 1.x or 2.x users:** migrate to `3.1.x`; `1.x-maintenance` is maintenance-only and will no longer publish new PyPI releases.
 
@@ -330,7 +331,7 @@ The upgrade command automatically migrates your project structure across version
 
 | Version | Migration                                                           |
 |---------|---------------------------------------------------------------------|
-| **0.10.9** | Repair broken templates with bash script references (#62, #63, #64) |
+| **0.10.9** | Legacy template bundling compatibility marker (#62, #63, #64) |
 | **0.10.8** | Move memory/ and AGENTS.md to .kittify/                             |
 | **0.10.6** | Simplify implement/review templates to use workflow commands        |
 | **0.10.2** | Update slash commands to Python CLI and flat structure              |
@@ -821,7 +822,6 @@ The `spec-kitty` command now spans core workflow commands, hosted tracker/sync w
 | `migrate` | Migrate project `.kittify/` state to newer models |
 | `ops` | Show operation history / reflog helpers |
 | `orchestrator-api` | Host contract for external orchestrators |
-| `repair` | Repair broken templates or worktree scaffolding |
 | `research` | Scaffold Phase 0 research artifacts |
 | `upgrade` | Upgrade a project to the current CLI/project contract |
 | `verify-setup` | Verify tooling, mission files, and environment health |

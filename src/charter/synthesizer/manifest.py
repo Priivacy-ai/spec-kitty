@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 
 # Canonical location of the synthesis manifest.
 MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
+_ARTIFACT_PATH_PREFIX = Path(".kittify/doctrine")
+_PROVENANCE_PATH_PREFIX = Path(".kittify/charter/provenance")
 
 
 # ---------------------------------------------------------------------------
@@ -64,11 +66,15 @@ class SynthesisManifest(BaseModel):
     partial-promote states: manifest absent → partial; manifest present but
     hash mismatch → corrupt; manifest present + all hashes pass → live tree
     is authoritative.
+
+    Schema version 2 (Phase 7): added synthesizer_version and manifest_hash.
+    ``manifest_hash`` is the SHA-256 hex digest of ``canonical_yaml(all fields
+    except manifest_hash)`` — allows readers to verify manifest self-integrity.
     """
 
     model_config = ConfigDict(frozen=True)
 
-    schema_version: Literal["1"] = "1"
+    schema_version: Literal["2"] = "2"
     mission_id: str | None = None
     created_at: str
     """ISO 8601 UTC timestamp."""
@@ -81,6 +87,12 @@ class SynthesisManifest(BaseModel):
 
     adapter_version: str
     """Primary adapter version.  Empty string for mixed-identity runs."""
+
+    synthesizer_version: str = Field(..., min_length=1)
+    """Version of the spec-kitty-cli package that produced this manifest."""
+
+    manifest_hash: str = Field(..., min_length=64, max_length=64)
+    """SHA-256 hex digest of canonical_yaml(all manifest fields except manifest_hash)."""
 
     artifacts: list[ManifestArtifactEntry] = Field(default_factory=list)
     """One entry per committed artifact, in deterministic order."""
@@ -149,6 +161,57 @@ def load_yaml(path: Path) -> SynthesisManifest:
     return SynthesisManifest.model_validate(raw)
 
 
+def verify_manifest_hash(manifest: SynthesisManifest) -> None:
+    """Verify the manifest self-hash field.
+
+    Recomputes SHA-256 of the canonical YAML serialization of all manifest
+    fields except ``manifest_hash`` itself and compares to the stored value.
+
+    Raises
+    ------
+    ValueError
+        If the computed hash does not match ``manifest.manifest_hash``.
+    """
+    data = manifest.model_dump(mode="python")
+    data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
+    computed = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    if computed != manifest.manifest_hash:
+        raise ValueError(
+            f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., "
+            f"computed {computed[:12]}...)"
+        )
+
+
+def _validate_manifest_path(raw_path: str, *, field_name: str, required_prefix: Path) -> Path:
+    """Return a safe repo-relative manifest path under ``required_prefix``."""
+    path = Path(raw_path.replace("\\", "/"))
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(
+            f"{field_name} must be repo-relative and stay under "
+            f"{required_prefix.as_posix()}: {raw_path}"
+        )
+    try:
+        path.relative_to(required_prefix)
+    except ValueError as exc:
+        raise ValueError(
+            f"{field_name} must be under {required_prefix.as_posix()}: {raw_path}"
+        ) from exc
+    return path
+
+
+def _resolve_under_repo(repo_root: Path, rel_path: Path, *, field_name: str) -> Path:
+    """Resolve ``rel_path`` and fail if symlinks escape ``repo_root``."""
+    repo_resolved = repo_root.resolve(strict=False)
+    resolved = (repo_root / rel_path).resolve(strict=False)
+    try:
+        resolved.relative_to(repo_resolved)
+    except ValueError as exc:
+        raise ValueError(
+            f"{field_name} resolves outside repository root: {rel_path.as_posix()}"
+        ) from exc
+    return resolved
+
+
 def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
     """Verify that every artifact listed in the manifest exists with matching hash.
 
@@ -170,7 +233,21 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
     """
     manifest_path = str(MANIFEST_PATH)
     for entry in manifest.artifacts:
-        artifact_path = repo_root / entry.path
+        artifact_rel = _validate_manifest_path(
+            entry.path,
+            field_name="manifest artifact path",
+            required_prefix=_ARTIFACT_PATH_PREFIX,
+        )
+        _validate_manifest_path(
+            entry.provenance_path,
+            field_name="manifest provenance path",
+            required_prefix=_PROVENANCE_PATH_PREFIX,
+        )
+        artifact_path = _resolve_under_repo(
+            repo_root,
+            artifact_rel,
+            field_name="manifest artifact path",
+        )
         if not artifact_path.exists():
             raise ManifestIntegrityError(
                 manifest_path=manifest_path,
@@ -192,4 +269,5 @@ __all__ = [
     "dump_yaml",
     "load_yaml",
     "verify",
+    "verify_manifest_hash",
 ]

@@ -16,11 +16,16 @@ Default invocation contract (FR-015, C-007):
   WP05 and ``force_release`` from WP01) only when the corresponding
   finding is present.
 
+The ``--server`` flag (FR-011 through FR-015, FR-017) is an explicit opt-in
+network path. It refreshes the access token if needed, then calls
+``GET /api/v1/session-status``. C-007 still holds for the default path.
+
 Public API (consumed by ``cli.commands.auth.doctor`` and tests):
 
 - :class:`Finding`, :class:`SessionSummary`, :class:`LockSummary`,
   :class:`DaemonSummary`, :class:`DoctorReport` — frozen dataclasses
   mirroring ``data-model.md`` §"DoctorReport".
+- :class:`ServerSessionStatus` — frozen dataclass for the opt-in server check.
 - :func:`assemble_report` — pure data gather; no rendering, no mutation.
 - :func:`render_report` — Rich rendering of the 7 sections.
 - :func:`render_report_json` — ``--json`` payload (datetime → ISO-8601,
@@ -32,6 +37,7 @@ Public API (consumed by ``cli.commands.auth.doctor`` and tests):
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 import socket
@@ -58,6 +64,7 @@ from specify_cli.sync.daemon import (
     DAEMON_STATE_FILE,
     SyncDaemonStatus,
     get_sync_daemon_status,
+    stop_sync_daemon,
 )
 from specify_cli.sync.orphan_sweep import (
     OrphanDaemon,
@@ -70,6 +77,7 @@ __all__ = [
     "DoctorReport",
     "Finding",
     "LockSummary",
+    "ServerSessionStatus",
     "SessionSummary",
     "assemble_report",
     "compute_exit_code",
@@ -159,6 +167,21 @@ class DoctorReport:
     daemon: DaemonSummary | None
     orphans: list[OrphanDaemon] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ServerSessionStatus:
+    """Result of an opt-in server-side session check (auth doctor --server).
+
+    ``active=True`` means the server confirms the session is live.
+    ``session_id`` is safe to display (not a secret).
+    ``error`` is a brief human-readable failure reason; never contains
+    raw tokens, token_family_id, is_revoked, or revocation_reason.
+    """
+
+    active: bool
+    session_id: str | None = None
+    error: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +397,7 @@ def _compute_findings(
         rollout_enabled = bool(is_saas_sync_enabled())
     except Exception:
         rollout_enabled = False
-    if rollout_enabled and (daemon is None or not daemon.active):
+    if rollout_enabled and daemon is None:
         findings.append(
             Finding(
                 id="F-005",
@@ -382,6 +405,16 @@ def _compute_findings(
                 summary="Daemon not running; next CLI command will start it.",
                 remediation_command=None,
                 remediation_description=None,
+            )
+        )
+    elif rollout_enabled and not daemon.active:
+        findings.append(
+            Finding(
+                id="F-005",
+                severity="info",
+                summary="Recorded daemon is not healthy; reset it or let the next remote command restart it.",
+                remediation_command="spec-kitty auth doctor --reset",
+                remediation_description="Clear unhealthy daemon metadata and stop any recorded daemon process.",
             )
         )
 
@@ -443,6 +476,78 @@ def compute_exit_code(findings: list[Finding]) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Server-session check (T015) — opt-in network path for --server flag
+# ---------------------------------------------------------------------------
+
+
+async def _check_server_session() -> ServerSessionStatus:
+    """Refresh token if needed, then GET /api/v1/session-status.
+
+    Returns ServerSessionStatus. Never raises — all errors map to
+    active=False with a brief, non-sensitive error description.
+    """
+    from specify_cli.auth import get_token_manager  # noqa: PLC0415 (avoid circular at module level)
+    from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
+    import httpx  # noqa: PLC0415
+
+    from specify_cli.auth.errors import (  # noqa: PLC0415
+        NotAuthenticatedError,
+        RefreshTokenExpiredError,
+        SessionInvalidError,
+        TokenRefreshError,
+    )
+    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError  # noqa: PLC0415
+
+    tm = get_token_manager()
+    try:
+        access_token = await tm.get_access_token()
+    except (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError):
+        return ServerSessionStatus(active=False, error="re-authenticate")
+    except RefreshLockTimeoutError as exc:
+        message = str(exc) or "Auth refresh is busy; retry later."
+        return ServerSessionStatus(active=False, error=message)
+    except TokenRefreshError:
+        return ServerSessionStatus(
+            active=False,
+            error=(
+                "Could not refresh access token; "
+                "run `spec-kitty auth login` if this persists."
+            ),
+        )
+    except Exception:
+        return ServerSessionStatus(active=False, error="Could not obtain access token.")
+
+    try:
+        saas_url = get_saas_base_url()
+    except Exception:
+        return ServerSessionStatus(active=False, error="SaaS URL not configured")
+
+    url = f"{saas_url}/api/v1/session-status"
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, headers=headers)
+    except httpx.RequestError as exc:
+        return ServerSessionStatus(active=False, error=f"Network error: {type(exc).__name__}")
+    except Exception:
+        return ServerSessionStatus(active=False, error="Unexpected error during server check")
+
+    if response.status_code == 200:
+        try:
+            body = response.json()
+            session_id = body.get("session_id")
+            return ServerSessionStatus(active=True, session_id=session_id)
+        except ValueError:
+            return ServerSessionStatus(active=False, error="Invalid response from server")
+
+    if response.status_code == 401:
+        return ServerSessionStatus(active=False, error="re-authenticate")
+
+    return ServerSessionStatus(active=False, error=f"Server returned HTTP {response.status_code}")
+
+
+# ---------------------------------------------------------------------------
 # Public assembly + rendering API (T023, T024, T026)
 # ---------------------------------------------------------------------------
 
@@ -479,7 +584,7 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
     )
 
 
-def render_report(report: DoctorReport, console: Console) -> None:  # noqa: C901, PLR0912 — the 7-section layout is intentionally linear and section-by-section so reviewers can map each block to the contract; splitting it adds indirection without clarity.
+def render_report(report: DoctorReport, console: Console, *, show_server_hint: bool = True) -> None:  # noqa: C901, PLR0912 — the 7-section layout is intentionally linear and section-by-section so reviewers can map each block to the contract; splitting it adds indirection without clarity.
     """Render a :class:`DoctorReport` as the 7-section Rich layout."""
     # Section 1 — Identity.
     console.print("[bold]Identity[/bold]")
@@ -586,26 +691,33 @@ def render_report(report: DoctorReport, console: Console) -> None:  # noqa: C901
     console.print("[bold]Findings[/bold]")
     if not report.findings:
         console.print("  No problems detected.")
-        return
-
-    severity_color = {
-        "info": "cyan",
-        "warn": "yellow",
-        "critical": "red",
-    }
-    for finding in report.findings:
-        color = severity_color[finding.severity]
-        console.print(
-            f"  [[{color}]{finding.severity}[/{color}]] "
-            f"{finding.id}: {finding.summary}"
-        )
-        if finding.remediation_command is not None:
-            description = (
-                f" — {finding.remediation_description}"
-                if finding.remediation_description
-                else ""
+    else:
+        severity_color = {
+            "info": "cyan",
+            "warn": "yellow",
+            "critical": "red",
+        }
+        for finding in report.findings:
+            color = severity_color[finding.severity]
+            console.print(
+                f"  [[{color}]{finding.severity}[/{color}]] "
+                f"{finding.id}: {finding.summary}"
             )
-            console.print(f"      Run: {finding.remediation_command}{description}")
+            if finding.remediation_command is not None:
+                description = (
+                    f" — {finding.remediation_description}"
+                    if finding.remediation_description
+                    else ""
+                )
+                console.print(f"      Run: {finding.remediation_command}{description}")
+
+    # Always present in offline mode — encourage server-aware check.
+    if show_server_hint:
+        console.print()
+        console.print(
+            "[dim]Run [bold]spec-kitty auth doctor --server[/bold] "
+            "to verify server session status.[/dim]"
+        )
 
 
 def render_report_json(report: DoctorReport) -> str:
@@ -677,6 +789,7 @@ def doctor_impl(
     reset: bool,
     unstick_lock: bool,
     stuck_threshold: float,
+    server: bool = False,
 ) -> int:
     """Top-level dispatch for the ``spec-kitty auth doctor`` command.
 
@@ -686,20 +799,33 @@ def doctor_impl(
     underlying repair primitive only when the corresponding finding is
     present. After any repair we re-run :func:`assemble_report` so the
     rendered output reflects the post-repair state.
+
+    ``--server`` is an explicit opt-in that refreshes the access token and
+    calls ``GET /api/v1/session-status``. The default path (server=False)
+    makes ZERO outbound network calls (C-007).
     """
     report = assemble_report(stuck_threshold_s=stuck_threshold)
 
     repair_messages: list[str] = []
 
     if reset:
+        repaired = False
         if any(f.id == "F-002" for f in report.findings):
             sweep = sweep_orphans(list(report.orphans))
             repair_messages.append(
                 f"--reset: {len(sweep.swept)} orphan(s) swept, "
                 f"{len(sweep.failed)} failed."
             )
+            repaired = True
             report = assemble_report(stuck_threshold_s=stuck_threshold)
-        else:
+
+        if report.daemon is not None and not report.daemon.active:
+            _stopped, message = stop_sync_daemon()
+            repair_messages.append(f"--reset: {message}")
+            repaired = True
+            report = assemble_report(stuck_threshold_s=stuck_threshold)
+
+        if not repaired:
             repair_messages.append("--reset: no orphans detected; no-op.")
 
     if unstick_lock:
@@ -717,13 +843,41 @@ def doctor_impl(
         else:
             repair_messages.append("--unstick-lock: lock not stuck; no-op.")
 
+    server_status: ServerSessionStatus | None = None
+    if server:
+        server_status = asyncio.run(_check_server_session())
+
     if json_output:
         # Repair messages are not part of the JSON schema (`schema_version: 1`);
         # JSON consumers consume the post-repair report state directly.
-        print(render_report_json(report))
+        payload = json.loads(render_report_json(report))
+        if server_status is not None:
+            payload["server_session"] = {
+                "active": server_status.active,
+                "session_id": server_status.session_id,
+                "error": server_status.error,
+            }
+        print(json.dumps(payload, indent=2, sort_keys=True))
         return compute_exit_code(report.findings)
 
-    render_report(report, console)
+    render_report(report, console, show_server_hint=not server)
     for message in repair_messages:
         console.print(message)
+
+    if server and server_status is not None:
+        console.print("[bold]Server Session[/bold]")
+        if server_status.active:
+            sid = server_status.session_id or "(unknown)"
+            console.print(f"  Status:  [green]active[/green] (session: {sid})")
+        else:
+            reason = server_status.error or "unknown"
+            if reason == "re-authenticate":
+                console.print(
+                    "  Status:  [red]invalid[/red] — "
+                    "Run [bold]spec-kitty auth login[/bold] to re-authenticate."
+                )
+            else:
+                console.print(f"  Status:  [yellow]check failed[/yellow] — {reason}")
+        console.print()
+
     return compute_exit_code(report.findings)

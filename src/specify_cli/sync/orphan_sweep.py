@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import socket
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -60,10 +61,10 @@ _PORT_POLL_INTERVAL_S: float = 0.05
 class OrphanDaemon:
     """A Spec Kitty sync daemon listening on a port other than the recorded singleton.
 
-    ``pid`` is ``None`` when ``psutil.net_connections`` raises ``AccessDenied``
-    (common on macOS without elevated privileges). Sweep can still attempt
-    HTTP shutdown without a PID, but escalation to ``terminate``/``kill``
-    is recorded as a failure in that case.
+    ``pid`` is ``None`` when neither ``psutil.net_connections`` nor the
+    platform fallback can identify the listener. Sweep can still attempt HTTP
+    shutdown without a PID, but escalation to ``terminate``/``kill`` is recorded
+    as a failure in that case.
     """
 
     port: int
@@ -109,8 +110,7 @@ def _probe_health(port: int) -> dict[str, Any] | None:
     """Issue ``GET /api/health`` and return the parsed JSON dict, or ``None`` on any failure."""
     url = f"http://127.0.0.1:{port}/api/health"
     try:
-        # nosec B310 — URL is always 127.0.0.1 in the reserved daemon range.
-        with urllib.request.urlopen(url, timeout=_HEALTH_PROBE_TIMEOUT_S) as response:
+        with urllib.request.urlopen(url, timeout=_HEALTH_PROBE_TIMEOUT_S) as response:  # nosec B310 - URL is always 127.0.0.1 in the reserved daemon range.
             if response.status != 200:
                 return None
             payload = response.read()
@@ -135,17 +135,17 @@ def _is_spec_kitty_daemon(payload: dict[str, Any]) -> bool:
 def _lookup_listening_pid(port: int) -> int | None:
     """Return the PID of the process listening on ``127.0.0.1:port``, or ``None``.
 
-    Uses ``psutil.net_connections(kind="tcp")`` and filters for
-    ``laddr.port == port`` and ``status == "LISTEN"``. May raise
-    ``AccessDenied`` on macOS without elevated privileges; in that case
-    ``None`` is returned and the caller treats the orphan as PID-less.
+    Uses ``psutil.net_connections(kind="tcp")`` first and falls back to
+    ``lsof`` when psutil cannot expose listener ownership. macOS frequently
+    withholds PIDs from ``psutil.net_connections`` for subprocess sockets, while
+    ``lsof`` can still resolve the listener owned by the current user.
     """
     try:
         conns = psutil.net_connections(kind="tcp")
     except psutil.AccessDenied:
-        return None
+        return _lookup_listening_pid_with_lsof(port)
     except (psutil.Error, OSError):
-        return None
+        return _lookup_listening_pid_with_lsof(port)
 
     for conn in conns:
         laddr = getattr(conn, "laddr", None)
@@ -159,9 +159,39 @@ def _lookup_listening_pid(port: int) -> int | None:
             continue
         pid = conn.pid
         if pid is None:
-            return None
+            return _lookup_listening_pid_with_lsof(port)
         return int(pid)
 
+    return _lookup_listening_pid_with_lsof(port)
+
+
+def _lookup_listening_pid_with_lsof(port: int) -> int | None:
+    """Resolve a local listener PID with ``lsof`` when psutil cannot.
+
+    The port value is an integer drawn from the fixed Spec Kitty daemon range,
+    so it is safe to pass as an argument without shell interpolation.
+    """
+    try:
+        result = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=0.75,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+    if result.returncode != 0:
+        return None
+
+    for line in result.stdout.splitlines():
+        try:
+            pid = int(line.strip())
+        except ValueError:
+            continue
+        if pid > 0:
+            return pid
     return None
 
 
@@ -202,8 +232,7 @@ def _http_shutdown_no_token(port: int) -> None:
         method="POST",
     )
     try:
-        # nosec B310 — request URL is 127.0.0.1 in the reserved daemon range.
-        with urllib.request.urlopen(request, timeout=1.0):
+        with urllib.request.urlopen(request, timeout=1.0):  # nosec B310 - request URL is 127.0.0.1 in the reserved daemon range.
             return
     except Exception:
         return

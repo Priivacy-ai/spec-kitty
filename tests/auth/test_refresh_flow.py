@@ -23,6 +23,7 @@ import pytest
 
 from specify_cli.auth.errors import (
     NetworkError,
+    RefreshReplayError,
     RefreshTokenExpiredError,
     SessionInvalidError,
     TokenRefreshError,
@@ -334,3 +335,85 @@ class TestRefreshErrors:
 
             with pytest.raises(NetworkError, match="Network error during refresh"):
                 await flow.refresh(session)
+
+
+# ---------------------------------------------------------------------------
+# 409 benign-replay and generation capture (WP03 T012)
+# ---------------------------------------------------------------------------
+
+
+class TestRefresh409AndGeneration:
+
+    @pytest.mark.asyncio
+    async def test_refresh_409_benign_replay_raises(self):
+        """409 + {"error": "refresh_replay_benign_retry", "retry_after": 2} → RefreshReplayError(retry_after=2)."""
+        flow = TokenRefreshFlow()
+        session = _make_session()
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(
+                409,
+                {"error": "refresh_replay_benign_retry", "retry_after": 2},
+            )
+
+            with pytest.raises(RefreshReplayError) as exc_info:
+                await flow.refresh(session)
+
+        assert exc_info.value.retry_after == 2
+
+    @pytest.mark.asyncio
+    async def test_refresh_409_other_error_raises_token_refresh_error(self):
+        """409 + {"error": "some_other_error"} → TokenRefreshError (not RefreshReplayError)."""
+        flow = TokenRefreshFlow()
+        session = _make_session()
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(
+                409,
+                {"error": "some_other_error"},
+                text="some_other_error",
+            )
+
+            with pytest.raises(TokenRefreshError) as exc_info:
+                await flow.refresh(session)
+
+        # Must NOT be a RefreshReplayError
+        assert not isinstance(exc_info.value, RefreshReplayError)
+
+    @pytest.mark.asyncio
+    async def test_refresh_200_captures_generation(self):
+        """200 response with generation=7 → returned StoredSession.generation == 7."""
+        flow = TokenRefreshFlow()
+        session = _make_session()
+        body = _refresh_body()
+        body["generation"] = 7
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(200, body)
+
+            updated = await flow.refresh(session)
+
+        assert updated.generation == 7
+
+    @pytest.mark.asyncio
+    async def test_refresh_200_missing_generation_is_none(self):
+        """200 response without generation key → returned StoredSession.generation is None."""
+        flow = TokenRefreshFlow()
+        session = _make_session()
+        body = _refresh_body()
+        # No "generation" key in body
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(200, body)
+
+            updated = await flow.refresh(session)
+
+        assert updated.generation is None

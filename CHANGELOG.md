@@ -17,18 +17,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-## [3.2.0a6] — Tranche 2 (bug-only)
+## [3.2.0a7] - 2026-05-01
 
-Tranche 2 of the 3.2.0a6 release is a bug-only sweep that restores the
-documented fresh-project golden path (`init` → charter `setup`/`generate`/
-`synthesize` → `next`), locks in strict JSON for covered `--json` commands
-under any SaaS state, fixes agent identity parsing and review-cycle
-accounting, and adds paired profile-invocation lifecycle observability for
-`spec-kitty next`. No new public CLI subcommands and no new top-level
-runtime dependencies were introduced.
+3.2.0a7 is a focused prerelease that bounds WebSocket sync startup and
+shutdown behavior. Short-lived agent commands now fail over to batch sync
+instead of hanging indefinitely when a local sync socket accepts the
+connection but never emits the initial snapshot.
 
 ### Fixed
 
+- WebSocket sync startup now has bounded open, initial snapshot, and close
+  deadlines so `spec-kitty agent mission setup-plan` and other short-lived
+  commands degrade to batch sync instead of blocking forever on a stalled
+  sync socket (#936).
+
+### Internal
+
+- Added regression coverage for a WebSocket connection that never sends the
+  initial snapshot and for shutdown paths where the close handshake stalls.
+- Aligned existing Bandit suppressions in touched sync/readiness callsites so
+  local and CI security scans recognize the intended safe dynamic SQL and
+  localhost URL patterns.
+
+## [3.2.0a6] - 2026-04-30
+
+3.2.0a6 is a prerelease hardening sweep that restores the documented
+fresh-project golden path (`init` → charter `setup`/`generate`/
+`synthesize` → `next`), locks in strict JSON for covered `--json` commands
+under any SaaS state, fixes agent identity parsing and review-cycle
+accounting, adds paired profile-invocation lifecycle observability for
+`spec-kitty next`, and tightens merge/review/status recovery paths. The
+release introduces the new top-level `spec-kitty review` mission-review
+command and no new top-level runtime dependencies.
+
+### Fixed
+
+- `charter bundle validate --json` now fail-closes on incomplete Charter
+  synthesis state while preserving strict JSON stdout. Sidecar-only bundles,
+  manifest-only bundles, incompatible bundle versions, missing provenance
+  sidecars, dangling sidecar references, and synthesis manifest integrity
+  failures all produce parseable failure envelopes with actionable
+  `synthesis_state` details (#914, closes the final Phase 7 release gap for
+  #469/#515).
 - Stamp `schema_version` and a `schema_capabilities` block in
   `.kittify/metadata.yaml` on `spec-kitty init` so a fresh project no
   longer requires hand-edits before subsequent CLI commands; existing
@@ -59,6 +89,27 @@ runtime dependencies were introduced.
   with no hand-seeded `.kittify/doctrine/`; the bounded fresh-project
   path materialises a minimal doctrine tree (`PROVENANCE.md`) so the
   shipped doctrine layer can supply content (#839, WP06).
+- `spec-kitty merge --abort` now clears the global merge lock, removes
+  legacy merge-state files, aborts an in-progress Git merge when present,
+  and remains idempotent when no merge is active (#903).
+- Approved/done work packages with stale `verdict: rejected` review
+  artifacts are now surfaced across status views, including
+  `spec-kitty agent tasks status` and `show_kanban_status()`. Review
+  artifact lookup follows the real `tasks/<WP-slug>/review-cycle-N.md`
+  layout, and `in_review` work packages now warn when reviewer movement
+  stalls beyond the configured threshold (#904, #909).
+- Review lane-guard failures now name the planning branch and include a
+  concrete `git show <planning-branch>:<path>` command for the first
+  contaminated path, instead of a placeholder path (#905).
+- Work-package review definition-of-done coverage now includes real error
+  path and artifact-deletion regressions, not only happy-path review
+  behavior (#906).
+- Broad `except Exception` / BLE001 suppressions in touched runtime paths
+  were audited and now carry inline justification where fail-open behavior
+  is intentional (#907).
+- `spec-kitty review <mission>` is now a first-class mission-review CLI
+  command with structured status/exit behavior for post-merge mission
+  fidelity checks (#908).
 
 ### Internal
 
@@ -74,6 +125,10 @@ runtime dependencies were introduced.
   `charter generate` now auto-tracks `charter.md`, removing any
   expectation that operators run `git add` between `generate` and
   `bundle validate` (WP07).
+- Added regression coverage for merge abort cleanup, stale rejected review
+  artifacts, stalled in-review work packages, lane-guard remediation text,
+  mission-review command behavior, review DoD deletion/error cases, and
+  agent-shard coverage for status warning paths (#903-#909).
 
 ### Tranche-2 acceptance pass (SC-001..SC-008)
 
@@ -84,12 +139,13 @@ runtime dependencies were introduced.
 - **SC-005 (Lifecycle observability)** — `tests/integration/test_next_lifecycle_records.py` (WP05) covers ≥5 issuances with mid-cycle orphan; the consolidated E2E asserts at least one `started` record after `next` issues an action and that the `canonical_action_id` matches the issued step id.
 - **SC-006 (Charter parity rate)** — `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py` (WP06) covers the auto-track + non-git fail-fast contract; the consolidated E2E exercises `generate → bundle validate` with no intervening git ops.
 - **SC-007 (Documentation/CLI agreement)** — `docs/how-to/setup-governance.md` updated; no documented governance-setup flow contains a `git add charter.md` step between `charter generate` and `charter bundle validate`.
-- **SC-008 (Bug-only discipline)** — Diff inventory: zero new public CLI subcommands at the top level, zero new top-level runtime dependencies. WP05 added `spec-kitty doctor invocation-pairing` — that is a SUBCOMMAND under the existing `doctor` top-level command, not a new top-level public CLI surface, and is the minimum viable observability wiring required by FR-011/FR-012. No additions to `pyproject.toml` `[project.dependencies]` in the tranche-2 diff.
+- **SC-008 (Release-surface discipline)** — Diff inventory: one new top-level public CLI command, `spec-kitty review`, added for mission-review fidelity checks (#908); one new `spec-kitty doctor invocation-pairing` subcommand under the existing `doctor` group for lifecycle observability; zero new top-level runtime dependencies in `pyproject.toml` `[project.dependencies]`.
 
 ## [3.2.0a5] - 2026-04-27
 
 ### Fixed
 
+- CLI auth now consumes the server Tranche 2 contract end to end: logout posts refresh tokens to `/oauth/revoke`, local credential cleanup failures are reported truthfully, refresh handles benign 409 replay without resubmitting a spent token, and `auth doctor --server` checks `/api/v1/session-status` with safe re-authentication guidance (#902).
 - Fix `spec-kitty upgrade` silently leaving projects in PROJECT_MIGRATION_NEEDED state by stamping `schema_version` after metadata save (#705, WP01).
 - `spec-kitty init` in a non-git directory now prints an actionable "run `git init`" message (#636, WP05).
 - Suppress misleading "shutdown / final-sync" red error lines after a successful `spec-kitty agent mission create --json` payload (#735, WP06).
@@ -1311,6 +1367,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - **Errors handled**: TimeoutExpired (>10s git commands), general exceptions with warning
 
 ### Added
+
 - Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
 - Empty branch detection in merge-base creation - warns when dependencies have no commits
 - Git commit workflow section in documentation mission template (consistency with software-dev/research)
@@ -1318,11 +1375,13 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
 
 ### Changed
+
 - `move-task --to done` now validates git status (same checks as "for_review")
 - Use `--force` flag to bypass validation (not recommended)
 - Warning messages in multi-parent merge now output to stderr instead of stdout (preserves JSON output integrity)
 
 ### Fixed (Non-Critical)
+
 - WP agents can no longer mark tasks as "done" without committing implementation files
 - Multi-parent merge-bases no longer silently accept empty dependency branches
 - Documentation mission now instructs agents to commit work before review
@@ -1384,7 +1443,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Unit tests: `test_implement_validation.py` (11 tests)
   - Integration tests: `test_agent_command_wrappers.py` (11 tests)
 - Added `TestMigrationRegistryCompleteness` test (prevents 0.13.2-style release blocker)
-  - Verifies all m_*.py migration files are imported in __init__.py
+  - Verifies all `m_*.py` migration files are imported in `__init__.py`
   - Prevents silent bugs where migrations exist but never run
 - Added integration tests for merge with untracked branches
 - Added unit tests for `has_tracking_branch()` function
@@ -1671,11 +1730,6 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 
 **You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
 
-Check for legacy worktrees:
-```bash
-spec-kitty list-legacy-features
-```
-
 See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migration guide.
 
 ### 🔒 Security (IMPORTANT) - Feature 011
@@ -1811,9 +1865,9 @@ The migration will remove mission-specific constitution directories:
   - `signal.SIGKILL` and `signal.SIGTERM` don't exist on Windows
   - Added `psutil>=5.9.0` dependency for cross-platform process management
   - Refactored `src/specify_cli/dashboard/lifecycle.py`:
-    * `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
-    * `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
-    * `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
+    - `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
+    - `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
+    - `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
   - Added proper exception handling (NoSuchProcess, AccessDenied, TimeoutExpired)
   - Dashboard now starts, serves HTML, and stops cleanly on Windows 10/11
   - All 41 dashboard tests passing
@@ -1919,12 +1973,6 @@ The migration will remove mission-specific constitution directories:
 
 ### ✨ Added
 
-- **`spec-kitty repair` command** - Standalone command to repair broken templates
-  - Detects bash/PowerShell script references in slash commands
-  - Automatically regenerates templates from correct source
-  - Provides detailed feedback about repairs performed
-  - Can be run with `--dry-run` to preview changes
-
 - **Repair migration (0.10.9_repair_templates)** - Automatically fixes broken installations
   - Detects projects with broken template references
   - Regenerates all agent slash commands from correct templates
@@ -1953,13 +2001,7 @@ The migration will remove mission-specific constitution directories:
    ```
    This will automatically detect and fix broken templates.
 
-3. **Alternative: Use dedicated repair command:**
-   ```bash
-   spec-kitty repair
-   ```
-   Provides detailed feedback about what's being fixed.
-
-4. **Verify repair:**
+3. **Verify repair:**
    ```bash
    # Check for bash script references (should return nothing)
    grep -r "scripts/bash" .claude/commands/

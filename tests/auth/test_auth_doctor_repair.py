@@ -73,6 +73,7 @@ def _patch_state(
     lock_path: Path,
     lock_record: LockRecord | None = None,
     daemon_state_exists: bool = False,
+    daemon_status: SyncDaemonStatus | None = None,
     orphans: list[OrphanDaemon] | None = None,
 ) -> None:
     """Wire ``_auth_doctor``'s upstream calls to deterministic fakes.
@@ -98,8 +99,10 @@ def _patch_state(
     monkeypatch.setattr(
         _auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists)
     )
+    if daemon_status is None:
+        daemon_status = SyncDaemonStatus(healthy=False)
     monkeypatch.setattr(
-        _auth_doctor, "get_sync_daemon_status", lambda: SyncDaemonStatus(healthy=False)
+        _auth_doctor, "get_sync_daemon_status", lambda: daemon_status
     )
     monkeypatch.setattr(
         _auth_doctor, "enumerate_orphans", lambda: list(orphans or [])
@@ -187,6 +190,35 @@ def test_reset_noop_when_no_orphans(
     )
 
     assert sweep_called == []
+    assert exit_code == 0
+
+
+def test_reset_repairs_recorded_unhealthy_daemon(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Recorded-but-unhealthy singleton daemon is repaired by ``--reset``."""
+    session = _make_session()
+    stop_calls: list[None] = []
+
+    def fake_stop_sync_daemon() -> tuple[bool, str]:
+        stop_calls.append(None)
+        return True, "Unhealthy sync daemon process stopped. Metadata has been cleared."
+
+    monkeypatch.setattr(_auth_doctor, "stop_sync_daemon", fake_stop_sync_daemon)
+    _patch_state(
+        monkeypatch,
+        session=session,
+        lock_path=tmp_path / "auth" / "refresh.lock",
+        daemon_state_exists=True,
+        daemon_status=SyncDaemonStatus(healthy=False, port=9402, pid=12835),
+        orphans=[],
+    )
+
+    exit_code = doctor_impl(
+        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
+    )
+
+    assert stop_calls == [None]
     assert exit_code == 0
 
 

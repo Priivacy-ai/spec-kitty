@@ -23,6 +23,7 @@ from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
+from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def _resolve_actor() -> str:
         email = result.stdout.strip()
         if email:
             return email
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — git may be absent or misconfigured; fall back to "cli" identity
         pass
     return "cli"
 
@@ -101,6 +102,19 @@ def _display_path(path: Path, repo_root: Path) -> str:
         return str(path)
 
 
+def _assert_bundle_compatible(charter_dir: Path) -> None:
+    """Raise TaskCliError if the bundle at charter_dir is not compatible with this CLI.
+
+    Called by ``status``, ``resynthesize``, and ``bundle validate`` when the
+    charter bundle directory is known to exist.  Fresh synthesis (no prior
+    bundle) must NOT call this function — ``metadata.yaml`` would be absent.
+    """
+    bundle_version = get_bundle_schema_version(charter_dir)
+    result = check_bundle_compatibility(bundle_version)
+    if not result.is_compatible:
+        raise TaskCliError(result.message)
+
+
 def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
     try:
         from charter.hasher import is_stale
@@ -110,7 +124,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         try:
             from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer
             GlossaryEntityPageRenderer(repo_root).generate_all()
-        except Exception as _ep_exc:  # noqa: BLE001
+        except Exception as _ep_exc:  # noqa: BLE001 — entity-page generation is optional; failure is logged and ignored
             logger.debug("entity page generation failed (non-fatal): %s", _ep_exc)
         canonical_root = (
             sync_result.canonical_root
@@ -229,10 +243,10 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
             verify(manifest, repo_root)
             state = "valid"
             error = None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — manifest verification errors are non-fatal; record as invalid state
             state = "invalid"
             error = str(exc)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — manifest YAML load failure is non-fatal; return invalid status dict
         return (
             {
                 "path": _display_path(manifest_path, repo_root),
@@ -301,7 +315,7 @@ def _collect_provenance_status(
         rel_path = _display_path(path, repo_root)
         try:
             entry = load_provenance(path)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — per-provenance-file failure must not abort the full provenance scan
             warnings.append(f"{rel_path}: {exc}")
             continue
 
@@ -318,6 +332,8 @@ def _collect_provenance_status(
                     "artifact_urn": entry.artifact_urn,
                     "adapter_id": entry.adapter_id,
                     "adapter_version": entry.adapter_version,
+                    "synthesizer_version": getattr(entry, "synthesizer_version", None),  # v2
+                    "produced_at": getattr(entry, "produced_at", None),  # v2
                     "corpus_snapshot_id": entry.corpus_snapshot_id,
                     "evidence_bundle_hash": entry.evidence_bundle_hash,
                     "generated_at": entry.generated_at,
@@ -963,7 +979,7 @@ def interview(  # noqa: C901
                 if prereq_state.all_satisfied:
                     widen_flow = WidenFlow(_saas_client, repo_root, console)
                     widen_store = WidenPendingStore(repo_root, mission_slug)
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001 — SaaS prereq check is optional; failure keeps prereq_state ABSENT (non-fatal)
                 pass  # non-fatal; prereq_state stays ABSENT
 
         # Resolve mission_id for widen endpoint (ULID from meta.json)
@@ -1522,6 +1538,9 @@ def status(  # noqa: C901
     """Display charter sync status plus synthesis/operator state."""
     try:
         repo_root = find_repo_root()
+        charter_dir = repo_root / ".kittify" / "charter"
+        if (charter_dir / "metadata.yaml").exists():
+            _assert_bundle_compatible(charter_dir)
         payload = {
             "result": "success",
             "charter_sync": _collect_charter_sync_status(repo_root),
@@ -2719,6 +2738,9 @@ def charter_resynthesize(  # noqa: C901
 
     try:
         repo_root = find_repo_root()
+        charter_dir = repo_root / ".kittify" / "charter"
+        if (charter_dir / "metadata.yaml").exists():
+            _assert_bundle_compatible(charter_dir)
         evidence_result = _collect_evidence_result(
             repo_root,
             skip_code_evidence=skip_code_evidence,

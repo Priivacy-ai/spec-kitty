@@ -4,6 +4,12 @@ Covers the contract surface in ``contracts/auth-doctor.md``:
 section rendering, finding triggers, exit-code policy, the legacy
 session string, the NFR-006 wall-clock ceiling, and JSON schema shape.
 
+Also covers the ``--server`` flag (WP04 / T019):
+- ServerSessionStatus dataclass construction
+- _check_server_session() async function (200, 401, network error)
+- doctor_impl server=False makes no outbound calls
+- doctor_impl server=True renders active/re-authenticate output
+
 All tests use ``monkeypatch`` to inject deterministic state for
 ``assemble_report``'s upstream dependencies — no SaaS, no real daemon.
 """
@@ -15,6 +21,7 @@ import json
 import time
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from rich.console import Console
@@ -23,8 +30,11 @@ from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import (
     DoctorReport,
+    ServerSessionStatus,
+    _check_server_session,
     assemble_report,
     compute_exit_code,
+    doctor_impl,
     render_report,
     render_report_json,
 )
@@ -360,6 +370,31 @@ def test_renders_recorded_unhealthy_daemon(monkeypatch: pytest.MonkeyPatch) -> N
     assert "12345" in rendered
 
 
+def test_unhealthy_daemon_finding_points_to_reset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rollout-enabled unhealthy singleton should tell users to run ``--reset``."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    daemon_status = SyncDaemonStatus(
+        healthy=False, port=9402, pid=12835
+    )
+    _patch_state(
+        monkeypatch,
+        session=session,
+        daemon_status=daemon_status,
+        daemon_state_exists=True,
+        rollout_enabled=True,
+    )
+
+    report = assemble_report()
+
+    finding = next(f for f in report.findings if f.id == "F-005")
+    assert "not healthy" in finding.summary
+    assert finding.remediation_command == "spec-kitty auth doctor --reset"
+
+
 def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """F-007 fires when the lock holder host differs from the local hostname."""
     session = _make_session(
@@ -435,3 +470,390 @@ def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Findings list (empty in healthy state).
     assert payload["findings"] == []
+
+
+# ---------------------------------------------------------------------------
+# T019: ServerSessionStatus dataclass
+# ---------------------------------------------------------------------------
+
+
+def test_server_session_status_active() -> None:
+    """ServerSessionStatus(active=True, session_id='abc') constructs without error."""
+    s = ServerSessionStatus(active=True, session_id="abc")
+    assert s.active is True
+    assert s.session_id == "abc"
+    assert s.error is None
+
+
+def test_server_session_status_inactive() -> None:
+    """ServerSessionStatus(active=False, error='re-authenticate') constructs without error."""
+    s = ServerSessionStatus(active=False, error="re-authenticate")
+    assert s.active is False
+    assert s.session_id is None
+    assert s.error == "re-authenticate"
+
+
+def test_server_session_status_frozen() -> None:
+    """ServerSessionStatus is frozen — mutation raises FrozenInstanceError."""
+    import dataclasses
+
+    s = ServerSessionStatus(active=True, session_id="abc")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        s.active = False  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# T019: _check_server_session async tests
+# ---------------------------------------------------------------------------
+
+
+async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/v1/session-status 200 → ServerSessionStatus(active=True, session_id='abc')."""
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(return_value="tok")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"session_id": "abc", "status": "active"}
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
+
+    # _check_server_session imports get_token_manager locally from specify_cli.auth
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    with (
+        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is True
+    assert result.session_id == "abc"
+    assert result.error is None
+
+
+async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET /api/v1/session-status 401 → ServerSessionStatus(active=False, error='re-authenticate')."""
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(return_value="tok")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 401
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    with (
+        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error == "re-authenticate"
+    # The error must not contain any token content.
+    assert "tok" not in (result.error or "")
+
+
+async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Network error → ServerSessionStatus(active=False, error contains type name)."""
+    import httpx
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(return_value="tok")
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    with (
+        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "ConnectError" in result.error
+    # Access token must not appear in the error.
+    assert "tok" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_check_server_session_refresh_expired(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RefreshTokenExpiredError → user-friendly re-authenticate error, not class name."""
+    from specify_cli.auth.errors import RefreshTokenExpiredError
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(side_effect=RefreshTokenExpiredError("expired"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "re-authenticate" in result.error
+    # Must NOT expose the class name as raw diagnostic output.
+    assert "RefreshTokenExpiredError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_check_server_session_refresh_lock_timeout_uses_safe_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RefreshLockTimeoutError → safe recovery text, not an implementation class name."""
+    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(
+        side_effect=RefreshLockTimeoutError(
+            "Refresh token replay detected and no newer local token is available. "
+            "Run `spec-kitty auth login` if this persists."
+        )
+    )
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "replay detected" in result.error
+    assert "RefreshLockTimeoutError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SessionInvalidError → user-friendly re-authenticate error, not class name."""
+    from specify_cli.auth.errors import SessionInvalidError
+
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(side_effect=SessionInvalidError("invalidated"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "re-authenticate" in result.error
+    assert "SessionInvalidError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_check_server_session_generic_access_token_failure_no_class_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unexpected access-token failures should stay non-sensitive and user-safe."""
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(side_effect=RuntimeError("boom"))
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error == "Could not obtain access token."
+    assert "RuntimeError" not in result.error
+
+
+# ---------------------------------------------------------------------------
+# T019: doctor_impl server flag tests
+# ---------------------------------------------------------------------------
+
+
+def test_doctor_impl_server_false_no_outbound_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """server=False must not call asyncio.run or _check_server_session."""
+    import asyncio
+
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    asyncio_run_called = []
+
+    def _fail_asyncio_run(coro, *args, **kwargs):  # type: ignore[no-untyped-def]
+        asyncio_run_called.append(True)
+        raise AssertionError("asyncio.run called with server=False — C-007 violation")
+
+    monkeypatch.setattr(asyncio, "run", _fail_asyncio_run)
+
+    exit_code = doctor_impl(
+        json_output=True,
+        reset=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=False,
+    )
+
+    assert asyncio_run_called == [], "asyncio.run must not be called with server=False"
+    assert exit_code == 0
+
+
+def test_doctor_impl_server_true_renders_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """server=True + active session → output contains 'active' and session id."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    fake_status = ServerSessionStatus(active=True, session_id="s1")
+
+    import asyncio
+
+    def _fake_run(coro):  # type: ignore[no-untyped-def]
+        coro.close()  # Prevent "coroutine never awaited" warning.
+        return fake_status
+
+    monkeypatch.setattr(asyncio, "run", _fake_run)
+
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        _auth_doctor,
+        "console",
+        Console(file=buf, width=120, record=False, force_terminal=False),
+    )
+
+    exit_code = doctor_impl(
+        json_output=False,
+        reset=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=True,
+    )
+
+    output = buf.getvalue()
+    assert "active" in output
+    assert "s1" in output
+    assert exit_code == 0
+
+
+def test_doctor_impl_server_true_renders_reauthenticate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """server=True + 401 → output contains 're-authenticate' guidance."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    fake_status = ServerSessionStatus(active=False, error="re-authenticate")
+
+    import asyncio
+
+    def _fake_run(coro):  # type: ignore[no-untyped-def]
+        coro.close()
+        return fake_status
+
+    monkeypatch.setattr(asyncio, "run", _fake_run)
+
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        _auth_doctor,
+        "console",
+        Console(file=buf, width=120, record=False, force_terminal=False),
+    )
+
+    exit_code = doctor_impl(
+        json_output=False,
+        reset=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=True,
+    )
+
+    output = buf.getvalue()
+    assert "re-authenticate" in output or "login" in output.lower()
+    assert exit_code == 0
+
+
+def test_doctor_impl_server_true_json_includes_server_session(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """server=True + --json → payload includes server_session key."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    fake_status = ServerSessionStatus(active=True, session_id="s2")
+
+    import asyncio
+
+    def _fake_run(coro):  # type: ignore[no-untyped-def]
+        coro.close()
+        return fake_status
+
+    monkeypatch.setattr(asyncio, "run", _fake_run)
+
+    exit_code = doctor_impl(
+        json_output=True,
+        reset=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=True,
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert "server_session" in payload
+    assert payload["server_session"]["active"] is True
+    assert payload["server_session"]["session_id"] == "s2"
+    assert exit_code == 0
+
+
+def test_default_doctor_output_has_server_hint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default auth doctor output ends with the --server hint line."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+    rendered = _capture_render(report)
+
+    assert "spec-kitty auth doctor --server" in rendered
+
+
+def test_server_doctor_output_no_hint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """auth doctor --server output does NOT show the hint."""
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+    buf = io.StringIO()
+    con = Console(file=buf, width=120, record=False, force_terminal=False)
+    render_report(report, con, show_server_hint=False)
+    output = buf.getvalue()
+
+    assert "spec-kitty auth doctor --server" not in output

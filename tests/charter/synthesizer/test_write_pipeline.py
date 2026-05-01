@@ -211,7 +211,7 @@ def _make_staging_dir_with_artifact(
     staged_path.write_text(content)
 
     prov = ProvenanceEntry(
-        schema_version="1",
+        schema_version="2",
         artifact_urn=urn,
         artifact_kind=kind,  # type: ignore[arg-type]
         artifact_slug=slug,
@@ -219,9 +219,14 @@ def _make_staging_dir_with_artifact(
         inputs_hash="a" * 64,
         adapter_id="fixture",
         adapter_version="1.0.0",
+        synthesizer_version="3.2.0a5",
         source_section=None,
         source_urns=["directive:DIRECTIVE_003"],
+        source_input_ids=["directive:DIRECTIVE_003"],
         generated_at="2026-04-19T00:00:00+00:00",
+        produced_at="2026-01-01T00:00:00+00:00",
+        corpus_snapshot_id="(none)",
+        synthesis_run_id="01HTEST00000000000000TEST01",
     )
 
     return stage, prov

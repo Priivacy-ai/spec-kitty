@@ -48,7 +48,7 @@ from .manifest import (
 from .provenance import dump_yaml as dump_provenance, provenance_path_for
 from .request import SynthesisRequest
 from .staging import StagingDir
-from .synthesize_pipeline import ProvenanceEntry, canonical_yaml
+from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version, canonical_yaml
 
 
 # ---------------------------------------------------------------------------
@@ -519,13 +519,32 @@ def promote(
     primary_adapter_id = adapter_ids.pop() if len(adapter_ids) == 1 else ""
     primary_adapter_version = adapter_versions.pop() if len(adapter_versions) == 1 else ""
 
+    synthesizer_ver = _get_synthesizer_version()
+    sorted_artifacts = sorted(manifest_entries, key=lambda e: (e.kind, e.slug))
+
+    # Build the manifest data dict without manifest_hash first, then hash it.
+    # canonical_yaml() returns bytes — do NOT call .encode() on its result.
+    manifest_data_without_hash: dict[str, Any] = {
+        "schema_version": "2",
+        "mission_id": mission_id,
+        "created_at": datetime.now(tz=UTC).isoformat(),
+        "run_id": run_id,
+        "adapter_id": primary_adapter_id,
+        "adapter_version": primary_adapter_version,
+        "synthesizer_version": synthesizer_ver,
+        "artifacts": [e.model_dump(mode="python") for e in sorted_artifacts],
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()
+
     manifest = SynthesisManifest(
         mission_id=mission_id,
-        created_at=datetime.now(tz=UTC).isoformat(),
+        created_at=manifest_data_without_hash["created_at"],
         run_id=run_id,
         adapter_id=primary_adapter_id,
         adapter_version=primary_adapter_version,
-        artifacts=sorted(manifest_entries, key=lambda e: (e.kind, e.slug)),
+        synthesizer_version=synthesizer_ver,
+        manifest_hash=manifest_hash,
+        artifacts=sorted_artifacts,
     )
 
     try:

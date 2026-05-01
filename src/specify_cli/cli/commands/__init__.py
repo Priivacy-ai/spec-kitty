@@ -51,8 +51,8 @@ def register_commands(app: typer.Typer) -> None:
     from . import next_cmd as next_cmd_module
     from . import ops as ops_module
     from . import profiles_cmd as profiles_cmd_module
-    from . import repair as repair_module
     from . import research as research_module
+    from . import review as review_module
     from . import sync as sync_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
@@ -89,8 +89,8 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(mission_type_module.app, name="mission-type")
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
-    app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
     app.command()(research_module.research)
+    app.command(name="review")(review_module.review_mission)
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
@@ -98,7 +98,6 @@ def register_commands(app: typer.Typer) -> None:
             tracker_module.issue_search_command
         )
     app.command()(upgrade_module.upgrade)
-    app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)

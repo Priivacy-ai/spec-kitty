@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any
 
 
 from charter.bundle import (
@@ -74,9 +75,39 @@ def _directive_body(artifact_id: str = "PROJECT_001", slug: str = "my-directive"
     })
 
 
+def _make_v2_manifest(
+    artifacts: list[ManifestArtifactEntry],
+    run_id: str = "01KPE222TESTRUNID0000000001",
+    created_at: str = "2026-04-17T12:00:00+00:00",
+    adapter_id: str = "fixture",
+    adapter_version: str = "1.0.0",
+) -> SynthesisManifest:
+    """Build a valid v2 SynthesisManifest with computed manifest_hash."""
+    data_without_hash: dict[str, Any] = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": created_at,
+        "run_id": run_id,
+        "adapter_id": adapter_id,
+        "adapter_version": adapter_version,
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [a.model_dump(mode="python") for a in artifacts],
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    return SynthesisManifest(
+        created_at=created_at,
+        run_id=run_id,
+        adapter_id=adapter_id,
+        adapter_version=adapter_version,
+        synthesizer_version="3.2.0a5",
+        manifest_hash=manifest_hash,
+        artifacts=artifacts,
+    )
+
+
 def _prov_yaml(kind: str, slug: str, content_hash: str) -> str:
     return (
-        f"schema_version: '1'\n"
+        f"schema_version: '2'\n"
         f"artifact_urn: '{kind}:{slug}'\n"
         f"artifact_kind: {kind}\n"
         f"artifact_slug: {slug}\n"
@@ -84,9 +115,15 @@ def _prov_yaml(kind: str, slug: str, content_hash: str) -> str:
         f"inputs_hash: {'b' * 64}\n"
         f"adapter_id: fixture\n"
         f"adapter_version: 1.0.0\n"
+        f"synthesizer_version: '3.2.0a5'\n"
         f"source_urns:\n"
         f"- directive:DIRECTIVE_003\n"
+        f"source_input_ids:\n"
+        f"- directive:DIRECTIVE_003\n"
         f"generated_at: '2026-04-17T12:00:00+00:00'\n"
+        f"produced_at: '2026-01-01T00:00:00+00:00'\n"
+        f"corpus_snapshot_id: '(none)'\n"
+        f"synthesis_run_id: '01HTEST00000000000000TEST01'\n"
     )
 
 
@@ -124,6 +161,18 @@ def test_empty_doctrine_tree_without_provenance_is_treated_as_legacy(tmp_path: P
     assert not result.synthesis_state_present
 
 
+def test_empty_provenance_tree_without_sidecars_is_treated_as_legacy(tmp_path: Path) -> None:
+    """An empty provenance directory alone must not flip synthesis_state_present."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True)
+
+    result = validate_synthesis_state(repo)
+
+    assert result.passed
+    assert result.errors == []
+    assert not result.synthesis_state_present
+
+
 def test_legacy_canonical_manifest_still_valid() -> None:
     """CANONICAL_MANIFEST from v1.0.0 is still importable and valid (C-012)."""
     assert CANONICAL_MANIFEST.schema_version == SCHEMA_VERSION
@@ -148,11 +197,7 @@ def test_valid_synthesis_bundle_passes(tmp_path: Path) -> None:
 
     # Write synthesis manifest with matching hash
     guard = PathGuard(repo, extra_allowed_prefixes=[repo])
-    manifest = SynthesisManifest(
-        created_at="2026-04-17T12:00:00+00:00",
-        run_id="01KPE222TESTRUNID0000000001",
-        adapter_id="fixture",
-        adapter_version="1.0.0",
+    manifest = _make_v2_manifest(
         artifacts=[
             ManifestArtifactEntry(
                 kind="tactic",
@@ -219,6 +264,25 @@ def test_provenance_without_artifact_is_error(tmp_path: Path) -> None:
     assert any("ghost-tactic" in e for e in result.errors)
 
 
+def test_provenance_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
+    """A provenance sidecar alone is synthesis state and must fail closed."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    _write_provenance(
+        repo,
+        "tactic",
+        "sidecar-only",
+        _prov_yaml("tactic", "sidecar-only", "a" * 64),
+    )
+
+    result = validate_synthesis_state(repo)
+
+    assert result.synthesis_state_present
+    assert not result.passed
+    assert any("sidecar-only" in e for e in result.errors)
+
+
 # ---------------------------------------------------------------------------
 # Fixture 4: Schema-invalid artifact (manifest hash mismatch) → error
 # ---------------------------------------------------------------------------
@@ -239,11 +303,7 @@ def test_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
 
     # Write manifest with WRONG hash
     guard = PathGuard(repo, extra_allowed_prefixes=[repo])
-    manifest = SynthesisManifest(
-        created_at="2026-04-17T12:00:00+00:00",
-        run_id="01KPE222TESTRUNID0000000001",
-        adapter_id="fixture",
-        adapter_version="1.0.0",
+    manifest = _make_v2_manifest(
         artifacts=[
             ManifestArtifactEntry(
                 kind="tactic",
@@ -278,6 +338,52 @@ def test_invalid_manifest_yaml_is_reported(tmp_path: Path) -> None:
 
     assert not result.passed
     assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
+
+
+def test_manifest_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
+    """A synthesis manifest alone is synthesis state and must be validated."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("artifacts: [\n", encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert result.synthesis_state_present
+    assert not result.passed
+    assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
+
+
+def test_manifest_absolute_artifact_path_fails_closed(tmp_path: Path) -> None:
+    """A manifest cannot make validation read artifacts outside the repo root."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    outside = tmp_path / "outside.tactic.yaml"
+    outside.write_bytes(_tactic_body("outside"))
+    content_hash = hashlib.sha256(outside.read_bytes()).hexdigest()
+
+    guard = PathGuard(repo, extra_allowed_prefixes=[repo])
+    manifest = _make_v2_manifest(
+        artifacts=[
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="outside",
+                path=str(outside),
+                provenance_path=".kittify/charter/provenance/tactic-outside.yaml",
+                content_hash=content_hash,
+            )
+        ],
+    )
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    dump_manifest(manifest, manifest_path, guard)
+
+    result = validate_synthesis_state(repo)
+
+    assert result.synthesis_state_present
+    assert not result.passed
+    assert any("repo-relative" in error for error in result.errors), result.errors
 
 
 # ---------------------------------------------------------------------------
@@ -379,3 +485,54 @@ def test_find_artifact_returns_none_for_unknown_kind(tmp_path: Path) -> None:
     doctrine_root.mkdir(parents=True)
 
     assert _find_artifact(doctrine_root, "unknown", "slug") is None
+
+
+# ---------------------------------------------------------------------------
+# RISK-2 remediation: manifest self-hash verification
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
+    """A tampered manifest_hash field produces a structured self-hash error.
+
+    Exercises verify_manifest_hash() wired into _check_manifest_integrity().
+    Valid per-artifact content_hash + corrupt manifest_hash must fail.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    body = _tactic_body("selfhash-tactic")
+    content_hash = hashlib.sha256(body).hexdigest()
+    _write_artifact(repo, "tactic", "selfhash-tactic", "selfhash-tactic.tactic.yaml", body)
+    _write_provenance(
+        repo, "tactic", "selfhash-tactic",
+        _prov_yaml("tactic", "selfhash-tactic", content_hash),
+    )
+
+    guard = PathGuard(repo, extra_allowed_prefixes=[repo])
+    manifest = _make_v2_manifest(
+        artifacts=[
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="selfhash-tactic",
+                path=".kittify/doctrine/tactics/selfhash-tactic.tactic.yaml",
+                provenance_path=".kittify/charter/provenance/tactic-selfhash-tactic.yaml",
+                content_hash=content_hash,
+            )
+        ],
+    )
+    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    dump_manifest(manifest, manifest_path, guard)
+
+    # Corrupt the manifest_hash field on disk (tampered manifest simulation).
+    text = manifest_path.read_text(encoding="utf-8")
+    manifest_path.write_text(text.replace(manifest.manifest_hash, "0" * 64), encoding="utf-8")
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any(
+        "manifest" in e.lower() or "self-hash" in e.lower() or "mismatch" in e.lower()
+        for e in result.errors
+    ), result.errors

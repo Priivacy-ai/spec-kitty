@@ -1,0 +1,95 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-30T07:00:51.892684Z",
+      "decision_id": "01KQEK1F1M3C6SY1H15RXGA0J1",
+      "final_answer": "Add --server flag (offline remains default)",
+      "input_key": "auth_doctor_server_strategy",
+      "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+      "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+      "options": [
+        "Add --server flag (offline remains default)",
+        "Revise default to server-aware (update all offline tests)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should auth doctor server-aware behavior be opt-in via --server flag, or should server-aware behavior become the new default?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T07:00:55.501745Z",
+      "resolved_by": null,
+      "slot_key": "specify.auth_doctor.server_flag_strategy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-04-30T07:07:27.574216Z",
+      "decision_id": "01KQEKDHEN3AC6QG4241TP5E9G",
+      "final_answer": "Inside _run_locked (one transaction)",
+      "input_key": "replay_retry_location",
+      "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+      "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+      "options": [
+        "Inside _run_locked (one transaction)",
+        "New outcome surfaced to token_manager (two transactions)"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where should the benign 409 replay retry happen: (A) inside _run_locked (transparent to token_manager \u2014 one transaction, one retry within the lock), or (B) surfaced as a new RefreshOutcome that token_manager handles with a second run_refresh_transaction call (two distinct transactions)?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T07:11:17.971817Z",
+      "resolved_by": null,
+      "slot_key": "plan.refresh.replay_retry_location",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-04-30T07:07:46.873004Z",
+      "decision_id": "01KQEKE49R94BGW4Q4X08KY8PD",
+      "final_answer": "Add generation: int | None to StoredSession",
+      "input_key": "generation_field_storage",
+      "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+      "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+      "options": [
+        "Add generation: int | None to StoredSession",
+        "Capture in response dataclass only",
+        "Ignore in Tranche 2.5"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should the new generation field from the Tranche 2 refresh response be stored?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T07:11:18.521607Z",
+      "resolved_by": null,
+      "slot_key": "plan.data_model.generation_field",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-04-30T07:07:49.006273Z",
+      "decision_id": "01KQEKE6CD6724DQY7FNXGB5ER",
+      "final_answer": "RevokeFlow class in auth/flows/revoke.py",
+      "input_key": "revoke_client_structure",
+      "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+      "mission_slug": "auth-tranche-2-5-cli-contract-consumption-01KQEJZK",
+      "options": [
+        "RevokeFlow class in auth/flows/revoke.py",
+        "Inline helper in _auth_logout.py"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where should the revoke HTTP call live?",
+      "rationale": null,
+      "resolved_at": "2026-04-30T07:11:19.089717Z",
+      "resolved_by": null,
+      "slot_key": "plan.revoke.client_structure",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQEJZKMQTQZHT4WY2CDQWQN2",
+  "version": 1
+}

@@ -42,6 +42,7 @@ from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import (
     MergeLockError,
     MergeState,
+    abort_git_merge,
     acquire_merge_lock,
     clear_state,
     load_state,
@@ -50,7 +51,7 @@ from specify_cli.merge.state import (
     save_state,
 )
 from specify_cli.mission_metadata import resolve_mission_identity, write_meta
-from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
+from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace, get_merge_runtime_dir
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -1023,7 +1024,7 @@ def _run_lane_based_merge_locked(
             head_ref="HEAD",
             repo_root=main_repo,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — stale-assertion check is advisory; a failure must never abort an otherwise-successful merge
         logger.warning("Stale-assertion check failed: %s", exc)
         stale_report = None  # type: ignore[assignment]
 
@@ -1174,6 +1175,8 @@ def merge(
 
     # -- T004: Handle --abort early --
     if abort:
+        from contextlib import suppress
+
         mission_slug_raw = (mission or feature or "").strip() or None
         resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
         if resolved:
@@ -1189,6 +1192,30 @@ def merge(
                 console.print("[green]Aborted[/green] merge. State cleaned up.")
             else:
                 console.print("[yellow]No active merge state to abort.[/yellow]")
+
+        # T002: Remove the global merge lock file (idempotent — suppresses FileNotFoundError).
+        # The lock lives at .kittify/runtime/merge/__global_merge__/lock and is created by
+        # acquire_merge_lock("__global_merge__", ...) inside _run_lane_based_merge.
+        # A crash between lock acquisition and release leaves this file behind, preventing
+        # subsequent merge runs from acquiring the lock.
+        _global_lock_path = get_merge_runtime_dir("__global_merge__", repo_root) / "lock"
+        with suppress(FileNotFoundError):
+            _global_lock_path.unlink()
+            console.print("[green]Removed merge lock.[/green]")
+
+        # T003: Remove the legacy merge-state JSON if it still exists.
+        # Pre-mission-scoped releases wrote state to .kittify/merge-state.json directly.
+        # New writes go to .kittify/runtime/merge/<id>/state.json (handled by clear_state
+        # above), but legacy files must also be cleaned up so the repo is fully unblocked.
+        _legacy_state_path = repo_root / ".kittify" / "merge-state.json"
+        with suppress(FileNotFoundError):
+            _legacy_state_path.unlink()
+            console.print("[green]Removed legacy merge-state.[/green]")
+
+        # T004: If git itself is in a merging state (MERGE_HEAD present), abort that too.
+        if abort_git_merge(repo_root):
+            console.print("[green]Aborted in-progress git merge.[/green]")
+
         return
 
     # -- T004: Handle --resume (loads existing state; the main flow will detect it) --
@@ -1272,7 +1299,7 @@ def merge(
                     get_main_repo_root(repo_root),
                     get_main_repo_root(repo_root) / "kitty-specs",
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001 — dry-run mission_number scan is best-effort; an unavailable kitty-specs dir must not crash the preview
                 logger.warning("dry-run mission_number scan failed: %s", exc)
                 would_assign_number = None
 
