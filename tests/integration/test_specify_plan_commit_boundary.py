@@ -176,6 +176,18 @@ def test_is_substantive_accepts_populated_fr_row(tmp_path: Path) -> None:
     assert is_substantive(spec, "spec") is True
 
 
+def test_is_substantive_accepts_bold_bullet_fr_row(tmp_path: Path) -> None:
+    spec = tmp_path / "spec.md"
+    spec.write_text("- **FR-001**: Deliver the real workflow, not template filler.\n", encoding="utf-8")
+    assert is_substantive(spec, "spec") is True
+
+
+def test_is_substantive_rejects_empty_user_story_scaffold_with_spacing(tmp_path: Path) -> None:
+    spec = tmp_path / "spec.md"
+    spec.write_text("| FR-001 | As a [role], I want [goal], so that [benefit]. | | High | Open |\n", encoding="utf-8")
+    assert is_substantive(spec, "spec") is False
+
+
 def test_is_substantive_rejects_placeholder_technical_context(tmp_path: Path) -> None:
     plan = tmp_path / "plan.md"
     plan.write_text(_SCAFFOLD_PLAN, encoding="utf-8")

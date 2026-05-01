@@ -63,10 +63,13 @@ def test_dashboard_features_polling_guards_malformed_payloads():
 def test_dashboard_overview_mission_copy_uses_text_nodes():
     source = DASHBOARD_JS.read_text(encoding="utf-8")
 
-    assert '<h3 id="overview-title"></h3>' in source
+    assert "const titleEl = document.createElement('h3');" in source
+    assert "titleEl.id = 'overview-title';" in source
     assert "titleEl.textContent = `Mission Run: ${feature.name}`;" in source
     assert "introEl.textContent = purposeTldr;" in source
     assert "contextEl.textContent = purposeContext;" in source
+    assert "overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);" in source
+    assert "overviewContent.innerHTML" not in source
     assert "<h3>Mission Run: ${feature.name}" not in source
     assert "${purposeTldr}</p>" not in source
     assert "${purposeContext}</p>" not in source

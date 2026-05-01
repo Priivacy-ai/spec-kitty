@@ -155,6 +155,10 @@ def test_normalize_ws_url_converts_https_and_loopback_http():
         WebSocketClient._normalize_ws_url("ws://localhost:9400/ws")
         == "ws://localhost:9400/ws"
     )
+    assert (
+        WebSocketClient._normalize_ws_url("http://localhost:9400/ws?token=abc")
+        == "ws://localhost:9400/ws?token=abc"
+    )
 
 
 def test_normalize_ws_url_rejects_insecure_remote_plaintext():
