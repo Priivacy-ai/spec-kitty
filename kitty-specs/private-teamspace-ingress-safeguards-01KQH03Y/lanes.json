@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "mission_slug": "private-teamspace-ingress-safeguards-01KQH03Y",
+  "mission_id": "01KQH03YSS4H9PQVJ5YCTGZYMR",
+  "mission_branch": "kitty/mission-private-teamspace-ingress-safeguards-01KQH03Y",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/http/me_fetch.py",
+        "src/specify_cli/auth/session.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/sync/_team.py",
+        "src/specify_cli/sync/batch.py",
+        "src/specify_cli/sync/client.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/auth/test_me_fetch.py",
+        "tests/auth/test_refresh_flow.py",
+        "tests/auth/test_session.py",
+        "tests/auth/test_token_manager.py",
+        "tests/sync/test_batch_sync.py",
+        "tests/sync/test_client_integration.py",
+        "tests/sync/test_strict_json_stdout.py",
+        "tests/sync/test_team_ingress_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-01T07:42:56.472413+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

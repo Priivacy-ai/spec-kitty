@@ -124,10 +124,18 @@ class TestEventEnvelope:
         assert event is not None
         assert event["team_slug"] == "test-team"
 
-    def test_team_slug_defaults_to_local(
+    def test_team_slug_unresolvable_skips_emission(
         self, temp_queue, temp_clock, mock_config, monkeypatch
     ):
-        """team_slug defaults to 'local' when auth is unavailable (SC-010)."""
+        """Emitter skips event emission when no Private Teamspace is available.
+
+        FR-002/FR-007 (private-teamspace-ingress-safeguards): when the strict
+        shared resolver cannot return a Private Teamspace id, the emitter must
+        NOT fall back to ``"local"`` or any other shared team value — it must
+        drop the event entirely so no ingress-bound metadata carries a
+        non-private team. Supersedes the prior SC-010 ``defaults to 'local'``
+        behavior.
+        """
 
         def _boom():
             raise RuntimeError("Not authenticated")
@@ -140,8 +148,7 @@ class TestEventEnvelope:
             ws_client=None,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert event["team_slug"] == "local"
+        assert event is None
 
     def test_causation_id_included_when_provided(self, emitter: EventEmitter, temp_queue):
         """causation_id passed through to event envelope."""

@@ -2,19 +2,70 @@
 
 import gzip
 import json
+import logging
 import tempfile
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
+import httpx
 import pytest
+import respx
 
+from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.token_manager import TokenManager
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.batch import batch_sync, sync_all_queued_events, BatchSyncResult
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 pytestmark = pytest.mark.fast
+
+_INGRESS_SAAS_BASE_URL = "https://saas.example"
+
+
+@pytest.fixture(autouse=True)
+def _default_private_team_token_manager(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default TokenManager fixture exposing a Private Teamspace.
+
+    WP04 (private-teamspace-ingress-safeguards) makes Private Teamspace a hard
+    precondition for direct ingress. Pre-existing batch tests in this module
+    don't bother with TokenManager state — they rely on ``requests.post`` being
+    patched. To preserve their semantics without changing each one, install an
+    autouse default that surfaces a Private Teamspace. Individual tests that
+    need a different session re-patch ``get_token_manager`` themselves; the
+    later monkeypatch wins.
+    """
+    now = datetime.now(UTC)
+    fake_session = StoredSession(
+        user_id="user-default",
+        email="default@example.com",
+        name="Default User",
+        teams=[
+            Team(
+                id="default-private-team",
+                name="Default Private",
+                role="owner",
+                is_private_teamspace=True,
+            )
+        ],
+        default_team_id="default-private-team",
+        access_token="default-access",
+        refresh_token="default-refresh",
+        session_id="default-sess",
+        issued_at=now,
+        access_token_expires_at=now + timedelta(hours=1),
+        refresh_token_expires_at=now + timedelta(days=30),
+        scope="offline_access",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = fake_session
+    fake_tm.is_authenticated = True
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
 
 @pytest.fixture
@@ -531,3 +582,327 @@ class TestSyncAllQueuedEvents:
         # Should have tried once and stopped
         assert mock_post.call_count == 1
         assert result.error_count == 100
+
+
+# ---------------------------------------------------------------------------
+# WP04 — Direct-ingress shared helper coverage (T018)
+#
+# These tests are sync (no @pytest.mark.asyncio); ``batch_sync`` is sync.
+# ``respx.mock`` intercepts the sync ``httpx.Client`` GET issued by the
+# rehydrate path; ``unittest.mock.patch`` intercepts the ``requests.post``
+# used by the actual batch ingress POST.
+# ---------------------------------------------------------------------------
+
+
+class _IngressFakeStorage(SecureStorage):  # type: ignore[misc]
+    """Minimal in-memory ``SecureStorage`` for WP04 ingress fixtures."""
+
+    def __init__(self) -> None:
+        self._session: StoredSession | None = None
+
+    def read(self) -> StoredSession | None:
+        return self._session
+
+    def write(self, session: StoredSession) -> None:
+        self._session = session
+
+    def delete(self) -> None:
+        self._session = None
+
+    @property
+    def backend_name(self) -> str:
+        return "file"
+
+
+def _build_ingress_session(*, teams: list[Team]) -> StoredSession:
+    """Build a ``StoredSession`` carrying the supplied team list."""
+    now = datetime.now(UTC)
+    return StoredSession(
+        user_id="user-1",
+        email="u@example.com",
+        name="U",
+        teams=teams,
+        default_team_id=teams[0].id if teams else "",
+        access_token="access-v1",
+        refresh_token="refresh-v1",
+        session_id="sess",
+        issued_at=now,
+        access_token_expires_at=now + timedelta(seconds=900),
+        refresh_token_expires_at=None,
+        scope="openid",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
+
+
+@pytest.fixture
+def token_manager_with_shared_only_session() -> TokenManager:
+    """A ``TokenManager`` whose loaded session has only a shared (non-private) team."""
+    storage = _IngressFakeStorage()
+    tm = TokenManager(storage, saas_base_url=_INGRESS_SAAS_BASE_URL)
+    tm._session = _build_ingress_session(
+        teams=[
+            Team(
+                id="t-shared",
+                name="Shared",
+                role="member",
+                is_private_teamspace=False,
+            )
+        ]
+    )
+    return tm
+
+
+@pytest.fixture
+def token_manager_with_private_session() -> TokenManager:
+    """A ``TokenManager`` whose loaded session already has a Private Teamspace."""
+    storage = _IngressFakeStorage()
+    tm = TokenManager(storage, saas_base_url=_INGRESS_SAAS_BASE_URL)
+    tm._session = _build_ingress_session(
+        teams=[
+            Team(
+                id="t-private",
+                name="Private",
+                role="owner",
+                is_private_teamspace=True,
+            )
+        ]
+    )
+    return tm
+
+
+def flush_some_events(token_manager: TokenManager, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Drive ``batch_sync`` against a small fixture queue using ``token_manager``.
+
+    Mocks ``requests.post`` so any successful ingress call is recorded but does
+    not hit the network. Returns the mock so assertions can inspect it.
+    """
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: token_manager)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "wp04_queue.db"
+        queue = OfflineQueue(db_path)
+        for i in range(3):
+            queue.queue_event(
+                {
+                    "event_id": f"wp04-evt-{i:04d}",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP04",
+                    "lamport_clock": i,
+                    "node_id": "test-node",
+                    "payload": {"index": i},
+                }
+            )
+
+        with patch("specify_cli.sync.batch.requests.post") as mock_post:
+            response = Mock()
+            response.status_code = 200
+            response.json.return_value = {
+                "results": [
+                    {"event_id": f"wp04-evt-{i:04d}", "status": "success"}
+                    for i in range(3)
+                ]
+            }
+            mock_post.return_value = response
+            batch_sync(
+                queue=queue,
+                auth_token="test-token",
+                server_url=_INGRESS_SAAS_BASE_URL,
+                show_progress=False,
+            )
+            return mock_post
+
+
+@respx.mock
+def test_batch_shared_only_session_triggers_one_me_rehydrate(
+    token_manager_with_shared_only_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AC-002: shared-only session triggers exactly one /api/v1/me rehydrate then sends batch."""
+    me_route = respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-private",
+                        "name": "Private",
+                        "role": "owner",
+                        "is_private_teamspace": True,
+                    }
+                ],
+            },
+        )
+    )
+
+    mock_post = flush_some_events(token_manager_with_shared_only_session, monkeypatch)
+
+    assert me_route.call_count == 1
+    assert mock_post.call_count == 1
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["X-Team-Slug"] == "t-private"
+
+
+@respx.mock
+def test_batch_skips_ingress_when_rehydrate_yields_no_private(
+    token_manager_with_shared_only_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """AC-001 + AC-004: shared-only session, rehydrate returns no private => no batch POST."""
+    respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-shared",
+                        "name": "Shared",
+                        "role": "member",
+                        "is_private_teamspace": False,
+                    }
+                ],
+            },
+        )
+    )
+
+    with caplog.at_level(logging.WARNING, logger="specify_cli.sync._team"):
+        mock_post = flush_some_events(token_manager_with_shared_only_session, monkeypatch)
+
+    assert mock_post.call_count == 0
+    assert any(
+        "direct_ingress_missing_private_team" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+@respx.mock
+def test_batch_negative_cache_honored_across_calls(
+    token_manager_with_shared_only_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NFR-001: at most one /api/v1/me GET per process for a shared-only session."""
+    me_route = respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-shared",
+                        "name": "Shared",
+                        "role": "member",
+                        "is_private_teamspace": False,
+                    }
+                ],
+            },
+        )
+    )
+
+    flush_some_events(token_manager_with_shared_only_session, monkeypatch)
+    flush_some_events(token_manager_with_shared_only_session, monkeypatch)
+    flush_some_events(token_manager_with_shared_only_session, monkeypatch)
+
+    assert me_route.call_count == 1
+
+
+@respx.mock
+def test_batch_healthy_session_no_rehydrate(
+    token_manager_with_private_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scenario 1 regression: session with private team => no /api/v1/me call; batch goes through."""
+    me_route = respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    mock_post = flush_some_events(token_manager_with_private_session, monkeypatch)
+
+    assert me_route.call_count == 0
+    assert mock_post.call_count == 1
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["X-Team-Slug"] == "t-private"
+
+
+@respx.mock
+def test_sync_all_queued_events_terminates_on_no_private_team(
+    token_manager_with_shared_only_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Post-merge regression: sync_all_queued_events MUST NOT spin forever
+    when the strict resolver returns None for every batch.
+
+    Before the fix, batch_sync's skip path returned a result with
+    success_count=0 and error_count=0, while leaving events in the queue.
+    sync_all_queued_events looped while ``queue.size() > 0`` and only broke
+    on ``error_count > 0``, so a shared-only session caused an infinite
+    loop in ``spec-kitty sync now`` / ``_perform_full_sync``.
+
+    The fix: batch_sync appends a sentinel error message on the skip path,
+    and sync_all_queued_events breaks when ``success_count == 0`` regardless
+    of error_count. This test pins both behaviours.
+    """
+    # /api/v1/me returns shared-only — strict resolver returns None.
+    respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-shared",
+                        "name": "Shared",
+                        "role": "member",
+                        "is_private_teamspace": False,
+                    }
+                ],
+            },
+        )
+    )
+    monkeypatch.setattr(
+        "specify_cli.auth.get_token_manager",
+        lambda: token_manager_with_shared_only_session,
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "p1_regression_queue.db"
+        queue = OfflineQueue(db_path)
+        # Pre-fill the queue. If the loop spins forever, this many rows would
+        # never drain (skip path leaves them in place).
+        for i in range(5):
+            queue.queue_event(
+                {
+                    "event_id": f"p1-evt-{i:04d}",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP",
+                    "lamport_clock": i,
+                    "node_id": "test-node",
+                    "payload": {"index": i},
+                }
+            )
+
+        with patch("specify_cli.sync.batch.requests.post") as mock_post:
+            # If the loop did spin, mock_post would never fire (skip path
+            # never sends an HTTP POST), and the test would hang on the
+            # `while queue.size() > 0` loop. The fix terminates the loop
+            # after the first batch's no-progress signal.
+            result = sync_all_queued_events(
+                queue=queue,
+                auth_token="test-token",
+                server_url="http://test.example.com",
+                show_progress=False,
+            )
+
+        # Loop terminated — events stayed queued for a future drain after
+        # the SaaS provisions a Private Teamspace.
+        assert queue.size() == 5, "events must stay queued (no destructive skip)"
+        # The skip path issued no batch POST.
+        assert mock_post.call_count == 0
+        # The skip-path sentinel surfaces on the result for operator-visible
+        # diagnostics (also goes to stderr via the helper's structured
+        # logger.warning, but operators reading the result get a hint too).
+        assert any(
+            "Private Teamspace" in m for m in result.error_messages
+        ), f"expected skip-sentinel in error_messages, got {result.error_messages!r}"

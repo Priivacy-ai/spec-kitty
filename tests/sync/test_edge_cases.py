@@ -270,16 +270,22 @@ class TestNonBlockingEmission:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
 
-    def test_auth_exception_uses_local_team_slug(
+    def test_auth_exception_skips_emission(
         self, tmp_path: Path, monkeypatch
     ):
-        """Auth exception during team-slug resolution falls back to 'local'."""
+        """Auth exception during team-slug resolution skips emission entirely.
+
+        FR-002/FR-007 (private-teamspace-ingress-safeguards): the emitter
+        must NOT fall back to a shared/``"local"`` team when the strict
+        resolver cannot return a Private Teamspace id. The event is dropped
+        and the helper's structured warning is the only diagnostic.
+        """
         queue = OfflineQueue(db_path=tmp_path / "q.db")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
         config = MagicMock()
 
         # Force get_token_manager() to raise so _current_team_slug() returns None
-        # and the emitter falls back to 'local'.
+        # and the emitter must skip emission rather than fall back.
         def _boom():
             raise RuntimeError("Not authenticated")
 
@@ -288,5 +294,4 @@ class TestNonBlockingEmission:
         em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
-        assert event["team_slug"] == "local"
+        assert event is None

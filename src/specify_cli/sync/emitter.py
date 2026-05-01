@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from .client import WebSocketClient
     from .git_metadata import GitMetadata, GitMetadataResolver
-    from specify_cli.identity.project import ProjectIdentity
+    from .project_identity import ProjectIdentity
 
 _console = Console(stderr=True)
 
@@ -61,7 +61,7 @@ def _get_project_identity() -> ProjectIdentity:
     Uses lazy import to prevent circular dependency issues.
     Returns empty ProjectIdentity in non-project contexts.
     """
-    from specify_cli.identity.project import ProjectIdentity, ensure_identity
+    from .project_identity import ensure_identity, ProjectIdentity
     from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
@@ -76,7 +76,7 @@ def _get_project_identity() -> ProjectIdentity:
 def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
-    from specify_cli.identity.project import ensure_identity
+    from .project_identity import ensure_identity
     from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
@@ -596,22 +596,27 @@ class EventEmitter:
 
     @staticmethod
     def _current_team_slug() -> str | None:
-        """Return the preferred ingress team slug (team id) from the active session, if any."""
+        """Resolve the ingress team slug via the strict shared helper. SYNC.
+
+        Returns the user's Private Teamspace id, or ``None`` when no Private
+        Teamspace is available. On ``None`` the shared helper has already
+        emitted the structured warning and emission of any event that
+        requires an ingress team-id MUST be skipped.
+        """
         try:
             from specify_cli.auth import get_token_manager
-            from specify_cli.auth.session import get_private_team_id
+            from specify_cli.sync._team import resolve_private_team_id_for_ingress
 
-            session = get_token_manager().get_current_session()
-            if session is None or not session.teams:
-                return None
-            private_team_id = get_private_team_id(session.teams)
-            if private_team_id:
-                return private_team_id
-            for team in session.teams:
-                if team.id == session.default_team_id:
-                    return team.id
-            return session.teams[0].id
-        except Exception:
+            return resolve_private_team_id_for_ingress(
+                get_token_manager(),
+                endpoint="/api/v1/events/batch/",
+            )
+        except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "emitter._get_team_slug: ingress resolver raised: %s", exc
+            )
             return None
 
     @staticmethod
@@ -1418,6 +1423,19 @@ class EventEmitter:
             # Resolve identity and team_slug
             identity = self._get_identity()
             team_slug = self._get_team_slug()
+            if team_slug is None:
+                # FR-002/FR-007 (private-teamspace-ingress-safeguards):
+                # The strict shared resolver returned None, meaning no Private
+                # Teamspace is available for direct ingress. The helper has
+                # already emitted the structured warning. Drop the event
+                # rather than fall back to a shared/"local" team — emitter
+                # team-identity metadata for ingress MUST come from the
+                # strict resolver only.
+                logger.debug(
+                    "Skipping %s emission: no Private Teamspace available for ingress",
+                    event_type,
+                )
+                return None
 
             # Resolve per-event git metadata
             git_meta = self._get_git_metadata()
@@ -1473,15 +1491,22 @@ class EventEmitter:
             _console.print(f"[yellow]Warning: Event emission failed: {e}[/yellow]")
             return None
 
-    def _get_team_slug(self) -> str:
-        """Get team_slug from the active TokenManager session. Returns 'local' if unavailable."""
+    def _get_team_slug(self) -> str | None:
+        """Get team_slug from the active TokenManager session.
+
+        Returns the user's Private Teamspace id, or ``None`` when no Private
+        Teamspace is available for direct ingress (FR-002/FR-007 of the
+        private-teamspace-ingress-safeguards mission). On ``None`` the
+        caller MUST skip event emission rather than fall back to a shared
+        or ``"local"`` team value.
+        """
         try:
             slug = self._current_team_slug()
             if slug:
                 return slug
         except Exception as e:
             _console.print(f"[yellow]Warning: Could not resolve team_slug: {e}[/yellow]")
-        return "local"
+        return None
 
     def _validate_event(self, event: dict[str, Any]) -> bool:
         """Validate event against spec-kitty-events models and payload schemas.

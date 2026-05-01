@@ -15,7 +15,7 @@ from pathlib import Path
 import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
-from specify_cli.auth.session import get_private_team_id
+from specify_cli.sync._team import resolve_private_team_id_for_ingress
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 from specify_cli.core.contract_gate import validate_outbound_payload
@@ -40,21 +40,25 @@ CATEGORY_ACTIONS: dict[str, str] = {
 
 
 def _current_team_slug() -> str | None:
-    """Return the preferred ingress team slug from the authenticated session, if any."""
+    """Resolve the ingress team slug via the strict shared helper. SYNC.
+
+    Returns the user's Private Teamspace id, or ``None`` when no Private
+    Teamspace is available (in which case the helper has already emitted
+    a structured warning and callers MUST NOT send the ingress request).
+    """
     try:
         from specify_cli.auth import get_token_manager
 
-        session = get_token_manager().get_current_session()
-        if session is None or not session.teams:
-            return None
-        private_team_id = get_private_team_id(session.teams)
-        if private_team_id:
-            return private_team_id
-        for team in session.teams:
-            if team.id == session.default_team_id:
-                return team.id
-        return session.teams[0].id
-    except Exception:
+        return resolve_private_team_id_for_ingress(
+            get_token_manager(),
+            endpoint="/api/v1/events/batch/",
+        )
+    except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "_current_team_slug: ingress resolver raised: %s", exc
+        )
         return None
 
 
@@ -390,8 +394,25 @@ def batch_sync(  # noqa: C901
         "Content-Type": "application/json",
     }
     team_slug = _current_team_slug()
-    if team_slug:
-        headers["X-Team-Slug"] = team_slug
+    if team_slug is None:
+        # FR-002/FR-004/FR-005/FR-007/NFR-002 (private-teamspace-ingress-safeguards):
+        # Strict private-team requirement. The shared helper has already emitted a
+        # structured ``logger.warning`` (with category, rehydrate_attempted,
+        # ingress_sent, endpoint), which is the sole skip diagnostic. Skip the
+        # ingress POST entirely and leave events in the durable queue for a
+        # future drain after the SaaS provisions a Private Teamspace for this
+        # user. FR-009 prohibits adding a stdout ``print`` here.
+        #
+        # Append a sentinel error message so ``sync_all_queued_events`` can
+        # detect "no forward progress" and terminate its drain loop, instead
+        # of spinning indefinitely on a queue that will never drain (Scenario
+        # 6 in spec.md). The message is operator-facing diagnostic only; it
+        # is NOT printed to stdout because callers route it through stderr/log.
+        result.error_messages.append(
+            "skipped: no Private Teamspace available for direct ingress"
+        )
+        return result
+    headers["X-Team-Slug"] = team_slug
 
     batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
 
@@ -676,10 +697,23 @@ def sync_all_queued_events(
         total_result.error_messages.extend(result.error_messages)
         total_result.event_results.extend(result.event_results)
 
-        # Stop if no progress made (all errors)
-        if result.success_count == 0 and result.error_count > 0:
+        # Stop if no progress made. This covers two cases:
+        #   1. All events in the batch failed (error_count > 0).
+        #   2. The batch was skipped entirely because the strict private-team
+        #      resolver returned None (FR-002/FR-004 — no Private Teamspace
+        #      means no direct ingress; the helper's structured warning is the
+        #      sole stderr diagnostic). Without this, sync_all_queued_events
+        #      would spin forever on a shared-only session because the queue
+        #      never drains.
+        if result.success_count == 0:
             if show_progress:
-                print("Stopping: No events successfully synced in this batch")
+                if result.error_count > 0:
+                    print("Stopping: No events successfully synced in this batch")
+                else:
+                    print(
+                        "Stopping: Batch skipped (no Private Teamspace; "
+                        "see structured stderr diagnostic)"
+                    )
             break
 
     if show_progress:
