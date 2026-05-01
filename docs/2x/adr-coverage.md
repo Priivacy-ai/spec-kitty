@@ -15,7 +15,7 @@ Result:
 | Code Surface | ADR Coverage |
 |---|---|
 | `src/specify_cli/runtime/*` and canonical `next` loop | `2026-02-17-1`, `2026-02-17-2`, `2026-02-17-3` |
-| Status/event-lifecycle model | `2026-02-09-1` through `2026-02-09-4` |
+| Status/event-lifecycle model | `2026-02-09-1`, `2026-02-09-3`, `2026-04-06-1`, `2026-05-01-1` plus the superseded history in `2026-02-09-2` and `2026-04-03-2` |
 | Doctrine artifact model (`src/doctrine/**`, charter compiler/commands) | `2026-02-23-1` |
 | Living glossary model (`glossary/**`, glossary hook integration) | `2026-02-23-2` |
 | Versioned docs strategy (`docs/1x`, `docs/2x`, docs workflow) | `2026-02-23-3` |

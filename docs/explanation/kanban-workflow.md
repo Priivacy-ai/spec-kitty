@@ -387,8 +387,8 @@ The display maps the 9 internal lanes to 6 board columns:
 
 | Display Column | Internal Lane(s) |
 |----------------|------------------|
-| Planned | `planned` (claimed WPs are grouped here in the CLI view) |
-| Doing | `in_progress` (display name for the `in_progress` lane) |
+| Planned | `planned` |
+| Doing | `claimed`, `in_progress` (`claimed` is active ownership; `in_progress` is active implementation) |
 | For Review | `for_review` |
 | In Review | `in_review` (active review in progress) |
 | Approved | `approved` |

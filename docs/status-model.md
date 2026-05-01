@@ -212,7 +212,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 **Alias**: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events)
 
-**Display**: The kanban board shows 6 columns (Planned, Doing, For Review, In Review, Approved, Done). `claimed` WPs appear in the Planned column, `in_progress` appears as "Doing", and `blocked`/`canceled` WPs are shown separately below the board.
+**Display**: The kanban board shows 6 columns (Planned, Doing, For Review, In Review, Approved, Done). `planned` WPs appear in Planned; `claimed` and `in_progress` appear in Doing, with `claimed` still preserved as a distinct canonical lane for ownership/stale-claim diagnostics. `blocked`/`canceled` WPs are shown separately below the board.
 
 ### Allowed Transitions (27 pairs)
 
