@@ -22,6 +22,15 @@ pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
 
+
+@pytest.fixture(autouse=True)
+def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.status.emit as status_emit
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
+
+
 # ── Fixtures ──────────────────────────────────────────────────────
 
 
@@ -299,6 +308,47 @@ class TestStartImplementation:
         assert data["data"]["from_lane"] == "planned"
         assert data["data"]["to_lane"] == "in_progress"
         assert data["data"]["policy_metadata_recorded"] is True
+        assert data["data"]["no_op"] is False
+        from specify_cli.status.store import read_events
+
+        events = read_events(mission_dir)
+        assert [(event.from_lane, event.to_lane) for event in events] == [
+            ("planned", "claimed"),
+            ("claimed", "in_progress"),
+        ]
+
+    def test_claimed_same_actor_resumes_to_in_progress(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+
+        from specify_cli.status.emit import emit_status_transition
+
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="claude"))
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["from_lane"] == "claimed"
+        assert data["data"]["to_lane"] == "in_progress"
         assert data["data"]["no_op"] is False
 
     def test_already_in_progress_same_actor_noop(self, tmp_path):

@@ -1,8 +1,9 @@
-"""Integration test for FR-014 (WP03/T017).
+"""Integration test for allocation-failure status handling.
 
-Asserts that the implement runtime emits ``planned -> claimed -> in_progress``
-*before* worktree allocation, and emits ``in_progress -> blocked`` (with
-``reason=worktree_alloc_failed``) when the allocator raises.
+Asserts that the implement runtime no longer records implementation start before
+workspace allocation succeeds. If allocation fails, the WP is moved directly to
+``blocked`` with ``reason=worktree_alloc_failed`` so there is no stranded
+``claimed`` state.
 
 The test mocks ``create_lane_workspace`` to raise an OSError on first
 call and inspects ``status.events.jsonl`` to verify the event order.
@@ -22,6 +23,14 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.status.emit as status_emit
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 
 
 def _create_meta(feature_dir: Path) -> Path:
@@ -87,7 +96,7 @@ def _write_wp_file(feature_dir: Path) -> Path:
     return wp_file
 
 
-def test_implement_emits_in_progress_before_alloc_and_blocked_on_failure(
+def test_implement_blocks_without_claiming_when_alloc_fails(
     tmp_path: Path,
 ) -> None:
     feature_slug = "010-alloc-failure-fixture"
@@ -131,7 +140,7 @@ def test_implement_emits_in_progress_before_alloc_and_blocked_on_failure(
         # Confirm the allocator was actually invoked.
         assert mock_alloc.called
 
-    assert events_log.exists(), "status.events.jsonl must exist after pre-alloc emit"
+    assert events_log.exists(), "status.events.jsonl must exist after alloc failure status emit"
 
     events = [
         json.loads(line)
@@ -140,19 +149,10 @@ def test_implement_emits_in_progress_before_alloc_and_blocked_on_failure(
     ]
     transitions = [(e["from_lane"], e["to_lane"]) for e in events]
 
-    # The runtime must emit planned -> claimed -> in_progress BEFORE alloc.
-    assert ("planned", "claimed") in transitions, transitions
-    assert ("claimed", "in_progress") in transitions, transitions
+    # Allocation failure should not leave an implementation claim behind.
+    assert transitions == [("planned", "blocked")]
 
-    # The runtime must emit in_progress -> blocked AFTER alloc failure.
-    assert ("in_progress", "blocked") in transitions, transitions
-
-    # Order check: the blocked event must come after the in_progress event.
-    in_progress_idx = transitions.index(("claimed", "in_progress"))
-    blocked_idx = transitions.index(("in_progress", "blocked"))
-    assert in_progress_idx < blocked_idx
-
-    blocked_event = events[blocked_idx]
+    blocked_event = events[0]
     assert blocked_event["reason"] == "worktree_alloc_failed"
     # Evidence may live under policy_metadata; either a plain "evidence"
     # string or a structured map containing one is acceptable.

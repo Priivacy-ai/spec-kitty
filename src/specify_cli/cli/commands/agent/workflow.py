@@ -53,9 +53,14 @@ from specify_cli.core.paths import get_main_repo_root, is_worktree_context, loca
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.models import AgentAssignment, Lane, TransitionRequest
+from specify_cli.status.models import AgentAssignment, Lane
+from specify_cli.status.work_package_lifecycle import (
+    WorkPackageClaimConflict,
+    WorkPackageStartRejected,
+    start_implementation_status,
+    start_review_status,
+)
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.task_utils import (
     append_activity_log,
@@ -628,6 +633,7 @@ def implement(
                     json_output=False,
                     recover=False,
                     acknowledge_not_bulk_edit=acknowledge_not_bulk_edit,
+                    actor=agent,
                 )
             except typer.Exit:
                 # Worktree creation failed - propagate error
@@ -687,7 +693,7 @@ def implement(
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
 
-        if current_lane != Lane.IN_PROGRESS or needs_agent_assignment:
+        if current_lane != Lane.IN_PROGRESS or needs_agent_assignment or agent:
             # Require --agent parameter to track who is working
             if not agent:
                 if current_lane == Lane.IN_PROGRESS and not needs_agent_assignment:
@@ -702,7 +708,7 @@ def implement(
                     print("This tracks WHO is working on the WP (prevents abandoned tasks).")
                     raise typer.Exit(1)
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             import os
 
             review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
@@ -711,57 +717,25 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # Emit status events (canonical lane authority)
-            # Must follow allowed transitions: planned→claimed→in_progress
             try:
-                from specify_cli.status.emit import emit_status_transition
-                from specify_cli.status.models import TransitionRequest
-
                 _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
                 _actor = agent or "unknown"
-
-                if current_lane == Lane.PLANNED or current_lane == Lane.CANCELED:
-                    # Two-step: planned→claimed, claimed→in_progress
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.CLAIMED,
-                        actor=_actor,
-                        execution_mode=status_execution_mode,
-                    ))
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.IN_PROGRESS,
-                        actor=_actor,
-                        execution_mode=status_execution_mode,
-                    ))
-                elif current_lane == Lane.CLAIMED:
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.IN_PROGRESS,
-                        actor=_actor,
-                        execution_mode=status_execution_mode,
-                    ))
-                elif current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
-                    # Re-implementing after review — force back to in_progress
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.IN_PROGRESS,
-                        actor=_actor,
-                        force=True,
-                        reason="Re-implementing after review feedback",
-                        execution_mode=status_execution_mode,
-                    ))
-                # If already in_progress, no event needed
-            except Exception as _evt_err:
-                logger.warning("Could not emit status event: %s", _evt_err)
+                start_implementation_status(
+                    feature_dir=_impl_feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=normalized_wp_id,
+                    actor=_actor,
+                    workspace_context=f"{status_execution_mode}:{workspace_path}",
+                    execution_mode=status_execution_mode,
+                    repo_root=main_repo_root,
+                    allow_rework=current_lane in {Lane.FOR_REVIEW, Lane.APPROVED, Lane.IN_REVIEW},
+                )
+            except WorkPackageClaimConflict as exc:
+                print(f"Error: {exc}")
+                raise typer.Exit(1) from exc
+            except WorkPackageStartRejected as exc:
+                print(f"Error: {exc}")
+                raise typer.Exit(1) from exc
 
             # Update operational metadata in frontmatter (NO lane — event log is sole authority)
             updated_front = wp.frontmatter
@@ -1465,7 +1439,7 @@ def review(
                 for _w in _diff_result.warnings:
                     _rich_console.print(f"[yellow]manual_review:[/] {_w}")
 
-        if current_lane not in {Lane.IN_PROGRESS, Lane.IN_REVIEW}:
+        if current_lane == Lane.FOR_REVIEW or (current_lane == Lane.IN_REVIEW and agent):
             # Require --agent parameter to track who is reviewing
             if not agent:
                 print("Error: --agent parameter required when starting review.")
@@ -1476,26 +1450,30 @@ def review(
                 print("This tracks WHO is reviewing the WP (prevents abandoned reviews).")
                 raise typer.Exit(1)
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             import os
 
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
             with feature_status_lock(main_repo_root, mission_slug):
-                # Emit the actual for_review -> in_review transition
-                emit_status_transition(TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=normalized_wp_id,
-                    to_lane=Lane.IN_REVIEW,
-                    actor=agent,
-                    reason="Started review via action command",
-                    review_ref="action-review-claim",
-                    workspace_context=f"action-review:{main_repo_root}",
-                    execution_mode=status_execution_mode,
-                    repo_root=main_repo_root,
-                ))
+                try:
+                    start_review_status(
+                        feature_dir=feature_dir,
+                        mission_slug=mission_slug,
+                        wp_id=normalized_wp_id,
+                        actor=agent,
+                        review_ref="action-review-claim",
+                        workspace_context=f"action-review:{main_repo_root}",
+                        execution_mode=status_execution_mode,
+                        repo_root=main_repo_root,
+                    )
+                except WorkPackageClaimConflict as exc:
+                    print(f"Error: {exc}")
+                    raise typer.Exit(1) from exc
+                except WorkPackageStartRejected as exc:
+                    print(f"Error: {exc}")
+                    raise typer.Exit(1) from exc
 
                 # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
                 wp_content = wp.path.read_text(encoding="utf-8-sig")

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any
 
@@ -314,6 +314,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         TransitionError: If the transition is invalid.
         specify_cli.status.store.StoreError: If the event log is corrupted.
     """
+    current_actor = None
     if isinstance(feature_dir, TransitionRequest):
         request = feature_dir
         mixed_legacy_args = any(
@@ -352,6 +353,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         workspace_context = request.workspace_context
         subtasks_complete = request.subtasks_complete
         implementation_evidence_present = request.implementation_evidence_present
+        current_actor = request.current_actor
         execution_mode = request.execution_mode
         repo_root = request.repo_root
         policy_metadata = request.policy_metadata
@@ -434,6 +436,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             review_ref=review_ref,
             evidence=done_evidence,
             review_result=review_result,
+            current_actor=current_actor,
         ),
     )
     if not ok:
@@ -488,6 +491,136 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
 
     # Step 9: Return the event
     return event
+
+
+def emit_status_transition_batch(  # noqa: C901 — composite transition orchestration mirrors the single-event pipeline
+    requests: list[TransitionRequest],
+    *,
+    ensure_sync_daemon: bool = True,
+    sync_dossier: bool = True,
+) -> list[StatusEvent]:
+    """Validate and persist a same-WP transition sequence atomically.
+
+    Composite operations such as implementation start have multiple legal lane
+    edges but one user-visible lifecycle action. This helper validates the full
+    sequence before any write, appends all events via ``append_events_atomic``,
+    materializes once, and then performs best-effort fan-out.
+    """
+    if not requests:
+        return []
+
+    first = requests[0]
+    feature_dir = first.feature_dir or first.mission_dir
+    mission_slug = first.mission_slug or first._legacy_mission_slug
+    wp_id = first.wp_id
+    if feature_dir is None or mission_slug is None or wp_id is None:
+        raise TypeError("emit_status_transition_batch requires feature_dir/mission_dir, mission_slug, and wp_id")
+
+    feature_dir = canonicalize_feature_dir(feature_dir)
+    mission_id = _load_mission_id(feature_dir)
+    from_lane: str = str(_derive_from_lane(feature_dir, wp_id))
+    built: list[tuple[StatusEvent, TransitionRequest]] = []
+    batch_started_at = datetime.now(UTC)
+
+    for request in requests:
+        request_feature_dir = request.feature_dir or request.mission_dir
+        request_mission_slug = request.mission_slug or request._legacy_mission_slug
+        if request_feature_dir is None or request_mission_slug is None or request.wp_id is None or request.to_lane is None or request.actor is None:
+            raise TypeError("Each batch transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
+        if canonicalize_feature_dir(request_feature_dir) != feature_dir or request_mission_slug != mission_slug or request.wp_id != wp_id:
+            raise TypeError("emit_status_transition_batch only supports one feature/mission/wp per batch")
+
+        raw_to_lane = str(request.to_lane).strip().lower()
+        resolved_lane = resolve_lane_alias(str(request.to_lane))
+
+        workspace_context = request.workspace_context
+        if workspace_context is None and not (from_lane == Lane.CLAIMED and resolved_lane == Lane.IN_PROGRESS):
+            context_root = request.repo_root if request.repo_root is not None else feature_dir
+            workspace_context = f"{request.execution_mode}:{context_root}"
+        subtasks_complete = request.subtasks_complete
+        implementation_evidence_present = request.implementation_evidence_present
+        if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
+            subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
+        if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
+            implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
+
+        if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
+            continue
+
+        done_evidence: DoneEvidence | None = None
+        if request.evidence is not None:
+            done_evidence = _build_done_evidence(request.evidence)
+
+        ok, error_msg = validate_transition(
+            from_lane,
+            resolved_lane,
+            GuardContext(
+                force=request.force,
+                actor=request.actor,
+                workspace_context=workspace_context,
+                subtasks_complete=subtasks_complete,
+                implementation_evidence_present=implementation_evidence_present,
+                reason=request.reason,
+                review_ref=request.review_ref,
+                evidence=done_evidence,
+                review_result=request.review_result,
+                current_actor=request.current_actor,
+            ),
+        )
+        if not ok:
+            raise TransitionError(error_msg)
+
+        event = StatusEvent(
+            event_id=_generate_ulid(),
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            from_lane=Lane(from_lane),
+            to_lane=Lane(resolved_lane),
+            at=(batch_started_at + timedelta(microseconds=len(built))).isoformat(),
+            actor=request.actor,
+            force=request.force,
+            execution_mode=request.execution_mode,
+            reason=request.reason,
+            review_ref=request.review_ref,
+            evidence=done_evidence,
+            policy_metadata=request.policy_metadata,
+            mission_id=mission_id,
+        )
+        built.append((event, request))
+        from_lane = resolved_lane
+
+    if not built:
+        return []
+
+    events = [event for event, _request in built]
+    _store.append_events_atomic(feature_dir, events)
+
+    try:
+        _reducer.materialize(feature_dir)
+    except Exception:
+        logger.warning(
+            "Materialization failed after batch ending in event %s was persisted; run 'status materialize' to recover",
+            events[-1].event_id,
+        )
+
+    for event in events:
+        _mirror_phase1_frontmatter_lane(feature_dir, event.wp_id, str(event.to_lane))
+
+    for event, request in built:
+        _saas_fan_out(
+            event,
+            mission_slug,
+            request.repo_root,
+            policy_metadata=request.policy_metadata,
+            ensure_sync_daemon=ensure_sync_daemon,
+        )
+
+    if sync_dossier:
+        repo_root = next((request.repo_root for _event, request in built if request.repo_root is not None), None)
+        if repo_root is not None:
+            fire_dossier_sync(feature_dir, mission_slug, repo_root)
+
+    return events
 
 
 def _saas_fan_out(

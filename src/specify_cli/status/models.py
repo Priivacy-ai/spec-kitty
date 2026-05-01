@@ -370,6 +370,7 @@ class TransitionRequest:
     workspace_context: str | None = None
     subtasks_complete: bool | None = None
     implementation_evidence_present: bool | None = None
+    current_actor: str | None = None
     policy_metadata: dict[str, Any] | None = None
 
 

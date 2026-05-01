@@ -25,8 +25,9 @@ from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
-from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.emit import TransitionError, emit_status_transition
 from specify_cli.status.models import Lane, TransitionRequest
+from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.workspace.context import resolve_workspace_for_wp
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
@@ -414,6 +415,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             help="Suppress the bulk-edit inference warning when spec language resembles a bulk edit but the mission is not one.",
         ),
     ] = False,
+    actor: Annotated[str | None, typer.Option("--actor", hidden=True, help="Actor identity for programmatic callers")] = None,
 ) -> None:
     """Internal — allocate or reuse the lane worktree for a work package.
 
@@ -518,45 +520,13 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         raise typer.Exit(1) from exc
 
     tracker.start("create")
-    # WP03/T015/FR-014: emit `planned -> claimed -> in_progress` BEFORE
-    # any worktree allocation that could fail. If the allocator raises,
-    # we emit `in_progress -> blocked` with reason=worktree_alloc_failed
-    # so the WP never appears inactive when it actually started.
-    import os as _os
-    pre_alloc_status_emitted = False
+    effective_actor = actor or "implement-command"
+    status_result = None
+    status_execution_mode = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
     try:
-        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
-        if current_lane == Lane.PLANNED:
-            shell_pid_pre = str(_os.getppid())
-            status_execution_mode_pre = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
-            update_fields(wp_file, {"shell_pid": shell_pid_pre})
+        import os as _os
 
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                to_lane=Lane.CLAIMED,
-                actor="implement-command",
-                execution_mode=status_execution_mode_pre,
-                repo_root=repo_root,
-            ))
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                to_lane=Lane.IN_PROGRESS,
-                actor="implement-command",
-                execution_mode=status_execution_mode_pre,
-                repo_root=repo_root,
-            ))
-            pre_alloc_status_emitted = True
-    except Exception as _emit_exc:
-        # If the pre-alloc emit itself fails, surface but do not block
-        # alloc — the prior code already tolerated emit failures further
-        # downstream.
-        console.print(f"[yellow]Warning:[/yellow] Could not emit pre-alloc status transition: {_emit_exc}")
-
-    try:
+        update_fields(wp_file, {"shell_pid": str(_os.getppid())})
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # When --base is provided, validate the ref and build a patched
@@ -586,6 +556,24 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         )
         workspace_path = result.workspace_path
         branch_name = result.branch_name
+        status_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else status_execution_mode
+
+        try:
+            status_result = start_implementation_status(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                actor=effective_actor,
+                workspace_context=f"{status_execution_mode}:{workspace_path}",
+                execution_mode=status_execution_mode,
+                repo_root=repo_root,
+            )
+        except WorkPackageClaimConflict as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        except TransitionError as exc:
+            console.print(f"[red]Error:[/red] Could not start implementation status: {exc}")
+            raise typer.Exit(1) from exc
 
         if result.lane_id is None:
             tracker.complete("create", f"Repository root: {workspace_path.relative_to(repo_root)}")
@@ -607,17 +595,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         tracker.error("create", f"workspace allocation failed: {exc}")
         console.print(tracker.render())
         console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
-        # WP03/T015/FR-014: emit `in_progress -> blocked` so the WP does
-        # not look inactive after a worktree allocation failure.
-        if pre_alloc_status_emitted:
+        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
+        if current_lane in {Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS}:
             try:
                 emit_status_transition(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=wp_id,
                     to_lane=Lane.BLOCKED,
-                    actor="implement-command",
-                    execution_mode="worktree",
+                    actor=effective_actor,
+                    execution_mode=status_execution_mode,
                     reason="worktree_alloc_failed",
                     policy_metadata={"evidence": str(exc)},
                     repo_root=repo_root,
@@ -629,7 +616,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         raise typer.Exit(1) from exc
 
     try:
-        if pre_alloc_status_emitted:
+        if status_result is not None and status_result.status_changed:
             commit_msg = f"chore: {wp_id} claimed for implementation"
             if auto_commit:
                 meta_file = feature_dir / "meta.json"

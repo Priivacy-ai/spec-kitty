@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -144,6 +145,35 @@ def append_event(feature_dir: Path, event: StatusEvent) -> None:
     line = json.dumps(event.to_dict(), sort_keys=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
+
+
+def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
+    """Atomically persist a batch of StatusEvents as JSONL lines.
+
+    The existing single-event append remains the compatibility path. Composite
+    lifecycle operations use this helper so crash recovery never observes only
+    half of a logical operation such as ``planned -> claimed -> in_progress``.
+    """
+    if not events:
+        return
+
+    path = _events_path(feature_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing = ""
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if existing and not existing.endswith("\n"):
+            existing += "\n"
+
+    additions = "".join(json.dumps(event.to_dict(), sort_keys=True) + "\n" for event in events)
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    with tmp_path.open("w", encoding="utf-8") as fh:
+        fh.write(existing)
+        fh.write(additions)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp_path, path)
 
 
 def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:

@@ -347,7 +347,7 @@ def test_scan_feature_kanban_approved_lane(tmp_path):
 
 
 def test_scan_feature_kanban_lane_mapping(tmp_path):
-    """claimed maps to planned, in_progress maps to doing."""
+    """claimed and in_progress both map to doing."""
     feature_dir = tmp_path / "kitty-specs" / "001-demo"
     (feature_dir / "tasks").mkdir(parents=True)
     for wp_id, lane in [("WP01", "claimed"), ("WP02", "in_progress")]:
@@ -357,8 +357,8 @@ def test_scan_feature_kanban_lane_mapping(tmp_path):
         )
         _set_wp_lane(feature_dir, wp_id, lane)
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
-    assert len(lanes["planned"]) == 1  # claimed -> planned
-    assert len(lanes["doing"]) == 1  # in_progress -> doing
+    assert len(lanes["planned"]) == 0
+    assert len(lanes["doing"]) == 2
 
 
 @pytest.mark.fast

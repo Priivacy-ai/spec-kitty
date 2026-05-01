@@ -130,6 +130,7 @@ def test_agent_action_implement_passes_acknowledge_default_false(
         json_output=False,
         recover=False,
         acknowledge_not_bulk_edit=False,
+        actor="claude",
     )
 
 
@@ -175,4 +176,5 @@ def test_agent_action_implement_passes_acknowledge_true_when_requested(
         json_output=False,
         recover=False,
         acknowledge_not_bulk_edit=True,
+        actor="claude",
     )
