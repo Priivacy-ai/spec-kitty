@@ -10,7 +10,7 @@ from specify_cli.core.paths import locate_project_root
 from .body_queue import OfflineBodyUploadQueue
 from .config import SyncConfig
 from .git_metadata import GitMetadataResolver
-from .project_identity import ensure_identity
+from specify_cli.identity.project import ensure_identity
 from .queue import OfflineQueue
 
 

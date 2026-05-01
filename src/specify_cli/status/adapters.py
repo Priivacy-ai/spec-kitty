@@ -29,20 +29,47 @@ _dossier_handlers: list[DossierSyncHandler] = []
 _saas_handlers: list[SaasFanOutHandler] = []
 
 
-def register_dossier_sync_handler(cb: DossierSyncHandler) -> None:
-    """Register a dossier-sync callback.
+def _handler_key(cb: Callable[..., Any]) -> str:
+    """Return a stable identity key for a registered handler.
 
-    Called once at sync package startup. Not thread-safe by design
+    Uses ``__qualname__`` (falling back to ``__name__``) so that the
+    same logical handler is treated as identical across module reloads
+    that produce fresh function objects.
+    """
+    return getattr(cb, "__qualname__", None) or getattr(cb, "__name__", repr(cb))
+
+
+def register_dossier_sync_handler(cb: DossierSyncHandler) -> None:
+    """Register a dossier-sync callback (idempotent by qualified name).
+
+    Called once at sync package startup. Re-registration of a handler
+    with the same ``__qualname__`` replaces the existing entry rather
+    than appending, so that re-importing or reloading
+    ``specify_cli.sync`` (e.g. in test processes) does not produce
+    duplicate fan-out invocations. Not thread-safe by design
     (registration runs before concurrent access begins).
     """
+    key = _handler_key(cb)
+    for idx, existing in enumerate(_dossier_handlers):
+        if _handler_key(existing) == key:
+            _dossier_handlers[idx] = cb
+            return
     _dossier_handlers.append(cb)
 
 
 def register_saas_fanout_handler(cb: SaasFanOutHandler) -> None:
-    """Register a SaaS fan-out callback.
+    """Register a SaaS fan-out callback (idempotent by qualified name).
 
-    Called once at sync package startup.
+    Called once at sync package startup. Re-registration of a handler
+    with the same ``__qualname__`` replaces the existing entry rather
+    than appending, so that re-importing or reloading
+    ``specify_cli.sync`` does not produce duplicate fan-out invocations.
     """
+    key = _handler_key(cb)
+    for idx, existing in enumerate(_saas_handlers):
+        if _handler_key(existing) == key:
+            _saas_handlers[idx] = cb
+            return
     _saas_handlers.append(cb)
 
 

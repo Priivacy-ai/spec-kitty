@@ -158,17 +158,44 @@ class TestSyncBootstrapRegisters:
         # sync/__init__.py.
         importlib.reload(specify_cli.sync)
 
-        try:
-            assert len(adapters._saas_handlers) >= 1, (
-                "sync import should register a SaaS fan-out handler"
-            )
-            assert len(adapters._dossier_handlers) >= 1, (
-                "sync import should register a dossier-sync handler"
-            )
-            assert emitter_adapter._emitter is not None, (
-                "sync import should register a dossier emitter"
-            )
-        finally:
-            # Don't leave the test-only state on registration; the next
-            # test that imports sync will re-trigger it.
-            pass
+        assert len(adapters._saas_handlers) >= 1, (
+            "sync import should register a SaaS fan-out handler"
+        )
+        assert len(adapters._dossier_handlers) >= 1, (
+            "sync import should register a dossier-sync handler"
+        )
+        assert emitter_adapter._emitter is not None, (
+            "sync import should register a dossier emitter"
+        )
+
+    def test_repeated_sync_reloads_do_not_duplicate_handlers(self) -> None:
+        """Reloading sync N times must NOT produce N duplicate handlers.
+
+        register_dossier_sync_handler / register_saas_fanout_handler
+        are idempotent by qualified name. A reload re-executes the
+        registration block but creates fresh function objects with the
+        same __qualname__; the registry must replace rather than
+        append, otherwise reload-based test isolation produces
+        duplicate fan-out invocations on every status transition.
+        """
+        import importlib
+
+        import specify_cli.sync
+        from specify_cli.dossier import emitter_adapter
+
+        adapters.reset_handlers()
+        emitter_adapter.reset_dossier_emitter()
+
+        for _ in range(3):
+            importlib.reload(specify_cli.sync)
+
+        assert len(adapters._saas_handlers) == 1, (
+            f"Expected exactly 1 SaaS handler after 3 reloads, got "
+            f"{len(adapters._saas_handlers)}"
+        )
+        assert len(adapters._dossier_handlers) == 1, (
+            f"Expected exactly 1 dossier-sync handler after 3 reloads, got "
+            f"{len(adapters._dossier_handlers)}"
+        )
+        # Dossier emitter is single-slot already (replace semantics)
+        assert emitter_adapter._emitter is not None

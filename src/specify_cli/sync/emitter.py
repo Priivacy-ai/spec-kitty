@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from .client import WebSocketClient
     from .git_metadata import GitMetadata, GitMetadataResolver
-    from .project_identity import ProjectIdentity
+    from specify_cli.identity.project import ProjectIdentity
 
 _console = Console(stderr=True)
 
@@ -61,7 +61,7 @@ def _get_project_identity() -> ProjectIdentity:
     Uses lazy import to prevent circular dependency issues.
     Returns empty ProjectIdentity in non-project contexts.
     """
-    from .project_identity import ensure_identity, ProjectIdentity
+    from specify_cli.identity.project import ProjectIdentity, ensure_identity
     from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
@@ -76,7 +76,7 @@ def _get_project_identity() -> ProjectIdentity:
 def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
-    from .project_identity import ensure_identity
+    from specify_cli.identity.project import ensure_identity
     from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
