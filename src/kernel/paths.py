@@ -73,6 +73,7 @@ def get_package_asset_root() -> Path:
     Raises:
         FileNotFoundError: If no valid asset root can be found.
     """
+
     def _looks_like_missions_root(path: Path) -> bool:
         if path.name == "missions":
             return True
@@ -94,10 +95,7 @@ def get_package_asset_root() -> Path:
         for candidate in candidates:
             if candidate.is_dir() and _looks_like_missions_root(candidate):
                 return candidate
-        raise FileNotFoundError(
-            "SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: "
-            f"{root}. Expected a missions directory or a Spec Kitty checkout root."
-        )
+        raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: {root}. Expected a missions directory or a Spec Kitty checkout root.")
 
     # CI/testing override
     if env_root := os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):

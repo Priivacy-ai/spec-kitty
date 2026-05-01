@@ -105,11 +105,7 @@ class OfflineBodyUploadQueue:
         if db_path is None:
             db_path = default_queue_db_path()
         self.db_path = db_path
-        self._max_queue_size = (
-            int(max_queue_size)
-            if max_queue_size is not None
-            else get_max_queue_size()
-        )
+        self._max_queue_size = int(max_queue_size) if max_queue_size is not None else get_max_queue_size()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         try:
@@ -142,6 +138,7 @@ class OfflineBodyUploadQueue:
                 return BodyEnqueueResult.QUEUE_FULL
             # Validate outbound payload before queue write
             from specify_cli.core.contract_gate import validate_outbound_payload
+
             namespace_dict = namespace.to_dict()
             validate_outbound_payload(namespace_dict, "body_sync")
 
@@ -234,13 +231,11 @@ class OfflineBodyUploadQueue:
         """Update a failed task with exponential backoff."""
         conn = sqlite3.connect(self.db_path)
         try:
-            row = conn.execute(
-                "SELECT retry_count FROM body_upload_queue WHERE id = ?", (row_id,)
-            ).fetchone()
+            row = conn.execute("SELECT retry_count FROM body_upload_queue WHERE id = ?", (row_id,)).fetchone()
             if row is None:
                 return
             retry_count = int(row[0])
-            backoff_seconds = min(_BACKOFF_BASE * (2 ** retry_count), _BACKOFF_CAP)
+            backoff_seconds = min(_BACKOFF_BASE * (2**retry_count), _BACKOFF_CAP)
             next_attempt = time.time() + backoff_seconds
             conn.execute(
                 """UPDATE body_upload_queue
@@ -347,9 +342,7 @@ class OfflineBodyUploadQueue:
         """Return the number of persisted non-retryable failure records."""
         conn = sqlite3.connect(self.db_path)
         try:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM body_upload_failure_log"
-            ).fetchone()
+            row = conn.execute("SELECT COUNT(*) FROM body_upload_failure_log").fetchone()
             return int(row[0]) if row else 0
         finally:
             conn.close()
@@ -420,16 +413,12 @@ class OfflineBodyUploadQueue:
 
             backoff_count = total_count - ready_count
 
-            row = conn.execute(
-                "SELECT MIN(created_at), MAX(created_at), MAX(retry_count) FROM body_upload_queue"
-            ).fetchone()
+            row = conn.execute("SELECT MIN(created_at), MAX(created_at), MAX(retry_count) FROM body_upload_queue").fetchone()
             oldest_created_at = float(row[0]) if row and row[0] is not None else None
             newest_created_at = float(row[1]) if row and row[1] is not None else None
             max_retry_count = int(row[2]) if row and row[2] is not None else 0
 
-            cursor = conn.execute(
-                "SELECT retry_count, COUNT(*) FROM body_upload_queue GROUP BY retry_count"
-            )
+            cursor = conn.execute("SELECT retry_count, COUNT(*) FROM body_upload_queue GROUP BY retry_count")
             retry_histogram: dict[int, int] = {}
             for retry_val, cnt in cursor:
                 retry_histogram[int(retry_val)] = int(cnt)

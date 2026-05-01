@@ -235,9 +235,7 @@ class TestStatePersistence:
         )
         save_state(state, tmp_path)
 
-        expected_path = (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
-        )
+        expected_path = tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
         assert expected_path.exists(), f"State file not found at {expected_path}"
 
     def test_get_state_path_with_mission_id(self, tmp_path):
@@ -269,9 +267,7 @@ class TestStatePersistence:
         assert loaded.mission_id == MISSION_ID
 
     def test_load_state_invalid_json(self, tmp_path):
-        state_file = (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
-        )
+        state_file = tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
         state_file.parent.mkdir(parents=True)
         state_file.write_text("not valid json{", encoding="utf-8")
 
@@ -279,9 +275,7 @@ class TestStatePersistence:
         assert result is None
 
     def test_load_state_missing_fields(self, tmp_path):
-        state_file = (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
-        )
+        state_file = tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
         state_file.parent.mkdir(parents=True)
         state_file.write_text('{"mission_id": "test"}', encoding="utf-8")
 

@@ -68,16 +68,13 @@ class TestShippedProfilesLoad:
     def test_all_profiles_load(self, all_profiles: list[AgentProfile]):
         """All expected profiles are loaded."""
         assert len(all_profiles) == len(EXPECTED_PROFILE_IDS), (
-            f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(all_profiles)}: "
-            f"{[p.profile_id for p in all_profiles]}"
+            f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(all_profiles)}: {[p.profile_id for p in all_profiles]}"
         )
 
     def test_expected_profile_ids_present(self, all_profiles: list[AgentProfile]):
         """All expected profile IDs are present."""
         loaded_ids = {p.profile_id for p in all_profiles}
-        assert loaded_ids == EXPECTED_PROFILE_IDS, (
-            f"Missing: {EXPECTED_PROFILE_IDS - loaded_ids}, Extra: {loaded_ids - EXPECTED_PROFILE_IDS}"
-        )
+        assert loaded_ids == EXPECTED_PROFILE_IDS, f"Missing: {EXPECTED_PROFILE_IDS - loaded_ids}, Extra: {loaded_ids - EXPECTED_PROFILE_IDS}"
 
     def test_no_duplicate_profile_ids(self, all_profiles: list[AgentProfile]):
         """No duplicate profile IDs exist."""
@@ -120,16 +117,12 @@ class TestShippedProfilesRoles:
         """Each profile has the correct primary role."""
         profile = repo.get(profile_id)
         assert profile is not None
-        assert profile.role == expected_role, (
-            f"Profile '{profile_id}' has role={profile.role!r}, expected {expected_role!r}"
-        )
+        assert profile.role == expected_role, f"Profile '{profile_id}' has role={profile.role!r}, expected {expected_role!r}"
 
     def test_all_shipped_profiles_have_roles(self, all_profiles: list[AgentProfile]):
         """Every shipped profile has at least one role in the roles list."""
         for profile in all_profiles:
-            assert len(profile.roles) >= 1, (
-                f"Profile '{profile.profile_id}' has empty roles list"
-            )
+            assert len(profile.roles) >= 1, f"Profile '{profile.profile_id}' has empty roles list"
 
     @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
     def test_no_deprecation_warnings_on_load(self, profile_id: str):
@@ -146,10 +139,7 @@ class TestShippedProfilesRoles:
             warnings.simplefilter("always")
             AgentProfile(**data)
         deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
-        assert len(deprecation_warnings) == 0, (
-            f"Profile '{profile_id}' emits DeprecationWarning on load: "
-            + str([str(x.message) for x in deprecation_warnings])
-        )
+        assert len(deprecation_warnings) == 0, f"Profile '{profile_id}' emits DeprecationWarning on load: " + str([str(x.message) for x in deprecation_warnings])
 
 
 class TestShippedProfilesContent:
@@ -167,9 +157,7 @@ class TestShippedProfilesContent:
         """Each profile has a non-empty specialization.primary_focus."""
         profile = repo.get(profile_id)
         assert profile is not None
-        assert profile.specialization.primary_focus.strip(), (
-            f"Profile '{profile_id}' has empty specialization.primary_focus"
-        )
+        assert profile.specialization.primary_focus.strip(), f"Profile '{profile_id}' has empty specialization.primary_focus"
 
     @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
     def test_name_is_non_empty(self, repo: AgentProfileRepository, profile_id: str):
@@ -268,8 +256,7 @@ class TestShippedProfilesHierarchy:
         for profile in all_profiles:
             if profile.specializes_from is not None:
                 assert profile.specializes_from in shipped_ids, (
-                    f"Shipped profile '{profile.profile_id}' specializes from "
-                    f"'{profile.specializes_from}', which is not a shipped profile"
+                    f"Shipped profile '{profile.profile_id}' specializes from '{profile.specializes_from}', which is not a shipped profile"
                 )
 
 
@@ -314,9 +301,7 @@ class TestShippedProfilesContextSources:
         """Each profile has at least one doctrine layer configured."""
         profile = repo.get(profile_id)
         assert profile is not None
-        assert len(profile.context_sources.doctrine_layers) > 0, (
-            f"Profile '{profile_id}' has no doctrine layers in context_sources"
-        )
+        assert len(profile.context_sources.doctrine_layers) > 0, f"Profile '{profile_id}' has no doctrine layers in context_sources"
 
     @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
     def test_directive_references_are_defined(self, repo: AgentProfileRepository, profile_id: str):
@@ -338,9 +323,5 @@ class TestShippedProfilesPerformance:
         profiles = repo.list_all()
         elapsed = time.perf_counter() - start
 
-        assert len(profiles) == len(EXPECTED_PROFILE_IDS), (
-            f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
-        )
-        assert elapsed < 2.0, (
-            f"Loading all shipped profiles took {elapsed:.3f}s, expected < 2.0s"
-        )
+        assert len(profiles) == len(EXPECTED_PROFILE_IDS), f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
+        assert elapsed < 2.0, f"Loading all shipped profiles took {elapsed:.3f}s, expected < 2.0s"

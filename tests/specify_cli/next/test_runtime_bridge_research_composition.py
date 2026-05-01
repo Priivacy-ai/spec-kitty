@@ -59,9 +59,7 @@ def _seed_full_research_artifacts(feature_dir: Path) -> None:
     """Seed feature_dir with every artifact the research guard chain demands."""
     (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
-    (feature_dir / "source-register.csv").write_text(
-        "id,citation\n1,A\n2,B\n3,C\n", encoding="utf-8"
-    )
+    (feature_dir / "source-register.csv").write_text("id,citation\n1,A\n2,B\n3,C\n", encoding="utf-8")
     (feature_dir / "findings.md").write_text("# findings", encoding="utf-8")
     (feature_dir / "report.md").write_text("# report", encoding="utf-8")
     _write_event_log(
@@ -129,10 +127,7 @@ def test_fast_path_does_not_load_frozen_template(tmp_path: Path) -> None:
     nonexistent = tmp_path / "does" / "not" / "exist"
     assert not nonexistent.exists()
     for action in RESEARCH_ACTIONS:
-        assert (
-            _should_dispatch_via_composition("research", action, run_dir=nonexistent)
-            is True
-        )
+        assert _should_dispatch_via_composition("research", action, run_dir=nonexistent) is True
 
 
 # ---------------------------------------------------------------------------
@@ -141,9 +136,7 @@ def test_fast_path_does_not_load_frozen_template(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("action", RESEARCH_ACTIONS)
-def test_action_hint_matches_step_id(
-    action: str, feature_dir_full: Path, tmp_path: Path
-) -> None:
+def test_action_hint_matches_step_id(action: str, feature_dir_full: Path, tmp_path: Path) -> None:
     """``_dispatch_via_composition`` must surface the action verbatim on failure.
 
     C-007 forbids patching ``StepContractExecutor.execute``. Instead, run
@@ -174,14 +167,10 @@ def test_action_hint_matches_step_id(
     # action string must appear in the surface (failures list) when the
     # executor branch is taken.
     if failures is not None:
-        assert any(action in msg for msg in failures), (
-            f"action hint {action!r} not present in failures={failures}"
-        )
+        assert any(action in msg for msg in failures), f"action hint {action!r} not present in failures={failures}"
 
 
-def test_no_fallthrough_after_successful_composition(
-    feature_dir_full: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_no_fallthrough_after_successful_composition(feature_dir_full: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Composition success path must not re-enter the legacy ``runtime_next_step``.
 
     C-007 only forbids patching the listed forbidden surfaces; spying on
@@ -198,45 +187,31 @@ def test_no_fallthrough_after_successful_composition(
 
     def _spy(*_args: object, **_kwargs: object) -> None:
         calls.append("runtime_next_step")
-        raise AssertionError(
-            "runtime_next_step must not be re-entered after composition"
-        )
+        raise AssertionError("runtime_next_step must not be re-entered after composition")
 
-    monkeypatch.setattr(
-        "specify_cli.next.runtime_bridge.runtime_next_step", _spy
-    )
+    monkeypatch.setattr("specify_cli.next.runtime_bridge.runtime_next_step", _spy)
 
     # Direct guard call models "composition succeeded → guard passed".
     # Under research/scoping the only artifact required is spec.md, which
     # feature_dir_full has. We assert the guard is empty AND that
     # runtime_next_step was not invoked as a side effect.
-    failures = _check_composed_action_guard(
-        "scoping", feature_dir_full, mission="research"
-    )
+    failures = _check_composed_action_guard("scoping", feature_dir_full, mission="research")
     assert failures == []
     assert calls == []
 
 
-def test_no_fallthrough_after_failed_composition(
-    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_no_fallthrough_after_failed_composition(feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Composition guard failure surfaces structured errors; no fall-through."""
     calls: list[str] = []
 
     def _spy(*_args: object, **_kwargs: object) -> None:
         calls.append("runtime_next_step")
-        raise AssertionError(
-            "runtime_next_step must not be re-entered after composition"
-        )
+        raise AssertionError("runtime_next_step must not be re-entered after composition")
 
-    monkeypatch.setattr(
-        "specify_cli.next.runtime_bridge.runtime_next_step", _spy
-    )
+    monkeypatch.setattr("specify_cli.next.runtime_bridge.runtime_next_step", _spy)
 
     # Bare feature_dir → research/scoping guard fails on missing spec.md.
-    failures = _check_composed_action_guard(
-        "scoping", feature_dir, mission="research"
-    )
+    failures = _check_composed_action_guard("scoping", feature_dir, mission="research")
     assert failures == ["Required artifact missing: spec.md"]
     assert calls == []
 
@@ -262,13 +237,9 @@ _GUARD_FAILURE_EXPECTATIONS: dict[str, list[str]] = {
 
 
 @pytest.mark.parametrize("action", RESEARCH_ACTIONS)
-def test_research_guard_failure_messages_are_specific(
-    action: str, feature_dir: Path
-) -> None:
+def test_research_guard_failure_messages_are_specific(action: str, feature_dir: Path) -> None:
     """For each research action, an empty feature_dir surfaces the action's specific failures."""
-    failures = _check_composed_action_guard(
-        action, feature_dir, mission="research"
-    )
+    failures = _check_composed_action_guard(action, feature_dir, mission="research")
     expected = _GUARD_FAILURE_EXPECTATIONS[action]
     assert failures == expected
 
@@ -285,9 +256,7 @@ def test_unknown_research_action_fails_closed(feature_dir_full: Path) -> None:
     an unknown research action would fall through with an empty
     ``failures`` list and the dispatch surface would treat it as success.
     """
-    failures = _check_composed_action_guard(
-        "bogus", feature_dir_full, mission="research"
-    )
+    failures = _check_composed_action_guard("bogus", feature_dir_full, mission="research")
     assert failures == ["No guard registered for research action: bogus"]
 
 
@@ -324,27 +293,20 @@ def test_count_source_documented_events_ignores_blank_and_malformed_lines(
 ) -> None:
     """Blank lines and malformed JSON entries do not count as documented sources."""
     (feature_dir / "mission-events.jsonl").write_text(
-        "\n"
-        '{"type": "source_documented", "name": "src-1"}\n'
-        "{not-json\n"
-        '{"type": "other", "name": "src-2"}\n',
+        '\n{"type": "source_documented", "name": "src-1"}\n{not-json\n{"type": "other", "name": "src-2"}\n',
         encoding="utf-8",
     )
     assert _count_source_documented_events(feature_dir) == 1
 
 
-def test_count_source_documented_events_returns_zero_on_read_error(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_count_source_documented_events_returns_zero_on_read_error(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Unreadable mission-events.jsonl files fail closed at zero."""
     (feature_dir / "mission-events.jsonl").write_text(
         '{"type": "source_documented", "name": "src-1"}\n',
         encoding="utf-8",
     )
 
-    def _raise_os_error(
-        self: Path, *_args: object, **_kwargs: object
-    ) -> str:
+    def _raise_os_error(self: Path, *_args: object, **_kwargs: object) -> str:
         if self.name == "mission-events.jsonl":
             raise OSError("simulated read failure")
         return ""
@@ -379,26 +341,20 @@ def test_publication_approved_ignores_blank_and_malformed_lines(
 ) -> None:
     """Blank lines and malformed JSON entries do not satisfy the publication gate."""
     (feature_dir / "mission-events.jsonl").write_text(
-        "\n"
-        "{not-json\n"
-        '{"type": "gate_passed", "name": "other_gate"}\n',
+        '\n{not-json\n{"type": "gate_passed", "name": "other_gate"}\n',
         encoding="utf-8",
     )
     assert _publication_approved(feature_dir) is False
 
 
-def test_publication_approved_returns_false_on_read_error(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_publication_approved_returns_false_on_read_error(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Unreadable mission-events.jsonl files fail closed for publication approval."""
     (feature_dir / "mission-events.jsonl").write_text(
         '{"type": "gate_passed", "name": "publication_approved"}\n',
         encoding="utf-8",
     )
 
-    def _raise_os_error(
-        self: Path, *_args: object, **_kwargs: object
-    ) -> str:
+    def _raise_os_error(self: Path, *_args: object, **_kwargs: object) -> str:
         if self.name == "mission-events.jsonl":
             raise OSError("simulated read failure")
         return ""

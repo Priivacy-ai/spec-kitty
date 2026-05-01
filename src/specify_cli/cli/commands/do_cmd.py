@@ -55,9 +55,7 @@ def _detect_actor() -> str:
 
 def _render_rich_payload(payload: InvocationPayload) -> None:
     """Rich console output for human-readable do response."""
-    console.print(
-        f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})"
-    )
+    console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
     console.print(f"[bold]Action:[/bold] {payload.action}")
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
@@ -81,18 +79,10 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
             )
         )
     if payload.governance_context_available and payload.governance_context_text:
-        console.print(
-            Panel(payload.governance_context_text, title="Governance Context", expand=False)
-        )
+        console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
     else:
-        console.print(
-            "[yellow]Governance context unavailable.[/yellow] "
-            "Run 'spec-kitty charter synthesize'."
-        )
-    console.print(
-        f"\n[dim]Close this record:[/dim] "
-        f"spec-kitty profile-invocation complete --invocation-id {payload.invocation_id}"
-    )
+        console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
+    console.print(f"\n[dim]Close this record:[/dim] spec-kitty profile-invocation complete --invocation-id {payload.invocation_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -101,9 +91,7 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
 
 
 def do(
-    request: str = typer.Argument(
-        ..., help="Natural language request. The router picks the best profile."
-    ),
+    request: str = typer.Argument(..., help="Natural language request. The router picks the best profile."),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
 ) -> None:
     """Route a request to the best-matching profile (anonymous dispatch).
@@ -128,9 +116,7 @@ def do(
         typer.echo(json.dumps(error_obj), err=True)
         raise typer.Exit(1) from e
     except InvocationWriteError as e:
-        typer.echo(
-            json.dumps({"error": "write_failed", "message": str(e)}), err=True
-        )
+        typer.echo(json.dumps({"error": "write_failed", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
 
     if json_output:

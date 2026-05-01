@@ -10,9 +10,8 @@ import datetime
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from specify_cli.charter_lint.engine import LintEngine
 from specify_cli.charter_lint.findings import DecayReport
@@ -42,7 +41,7 @@ def _make_drg(nodes: list, edges: list | None = None) -> SimpleNamespace:
 
 def _make_stale_ts() -> str:
     """Return an ISO timestamp 91 days in the past (beyond the 90-day threshold)."""
-    stale = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=91)
+    stale = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=91)
     return stale.isoformat()
 
 
@@ -101,10 +100,7 @@ class TestLintEngineAllChecks:
         with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
             report = LintEngine(tmp_path).run()
 
-        assert len(report.findings) >= 4, (
-            f"Expected at least 4 findings, got {len(report.findings)}: "
-            + str([f.category for f in report.findings])
-        )
+        assert len(report.findings) >= 4, f"Expected at least 4 findings, got {len(report.findings)}: " + str([f.category for f in report.findings])
         categories = {f.category for f in report.findings}
         assert "orphan" in categories
         assert "contradiction" in categories
@@ -157,9 +153,7 @@ class TestSingleCheckFilter:
         with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
             report = LintEngine(tmp_path).run(checks={"orphans"})
 
-        assert all(f.category == "orphan" for f in report.findings), (
-            f"Expected only orphan findings, got: {[(f.category, f.type) for f in report.findings]}"
-        )
+        assert all(f.category == "orphan" for f in report.findings), f"Expected only orphan findings, got: {[(f.category, f.type) for f in report.findings]}"
         non_orphan_categories = {"contradiction", "staleness", "reference_integrity"}
         found_categories = {f.category for f in report.findings}
         assert found_categories.isdisjoint(non_orphan_categories)
@@ -174,9 +168,7 @@ class TestSeverityFilter:
             report = LintEngine(tmp_path).run(min_severity="high")
 
         low_or_medium = [f for f in report.findings if f.severity in {"low", "medium"}]
-        assert low_or_medium == [], (
-            f"Expected no low/medium findings, got: {[(f.severity, f.type) for f in low_or_medium]}"
-        )
+        assert low_or_medium == [], f"Expected no low/medium findings, got: {[(f.severity, f.type) for f in low_or_medium]}"
 
 
 class TestMissingDRG:
@@ -203,32 +195,24 @@ class TestNoLLMCalls:
     def test_no_anthropic_import_in_charter_lint(self) -> None:
         """Verify that the charter_lint package does not import anthropic."""
         import sys
+
         # Check that anthropic is not imported as part of charter_lint loading
-        charter_lint_modules = [
-            name for name in sys.modules
-            if name.startswith("specify_cli.charter_lint")
-        ]
+        charter_lint_modules = [name for name in sys.modules if name.startswith("specify_cli.charter_lint")]
         for mod_name in charter_lint_modules:
             mod = sys.modules[mod_name]
             # Module should not have anthropic in its globals
             mod_globals = getattr(mod, "__dict__", {})
-            assert "anthropic" not in mod_globals, (
-                f"Module {mod_name} imported 'anthropic'"
-            )
+            assert "anthropic" not in mod_globals, f"Module {mod_name} imported 'anthropic'"
 
     def test_no_openai_import_in_charter_lint(self) -> None:
         """Verify that the charter_lint package does not import openai."""
         import sys
-        charter_lint_modules = [
-            name for name in sys.modules
-            if name.startswith("specify_cli.charter_lint")
-        ]
+
+        charter_lint_modules = [name for name in sys.modules if name.startswith("specify_cli.charter_lint")]
         for mod_name in charter_lint_modules:
             mod = sys.modules[mod_name]
             mod_globals = getattr(mod, "__dict__", {})
-            assert "openai" not in mod_globals, (
-                f"Module {mod_name} imported 'openai'"
-            )
+            assert "openai" not in mod_globals, f"Module {mod_name} imported 'openai'"
 
 
 class TestPerformance:

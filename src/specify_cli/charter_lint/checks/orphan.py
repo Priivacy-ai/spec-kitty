@@ -45,9 +45,7 @@ class OrphanChecker:
         for node in getattr(drg, "nodes", []):
             urn: str = getattr(node, "urn", "") or ""
             kind = getattr(node, "kind", None)
-            kind_val: str = (
-                kind.value if hasattr(kind, "value") else str(kind) if kind else ""
-            )
+            kind_val: str = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
 
             if kind_val not in _ORPHAN_RULES:
                 continue
@@ -63,15 +61,9 @@ class OrphanChecker:
                         type=f"orphaned_{type_label}",
                         id=urn,
                         severity="medium",
-                        message=(
-                            f"Node '{label}' ({urn}) has no incoming edges "
-                            f"with relation {sorted(expected_relations)}."
-                        ),
+                        message=(f"Node '{label}' ({urn}) has no incoming edges with relation {sorted(expected_relations)}."),
                         feature_id=feature_scope,
-                        remediation_hint=(
-                            f"Link another node to this {kind_val} node via one of: "
-                            + ", ".join(f"'{r}'" for r in sorted(expected_relations))
-                        ),
+                        remediation_hint=(f"Link another node to this {kind_val} node via one of: " + ", ".join(f"'{r}'" for r in sorted(expected_relations))),
                     )
                 )
 

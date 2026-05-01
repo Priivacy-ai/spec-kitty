@@ -82,9 +82,6 @@ def test_glossary_relative_links_resolve(source_path: Path) -> None:
             continue
 
         if fragment and destination.suffix.lower() == ".md" and fragment not in _anchors_for(destination):
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} "
-                f"missing anchor '{fragment}' in {destination.relative_to(REPO_ROOT)}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing anchor '{fragment}' in {destination.relative_to(REPO_ROOT)}")
 
     assert not failures, "\n".join(failures)

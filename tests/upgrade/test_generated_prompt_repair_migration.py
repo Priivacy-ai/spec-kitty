@@ -13,6 +13,7 @@ from specify_cli.upgrade.migrations.m_2_0_1_fix_generated_command_templates impo
 
 pytestmark = pytest.mark.fast
 
+
 def _make_project(tmp_path: Path) -> Path:
     project = tmp_path / "project"
     project.mkdir()

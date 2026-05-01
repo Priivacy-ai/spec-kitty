@@ -184,9 +184,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     surface. Both implementations point ``builtin_roots`` at the
     packaged missions directory so built-in keys resolve identically.
     """
-    package_missions = (
-        Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
-    )
+    package_missions = Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_missions],
@@ -226,20 +224,11 @@ def _resolve_contract_refs(
         if step.contract_ref is None:
             continue
         if repository is None:
-            repository = MissionStepContractRepository(
-                project_dir=repo_root
-                / ".kittify"
-                / "doctrine"
-                / "mission_step_contracts"
-            )
+            repository = MissionStepContractRepository(project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts")
         if repository.get(step.contract_ref) is None:
             return LoaderError(
                 code=LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED,
-                message=(
-                    f"Step {step.id!r} references contract "
-                    f"{step.contract_ref!r}, which is not present in the "
-                    f"on-disk MissionStepContractRepository."
-                ),
+                message=(f"Step {step.id!r} references contract {step.contract_ref!r}, which is not present in the on-disk MissionStepContractRepository."),
                 details={
                     "file": source_path,
                     "mission_key": mission_key,

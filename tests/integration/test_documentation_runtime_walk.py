@@ -64,9 +64,7 @@ def _init_min_repo(repo_root: Path) -> None:
         check=True,
     )
     (repo_root / "README.md").write_text("# test", encoding="utf-8")
-    subprocess.run(
-        ["git", "add", "README.md"], cwd=repo_root, capture_output=True, check=True
-    )
+    subprocess.run(["git", "add", "README.md"], cwd=repo_root, capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
         cwd=repo_root,
@@ -98,15 +96,11 @@ def _scaffold_documentation_feature(
         # Author every documentation gate artifact so the post-execution
         # guard chain has no missing-artifact failure to surface.
         (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
-        (feature_dir / "gap-analysis.md").write_text(
-            "# gap analysis", encoding="utf-8"
-        )
+        (feature_dir / "gap-analysis.md").write_text("# gap analysis", encoding="utf-8")
         (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
         (feature_dir / "docs").mkdir()
         (feature_dir / "docs" / "index.md").write_text("# docs", encoding="utf-8")
-        (feature_dir / "audit-report.md").write_text(
-            "# audit report", encoding="utf-8"
-        )
+        (feature_dir / "audit-report.md").write_text("# audit report", encoding="utf-8")
         (feature_dir / "release.md").write_text("# release", encoding="utf-8")
     return feature_dir
 
@@ -137,18 +131,14 @@ def test_get_or_start_run_succeeds_for_documentation(isolated_repo: Path) -> Non
     state.json is bootstrapped, and the feature-runs index records the
     entry under the documentation mission key (not a software-dev fallback).
     """
-    _scaffold_documentation_feature(
-        isolated_repo, "demo-docs-walk", happy_path=True
-    )
+    _scaffold_documentation_feature(isolated_repo, "demo-docs-walk", happy_path=True)
 
     run_ref = get_or_start_run("demo-docs-walk", isolated_repo, "documentation")
 
     # Run was created and persisted under .kittify/runtime/runs/.
     run_dir = Path(run_ref.run_dir)
     assert run_dir.is_dir(), f"run_dir not created: {run_dir}"
-    assert (run_dir / "state.json").is_file(), (
-        f"state.json missing — run never bootstrapped: {run_dir}"
-    )
+    assert (run_dir / "state.json").is_file(), f"state.json missing — run never bootstrapped: {run_dir}"
 
     # The run_ref must carry a documentation mission key (NOT a default fallback).
     assert run_ref.mission_key == "documentation", (
@@ -178,20 +168,10 @@ def test_documentation_template_resolves_runtime_sidecar() -> None:
     MUST prefer it over the legacy ``mission.yaml`` fallback. This is the
     structural prerequisite for the composed dispatch path.
     """
-    package_root = (
-        Path(__file__).resolve().parents[1].parent
-        / "src"
-        / "specify_cli"
-        / "missions"
-    )
+    package_root = Path(__file__).resolve().parents[1].parent / "src" / "specify_cli" / "missions"
     resolved = _resolve_runtime_template_in_root(package_root, "documentation")
-    assert resolved is not None, (
-        "Documentation runtime sidecar not resolved under "
-        f"{package_root}; SC-007 is unmet."
-    )
-    assert resolved.name == "mission-runtime.yaml", (
-        f"Resolver returned {resolved.name!r}; expected 'mission-runtime.yaml'."
-    )
+    assert resolved is not None, f"Documentation runtime sidecar not resolved under {package_root}; SC-007 is unmet."
+    assert resolved.name == "mission-runtime.yaml", f"Resolver returned {resolved.name!r}; expected 'mission-runtime.yaml'."
 
 
 # ---------------------------------------------------------------------------
@@ -215,9 +195,7 @@ def test_composition_advances_one_documentation_step(isolated_repo: Path) -> Non
       advanced exactly one step rather than two (a fall-through would
       double-advance).
     """
-    _scaffold_documentation_feature(
-        isolated_repo, "demo-docs-walk", happy_path=True
-    )
+    _scaffold_documentation_feature(isolated_repo, "demo-docs-walk", happy_path=True)
 
     # First call issues the first step (no advance yet).
     first = decide_next_via_runtime(
@@ -234,9 +212,7 @@ def test_composition_advances_one_documentation_step(isolated_repo: Path) -> Non
         "validate",
         "publish",
     }
-    assert first.mission == "documentation", (
-        f"Expected mission='documentation'; got {first.mission!r}."
-    )
+    assert first.mission == "documentation", f"Expected mission='documentation'; got {first.mission!r}."
     assert first.step_id in documentation_actions, (
         f"Expected first step in {sorted(documentation_actions)}; "
         f"got {first.step_id!r}. A software-dev verb (e.g., 'specify' or "
@@ -260,30 +236,17 @@ def test_composition_advances_one_documentation_step(isolated_repo: Path) -> Non
 
     # (a) The snapshot advanced — initial step is now in completed_steps.
     snapshot_after = _read_snapshot(Path(run_ref.run_dir))
-    assert initial_step in snapshot_after.completed_steps, (
-        f"{initial_step!r} not marked completed; completed_steps="
-        f"{snapshot_after.completed_steps!r}"
-    )
+    assert initial_step in snapshot_after.completed_steps, f"{initial_step!r} not marked completed; completed_steps={snapshot_after.completed_steps!r}"
 
     # (b) Decision is documentation-native.
-    assert decision.mission == "documentation", (
-        f"Expected decision.mission='documentation'; got {decision.mission!r}."
-    )
-    decision_kind = (
-        decision.kind.value
-        if hasattr(decision.kind, "value")
-        else str(decision.kind)
-    )
-    assert decision_kind in ("step", "blocked"), (
-        f"Expected step or blocked decision; got {decision.kind!r}"
-    )
+    assert decision.mission == "documentation", f"Expected decision.mission='documentation'; got {decision.mission!r}."
+    decision_kind = decision.kind.value if hasattr(decision.kind, "value") else str(decision.kind)
+    assert decision_kind in ("step", "blocked"), f"Expected step or blocked decision; got {decision.kind!r}"
 
     # The next issued step must also be a documentation-native action.
     next_step = snapshot_after.issued_step_id
     assert next_step in documentation_actions, (
-        f"Expected next step in {sorted(documentation_actions)}; "
-        f"got {next_step!r}. A value like 'plan' would mean the bridge fell "
-        "back to software-dev planning."
+        f"Expected next step in {sorted(documentation_actions)}; got {next_step!r}. A value like 'plan' would mean the bridge fell back to software-dev planning."
     )
 
 
@@ -306,9 +269,7 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
     Reading the trail directly (not patching the writer) keeps this test
     out of the C-007 forbidden surface.
     """
-    _scaffold_documentation_feature(
-        isolated_repo, "demo-docs-walk", happy_path=True
-    )
+    _scaffold_documentation_feature(isolated_repo, "demo-docs-walk", happy_path=True)
 
     # Issue the first step then dispatch composition for it.
     decide_next_via_runtime(
@@ -325,15 +286,10 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
     )
 
     invocations_dir = isolated_repo / ".kittify" / "events" / "profile-invocations"
-    assert invocations_dir.is_dir(), (
-        f"Invocations dir missing: {invocations_dir}. Composition dispatch "
-        "did not produce a paired invocation trail."
-    )
+    assert invocations_dir.is_dir(), f"Invocations dir missing: {invocations_dir}. Composition dispatch did not produce a paired invocation trail."
     trail_files = sorted(invocations_dir.glob("*.jsonl"))
     assert trail_files, (
-        f"No invocation trail files written under {invocations_dir}. "
-        "ProfileInvocationExecutor.invoke was not called from the composed "
-        "documentation dispatch."
+        f"No invocation trail files written under {invocations_dir}. ProfileInvocationExecutor.invoke was not called from the composed documentation dispatch."
     )
 
     documentation_actions = {
@@ -362,9 +318,7 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
         assert events, f"Invocation trail empty: {trail}"
         # The first record is always a started event.
         first = events[0]
-        assert first.get("event") == "started", (
-            f"First record in {trail.name} is not a started event: {first!r}"
-        )
+        assert first.get("event") == "started", f"First record in {trail.name} is not a started event: {first!r}"
         saw_started = True
         # The recorded action MUST be a documentation-native step ID — not a
         # software-dev verb. The action_hint flows from the contract.action
@@ -372,34 +326,20 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
         # the structural assertion that the documentation dispatch wired the
         # right action.
         action = first.get("action")
-        assert action in documentation_actions, (
-            f"Recorded action {action!r} is not a documentation-native step "
-            f"ID. Trail={trail.name}; record={first!r}"
-        )
+        assert action in documentation_actions, f"Recorded action {action!r} is not a documentation-native step ID. Trail={trail.name}; record={first!r}"
         saw_doc_action = True
         # FR-012: every started invocation MUST be paired with a completed
         # event whose outcome is 'done' or 'failed'. A trail that holds only a
         # started record indicates a torn lifecycle and would let FR-012
         # silently regress.
         completed = [e for e in events if e.get("event") == "completed"]
-        assert completed, (
-            f"Trail {trail.name} has a started record but no completed event; "
-            "FR-012 requires paired lifecycle for every dispatched invocation."
-        )
+        assert completed, f"Trail {trail.name} has a started record but no completed event; FR-012 requires paired lifecycle for every dispatched invocation."
         outcome = completed[-1].get("outcome")
-        assert outcome in valid_outcomes, (
-            f"Completed event in {trail.name} has invalid outcome "
-            f"{outcome!r}; FR-012 requires one of {sorted(valid_outcomes)}."
-        )
+        assert outcome in valid_outcomes, f"Completed event in {trail.name} has invalid outcome {outcome!r}; FR-012 requires one of {sorted(valid_outcomes)}."
         saw_pair = True
     assert saw_started, "No started records found across the invocation trail."
-    assert saw_pair, (
-        "No paired started+completed records found across the invocation "
-        "trail."
-    )
-    assert saw_doc_action, (
-        "No documentation-native action recorded across the invocation trail."
-    )
+    assert saw_pair, "No paired started+completed records found across the invocation trail."
+    assert saw_doc_action, "No documentation-native action recorded across the invocation trail."
 
 
 # ---------------------------------------------------------------------------
@@ -431,9 +371,7 @@ def test_missing_artifact_blocks_with_structured_failure(
     arbitrary action input). Per FR-006 / D6 of the fix-up plan, both
     levels of coverage are intentionally retained.
     """
-    _scaffold_documentation_feature(
-        isolated_repo, "demo-docs-walk", happy_path=False
-    )
+    _scaffold_documentation_feature(isolated_repo, "demo-docs-walk", happy_path=False)
 
     # Issue the first step (discover) — no advance yet.
     decide_next_via_runtime(
@@ -446,10 +384,7 @@ def test_missing_artifact_blocks_with_structured_failure(
     # Read the run snapshot BEFORE the dispatch attempt.
     run_ref = get_or_start_run("demo-docs-walk", isolated_repo, "documentation")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
-    assert list(snapshot_before.completed_steps) == [], (
-        f"Pre-dispatch snapshot already advanced; completed_steps="
-        f"{snapshot_before.completed_steps!r}"
-    )
+    assert list(snapshot_before.completed_steps) == [], f"Pre-dispatch snapshot already advanced; completed_steps={snapshot_before.completed_steps!r}"
     assert snapshot_before.issued_step_id == "discover"
 
     # Drive composition dispatch — guard MUST fire post-execution because
@@ -462,43 +397,21 @@ def test_missing_artifact_blocks_with_structured_failure(
     )
 
     # Surface 1: the Decision is blocked.
-    decision_kind = (
-        decision.kind.value
-        if hasattr(decision.kind, "value")
-        else str(decision.kind)
-    )
-    assert decision_kind == "blocked", (
-        f"Expected blocked decision when spec.md is missing; got "
-        f"{decision.kind!r}"
-    )
+    decision_kind = decision.kind.value if hasattr(decision.kind, "value") else str(decision.kind)
+    assert decision_kind == "blocked", f"Expected blocked decision when spec.md is missing; got {decision.kind!r}"
 
     # Surface 2: guard_failures mention spec.md.
-    assert decision.guard_failures, (
-        f"Expected guard_failures populated; got {decision.guard_failures!r}"
-    )
+    assert decision.guard_failures, f"Expected guard_failures populated; got {decision.guard_failures!r}"
     assert any("spec.md" in failure for failure in decision.guard_failures), (
-        f"spec.md not mentioned in guard_failures="
-        f"{decision.guard_failures!r}. Structured failure surface "
-        "regressed."
+        f"spec.md not mentioned in guard_failures={decision.guard_failures!r}. Structured failure surface regressed."
     )
 
     # Surface 3: state did NOT advance — snapshot before == snapshot after.
     snapshot_after = _read_snapshot(Path(run_ref.run_dir))
-    assert list(snapshot_after.completed_steps) == [], (
-        f"Run advanced despite guard failure; completed_steps="
-        f"{snapshot_after.completed_steps!r}"
-    )
-    assert snapshot_after.issued_step_id == "discover", (
-        f"issued_step_id moved off discover despite guard failure: "
-        f"{snapshot_after.issued_step_id!r}"
-    )
-    assert (
-        list(snapshot_after.completed_steps)
-        == list(snapshot_before.completed_steps)
-    ), (
-        "Snapshot advanced through a blocked dispatch — completed_steps "
-        f"changed from {snapshot_before.completed_steps!r} to "
-        f"{snapshot_after.completed_steps!r}"
+    assert list(snapshot_after.completed_steps) == [], f"Run advanced despite guard failure; completed_steps={snapshot_after.completed_steps!r}"
+    assert snapshot_after.issued_step_id == "discover", f"issued_step_id moved off discover despite guard failure: {snapshot_after.issued_step_id!r}"
+    assert list(snapshot_after.completed_steps) == list(snapshot_before.completed_steps), (
+        f"Snapshot advanced through a blocked dispatch — completed_steps changed from {snapshot_before.completed_steps!r} to {snapshot_after.completed_steps!r}"
     )
 
 
@@ -525,18 +438,11 @@ def test_unknown_documentation_action_fails_closed(isolated_repo: Path) -> None:
     unknown documentation action so the dispatch path cannot mistake an
     unhandled action for success.
     """
-    feature_dir = _scaffold_documentation_feature(
-        isolated_repo, "demo-docs-walk", happy_path=True
-    )
+    feature_dir = _scaffold_documentation_feature(isolated_repo, "demo-docs-walk", happy_path=True)
 
-    failures = _check_composed_action_guard(
-        "ghost", feature_dir, mission="documentation"
-    )
-    assert failures == [
-        "No guard registered for documentation action: ghost"
-    ], (
-        f"Fail-closed default did not fire for unknown documentation action; "
-        f"got failures={failures!r}"
+    failures = _check_composed_action_guard("ghost", feature_dir, mission="documentation")
+    assert failures == ["No guard registered for documentation action: ghost"], (
+        f"Fail-closed default did not fire for unknown documentation action; got failures={failures!r}"
     )
 
 
@@ -583,9 +489,7 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
     single-action :func:`test_paired_invocation_lifecycle_is_recorded`
     test — it asserts coverage across **all six** advancing actions.
     """
-    feature_dir = _scaffold_documentation_feature(
-        isolated_repo, "demo-docs-walk", happy_path=False
-    )
+    feature_dir = _scaffold_documentation_feature(isolated_repo, "demo-docs-walk", happy_path=False)
     run_ref = get_or_start_run("demo-docs-walk", isolated_repo, "documentation")
     run_dir = Path(run_ref.run_dir)
 
@@ -597,12 +501,8 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
         "needs_initialization",
         isolated_repo,
     )
-    assert first.mission == "documentation", (
-        f"Expected mission='documentation'; got {first.mission!r}."
-    )
-    assert first.step_id == "discover", (
-        f"Expected first issued step 'discover'; got {first.step_id!r}."
-    )
+    assert first.mission == "documentation", f"Expected mission='documentation'; got {first.mission!r}."
+    assert first.step_id == "discover", f"Expected first issued step 'discover'; got {first.step_id!r}."
 
     advanced_actions: list[str] = []
     for action, artifact in _DOCUMENTATION_WALK:
@@ -612,10 +512,7 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
         artifact_path.write_text(f"# {action}\n", encoding="utf-8")
 
         snapshot_before = _read_snapshot(run_dir)
-        assert snapshot_before.issued_step_id == action, (
-            f"Pre-advance snapshot issued_step_id="
-            f"{snapshot_before.issued_step_id!r}; expected {action!r}."
-        )
+        assert snapshot_before.issued_step_id == action, f"Pre-advance snapshot issued_step_id={snapshot_before.issued_step_id!r}; expected {action!r}."
 
         # Report success on the currently-issued step. The bridge runs the
         # composed dispatch, applies the post-execution guard chain, and
@@ -626,43 +523,26 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
             "success",
             isolated_repo,
         )
-        assert decision.mission == "documentation", (
-            f"Decision for {action!r} carried wrong mission "
-            f"{decision.mission!r}; expected 'documentation'."
-        )
-        decision_kind = (
-            decision.kind.value
-            if hasattr(decision.kind, "value")
-            else str(decision.kind)
-        )
+        assert decision.mission == "documentation", f"Decision for {action!r} carried wrong mission {decision.mission!r}; expected 'documentation'."
+        decision_kind = decision.kind.value if hasattr(decision.kind, "value") else str(decision.kind)
         assert decision_kind != "blocked", (
-            f"Action {action!r} produced a blocked decision despite the "
-            f"gate artifact {artifact!r} being authored. "
-            f"guard_failures={decision.guard_failures!r}"
+            f"Action {action!r} produced a blocked decision despite the gate artifact {artifact!r} being authored. guard_failures={decision.guard_failures!r}"
         )
 
         snapshot_after = _read_snapshot(run_dir)
         assert action in snapshot_after.completed_steps, (
-            f"{action!r} not added to completed_steps after dispatch; "
-            f"completed_steps={snapshot_after.completed_steps!r}"
+            f"{action!r} not added to completed_steps after dispatch; completed_steps={snapshot_after.completed_steps!r}"
         )
         advanced_actions.append(action)
 
     # All six actions advanced through dispatch in DAG order.
-    assert advanced_actions == [a for a, _ in _DOCUMENTATION_WALK], (
-        f"Action advancement order regressed; got {advanced_actions!r}."
-    )
+    assert advanced_actions == [a for a, _ in _DOCUMENTATION_WALK], f"Action advancement order regressed; got {advanced_actions!r}."
 
     # T10: every advancing action MUST have a paired started/completed
     # trail record under .kittify/events/profile-invocations/ with the
     # documentation-native action name on the started event.
-    invocations_dir = (
-        isolated_repo / ".kittify" / "events" / "profile-invocations"
-    )
-    assert invocations_dir.is_dir(), (
-        f"Invocations dir missing: {invocations_dir}. Composition dispatch "
-        "did not produce any paired invocation trails."
-    )
+    invocations_dir = isolated_repo / ".kittify" / "events" / "profile-invocations"
+    assert invocations_dir.is_dir(), f"Invocations dir missing: {invocations_dir}. Composition dispatch did not produce any paired invocation trails."
 
     valid_outcomes = {"done", "failed"}
     paired_actions: set[str] = set()

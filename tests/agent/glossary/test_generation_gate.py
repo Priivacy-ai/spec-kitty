@@ -19,6 +19,7 @@ import contextlib
 
 pytestmark = pytest.mark.fast
 
+
 @dataclass
 class MockPrimitiveContext:
     """Mock execution context for testing."""
@@ -132,9 +133,7 @@ class TestOffModeNeverBlocks:
         assert result == mock_context
         assert result.effective_strictness == Strictness.OFF
 
-    def test_off_allows_mixed_severity(
-        self, mock_context, low_severity_conflict, medium_severity_conflict, high_severity_conflict
-    ):
+    def test_off_allows_mixed_severity(self, mock_context, low_severity_conflict, medium_severity_conflict, high_severity_conflict):
         """OFF mode allows generation with mixed-severity conflicts."""
         gate = GenerationGateMiddleware(runtime_override=Strictness.OFF)
         mock_context.conflicts = [
@@ -191,9 +190,7 @@ class TestMediumModeBlocksHighSeverity:
         assert len(exc_info.value.conflicts) == 1
         assert "high-severity" in str(exc_info.value).lower()
 
-    def test_medium_blocks_mixed_with_high(
-        self, mock_context, low_severity_conflict, medium_severity_conflict, high_severity_conflict
-    ):
+    def test_medium_blocks_mixed_with_high(self, mock_context, low_severity_conflict, medium_severity_conflict, high_severity_conflict):
         """MEDIUM mode blocks if ANY conflict is high-severity."""
         gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
         mock_context.conflicts = [
@@ -575,9 +572,7 @@ class TestEdgeCases:
         assert "Generation blocked" in message
         assert "Resolve conflicts" in message
 
-    def test_blocked_by_conflict_still_raised_when_event_emission_fails(
-        self, mock_context, high_severity_conflict, monkeypatch
-    ):
+    def test_blocked_by_conflict_still_raised_when_event_emission_fails(self, mock_context, high_severity_conflict, monkeypatch):
         """BlockedByConflict MUST be raised even if emit_generation_blocked_event raises.
 
         Regression test for review issue 1: if the event emitter throws
@@ -605,7 +600,6 @@ class TestEdgeCases:
         """When event emission fails, the error is logged."""
         import logging
         from specify_cli.glossary import events
-
 
         def failing_emit(*args, **kwargs):
             raise ValueError("Serialization error")

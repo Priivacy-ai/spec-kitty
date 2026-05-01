@@ -3,6 +3,7 @@
 This module is a leaf — it must not import from specify_cli.auth,
 specify_cli.tracker, specify_cli.sync, or any kernel subpackage.
 """
+
 from __future__ import annotations
 
 import sys
@@ -65,12 +66,7 @@ def get_runtime_root() -> RuntimeRoot:
     Directory creation is the caller's responsibility.
     """
     platform = _current_platform()
-    if platform == "win32":
-        base = Path(
-            platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)
-        )
-    else:
-        base = Path.home() / ".spec-kitty"
+    base = Path(platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)) if platform == "win32" else Path.home() / ".spec-kitty"
     return RuntimeRoot(platform=platform, base=base)
 
 

@@ -8,7 +8,6 @@ The fix pins ``sys.executable`` at install time so the hook works regardless of 
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -19,9 +18,7 @@ pytestmark = pytest.mark.non_sandbox
 
 
 @pytest.mark.windows_ci
-def test_hook_executes_with_python_stripped_from_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_hook_executes_with_python_stripped_from_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Hook runs even when python/python3/py are absent from PATH (regression #105).
 
     This test reproduces the exact failure mode: strip all python launchers from
@@ -32,22 +29,14 @@ def test_hook_executes_with_python_stripped_from_path(
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "t@e.com"], cwd=repo, check=True
-    )
+    subprocess.run(["git", "config", "user.email", "t@e.com"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "T"], cwd=repo, check=True)
     install(repo)
 
     # Strip python launchers from PATH
     orig_path = os.environ.get("PATH", "")
     cleaned = os.pathsep.join(
-        p
-        for p in orig_path.split(os.pathsep)
-        if not any(
-            Path(p).joinpath(name + ext).is_file()
-            for name in ("python", "python3", "py")
-            for ext in ("", ".exe")
-        )
+        p for p in orig_path.split(os.pathsep) if not any(Path(p).joinpath(name + ext).is_file() for name in ("python", "python3", "py") for ext in ("", ".exe"))
     )
     env = {**os.environ, "PATH": cleaned}
 
@@ -61,6 +50,5 @@ def test_hook_executes_with_python_stripped_from_path(
         text=True,
     )
     assert proc.returncode not in (126, 127), (
-        f"Regression of #105: hook fails when python/python3/py not on PATH. "
-        f"rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+        f"Regression of #105: hook fails when python/python3/py not on PATH. rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
     )

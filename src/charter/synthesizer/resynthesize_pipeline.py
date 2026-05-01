@@ -275,11 +275,7 @@ def _run_bounded(
     all_results = run_all(request, adapter=adapter)
 
     # Filter to only the slugs in the resolved target set
-    return [
-        (body, prov)
-        for body, prov in all_results
-        if prov.artifact_slug in target_slugs
-    ]
+    return [(body, prov) for body, prov in all_results if prov.artifact_slug in target_slugs]
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +352,7 @@ def run(
     from .staging import StagingDir as _StagingDir  # noqa: PLC0415
     from .validation_gate import validate as _validate_project_graph  # noqa: PLC0415
     from importlib.metadata import version as _pkg_version  # noqa: PLC0415
+
     _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
 
     _repo_root = repo_root if repo_root is not None else Path.cwd()
@@ -401,10 +398,7 @@ def run(
             manifest=existing_manifest,
             resolved_topic=resolved,
             is_noop=True,
-            diagnostic=(
-                f"Topic '{topic}' resolved to a DRG URN but no project-local "
-                "artifacts reference it. No writes performed (EC-4)."
-            ),
+            diagnostic=(f"Topic '{topic}' resolved to a DRG URN but no project-local artifacts reference it. No writes performed (EC-4)."),
         )
 
     # ------------------------------------------------------------------
@@ -582,12 +576,8 @@ def _merge_project_overlay(
 ) -> DRGGraph:
     """Replace only the resynthesized nodes/edges inside an existing overlay."""
     updated_urns = {node.urn for node in updated_overlay.nodes}
-    preserved_nodes: list[DRGNode] = [
-        node for node in existing_overlay.nodes if node.urn not in updated_urns
-    ]
-    preserved_edges: list[DRGEdge] = [
-        edge for edge in existing_overlay.edges if edge.source not in updated_urns
-    ]
+    preserved_nodes: list[DRGNode] = [node for node in existing_overlay.nodes if node.urn not in updated_urns]
+    preserved_edges: list[DRGEdge] = [edge for edge in existing_overlay.edges if edge.source not in updated_urns]
     return DRGGraph(
         schema_version=updated_overlay.schema_version,
         generated_at=updated_overlay.generated_at,

@@ -48,10 +48,7 @@ def _make_graph(
         generated_at="2026-04-14T00:00:00Z",
         generated_by="test",
         nodes=[DRGNode(urn=urn, kind=kind) for urn, kind in nodes],
-        edges=[
-            DRGEdge(source=src, target=tgt, relation=rel)
-            for src, tgt, rel in edges
-        ],
+        edges=[DRGEdge(source=src, target=tgt, relation=rel) for src, tgt, rel in edges],
     )
 
 
@@ -96,12 +93,8 @@ def test_same_input_same_output() -> None:
         edges=[("directive:a", "tactic:b", Relation.REQUIRES)],
     )
     assert_valid(graph)
-    first = resolve_transitive_refs(
-        graph, start_urns={"directive:a"}, relations={Relation.REQUIRES}
-    )
-    second = resolve_transitive_refs(
-        graph, start_urns={"directive:a"}, relations={Relation.REQUIRES}
-    )
+    first = resolve_transitive_refs(graph, start_urns={"directive:a"}, relations={Relation.REQUIRES})
+    second = resolve_transitive_refs(graph, start_urns={"directive:a"}, relations={Relation.REQUIRES})
     assert first == second
 
 
@@ -115,9 +108,7 @@ def test_empty_start_set_returns_empty_result() -> None:
         nodes=[("directive:a", NodeKind.DIRECTIVE)],
         edges=[],
     )
-    result = resolve_transitive_refs(
-        graph, start_urns=set(), relations={Relation.REQUIRES}
-    )
+    result = resolve_transitive_refs(graph, start_urns=set(), relations={Relation.REQUIRES})
     assert result == ResolveTransitiveRefsResult()
     assert result.is_complete
 

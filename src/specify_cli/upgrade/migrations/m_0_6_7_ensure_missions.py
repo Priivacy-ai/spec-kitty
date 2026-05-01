@@ -58,9 +58,7 @@ class EnsureMissionsMigration(BaseMigration):
             # Skip gracefully rather than blocking all upgrades
             return (
                 False,
-                "Could not locate package missions to copy from. "
-                "This is expected in test environments. "
-                "Run 'spec-kitty init --force' to repair missions manually.",
+                "Could not locate package missions to copy from. This is expected in test environments. Run 'spec-kitty init --force' to repair missions manually.",
             )
 
         # Check we have all required missions in the package
@@ -73,8 +71,7 @@ class EnsureMissionsMigration(BaseMigration):
         if missing_in_pkg:
             return (
                 False,
-                f"Package is missing missions: {', '.join(missing_in_pkg)}. "
-                "Please upgrade spec-kitty-cli to the latest version.",
+                f"Package is missing missions: {', '.join(missing_in_pkg)}. Please upgrade spec-kitty-cli to the latest version.",
             )
 
         return True, ""

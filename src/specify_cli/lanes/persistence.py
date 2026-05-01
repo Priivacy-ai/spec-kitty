@@ -43,9 +43,7 @@ def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
     lanes_path = feature_dir / LANES_FILENAME
     content = json.dumps(manifest.to_dict(), indent=2, sort_keys=False) + "\n"
 
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(feature_dir), prefix=".lanes-", suffix=".tmp"
-    )
+    fd, tmp_path = tempfile.mkstemp(dir=str(feature_dir), prefix=".lanes-", suffix=".tmp")
     try:
         os.write(fd, content.encode("utf-8"))
         os.close(fd)
@@ -82,17 +80,12 @@ def read_lanes_json(feature_dir: Path) -> LanesManifest | None:
         data = json.loads(lanes_path.read_text(encoding="utf-8"))
         return LanesManifest.from_dict(data)
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
-        raise CorruptLanesError(
-            f"lanes.json at {lanes_path} is corrupt or malformed: {exc}"
-        ) from exc
+        raise CorruptLanesError(f"lanes.json at {lanes_path} is corrupt or malformed: {exc}") from exc
 
 
 def require_lanes_json(feature_dir: Path) -> LanesManifest:
     """Read lanes.json or raise a deterministic missing-manifest error."""
     manifest = read_lanes_json(feature_dir)
     if manifest is None:
-        raise MissingLanesError(
-            f"lanes.json is required for {feature_dir}. "
-            "Run the task-finalization step to compute execution lanes."
-        )
+        raise MissingLanesError(f"lanes.json is required for {feature_dir}. Run the task-finalization step to compute execution lanes.")
     return manifest

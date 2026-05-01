@@ -39,14 +39,7 @@ from specify_cli.template.asset_generator import render_command_template
 # Constants
 # ---------------------------------------------------------------------------
 
-TEMPLATES_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "specify_cli"
-    / "missions"
-    / "software-dev"
-    / "command-templates"
-)
+TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
 
 BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 
@@ -55,9 +48,7 @@ BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 NON_MIGRATED_AGENTS: tuple[str, ...] = tuple(AGENT_COMMAND_CONFIG.keys())
 
 # Canonical command templates to test (one .md source file per command).
-CANONICAL_COMMANDS: tuple[str, ...] = tuple(
-    sorted(p.stem for p in TEMPLATES_DIR.glob("*.md"))
-)
+CANONICAL_COMMANDS: tuple[str, ...] = tuple(sorted(p.stem for p in TEMPLATES_DIR.glob("*.md")))
 
 # Fixed version for rendering (must match what was used when capturing the
 # baseline; see _twelve_agent_baseline/__init__.py).
@@ -129,11 +120,7 @@ def test_command_output_unchanged(agent: str, command: str) -> None:
         return
 
     if not snap.exists():
-        pytest.fail(
-            f"Baseline missing for {agent}/{command} at {snap}.\n"
-            f"Regenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest "
-            f"tests/specify_cli/regression/ -v"
-        )
+        pytest.fail(f"Baseline missing for {agent}/{command} at {snap}.\nRegenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v")
 
     expected = snap.read_text(encoding="utf-8")
     assert produced == expected, (
@@ -158,27 +145,19 @@ def test_non_migrated_agents_count() -> None:
     agent alongside the 12 existing non-migrated agents. Codex and Vibe remain absent
     (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
     """
-    assert len(NON_MIGRATED_AGENTS) == 13, (
-        f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: "
-        f"{NON_MIGRATED_AGENTS}"
-    )
+    assert len(NON_MIGRATED_AGENTS) == 13, f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: {NON_MIGRATED_AGENTS}"
 
 
 def test_codex_not_in_agent_command_config() -> None:
     """codex must NOT be in AGENT_COMMAND_CONFIG (migrated to Agent Skills)."""
     assert "codex" not in AGENT_COMMAND_CONFIG, (
-        "codex was found in AGENT_COMMAND_CONFIG. "
-        "Mission 083 migrated codex to the Agent Skills pipeline; "
-        "it must not appear in the command-file registry."
+        "codex was found in AGENT_COMMAND_CONFIG. Mission 083 migrated codex to the Agent Skills pipeline; it must not appear in the command-file registry."
     )
 
 
 def test_vibe_not_in_agent_command_config() -> None:
     """vibe must NOT be in AGENT_COMMAND_CONFIG (uses Agent Skills pipeline)."""
-    assert "vibe" not in AGENT_COMMAND_CONFIG, (
-        "vibe was found in AGENT_COMMAND_CONFIG. "
-        "Vibe uses the Agent Skills pipeline, not the command-file pipeline."
-    )
+    assert "vibe" not in AGENT_COMMAND_CONFIG, "vibe was found in AGENT_COMMAND_CONFIG. Vibe uses the Agent Skills pipeline, not the command-file pipeline."
 
 
 @pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
@@ -186,9 +165,7 @@ def test_agent_baseline_directory_exists(agent: str) -> None:
     """Each non-migrated agent must have a baseline directory."""
     agent_dir = BASELINE_DIR / agent
     assert agent_dir.is_dir(), (
-        f"Baseline directory missing for agent '{agent}' at {agent_dir}.\n"
-        f"Regenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest "
-        f"tests/specify_cli/regression/ -v"
+        f"Baseline directory missing for agent '{agent}' at {agent_dir}.\nRegenerate with: PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v"
     )
 
 
@@ -198,10 +175,7 @@ def test_agent_baseline_file_count(agent: str) -> None:
     agent_dir = BASELINE_DIR / agent
     if not agent_dir.is_dir():
         pytest.skip(f"Baseline dir missing for {agent}")
-    files = [
-        f for f in agent_dir.iterdir()
-        if f.is_file() and not f.name.startswith(".")
-    ]
+    files = [f for f in agent_dir.iterdir() if f.is_file() and not f.name.startswith(".")]
     assert len(files) == len(CANONICAL_COMMANDS), (
         f"Agent '{agent}' baseline has {len(files)} files, "
         f"expected {len(CANONICAL_COMMANDS)} (one per canonical command).\n"

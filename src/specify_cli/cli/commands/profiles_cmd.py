@@ -34,10 +34,7 @@ def list_profiles(
         if json_output:
             typer.echo("[]")
         else:
-            console.print(
-                "[yellow]No profiles found.[/yellow] "
-                "Run 'spec-kitty charter synthesize' to create project-local profiles."
-            )
+            console.print("[yellow]No profiles found.[/yellow] Run 'spec-kitty charter synthesize' to create project-local profiles.")
         raise typer.Exit(0)
 
     descriptors = []

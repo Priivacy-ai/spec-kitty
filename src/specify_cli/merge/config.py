@@ -55,6 +55,7 @@ def load_merge_config(repo_root: Path) -> MergeConfig:
 
     try:
         from ruamel.yaml import YAML
+
         yaml = YAML(typ="safe")
         data = yaml.load(config_path)
     except Exception:

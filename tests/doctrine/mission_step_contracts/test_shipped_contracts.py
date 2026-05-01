@@ -53,9 +53,7 @@ class TestShippedContractsExistAndValidate:
         assert contract is not None
         for step in contract.steps:
             if step.delegates_to is not None:
-                assert step.delegates_to.kind in ArtifactKind, (
-                    f"Step {step.id} in {action} delegates to invalid kind: {step.delegates_to.kind}"
-                )
+                assert step.delegates_to.kind in ArtifactKind, f"Step {step.id} in {action} delegates to invalid kind: {step.delegates_to.kind}"
                 assert len(step.delegates_to.candidates) > 0
 
 

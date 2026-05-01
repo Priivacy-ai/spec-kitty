@@ -61,9 +61,7 @@ class TestPathHelpers:
 
     def test_get_merge_workspace_path(self, tmp_path: Path):
         result = get_merge_workspace_path(MISSION_ID, tmp_path)
-        assert result == (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "workspace"
-        )
+        assert result == (tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "workspace")
 
     def test_workspace_not_under_worktrees(self, tmp_path: Path):
         """Workspace path must be under .kittify/runtime, NOT .worktrees."""
@@ -159,9 +157,7 @@ class TestCreateMergeWorkspace:
             text=True,
             check=True,
         ).stdout.strip()
-        assert after_branch == original_branch, (
-            "Main repo branch changed after creating merge workspace!"
-        )
+        assert after_branch == original_branch, "Main repo branch changed after creating merge workspace!"
 
     def test_returns_path_if_already_exists(self, git_repo: Path):
         """Calling create_merge_workspace twice returns the existing path."""

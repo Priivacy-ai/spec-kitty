@@ -50,9 +50,7 @@ def _write_meta(directory: Path, extra: dict | None = None) -> Path:
     if extra:
         data.update(extra)
     meta_file = directory / "meta.json"
-    meta_file.write_text(
-        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    meta_file.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return meta_file
 
 
@@ -121,9 +119,7 @@ class TestSetGeneratorsFormat:
 
     def test_sorted_keys_and_trailing_newline(self, tmp_path: Path) -> None:
         meta_file = _write_meta(tmp_path)
-        generators = [
-            {"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}
-        ]
+        generators = [{"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}]
         set_generators_configured(meta_file, generators)
         parsed = _assert_standard_format(meta_file)
         assert len(parsed["documentation_state"]["generators_configured"]) == 1
@@ -311,9 +307,7 @@ class TestTolerantWriteWithMinimalMeta:
     def test_set_iteration_mode_minimal_meta(self, tmp_path: Path) -> None:
         """set_iteration_mode works with a meta.json lacking required top-level fields."""
         meta_file = tmp_path / "meta.json"
-        meta_file.write_text(
-            json.dumps({"mission_type": "documentation"}, indent=2) + "\n"
-        )
+        meta_file.write_text(json.dumps({"mission_type": "documentation"}, indent=2) + "\n")
         set_iteration_mode(meta_file, "initial")
         parsed = json.loads(meta_file.read_text())
         assert parsed["documentation_state"]["iteration_mode"] == "initial"
@@ -321,9 +315,7 @@ class TestTolerantWriteWithMinimalMeta:
     def test_write_documentation_state_minimal_meta(self, tmp_path: Path) -> None:
         """write_documentation_state works with a meta.json lacking top-level fields."""
         meta_file = tmp_path / "meta.json"
-        meta_file.write_text(
-            json.dumps({"mission_type": "documentation"}, indent=2) + "\n"
-        )
+        meta_file.write_text(json.dumps({"mission_type": "documentation"}, indent=2) + "\n")
         state = {
             "iteration_mode": "initial",
             "divio_types_selected": [],
@@ -339,9 +331,7 @@ class TestTolerantWriteWithMinimalMeta:
     def test_ensure_documentation_state_minimal_meta(self, tmp_path: Path) -> None:
         """ensure_documentation_state works with a meta.json lacking top-level fields."""
         meta_file = tmp_path / "meta.json"
-        meta_file.write_text(
-            json.dumps({"mission_type": "documentation"}, indent=2) + "\n"
-        )
+        meta_file.write_text(json.dumps({"mission_type": "documentation"}, indent=2) + "\n")
         ensure_documentation_state(meta_file)
         parsed = json.loads(meta_file.read_text())
         assert "documentation_state" in parsed
@@ -370,7 +360,4 @@ class TestNoDirectJsonDumpRemains:
         import specify_cli.doc_state as mod
 
         source = inspect.getsource(mod)
-        assert "_atomic_write" not in source, (
-            "Found _atomic_write reference in doc_state.py; "
-            "use write_meta(validate=False) instead"
-        )
+        assert "_atomic_write" not in source, "Found _atomic_write reference in doc_state.py; use write_meta(validate=False) instead"

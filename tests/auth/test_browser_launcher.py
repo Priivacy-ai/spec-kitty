@@ -39,9 +39,7 @@ def test_launch_returns_true_when_webbrowser_open_returns_true(
 
     result = BrowserLauncher.launch("https://example.test/authorize?foo=bar")
     assert result is True
-    assert calls == [
-        ("https://example.test/authorize?foo=bar", {"new": 2, "autoraise": True})
-    ]
+    assert calls == [("https://example.test/authorize?foo=bar", {"new": 2, "autoraise": True})]
 
 
 def test_launch_returns_false_when_webbrowser_open_returns_false(

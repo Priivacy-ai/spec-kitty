@@ -24,12 +24,6 @@ def test_update_all_views_not_in_status_init():
     """Verify update_all_views is not exported from status __init__."""
     import specify_cli.status as status_pkg
 
-    assert not hasattr(status_pkg, "update_all_views"), (
-        "update_all_views was removed in WP05 (legacy_bridge deleted)"
-    )
-    assert not hasattr(status_pkg, "update_frontmatter_views"), (
-        "update_frontmatter_views was removed in WP05 (legacy_bridge deleted)"
-    )
-    assert not hasattr(status_pkg, "update_tasks_md_views"), (
-        "update_tasks_md_views was removed in WP05 (legacy_bridge deleted)"
-    )
+    assert not hasattr(status_pkg, "update_all_views"), "update_all_views was removed in WP05 (legacy_bridge deleted)"
+    assert not hasattr(status_pkg, "update_frontmatter_views"), "update_frontmatter_views was removed in WP05 (legacy_bridge deleted)"
+    assert not hasattr(status_pkg, "update_tasks_md_views"), "update_tasks_md_views was removed in WP05 (legacy_bridge deleted)"

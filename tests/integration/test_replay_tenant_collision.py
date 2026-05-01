@@ -122,12 +122,7 @@ class TestReplayTenantCollision:
         assert result.skipped_project == 0
         assert [e["event_id"] for e in applied] == ["evt-ok", "evt-ok2"]
 
-        assert any(
-            rec.levelname == "WARNING"
-            and "replay.conflict" in rec.getMessage()
-            and "tenant_mismatch" in rec.getMessage()
-            for rec in caplog.records
-        )
+        assert any(rec.levelname == "WARNING" and "replay.conflict" in rec.getMessage() and "tenant_mismatch" in rec.getMessage() for rec in caplog.records)
 
         # Conflict records are structured (machine-readable).
         record = result.conflicts[0]
@@ -163,9 +158,7 @@ class TestReplayTenantCollision:
         assert result.applied == 0
         assert result.skipped_tenant == 0
         assert result.skipped_project == 1
-        assert any(
-            "project_mismatch" in rec.getMessage() for rec in caplog.records
-        )
+        assert any("project_mismatch" in rec.getMessage() for rec in caplog.records)
 
     def test_paired_streams_exercise_both_surfaces(self) -> None:
         """Mixed stream: match + tenant-mismatch + project-mismatch all in one pass."""

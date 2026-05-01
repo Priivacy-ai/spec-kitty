@@ -228,6 +228,4 @@ class TestInterviewCompletesNormallyWithoutWiden:
             except Exception:
                 pass
 
-        assert not slack_references, (
-            f"Direct Slack API references found (violates C-004): {slack_references}"
-        )
+        assert not slack_references, f"Direct Slack API references found (violates C-004): {slack_references}"

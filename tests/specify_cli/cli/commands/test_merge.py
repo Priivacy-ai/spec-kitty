@@ -90,8 +90,7 @@ def test_merge_ready_lanes_approved_and_done_only() -> None:
 
     # is_terminal covers done|canceled — that's cleanup logic, not merge-readiness
     # approved is merge-ready but NOT terminal
-    assert not is_terminal(Lane.APPROVED.value), \
-        "approved must NOT be terminal — merge-readiness is a distinct concept"
+    assert not is_terminal(Lane.APPROVED.value), "approved must NOT be terminal — merge-readiness is a distinct concept"
 
     # canceled is terminal but NOT merge-ready
     # This is the key distinction: if we used is_terminal for merge-readiness,
@@ -112,13 +111,11 @@ def test_merge_ready_lanes_approved_and_done_only() -> None:
         Lane.APPROVED: True,
         Lane.DONE: True,
         Lane.BLOCKED: False,
-        Lane.CANCELED: False,   # terminal but NOT merge-ready!
+        Lane.CANCELED: False,  # terminal but NOT merge-ready!
     }
     for lane, should_be_ready in expected.items():
         is_ready = lane in _MERGE_READY
-        assert is_ready == should_be_ready, (
-            f"Lane {lane.value}: expected merge-ready={should_be_ready}, got {is_ready}"
-        )
+        assert is_ready == should_be_ready, f"Lane {lane.value}: expected merge-ready={should_be_ready}, got {is_ready}"
 
 
 def test_canceled_is_not_merge_ready_even_though_terminal() -> None:
@@ -128,8 +125,7 @@ def test_canceled_is_not_merge_ready_even_though_terminal() -> None:
     assert is_terminal(Lane.CANCELED.value), "canceled is terminal"
     # Explicit approved|done check: canceled is excluded
     _MERGE_READY = frozenset({Lane.APPROVED, Lane.DONE})
-    assert Lane.CANCELED not in _MERGE_READY, \
-        "canceled must NOT be in merge-ready set (approved|done)"
+    assert Lane.CANCELED not in _MERGE_READY, "canceled must NOT be in merge-ready set (approved|done)"
 
 
 # ---------------------------------------------------------------------------
@@ -150,9 +146,7 @@ def test_assert_merged_wps_reached_done_passes_when_all_done(tmp_path: Path) -> 
     _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01", "WP02"])
 
 
-def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_assert_merged_wps_reached_done_raises_when_wp_not_done(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """WP not in done → typer.Exit(1) raised."""
     import click
 
@@ -180,9 +174,7 @@ def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
         _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01", "WP02"])
 
 
-def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
-    tmp_path: Path, capsys: pytest.CaptureFixture
-) -> None:
+def test_assert_merged_wps_reached_done_includes_lane_value_in_error(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     """Error message includes WP id and current lane value (not raw string)."""
     import click
 
@@ -213,9 +205,7 @@ def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
 # ---------------------------------------------------------------------------
 
 
-def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_mark_wp_merged_done_emits_done_when_lane_is_approved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """_mark_wp_merged_done emits done transition when WP is in approved lane."""
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -241,9 +231,7 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     assert emit_calls[0]["actor"] == "merge"
 
 
-def test_mark_wp_merged_done_skips_when_already_done(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_mark_wp_merged_done_skips_when_already_done(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """_mark_wp_merged_done is idempotent when WP is already in done lane."""
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -263,9 +251,7 @@ def test_mark_wp_merged_done_skips_when_already_done(
     emit_mock.assert_not_called()
 
 
-def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """_mark_wp_merged_done warns and returns if WP is in_progress with no evidence."""
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -293,6 +279,7 @@ def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(
 # ---------------------------------------------------------------------------
 # T006: merge --abort cleanup tests (WP01)
 # ---------------------------------------------------------------------------
+
 
 def test_abort_clears_lock_and_state(tmp_path: Path) -> None:
     """--abort removes the global lock file and legacy merge-state JSON when both exist."""
@@ -332,6 +319,4 @@ def test_abort_idempotent(tmp_path: Path) -> None:
     with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
         result = runner.invoke(app, ["--abort"])
 
-    assert result.exit_code == 0, (
-        f"Expected exit 0 on idempotent abort, got {result.exit_code}\nOutput: {result.output}"
-    )
+    assert result.exit_code == 0, f"Expected exit 0 on idempotent abort, got {result.exit_code}\nOutput: {result.output}"

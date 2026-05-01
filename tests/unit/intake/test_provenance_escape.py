@@ -1,4 +1,5 @@
 """Unit tests for ``specify_cli.intake.provenance.escape_for_comment`` (WP02 T007)."""
+
 from __future__ import annotations
 
 import secrets
@@ -115,9 +116,7 @@ def test_fuzz_random_inputs_never_raise_and_always_safe():
         # Generate a random Latin-1 string of varying length.  Latin-1
         # decoding is total over arbitrary bytes so we cover the full
         # 0–255 range without UnicodeDecodeError noise.
-        raw = secrets.token_bytes(secrets.choice([0, 1, 16, 64, 256, 1024])).decode(
-            "latin-1"
-        )
+        raw = secrets.token_bytes(secrets.choice([0, 1, 16, 64, 256, 1024])).decode("latin-1")
         out = escape_for_comment(raw)
         # Invariants: bounded size, no comment terminators, no leading
         # ``#``, no ASCII control chars (except tab).

@@ -6,7 +6,6 @@ import json
 import logging
 import urllib.parse
 from pathlib import Path
-from typing import Optional
 
 from ..api_types import (
     ArtifactDirectoryResponse,

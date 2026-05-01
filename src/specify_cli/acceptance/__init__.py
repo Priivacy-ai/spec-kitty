@@ -698,21 +698,25 @@ def _build_acceptance_instructions(
         if is_integration_branch:
             instructions.append(f"Acceptance recorded on integration branch `{branch}`. Push and open a pull request if needed.")
         else:
-            instructions.extend([
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
-                "Open a pull request referencing spec/plan/tasks artifacts.",
-                "Include acceptance summary and test evidence in the PR description.",
-            ])
+            instructions.extend(
+                [
+                    f"Review the acceptance commit on branch `{branch}`.",
+                    f"Push your branch: `git push origin {branch}`",
+                    "Open a pull request referencing spec/plan/tasks artifacts.",
+                    "Include acceptance summary and test evidence in the PR description.",
+                ]
+            )
     elif mode == "local":
         if is_integration_branch:
             instructions.append(f"Acceptance recorded directly on `{branch}`. No merge needed.")
         else:
-            instructions.extend([
-                "Switch to your integration branch (e.g., `git checkout main`).",
-                "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
-            ])
+            instructions.extend(
+                [
+                    "Switch to your integration branch (e.g., `git checkout main`).",
+                    "Synchronize it (e.g., `git pull --ff-only`).",
+                    f"Merge the feature: `git merge {branch}`",
+                ]
+            )
     else:  # checklist
         instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
 

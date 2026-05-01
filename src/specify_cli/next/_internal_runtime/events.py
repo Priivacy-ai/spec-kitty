@@ -59,6 +59,7 @@ __all__ = [
 # RuntimeEventEmitter protocol
 # ---------------------------------------------------------------------------
 
+
 class RuntimeEventEmitter(Protocol):
     """Interface for mission runtime event emission.
 
@@ -86,6 +87,7 @@ class RuntimeEventEmitter(Protocol):
 # ---------------------------------------------------------------------------
 # NullEmitter (no-op default)
 # ---------------------------------------------------------------------------
+
 
 class NullEmitter:
     """No-op emitter — default when no concrete emitter is provided."""
@@ -122,6 +124,7 @@ class NullEmitter:
 # JsonlEventLog (append-only JSONL persistence)
 # ---------------------------------------------------------------------------
 
+
 class JsonlEventLog:
     """Append-only JSONL log. Writes dicts with sort_keys for determinism.
 
@@ -148,7 +151,7 @@ class JsonlEventLog:
         if not self._path.exists():
             return []
         records: list[dict[str, Any]] = []
-        with open(self._path, "r", encoding="utf-8") as handle:
+        with open(self._path, encoding="utf-8") as handle:
             for line in handle:
                 stripped = line.strip()
                 if stripped:

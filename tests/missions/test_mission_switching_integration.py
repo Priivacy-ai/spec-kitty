@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
+
+
 def test_mission_switch_shows_helpful_error(clean_project: Path, run_cli) -> None:
     """Mission switch command should show helpful error about per-feature missions."""
     result = run_cli(clean_project, "mission", "switch", "research")
@@ -24,6 +26,7 @@ def test_mission_switch_shows_helpful_error(clean_project: Path, run_cli) -> Non
     assert "removed" in output.lower() or "v0.8.0" in output.lower()
     # Should point to new workflow
     assert "/spec-kitty.specify" in output
+
 
 def test_mission_switch_blocked_by_worktrees_via_cli(project_with_worktree: Path, run_cli) -> None:
     """Mission switch should show per-feature error even with worktrees."""

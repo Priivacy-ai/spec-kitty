@@ -13,7 +13,7 @@ failures exist.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -55,11 +55,7 @@ class MergeGateEvaluation:
 
     @property
     def warnings(self) -> list[str]:
-        return [
-            f"{g.gate_name}: {g.details}"
-            for g in self.gates
-            if g.verdict == GateVerdict.FAIL and not g.blocking
-        ]
+        return [f"{g.gate_name}: {g.details}" for g in self.gates if g.verdict == GateVerdict.FAIL and not g.blocking]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -117,25 +113,21 @@ def evaluate_merge_gates(
     is_blocking = policy.mode == "block"
 
     if policy.require_review_approval:
-        evaluation.gates.append(
-            _evaluate_evidence_gate(feature_dir, wp_ids, is_blocking)
-        )
+        evaluation.gates.append(_evaluate_evidence_gate(feature_dir, wp_ids, is_blocking))
 
     if policy.require_risk_check:
-        evaluation.gates.append(
-            _evaluate_risk_gate(feature_dir, is_blocking)
-        )
+        evaluation.gates.append(_evaluate_risk_gate(feature_dir, is_blocking))
 
     if policy.require_deps_complete:
-        evaluation.gates.append(
-            _evaluate_dependency_gate(feature_dir, wp_ids, is_blocking)
-        )
+        evaluation.gates.append(_evaluate_dependency_gate(feature_dir, wp_ids, is_blocking))
 
     return evaluation
 
 
 def _evaluate_evidence_gate(
-    feature_dir: Path, wp_ids: list[str], is_blocking: bool,
+    feature_dir: Path,
+    wp_ids: list[str],
+    is_blocking: bool,
 ) -> GateResult:
     """Check that all WPs have reviewer approval in the event log."""
     try:
@@ -175,7 +167,8 @@ def _evaluate_evidence_gate(
 
 
 def _evaluate_risk_gate(
-    feature_dir: Path, is_blocking: bool,
+    feature_dir: Path,
+    is_blocking: bool,
 ) -> GateResult:
     """Check that parallelization risk score is below threshold."""
     try:
@@ -201,10 +194,7 @@ def _evaluate_risk_gate(
             return GateResult(
                 gate_name="risk",
                 verdict=GateVerdict.FAIL,
-                details=(
-                    f"Risk score {report.overall_score:.2f} exceeds "
-                    f"threshold {report.threshold:.2f}"
-                ),
+                details=(f"Risk score {report.overall_score:.2f} exceeds threshold {report.threshold:.2f}"),
                 blocking=is_blocking,
             )
         return GateResult(
@@ -223,7 +213,9 @@ def _evaluate_risk_gate(
 
 
 def _evaluate_dependency_gate(
-    feature_dir: Path, wp_ids: list[str], is_blocking: bool,
+    feature_dir: Path,
+    wp_ids: list[str],
+    is_blocking: bool,
 ) -> GateResult:
     """Check that all WP dependencies are in done lane."""
     try:

@@ -6,6 +6,7 @@ from charter.parser import CharterParser, CharterSection
 
 pytestmark = pytest.mark.fast
 
+
 class TestCharterSection:
     """Tests for CharterSection dataclass."""
 
@@ -290,7 +291,6 @@ We believe in clear specifications."""
     def test_real_charter_parsing(self, parser):
         """T026: Parse real charter file successfully."""
         from pathlib import Path
-
 
         charter_path = Path(".kittify/memory/charter.md")
         if not charter_path.exists():

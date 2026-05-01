@@ -39,9 +39,7 @@ def mock_auth(monkeypatch):
     set ``.return_value = None`` to simulate the unauthenticated state.
     """
     fake_fetch = MagicMock(return_value="token")
-    monkeypatch.setattr(
-        "specify_cli.sync.background._fetch_access_token_sync", fake_fetch
-    )
+    monkeypatch.setattr("specify_cli.sync.background._fetch_access_token_sync", fake_fetch)
     return fake_fetch
 
 

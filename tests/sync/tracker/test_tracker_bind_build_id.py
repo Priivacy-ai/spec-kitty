@@ -162,9 +162,7 @@ class TestSaaSClientBindBuildId:
     """SaaS client passes build_id in bind endpoint payloads."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_includes_build_id(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_resolve_includes_build_id(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """bind_resolve sends project_identity with build_id."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -180,16 +178,12 @@ class TestSaaSClientBindBuildId:
         assert sent_payload["project_identity"]["build_id"] == identity["build_id"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_includes_build_id(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_confirm_includes_build_id(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """bind_confirm sends project_identity with build_id."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"binding_ref": "br-1", "display_label": "Test"}
-        )
+        mock_http.request.return_value = _make_response(200, {"binding_ref": "br-1", "display_label": "Test"})
 
         identity = _valid_project_identity()
         client.bind_confirm("linear", "candidate-token-1", identity)
@@ -199,9 +193,7 @@ class TestSaaSClientBindBuildId:
         assert sent_payload["project_identity"]["build_id"] == identity["build_id"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_includes_build_id(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_validate_includes_build_id(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """bind_validate sends project_identity with build_id."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -216,9 +208,7 @@ class TestSaaSClientBindBuildId:
         assert sent_payload["project_identity"]["build_id"] == identity["build_id"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_rejects_missing_build_id(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_resolve_rejects_missing_build_id(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """bind_resolve raises ContractViolationError without build_id."""
         identity = _valid_project_identity()
         del identity["build_id"]

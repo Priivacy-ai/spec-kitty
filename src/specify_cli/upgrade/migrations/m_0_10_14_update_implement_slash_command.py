@@ -66,9 +66,7 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
             return False, f"Cannot access packaged missions: {e}"
 
         # Fallback: Try legacy .kittify location (pre-0.11.0)
-        legacy_path = (
-            project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
-        )
+        legacy_path = project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
         if legacy_path.exists():
             return True, ""
 
@@ -97,9 +95,7 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
 
         # Fallback to legacy location (pre-0.11.0)
         if not template_content:
-            legacy_path = (
-                project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
-            )
+            legacy_path = project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
             if legacy_path.exists():
                 template_content = legacy_path.read_text(encoding="utf-8")
                 template_source = "legacy .kittify/missions"

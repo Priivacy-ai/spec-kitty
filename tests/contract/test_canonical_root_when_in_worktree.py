@@ -115,9 +115,7 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
     worktree_log = worktree_feature_dir / "status.events.jsonl"
 
     assert canonical_log.exists(), "canonical event log must exist"
-    canonical_lines = [
-        line for line in canonical_log.read_text(encoding="utf-8").splitlines() if line
-    ]
+    canonical_lines = [line for line in canonical_log.read_text(encoding="utf-8").splitlines() if line]
     assert len(canonical_lines) == 1
     payload = json.loads(canonical_lines[0])
     assert payload["wp_id"] == "WP01"
@@ -125,11 +123,5 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
 
     if worktree_log.exists():
         # Permissible only if it is empty / does not contain the new event.
-        worktree_lines = [
-            line
-            for line in worktree_log.read_text(encoding="utf-8").splitlines()
-            if line
-        ]
-        assert worktree_lines == [], (
-            "emit must not write to the stale worktree-local event log"
-        )
+        worktree_lines = [line for line in worktree_log.read_text(encoding="utf-8").splitlines() if line]
+        assert worktree_lines == [], "emit must not write to the stale worktree-local event log"

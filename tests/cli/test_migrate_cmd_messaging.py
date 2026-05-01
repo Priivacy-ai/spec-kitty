@@ -40,24 +40,14 @@ def test_migrate_windows_moved_output(tmp_path, monkeypatch):
     output = result.stdout or ""
 
     # Contract: migration summary banner must appear
-    assert "Migrated Spec Kitty runtime state" in output, (
-        f"Expected migration banner not found in output:\n{output}"
-    )
+    assert "Migrated Spec Kitty runtime state" in output, f"Expected migration banner not found in output:\n{output}"
     # Contract: canonical location line must appear
-    assert "Canonical location:" in output, (
-        f"Expected 'Canonical location:' not found in output:\n{output}"
-    )
+    assert "Canonical location:" in output, f"Expected 'Canonical location:' not found in output:\n{output}"
     # Contract: AppData path (Windows-native) or spec-kitty directory name must appear
-    assert "AppData" in output or "spec-kitty" in output.lower(), (
-        f"Expected Windows-native path or 'spec-kitty' not found in output:\n{output}"
-    )
+    assert "AppData" in output or "spec-kitty" in output.lower(), f"Expected Windows-native path or 'spec-kitty' not found in output:\n{output}"
     # Contract: no legacy literal path forms
-    assert "~/.kittify" not in output, (
-        f"Legacy path '~/.kittify' found in migrate output:\n{output}"
-    )
-    assert "~/.spec-kitty" not in output, (
-        f"Legacy path '~/.spec-kitty' found in migrate output:\n{output}"
-    )
+    assert "~/.kittify" not in output, f"Legacy path '~/.kittify' found in migrate output:\n{output}"
+    assert "~/.spec-kitty" not in output, f"Legacy path '~/.spec-kitty' found in migrate output:\n{output}"
 
 
 @pytest.mark.windows_ci
@@ -85,20 +75,9 @@ def test_migrate_windows_quarantined_output(tmp_path, monkeypatch):
     output = result.stdout or ""
 
     # Contract: quarantine message variants
-    assert (
-        "Destination already contained state" in output
-        or "preserved as backups" in output
-    ), (
-        f"Expected quarantine message not found in output:\n{output}"
-    )
+    assert "Destination already contained state" in output or "preserved as backups" in output, f"Expected quarantine message not found in output:\n{output}"
     # Contract: backup suffix must appear
-    assert ".bak-" in output, (
-        f"Expected '.bak-' timestamp suffix not found in output:\n{output}"
-    )
+    assert ".bak-" in output, f"Expected '.bak-' timestamp suffix not found in output:\n{output}"
     # Contract: no legacy literal path forms
-    assert "~/.kittify" not in output, (
-        f"Legacy path '~/.kittify' found in migrate output:\n{output}"
-    )
-    assert "~/.spec-kitty" not in output, (
-        f"Legacy path '~/.spec-kitty' found in migrate output:\n{output}"
-    )
+    assert "~/.kittify" not in output, f"Legacy path '~/.kittify' found in migrate output:\n{output}"
+    assert "~/.spec-kitty" not in output, f"Legacy path '~/.spec-kitty' found in migrate output:\n{output}"

@@ -190,7 +190,7 @@ class TestStrategyFlagFlowsThrough:
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result) as mock_lane_merge,
+            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result) as mock_mission_merge,
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
             patch("specify_cli.cli.commands.merge.safe_commit", return_value=True),
@@ -365,10 +365,7 @@ class TestLaneToMissionUsesMergeCommit:
 
             # merge_lane_to_mission must NOT receive a strategy parameter
             for call in mock_lane_merge.call_args_list:
-                assert "strategy" not in call.kwargs, (
-                    "lane→mission merge must not receive a strategy parameter "
-                    "(FR-007: always uses merge commit)"
-                )
+                assert "strategy" not in call.kwargs, "lane→mission merge must not receive a strategy parameter (FR-007: always uses merge commit)"
 
 
 # ---------------------------------------------------------------------------
@@ -395,18 +392,11 @@ class TestConfigYamlStrategyHonored:
 def _init_git_repo(path: Path) -> None:
     """Initialize a git repo at path with an initial commit."""
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=path, check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True)
     (path / "README.md").write_text("init\n")
     subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "commit", "-m", "init"],
-        cwd=path, check=True, capture_output=True
-    )
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-m", "init"], cwd=path, check=True, capture_output=True)
 
 
 class TestProtectedLinearHistorySucceedsDefault:
@@ -420,7 +410,9 @@ class TestProtectedLinearHistorySucceedsDefault:
         subprocess.run(["git", "init", "--bare", "-b", "main"], cwd=remote, check=True, capture_output=True)
         subprocess.run(
             ["git", "config", "receive.denyNonFastForwards", "true"],
-            cwd=remote, check=True, capture_output=True,
+            cwd=remote,
+            check=True,
+            capture_output=True,
         )
 
         # Set up a local repo and push
@@ -433,7 +425,9 @@ class TestProtectedLinearHistorySucceedsDefault:
         subprocess.run(["git", "add", "."], cwd=local, check=True, capture_output=True)
         subprocess.run(
             ["git", "-c", "commit.gpgsign=false", "commit", "-m", "feature"],
-            cwd=local, check=True, capture_output=True,
+            cwd=local,
+            check=True,
+            capture_output=True,
         )
 
         # Squash merge produces a linear history — should push cleanly
@@ -442,11 +436,15 @@ class TestProtectedLinearHistorySucceedsDefault:
         # We verify this by checking that a single-commit push succeeds.
         subprocess.run(
             ["git", "remote", "add", "origin", str(remote)],
-            cwd=local, check=True, capture_output=True,
+            cwd=local,
+            check=True,
+            capture_output=True,
         )
         result = subprocess.run(
             ["git", "push", "origin", "main"],
-            cwd=local, capture_output=True, text=True,
+            cwd=local,
+            capture_output=True,
+            text=True,
         )
         # A regular linear-history push should succeed
         assert result.returncode == 0, f"Push failed unexpectedly: {result.stderr}"
@@ -459,7 +457,9 @@ class TestProtectedLinearHistorySucceedsDefault:
         subprocess.run(["git", "init", "--bare", "-b", "main"], cwd=remote, check=True, capture_output=True)
         subprocess.run(
             ["git", "config", "receive.denyNonFastForwards", "true"],
-            cwd=remote, check=True, capture_output=True,
+            cwd=remote,
+            check=True,
+            capture_output=True,
         )
 
         # Initialize local and push initial commit
@@ -468,11 +468,15 @@ class TestProtectedLinearHistorySucceedsDefault:
         _init_git_repo(local)
         subprocess.run(
             ["git", "remote", "add", "origin", str(remote)],
-            cwd=local, check=True, capture_output=True,
+            cwd=local,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "push", "origin", "main"],
-            cwd=local, check=True, capture_output=True,
+            cwd=local,
+            check=True,
+            capture_output=True,
         )
 
         # Create a branch and merge back with a merge commit
@@ -481,26 +485,28 @@ class TestProtectedLinearHistorySucceedsDefault:
         subprocess.run(["git", "add", "."], cwd=local, check=True, capture_output=True)
         subprocess.run(
             ["git", "-c", "commit.gpgsign=false", "commit", "-m", "feat"],
-            cwd=local, check=True, capture_output=True,
+            cwd=local,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(["git", "checkout", "main"], cwd=local, check=True, capture_output=True)
         subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "merge", "--no-ff", "feature",
-             "-m", "Merge feature into main"],
-            cwd=local, check=True, capture_output=True,
+            ["git", "-c", "commit.gpgsign=false", "merge", "--no-ff", "feature", "-m", "Merge feature into main"],
+            cwd=local,
+            check=True,
+            capture_output=True,
         )
 
         # This push should fail on a strict linear-history remote (merge commit is non-fast-forward)
         result = subprocess.run(
             ["git", "push", "origin", "main"],
-            cwd=local, capture_output=True, text=True,
+            cwd=local,
+            capture_output=True,
+            text=True,
         )
         # The push fails because it's not a fast-forward
         if result.returncode != 0:
             # Verify our parser recognises this as a linear history rejection
             full_stderr = result.stderr
             # denyNonFastForwards returns "non-fast-forward" in the rejection
-            assert _is_linear_history_rejection(full_stderr), (
-                f"Expected linear history rejection but parser returned False. "
-                f"stderr: {full_stderr!r}"
-            )
+            assert _is_linear_history_rejection(full_stderr), f"Expected linear history rejection but parser returned False. stderr: {full_stderr!r}"

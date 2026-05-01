@@ -554,10 +554,7 @@ class GenerationGateMiddleware:
                 f"Resolve conflicts before proceeding."
             )
         else:
-            return (
-                f"Generation blocked: {conflict_count} unresolved "
-                f"semantic conflict(s) detected. Resolve conflicts before proceeding."
-            )
+            return f"Generation blocked: {conflict_count} unresolved semantic conflict(s) detected. Resolve conflicts before proceeding."
 
 
 class ResumeMiddleware:

@@ -15,7 +15,7 @@ import pytest
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import (
@@ -229,9 +229,7 @@ class TestMissingArtifactDetection:
 
         # Mock manifest registry
         indexer = Indexer(ManifestRegistry())
-        with patch.object(
-            indexer.manifest_registry, "load_manifest", return_value=manifest
-        ):
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=manifest):
             missing = indexer._detect_missing_artifacts(dossier)
 
         assert len(missing) == 1
@@ -269,9 +267,7 @@ class TestMissingArtifactDetection:
         )
 
         indexer = Indexer(ManifestRegistry())
-        with patch.object(
-            indexer.manifest_registry, "load_manifest", return_value=manifest
-        ):
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=manifest):
             missing = indexer._detect_missing_artifacts(dossier)
 
         assert len(missing) == 2
@@ -312,9 +308,7 @@ class TestMissingArtifactDetection:
         )
 
         indexer = Indexer(ManifestRegistry())
-        with patch.object(
-            indexer.manifest_registry, "load_manifest", return_value=manifest
-        ):
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=manifest):
             missing = indexer._detect_missing_artifacts(dossier)
 
         assert len(missing) == 0
@@ -341,9 +335,7 @@ class TestMissingArtifactDetection:
         )
 
         indexer = Indexer(ManifestRegistry())
-        with patch.object(
-            indexer.manifest_registry, "load_manifest", return_value=manifest
-        ):
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=manifest):
             missing = indexer._detect_missing_artifacts(dossier)
 
         assert len(missing) == 0
@@ -370,9 +362,7 @@ class TestMissingArtifactDetection:
         )
 
         indexer = Indexer(ManifestRegistry())
-        with patch.object(
-            indexer.manifest_registry, "load_manifest", return_value=manifest
-        ):
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=manifest):
             # Check for planning step
             missing = indexer._detect_missing_artifacts(dossier, step_id="planning")
 
@@ -497,9 +487,7 @@ class TestMissionDossierBuilder:
         )
 
         indexer = Indexer(ManifestRegistry())
-        with patch.object(
-            indexer.manifest_registry, "load_manifest", return_value=manifest
-        ):
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=manifest):
             # Create empty temp directory
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_path = Path(tmp_dir)

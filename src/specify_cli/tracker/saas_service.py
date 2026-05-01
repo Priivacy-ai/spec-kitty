@@ -30,9 +30,7 @@ logger = logging.getLogger(__name__)
 
 _ISSUE_IDENTIFIER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*-\d+$")
 
-_STALE_BINDING_CODES: frozenset[str] = frozenset(
-    {"binding_not_found", "mapping_disabled", "project_mismatch"}
-)
+_STALE_BINDING_CODES: frozenset[str] = frozenset({"binding_not_found", "mapping_disabled", "project_mismatch"})
 
 
 def _normalize_ticket_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -120,9 +118,7 @@ class SaaSTrackerService:
             return {"binding_ref": self._config.binding_ref}
         if self._config.project_slug:
             return {"project_slug": self._config.project_slug}
-        raise TrackerServiceError(
-            "No tracker binding configured. Run `spec-kitty tracker bind` first."
-        )
+        raise TrackerServiceError("No tracker binding configured. Run `spec-kitty tracker bind` first.")
 
     def _routing_for_provider(self, provider: str) -> dict[str, str]:
         """Return bound routing only when this service is already bound to *provider*."""
@@ -161,11 +157,7 @@ class SaaSTrackerService:
                 binding_ref=binding_ref,
                 project_slug=self._config.project_slug,
                 display_label=response.get("display_label") or self._config.display_label,
-                provider_context=(
-                    response.get("provider_context")
-                    if isinstance(response.get("provider_context"), dict)
-                    else self._config.provider_context
-                ),
+                provider_context=(response.get("provider_context") if isinstance(response.get("provider_context"), dict) else self._config.provider_context),
                 workspace=self._config.workspace,
                 doctrine_mode=self._config.doctrine_mode,
                 doctrine_field_owners=self._config.doctrine_field_owners,
@@ -197,18 +189,13 @@ class SaaSTrackerService:
         try:
             return method(*args, **kwargs)
         except SaaSTrackerClientError as e:
-            if (
-                e.error_code in _STALE_BINDING_CODES
-                and self._config.binding_ref
-            ):
+            if e.error_code in _STALE_BINDING_CODES and self._config.binding_ref:
                 raise StaleBindingError(
-                    f"Tracker binding '{self._config.binding_ref}' is stale: {e}. "
-                    f"Run `spec-kitty tracker bind --provider {self.provider}` to rebind.",
+                    f"Tracker binding '{self._config.binding_ref}' is stale: {e}. Run `spec-kitty tracker bind --provider {self.provider}` to rebind.",
                     binding_ref=self._config.binding_ref,
                     error_code=e.error_code or "unknown",
                 ) from e
             raise
-
 
     def bind(self, *, provider: str, project_slug: str) -> TrackerProjectConfig:
         """Bind a SaaS-backed tracker provider.
@@ -258,11 +245,7 @@ class SaaSTrackerService:
             provider=provider,
             binding_ref=binding_ref,
             project_slug=resolved_slug,
-            display_label=(
-                display_label
-                if display_label is not None
-                else self._config.display_label if same_provider else None
-            ),
+            display_label=(display_label if display_label is not None else self._config.display_label if same_provider else None),
             provider_context=provider_context,
             workspace=self._config.workspace if same_provider else None,
             doctrine_mode=self._config.doctrine_mode,
@@ -283,9 +266,7 @@ class SaaSTrackerService:
     ) -> BindResult:
         """Confirm a candidate token and persist the binding."""
         try:
-            result = BindResult.from_api(
-                self._client.bind_confirm(provider, candidate_token, project_identity)
-            )
+            result = BindResult.from_api(self._client.bind_confirm(provider, candidate_token, project_identity))
         except SaaSTrackerClientError as e:
             if e.error_code == "invalid_candidate_token":
                 if allow_retry:
@@ -294,12 +275,13 @@ class SaaSTrackerService:
                         project_identity,
                         select_n=select_n,
                     )
-                raise TrackerServiceError(
-                    "Candidate token expired. Please retry the bind operation."
-                ) from e
+                raise TrackerServiceError("Candidate token expired. Please retry the bind operation.") from e
             raise
         self._persist_binding(
-            provider, result.binding_ref, result.display_label, result.provider_context,
+            provider,
+            result.binding_ref,
+            result.display_label,
+            result.provider_context,
             project_slug=result.project_slug,
         )
         return result
@@ -310,9 +292,7 @@ class SaaSTrackerService:
         project_identity: dict[str, Any],
     ) -> ResolutionResult:
         """Resolve the local project identity to a host binding result."""
-        return ResolutionResult.from_api(
-            self._client.bind_resolve(provider, project_identity)
-        )
+        return ResolutionResult.from_api(self._client.bind_resolve(provider, project_identity))
 
     def _retry_after_candidate_expiry(
         self,
@@ -325,16 +305,10 @@ class SaaSTrackerService:
         resolution = self._resolve_binding(provider, project_identity)
 
         if resolution.match_type == "none":
-            raise TrackerServiceError(
-                "Candidate token expired and retry could not rediscover a bindable "
-                "resource. Please retry the bind operation."
-            )
+            raise TrackerServiceError("Candidate token expired and retry could not rediscover a bindable resource. Please retry the bind operation.")
 
         if resolution.match_type == "candidates" and select_n is None:
-            raise TrackerServiceError(
-                "Candidate token expired and retry found multiple candidates. "
-                "Please retry the bind operation."
-            )
+            raise TrackerServiceError("Candidate token expired and retry found multiple candidates. Please retry the bind operation.")
 
         retried = self._bind_from_resolution(
             provider,
@@ -344,10 +318,7 @@ class SaaSTrackerService:
             allow_retry=False,
         )
         if isinstance(retried, ResolutionResult):
-            raise TrackerServiceError(
-                "Candidate token expired and retry still requires manual selection. "
-                "Please retry the bind operation."
-            )
+            raise TrackerServiceError("Candidate token expired and retry still requires manual selection. Please retry the bind operation.")
         return retried
 
     def _bind_from_resolution(
@@ -364,8 +335,10 @@ class SaaSTrackerService:
             if resolution.binding_ref:
                 # Existing mapping -- persist directly
                 self._persist_binding(
-                    provider, resolution.binding_ref,
-                    resolution.display_label, None,
+                    provider,
+                    resolution.binding_ref,
+                    resolution.display_label,
+                    None,
                     project_slug=resolution.project_slug,
                 )
                 return BindResult(
@@ -390,10 +363,7 @@ class SaaSTrackerService:
             if select_n is not None:
                 candidate = find_candidate_by_position(resolution.candidates, select_n)
                 if candidate is None:
-                    raise TrackerServiceError(
-                        f"Selection {select_n} is out of range. "
-                        f"Valid range: 1-{len(resolution.candidates)}."
-                    )
+                    raise TrackerServiceError(f"Selection {select_n} is out of range. Valid range: 1-{len(resolution.candidates)}.")
                 return self._confirm_and_persist(
                     provider,
                     candidate.candidate_token,
@@ -404,10 +374,7 @@ class SaaSTrackerService:
             # Return resolution for CLI to handle interactive selection
             return resolution
 
-        raise TrackerServiceError(
-            f"No bindable resources found for provider '{provider}'. "
-            "Verify the tracker is connected in the SaaS dashboard."
-        )
+        raise TrackerServiceError(f"No bindable resources found for provider '{provider}'. Verify the tracker is connected in the SaaS dashboard.")
 
     def resolve_and_bind(
         self,
@@ -447,18 +414,14 @@ class SaaSTrackerService:
         from specify_cli.tracker.discovery import ValidationResult
 
         identity = project_identity or {}
-        validation = ValidationResult.from_api(
-            self._client.bind_validate(provider, bind_ref, identity)
-        )
+        validation = ValidationResult.from_api(self._client.bind_validate(provider, bind_ref, identity))
         if not validation.valid:
-            raise TrackerServiceError(
-                f"Binding ref '{bind_ref}' is not valid: "
-                f"{validation.reason or 'unknown reason'}. "
-                f"{validation.guidance or ''}"
-            )
+            raise TrackerServiceError(f"Binding ref '{bind_ref}' is not valid: {validation.reason or 'unknown reason'}. {validation.guidance or ''}")
         self._persist_binding(
-            provider, bind_ref,
-            validation.display_label, validation.provider_context,
+            provider,
+            bind_ref,
+            validation.display_label,
+            validation.provider_context,
         )
         return self._config
 
@@ -470,7 +433,9 @@ class SaaSTrackerService:
         """Retrieve connection / sync status from the SaaS control plane."""
         routing = self._resolve_routing_params()
         result = self._call_with_stale_detection(
-            self._client.status, self.provider, **routing,
+            self._client.status,
+            self.provider,
+            **routing,
         )
         self._maybe_upgrade_binding_ref(result)
         return result
@@ -479,7 +444,10 @@ class SaaSTrackerService:
         """Pull items from the external tracker via the SaaS control plane."""
         routing = self._resolve_routing_params()
         result = self._call_with_stale_detection(
-            self._client.pull, self.provider, limit=limit, **routing,
+            self._client.pull,
+            self.provider,
+            limit=limit,
+            **routing,
         )
         self._maybe_upgrade_binding_ref(result)
         return result
@@ -493,7 +461,10 @@ class SaaSTrackerService:
         """
         routing = self._resolve_routing_params()
         result = self._call_with_stale_detection(
-            self._client.push, self.provider, items=items or [], **routing,
+            self._client.push,
+            self.provider,
+            items=items or [],
+            **routing,
         )
         self._maybe_upgrade_binding_ref(result)
         return result
@@ -502,7 +473,10 @@ class SaaSTrackerService:
         """Run a full sync cycle via the SaaS control plane."""
         routing = self._resolve_routing_params()
         result = self._call_with_stale_detection(
-            self._client.run, self.provider, limit=limit, **routing,
+            self._client.run,
+            self.provider,
+            limit=limit,
+            **routing,
         )
         self._maybe_upgrade_binding_ref(result)
         return result
@@ -513,7 +487,9 @@ class SaaSTrackerService:
         if provider is None:
             routing = self._resolve_routing_params()
             result = self._call_with_stale_detection(
-                self._client.mappings, resolved_provider, **routing,
+                self._client.mappings,
+                resolved_provider,
+                **routing,
             )
             self._maybe_upgrade_binding_ref(result)
         else:
@@ -553,14 +529,10 @@ class SaaSTrackerService:
 
     def map_add(self, **kwargs: Any) -> None:  # noqa: ARG002
         """Always fails -- mappings for SaaS providers are dashboard-managed."""
-        raise TrackerServiceError(
-            "Mappings for SaaS-backed providers are managed in the Spec Kitty dashboard. "
-            "Use the web interface to create or edit mappings."
-        )
+        raise TrackerServiceError("Mappings for SaaS-backed providers are managed in the Spec Kitty dashboard. Use the web interface to create or edit mappings.")
 
     def sync_publish(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ARG002
         """Always fails -- snapshot publish is not supported for SaaS providers."""
         raise TrackerServiceError(
-            "Snapshot publish is not supported for SaaS-backed providers. "
-            "Use `spec-kitty tracker sync push` to push changes through the SaaS control plane."
+            "Snapshot publish is not supported for SaaS-backed providers. Use `spec-kitty tracker sync push` to push changes through the SaaS control plane."
         )

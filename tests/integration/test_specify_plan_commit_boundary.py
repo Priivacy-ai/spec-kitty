@@ -59,10 +59,7 @@ def _summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so stakeholders can track outcomes "
-            "without parsing the spec text directly."
-        ),
+        "purpose_context": (f"This mission delivers {title} so stakeholders can track outcomes without parsing the spec text directly."),
     }
 
 
@@ -265,9 +262,7 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
     runner = CliRunner()
     feature_dir = repo / "kitty-specs" / mission_handle
 
-    def _fake_show_branch_context(
-        _repo_root: Path, _slug: str, _json: bool
-    ) -> tuple[str, str]:
+    def _fake_show_branch_context(_repo_root: Path, _slug: str, _json: bool) -> tuple[str, str]:
         return ("main", "main")
 
     with (
@@ -285,9 +280,7 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
         ),
         patch.object(mission_module, "get_current_branch", return_value="main"),
         patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-        patch(
-            "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
-        ),
+        patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
     ):
         result = runner.invoke(
             mission_module.app,

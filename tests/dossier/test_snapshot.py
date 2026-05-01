@@ -577,13 +577,7 @@ class TestSnapshotPersistence:
 
         save_snapshot(snapshot, tmp_path)
 
-        expected_file = (
-            tmp_path
-            / ".kittify"
-            / "dossiers"
-            / "042-local-mission-dossier"
-            / "snapshot-latest.json"
-        )
+        expected_file = tmp_path / ".kittify" / "dossiers" / "042-local-mission-dossier" / "snapshot-latest.json"
         assert expected_file.exists()
 
     def test_snapshot_loads_from_json(self, tmp_path: Path) -> None:
@@ -619,9 +613,7 @@ class TestSnapshotPersistence:
             optional_artifacts=3,
             optional_present=2,
             parity_hash_components=["b" * 64, "c" * 64],
-            artifact_summaries=[
-                {"artifact_key": "test", "artifact_class": "input", "is_present": True}
-            ],
+            artifact_summaries=[{"artifact_key": "test", "artifact_class": "input", "is_present": True}],
         )
 
         save_snapshot(snapshot, tmp_path)

@@ -5,12 +5,7 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-SCRIPT = (
-    Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "release"
-    / "check_shared_package_drift.py"
-)
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "release" / "check_shared_package_drift.py"
 
 
 def write_pyproject(path: Path, *, dependencies: list[str], overrides: list[str] | None = None) -> None:
@@ -42,7 +37,7 @@ def write_lockfile(path: Path, *, versions: dict[str, str]) -> None:
             [
                 "version = 1",
                 "revision = 3",
-                "requires-python = \">=3.11\"",
+                'requires-python = ">=3.11"',
                 "",
                 *[
                     f'[[package]]\nname = "{name}"\nversion = "{version}"\nsource = {{ registry = "https://pypi.org/simple" }}\n'

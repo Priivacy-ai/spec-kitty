@@ -55,17 +55,13 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
             try:
                 data = json.loads(auth_file.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as exc:
-                raise SaasAuthError(
-                    f"Failed to read .kittify/saas-auth.json: {exc}"
-                ) from exc
+                raise SaasAuthError(f"Failed to read .kittify/saas-auth.json: {exc}") from exc
             token = data.get("token", "").strip()
             url = url or data.get("saas_url", "").strip()
             team_slug = team_slug or data.get("team_slug") or None
 
     if not token:
-        raise SaasAuthError(
-            "SPEC_KITTY_SAAS_TOKEN not set and .kittify/saas-auth.json not found"
-        )
+        raise SaasAuthError("SPEC_KITTY_SAAS_TOKEN not set and .kittify/saas-auth.json not found")
 
     if not url:
         url = _DEFAULT_SAAS_URL

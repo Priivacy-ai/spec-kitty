@@ -77,9 +77,7 @@ UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 # extension; the original token is returned unchanged when it does not match
 # a qualified shape so downstream "task not found" surfaces stay structured
 # for genuinely garbage input.
-_QUALIFIED_TASK_ID_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]*[/:](?P<task>[A-Za-z]+\d+)$"
-)
+_QUALIFIED_TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*[/:](?P<task>[A-Za-z]+\d+)$")
 
 
 def _normalize_task_id_input(raw: str) -> str:
@@ -109,9 +107,7 @@ def _normalize_task_id_input(raw: str) -> str:
 
 # Known verdict values from the review-cycle schema.
 # Unknown values warn but do NOT block (backward compatibility).
-_VALID_VERDICTS: frozenset[str] = frozenset(
-    {"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"}
-)
+_VALID_VERDICTS: frozenset[str] = frozenset({"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"})
 
 
 def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
@@ -719,8 +715,9 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
 
             if resolve_lane_alias(lane) in [Lane.PLANNED, Lane.IN_PROGRESS, Lane.CLAIMED]:
                 incomplete.append(dep_id)
-        except Exception:
+        except Exception as exc:
             # Skip if we can't read the dependent
+            logger.debug("Skipping dependent %s during lane validation: %s", dep_id, exc)
             continue
 
     if incomplete:
@@ -965,10 +962,7 @@ def _validate_ready_for_review(
         if workspace is not None and workspace.resolution_kind == "repo_root":
             return True, []
 
-        if workspace is None:
-            worktree_path = main_repo_root / ".worktrees" / f"{mission_slug}-lane-a"
-        else:
-            worktree_path = workspace.worktree_path
+        worktree_path = main_repo_root / ".worktrees" / f"{mission_slug}-lane-a" if workspace is None else workspace.worktree_path
 
         if worktree_path.exists():
             # Check for detached HEAD before other git status checks
@@ -1022,10 +1016,7 @@ def _validate_ready_for_review(
             # ``workspace`` is None when the canonical resolver could not classify
             # the WP (legacy/test fixtures); in that case fall back to the target
             # branch so the legacy worktree-existence checks still apply.
-            if workspace is not None and workspace.context and workspace.context.base_branch:
-                check_branch = workspace.context.base_branch
-            else:
-                check_branch = target_branch
+            check_branch = workspace.context.base_branch if workspace is not None and workspace.context and workspace.context.base_branch else target_branch
 
             result = subprocess.run(
                 ["git", "rev-list", "--count", f"HEAD..{check_branch}"],
@@ -1152,9 +1143,7 @@ def _validate_ready_for_review(
                     if _meta:
                         _planning_branch = _meta.get("planning_base_branch") or _meta.get("target_branch")
                 except Exception as _lane_meta_exc:  # noqa: BLE001
-                    logger.debug(
-                        "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
-                    )
+                    logger.debug("Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc)
 
                 guidance.append("Committed kitty-specs files on this lane branch:")
                 for path in contamination_files[:5]:
@@ -1163,9 +1152,7 @@ def _validate_ready_for_review(
                     guidance.append(f"  ... and {len(contamination_files) - 5} more")
                 guidance.append("")
                 if _planning_branch:
-                    _first_planning_path = (
-                        contamination_files[0] if contamination_files else "kitty-specs/<path-to-file>"
-                    )
+                    _first_planning_path = contamination_files[0] if contamination_files else "kitty-specs/<path-to-file>"
                     guidance.append(
                         f"kitty-specs/ changes are not allowed on lane branches.\n"
                         f"Planning artifacts must live on: {_planning_branch}\n\n"
@@ -1173,10 +1160,7 @@ def _validate_ready_for_review(
                         f"  git show {_planning_branch}:{_first_planning_path}"
                     )
                 else:
-                    guidance.append(
-                        "kitty-specs/ changes are not allowed on lane branches "
-                        "(planning branch unknown — check kitty-specs/ on the base branch)."
-                    )
+                    guidance.append("kitty-specs/ changes are not allowed on lane branches (planning branch unknown — check kitty-specs/ on the base branch).")
                 guidance.append("")
                 guidance.append(f"Clean the branch before moving to {target_lane}:")
                 guidance.append(f"  cd {worktree_path}")
@@ -1397,8 +1381,7 @@ def move_task(
             if _verdict == "rejected" and _artifact_path is not None:
                 _output_error(
                     json_output,
-                    f"{task_id} {_artifact_path.name} has verdict: rejected.\n"
-                    "Update the review artifact or pass --skip-review-artifact-check to suppress.",
+                    f"{task_id} {_artifact_path.name} has verdict: rejected.\nUpdate the review artifact or pass --skip-review-artifact-check to suppress.",
                 )
                 raise typer.Exit(1)
 
@@ -1675,22 +1658,24 @@ def move_task(
                         verdict=review_section.get("verdict", Lane.APPROVED),
                         reference=review_section.get("reference", f"auto-forward:{task_id}"),
                     )
-                event = emit_status_transition(TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=task_id,
-                    to_lane=target,
-                    actor=actor,
-                    force=emit_force,
-                    reason=emit_reason,
-                    evidence=evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
-                    review_ref=emit_review_ref,
-                    workspace_context=f"move-task:{main_repo_root}",
-                    subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
-                    implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
-                    repo_root=main_repo_root,
-                    review_result=hop_review_result,
-                ))
+                event = emit_status_transition(
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug=mission_slug,
+                        wp_id=task_id,
+                        to_lane=target,
+                        actor=actor,
+                        force=emit_force,
+                        reason=emit_reason,
+                        evidence=evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
+                        review_ref=emit_review_ref,
+                        workspace_context=f"move-task:{main_repo_root}",
+                        subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
+                        implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
+                        repo_root=main_repo_root,
+                        review_result=hop_review_result,
+                    )
+                )
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
 
@@ -2294,11 +2279,7 @@ def finalize_tasks(
         from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
 
         dependencies_map: dict[str, list[str]] = _shared_parse_deps(tasks_content)
-        expected_wp_ids = sorted(
-            wp_file.stem.split("-")[0]
-            for wp_file in tasks_dir.glob("WP*.md")
-            if re.match(r"^WP\d{2}$", wp_file.stem.split("-")[0])
-        )
+        expected_wp_ids = sorted(wp_file.stem.split("-")[0] for wp_file in tasks_dir.glob("WP*.md") if re.match(r"^WP\d{2}$", wp_file.stem.split("-")[0]))
         missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in dependencies_map]
         extra_wp_sections = sorted(set(dependencies_map) - set(expected_wp_ids))
         if missing_wp_sections or extra_wp_sections:
@@ -3191,10 +3172,7 @@ def status(
             console.print("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
             for wp in done_stale:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
-                console.print(
-                    f"  • {marker}{wp['id']} - {wp['title']}"
-                    "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
-                )
+                console.print(f"  • {marker}{wp['id']} - {wp['title']}  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]")
             console.print()
 
         if by_lane[Lane.IN_PROGRESS]:

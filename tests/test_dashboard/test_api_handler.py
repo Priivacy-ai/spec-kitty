@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import json
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -166,7 +165,7 @@ class TestFeaturesEndpointErrorHandling:
         original_resolve = path_cls.resolve
 
         def flaky_resolve(self, *args, **kwargs):
-            if self == worktrees_root or self == fallback_cwd:
+            if self in (worktrees_root, fallback_cwd):
                 raise RuntimeError("resolution failed")
             return original_resolve(self, *args, **kwargs)
 
@@ -224,9 +223,7 @@ class TestDossierEndpointRouting:
             mock_cls.return_value.handle_dossier_overview.return_value = response
             api_module.APIHandler.handle_dossier(handler, handler.path)
 
-        mock_cls.return_value.handle_dossier_overview.assert_called_once_with(
-            "064-complete-mission-identity-cutover"
-        )
+        mock_cls.return_value.handle_dossier_overview.assert_called_once_with("064-complete-mission-identity-cutover")
         handler.send_response.assert_called_once_with(200)
 
     def test_dossier_artifacts_routes_with_filters(self, tmp_path):
@@ -267,9 +264,7 @@ class TestDossierEndpointRouting:
             "064-complete-mission-identity-cutover",
             "artifact-123",
         )
-        mock_cls.return_value.handle_dossier_snapshot_export.assert_called_once_with(
-            "064-complete-mission-identity-cutover"
-        )
+        mock_cls.return_value.handle_dossier_snapshot_export.assert_called_once_with("064-complete-mission-identity-cutover")
 
     def test_dossier_handler_hides_internal_errors(self, tmp_path):
         api_module, handler = self._make_handler(

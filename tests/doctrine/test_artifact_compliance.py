@@ -80,9 +80,7 @@ def test_artifact_files_validate_schema(artifact_type: str, artifact_path: Path)
 @pytest.fixture(scope="module")
 def tactic_ids() -> set[str]:
     ids: set[str] = set()
-    for tactic_path in _multi_glob(
-        [DOCTRINE_DIR / "tactics" / "shipped"], "*.tactic.yaml"
-    ):
+    for tactic_path in _multi_glob([DOCTRINE_DIR / "tactics" / "shipped"], "*.tactic.yaml"):
         tactic = _load_yaml(tactic_path)
         tactic_id = tactic.get("id")
         if isinstance(tactic_id, str) and tactic_id:
@@ -92,9 +90,7 @@ def tactic_ids() -> set[str]:
 
 @pytest.mark.parametrize(
     "directive_path",
-    _multi_glob(
-        [DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"
-    ),
+    _multi_glob([DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )
 def test_directive_has_no_inline_tactic_refs(directive_path: Path) -> None:
@@ -114,9 +110,7 @@ def test_directive_has_no_inline_tactic_refs(directive_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "toolguide_path",
-    _multi_glob(
-        [DOCTRINE_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"
-    ),
+    _multi_glob([DOCTRINE_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )
 def test_toolguide_guide_path_exists(toolguide_path: Path) -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def normalize_languages(values: Iterable[str] | None) -> tuple[str, ...]:

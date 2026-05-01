@@ -120,9 +120,7 @@ class TestGetMissionId:
     def test_returns_none_if_mission_id_key_absent(self, tmp_path: Path) -> None:
         mission_dir = tmp_path / "kitty-specs" / "slug-no-id"
         mission_dir.mkdir(parents=True, exist_ok=True)
-        (mission_dir / "meta.json").write_text(
-            json.dumps({"mission_slug": "slug-no-id"}), encoding="utf-8"
-        )
+        (mission_dir / "meta.json").write_text(json.dumps({"mission_slug": "slug-no-id"}), encoding="utf-8")
         result = _get_mission_id(tmp_path, "slug-no-id")
         assert result is None
 

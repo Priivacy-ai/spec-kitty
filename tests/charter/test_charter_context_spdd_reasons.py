@@ -49,13 +49,7 @@ def _write_directives(tmp_path: Path, body: str) -> Path:
 
 
 def _empty_governance() -> str:
-    return (
-        "doctrine:\n"
-        "  selected_paradigms: []\n"
-        "  selected_directives: []\n"
-        "  available_tools: []\n"
-        "  template_set: software-dev-default\n"
-    )
+    return "doctrine:\n  selected_paradigms: []\n  selected_directives: []\n  available_tools: []\n  template_set: software-dev-default\n"
 
 
 # ---------------------------------------------------------------------------
@@ -77,18 +71,11 @@ class TestActivation:
     def test_unrelated_directives_returns_false(self, tmp_path: Path) -> None:
         _write_governance(
             tmp_path,
-            "doctrine:\n"
-            "  selected_paradigms: []\n"
-            "  selected_directives:\n"
-            "    - DIRECTIVE_001\n"
-            "    - DIRECTIVE_024\n"
-            "  available_tools: []\n",
+            "doctrine:\n  selected_paradigms: []\n  selected_directives:\n    - DIRECTIVE_001\n    - DIRECTIVE_024\n  available_tools: []\n",
         )
         _write_directives(
             tmp_path,
-            "directives:\n"
-            "  - id: DIRECTIVE_001\n"
-            "    title: Some other directive\n",
+            "directives:\n  - id: DIRECTIVE_001\n    title: Some other directive\n",
         )
         assert is_spdd_reasons_active(tmp_path) is False
 
@@ -96,11 +83,7 @@ class TestActivation:
     def test_paradigm_selected_returns_true(self, tmp_path: Path) -> None:
         _write_governance(
             tmp_path,
-            "doctrine:\n"
-            "  selected_paradigms:\n"
-            "    - structured-prompt-driven-development\n"
-            "  selected_directives: []\n"
-            "  available_tools: []\n",
+            "doctrine:\n  selected_paradigms:\n    - structured-prompt-driven-development\n  selected_directives: []\n  available_tools: []\n",
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
@@ -108,12 +91,7 @@ class TestActivation:
     def test_only_tactic_fill_returns_true(self, tmp_path: Path) -> None:
         _write_governance(
             tmp_path,
-            "doctrine:\n"
-            "  selected_paradigms: []\n"
-            "  selected_directives: []\n"
-            "  selected_tactics:\n"
-            "    - reasons-canvas-fill\n"
-            "  available_tools: []\n",
+            "doctrine:\n  selected_paradigms: []\n  selected_directives: []\n  selected_tactics:\n    - reasons-canvas-fill\n  available_tools: []\n",
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
@@ -121,12 +99,7 @@ class TestActivation:
     def test_only_tactic_review_returns_true(self, tmp_path: Path) -> None:
         _write_governance(
             tmp_path,
-            "doctrine:\n"
-            "  selected_paradigms: []\n"
-            "  selected_directives: []\n"
-            "  selected_tactics:\n"
-            "    - reasons-canvas-review\n"
-            "  available_tools: []\n",
+            "doctrine:\n  selected_paradigms: []\n  selected_directives: []\n  selected_tactics:\n    - reasons-canvas-review\n  available_tools: []\n",
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
@@ -134,11 +107,7 @@ class TestActivation:
     def test_only_directive_038_returns_true(self, tmp_path: Path) -> None:
         _write_governance(
             tmp_path,
-            "doctrine:\n"
-            "  selected_paradigms: []\n"
-            "  selected_directives:\n"
-            "    - DIRECTIVE_038\n"
-            "  available_tools: []\n",
+            "doctrine:\n  selected_paradigms: []\n  selected_directives:\n    - DIRECTIVE_038\n  available_tools: []\n",
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
@@ -147,9 +116,7 @@ class TestActivation:
         _write_governance(tmp_path, _empty_governance())
         _write_directives(
             tmp_path,
-            "directives:\n"
-            "  - id: DIRECTIVE_038\n"
-            "    title: Structured Prompt Boundary\n",
+            "directives:\n  - id: DIRECTIVE_038\n    title: Structured Prompt Boundary\n",
         )
         assert is_spdd_reasons_active(tmp_path) is True
 
@@ -195,10 +162,7 @@ class TestCharterContextInactive:
             if is_spdd_reasons_active(Path(td)):
                 append_spdd_reasons_guidance(lines, "demo-mission", action)
 
-        assert lines == baseline, (
-            f"inactive baseline must not gain SPDD/REASONS lines for action={action}; "
-            f"got: {lines!r}"
-        )
+        assert lines == baseline, f"inactive baseline must not gain SPDD/REASONS lines for action={action}; got: {lines!r}"
         assert "SPDD/REASONS Guidance" not in "\n".join(lines)
 
 
@@ -290,11 +254,7 @@ class TestCharterContextActive:
         # algorithmic regressions (e.g. someone adding a YAML round-trip).
         _write_governance(
             tmp_path,
-            "doctrine:\n"
-            "  selected_paradigms:\n"
-            "    - structured-prompt-driven-development\n"
-            "  selected_directives: []\n"
-            "  available_tools: []\n",
+            "doctrine:\n  selected_paradigms:\n    - structured-prompt-driven-development\n  selected_directives: []\n  available_tools: []\n",
         )
         clear_activation_cache()
 
@@ -362,9 +322,7 @@ class TestSelectedTacticsRoundTrip:
     def setup_method(self) -> None:
         clear_activation_cache()
 
-    def test_tactic_only_selection_round_trips_to_governance_and_activates(
-        self, tmp_path: Path
-    ) -> None:
+    def test_tactic_only_selection_round_trips_to_governance_and_activates(self, tmp_path: Path) -> None:
         from charter.compiler import compile_charter
         from charter.extractor import Extractor
         from charter.interview import default_interview, apply_answer_overrides

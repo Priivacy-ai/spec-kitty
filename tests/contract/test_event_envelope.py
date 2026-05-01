@@ -9,9 +9,7 @@ Run: python -m pytest tests/contract/test_event_envelope.py -v
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 
 def _make_emitter():

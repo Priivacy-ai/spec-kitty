@@ -127,9 +127,7 @@ def test_missing_mission_binding(
 # 5. HOST_UNREACHABLE (port 1 should be unreachable)
 # ---------------------------------------------------------------------------
 
-_HOST_UNREACHABLE_MESSAGE = (
-    "The configured SaaS host did not respond within 2 seconds."
-)
+_HOST_UNREACHABLE_MESSAGE = "The configured SaaS host did not respond within 2 seconds."
 
 
 @pytest.mark.timeout(5)

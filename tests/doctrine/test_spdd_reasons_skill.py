@@ -16,9 +16,7 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-SKILL_PATH = (
-    DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-spdd-reasons" / "SKILL.md"
-)
+SKILL_PATH = DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-spdd-reasons" / "SKILL.md"
 
 FR_010_TRIGGERS = [
     "use SPDD",
@@ -72,6 +70,4 @@ def test_skill_body_warns_about_three_does_not_rules() -> None:
     # 2. No overwrite of user-authored content.
     assert "overwrite" in body, "must warn against overwriting user content"
     # 3. No silent enforcement on non-opted-in projects.
-    assert "silently enforce" in body or "silent" in body, (
-        "must warn against silent enforcement when charter has not opted in"
-    )
+    assert "silently enforce" in body or "silent" in body, "must warn against silent enforcement when charter has not opted in"

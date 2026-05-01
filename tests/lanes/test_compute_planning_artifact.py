@@ -35,9 +35,7 @@ class TestPlanningArtifactWPsIncludedInLanes:
         }
         result = compute_lanes(graph, manifests, "079-test")
         lane_ids = [lane.lane_id for lane in result.lanes]
-        assert PLANNING_LANE_ID in lane_ids, (
-            f"Expected lane-planning in {lane_ids!r} but it was absent"
-        )
+        assert PLANNING_LANE_ID in lane_ids, f"Expected lane-planning in {lane_ids!r} but it was absent"
         planning_lane = next(l for l in result.lanes if l.lane_id == PLANNING_LANE_ID)
         assert "WP02" in planning_lane.wp_ids
 
@@ -66,9 +64,7 @@ class TestPlanningLaneHasCanonicalId:
             "WP02": _manifest(["kitty-specs/**"], mode="planning_artifact"),
         }
         result = compute_lanes(graph, manifests, "079-test")
-        planning_lane = next(
-            (l for l in result.lanes if "WP02" in l.wp_ids), None
-        )
+        planning_lane = next((l for l in result.lanes if "WP02" in l.wp_ids), None)
         assert planning_lane is not None, "WP02 not found in any lane"
         assert planning_lane.lane_id == "lane-planning"
         assert planning_lane.lane_id == PLANNING_LANE_ID

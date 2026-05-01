@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from specify_cli.ownership.inference import (
     SRC_FALLBACK_GLOB,
@@ -37,10 +36,7 @@ class TestInferExecutionMode:
         assert mode == ExecutionMode.CODE_CHANGE
 
     def test_kitty_specs_only_implies_planning_artifact(self) -> None:
-        content = (
-            "Update kitty-specs/057-feature/spec.md with FR-004 and FR-005. "
-            "Also update kitty-specs/057-feature/plan.md."
-        )
+        content = "Update kitty-specs/057-feature/spec.md with FR-004 and FR-005. Also update kitty-specs/057-feature/plan.md."
         mode = infer_execution_mode(content, [])
         assert mode == ExecutionMode.PLANNING_ARTIFACT
 
@@ -85,10 +81,7 @@ class TestInferOwnedFiles:
         assert warnings == []
 
     def test_code_change_extracts_src_paths(self) -> None:
-        content = (
-            "Create src/specify_cli/ownership/__init__.py\n"
-            "Create src/specify_cli/ownership/models.py\n"
-        )
+        content = "Create src/specify_cli/ownership/__init__.py\nCreate src/specify_cli/ownership/models.py\n"
         globs, warnings = infer_owned_files(content, "057-feature")
         assert any("src/" in g for g in globs)
         assert warnings == []
@@ -108,10 +101,7 @@ class TestInferOwnedFiles:
         assert "src/**" in warnings[0]
 
     def test_deduplicates_results(self) -> None:
-        content = (
-            "Create src/specify_cli/foo.py\n"
-            "Create src/specify_cli/bar.py\n"
-        )
+        content = "Create src/specify_cli/foo.py\nCreate src/specify_cli/bar.py\n"
         globs, _warnings = infer_owned_files(content, "057-feature")
         assert len(globs) == len(set(globs))
 
@@ -127,17 +117,21 @@ class TestInferAuthoritativeSurface:
         assert surface == "src/specify_cli/ownership/"
 
     def test_common_prefix_shared_paths(self) -> None:
-        surface = infer_authoritative_surface([
-            "src/specify_cli/ownership/**",
-            "src/specify_cli/ownership/models.py",
-        ])
+        surface = infer_authoritative_surface(
+            [
+                "src/specify_cli/ownership/**",
+                "src/specify_cli/ownership/models.py",
+            ]
+        )
         assert "src/specify_cli/ownership" in surface
 
     def test_divergent_paths_shorter_common(self) -> None:
-        surface = infer_authoritative_surface([
-            "src/specify_cli/alpha/**",
-            "src/specify_cli/beta/**",
-        ])
+        surface = infer_authoritative_surface(
+            [
+                "src/specify_cli/alpha/**",
+                "src/specify_cli/beta/**",
+            ]
+        )
         assert surface.startswith("src/specify_cli/")
 
     def test_empty_list_returns_empty_string(self) -> None:

@@ -186,9 +186,7 @@ class TestCleanRemediation:
                 text=True,
                 check=True,
             )
-            assert porcelain.stdout.strip() == "", (
-                f"fixture left {target} dirty: {porcelain.stdout!r}"
-            )
+            assert porcelain.stdout.strip() == "", f"fixture left {target} dirty: {porcelain.stdout!r}"
 
         report = scan_repo(repo)
         # At minimum, primary + 2 worktrees present.
@@ -300,9 +298,7 @@ class TestDirtyRefusal:
 
 
 class TestInteractiveConfirm:
-    def test_confirm_declines_one_worktree_other_paths_proceed(
-        self, tmp_path: Path
-    ) -> None:
+    def test_confirm_declines_one_worktree_other_paths_proceed(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_repo_with_commit(repo)
 
@@ -328,9 +324,7 @@ class TestInteractiveConfirm:
         assert result.primary_result.success is True
 
         # Look up lane-a's result and assert it was user-declined.
-        decline_result = next(
-            wr for wr in result.worktree_results if wr.path == wt_a
-        )
+        decline_result = next(wr for wr in result.worktree_results if wr.path == wt_a)
         assert decline_result.success is False
         assert decline_result.error_step == STEP_USER_DECLINED
         assert decline_result.steps_completed == ()
@@ -365,9 +359,7 @@ class TestInteractiveConfirm:
 
 
 class TestStepFailures:
-    def test_sparse_disable_fails_on_one_worktree(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sparse_disable_fails_on_one_worktree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Simulate ``git sparse-checkout disable`` failing in a specific worktree.
 
         We intercept the subprocess layer at the remediation module level. Only
@@ -403,16 +395,10 @@ class TestStepFailures:
 
         real_run = subprocess.run
 
-        def _fake_run(
-            cmd: list[str], *args: object, **kwargs: object
-        ) -> subprocess.CompletedProcess[str]:
+        def _fake_run(cmd: list[str], *args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
             cwd = kwargs.get("cwd")
             # Only fail on 'git sparse-checkout disable' issued against wt_a.
-            if (
-                isinstance(cmd, list)
-                and cmd[:3] == ["git", "sparse-checkout", "disable"]
-                and cwd == str(wt_a)
-            ):
+            if isinstance(cmd, list) and cmd[:3] == ["git", "sparse-checkout", "disable"] and cwd == str(wt_a):
                 return subprocess.CompletedProcess(
                     args=cmd,
                     returncode=1,
@@ -438,9 +424,7 @@ class TestStepFailures:
         b_result = next(wr for wr in result.worktree_results if wr.path == wt_b)
         assert b_result.success is True
 
-    def test_verify_clean_fails_after_refresh(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_verify_clean_fails_after_refresh(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Force ``git status --porcelain`` to report changes after step 4.
 
         This simulates the edge case where git's post-checkout working tree is
@@ -460,9 +444,7 @@ class TestStepFailures:
         # poison the final verify. Track calls per (cmd, cwd) pair.
         status_call_count = {"n": 0}
 
-        def _fake_run(
-            cmd: list[str], *args: object, **kwargs: object
-        ) -> subprocess.CompletedProcess[str]:
+        def _fake_run(cmd: list[str], *args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
             if isinstance(cmd, list) and cmd[:3] == ["git", "status", "--porcelain"]:
                 status_call_count["n"] += 1
                 # First call is the pre-check — return clean.
@@ -522,18 +504,12 @@ class TestReportProperties:
             error_detail="nope",
             dirty_before_remediation=False,
         )
-        both_good = SparseCheckoutRemediationReport(
-            primary_result=primary, worktree_results=(wt_ok,)
-        )
-        mixed = SparseCheckoutRemediationReport(
-            primary_result=primary, worktree_results=(wt_ok, wt_bad)
-        )
+        both_good = SparseCheckoutRemediationReport(primary_result=primary, worktree_results=(wt_ok,))
+        mixed = SparseCheckoutRemediationReport(primary_result=primary, worktree_results=(wt_ok, wt_bad))
         assert both_good.overall_success is True
         assert mixed.overall_success is False
 
-    def test_scan_report_with_inactive_primary_still_remediated_noop(
-        self, tmp_path: Path
-    ) -> None:
+    def test_scan_report_with_inactive_primary_still_remediated_noop(self, tmp_path: Path) -> None:
         """Primary that is already clean still runs the five steps as no-ops."""
         repo = tmp_path / "r"
         _init_repo_with_commit(repo)
@@ -555,9 +531,7 @@ class TestReportProperties:
 
 
 class TestContainment:
-    def test_remediation_never_touches_paths_outside_scan_report(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_remediation_never_touches_paths_outside_scan_report(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo = tmp_path / "r"
         _init_repo_with_commit(repo)
         _enable_sparse_with_pattern(repo, ["README.md"])

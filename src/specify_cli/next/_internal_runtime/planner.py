@@ -150,7 +150,7 @@ def plan_next(
         # Derive input_key from decision_id prefix for input-keyed decisions.
         input_key: str | None = None
         if req.decision_id.startswith("input:"):
-            input_key = req.decision_id[len("input:"):]
+            input_key = req.decision_id[len("input:") :]
         return NextDecision(
             kind="decision_required",
             run_id=snapshot.run_id,
@@ -221,11 +221,7 @@ def plan_next(
 
     # --- PromptStep handling ---
     # Check for missing required inputs -> emit input-keyed decision.
-    missing_inputs = [
-        required
-        for required in step.requires_inputs
-        if required not in snapshot.inputs and required not in snapshot.decisions
-    ]
+    missing_inputs = [required for required in step.requires_inputs if required not in snapshot.inputs and required not in snapshot.decisions]
     if missing_inputs:
         missing = missing_inputs[0]
         decision_id = f"input:{missing}"

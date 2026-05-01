@@ -88,11 +88,7 @@ def _has_substantive_fr_row(body: str) -> bool:
                 return True
 
     # Bullet-form rows: - **FR-###**: <description>
-    return any(
-        _is_substantive_text(desc)
-        for line in body.splitlines()
-        if (desc := _extract_fr_bullet_description(line)) is not None
-    )
+    return any(_is_substantive_text(desc) for line in body.splitlines() if (desc := _extract_fr_bullet_description(line)) is not None)
 
 
 def _extract_fr_bullet_description(line: str) -> str | None:

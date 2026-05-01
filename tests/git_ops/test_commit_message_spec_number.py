@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 pytestmark = pytest.mark.fast
 
+
 def test_spec_number_extraction():
     """Verify spec number extraction from various feature slug formats."""
     test_cases = [

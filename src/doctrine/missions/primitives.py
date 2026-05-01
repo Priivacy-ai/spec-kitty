@@ -137,9 +137,7 @@ class PrimitiveExecutionContext:
         """
         # Step metadata (highest precedence)
         if "glossary_check" in self.metadata:
-            result = self._glossary_enabled_from_metadata(
-                self.metadata["glossary_check"]
-            )
+            result = self._glossary_enabled_from_metadata(self.metadata["glossary_check"])
             if result is not None:
                 return result
 

@@ -25,15 +25,12 @@ def test_implement_declares_acknowledge_flag() -> None:
 
     sig = inspect.signature(implement_fn)
     assert "acknowledge_not_bulk_edit" in sig.parameters, (
-        "implement() must declare an 'acknowledge_not_bulk_edit' parameter "
-        "so the --acknowledge-not-bulk-edit CLI option stays wired."
+        "implement() must declare an 'acknowledge_not_bulk_edit' parameter so the --acknowledge-not-bulk-edit CLI option stays wired."
     )
 
     param = sig.parameters["acknowledge_not_bulk_edit"]
     # Default must be False so the warning fires unless explicitly suppressed.
-    assert param.default is False or (
-        hasattr(param.default, "default") and param.default.default is False
-    ), "acknowledge_not_bulk_edit must default to False"
+    assert param.default is False or (hasattr(param.default, "default") and param.default.default is False), "acknowledge_not_bulk_edit must default to False"
 
 
 def test_implement_help_advertises_acknowledge_flag() -> None:
@@ -57,18 +54,13 @@ def test_implement_help_advertises_acknowledge_flag() -> None:
     assert result.exit_code == 0, f"help invocation failed: {result.output}"
     # Accept either the full flag or its distinctive prefix (Rich may still
     # truncate on very narrow widths; the prefix is unique enough).
-    assert (
-        "--acknowledge-not-bulk-edit" in result.output
-        or "--acknowledge-not-bulk" in result.output
-    ), (
-        "CLI help must advertise --acknowledge-not-bulk-edit so users can "
-        "discover it; current output:\n" + result.output
+    assert "--acknowledge-not-bulk-edit" in result.output or "--acknowledge-not-bulk" in result.output, (
+        "CLI help must advertise --acknowledge-not-bulk-edit so users can discover it; current output:\n" + result.output
     )
     # The option's help string should be present so users know what it does.
     normalized_help = " ".join(result.output.lower().split())
     assert "inference" in normalized_help and "warning" in normalized_help, (
-        "Help text for --acknowledge-not-bulk-edit must describe the "
-        "inference-warning suppression behavior; current output:\n" + result.output
+        "Help text for --acknowledge-not-bulk-edit must describe the inference-warning suppression behavior; current output:\n" + result.output
     )
 
 
@@ -78,15 +70,10 @@ def test_agent_action_implement_help_advertises_acknowledge_flag() -> None:
     result = runner.invoke(agent_action_app, ["implement", "--help"], terminal_width=200)
 
     assert result.exit_code == 0, f"help invocation failed: {result.output}"
-    assert (
-        "--acknowledge-not-bulk-edit" in result.output
-        or "--acknowledge-not-bulk" in result.output
-    ), (
-        "agent action implement help must advertise --acknowledge-not-bulk-edit; "
-        "current output:\n" + result.output
+    assert "--acknowledge-not-bulk-edit" in result.output or "--acknowledge-not-bulk" in result.output, (
+        "agent action implement help must advertise --acknowledge-not-bulk-edit; current output:\n" + result.output
     )
     normalized_help = " ".join(result.output.lower().split())
     assert "inference" in normalized_help and "warning" in normalized_help, (
-        "Wrapper help text for --acknowledge-not-bulk-edit must describe the "
-        "inference-warning suppression behavior; current output:\n" + result.output
+        "Wrapper help text for --acknowledge-not-bulk-edit must describe the inference-warning suppression behavior; current output:\n" + result.output
     )

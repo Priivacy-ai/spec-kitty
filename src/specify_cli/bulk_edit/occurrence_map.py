@@ -51,12 +51,7 @@ def template_path() -> Path:
         return Path(str(resource))
     except (ModuleNotFoundError, TypeError):
         # Development fallback for non-resource contexts.
-        return (
-            Path(__file__).resolve().parents[2]
-            / "doctrine"
-            / "templates"
-            / TEMPLATE_FILENAME
-        )
+        return Path(__file__).resolve().parents[2] / "doctrine" / "templates" / TEMPLATE_FILENAME
 
 
 def load_template_text() -> str:
@@ -87,9 +82,7 @@ def _valid_operations() -> frozenset[str]:
 
 @cache
 def _standard_categories() -> frozenset[str]:
-    return frozenset(
-        _schema_definitions().get("standard_category", {}).get("enum", [])
-    )
+    return frozenset(_schema_definitions().get("standard_category", {}).get("enum", []))
 
 
 # The 8 standard occurrence categories required by FR-004 — sourced from the
@@ -100,15 +93,11 @@ VALID_ACTIONS: frozenset[str] = _valid_actions()
 VALID_OPERATIONS: frozenset[str] = _valid_operations()
 STANDARD_CATEGORIES: frozenset[str] = _standard_categories()
 
-PLACEHOLDER_TERMS: frozenset[str] = frozenset(
-    {"TODO", "TBD", "FIXME", "XXX", "PLACEHOLDER", ""}
-)
+PLACEHOLDER_TERMS: frozenset[str] = frozenset({"TODO", "TBD", "FIXME", "XXX", "PLACEHOLDER", ""})
 
 MIN_ADMISSIBLE_CATEGORIES: int = 3
 
-_KNOWN_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
-    {"target", "categories", "exceptions", "status"}
-)
+_KNOWN_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"target", "categories", "exceptions", "status"})
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -209,10 +198,7 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
 
             operation = target.get("operation")
             if operation is not None and operation not in VALID_OPERATIONS:
-                errors.append(
-                    f"Invalid target.operation '{operation}'; "
-                    f"must be one of {sorted(VALID_OPERATIONS)}"
-                )
+                errors.append(f"Invalid target.operation '{operation}'; must be one of {sorted(VALID_OPERATIONS)}")
 
     # --- categories section ---
     if "categories" not in omap.raw:
@@ -224,20 +210,13 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
         else:
             for cat_name, cat_value in cats.items():
                 if not isinstance(cat_value, dict):
-                    errors.append(
-                        f"Category '{cat_name}' must be a mapping"
-                    )
+                    errors.append(f"Category '{cat_name}' must be a mapping")
                     continue
                 action = cat_value.get("action")
                 if action is None:
-                    errors.append(
-                        f"Category '{cat_name}' missing required 'action' key"
-                    )
+                    errors.append(f"Category '{cat_name}' missing required 'action' key")
                 elif action not in VALID_ACTIONS:
-                    errors.append(
-                        f"Category '{cat_name}' has invalid action '{action}'; "
-                        f"must be one of {sorted(VALID_ACTIONS)}"
-                    )
+                    errors.append(f"Category '{cat_name}' has invalid action '{action}'; must be one of {sorted(VALID_ACTIONS)}")
 
     # --- unknown top-level keys ---
     for key in omap.raw:
@@ -291,17 +270,11 @@ def check_admissibility(omap: OccurrenceMap) -> ValidationResult:
 
     term = omap.target_term.strip()
     if term.upper() in {p.upper() for p in PLACEHOLDER_TERMS}:
-        errors.append(
-            f"target.term '{omap.target_term}' is a placeholder; "
-            "provide a real term before execution"
-        )
+        errors.append(f"target.term '{omap.target_term}' is a placeholder; provide a real term before execution")
 
     num_categories = len(omap.categories)
     if num_categories < MIN_ADMISSIBLE_CATEGORIES:
-        errors.append(
-            f"Need at least {MIN_ADMISSIBLE_CATEGORIES} categories, "
-            f"got {num_categories}"
-        )
+        errors.append(f"Need at least {MIN_ADMISSIBLE_CATEGORIES} categories, got {num_categories}")
 
     # FR-004: every standard category must be explicitly classified.
     missing = sorted(STANDARD_CATEGORIES - set(omap.categories.keys()))

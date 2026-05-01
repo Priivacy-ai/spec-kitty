@@ -17,6 +17,7 @@ from specify_cli.sync.namespace import (
 
 pytestmark = pytest.mark.fast
 
+
 def _make_namespace() -> NamespaceRef:
     return NamespaceRef(
         project_uuid="550e8400-e29b-41d4-a716-446655440000",
@@ -73,19 +74,27 @@ def _write_feature_file(feature_dir: Path, relative_path: str, content: str) -> 
 class TestDossierSyncResult:
     def test_success_true_when_dossier_and_no_errors(self) -> None:
         result = DossierSyncResult(
-            dossier=_make_dossier(), events_emitted=1, body_outcomes=[], errors=[],
+            dossier=_make_dossier(),
+            events_emitted=1,
+            body_outcomes=[],
+            errors=[],
         )
         assert result.success is True
 
     def test_success_false_when_no_dossier(self) -> None:
         result = DossierSyncResult(
-            dossier=None, events_emitted=0, body_outcomes=[], errors=["failed"],
+            dossier=None,
+            events_emitted=0,
+            body_outcomes=[],
+            errors=["failed"],
         )
         assert result.success is False
 
     def test_success_false_when_errors(self) -> None:
         result = DossierSyncResult(
-            dossier=_make_dossier(), events_emitted=0, body_outcomes=[],
+            dossier=_make_dossier(),
+            events_emitted=0,
+            body_outcomes=[],
             errors=["body_upload_preparation_failed: boom"],
         )
         assert result.success is False
@@ -122,8 +131,10 @@ class TestSyncFeatureDossier:
         }
         mock_prepare.return_value = [
             UploadOutcome(
-                artifact_path="spec.md", status=UploadStatus.QUEUED,
-                reason="enqueued", content_hash=artifact.content_hash_sha256,
+                artifact_path="spec.md",
+                status=UploadStatus.QUEUED,
+                reason="enqueued",
+                content_hash=artifact.content_hash_sha256,
             ),
         ]
 
@@ -350,11 +361,14 @@ class TestSyncFeatureDossier:
         }
         mock_prepare.return_value = [
             UploadOutcome(
-                artifact_path="spec.md", status=UploadStatus.QUEUED,
-                reason="enqueued", content_hash=a1.content_hash_sha256,
+                artifact_path="spec.md",
+                status=UploadStatus.QUEUED,
+                reason="enqueued",
+                content_hash=a1.content_hash_sha256,
             ),
             UploadOutcome(
-                artifact_path="tasks/WP01.md", status=UploadStatus.SKIPPED,
+                artifact_path="tasks/WP01.md",
+                status=UploadStatus.SKIPPED,
                 reason="unsupported_format: .png",
             ),
         ]
@@ -390,11 +404,17 @@ class TestSyncFeatureDossier:
         ns = _make_namespace()
         queue = MagicMock()
         sync_feature_dossier(
-            tmp_path, ns, queue, mission_type="documentation", step_id="plan",
+            tmp_path,
+            ns,
+            queue,
+            mission_type="documentation",
+            step_id="plan",
         )
 
         mock_indexer.index_feature.assert_called_once_with(
-            tmp_path, "documentation", "plan",
+            tmp_path,
+            "documentation",
+            "plan",
         )
 
     def test_passes_correct_args_to_prepare(
@@ -474,7 +494,6 @@ class TestSyncFeatureDossier:
         from uuid import UUID
 
         from specify_cli.sync.project_identity import ProjectIdentity
-
 
         artifact = _make_artifact("spec.md")
         dossier = _make_dossier([artifact])

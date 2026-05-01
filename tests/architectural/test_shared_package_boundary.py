@@ -27,6 +27,7 @@ See ADR 2026-03-27-1 for the pytestarch infrastructure rationale, and
 ``tests/architectural/test_layer_rules.py`` for the canonical layer-rule
 patterns used here.
 """
+
 from __future__ import annotations
 
 import ast
@@ -50,9 +51,7 @@ _PRODUCTION_PACKAGE_REGEX = r"^src\.(specify_cli|charter|doctrine|kernel)(\..*)?
 # Historical exclusion regex retained for reference only: the vendored tree
 # under ``src/specify_cli/spec_kitty_events/`` was deleted in WP05, so the
 # subtree-suppression term in the regex is now a no-op (no files match).
-_PRODUCTION_OUTSIDE_VENDORED_EVENTS_REGEX = (
-    r"^src\.(charter|doctrine|kernel|specify_cli(?!\.spec_kitty_events)(\..*)?)$"
-)
+_PRODUCTION_OUTSIDE_VENDORED_EVENTS_REGEX = r"^src\.(charter|doctrine|kernel|specify_cli(?!\.spec_kitty_events)(\..*)?)$"
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +103,7 @@ class TestNoProductionImportsOfSpecKittyRuntime:
         )
         assert not offenders, (
             "Production modules import the retired spec_kitty_runtime PyPI "
-            f"surface (R1 / C-001 violation):\n  - "
+            "surface (R1 / C-001 violation):\n  - "
             + "\n  - ".join(f"{path}:{lineno} -> {target}" for path, lineno, target in offenders)
             + "\nUse src/specify_cli/next/_internal_runtime/ instead."
         )
@@ -191,15 +190,10 @@ class TestNoProductionImportsOfVendoredEvents:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Import):
                         for alias in node.names:
-                            if _matches_dotted_prefix(
-                                alias.name, "specify_cli.spec_kitty_events"
-                            ):
+                            if _matches_dotted_prefix(alias.name, "specify_cli.spec_kitty_events"):
                                 offenders.append((str(py_file), node.lineno, alias.name))
-                    elif isinstance(node, ast.ImportFrom):
-                        if node.module and _matches_dotted_prefix(
-                            node.module, "specify_cli.spec_kitty_events"
-                        ):
-                            offenders.append((str(py_file), node.lineno, node.module))
+                    elif isinstance(node, ast.ImportFrom) and node.module and _matches_dotted_prefix(node.module, "specify_cli.spec_kitty_events"):
+                        offenders.append((str(py_file), node.lineno, node.module))
 
         assert not offenders, (
             "Production modules outside the vendored events tree import "
@@ -342,9 +336,8 @@ def _ast_scan_for_imports(
                     for alias in node.names:
                         if _matches_dotted_prefix(alias.name, forbidden_prefix):
                             offenders.append((str(py_file), node.lineno, alias.name))
-                elif isinstance(node, ast.ImportFrom):
-                    if node.module and _matches_dotted_prefix(node.module, forbidden_prefix):
-                        offenders.append((str(py_file), node.lineno, node.module))
+                elif isinstance(node, ast.ImportFrom) and node.module and _matches_dotted_prefix(node.module, forbidden_prefix):
+                    offenders.append((str(py_file), node.lineno, node.module))
     return offenders
 
 

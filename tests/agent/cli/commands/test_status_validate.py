@@ -94,9 +94,7 @@ def _setup_feature(
     # Write events file
     if events:
         lines = [json.dumps(e, sort_keys=True) for e in events]
-        (feature_dir / "status.events.jsonl").write_text(
-            "\n".join(lines) + "\n", encoding="utf-8"
-        )
+        (feature_dir / "status.events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
         # Materialize snapshot
         if materialize:
@@ -222,7 +220,6 @@ class TestValidateCommand:
         result = runner.invoke(app, ["validate", "--mission", mission_slug])
         assert result.exit_code == 1
 
-
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
     def test_validate_json_output(
@@ -250,9 +247,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(
-            app, ["validate", "--mission", mission_slug, "--json"]
-        )
+        result = runner.invoke(app, ["validate", "--mission", mission_slug, "--json"])
         assert result.exit_code == 0
 
         data = _extract_json(result.output)
@@ -290,9 +285,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(
-            app, ["validate", "--mission", mission_slug, "--json"]
-        )
+        result = runner.invoke(app, ["validate", "--mission", mission_slug, "--json"])
         assert result.exit_code == 1
 
         data = _extract_json(result.output)
@@ -343,9 +336,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(
-            app, ["validate", "--mission", mission_slug, "--json"]
-        )
+        result = runner.invoke(app, ["validate", "--mission", mission_slug, "--json"])
         assert result.exit_code == 0
         data = _extract_json(result.output)
         assert data["passed"] is True

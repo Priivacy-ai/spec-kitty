@@ -58,11 +58,7 @@ def _make_session(
     expired: bool = True,
 ) -> StoredSession:
     now = datetime.now(UTC)
-    access_exp = (
-        now - timedelta(seconds=1)
-        if expired
-        else now + timedelta(seconds=900)
-    )
+    access_exp = now - timedelta(seconds=1) if expired else now + timedelta(seconds=900)
     return StoredSession(
         user_id="user_seed",
         email="seed@example.com",
@@ -96,10 +92,7 @@ class _RotateOnceFlow:
 
     async def refresh(self, session: StoredSession) -> StoredSession:
         if session.refresh_token == "rt_seed_v1" and _RotateOnceFlow.rotated:
-            raise RefreshTokenExpiredError(
-                "Refresh token is invalid or expired. "
-                "Run `spec-kitty auth login` again."
-            )
+            raise RefreshTokenExpiredError("Refresh token is invalid or expired. Run `spec-kitty auth login` again.")
         if session.refresh_token == "rt_seed_v1":
             _RotateOnceFlow.rotated = True
             now = datetime.now(UTC)
@@ -151,24 +144,17 @@ class _AlwaysRejectFlow:
     """
 
     async def refresh(self, session: StoredSession) -> StoredSession:
-        raise RefreshTokenExpiredError(
-            "Refresh token is invalid or expired. "
-            "Run `spec-kitty auth login` again."
-        )
+        raise RefreshTokenExpiredError("Refresh token is invalid or expired. Run `spec-kitty auth login` again.")
 
 
-def _install_flow(
-    monkeypatch: pytest.MonkeyPatch, flow_cls: type[object]
-) -> None:
+def _install_flow(monkeypatch: pytest.MonkeyPatch, flow_cls: type[object]) -> None:
     """Install ``flow_cls`` as ``TokenRefreshFlow`` in ``sys.modules``."""
     flows_pkg = types.ModuleType("specify_cli.auth.flows")
     flows_pkg.__path__ = []
     refresh_module = types.ModuleType("specify_cli.auth.flows.refresh")
     refresh_module.TokenRefreshFlow = flow_cls  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(
-        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
-    )
+    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
 
 
 def _build_token_manager(auth_store_root: Path) -> TokenManager:
@@ -240,9 +226,7 @@ async def test_stale_rejection_preserves_session(
 
     # 4. tm_b's session is now the rotated material — NOT cleared.
     b_after = tm_b.get_current_session()
-    assert b_after is not None, (
-        "FR-006 regression: stale-grant rejection cleared the local session"
-    )
+    assert b_after is not None, "FR-006 regression: stale-grant rejection cleared the local session"
     assert b_after.refresh_token == "rt_rotated_v2"
     assert b_after.access_token == "at_rotated_v2"
 
@@ -299,10 +283,7 @@ async def test_current_rejection_clears_with_message(
     # Exactly one outcome line was logged and it identifies the
     # current-rejection clear branch.
     outcomes = [
-        record.message
-        for record in caplog.records
-        if record.name == "specify_cli.auth.token_manager"
-        and record.message.startswith("refresh_transaction outcome=")
+        record.message for record in caplog.records if record.name == "specify_cli.auth.token_manager" and record.message.startswith("refresh_transaction outcome=")
     ]
     assert len(outcomes) == 1
     assert "current_rejection_cleared" in outcomes[0]
@@ -394,9 +375,7 @@ async def test_replay_newer_persisted_retries_and_refreshes(
                 storage.write(repersisted)
                 raise RefreshReplayError(retry_after=0)
             # Second call (with repersisted): succeed
-            assert session.refresh_token == "fresh_token", (
-                f"Second call must use repersisted token, got {session.refresh_token!r}"
-            )
+            assert session.refresh_token == "fresh_token", f"Second call must use repersisted token, got {session.refresh_token!r}"
             return refreshed
 
     result = await run_refresh_transaction(
@@ -556,13 +535,9 @@ async def test_replay_spent_token_never_resubmitted(
     # The first call used the persisted (spent) token — that's expected
     assert calls[0] == "spent"
     # The second call MUST use the fresh (repersisted) token — NEVER the spent one
-    assert calls[1] == "fresh", (
-        f"Second call must use repersisted token 'fresh', got {calls[1]!r}"
-    )
+    assert calls[1] == "fresh", f"Second call must use repersisted token 'fresh', got {calls[1]!r}"
     # No call after the 409 used the spent token
-    assert "spent" not in calls[1:], (
-        "Spent token was re-submitted after the 409 replay"
-    )
+    assert "spent" not in calls[1:], "Spent token was re-submitted after the 409 replay"
 
 
 @pytest.mark.asyncio

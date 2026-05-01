@@ -21,6 +21,7 @@ from specify_cli.sync.namespace import UploadStatus
 
 pytestmark = pytest.mark.fast
 
+
 @dataclass
 class FakeTask:
     """Mimics BodyUploadTask fields needed by body_transport."""
@@ -193,15 +194,10 @@ class TestFormatBadRequestReason:
         assert _format_bad_request_reason({"detail": "payload invalid"}) == "payload invalid"
 
     def test_renders_field_errors(self) -> None:
-        assert (
-            _format_bad_request_reason({"content_body": ["This field may not be blank."]})
-            == "content_body: This field may not be blank."
-        )
+        assert _format_bad_request_reason({"content_body": ["This field may not be blank."]}) == "content_body: This field may not be blank."
 
     def test_renders_multiple_fields(self) -> None:
-        assert _format_bad_request_reason(
-            {"artifact_path": ["Missing"], "content_body": ["Blank"]}
-        ) == "artifact_path: Missing | content_body: Blank"
+        assert _format_bad_request_reason({"artifact_path": ["Missing"], "content_body": ["Blank"]}) == "artifact_path: Missing | content_body: Blank"
 
     def test_namespace_not_found_not_retryable(self) -> None:
         task = FakeTask()
@@ -239,9 +235,7 @@ class TestFormatBadRequestReason:
 class TestPushContent:
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_successful_upload(self, mock_post: MagicMock) -> None:
-        mock_post.return_value = _mock_response(
-            201, {"status": "stored"}
-        )
+        mock_post.return_value = _mock_response(201, {"status": "stored"})
         task = FakeTask()
         outcome = push_content(task, "token123", "https://api.example.com")
         assert outcome.status == UploadStatus.UPLOADED

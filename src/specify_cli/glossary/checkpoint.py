@@ -340,11 +340,7 @@ def prompt_context_change_confirmation(
     """
     import typer
 
-    typer.echo(
-        f"\nContext has changed since checkpoint was created.\n"
-        f"  Checkpoint hash: {old_hash}...\n"
-        f"  Current hash:    {new_hash}...\n"
-    )
+    typer.echo(f"\nContext has changed since checkpoint was created.\n  Checkpoint hash: {old_hash}...\n  Current hash:    {new_hash}...\n")
     result: bool = typer.confirm(
         "Resume despite context change?",
         default=False,

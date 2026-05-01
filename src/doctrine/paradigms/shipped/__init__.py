@@ -1,2 +1,1 @@
 """Shipped paradigm artifacts."""
-

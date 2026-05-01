@@ -74,9 +74,7 @@ class TestWriteCompletedAppendsLine:
         writer.write_started(record)
         writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
         file_path = writer.invocation_path(_INVOCATION_ID)
-        lines = [
-            line for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()
-        ]
+        lines = [line for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
         assert len(lines) == 2
         completed_data = json.loads(lines[1])
         assert completed_data["event"] == "completed"
@@ -127,9 +125,7 @@ class TestAlreadyClosed:
         with pytest.raises(AlreadyClosedError):
             writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
 
-    def test_complete_nonexistent_invocation_raises_invocation_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_complete_nonexistent_invocation_raises_invocation_error(self, tmp_path: Path) -> None:
         writer = InvocationWriter(tmp_path)
         with pytest.raises(InvocationError):
             writer.write_completed("no-such-id", tmp_path)

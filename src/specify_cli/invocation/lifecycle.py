@@ -34,7 +34,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 from specify_cli.invocation.record import (
     ProfileInvocationPhase,
@@ -187,11 +187,7 @@ def find_latest_unpaired_started(
         unpaired = list(group.started)[-deficit:]
         candidates.extend(unpaired)
 
-    candidates = [
-        r for r in candidates
-        if (agent is None or r.agent == agent)
-        and (mission_id is None or r.mission_id == mission_id)
-    ]
+    candidates = [r for r in candidates if (agent is None or r.agent == agent) and (mission_id is None or r.mission_id == mission_id)]
     if not candidates:
         return None
     # Return the latest by ``at``; fall back to insertion order on ties.
@@ -245,13 +241,15 @@ def doctor_orphan_report(repo_root: Path) -> dict[str, object]:
     for group in orphans:
         deficit = len(group.started) - len(group.completions)
         for started_record in list(group.started)[-deficit:]:
-            orphan_entries.append({
-                "canonical_action_id": started_record.canonical_action_id,
-                "agent": started_record.agent,
-                "mission_id": started_record.mission_id,
-                "wp_id": started_record.wp_id,
-                "started_at": _format_at(started_record.at),
-            })
+            orphan_entries.append(
+                {
+                    "canonical_action_id": started_record.canonical_action_id,
+                    "agent": started_record.agent,
+                    "mission_id": started_record.mission_id,
+                    "wp_id": started_record.wp_id,
+                    "started_at": _format_at(started_record.at),
+                }
+            )
     return {
         "orphan_count": len(orphan_entries),
         "orphans": orphan_entries,
@@ -262,7 +260,7 @@ def doctor_orphan_report(repo_root: Path) -> dict[str, object]:
 
 def _format_at(at: _dt.datetime) -> str:
     if at.tzinfo is None:
-        at = at.replace(tzinfo=_dt.timezone.utc)
+        at = at.replace(tzinfo=_dt.UTC)
     return at.isoformat()
 
 
@@ -280,10 +278,7 @@ def make_canonical_action_id(mission_step: str, action_name: str) -> str:
     step = (mission_step or "").strip()
     action = (action_name or "").strip()
     if not step or not action:
-        raise ValueError(
-            f"canonical_action_id requires non-empty mission_step and action_name, "
-            f"got mission_step={mission_step!r} action_name={action_name!r}"
-        )
+        raise ValueError(f"canonical_action_id requires non-empty mission_step and action_name, got mission_step={mission_step!r} action_name={action_name!r}")
     return f"{step}::{action}"
 
 
@@ -303,7 +298,7 @@ def write_started(
     record = ProfileInvocationRecord(
         canonical_action_id=canonical_action_id,
         phase="started",
-        at=at or _dt.datetime.now(_dt.timezone.utc),
+        at=at or _dt.datetime.now(_dt.UTC),
         agent=agent,
         mission_id=mission_id,
         wp_id=wp_id,
@@ -331,7 +326,7 @@ def write_paired_completion(
     record = ProfileInvocationRecord(
         canonical_action_id=started.canonical_action_id,
         phase=phase,
-        at=at or _dt.datetime.now(_dt.timezone.utc),
+        at=at or _dt.datetime.now(_dt.UTC),
         agent=started.agent,
         mission_id=started.mission_id,
         wp_id=started.wp_id,

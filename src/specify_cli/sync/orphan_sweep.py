@@ -288,14 +288,8 @@ def enumerate_orphans() -> list[OrphanDaemon]:
 
         protocol_version_raw = payload.get("protocol_version")
         package_version_raw = payload.get("package_version")
-        protocol_version = (
-            int(protocol_version_raw)
-            if isinstance(protocol_version_raw, int)
-            else None
-        )
-        package_version = (
-            str(package_version_raw) if isinstance(package_version_raw, str) else None
-        )
+        protocol_version = int(protocol_version_raw) if isinstance(protocol_version_raw, int) else None
+        package_version = str(package_version_raw) if isinstance(package_version_raw, str) else None
 
         pid = _lookup_listening_pid(port)
         orphans.append(

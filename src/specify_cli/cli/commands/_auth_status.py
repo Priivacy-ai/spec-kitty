@@ -61,16 +61,12 @@ def status_impl() -> None:
 
     if session is None:
         console.print("[red]X Not authenticated[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to authenticate."
-        )
+        console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
     if session.is_refresh_token_expired():
         console.print("[red]X Session expired (refresh token expired)[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-        )
+        console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
     console.print("[green]+ Authenticated[/green]")
@@ -136,14 +132,9 @@ def _print_token_expiry(session: StoredSession) -> None:
     console.print(f"  Access token:   {format_duration(access_remaining)}")
 
     if session.refresh_token_expires_at is None:
-        console.print(
-            "  Refresh token:  [dim]server-managed "
-            "(legacy session - re-login to populate refresh expiry)[/dim]"
-        )
+        console.print("  Refresh token:  [dim]server-managed (legacy session - re-login to populate refresh expiry)[/dim]")
     else:
-        refresh_remaining = (
-            session.refresh_token_expires_at - now
-        ).total_seconds()
+        refresh_remaining = (session.refresh_token_expires_at - now).total_seconds()
         console.print(f"  Refresh token:  {format_duration(refresh_remaining)}")
 
 

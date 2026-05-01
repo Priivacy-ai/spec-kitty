@@ -621,18 +621,13 @@ def test_bare_upgrade_outside_project_exits_0(tmp_path: Path) -> None:
     """Bare 'spec-kitty upgrade' outside a project exits 0 (FR-014 fall-through to --cli)."""
     # tmp_path has no .kittify
     result = _invoke_upgrade([], cwd=tmp_path)
-    assert result.exit_code == 0, (
-        f"Expected exit 0 for bare upgrade outside project (FR-014), got {result.exit_code}. "
-        f"Output: {result.output}"
-    )
+    assert result.exit_code == 0, f"Expected exit 0 for bare upgrade outside project (FR-014), got {result.exit_code}. Output: {result.output}"
 
 
 def test_bare_upgrade_outside_project_no_error_message(tmp_path: Path) -> None:
     """Bare 'spec-kitty upgrade' outside a project must NOT print 'Not a Spec Kitty project'."""
     result = _invoke_upgrade([], cwd=tmp_path)
-    assert "not a spec kitty project" not in result.output.lower(), (
-        f"Bare upgrade should not show project-error message. Output: {result.output}"
-    )
+    assert "not a spec kitty project" not in result.output.lower(), f"Bare upgrade should not show project-error message. Output: {result.output}"
 
 
 def test_project_flag_outside_project_still_errors(tmp_path: Path) -> None:
@@ -640,11 +635,7 @@ def test_project_flag_outside_project_still_errors(tmp_path: Path) -> None:
     result = _invoke_upgrade(["--project"], cwd=tmp_path)
     assert result.exit_code != 0, "Expected non-zero exit for --project outside a project"
     combined = (result.output or "") + (result.stderr or "")
-    assert (
-        "not a spec kitty project" in combined.lower()
-        or "no project" in combined.lower()
-        or "init" in combined.lower()
-    )
+    assert "not a spec kitty project" in combined.lower() or "no project" in combined.lower() or "init" in combined.lower()
 
 
 def test_planner_json_too_new_project_has_exit_code_5_in_payload(tmp_path: Path) -> None:

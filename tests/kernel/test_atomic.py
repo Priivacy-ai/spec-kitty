@@ -19,6 +19,7 @@ from unittest.mock import patch
 import pytest
 
 from kernel.atomic import atomic_write
+import contextlib
 
 pytestmark = pytest.mark.fast
 
@@ -102,9 +103,8 @@ class TestAtomicWriteAtomicity:
 
     def test_no_temp_file_left_on_write_error(self, tmp_path: Path) -> None:
         target = tmp_path / "file.txt"
-        with patch("os.replace", side_effect=OSError("disk full")):
-            with pytest.raises(OSError):
-                atomic_write(target, "content")
+        with patch("os.replace", side_effect=OSError("disk full")), pytest.raises(OSError):
+            atomic_write(target, "content")
         leftover = list(tmp_path.glob(".atomic-*.tmp"))
         assert leftover == [], f"Temp file not cleaned up: {leftover}"
 
@@ -119,11 +119,8 @@ class TestAtomicWriteAtomicity:
             created_dirs.append(Path(kwargs["dir"]))
             return real_mkstemp(**kwargs)
 
-        with patch("tempfile.mkstemp", side_effect=capturing_mkstemp):
-            try:
-                atomic_write(target, "content")
-            except Exception:
-                pass
+        with patch("tempfile.mkstemp", side_effect=capturing_mkstemp), contextlib.suppress(Exception):
+            atomic_write(target, "content")
 
         if created_dirs:
             assert created_dirs[0] == tmp_path
@@ -134,14 +131,17 @@ class TestAtomicWriteImport:
 
     def test_importable_from_kernel(self) -> None:
         from kernel.atomic import atomic_write as aw
+
         assert callable(aw)
 
     def test_importable_via_specify_cli_shim(self) -> None:
         from specify_cli.core.atomic import atomic_write as aw
+
         assert callable(aw)
 
     def test_importable_via_charter(self) -> None:
         from charter.context import build_charter_context
+
         assert callable(build_charter_context)
 
 
@@ -178,9 +178,7 @@ class TestAtomicWriteMkdirDefault:
     missing.
     """
 
-    def test_default_mkdir_is_false_missing_parent_raises(
-        self, tmp_path: Path
-    ) -> None:
+    def test_default_mkdir_is_false_missing_parent_raises(self, tmp_path: Path) -> None:
         """Calling atomic_write with no mkdir kwarg and a missing parent raises.
 
         If the default were True (mutant), the parent directory would be
@@ -204,9 +202,7 @@ class TestAtomicWriteMkstempContract:
     suffix keyword argument values or keys.
     """
 
-    def test_mkstemp_dir_is_target_parent(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_mkstemp_dir_is_target_parent(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """The dir kwarg must equal the target file's parent directory.
 
         Kills __mutmut_13 (dir=None), __mutmut_16 (dir kwarg removed). When
@@ -224,9 +220,7 @@ class TestAtomicWriteMkstempContract:
         assert kwargs["dir"] == tmp_path
         assert kwargs["dir"] is not None
 
-    def test_mkstemp_prefix_is_dot_atomic_dash(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_mkstemp_prefix_is_dot_atomic_dash(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """The prefix kwarg must equal the exact lowercase '.atomic-' string.
 
         Kills __mutmut_14 (prefix=None), __mutmut_17 (prefix kwarg removed),
@@ -244,9 +238,7 @@ class TestAtomicWriteMkstempContract:
         assert kwargs["prefix"] != ".ATOMIC-"
         assert "XX" not in kwargs["prefix"]
 
-    def test_mkstemp_suffix_is_dot_tmp(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_mkstemp_suffix_is_dot_tmp(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """The suffix kwarg must equal the exact lowercase '.tmp' string.
 
         Kills __mutmut_15 (suffix=None), __mutmut_18 (suffix kwarg removed),
@@ -273,9 +265,7 @@ class TestAtomicWriteCleanupSuppressesOSError:
     that callers expect to bubble up.
     """
 
-    def test_cleanup_suppresses_unlink_oserror(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_cleanup_suppresses_unlink_oserror(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """When rename fails and tmp-file unlink also raises OSError, the
         original rename OSError must propagate — NOT a TypeError.
         """

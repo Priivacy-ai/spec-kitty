@@ -31,17 +31,12 @@ _SHIPPED_DIRECTIVE_PREFIX = "DIRECTIVE_"
 
 def _validate_slug(slug: str) -> None:
     if not _SLUG_RE.match(slug):
-        raise ValueError(
-            f"Invalid slug '{slug}': must match ^[a-z][a-z0-9-]*$"
-        )
+        raise ValueError(f"Invalid slug '{slug}': must match ^[a-z][a-z0-9-]*$")
 
 
 def _validate_directive_id(artifact_id: str) -> None:
     if not _DIRECTIVE_ID_RE.match(artifact_id):
-        raise ValueError(
-            f"Invalid directive artifact_id '{artifact_id}': "
-            f"must match ^[A-Z][A-Z0-9_-]*$"
-        )
+        raise ValueError(f"Invalid directive artifact_id '{artifact_id}': must match ^[A-Z][A-Z0-9_-]*$")
     if artifact_id.startswith(_SHIPPED_DIRECTIVE_PREFIX):
         raise ValueError(
             f"Directive artifact_id '{artifact_id}' must not start with "
@@ -80,10 +75,7 @@ class SynthesisTarget:
         if self.kind == "directive":
             _validate_directive_id(self.artifact_id)
         if not self.source_section and not self.source_urns:
-            raise ValueError(
-                f"SynthesisTarget({self.kind}:{self.slug}): at least one of "
-                f"source_section or source_urns must be non-empty."
-            )
+            raise ValueError(f"SynthesisTarget({self.kind}:{self.slug}): at least one of source_section or source_urns must be non-empty.")
 
     @property
     def urn(self) -> str:
@@ -252,11 +244,7 @@ def normalize_request_for_hash(
         "interview_snapshot": _mapping_to_sorted(request.interview_snapshot),
         "doctrine_snapshot": _mapping_to_sorted(request.doctrine_snapshot),
         "drg_snapshot": _mapping_to_sorted(request.drg_snapshot),
-        "adapter_hints": (
-            _mapping_to_sorted(request.adapter_hints)
-            if request.adapter_hints is not None
-            else None
-        ),
+        "adapter_hints": (_mapping_to_sorted(request.adapter_hints) if request.adapter_hints is not None else None),
     }
     # Backward-compat guarantee: when evidence is None or empty, the key is
     # absent from the normalized dict, producing byte-for-byte identical output

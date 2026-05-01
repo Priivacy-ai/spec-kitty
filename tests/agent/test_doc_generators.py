@@ -17,6 +17,7 @@ from specify_cli.doc_generators import (
 
 pytestmark = pytest.mark.fast
 
+
 # T062: Test JSDoc Detection
 def test_jsdoc_detects_package_json(tmp_path):
     """Test JSDoc detects projects with package.json."""
@@ -114,9 +115,7 @@ def test_rustdoc_does_not_detect_python_project(tmp_path):
 def test_jsdoc_configure_creates_config(tmp_path):
     """Test JSDoc configure() creates jsdoc.json."""
     generator = JSDocGenerator()
-    config_file = generator.configure(
-        tmp_path, {"project_name": "Test Project", "description": "Test", "version": "1.0.0"}
-    )
+    config_file = generator.configure(tmp_path, {"project_name": "Test Project", "description": "Test", "version": "1.0.0"})
 
     assert config_file.exists()
     assert config_file.name == "jsdoc.json"
@@ -130,9 +129,7 @@ def test_jsdoc_configure_creates_config(tmp_path):
 def test_sphinx_configure_creates_conf_py(tmp_path):
     """Test Sphinx configure() creates conf.py."""
     generator = SphinxGenerator()
-    config_file = generator.configure(
-        tmp_path, {"project_name": "Test Project", "author": "Test Author", "version": "1.0.0"}
-    )
+    config_file = generator.configure(tmp_path, {"project_name": "Test Project", "author": "Test Author", "version": "1.0.0"})
 
     assert config_file.exists()
     assert config_file.name == "conf.py"

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -241,9 +240,7 @@ class TestResearchFeatureCreation:
 
         # Initialize git after init (required for features)
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
-        )
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Verify research templates are available
@@ -293,9 +290,7 @@ class TestUpgradeWithAllMissions:
 
         # Initialize git after init
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
-        )
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
 
         # Initial commit

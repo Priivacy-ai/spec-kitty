@@ -69,17 +69,11 @@ def validate_local_support_declarations(
         path = decl.path
         # Reject glob patterns
         if any(c in path for c in _GLOB_CHARS):
-            errors.append(
-                f"local_supporting_files path '{path}' contains glob characters; "
-                "explicit file paths only."
-            )
+            errors.append(f"local_supporting_files path '{path}' contains glob characters; explicit file paths only.")
             continue
         # Reject paths that look like directories (trailing slash)
         if path.endswith("/") or path.endswith("\\"):
-            errors.append(
-                f"local_supporting_files path '{path}' looks like a directory; "
-                "explicit file paths only."
-            )
+            errors.append(f"local_supporting_files path '{path}' looks like a directory; explicit file paths only.")
             continue
         # Normalize action: unknown values are silently dropped (set to None)
         normalized_action: str | None = None
@@ -88,9 +82,7 @@ def validate_local_support_declarations(
                 normalized_action = decl.action
             else:
                 errors.append(
-                    f"local_supporting_files path '{path}': unknown action "
-                    f"'{decl.action}' (expected one of {sorted(_KNOWN_ACTIONS)}); "
-                    "treating as global."
+                    f"local_supporting_files path '{path}': unknown action '{decl.action}' (expected one of {sorted(_KNOWN_ACTIONS)}); treating as global."
                 )
                 # Still include the declaration but with action=None
         normalized = LocalSupportDeclaration(
@@ -193,9 +185,7 @@ class CharterInterview:
         mission = str(data.get("mission", "software-dev")).strip() or "software-dev"
         profile = str(data.get("profile", "minimal")).strip() or "minimal"
         raw_answers = data.get("answers")
-        answers: dict[str, str] = (
-            {str(k): str(v) for k, v in raw_answers.items()} if isinstance(raw_answers, dict) else {}
-        )
+        answers: dict[str, str] = {str(k): str(v) for k, v in raw_answers.items()} if isinstance(raw_answers, dict) else {}
 
         raw_local = data.get("local_supporting_files")
         local_supporting_files: list[LocalSupportDeclaration] = []
@@ -403,11 +393,7 @@ def _load_packaged_defaults() -> dict[str, object]:
         return empty
 
     answers = data.get("answers")
-    normalized_answers = (
-        {str(key): str(value) for key, value in answers.items()}
-        if isinstance(answers, dict)
-        else {}
-    )
+    normalized_answers = {str(key): str(value) for key, value in answers.items()} if isinstance(answers, dict) else {}
     return {
         "answers": normalized_answers,
         "selected_paradigms": _normalize_list(data.get("selected_paradigms")),

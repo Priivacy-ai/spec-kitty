@@ -19,9 +19,7 @@ from kernel.atomic import atomic_write
 
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
 BOOTSTRAP_HEADER = "Charter Context (Bootstrap):"
-FIRST_LOAD_GUIDANCE = (
-    "  - This is the first load for this action. Use the summary and follow references as needed."
-)
+FIRST_LOAD_GUIDANCE = "  - This is the first load for this action. Use the summary and follow references as needed."
 POLICY_SUMMARY_HEADER = "Policy Summary:"
 NO_POLICY_SUMMARY_MESSAGE = "  - No explicit policy summary section found in charter.md."
 REFERENCE_DOCS_HEADER = "Reference Docs:"
@@ -29,7 +27,7 @@ NONE_LABEL = "(none)"
 KITTIFY_DIRNAME = ".kittify"
 MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
 
-_MIN_EFFECTIVE_DEPTH = 2   # minimum depth for bootstrap context (full summary + references)
+_MIN_EFFECTIVE_DEPTH = 2  # minimum depth for bootstrap context (full summary + references)
 _EXTENDED_CONTEXT_DEPTH = 3  # depth that includes extended styleguide/toolguide lines
 
 
@@ -237,9 +235,7 @@ def _load_action_doctrine_bundle(
     action_urn = f"action:{mission}/{action}"
     resolved = resolve_context(merged, action_urn, depth=effective_depth)
 
-    directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
-        resolved.artifact_urns, merged, project_directives
-    )
+    directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(resolved.artifact_urns, merged, project_directives)
     return _ActionDoctrineBundle(
         mission=mission,
         directive_ids=directive_ids,

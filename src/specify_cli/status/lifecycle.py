@@ -125,11 +125,7 @@ def _fallback_created_at(feature_dir: Path) -> datetime | None:
 
 
 def _derive_last_transition_at(snapshot: StatusSnapshot) -> datetime | None:
-    candidates = [
-        _parse_dt(wp_state.get("last_transition_at"))
-        for wp_state in snapshot.work_packages.values()
-        if isinstance(wp_state, dict)
-    ]
+    candidates = [_parse_dt(wp_state.get("last_transition_at")) for wp_state in snapshot.work_packages.values() if isinstance(wp_state, dict)]
     filtered = [candidate for candidate in candidates if candidate is not None]
     if filtered:
         return max(filtered)

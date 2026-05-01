@@ -10,8 +10,8 @@ from specify_cli.upgrade.migrations.m_2_0_1_tool_config_key_rename import (
     ToolConfigKeyRenameMigration,
 )
 import pytest
-pytestmark = pytest.mark.fast
 
+pytestmark = pytest.mark.fast
 
 
 def _write_config(tmp_path: Path, text: str) -> Path:

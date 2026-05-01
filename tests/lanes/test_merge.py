@@ -5,8 +5,6 @@ import subprocess
 import pytest
 
 from specify_cli.lanes.merge import (
-    LaneMergeResult,
-    MissionMergeResult,
     merge_lane_to_mission,
     merge_mission_to_target,
 )

@@ -38,11 +38,7 @@ _MAX = 3
 
 # Path to the JSON contract schema
 _CONTRACT_PATH = (
-    Path(__file__).parent.parent.parent.parent.parent
-    / "kitty-specs"
-    / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
-    / "contracts"
-    / "compat-planner.json"
+    Path(__file__).parent.parent.parent.parent.parent / "kitty-specs" / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN" / "contracts" / "compat-planner.json"
 )
 
 
@@ -281,13 +277,19 @@ class TestRenderJson:
         except ImportError:
             # jsonschema not available — fall back to key-set check
             required_keys = {
-                "schema_version", "case", "decision", "exit_code",
-                "cli", "project", "safety", "install_method",
-                "upgrade_hint", "pending_migrations", "rendered_human",
+                "schema_version",
+                "case",
+                "decision",
+                "exit_code",
+                "cli",
+                "project",
+                "safety",
+                "install_method",
+                "upgrade_hint",
+                "pending_migrations",
+                "rendered_human",
             }
-            assert required_keys.issubset(set(obj.keys())), (
-                f"Missing keys: {required_keys - set(obj.keys())}"
-            )
+            assert required_keys.issubset(set(obj.keys())), f"Missing keys: {required_keys - set(obj.keys())}"
 
     def test_allow_plan(self) -> None:
         p = _make_plan(Decision.ALLOW, Fr023Case.NONE)

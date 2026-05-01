@@ -135,9 +135,7 @@ class TestSyncRuntime:
         # authenticated".
         fake_tm = MagicMock()
         fake_tm.is_authenticated = False
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -235,9 +233,7 @@ class TestSyncRuntime:
         # Mock TokenManager to return unauthenticated (skip WebSocket)
         fake_tm = MagicMock()
         fake_tm.is_authenticated = False
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -328,9 +324,7 @@ class TestUnauthenticatedBehavior:
 
         fake_tm = MagicMock()
         fake_tm.is_authenticated = False
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -351,9 +345,7 @@ class TestUnauthenticatedBehavior:
 
         fake_tm = MagicMock()
         fake_tm.is_authenticated = True
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -370,6 +362,7 @@ class TestUnauthenticatedBehavior:
                         patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
                         patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
                     ):
+
                         def fake_ensure_loop():
                             runtime._async_loop = MagicMock()
 
@@ -391,9 +384,7 @@ class TestUnauthenticatedBehavior:
 
         fake_tm = MagicMock()
         fake_tm.is_authenticated = True
-        monkeypatch.setattr(
-            "specify_cli.auth.get_token_manager", lambda: fake_tm
-        )
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -408,6 +399,7 @@ class TestUnauthenticatedBehavior:
                         patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
                         patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
                     ):
+
                         def fake_ensure_loop():
                             runtime._async_loop = MagicMock()
 

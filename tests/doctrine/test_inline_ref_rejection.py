@@ -82,9 +82,7 @@ def test_top_level_inline_ref_is_rejected(
     assert err.file_path == file_path
     assert err.forbidden_field == forbidden_field
     assert err.artifact_kind == artifact_kind
-    assert HINT_PATTERN.match(err.migration_hint), (
-        f"migration_hint {err.migration_hint!r} does not match schema regex"
-    )
+    assert HINT_PATTERN.match(err.migration_hint), f"migration_hint {err.migration_hint!r} does not match schema regex"
     # The hint embeds the artifact id so operators can locate the source quickly.
     assert f"{artifact_kind}:{artifact_id}" in err.migration_hint
 
@@ -113,9 +111,7 @@ def test_procedure_step_level_tactic_refs_rejected(tmp_path: Any) -> None:
     assert err.artifact_kind == "procedure"
     assert err.forbidden_field == "tactic_refs"
     assert err.file_path == file_path
-    assert HINT_PATTERN.match(err.migration_hint), (
-        f"migration_hint {err.migration_hint!r} does not match schema regex"
-    )
+    assert HINT_PATTERN.match(err.migration_hint), f"migration_hint {err.migration_hint!r} does not match schema regex"
     assert "procedure:my-procedure" in err.migration_hint
 
 
@@ -126,18 +122,14 @@ def test_procedure_step_level_paradigm_refs_rejected(tmp_path: Any) -> None:
         "steps": [{"title": "s0", "paradigm_refs": ["p1"]}],
     }
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        reject_procedure_inline_refs(
-            data, file_path=str(tmp_path / "p.procedure.yaml")
-        )
+        reject_procedure_inline_refs(data, file_path=str(tmp_path / "p.procedure.yaml"))
     assert excinfo.value.forbidden_field == "paradigm_refs"
 
 
 def test_clean_payload_passes_without_raising(tmp_path: Any) -> None:
     """A YAML without any forbidden inline fields does not raise."""
     data: dict[str, Any] = {"id": "clean-directive", "summary": "no inline refs"}
-    reject_directive_inline_refs(
-        data, file_path=str(tmp_path / "clean.directive.yaml")
-    )
+    reject_directive_inline_refs(data, file_path=str(tmp_path / "clean.directive.yaml"))
 
 
 def test_all_three_forbidden_fields_are_flagged() -> None:
@@ -278,14 +270,7 @@ def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> 
     shipped_dir = tmp_path / "procedures_shipped"
     _write_yaml(
         shipped_dir / "bad-step.procedure.yaml",
-        "id: bad-step-proc\n"
-        "name: bad-step\n"
-        "purpose: x\n"
-        "steps:\n"
-        "  - title: step-0\n"
-        "    body: ok\n"
-        "  - title: step-1\n"
-        "    tactic_refs: [t1]\n",
+        "id: bad-step-proc\nname: bad-step\npurpose: x\nsteps:\n  - title: step-0\n    body: ok\n  - title: step-1\n    tactic_refs: [t1]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
@@ -304,9 +289,7 @@ def test_agent_profile_repository_rejects_inline_refs(tmp_path: Path) -> None:
     # extra top-level fields, so ``applies_to`` is unambiguous.
     _write_yaml(
         shipped_dir / "bad.agent.yaml",
-        "profile-id: bad-profile\n"
-        "role: implementer\n"
-        "applies_to: [software-dev]\n",
+        "profile-id: bad-profile\nrole: implementer\napplies_to: [software-dev]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:

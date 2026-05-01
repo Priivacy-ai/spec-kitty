@@ -4,6 +4,7 @@ These tests are marked ``windows_ci`` and run on ``windows-latest`` only.
 On POSIX they are deselected by the marker filter — they still collect
 cleanly, however, so CI configuration errors are caught early.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -17,17 +18,11 @@ def test_tracker_credentials_path_under_localappdata() -> None:
     path = credentials._tracker_root()
     s = str(path)
     # Must be under AppData\Local
-    assert "AppData" in s and "Local" in s, (
-        f"Expected path under AppData\\Local, got: {s}"
-    )
+    assert "AppData" in s and "Local" in s, f"Expected path under AppData\\Local, got: {s}"
     # Must contain the app name
-    assert "spec-kitty" in s.lower(), (
-        f"Expected 'spec-kitty' in path, got: {s}"
-    )
+    assert "spec-kitty" in s.lower(), f"Expected 'spec-kitty' in path, got: {s}"
     # Must be the tracker subdirectory
-    assert "tracker" in s.lower(), (
-        f"Expected 'tracker' in path, got: {s}"
-    )
+    assert "tracker" in s.lower(), f"Expected 'tracker' in path, got: {s}"
 
 
 @pytest.mark.windows_ci

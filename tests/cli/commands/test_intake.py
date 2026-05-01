@@ -60,9 +60,7 @@ def test_intake_stdin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
     import yaml  # noqa: PLC0415
 
-    source = yaml.safe_load(
-        (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).read_text(encoding="utf-8")
-    )
+    source = yaml.safe_load((tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).read_text(encoding="utf-8"))
     assert source["source_file"] == "stdin"
 
 

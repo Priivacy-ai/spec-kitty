@@ -59,6 +59,7 @@ CANONICAL_COMMANDS: tuple[str, ...] = (
     "tasks-packages",
 )
 
+
 def _package_templates_dir() -> Path:
     """Return the directory containing canonical command templates inside the
     installed ``specify_cli`` package.
@@ -69,12 +70,7 @@ def _package_templates_dir() -> Path:
     """
     import specify_cli  # noqa: PLC0415 — deferred to avoid import-time side effects
 
-    return (
-        Path(specify_cli.__file__).parent
-        / "missions"
-        / "software-dev"
-        / "command-templates"
-    )
+    return Path(specify_cli.__file__).parent / "missions" / "software-dev" / "command-templates"
 
 
 # ---------------------------------------------------------------------------
@@ -287,9 +283,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
 
     for command in CANONICAL_COMMANDS:
         template = _resolve_template(repo_root, command)
-        rendered = command_renderer.render(
-            template, agent_key, version, repo_root=repo_root
-        )
+        rendered = command_renderer.render(template, agent_key, version, repo_root=repo_root)
         skill_md_bytes = rendered.to_skill_md().encode("utf-8")
         rel_path = f".agents/skills/spec-kitty.{command}/SKILL.md"
         abs_path = repo_root / rel_path
@@ -298,11 +292,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
 
         if existing is not None:
             # Drift check: on-disk hash must match the manifest record.
-            on_disk_hash = (
-                manifest_store.fingerprint_file(abs_path)
-                if abs_path.exists()
-                else None
-            )
+            on_disk_hash = manifest_store.fingerprint_file(abs_path) if abs_path.exists() else None
             if on_disk_hash != existing.content_hash:
                 raise InstallerError("unexpected_collision", path=rel_path)
 
@@ -400,9 +390,7 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
         if abs_path.exists():
             on_disk_hash = manifest_store.fingerprint_file(abs_path)
             if on_disk_hash != entry.content_hash:
-                raise InstallerError(
-                    "file_mutation_detected", path=entry.path
-                )
+                raise InstallerError("file_mutation_detected", path=entry.path)
 
         new_agents = tuple(a for a in entry.agents if a != agent_key)
 

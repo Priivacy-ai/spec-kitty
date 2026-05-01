@@ -52,11 +52,7 @@ def test_challenge_is_base64url_of_sha256() -> None:
     import hashlib
 
     verifier = "some-verifier-value"
-    expected = (
-        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest())
-        .rstrip(b"=")
-        .decode("ascii")
-    )
+    expected = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
     assert generate_code_challenge(verifier) == expected
 
 

@@ -1,4 +1,5 @@
 """Schema validation tests for architecture/2.x/shim-registry.yaml (FR-011)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -125,19 +126,13 @@ class TestVersionFields:
 
     def test_removal_before_introduced_raises(self) -> None:
         with pytest.raises(RegistrySchemaError, match="removal_target_release"):
-            validate_registry(
-                {"shims": [_entry(introduced_in_release="3.3.0", removal_target_release="3.2.0")]}
-            )
+            validate_registry({"shims": [_entry(introduced_in_release="3.3.0", removal_target_release="3.2.0")]})
 
     def test_removal_equal_introduced_is_valid(self) -> None:
-        validate_registry(
-            {"shims": [_entry(introduced_in_release="3.2.0", removal_target_release="3.2.0")]}
-        )
+        validate_registry({"shims": [_entry(introduced_in_release="3.2.0", removal_target_release="3.2.0")]})
 
     def test_prerelease_semver_is_valid(self) -> None:
-        validate_registry(
-            {"shims": [_entry(introduced_in_release="3.2.0a1", removal_target_release="3.3.0")]}
-        )
+        validate_registry({"shims": [_entry(introduced_in_release="3.2.0a1", removal_target_release="3.3.0")]})
 
 
 class TestTrackerIssue:

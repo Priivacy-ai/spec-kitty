@@ -118,7 +118,5 @@ class GeneratedArtifactAdapter:
             notes=f"generated-artifact:{note_path}",
         )
 
-    def generate_batch(
-        self, requests: list[SynthesisRequest]
-    ) -> list[AdapterOutput]:
+    def generate_batch(self, requests: list[SynthesisRequest]) -> list[AdapterOutput]:
         return [self.generate(request) for request in requests]

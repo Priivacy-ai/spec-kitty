@@ -119,10 +119,7 @@ def test_advise_writes_tier1_jsonl(tmp_path: Path) -> None:
     started = json.loads(lines[0])
     assert started["event"] == "started", f"Expected event='started', got {started['event']!r}"
     assert "invocation_id" in started, "invocation_id missing from started record"
-    assert len(started["invocation_id"]) == 26, (
-        f"Expected 26-char ULID, got {len(started['invocation_id'])!r}-char "
-        f"{started['invocation_id']!r}"
-    )
+    assert len(started["invocation_id"]) == 26, f"Expected 26-char ULID, got {len(started['invocation_id'])!r}-char {started['invocation_id']!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -169,15 +166,9 @@ def test_complete_writes_completed_event(tmp_path: Path) -> None:
     assert len(lines) == 2, f"Expected 2 lines (started + completed), got {len(lines)}"
 
     completed = json.loads(lines[1])
-    assert completed["event"] == "completed", (
-        f"Expected event='completed', got {completed['event']!r}"
-    )
-    assert completed["outcome"] == "done", (
-        f"Expected outcome='done', got {completed['outcome']!r}"
-    )
-    assert completed["invocation_id"] == invocation_id, (
-        f"invocation_id mismatch: {completed['invocation_id']!r} != {invocation_id!r}"
-    )
+    assert completed["event"] == "completed", f"Expected event='completed', got {completed['event']!r}"
+    assert completed["outcome"] == "done", f"Expected outcome='done', got {completed['outcome']!r}"
+    assert completed["invocation_id"] == invocation_id, f"invocation_id mismatch: {completed['invocation_id']!r} != {invocation_id!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -225,8 +216,7 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
         mock_routing.assert_not_called()
 
     assert any(r.get("invocation_id") == test_id for r in records), (
-        f"Expected invocation_id={test_id!r} in list output; got: "
-        f"{[r.get('invocation_id') for r in records]}"
+        f"Expected invocation_id={test_id!r} in list output; got: {[r.get('invocation_id') for r in records]}"
     )
 
 
@@ -259,12 +249,15 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
         effective_sync_enabled=False,
     )
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=disabled_routing,
-    ), patch(
-        "specify_cli.invocation.propagator._get_saas_client",
-    ) as mock_client:
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=disabled_routing,
+        ),
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+        ) as mock_client,
+    ):
         with patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
@@ -281,10 +274,9 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     # (b) Local JSONL written by the executor (not manually) — Tier 1 is mandatory
     events_dir = project / EVENTS_DIR
     expected_file = events_dir / f"{payload.invocation_id}.jsonl"
-    assert expected_file.exists(), (
-        f"Expected executor to write JSONL at {expected_file}; file not found"
-    )
+    assert expected_file.exists(), f"Expected executor to write JSONL at {expected_file}; file not found"
     import json as _json
+
     lines = [ln for ln in expected_file.read_text().splitlines() if ln.strip()]
     assert len(lines) >= 1 and _json.loads(lines[0])["event"] == "started"
 
@@ -340,9 +332,7 @@ def test_started_event_records_mode_advisory(tmp_path: Path) -> None:
 
     events_dir = project / EVENTS_DIR
     started_raw = json.loads((events_dir / f"{inv_id}.jsonl").read_text().splitlines()[0])
-    assert started_raw.get("mode_of_work") == "advisory", (
-        f"Expected mode_of_work='advisory', got {started_raw.get('mode_of_work')!r}"
-    )
+    assert started_raw.get("mode_of_work") == "advisory", f"Expected mode_of_work='advisory', got {started_raw.get('mode_of_work')!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -447,9 +437,7 @@ def test_complete_artifact_ref_normalisation_in_checkout(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-def test_complete_artifact_ref_outside_checkout(
-    tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
-) -> None:
+def test_complete_artifact_ref_outside_checkout(tmp_path: Path, tmp_path_factory: pytest.TempPathFactory) -> None:
     """An artifact path outside the repo checkout is stored absolute (FR-007 / data-model §6)."""
     project = _setup_minimal_project(tmp_path)
     outside = tmp_path_factory.mktemp("outside_repo") / "external.log"
@@ -675,9 +663,7 @@ def test_complete_on_pre_mission_record_allows_evidence(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("action_key", ["specify", "plan", "tasks", "implement", "review"])
-def test_invoke_with_action_hint_and_profile_hint_records_hint(
-    tmp_path: Path, action_key: str
-) -> None:
+def test_invoke_with_action_hint_and_profile_hint_records_hint(tmp_path: Path, action_key: str) -> None:
     """profile_hint + truthy action_hint records action_hint verbatim (FR-009/FR-010).
 
     Parametrized over the five contract actions (specify/plan/tasks/implement/review)
@@ -698,17 +684,13 @@ def test_invoke_with_action_hint_and_profile_hint_records_hint(
         )
 
     # Payload exposes the hint
-    assert payload.action == action_key, (
-        f"Expected payload.action={action_key!r}, got {payload.action!r}"
-    )
+    assert payload.action == action_key, f"Expected payload.action={action_key!r}, got {payload.action!r}"
 
     # Started JSONL record carries the hint
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == action_key, (
-        f"Expected started.action={action_key!r}, got {started['action']!r}"
-    )
+    assert started["action"] == action_key, f"Expected started.action={action_key!r}, got {started['action']!r}"
 
 
 def test_invoke_profile_hint_only_falls_back_to_derived_action(tmp_path: Path) -> None:
@@ -740,9 +722,7 @@ def test_invoke_profile_hint_only_falls_back_to_derived_action(tmp_path: Path) -
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == expected_action, (
-        f"Expected legacy-derived action {expected_action!r}, got {started['action']!r}"
-    )
+    assert started["action"] == expected_action, f"Expected legacy-derived action {expected_action!r}, got {started['action']!r}"
 
 
 def test_invoke_empty_action_hint_falls_back(tmp_path: Path) -> None:
@@ -773,10 +753,7 @@ def test_invoke_empty_action_hint_falls_back(tmp_path: Path) -> None:
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == expected_action, (
-        f"Empty-string action_hint should fall back to {expected_action!r}, "
-        f"got {started['action']!r}"
-    )
+    assert started["action"] == expected_action, f"Empty-string action_hint should fall back to {expected_action!r}, got {started['action']!r}"
 
 
 def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None:
@@ -816,9 +793,7 @@ def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None
     events_dir = project / EVENTS_DIR
     jsonl_file = events_dir / f"{payload.invocation_id}.jsonl"
     started = json.loads(jsonl_file.read_text().splitlines()[0])
-    assert started["action"] == router_action, (
-        f"Router branch must use router action {router_action!r}, got {started['action']!r}"
-    )
+    assert started["action"] == router_action, f"Router branch must use router action {router_action!r}, got {started['action']!r}"
     assert started["action"] != "anything"
 
 
@@ -840,10 +815,13 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
         effective_sync_enabled=False,
     )
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=disabled_routing,
-    ), patch("specify_cli.invocation.propagator._get_saas_client") as mock_client:
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=disabled_routing,
+        ),
+        patch("specify_cli.invocation.propagator._get_saas_client") as mock_client,
+    ):
         with patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,

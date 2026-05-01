@@ -65,12 +65,8 @@ def _write_mission(
         "mission_number": mission_slug.split("-")[0],
         "created_at": "2026-01-01T00:00:00+00:00",
     }
-    (mission_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
-    (mission_dir / "spec.md").write_text(
-        f"# {friendly_name}\n\nDescription of the mission.\n", encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    (mission_dir / "spec.md").write_text(f"# {friendly_name}\n\nDescription of the mission.\n", encoding="utf-8")
 
     for wp_id, status in wp_statuses.items():
         wp_content = dedent(
@@ -176,9 +172,7 @@ def test_changelog_includes_accepted_missions(tmp_path: Path) -> None:
 
 
 def test_changelog_excludes_missions_with_no_accepted_wps(tmp_path: Path) -> None:
-    _write_mission(
-        tmp_path, "010-mission-no-done", "Incomplete Mission", {"WP01": "in_progress"}
-    )
+    _write_mission(tmp_path, "010-mission-no-done", "Incomplete Mission", {"WP01": "in_progress"})
     changelog, slugs = build_changelog_block(tmp_path, since_tag=None)
 
     assert slugs == []
@@ -326,19 +320,13 @@ def test_payload_no_github_api_calls(tmp_path: Path) -> None:
     _write_mission(tmp_path, "010-test", "Test", {"WP01": "done"})
 
     def _raise_network(*args: Any, **kwargs: Any) -> None:
-        raise AssertionError(
-            "Network call detected! build_release_prep_payload must not make "
-            "network calls (FR-014/C-002)."
-        )
+        raise AssertionError("Network call detected! build_release_prep_payload must not make network calls (FR-014/C-002).")
 
     original_run = __import__("subprocess").run
 
     def _guarded_run(cmd: Any, *args: Any, **kwargs: Any) -> Any:
         if isinstance(cmd, (list, tuple)) and cmd and cmd[0] == "gh":
-            raise AssertionError(
-                f"'gh' subprocess call detected: {cmd!r}. "
-                "No gh calls are allowed (C-002)."
-            )
+            raise AssertionError(f"'gh' subprocess call detected: {cmd!r}. No gh calls are allowed (C-002).")
         return original_run(cmd, *args, **kwargs)
 
     with (
@@ -471,8 +459,6 @@ def test_runs_within_5s_for_16_wps(tmp_path: Path) -> None:
     payload = build_release_prep_payload("alpha", tmp_path)
     elapsed = time.monotonic() - start
 
-    assert elapsed < 5.0, (
-        f"build_release_prep_payload took {elapsed:.2f}s — must be < 5s (NFR-004)"
-    )
+    assert elapsed < 5.0, f"build_release_prep_payload took {elapsed:.2f}s — must be < 5s (NFR-004)"
     assert payload.proposed_version == "3.1.0a8"
     assert "068-big-mission" in payload.mission_slug_list

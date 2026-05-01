@@ -110,10 +110,8 @@ def kill_dashboard_process(port: int):
         if result.stdout.strip():
             pids = result.stdout.strip().split("\n")
             for pid in pids:
-                try:
+                with contextlib.suppress(Exception):
                     os.kill(int(pid), signal.SIGTERM)
-                except Exception:
-                    pass
             wait_for_port_state(port, occupied=False, timeout=1.5)
     except Exception:
         pass
@@ -193,16 +191,12 @@ class TestDashboardCLIStatusReporting:
                     # Should show success message
                     output = result.stdout + result.stderr
                     assert "✅" in output or "success" in output.lower() or "running" in output.lower(), (
-                        f"CLI should show success message when dashboard starts.\n"
-                        f"Dashboard IS accessible on port {test_port}.\n"
-                        f"Got: {output}"
+                        f"CLI should show success message when dashboard starts.\nDashboard IS accessible on port {test_port}.\nGot: {output}"
                     )
 
                     # Should NOT show error message
                     assert "❌" not in output and "Unable to start" not in output, (
-                        f"CLI should NOT show error when dashboard is running.\n"
-                        f"Dashboard IS accessible on port {test_port}.\n"
-                        f"Got: {output}"
+                        f"CLI should NOT show error when dashboard is running.\nDashboard IS accessible on port {test_port}.\nGot: {output}"
                     )
                 else:
                     # Dashboard not running - CLI should report error
@@ -232,9 +226,7 @@ class TestDashboardCLIStatusReporting:
             output = result.stdout + result.stderr
 
             # Should show error message
-            assert "❌" in output or "error" in output.lower() or "Unable" in output, (
-                f"CLI should show error message when dashboard fails. Got: {output}"
-            )
+            assert "❌" in output or "error" in output.lower() or "Unable" in output, f"CLI should show error message when dashboard fails. Got: {output}"
 
     def test_dashboard_accessibility_matches_cli_status(self):
         """Verify CLI status matches whether dashboard is actually accessible."""
@@ -354,15 +346,11 @@ class TestDashboardProcessLifecycle:
 
                 # Should not be accessible anymore
                 stopped = wait_for_dashboard_state(test_port, accessible=False, timeout=2.0)
-                assert stopped, (
-                    f"Dashboard should be stopped after --kill, but still accessible on {test_port}"
-                )
+                assert stopped, f"Dashboard should be stopped after --kill, but still accessible on {test_port}"
 
                 # Kill command should report success
                 output = kill_result.stdout + kill_result.stderr
-                assert "✅" in output or "stopped" in output.lower() or "killed" in output.lower(), (
-                    f"--kill should report success. Got: {output}"
-                )
+                assert "✅" in output or "stopped" in output.lower() or "killed" in output.lower(), f"--kill should report success. Got: {output}"
 
 
 class TestDashboardErrorMessages:
@@ -391,9 +379,7 @@ class TestDashboardErrorMessages:
             )
 
             # Should mention project or worktree
-            assert "project" in output.lower() or "worktree" in output.lower(), (
-                f"Error should mention project or worktree. Got: {output}"
-            )
+            assert "project" in output.lower() or "worktree" in output.lower(), f"Error should mention project or worktree. Got: {output}"
 
 
 class TestDashboardAPIVerification:
@@ -580,14 +566,10 @@ class TestDashboardCleanup:
                 # Check process is gone
                 ps_after = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
 
-                assert not ps_after.stdout.strip(), (
-                    f"Dashboard process should be terminated after --kill.\nProcess still running: {ps_after.stdout}"
-                )
+                assert not ps_after.stdout.strip(), f"Dashboard process should be terminated after --kill.\nProcess still running: {ps_after.stdout}"
 
                 # Verify not accessible
-                assert not is_dashboard_accessible(test_port, timeout=1.0), (
-                    "Dashboard should not be accessible after --kill"
-                )
+                assert not is_dashboard_accessible(test_port, timeout=1.0), "Dashboard should not be accessible after --kill"
 
 
 # Module-level cleanup: Kill ALL orphaned dashboards before and after entire test module
@@ -632,9 +614,7 @@ def test_dashboard_with_symlinked_kitty_specs():
 
         # Initialize git repo (required by dashboard)
         subprocess.run(["git", "init"], cwd=test_project, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "config", "user.email", "test@example.com"], cwd=test_project, check=True, capture_output=True
-        )
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=test_project, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=test_project, check=True, capture_output=True)
 
         # Create a worktree structure
@@ -675,10 +655,7 @@ def test_dashboard_with_symlinked_kitty_specs():
             # Dashboard should start successfully
             if wait_for_dashboard_state(test_port, accessible=True, timeout=3.0):
                 assert result.returncode == 0, (
-                    f"CLI should report success when dashboard accessible.\n"
-                    f"Exit code: {result.returncode}\n"
-                    f"Stdout: {result.stdout}\n"
-                    f"Stderr: {result.stderr}"
+                    f"CLI should report success when dashboard accessible.\nExit code: {result.returncode}\nStdout: {result.stdout}\nStderr: {result.stderr}"
                 )
 
                 assert "✅" in result.stdout or "started" in result.stdout.lower(), (

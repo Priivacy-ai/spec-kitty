@@ -38,10 +38,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -127,7 +124,7 @@ def test_concurrent_creates_no_collision(tmp_path: Path) -> None:
     def create_and_capture(slug: str) -> None:
         with counter_lock:
             counter[0] += 1
-            n = counter[0]
+            counter[0]
         try:
             result = _run_create(tmp_path, slug)
             results.append(result.meta)

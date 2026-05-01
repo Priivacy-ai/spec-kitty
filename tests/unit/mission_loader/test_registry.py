@@ -49,10 +49,7 @@ def _contract(contract_id: str, action: str = "act", mission: str = "m") -> Miss
 
 
 def _template(key: str, step_ids: list[str]) -> MissionTemplate:
-    steps = [
-        PromptStep(id=sid, title=sid.title(), agent_profile=f"{sid}-profile")
-        for sid in step_ids
-    ]
+    steps = [PromptStep(id=sid, title=sid.title(), agent_profile=f"{sid}-profile") for sid in step_ids]
     steps.append(PromptStep(id="retrospective", title="Retro"))
     return MissionTemplate(
         mission=MissionMeta(key=key, name="Demo", version="1.0.0"),

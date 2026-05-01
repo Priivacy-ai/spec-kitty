@@ -161,9 +161,7 @@ class TestEndToEndDetection:
         assert report.any_active is True
         assert repo in report.affected_paths
 
-    def test_pattern_file_line_count_counted_without_comments(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pattern_file_line_count_counted_without_comments(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_repo_with_commit(repo)
         _run(["git", "-C", str(repo), "config", "core.sparseCheckout", "true"])
@@ -234,9 +232,7 @@ class TestPreflight:
         assert "--allow-sparse-checkout" in msg
         assert str(repo) in msg
 
-    def test_override_flag_emits_structured_log_and_does_not_raise(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_override_flag_emits_structured_log_and_does_not_raise(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         import logging
 
         from specify_cli.git import sparse_checkout as sc_mod
@@ -256,11 +252,7 @@ class TestPreflight:
             mission_id="01HXYZ",
         )
 
-        override_hits = [
-            r
-            for r in caplog.records
-            if "spec_kitty.override.sparse_checkout" in r.getMessage()
-        ]
+        override_hits = [r for r in caplog.records if "spec_kitty.override.sparse_checkout" in r.getMessage()]
         assert len(override_hits) == 1
         msg = override_hits[0].getMessage()
         assert "command=merge" in msg

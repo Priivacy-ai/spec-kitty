@@ -11,7 +11,6 @@ from collections.abc import Callable, Iterator
 import pytest
 import yaml
 
-from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
 from tests.utils import REPO_ROOT, run, write_wp
@@ -31,6 +30,7 @@ def pytest_configure(config: pytest.Config) -> None:
         prepare_mutants_environment_from_cwd()
     except OSError as exc:
         import warnings
+
         warnings.warn(f"Failed to prepare mutants environment: {exc}", stacklevel=1)
 
     # HARDCODED: Never open browser windows during tests.
@@ -166,9 +166,7 @@ def _seed_offline_test_venv(venv_dir: Path, source_version: str) -> None:
     site_packages = _venv_site_packages(venv_dir)
     site_packages.mkdir(parents=True, exist_ok=True)
 
-    host_site_packages = [
-        path for path in sys.path if "site-packages" in path and Path(path).exists()
-    ]
+    host_site_packages = [path for path in sys.path if "site-packages" in path and Path(path).exists()]
     if host_site_packages:
         (site_packages / "host-site-packages.pth").write_text(
             "\n".join(host_site_packages) + "\n",
@@ -247,11 +245,16 @@ def test_venv() -> Path:
 # Builds wheel + sdist ONCE per session instead of per-test.
 # ---------------------------------------------------------------------------
 
+
 def _build_tool_available() -> bool:
-    return subprocess.run(
-        [sys.executable, "-m", "build", "--help"],
-        capture_output=True, text=True,
-    ).returncode == 0
+    return (
+        subprocess.run(
+            [sys.executable, "-m", "build", "--help"],
+            capture_output=True,
+            text=True,
+        ).returncode
+        == 0
+    )
 
 
 @pytest.fixture(scope="session")
@@ -264,7 +267,8 @@ def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
     result = subprocess.run(
         [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
         cwd=REPO_ROOT,
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         pytest.skip(f"Build failed: {result.stderr}")
@@ -288,7 +292,8 @@ def installed_wheel_venv(
 
     result = subprocess.run(
         [sys.executable, "-m", "venv", str(venv_dir)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         pytest.skip(f"Failed to create venv: {result.stderr}")
@@ -303,7 +308,8 @@ def installed_wheel_venv(
 
     result = subprocess.run(
         [str(pip), "install", str(wheel)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         pytest.skip(f"Failed to install wheel: {result.stderr}")
@@ -390,6 +396,7 @@ def feature_repo(temp_repo: Path) -> Path:
     # Bootstrap event log with planned status for WP01
     import json
     from datetime import datetime, UTC
+
     event = {
         "event_id": "01TESTFIXTUREWP01",
         "mission_slug": mission_slug,

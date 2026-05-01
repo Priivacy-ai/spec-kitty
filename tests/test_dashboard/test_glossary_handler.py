@@ -187,9 +187,15 @@ class TestGlossaryHealth:
 
         data = _read_response(handler)
         required_keys = {
-            "total_terms", "active_count", "draft_count", "deprecated_count",
-            "high_severity_drift_count", "orphaned_term_count",
-            "entity_pages_generated", "entity_pages_path", "last_conflict_at",
+            "total_terms",
+            "active_count",
+            "draft_count",
+            "deprecated_count",
+            "high_severity_drift_count",
+            "orphaned_term_count",
+            "entity_pages_generated",
+            "entity_pages_path",
+            "last_conflict_at",
         }
         assert required_keys.issubset(data.keys())
 
@@ -267,10 +273,7 @@ class TestGlossaryPage:
 
         handler.send_response.assert_called_once_with(200)
         # Verify content-type header was set to text/html
-        ct_calls = [
-            call for call in handler.send_header.call_args_list
-            if call.args[0] == "Content-type"
-        ]
+        ct_calls = [call for call in handler.send_header.call_args_list if call.args[0] == "Content-type"]
         assert len(ct_calls) == 1
         assert "text/html" in ct_calls[0].args[1]
 
@@ -377,9 +380,7 @@ edges:
 
         assert gloss_module._collect_all_senses(tmp_path) == [expected]
 
-    def test_collect_all_senses_returns_empty_list_when_scope_module_fails(
-        self, monkeypatch, tmp_path
-    ):
+    def test_collect_all_senses_returns_empty_list_when_scope_module_fails(self, monkeypatch, tmp_path):
         """Import failures degrade to an empty response payload."""
         from specify_cli.dashboard.handlers import glossary as gloss_module
 

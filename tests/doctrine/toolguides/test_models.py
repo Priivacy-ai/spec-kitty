@@ -4,8 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from doctrine.toolguides.models import Toolguide
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 class TestToolguide:
@@ -34,4 +34,3 @@ class TestToolguide:
         sample_toolguide_data["schema_version"] = "2.0"
         with pytest.raises(ValidationError):
             Toolguide.model_validate(sample_toolguide_data)
-

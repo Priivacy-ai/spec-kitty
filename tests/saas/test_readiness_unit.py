@@ -38,12 +38,8 @@ def _stub_all_pass(monkeypatch: pytest.MonkeyPatch, *, server_url: str = "http:/
     monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: True)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: server_url)
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_reachability", lambda *_, **__: True
-    )
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_mission_binding", lambda *_: True
-    )
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_reachability", lambda *_, **__: True)
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_mission_binding", lambda *_: True)
 
 
 # ---------------------------------------------------------------------------
@@ -73,12 +69,8 @@ def test_rollout_disabled_state(
     # Stub remaining probes as passing so the only variable is rollout.
     monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: "http://x")
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_reachability", lambda *_, **__: True
-    )
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_mission_binding", lambda *_: True
-    )
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_reachability", lambda *_, **__: True)
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_mission_binding", lambda *_: True)
 
     result = evaluate_readiness(repo_root=_REPO)
 
@@ -146,13 +138,9 @@ def test_missing_host_config_state(
 # State: HOST_UNREACHABLE
 # ---------------------------------------------------------------------------
 
-_HOST_UNREACHABLE_MESSAGE = (
-    "The configured SaaS host did not respond within 2 seconds."
-)
+_HOST_UNREACHABLE_MESSAGE = "The configured SaaS host did not respond within 2 seconds."
 _HOST_SERVER_URL = "http://stub.example.com"
-_HOST_UNREACHABLE_NEXT_ACTION = (
-    f"Check network connectivity to `{_HOST_SERVER_URL}` and retry."
-)
+_HOST_UNREACHABLE_NEXT_ACTION = f"Check network connectivity to `{_HOST_SERVER_URL}` and retry."
 
 
 def test_host_unreachable_state(
@@ -162,12 +150,8 @@ def test_host_unreachable_state(
     """HOST_UNREACHABLE when probe_reachability=True and the reachability probe fails."""
     monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: True)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_host_config", lambda: _HOST_SERVER_URL
-    )
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_reachability", lambda *_, **__: False
-    )
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: _HOST_SERVER_URL)
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_reachability", lambda *_, **__: False)
 
     result = evaluate_readiness(repo_root=_REPO, probe_reachability=True)
 
@@ -193,15 +177,9 @@ def test_missing_mission_binding_state(
     """MISSING_MISSION_BINDING when require_mission_binding=True and probe fails."""
     monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: True)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_host_config", lambda: "http://stub"
-    )
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_reachability", lambda *_, **__: True
-    )
-    monkeypatch.setattr(
-        "specify_cli.saas.readiness._probe_mission_binding", lambda *_: False
-    )
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: "http://stub")
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_reachability", lambda *_, **__: True)
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_mission_binding", lambda *_: False)
 
     result = evaluate_readiness(
         repo_root=_REPO,

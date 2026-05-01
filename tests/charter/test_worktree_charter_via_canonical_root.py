@@ -118,13 +118,8 @@ def test_build_charter_context_from_worktree_uses_canonical_root(tmp_path: Path)
     worktree_charter_dir = worktree_root / ".kittify" / "charter"
     forbidden = {"governance.yaml", "directives.yaml", "metadata.yaml"}
     if worktree_charter_dir.exists():
-        leaked = [
-            p.name for p in worktree_charter_dir.iterdir() if p.name in forbidden
-        ]
-        assert not leaked, (
-            f"Worktree charter dir leaked v1.0.0 derivatives: {leaked} — "
-            "readers must anchor derivatives at canonical root"
-        )
+        leaked = [p.name for p in worktree_charter_dir.iterdir() if p.name in forbidden]
+        assert not leaked, f"Worktree charter dir leaked v1.0.0 derivatives: {leaked} — readers must anchor derivatives at canonical root"
 
 
 def test_chokepoint_from_worktree_points_at_main_checkout(tmp_path: Path) -> None:
@@ -143,10 +138,7 @@ def test_chokepoint_from_worktree_points_at_main_checkout(tmp_path: Path) -> Non
 
     result = ensure_charter_bundle_fresh(worktree_root)
     assert result is not None
-    assert result.canonical_root == main_root, (
-        f"canonical_root={result.canonical_root} (expected main={main_root}); "
-        f"worktree={worktree_root}"
-    )
+    assert result.canonical_root == main_root, f"canonical_root={result.canonical_root} (expected main={main_root}); worktree={worktree_root}"
 
 
 def test_dashboard_charter_path_from_worktree_points_at_main(tmp_path: Path) -> None:
@@ -194,18 +186,14 @@ def test_worktree_bundle_never_materializes_locally(tmp_path: Path) -> None:
 
     # Post-condition: main checkout has the bundle materialized.
     for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
-        assert (main_root / ".kittify" / "charter" / name).exists(), (
-            f"main checkout missing derivative {name}"
-        )
+        assert (main_root / ".kittify" / "charter" / name).exists(), f"main checkout missing derivative {name}"
 
     # Post-condition: worktree's own charter dir must not hold a bundle.
     worktree_charter_dir = worktree_root / ".kittify" / "charter"
     if worktree_charter_dir.exists():
         for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
             local = worktree_charter_dir / name
-            assert not local.exists(), (
-                f"Worktree leak: {local} should not exist — canonical root writes only"
-            )
+            assert not local.exists(), f"Worktree leak: {local} should not exist — canonical root writes only"
 
 
 def test_loaders_from_worktree_return_canonical_content(tmp_path: Path) -> None:
@@ -249,10 +237,8 @@ def test_loaders_from_worktree_return_canonical_content(tmp_path: Path) -> None:
     # Both configs must round-trip identically. An empty config would
     # indicate the loader read the wrong tree.
     assert gov_worktree.model_dump() == gov_main.model_dump(), (
-        "load_governance_config(worktree) does not match load_governance_config(main); "
-        "the loader is not consuming SyncResult.canonical_root."
+        "load_governance_config(worktree) does not match load_governance_config(main); the loader is not consuming SyncResult.canonical_root."
     )
     assert dir_worktree.model_dump() == dir_main.model_dump(), (
-        "load_directives_config(worktree) does not match load_directives_config(main); "
-        "the loader is not consuming SyncResult.canonical_root."
+        "load_directives_config(worktree) does not match load_directives_config(main); the loader is not consuming SyncResult.canonical_root."
     )

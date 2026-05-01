@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from specify_cli.core.config import (
     SKILL_CLASS_NATIVE,
     SKILL_CLASS_SHARED,
 )
 from specify_cli.skills.installer import install_all_skills, install_skills_for_agent
-from specify_cli.skills.manifest import ManagedFileEntry, compute_content_hash
+from specify_cli.skills.manifest import compute_content_hash
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 
@@ -149,16 +148,12 @@ class TestSharedRootDeduplication:
         shared_set: set[str] = set()
 
         # First shared-root agent (codex) copies files
-        entries_1 = install_skills_for_agent(
-            project, "codex", [skill], shared_root_installed=shared_set
-        )
+        entries_1 = install_skills_for_agent(project, "codex", [skill], shared_root_installed=shared_set)
         assert "my-skill" in shared_set
         assert len(entries_1) == 1
 
         # Second shared-root agent (copilot) reuses files
-        entries_2 = install_skills_for_agent(
-            project, "copilot", [skill], shared_root_installed=shared_set
-        )
+        entries_2 = install_skills_for_agent(project, "copilot", [skill], shared_root_installed=shared_set)
         assert len(entries_2) == 1
 
         # Both point to the same installed path
@@ -176,12 +171,8 @@ class TestSharedRootDeduplication:
         skill = _make_skill(skills_root, "my-skill")
         shared_set: set[str] = set()
 
-        install_skills_for_agent(
-            project, "codex", [skill], shared_root_installed=shared_set
-        )
-        install_skills_for_agent(
-            project, "copilot", [skill], shared_root_installed=shared_set
-        )
+        install_skills_for_agent(project, "codex", [skill], shared_root_installed=shared_set)
+        install_skills_for_agent(project, "copilot", [skill], shared_root_installed=shared_set)
 
         # Only one copy on disk (in .agents/skills/)
         installed = project / ".agents" / "skills" / "my-skill" / "SKILL.md"

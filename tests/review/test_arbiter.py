@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -595,8 +595,7 @@ def test_is_arbiter_override_no_events_for_wp(tmp_path: Path) -> None:
     # Write an event for a *different* WP
     _write_event(
         feature_dir,
-        _make_event(wp_id="WP02", from_lane=Lane.FOR_REVIEW, to_lane=Lane.PLANNED,
-                    review_ref="feedback://066-test/WP02/20260406T120000Z-abc123.md"),
+        _make_event(wp_id="WP02", from_lane=Lane.FOR_REVIEW, to_lane=Lane.PLANNED, review_ref="feedback://066-test/WP02/20260406T120000Z-abc123.md"),
     )
 
     result = _is_arbiter_override(

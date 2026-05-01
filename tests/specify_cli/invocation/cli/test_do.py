@@ -121,6 +121,7 @@ def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
 
     def _resolve(pid: str) -> object:
         from specify_cli.invocation.errors import ProfileNotFoundError  # noqa: PLC0415
+
         profile = _get(pid)
         if profile is None:
             raise ProfileNotFoundError(pid, [p.profile_id for p in mock_profiles])
@@ -131,25 +132,29 @@ def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
     return registry
 
 
-_IMPLEMENTER_REGISTRY = lambda: _make_mock_registry([  # noqa: E731
-    {
-        "profile_id": "implementer-fixture",
-        "role_value": "implementer",
-        "routing_priority": 50,
-        "name": "Implementer (fixture)",
-        "domain_keywords": ["implement", "build", "code"],
-    },
-])
+_IMPLEMENTER_REGISTRY = lambda: _make_mock_registry(
+    [  # noqa: E731
+        {
+            "profile_id": "implementer-fixture",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "name": "Implementer (fixture)",
+            "domain_keywords": ["implement", "build", "code"],
+        },
+    ]
+)
 
-_REVIEWER_REGISTRY = lambda: _make_mock_registry([  # noqa: E731
-    {
-        "profile_id": "reviewer-fixture",
-        "role_value": "reviewer",
-        "routing_priority": 50,
-        "name": "Reviewer (fixture)",
-        "domain_keywords": ["review", "audit"],
-    },
-])
+_REVIEWER_REGISTRY = lambda: _make_mock_registry(
+    [  # noqa: E731
+        {
+            "profile_id": "reviewer-fixture",
+            "role_value": "reviewer",
+            "routing_priority": 50,
+            "name": "Reviewer (fixture)",
+            "domain_keywords": ["review", "audit"],
+        },
+    ]
+)
 
 
 # ---------------------------------------------------------------------------
@@ -392,9 +397,7 @@ class TestDoNeverUsesProfileHint:
             )
         assert result.exit_code == 0, result.output
         assert len(captured_hints) == 1
-        assert captured_hints[0] is None, (
-            f"do command must always pass profile_hint=None, got: {captured_hints[0]!r}"
-        )
+        assert captured_hints[0] is None, f"do command must always pass profile_hint=None, got: {captured_hints[0]!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -412,7 +415,4 @@ class TestDoHelp:
         result = runner.invoke(cli_app, ["do", "--help"])
         assert result.exit_code == 0
         # Should mention routing / ActionRouter concept
-        assert any(
-            keyword in result.output.lower()
-            for keyword in ("route", "router", "profile", "dispatch")
-        )
+        assert any(keyword in result.output.lower() for keyword in ("route", "router", "profile", "dispatch"))

@@ -14,10 +14,7 @@ import os
 SAAS_SYNC_ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
 _TRUTHY_VALUES = frozenset({"1", "true", "yes", "on"})
 
-_DISABLED_MESSAGE = (
-    "Hosted SaaS sync is not enabled on this machine. "
-    "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
-)
+_DISABLED_MESSAGE = "Hosted SaaS sync is not enabled on this machine. Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
 
 
 def is_saas_sync_enabled() -> bool:

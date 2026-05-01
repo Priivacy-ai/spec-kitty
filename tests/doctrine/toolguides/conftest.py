@@ -47,4 +47,3 @@ def tmp_toolguide_dir(tmp_path: Path, sample_toolguide_data: dict) -> Path:
         yaml.dump(sample_toolguide_data, f)
 
     return toolguide_dir
-

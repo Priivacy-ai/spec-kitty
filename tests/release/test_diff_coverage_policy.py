@@ -300,12 +300,10 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
     #    coverage reports (including kernel and status) feed the gate.
     # ------------------------------------------------------------------
     assert "coverage-*.xml" in enforced_run, (
-        "The enforced diff-coverage step must use a dynamic find pattern "
-        "(coverage-*.xml) to discover all coverage reports from upstream jobs."
+        "The enforced diff-coverage step must use a dynamic find pattern (coverage-*.xml) to discover all coverage reports from upstream jobs."
     )
     assert "coverage-*.xml" in advisory_run, (
-        "The advisory diff-coverage step must use a dynamic find pattern "
-        "(coverage-*.xml) to discover all coverage reports from upstream jobs."
+        "The advisory diff-coverage step must use a dynamic find pattern (coverage-*.xml) to discover all coverage reports from upstream jobs."
     )
 
     # ------------------------------------------------------------------
@@ -313,12 +311,10 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
     #    enforced gate includes charter files.
     # ------------------------------------------------------------------
     assert "fast-tests-charter" in workflow_text, (
-        "The CI workflow must define a fast-tests-charter job so charter "
-        "coverage can feed the enforced diff-coverage gate."
+        "The CI workflow must define a fast-tests-charter job so charter coverage can feed the enforced diff-coverage gate."
     )
     assert re.search(r"diff-coverage:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- fast-tests-charter", workflow_text), (
-        "diff-coverage must depend on fast-tests-charter; otherwise charter-only "
-        "changes can race artifact upload and produce timing-dependent results."
+        "diff-coverage must depend on fast-tests-charter; otherwise charter-only changes can race artifact upload and produce timing-dependent results."
     )
     assert re.search(r"diff-coverage:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- fast-tests-core-misc", workflow_text), (
         "diff-coverage must depend on fast-tests-core-misc; otherwise uncategorized "
@@ -331,6 +327,5 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
     #    diff-coverage fails on PRs.
     # ------------------------------------------------------------------
     assert re.search(r"quality-gate:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- diff-coverage", workflow_text), (
-        "quality-gate must depend on diff-coverage so a red coverage gate "
-        "cannot be masked by a green aggregate check."
+        "quality-gate must depend on diff-coverage so a red coverage gate cannot be masked by a green aggregate check."
     )

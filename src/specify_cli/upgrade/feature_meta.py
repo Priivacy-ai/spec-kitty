@@ -10,7 +10,7 @@ upgrade-specific logic and remain implemented here.
 from __future__ import annotations
 
 from kernel._safe_re import re
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -111,10 +111,7 @@ def infer_created_at(
     if feature_dir.exists():
         timestamps.append(feature_dir.stat().st_mtime)
 
-    if timestamps:
-        created_at = datetime.fromtimestamp(min(timestamps), tz=UTC)
-    else:
-        created_at = now or datetime.now(UTC)
+    created_at = datetime.fromtimestamp(min(timestamps), tz=UTC) if timestamps else now or datetime.now(UTC)
     return created_at.isoformat()
 
 

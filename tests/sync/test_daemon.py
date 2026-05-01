@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import threading
 import time
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -109,9 +108,7 @@ class TestDaemonFileLock:
         results = []
 
         def call():
-            results.append(
-                daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
-            )
+            results.append(daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg))
 
         t1 = threading.Thread(target=call)
         t2 = threading.Thread(target=call)
@@ -177,7 +174,7 @@ class TestDaemonLogging:
         monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
 
         # Make health check succeed on first try
-        health_payload = {
+        {
             "status": "ok",
             "token": None,
             "protocol_version": daemon.DAEMON_PROTOCOL_VERSION,
@@ -187,6 +184,7 @@ class TestDaemonLogging:
         }
 
         call_count = {"n": 0}
+
         def fake_check(port, token, timeout=0.5):
             call_count["n"] += 1
             return call_count["n"] > 0  # succeed immediately
@@ -249,7 +247,6 @@ class TestHealthCheckRetryWindow:
 
         # Count how much total sleep time the retry loop accumulates
         total_sleep = {"s": 0.0}
-        real_sleep = time.sleep
 
         class FakeProc:
             pid = 77777
@@ -499,9 +496,7 @@ def test_stop_sync_daemon_clears_unhealthy_recorded_process(monkeypatch, tmp_pat
     """stop/reset should kill the recorded PID even when health is already bad."""
     daemon_file = tmp_path / "sync-daemon"
     monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", daemon_file)
-    daemon._write_daemon_file(
-        daemon_file, "http://127.0.0.1:9402", 9402, "stale-token", 12835
-    )
+    daemon._write_daemon_file(daemon_file, "http://127.0.0.1:9402", 9402, "stale-token", 12835)
     monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
 
     killed: list[int] = []

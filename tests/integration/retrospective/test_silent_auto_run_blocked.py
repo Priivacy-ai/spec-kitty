@@ -102,15 +102,9 @@ def test_silent_auto_run_blocked_in_hic_mode(
     )
 
     # Gate must block.
-    assert not decision.allow_completion, (
-        f"Expected gate to block silent auto-run, but it allowed: {decision}"
-    )
-    assert decision.reason.code == "silent_auto_run_attempted", (
-        f"Expected reason.code='silent_auto_run_attempted', got: {decision.reason.code}"
-    )
-    assert completed_event_id in decision.reason.blocking_event_ids, (
-        f"Expected completed_event_id in blocking_event_ids, got: {decision.reason.blocking_event_ids}"
-    )
+    assert not decision.allow_completion, f"Expected gate to block silent auto-run, but it allowed: {decision}"
+    assert decision.reason.code == "silent_auto_run_attempted", f"Expected reason.code='silent_auto_run_attempted', got: {decision.reason.code}"
+    assert completed_event_id in decision.reason.blocking_event_ids, f"Expected completed_event_id in blocking_event_ids, got: {decision.reason.blocking_event_ids}"
 
 
 @pytest.mark.integration
@@ -179,7 +173,5 @@ def test_hic_completed_operator_driven_is_allowed(
         repo_root=tmp_path,
     )
 
-    assert decision.allow_completion, (
-        f"Expected human-driven completed event to allow completion, got: {decision.reason}"
-    )
+    assert decision.allow_completion, f"Expected human-driven completed event to allow completion, got: {decision.reason}"
     assert decision.reason.code == "completed_present_hic"

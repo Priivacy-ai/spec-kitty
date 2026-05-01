@@ -49,9 +49,7 @@ class TestLaneTestDbName:
     def test_safe_chars_only(self):
         """DB name must be ASCII-safe for cross-engine portability."""
         name = lane_test_db_name("flag.suite!", "lane-a")
-        assert name.replace("_", "").isalnum(), (
-            f"Unsafe characters in DB name: {name!r}"
-        )
+        assert name.replace("_", "").isalnum(), f"Unsafe characters in DB name: {name!r}"
         assert name.isascii(), f"DB name must be ASCII-only: {name!r}"
 
     def test_unicode_inputs_are_normalized_to_ascii_safe_names(self):
@@ -89,9 +87,7 @@ class TestLaneTestEnv:
 
     def test_value_matches_db_name(self):
         env = lane_test_env("083-my-feature", "lane-a")
-        assert env[SPEC_KITTY_TEST_DB_NAME_ENV] == lane_test_db_name(
-            "083-my-feature", "lane-a"
-        )
+        assert env[SPEC_KITTY_TEST_DB_NAME_ENV] == lane_test_db_name("083-my-feature", "lane-a")
 
     def test_canonical_env_key_is_spec_kitty_test_db_name(self):
         """The literal key is the documented contract — guards against renames."""
@@ -171,9 +167,7 @@ class TestLaneIsolationContract:
 
         # Round-trip via to_dict / from_dict — this is the JSON persistence path.
         round_tripped = WorkspaceContext.from_dict(ctx.to_dict())
-        assert round_tripped.lane_test_env == {
-            "SPEC_KITTY_TEST_DB_NAME": "test_my_feature_lane_a"
-        }
+        assert round_tripped.lane_test_env == {"SPEC_KITTY_TEST_DB_NAME": "test_my_feature_lane_a"}
 
     def test_implement_json_output_includes_lane_test_env(self, tmp_path, capsys):
         """FR-006: implement --json must surface lane_test_env so headless
@@ -207,9 +201,7 @@ class TestLaneIsolationContract:
             "workspace": str(result.workspace_path.name),
             "lane_id": result.lane_id,
             "execution_mode": result.execution_mode,
-            "lane_test_env": (
-                result.lane_test_env if isinstance(result.lane_test_env, dict) else {}
-            ),
+            "lane_test_env": (result.lane_test_env if isinstance(result.lane_test_env, dict) else {}),
         }
         encoded = json.loads(json.dumps(payload))
         assert encoded["lane_test_env"]["SPEC_KITTY_TEST_DB_NAME"] == "test_foo_lane_a"

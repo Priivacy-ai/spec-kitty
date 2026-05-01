@@ -109,9 +109,7 @@ def _classify(prompts_dir: Path) -> list[LegacyCodexPrompt]:
         if not child.is_file() or child.suffix != ".md":
             continue
         if child.name in LEGACY_CODEX_FILENAMES:
-            status: Literal["owned_unedited", "owned_edited", "third_party"] = (
-                "owned_unedited"
-            )
+            status: Literal["owned_unedited", "owned_edited", "third_party"] = "owned_unedited"
         else:
             status = "third_party"
         results.append(
@@ -139,15 +137,11 @@ def _print_preservation_notice(preserved: list[LegacyCodexPrompt]) -> None:
     mistake it for an error.
     """
     lines = [
-        "spec-kitty upgrade notice: the following .codex/prompts/ files were "
-        "left untouched because they are not Spec Kitty-owned files:",
+        "spec-kitty upgrade notice: the following .codex/prompts/ files were left untouched because they are not Spec Kitty-owned files:",
     ]
     for p in preserved:
         lines.append(f"  • {p.path}")
-    lines.append(
-        "Your Codex integration now reads from .agents/skills/; "
-        "these files will not be invoked automatically."
-    )
+    lines.append("Your Codex integration now reads from .agents/skills/; these files will not be invoked automatically.")
     print("\n".join(lines), file=sys.stderr)
 
 
@@ -160,8 +154,7 @@ def _print_superseded_notice(superseded: list[Path]) -> None:
     so the user can review and port any customizations.
     """
     lines = [
-        "spec-kitty upgrade notice: Codex now reads slash commands from "
-        ".agents/skills/ (Agent Skills).",
+        "spec-kitty upgrade notice: Codex now reads slash commands from .agents/skills/ (Agent Skills).",
         "Your former Codex prompt files have been moved to ",
         ".codex/prompts.superseded/ — they are preserved so you can review and ",
         "port any hand edits into the new .agents/skills/spec-kitty.<command>/ ",
@@ -192,11 +185,7 @@ class CodexToSkillsMigration(BaseMigration):
         prompts_dir = project_path / ".codex" / "prompts"
         if not prompts_dir.is_dir():
             return False
-        return any(
-            f.name in LEGACY_CODEX_FILENAMES
-            for f in prompts_dir.iterdir()
-            if f.is_file()
-        )
+        return any(f.name in LEGACY_CODEX_FILENAMES for f in prompts_dir.iterdir() if f.is_file())
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check that .kittify/ exists (project is initialized)."""
@@ -230,9 +219,7 @@ class CodexToSkillsMigration(BaseMigration):
             return MigrationResult(success=False, errors=errors)
 
         if "codex" not in agent_config.available:
-            logger.debug(
-                "Skipping CodexToSkillsMigration: codex not in agents.available"
-            )
+            logger.debug("Skipping CodexToSkillsMigration: codex not in agents.available")
             return MigrationResult(success=True, changes_made=[], warnings=[], errors=[])
 
         # --- Classify existing .codex/prompts/ files --------------------------
@@ -247,31 +234,18 @@ class CodexToSkillsMigration(BaseMigration):
 
         # --- Install new .agents/skills/ packages ----------------------------
         if dry_run:
-            changes.append(
-                "Would install 11 Codex skill packages under .agents/skills/"
-            )
-            changes.append(
-                f"Would delete {len(owned)} owned .codex/prompts/ file(s)"
-            )
+            changes.append("Would install 11 Codex skill packages under .agents/skills/")
+            changes.append(f"Would delete {len(owned)} owned .codex/prompts/ file(s)")
             if third_party:
-                warnings.append(
-                    f"Would preserve {len(third_party)} third-party file(s): "
-                    + ", ".join(p.path.name for p in third_party)
-                )
-            return MigrationResult(
-                success=True, changes_made=changes, warnings=warnings, errors=errors
-            )
+                warnings.append(f"Would preserve {len(third_party)} third-party file(s): " + ", ".join(p.path.name for p in third_party))
+            return MigrationResult(success=True, changes_made=changes, warnings=warnings, errors=errors)
 
         try:
             _install_skills(project_path)
-            changes.append(
-                "Installed 11 Codex skill packages under .agents/skills/"
-            )
+            changes.append("Installed 11 Codex skill packages under .agents/skills/")
         except Exception as exc:
             errors.append(f"Skill installation failed: {exc}")
-            return MigrationResult(
-                success=False, changes_made=changes, warnings=warnings, errors=errors
-            )
+            return MigrationResult(success=False, changes_made=changes, warnings=warnings, errors=errors)
 
         # --- Preserve owned files (do NOT silently delete) --------------------
         # Spec §Edge Cases: "Upgrade must not silently discard [user] edits
@@ -296,9 +270,7 @@ class CodexToSkillsMigration(BaseMigration):
                 superseded_dir.mkdir(parents=True, exist_ok=True)
             except OSError as exc:
                 errors.append(f"Could not create .codex/prompts.superseded/: {exc}")
-                return MigrationResult(
-                    success=False, changes_made=changes, warnings=warnings, errors=errors
-                )
+                return MigrationResult(success=False, changes_made=changes, warnings=warnings, errors=errors)
 
             for p in owned:
                 target = superseded_dir / p.path.name
@@ -319,22 +291,17 @@ class CodexToSkillsMigration(BaseMigration):
 
         if moved:
             changes.append(
-                f"Moved {len(moved)} superseded Codex prompt(s) from .codex/prompts/ "
-                f"to .codex/prompts.superseded/ (new skill packages live in .agents/skills/)"
+                f"Moved {len(moved)} superseded Codex prompt(s) from .codex/prompts/ to .codex/prompts.superseded/ (new skill packages live in .agents/skills/)"
             )
             _print_superseded_notice(moved)
 
         if move_errors:
-            warnings.append(
-                "Could not move some .codex/prompts/ files: " + "; ".join(move_errors)
-            )
+            warnings.append("Could not move some .codex/prompts/ files: " + "; ".join(move_errors))
 
         # --- Notify about third-party files -----------------------------------
         if third_party:
             _print_preservation_notice(third_party)
-            warnings.append(
-                f"Preserved {len(third_party)} third-party file(s) in .codex/prompts/"
-            )
+            warnings.append(f"Preserved {len(third_party)} third-party file(s) in .codex/prompts/")
 
         # --- Remove prompts dir if empty -------------------------------------
         if prompts_dir.exists():
@@ -346,6 +313,4 @@ class CodexToSkillsMigration(BaseMigration):
             except OSError as exc:
                 warnings.append(f"Could not remove .codex/prompts/ directory: {exc}")
 
-        return MigrationResult(
-            success=True, changes_made=changes, warnings=warnings, errors=errors
-        )
+        return MigrationResult(success=True, changes_made=changes, warnings=warnings, errors=errors)

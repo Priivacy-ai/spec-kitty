@@ -14,6 +14,7 @@ which the prompt builder does NOT consult — it consults
 This test drives ``resolve_command`` directly so a regression of that asset
 tier is caught immediately, not via a downstream smoke run.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,9 +33,7 @@ def test_resolve_command_returns_nonempty_template(step_id: str) -> None:
     assert result.path.is_file(), f"resolve_command returned non-existent path: {result.path}"
     content = result.path.read_text(encoding="utf-8").strip()
     assert content, f"empty template at {result.path}"
-    assert (
-        len(content.splitlines()) >= 10
-    ), f"template too short ({len(content.splitlines())} lines): {result.path}"
+    assert len(content.splitlines()) >= 10, f"template too short ({len(content.splitlines())} lines): {result.path}"
 
 
 @pytest.mark.parametrize("step_id", _DOC_STEPS)
@@ -47,9 +46,7 @@ def test_resolve_command_lands_in_command_templates_tier(step_id: str) -> None:
     failure mode that this test is the regression gate against).
     """
     result = resolve_command(f"{step_id}.md", Path("."), mission="documentation")
-    assert "command-templates" in result.path.parts, (
-        f"expected command-templates/ tier, got {result.path}"
-    )
+    assert "command-templates" in result.path.parts, f"expected command-templates/ tier, got {result.path}"
     assert result.path.parent.name != "templates" or result.path.parent.parent.name == "documentation", (
         # Defensive: catch the case where someone ships *only* under
         # missions/<mission>/templates/ (which the resolver would not find

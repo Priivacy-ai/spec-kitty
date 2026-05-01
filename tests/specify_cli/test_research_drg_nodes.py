@@ -67,10 +67,7 @@ def test_research_action_resolve_context_non_empty(action: str) -> None:
     graph = load_validated_graph(_repo_root())
     urn = f"action:research/{action}"
     ctx = resolve_context(graph, urn, depth=COMPOSITION_RESOLUTION_DEPTH)
-    assert ctx.artifact_urns, (
-        f"resolve_context returned empty artifact_urns for {urn}; "
-        f"composition would receive nothing for this research action."
-    )
+    assert ctx.artifact_urns, f"resolve_context returned empty artifact_urns for {urn}; composition would receive nothing for this research action."
 
 
 def test_drg_assert_valid_passes() -> None:

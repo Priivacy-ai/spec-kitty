@@ -65,7 +65,7 @@ def _get_recovery_transitions(current_lane: Lane) -> list[Lane]:
 
     result: list[Lane] = []
     from_lane: Lane = current_lane
-    for target in _PROGRESSION[start_index + 1: ceiling_index + 1]:
+    for target in _PROGRESSION[start_index + 1 : ceiling_index + 1]:
         # Pass recovery context to satisfy actor/workspace guards.
         # Recovery is always authoritative and always runs in a worktree.
         ok, _err = validate_transition(
@@ -140,7 +140,9 @@ def _list_mission_branches(repo_root: Path, mission_slug: str) -> list[str]:
 
 
 def _branch_has_commits_beyond(
-    repo_root: Path, branch: str, base_branch: str,
+    repo_root: Path,
+    branch: str,
+    base_branch: str,
 ) -> bool:
     """Check if a branch has commits beyond a base branch."""
     result = subprocess.run(
@@ -168,9 +170,9 @@ def _worktree_exists_for_branch(repo_root: Path, branch: str) -> Path | None:
     current_path: str | None = None
     for line in result.stdout.splitlines():
         if line.startswith("worktree "):
-            current_path = line[len("worktree "):]
+            current_path = line[len("worktree ") :]
         elif line.startswith("branch refs/heads/"):
-            wt_branch = line[len("branch refs/heads/"):]
+            wt_branch = line[len("branch refs/heads/") :]
             if wt_branch == branch and current_path:
                 return Path(current_path)
     return None
@@ -194,7 +196,8 @@ def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
 
 
 def _find_wp_ids_for_lane(
-    feature_dir: Path, lane_id: str,
+    feature_dir: Path,
+    lane_id: str,
 ) -> list[str]:
     """Find WP IDs assigned to a lane from lanes.json."""
     try:
@@ -230,6 +233,7 @@ def _read_all_wp_ids_from_tasks(feature_dir: Path) -> list[str]:
     if not tasks_dir.exists():
         return []
     import re as _re
+
     wp_id_re = _re.compile(r"^(WP\d{2,})", _re.IGNORECASE)
     wp_ids: list[str] = []
     for md_file in sorted(tasks_dir.glob("WP*.md")):
@@ -249,11 +253,13 @@ def _read_wp_dependencies(feature_dir: Path, wp_id: str) -> list[str]:
     if not tasks_dir.exists():
         return []
     import re as _re
+
     wp_id_re = _re.compile(rf"^{_re.escape(wp_id)}(?:[-_.].+)?\.md$", _re.IGNORECASE)
     for md_file in tasks_dir.glob("WP*.md"):
         if wp_id_re.match(md_file.name):
             try:
                 from specify_cli.core.dependency_graph import parse_wp_dependencies
+
                 return list(parse_wp_dependencies(md_file))
             except Exception:
                 logger.debug("Could not parse dependencies from %s", md_file)
@@ -274,8 +280,7 @@ def _get_all_wp_lanes_from_events(feature_dir: Path) -> dict[str, str]:
         if not events:
             return {}
         snapshot = reduce(events)
-        return {wp_id: str(state.get("lane", "planned"))
-                for wp_id, state in snapshot.work_packages.items()}
+        return {wp_id: str(state.get("lane", "planned")) for wp_id, state in snapshot.work_packages.items()}
     except Exception:
         logger.debug("Could not read all WP lanes from %s", feature_dir)
         return {}
@@ -313,10 +318,7 @@ def scan_recovery_state(  # noqa: C901
 
     # Collect all lane branches (skip the mission integration branch itself)
     branches = _list_mission_branches(repo_root, mission_slug)
-    lane_branches = [
-        b for b in branches
-        if parse_lane_id_from_branch(b) is not None
-    ]
+    lane_branches = [b for b in branches if parse_lane_id_from_branch(b) is not None]
 
     mission_branch = _find_mission_branch(feature_dir)
     if not mission_branch:
@@ -349,10 +351,7 @@ def scan_recovery_state(  # noqa: C901
         # Check worktree existence
         worktree_path_from_git = _worktree_exists_for_branch(repo_root, branch)
         expected_worktree = repo_root / ".worktrees" / f"{mission_slug}-{lane_id}"
-        worktree_exists = (
-            worktree_path_from_git is not None
-            or expected_worktree.exists()
-        )
+        worktree_exists = worktree_path_from_git is not None or expected_worktree.exists()
 
         # Check context existence
         context = contexts_by_lane.get(lane_id)
@@ -416,6 +415,7 @@ def scan_recovery_state(  # noqa: C901
     # Also pull from lanes.json if available.
     try:
         from specify_cli.lanes.persistence import read_lanes_json
+
         manifest = read_lanes_json(feature_dir)
         if manifest is not None:
             for lane in manifest.lanes:
@@ -638,17 +638,18 @@ def reconcile_status(
     emitted = 0
     for next_lane in transitions:
         try:
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=state.wp_id,
-                to_lane=next_lane,
-                actor=RECOVERY_ACTOR,
-                reason=f"Recovered after crash -- branch {state.branch_name} exists"
-                + (" with commits" if state.has_commits else ""),
-                execution_mode="worktree",
-                repo_root=repo_root,
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=state.wp_id,
+                    to_lane=next_lane,
+                    actor=RECOVERY_ACTOR,
+                    reason=f"Recovered after crash -- branch {state.branch_name} exists" + (" with commits" if state.has_commits else ""),
+                    execution_mode="worktree",
+                    repo_root=repo_root,
+                )
+            )
             emitted += 1
         except Exception:
             break

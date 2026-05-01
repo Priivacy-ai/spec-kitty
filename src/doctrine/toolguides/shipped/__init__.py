@@ -1,2 +1,1 @@
 """Shipped toolguide artifacts."""
-

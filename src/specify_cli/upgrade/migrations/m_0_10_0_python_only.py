@@ -326,9 +326,6 @@ class PythonOnlyMigration(BaseMigration):
 
         if custom_scripts:
             warnings.append(f"Custom bash scripts detected: {', '.join(custom_scripts)}")
-            warnings.append(
-                "These scripts will NOT be removed automatically. "
-                "Please migrate them manually or remove if no longer needed."
-            )
+            warnings.append("These scripts will NOT be removed automatically. Please migrate them manually or remove if no longer needed.")
 
         return warnings

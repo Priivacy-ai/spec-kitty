@@ -71,9 +71,7 @@ class TestClassifyPorcelainLines:
     def test_untracked_worktrees_dir_dropped(self):
         lines = ["?? .worktrees/scratch/", "?? tmp.txt"]
         offending, skipped = _classify_porcelain_lines(lines, expected_paths=set())
-        assert offending == [], (
-            f"Untracked entries must be silently dropped (FR-004), got: {offending!r}"
-        )
+        assert offending == [], f"Untracked entries must be silently dropped (FR-004), got: {offending!r}"
         assert skipped == 2
 
     def test_expected_status_files_dropped(self):
@@ -88,9 +86,7 @@ class TestClassifyPorcelainLines:
                 "kitty-specs/test/status.json",
             },
         )
-        assert offending == [], (
-            f"The two status files in expected_paths must be allowlisted: {offending!r}"
-        )
+        assert offending == [], f"The two status files in expected_paths must be allowlisted: {offending!r}"
 
     def test_tracked_unrelated_modification_is_offending(self):
         """No silent suppression: a tracked change outside the allowlist must surface."""
@@ -100,8 +96,7 @@ class TestClassifyPorcelainLines:
             expected_paths={"kitty-specs/test/status.events.jsonl"},
         )
         assert offending == [" M src/unexpected_file.py"], (
-            "Tracked diverging changes outside expected_paths MUST be reported. "
-            "FR-004 forbids silent suppression of operator-supplied tracked changes."
+            "Tracked diverging changes outside expected_paths MUST be reported. FR-004 forbids silent suppression of operator-supplied tracked changes."
         )
 
     def test_mixed_untracked_and_tracked(self):

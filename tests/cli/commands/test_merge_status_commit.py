@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -33,24 +33,22 @@ pytestmark = pytest.mark.git_repo
 def _init_git_repo(path: Path, branch: str = "main") -> None:
     """Initialize a git repo with a signed-off initial commit."""
     subprocess.run(["git", "init", f"-b{branch}"], cwd=path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=path, check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True)
     (path / "README.md").write_text("init\n")
     subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True)
     subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", "init"],
-        cwd=path, check=True, capture_output=True,
+        cwd=path,
+        check=True,
+        capture_output=True,
     )
 
 
 def _write_wp_file(tasks_dir: Path, wp_id: str, *, review_status: str = "approved", reviewed_by: str = "reviewer-1") -> None:
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}-impl.md").write_text(
-        f"---\nwork_package_id: \"{wp_id}\"\nreview_status: \"{review_status}\"\nreviewed_by: \"{reviewed_by}\"\n---\n# {wp_id}\n",
+        f'---\nwork_package_id: "{wp_id}"\nreview_status: "{review_status}"\nreviewed_by: "{reviewed_by}"\n---\n# {wp_id}\n',
         encoding="utf-8",
     )
 
@@ -327,10 +325,7 @@ class TestMergeDoneTransitions:
         if "worktree_remove" in call_order:
             sc_idx = call_order.index("safe_commit")
             wr_idx = call_order.index("worktree_remove")
-            assert sc_idx < wr_idx, (
-                f"safe_commit (idx={sc_idx}) must precede worktree_remove (idx={wr_idx}). "
-                "FR-019: persist events before destroying worktree."
-            )
+            assert sc_idx < wr_idx, f"safe_commit (idx={sc_idx}) must precede worktree_remove (idx={wr_idx}). FR-019: persist events before destroying worktree."
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +359,9 @@ class TestDoneEventsCommittedToGit:
         subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(
             ["git", "-c", "commit.gpgsign=false", "commit", "-m", "initial feature"],
-            cwd=tmp_path, check=True, capture_output=True,
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
         )
 
         # Seed event log entries (approved state for each WP, as they would be pre-merge)
@@ -373,6 +370,7 @@ class TestDoneEventsCommittedToGit:
 
         # Materialize status.json
         from specify_cli.status.reducer import materialize
+
         materialize(feature_dir)
 
         manifest = MagicMock()
@@ -446,11 +444,7 @@ class TestDoneEventsCommittedToGit:
             text=True,
             check=True,
         )
-        events = [
-            json.loads(line)
-            for line in result.stdout.splitlines()
-            if line.strip()
-        ]
+        events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
         done_wps = {e["wp_id"] for e in events if e.get("to_lane") == "done"}
 
         assert done_wps == set(wps), (

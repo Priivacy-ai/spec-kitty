@@ -3,6 +3,7 @@
 On Windows, forces UTF-8 stdout/stderr to avoid crashes on non-UTF-8 code
 pages when printing paths or status lines that contain non-ASCII characters.
 """
+
 from __future__ import annotations
 
 import sys

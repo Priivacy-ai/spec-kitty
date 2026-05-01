@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -157,9 +157,7 @@ def test_resolved_agent_returns_agent_assignment_type():
     for agent_val in [None, "claude", {"tool": "gemini"}]:
         meta = WPMetadata(work_package_id="WP01", agent=agent_val)
         assignment = meta.resolved_agent()
-        assert isinstance(assignment, AgentAssignment), (
-            f"Expected AgentAssignment for agent={agent_val!r}, got {type(assignment)}"
-        )
+        assert isinstance(assignment, AgentAssignment), f"Expected AgentAssignment for agent={agent_val!r}, got {type(assignment)}"
 
 
 # ---------------------------------------------------------------------------
@@ -174,8 +172,6 @@ def test_implement_command_calls_resolved_agent(tmp_path: Path) -> None:
     then invokes the implement command to confirm the call path.
     """
     import json
-
-    from specify_cli.status.models import Lane
 
     # Set up a minimal feature directory
     mission_slug = "test-feature-wp04"
@@ -194,20 +190,23 @@ def test_implement_command_calls_resolved_agent(tmp_path: Path) -> None:
     # Write status events so the lane reader works
     events_path = feature_dir / "status.events.jsonl"
     events_path.write_text(
-        json.dumps({
-            "actor": "test",
-            "at": "2026-04-09T00:00:00+00:00",
-            "event_id": "01TESTWP01PLANNED",
-            "evidence": None,
-            "execution_mode": "worktree",
-            "feature_slug": mission_slug,
-            "force": False,
-            "from_lane": "planned",
-            "reason": None,
-            "review_ref": None,
-            "to_lane": "in_progress",
-            "wp_id": "WP01",
-        }) + "\n",
+        json.dumps(
+            {
+                "actor": "test",
+                "at": "2026-04-09T00:00:00+00:00",
+                "event_id": "01TESTWP01PLANNED",
+                "evidence": None,
+                "execution_mode": "worktree",
+                "feature_slug": mission_slug,
+                "force": False,
+                "from_lane": "planned",
+                "reason": None,
+                "review_ref": None,
+                "to_lane": "in_progress",
+                "wp_id": "WP01",
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -222,11 +221,13 @@ def test_implement_command_calls_resolved_agent(tmp_path: Path) -> None:
         return original_resolved_agent(self)
 
     from specify_cli.status.wp_metadata import WPMetadata
+
     original_resolved_agent = WPMetadata.resolved_agent
 
     with patch.object(WPMetadata, "resolved_agent", _patched_resolved_agent):
         # Try to load a WP and call resolved_agent as the implement command does
         from specify_cli.status.wp_metadata import read_wp_frontmatter
+
         try:
             wp_meta, _ = read_wp_frontmatter(wp_file)
             # The implement command calls wp_meta.resolved_agent() after loading
@@ -253,8 +254,9 @@ def test_workflow_source_has_no_doing_string():
 
     # Look for the "doing" string literal (in quotes)
     import re
+
     doing_pattern = re.compile(r'(?<![#])["\']doing["\']')  # Exclude comments
-    matches = doing_pattern.findall(source_text)
+    doing_pattern.findall(source_text)
 
     # Filter out any that are in comment lines
     problematic_lines = []
@@ -265,10 +267,8 @@ def test_workflow_source_has_no_doing_string():
         if doing_pattern.search(line):
             problematic_lines.append(f"  Line {i}: {line.rstrip()}")
 
-    assert not problematic_lines, (
-        "workflow.py must not contain the 'doing' alias string.\n"
-        "Consumer code must use Lane.IN_PROGRESS directly.\n"
-        "Found:\n" + "\n".join(problematic_lines)
+    assert not problematic_lines, "workflow.py must not contain the 'doing' alias string.\nConsumer code must use Lane.IN_PROGRESS directly.\nFound:\n" + "\n".join(
+        problematic_lines
     )
 
 
@@ -280,9 +280,7 @@ def test_workflow_uses_lane_in_progress_not_doing_string():
     source_text = source_path.read_text(encoding="utf-8")
 
     # Verify Lane.IN_PROGRESS is used (not the "doing" alias)
-    assert "Lane.IN_PROGRESS" in source_text, (
-        "workflow.py should reference Lane.IN_PROGRESS for in_progress lane comparisons"
-    )
+    assert "Lane.IN_PROGRESS" in source_text, "workflow.py should reference Lane.IN_PROGRESS for in_progress lane comparisons"
 
 
 # ---------------------------------------------------------------------------

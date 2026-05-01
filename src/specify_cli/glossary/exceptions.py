@@ -43,10 +43,7 @@ class BlockedByConflict(GlossaryError):
             super().__init__(message)
         else:
             conflict_count = len(conflicts)
-            super().__init__(
-                f"Generation blocked by {conflict_count} semantic conflict(s). "
-                f"Resolve conflicts or use --strictness off to bypass."
-            )
+            super().__init__(f"Generation blocked by {conflict_count} semantic conflict(s). Resolve conflicts or use --strictness off to bypass.")
 
 
 class DeferredToAsync(GlossaryError):
@@ -54,10 +51,7 @@ class DeferredToAsync(GlossaryError):
 
     def __init__(self, conflict_id: str):
         self.conflict_id = conflict_id
-        super().__init__(
-            f"Conflict {conflict_id} deferred to async resolution. "
-            f"Generation remains blocked. Resolve via CLI or SaaS decision inbox."
-        )
+        super().__init__(f"Conflict {conflict_id} deferred to async resolution. Generation remains blocked. Resolve via CLI or SaaS decision inbox.")
 
 
 class AbortResume(GlossaryError):

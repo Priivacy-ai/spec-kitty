@@ -40,8 +40,7 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
         """Always returns False — command templates removed in WP10."""
         return (
             False,
-            "Command templates were removed in WP10 (canonical context architecture). "
-            "Shim generation replaces template-based commands.",
+            "Command templates were removed in WP10 (canonical context architecture). Shim generation replaces template-based commands.",
         )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
@@ -87,10 +86,7 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
                     except OSError as e:
                         warnings.append(f"Failed to copy mission template {template_name}: {e}")
         else:
-            warnings.append(
-                "Mission templates not found in package. "
-                "Slash commands may already be updated or require manual repair."
-            )
+            warnings.append("Mission templates not found in package. Slash commands may already be updated or require manual repair.")
 
         # Update implement.md and review.md in configured agent directories only
         templates_to_update = ["implement.md", "review.md"]

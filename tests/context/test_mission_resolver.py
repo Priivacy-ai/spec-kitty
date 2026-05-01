@@ -92,9 +92,7 @@ class TestResolveByFullMissionId:
             (MISSION_ID_D, "099-unique"),
         ],
     )
-    def test_parametrized_full_id(
-        self, repo_root: Path, mission_id: str, expected_slug: str
-    ) -> None:
+    def test_parametrized_full_id(self, repo_root: Path, mission_id: str, expected_slug: str) -> None:
         result = resolve_mission(mission_id, repo_root)
         assert result.mission_id == mission_id
         assert result.mission_slug == expected_slug

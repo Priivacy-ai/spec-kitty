@@ -54,7 +54,7 @@ def _lock_path(worktree: Path) -> Path:
 
 def test_acquire_creates_lock_file(tmp_path: Path) -> None:
     """Lock file exists after acquire()."""
-    lock = ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
+    ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
 
     assert _lock_path(tmp_path).exists(), "Lock file should be created"
     data = json.loads(_lock_path(tmp_path).read_text())
@@ -190,11 +190,7 @@ def test_isolation_config_env_var(tmp_path: Path) -> None:
     config_dir = tmp_path / ".kittify"
     config_dir.mkdir()
     (config_dir / "config.yaml").write_text(
-        "review:\n"
-        "  concurrent_isolation:\n"
-        "    strategy: env_var\n"
-        "    env_var: TEST_DB_SUFFIX\n"
-        "    template: '{agent}_{wp_id}'\n"
+        "review:\n  concurrent_isolation:\n    strategy: env_var\n    env_var: TEST_DB_SUFFIX\n    template: '{agent}_{wp_id}'\n"
     )
 
     result = _get_isolation_config(tmp_path)
@@ -247,7 +243,7 @@ def test_default_serialization_no_config(tmp_path: Path) -> None:
     assert isolation is None, "Should return None when no config exists"
 
     # Verify that acquire/release work correctly (serialization path).
-    lock = ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
+    ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
     assert _lock_path(tmp_path).exists()
 
     ReviewLock.release(tmp_path)
@@ -317,11 +313,7 @@ def test_isolation_config_wrong_strategy(tmp_path: Path) -> None:
     """_get_isolation_config returns None when strategy is not env_var."""
     config_dir = tmp_path / ".kittify"
     config_dir.mkdir()
-    (config_dir / "config.yaml").write_text(
-        "review:\n"
-        "  concurrent_isolation:\n"
-        "    strategy: other\n"
-    )
+    (config_dir / "config.yaml").write_text("review:\n  concurrent_isolation:\n    strategy: other\n")
 
     result = _get_isolation_config(tmp_path)
     assert result is None

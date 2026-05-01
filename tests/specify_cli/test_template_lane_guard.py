@@ -70,9 +70,8 @@ def _has_lane_in_frontmatter(text: str) -> list[str]:
     # Also check history entries for lane: field
     for line in frontmatter.splitlines():
         stripped = line.strip()
-        if re.match(r"lane\s*:", stripped) and stripped != "":
-            if f"frontmatter lane: {stripped}" not in violations:
-                violations.append(f"history lane field: {stripped}")
+        if re.match(r"lane\s*:", stripped) and stripped != "" and f"frontmatter lane: {stripped}" not in violations:
+            violations.append(f"history lane field: {stripped}")
     return violations
 
 
@@ -105,10 +104,7 @@ def test_no_lane_in_frontmatter(template_path: Path) -> None:
     """No template should contain ``lane:`` in YAML frontmatter."""
     text = template_path.read_text(encoding="utf-8")
     violations = _has_lane_in_frontmatter(text)
-    assert not violations, (
-        f"{template_path.relative_to(REPO_ROOT)} has lane in frontmatter:\n"
-        + "\n".join(f"  - {v}" for v in violations)
-    )
+    assert not violations, f"{template_path.relative_to(REPO_ROOT)} has lane in frontmatter:\n" + "\n".join(f"  - {v}" for v in violations)
 
 
 @pytest.mark.parametrize(
@@ -120,10 +116,7 @@ def test_no_lane_in_activity_log(template_path: Path) -> None:
     """No template should contain ``lane=`` in activity log format strings."""
     text = template_path.read_text(encoding="utf-8")
     violations = _has_lane_in_activity_log(text)
-    assert not violations, (
-        f"{template_path.relative_to(REPO_ROOT)} has lane= in activity log:\n"
-        + "\n".join(f"  - {v}" for v in violations)
-    )
+    assert not violations, f"{template_path.relative_to(REPO_ROOT)} has lane= in activity log:\n" + "\n".join(f"  - {v}" for v in violations)
 
 
 def test_guard_catches_reintroduction(tmp_path: Path) -> None:
@@ -147,6 +140,5 @@ def test_guard_catches_reintroduction(tmp_path: Path) -> None:
 def test_template_files_found() -> None:
     """Ensure we actually found template files to scan (guard against empty glob)."""
     assert len(_template_files) >= 10, (
-        f"Expected at least 10 template files but found {len(_template_files)}. "
-        f"Directories checked: {[str(d) for d in TEMPLATE_DIRS]}"
+        f"Expected at least 10 template files but found {len(_template_files)}. Directories checked: {[str(d) for d in TEMPLATE_DIRS]}"
     )

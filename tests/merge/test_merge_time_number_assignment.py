@@ -333,9 +333,7 @@ class TestMergeTimeAssignmentScenarios:
         results: dict[str, int | None] = {}
 
         def _runner(name: str, feature_dir: Path) -> None:
-            results[name] = _simulate_assignment(
-                target_root, kitty_specs, feature_dir, lock=lock
-            )
+            results[name] = _simulate_assignment(target_root, kitty_specs, feature_dir, lock=lock)
 
         threads = [
             threading.Thread(target=_runner, args=("a", feature_a)),

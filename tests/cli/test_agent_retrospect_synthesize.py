@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app
@@ -208,7 +207,7 @@ def test_dryrun_is_default() -> None:
 
 def test_ambiguous_handle_exit1() -> None:
     """Ambiguous mission handle → exit 1."""
-    mock_ambig = AmbiguousHandleError(
+    AmbiguousHandleError(
         handle="dup",
         candidates=[
             ResolvedMission(
@@ -482,10 +481,14 @@ def test_proposal_id_filter_passed_to_apply_proposals() -> None:
         result = runner.invoke(
             app,
             [
-                "retrospect", "synthesize",
-                "--mission", "01KQ6YEG",
-                "--proposal-id", FAKE_PROPOSAL_ID_A,
-                "--proposal-id", FAKE_PROPOSAL_ID_B,
+                "retrospect",
+                "synthesize",
+                "--mission",
+                "01KQ6YEG",
+                "--proposal-id",
+                FAKE_PROPOSAL_ID_A,
+                "--proposal-id",
+                FAKE_PROPOSAL_ID_B,
             ],
             catch_exceptions=False,
         )

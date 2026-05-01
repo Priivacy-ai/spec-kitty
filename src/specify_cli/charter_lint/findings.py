@@ -52,9 +52,7 @@ class DecayReport:
     """Aggregated output from all charter lint checkers."""
 
     findings: list[LintFinding] = field(default_factory=list)
-    scanned_at: str = field(
-        default_factory=lambda: datetime.now(tz=UTC).isoformat()
-    )
+    scanned_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
     feature_scope: str | None = None
     duration_seconds: float = 0.0
     drg_node_count: int = 0
@@ -77,9 +75,7 @@ class DecayReport:
     def filter_by_severity(self, min_severity: str) -> DecayReport:
         """Return a new DecayReport containing only findings at or above ``min_severity``."""
         threshold = SEVERITY_ORDER.get(min_severity, 0)
-        filtered = [
-            f for f in self.findings if SEVERITY_ORDER.get(f.severity, 0) >= threshold
-        ]
+        filtered = [f for f in self.findings if SEVERITY_ORDER.get(f.severity, 0) >= threshold]
         return DecayReport(
             findings=filtered,
             scanned_at=self.scanned_at,

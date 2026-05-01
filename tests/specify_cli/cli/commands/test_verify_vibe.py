@@ -79,6 +79,4 @@ def test_agent_tool_requirements_vibe_url() -> None:
     assert "vibe" in AGENT_TOOL_REQUIREMENTS
     tool_name, url = AGENT_TOOL_REQUIREMENTS["vibe"]
     assert tool_name == "vibe"
-    assert "github.com" in url or "mistral" in url, (
-        f"Expected stable URL for vibe, got: {url}"
-    )
+    assert "github.com" in url or "mistral" in url, f"Expected stable URL for vibe, got: {url}"

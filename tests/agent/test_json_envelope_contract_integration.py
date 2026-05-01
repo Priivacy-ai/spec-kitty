@@ -27,6 +27,7 @@ runner = CliRunner()
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_envelope(output: str) -> dict:
     """Parse the last non-empty line of output as JSON.
 
@@ -39,6 +40,7 @@ def _parse_envelope(output: str) -> dict:
             return json.loads(line)
     raise AssertionError(f"No JSON envelope found in output:\n{output}")
 
+
 def _assert_usage_error(output: str, *, substring: str | None = None) -> dict:
     """Assert the output is a USAGE_ERROR JSON envelope and return it."""
     env = _parse_envelope(output)
@@ -46,14 +48,14 @@ def _assert_usage_error(output: str, *, substring: str | None = None) -> dict:
     assert env["error_code"] == "USAGE_ERROR", f"Expected USAGE_ERROR, got: {env['error_code']}"
     assert "message" in env["data"], f"Expected 'message' in data, got: {env['data']}"
     if substring is not None:
-        assert substring.lower() in env["data"]["message"].lower(), (
-            f"Expected '{substring}' in message '{env['data']['message']}'"
-        )
+        assert substring.lower() in env["data"]["message"].lower(), f"Expected '{substring}' in message '{env['data']['message']}'"
     return env
+
 
 # ---------------------------------------------------------------------------
 # Repro 2: Parser-level errors must be JSON envelopes
 # ---------------------------------------------------------------------------
+
 
 class TestParserErrorsReturnJSON:
     """Missing required args and unknown options must return USAGE_ERROR JSON."""
@@ -118,9 +120,11 @@ class TestParserErrorsReturnJSON:
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--mission")
 
+
 # ---------------------------------------------------------------------------
 # Repro 2: Envelope shape validation
 # ---------------------------------------------------------------------------
+
 
 class TestUsageErrorEnvelopeShape:
     """The USAGE_ERROR envelope must have the full canonical shape."""
@@ -137,9 +141,7 @@ class TestUsageErrorEnvelopeShape:
             "error_code",
             "data",
         }
-        assert required_keys.issubset(set(env.keys())), (
-            f"Missing keys: {required_keys - set(env.keys())}"
-        )
+        assert required_keys.issubset(set(env.keys())), f"Missing keys: {required_keys - set(env.keys())}"
 
     def test_envelope_command_is_unknown(self):
         """Parser errors happen before the command is known, so command='orchestrator-api.unknown'."""
@@ -152,9 +154,11 @@ class TestUsageErrorEnvelopeShape:
         env = _parse_envelope(result.output)
         assert env["correlation_id"].startswith("corr-")
 
+
 # ---------------------------------------------------------------------------
 # Repro 3: --no-json flag is removed (breaking change)
 # ---------------------------------------------------------------------------
+
 
 class TestNoJsonFlagRemoved:
     """The --no-json flag must no longer be accepted."""
@@ -170,10 +174,21 @@ class TestNoJsonFlagRemoved:
         _assert_usage_error(result.output, substring="--no-json")
 
     def test_no_json_flag_rejected_on_transition(self):
-        result = runner.invoke(app, [
-            "transition", "--mission", "dummy", "--wp", "WP01",
-            "--to", "done", "--actor", "test", "--no-json",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "transition",
+                "--mission",
+                "dummy",
+                "--wp",
+                "WP01",
+                "--to",
+                "done",
+                "--actor",
+                "test",
+                "--no-json",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--no-json")
 
@@ -183,9 +198,11 @@ class TestNoJsonFlagRemoved:
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--json")
 
+
 # ---------------------------------------------------------------------------
 # Positive control: valid commands still work
 # ---------------------------------------------------------------------------
+
 
 class TestValidCommandsStillWork:
     """Ensure the JSON error handler doesn't break normal command execution."""
@@ -203,9 +220,11 @@ class TestValidCommandsStillWork:
         data = json.loads(result.output)
         assert data["success"] is True
 
+
 # ---------------------------------------------------------------------------
 # Root CLI path: orchestrator-api invoked through the real root CLI app
 # ---------------------------------------------------------------------------
+
 
 class TestRootCLIPath:
     """Invoke orchestrator-api commands through the root CLI app.
@@ -229,10 +248,15 @@ class TestRootCLIPath:
 
     def test_contract_version_with_provider_through_root(self):
         """contract-version with --provider-version through root CLI."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "contract-version",
-            "--provider-version", "0.1.0",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "contract-version",
+                "--provider-version",
+                "0.1.0",
+            ],
+        )
         assert result.exit_code == 0, result.output
         data = _parse_envelope(result.output)
         assert data["success"] is True
@@ -244,33 +268,51 @@ class TestRootCLIPath:
 
         This is the definitive regression test for Issue #304.
         """
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "contract-version", "--bogus",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "contract-version",
+                "--bogus",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--bogus")
 
     def test_unknown_subcommand_through_root(self):
         """Unknown subcommand through root CLI must return USAGE_ERROR JSON."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "nonexistent-command",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "nonexistent-command",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="nonexistent-command")
 
     def test_missing_required_args_through_root(self):
         """Missing required args through root CLI must return USAGE_ERROR JSON."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "mission-state",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "mission-state",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--mission")
 
     def test_json_flag_rejected_through_root(self):
         """--json flag through root CLI must return USAGE_ERROR (no such flag)."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "contract-version", "--json",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "contract-version",
+                "--json",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--json")
 
@@ -281,9 +323,13 @@ class TestRootCLIPath:
         resolution) hits make_context(), not invoke(). Without the
         make_context() override this produces prose from BannerGroup.
         """
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "--bogus",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "--bogus",
+            ],
+        )
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--bogus")
 
@@ -297,21 +343,39 @@ class TestRootCLIPath:
 
     def test_feature_state_rejected_through_root(self):
         """feature-state through root CLI must fail as unknown command."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "feature-state", "--mission", "dummy",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "feature-state",
+                "--mission",
+                "dummy",
+            ],
+        )
         assert result.exit_code != 0
 
     def test_accept_feature_rejected_through_root(self):
         """accept-feature through root CLI must fail as unknown command."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "accept-feature", "--mission", "dummy",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "accept-feature",
+                "--mission",
+                "dummy",
+            ],
+        )
         assert result.exit_code != 0
 
     def test_merge_feature_rejected_through_root(self):
         """merge-feature through root CLI must fail as unknown command."""
-        result = runner.invoke(root_app, [
-            "orchestrator-api", "merge-feature", "--mission", "dummy",
-        ])
+        result = runner.invoke(
+            root_app,
+            [
+                "orchestrator-api",
+                "merge-feature",
+                "--mission",
+                "dummy",
+            ],
+        )
         assert result.exit_code != 0

@@ -25,9 +25,7 @@ import pytest
     sys.platform == "win32",
     reason="os.symlink requires admin/dev mode on Windows; bug is POSIX-surfaced",
 )
-def test_install_preserves_venv_symlink_in_exec_line(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_preserves_venv_symlink_in_exec_line(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Hook's exec line points at the symlink, not the resolved target (regression #669)."""
     from specify_cli.policy import hook_installer
 
@@ -47,16 +45,9 @@ def test_install_preserves_venv_symlink_in_exec_line(
 
     record = hook_installer.install(repo)
 
-    assert record.interpreter == symlink, (
-        f"installer resolved through symlink; expected {symlink}, got {record.interpreter}"
-    )
+    assert record.interpreter == symlink, f"installer resolved through symlink; expected {symlink}, got {record.interpreter}"
 
     hook_body = (repo / ".git" / "hooks" / "pre-commit").read_text()
     exec_line = next(line for line in hook_body.splitlines() if line.startswith("exec "))
-    assert str(symlink) in exec_line, (
-        f"exec line should quote symlink path, got: {exec_line}"
-    )
-    assert os.path.realpath(symlink) not in exec_line, (
-        "exec line must not quote the resolved target — that breaks venv site.py init. "
-        f"got: {exec_line}"
-    )
+    assert str(symlink) in exec_line, f"exec line should quote symlink path, got: {exec_line}"
+    assert os.path.realpath(symlink) not in exec_line, f"exec line must not quote the resolved target — that breaks venv site.py init. got: {exec_line}"

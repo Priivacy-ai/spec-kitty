@@ -31,10 +31,7 @@ from specify_cli.runtime.migrate import execute_migration
 
 app = typer.Typer(
     name="migrate",
-    help=(
-        "Migration commands: update .kittify/ layout and backfill identity fields "
-        "in legacy missions."
-    ),
+    help=("Migration commands: update .kittify/ layout and backfill identity fields in legacy missions."),
     no_args_is_help=False,
     invoke_without_command=True,
 )
@@ -44,15 +41,9 @@ console = Console()
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
     ctx: typer.Context,
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Show what would change without modifying the filesystem"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show file-by-file detail"
-    ),
-    force: bool = typer.Option(
-        False, "--force", help="Skip confirmation prompt"
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without modifying the filesystem"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show file-by-file detail"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
@@ -78,6 +69,7 @@ def migrate(  # noqa: C901
     # without performing any filesystem moves (FR-006, contracts/cli-migrate.md).
     if sys.platform == "win32":
         from specify_cli.paths.windows_migrate import migrate_windows_state  # noqa: PLC0415
+
         try:
             outcomes = migrate_windows_state(dry_run=dry_run)
         except TimeoutError as exc:
@@ -87,10 +79,7 @@ def migrate(  # noqa: C901
 
     project_dir = locate_project_root()
     if project_dir is None:
-        console.print(
-            "[red]Could not locate project root. "
-            "No .kittify/ directory found in any parent directory.[/red]"
-        )
+        console.print("[red]Could not locate project root. No .kittify/ directory found in any parent directory.[/red]")
         raise typer.Exit(1)
 
     if not (project_dir / ".kittify").exists():
@@ -109,9 +98,7 @@ def migrate(  # noqa: C901
     else:
         runtime_root = get_runtime_root()
         runtime_path_display = render_runtime_path(runtime_root.base)
-        console.print(
-            f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date..."
-        )
+        console.print(f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date...")
         ensure_runtime()
         console.print("  [green]Global runtime is current.[/green]")
 
@@ -127,22 +114,14 @@ def migrate(  # noqa: C901
     action_moved = "would move" if dry_run else "moved"
     action_superseded = "would remove" if dry_run else "removed"
 
-    console.print(
-        f"  {len(report.removed)} files identical to global -- {action_removed}"
-    )
+    console.print(f"  {len(report.removed)} files identical to global -- {action_removed}")
     if report.superseded:
-        console.print(
-            f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}"
-        )
-    console.print(
-        f"  {len(report.moved)} files customized -- {action_moved} to overrides/"
-    )
+        console.print(f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}")
+    console.print(f"  {len(report.moved)} files customized -- {action_moved} to overrides/")
     console.print(f"  {len(report.kept)} files project-specific -- kept")
 
     if report.unknown:
-        console.print(
-            f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]"
-        )
+        console.print(f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]")
 
     if verbose:
         for path in report.removed:
@@ -157,10 +136,7 @@ def migrate(  # noqa: C901
             console.print(f"    [yellow]unknown: {path}[/yellow]")
 
     if not dry_run:
-        console.print(
-            "\n[green]Migration complete.[/green] Zero legacy warnings expected. "
-            "Run `spec-kitty config --show-origin` to verify resolution tiers."
-        )
+        console.print("\n[green]Migration complete.[/green] Zero legacy warnings expected. Run `spec-kitty config --show-origin` to verify resolution tiers.")
 
     # Credential path decision: auth credentials stay in the runtime auth/ subdir.
     # This is a security boundary decision -- credentials have a different
@@ -178,10 +154,7 @@ def backfill_identity(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would change without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would change without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     mission: Annotated[
@@ -281,10 +254,7 @@ def backfill_identity(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif wrote:
-            console.print(
-                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a "
-                f"``mission_id``."
-            )
+            console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_id``.")
         else:
             console.print("\n[green]Done.[/green] All missions already have a ``mission_id``.")
 
@@ -470,11 +440,7 @@ def _render_windows_migration_summary(
             canonical_dest = render_runtime_path(Path(o.dest_path))
             break
 
-    header = (
-        "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows."
-        if dry_run
-        else "\nMigrated Spec Kitty runtime state on Windows."
-    )
+    header = "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows." if dry_run else "\nMigrated Spec Kitty runtime state on Windows."
     con.print(header)
     if canonical_dest:
         con.print(f"  Canonical location: {canonical_dest}")

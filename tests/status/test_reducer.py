@@ -595,11 +595,13 @@ class TestMaterializeGitClean:
         subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
         subprocess.run(
             ["git", "-C", str(tmp_path), "config", "user.email", "test@test.com"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "-C", str(tmp_path), "config", "user.name", "Test"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
         # Create feature dir with events and initial status.json
@@ -619,11 +621,13 @@ class TestMaterializeGitClean:
         materialize(feature_dir)
         subprocess.run(
             ["git", "-C", str(tmp_path), "add", "-A"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "-C", str(tmp_path), "commit", "-m", "initial"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
         # Second materialize (same events) should skip write → clean tree
@@ -631,6 +635,7 @@ class TestMaterializeGitClean:
 
         result = subprocess.run(
             ["git", "-C", str(tmp_path), "status", "--porcelain"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.stdout.strip() == "", f"Unexpected dirty files: {result.stdout}"

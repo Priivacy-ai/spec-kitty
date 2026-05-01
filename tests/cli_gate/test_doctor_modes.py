@@ -87,9 +87,7 @@ class TestDoctorPredicateDirect:
         """``--fail-on`` is a safe flag and must not trigger UNSAFE."""
         assert _doctor_predicate(_inv(raw_args=("--fail-on", "legacy,orphan"))) == Safety.SAFE
 
-    def test_monkeypatched_synthetic_flag_is_unsafe(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_monkeypatched_synthetic_flag_is_unsafe(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Future mutating flags can be added by extending _DOCTOR_UNSAFE_FLAGS.
 
         This forward-looking test uses monkeypatch to verify the mechanism works
@@ -110,9 +108,7 @@ class TestDoctorPredicateDirect:
 
     def test_fix_in_subcommand_args_is_unsafe(self) -> None:
         """``--fix`` anywhere in raw_args (e.g. sparse-checkout --fix) is UNSAFE."""
-        result = _doctor_predicate(
-            _inv(raw_args=("sparse-checkout", "--fix"))
-        )
+        result = _doctor_predicate(_inv(raw_args=("sparse-checkout", "--fix")))
         assert result == Safety.UNSAFE
 
 
@@ -179,14 +175,10 @@ class TestDoctorGateIntegration:
         """
         import sys  # noqa: PLC0415
 
-        monkeypatch.setattr(
-            sys, "argv", ["spec-kitty", "doctor", "sparse-checkout", "--fix"]
-        )
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "sparse-checkout", "--fix"])
         with pytest.raises(SystemExit) as exc_info:
             check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
-        assert exc_info.value.code == 5, (
-            f"Expected exit 5 (BLOCK_CLI_UPGRADE), got {exc_info.value.code!r}"
-        )
+        assert exc_info.value.code == 5, f"Expected exit 5 (BLOCK_CLI_UPGRADE), got {exc_info.value.code!r}"
 
     def test_safe_doctor_json_not_blocked(
         self,
@@ -282,15 +274,10 @@ class TestDoctorSubcommandGateIntegration:
         """``doctor sparse-checkout --fix`` MUST be blocked (exit 5) on a too-new project."""
         import sys  # noqa: PLC0415
 
-        monkeypatch.setattr(
-            sys, "argv", ["spec-kitty", "doctor", "sparse-checkout", "--fix"]
-        )
+        monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor", "sparse-checkout", "--fix"])
         with pytest.raises(SystemExit) as exc_info:
             check_schema_version(fixture_project_too_new, invoked_subcommand="doctor")
-        assert exc_info.value.code == 5, (
-            f"Expected exit 5 (BLOCK_CLI_UPGRADE) for sparse-checkout --fix, "
-            f"got {exc_info.value.code!r}"
-        )
+        assert exc_info.value.code == 5, f"Expected exit 5 (BLOCK_CLI_UPGRADE) for sparse-checkout --fix, got {exc_info.value.code!r}"
 
     def test_doctor_command_files_not_blocked(
         self,

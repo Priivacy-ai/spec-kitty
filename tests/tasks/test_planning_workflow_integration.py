@@ -63,6 +63,7 @@ def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None
     )
     assert spec_tracked.returncode != 0, "scaffold spec.md should not be committed at create time"
 
+
 def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     """Test that setup-plan command works in main repo and commits plan.md."""
     # Setup: create mission in-process (not the test target)
@@ -102,6 +103,7 @@ def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     )
     assert "plan" in log_result.stdout.lower(), "plan.md should be committed to main"
 
+
 def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_cli) -> None:
     """setup-plan with explicit --mission returns deterministic context fields."""
     # Setup: create mission in-process
@@ -130,6 +132,7 @@ def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_c
     assert payload["spec_file"] == str(feature_dir / "spec.md")
     assert payload["plan_file"] == str(feature_dir / "plan.md")
 
+
 def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run_cli) -> None:
     """setup-plan without explicit context returns candidate missions and remediation."""
     # Setup: create two missions in-process
@@ -149,6 +152,7 @@ def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run
     assert payload["error_code"] == "PLAN_CONTEXT_UNRESOLVED"
     assert len(payload["available_missions"]) >= 2
     assert "--mission" in payload["example_command"]
+
 
 def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_cli) -> None:
     """setup-plan should fail when spec.md is missing for an explicit mission."""
@@ -173,6 +177,7 @@ def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_c
     assert payload["error_code"] == "SPEC_FILE_MISSING"
     assert payload["mission_slug"] == mission_slug
     assert payload["spec_file"] == str(spec_file.resolve())
+
 
 def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> None:
     """Test complete planning workflow (specify → plan → [manual tasks]) without worktrees."""
@@ -233,7 +238,8 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
 
     # Create tasks.md with dependencies
     tasks_md = feature_dir / "tasks.md"
-    tasks_md.write_text("""# Work Packages
+    tasks_md.write_text(
+        """# Work Packages
 
 ## Work Package WP01: Foundation
 **Dependencies**: None
@@ -251,7 +257,9 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
 
 ### Included Subtasks
 - T003 Build REST endpoints
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     # Create WP files WITHOUT dependencies (simulate LLM before finalize-tasks)
     wp01_content = """---
@@ -322,12 +330,8 @@ Test work package content.
     # Verify dependencies were added by finalize-tasks
     wp01_updated = (tasks_dir / "WP01-foundation.md").read_text()
     assert "dependencies" in wp01_updated.lower(), "WP01 should have dependencies field"
-    assert "planning_base_branch: main" in wp01_updated, (
-        "WP01 should record the planning branch used to generate tasks"
-    )
-    assert "merge_target_branch: main" in wp01_updated, (
-        "WP01 should record the final merge target"
-    )
+    assert "planning_base_branch: main" in wp01_updated, "WP01 should record the planning branch used to generate tasks"
+    assert "merge_target_branch: main" in wp01_updated, "WP01 should record the final merge target"
 
     wp02_updated = (tasks_dir / "WP02-api.md").read_text()
     assert "dependencies" in wp02_updated.lower(), "WP02 should have dependencies field"
@@ -377,6 +381,7 @@ Test work package content.
     default_branch = branch_result.stdout.strip()
     assert default_branch in ("main", "master"), f"Should still be on default branch, got: {default_branch}"
 
+
 def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
     """Test that check-prerequisites command works when run from main repo."""
     # Setup: create mission in-process
@@ -400,9 +405,8 @@ def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
     assert output["valid"] is True, "Feature structure should be valid"
     assert "spec_file" in output["paths"], "Should detect spec.md"
 
-def test_check_prerequisites_ambiguous_context_returns_candidates(
-    test_project: Path, run_cli
-) -> None:
+
+def test_check_prerequisites_ambiguous_context_returns_candidates(test_project: Path, run_cli) -> None:
     """check-prerequisites should fail with remediation when feature context is ambiguous."""
     # Setup: create two missions in-process
     create_mission_fast(test_project, "ambiguous-a", number=1)
@@ -424,9 +428,8 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
     assert len(payload["available_missions"]) >= 2
     assert "--mission" in payload["example_command"]
 
-def test_finalize_tasks_ambiguous_context_returns_candidates(
-    test_project: Path, run_cli
-) -> None:
+
+def test_finalize_tasks_ambiguous_context_returns_candidates(test_project: Path, run_cli) -> None:
     """finalize-tasks should fail with remediation when feature context is ambiguous."""
     # Setup: create two missions in-process
     create_mission_fast(test_project, "ambiguous-finalize-a", number=1)

@@ -90,8 +90,7 @@ def _create_mission(
             friendly_name=slug.replace("-", " ").title(),
             purpose_tldr=f"Deliver {slug.replace('-', ' ')} cleanly for the team.",
             purpose_context=(
-                f"This mission delivers {slug.replace('-', ' ')} so product and engineering can "
-                "move forward with a clear outcome and shared understanding."
+                f"This mission delivers {slug.replace('-', ' ')} so product and engineering can move forward with a clear outcome and shared understanding."
             ),
         )
 
@@ -104,9 +103,7 @@ def _read_meta(feature_dir: Path) -> dict[str, Any]:
 def _assert_valid_ulid(value: str, *, label: str = "mission_id") -> None:
     """Assert that *value* is a 26-character Crockford base32 ULID string."""
     assert len(value) == 26, f"{label} must be 26 chars, got {len(value)}: {value!r}"
-    assert _ULID_RE.match(value), (
-        f"{label} must match Crockford base32 ULID alphabet, got {value!r}"
-    )
+    assert _ULID_RE.match(value), f"{label} must match Crockford base32 ULID alphabet, got {value!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -129,9 +126,7 @@ def test_t001_distinct_mission_ids_across_back_to_back_creations(tmp_path: Path)
 
     assert id_a, "alpha-feature mission_id must be non-empty"
     assert id_b, "beta-feature mission_id must be non-empty"
-    assert id_a != id_b, (
-        f"Back-to-back creations must produce distinct ULIDs; both got {id_a!r}"
-    )
+    assert id_a != id_b, f"Back-to-back creations must produce distinct ULIDs; both got {id_a!r}"
     _assert_valid_ulid(id_a, label="alpha-feature mission_id")
     _assert_valid_ulid(id_b, label="beta-feature mission_id")
 
@@ -205,13 +200,9 @@ def test_t003_mission_id_is_valid_ulid_and_immutable(tmp_path: Path) -> None:
     meta_second = _read_meta(result.feature_dir)
     reread_id: str = meta_second["mission_id"]
 
-    assert reread_id == captured_id, (
-        f"mission_id changed after noop re-read: was {captured_id!r}, now {reread_id!r}"
-    )
+    assert reread_id == captured_id, f"mission_id changed after noop re-read: was {captured_id!r}, now {reread_id!r}"
     # Validate ULID alphabet: 26-char Crockford base32 excluding I, L, O, U
-    assert _ULID_RE.match(captured_id), (
-        f"mission_id {captured_id!r} does not match ULID regex ^[0-9A-HJKMNP-TV-Z]{{26}}$"
-    )
+    assert _ULID_RE.match(captured_id), f"mission_id {captured_id!r} does not match ULID regex ^[0-9A-HJKMNP-TV-Z]{{26}}$"
 
 
 # ---------------------------------------------------------------------------
@@ -241,13 +232,8 @@ def test_t004_hundred_sequential_creations_all_distinct(tmp_path: Path) -> None:
         ids.append(mission_id)
 
     unique_ids = set(ids)
-    assert len(unique_ids) == n, (
-        f"Expected {n} distinct mission_ids, found {len(unique_ids)} unique values "
-        f"({n - len(unique_ids)} collision(s))"
-    )
+    assert len(unique_ids) == n, f"Expected {n} distinct mission_ids, found {len(unique_ids)} unique values ({n - len(unique_ids)} collision(s))"
 
     # Non-decreasing lexicographic order — ULID timestamp monotonicity
     for j in range(len(ids) - 1):
-        assert ids[j] <= ids[j + 1], (
-            f"ULID order violation at index {j}: {ids[j]!r} > {ids[j + 1]!r}"
-        )
+        assert ids[j] <= ids[j + 1], f"ULID order violation at index {j}: {ids[j]!r} > {ids[j + 1]!r}"

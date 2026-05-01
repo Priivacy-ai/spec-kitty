@@ -125,8 +125,6 @@ def test_review_passes_when_all_done(tmp_path: Path, monkeypatch: pytest.MonkeyP
         lambda handle, repo_root: _mock_resolved,
     )
 
-    from specify_cli.cli.commands.review import review_mission
-
     runner = CliRunner()
     app = _build_cli_app()
     result = runner.invoke(app, ["--mission", _MISSION_SLUG])
@@ -216,13 +214,9 @@ def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest
     assert "verdict" in fm_dict, f"Missing 'verdict' in frontmatter: {fm_dict}"
     assert "reviewed_at" in fm_dict, f"Missing 'reviewed_at' in frontmatter: {fm_dict}"
     assert "findings" in fm_dict, f"Missing 'findings' in frontmatter: {fm_dict}"
-    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), (
-        f"Invalid verdict: {fm_dict['verdict']}"
-    )
+    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), f"Invalid verdict: {fm_dict['verdict']}"
     # reviewed_at must look like an ISO timestamp
-    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], (
-        f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
-    )
+    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
     assert fm_dict["findings"].isdigit(), f"findings must be integer, got: {fm_dict['findings']!r}"
 
 

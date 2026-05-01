@@ -19,6 +19,7 @@ from charter.schemas import (
 
 pytestmark = pytest.mark.fast
 
+
 class TestExtractor:
     @pytest.fixture
     def extractor(self) -> Extractor:
@@ -296,26 +297,14 @@ class TestExtractGovernanceDispatch:
     def test_dispatch_branch_strategy_handler(self, extractor: Extractor) -> None:
         """branch_strategy field_name → _apply_branch_strategy_section fires."""
         # Note: the handler reads the "branch" key (lowercase); headers must match.
-        content = (
-            "## Branch Strategy\n\n"
-            "| branch | policy |\n"
-            "|--------|--------|\n"
-            "| main | protected |\n"
-            "| develop | dev |\n"
-        )
+        content = "## Branch Strategy\n\n| branch | policy |\n|--------|--------|\n| main | protected |\n| develop | dev |\n"
         result = extractor.extract(content)
         assert result.governance.branch_strategy.main_branch == "main"
         assert result.governance.branch_strategy.dev_branch == "develop"
 
     def test_dispatch_doctrine_handler(self, extractor: Extractor) -> None:
         """doctrine field_name → _merge_doctrine_selection fires."""
-        content = (
-            "## Paradigm Selection\n\n"
-            "```yaml\n"
-            "selected_paradigms: [test-first]\n"
-            "available_tools: [git, pytest]\n"
-            "```\n"
-        )
+        content = "## Paradigm Selection\n\n```yaml\nselected_paradigms: [test-first]\navailable_tools: [git, pytest]\n```\n"
         result = extractor.extract(content)
         assert "test-first" in result.governance.doctrine.selected_paradigms
         assert "git" in result.governance.doctrine.available_tools
@@ -331,11 +320,7 @@ class TestExtractGovernanceDispatch:
 
     def test_dispatch_multiple_handlers_all_fire(self, extractor: Extractor) -> None:
         """Multiple sections → all relevant handlers fire independently."""
-        content = (
-            "## Testing\n90% coverage. TDD required.\n\n"
-            "## Code Quality\nruff linting. 2 approvals required.\n\n"
-            "## Commit Guidelines\nConventional commits.\n"
-        )
+        content = "## Testing\n90% coverage. TDD required.\n\n## Code Quality\nruff linting. 2 approvals required.\n\n## Commit Guidelines\nConventional commits.\n"
         result = extractor.extract(content)
         assert result.governance.testing.min_coverage == 90
         assert result.governance.quality.linting == "ruff"

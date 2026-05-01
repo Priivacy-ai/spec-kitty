@@ -228,13 +228,9 @@ class TestValidateAllFeatures:
 
             # Should mention multiple features or show count
             output = result.stdout
-            assert (
-                "001-feature" in output
-                or "002-feature" in output
-                or "003-feature" in output
-                or "3" in output
-                or "features" in output
-            ), f"Should indicate multiple features scanned. Got: {output}"
+            assert "001-feature" in output or "002-feature" in output or "003-feature" in output or "3" in output or "features" in output, (
+                f"Should indicate multiple features scanned. Got: {output}"
+            )
 
     def test_fix_all_features(self):
         """Verify --all --fix repairs all features."""
@@ -312,9 +308,7 @@ class TestCLIErrorHandling:
             # Should fail with clear message
             assert result.returncode == 1, "Should exit 1 for nonexistent feature"
             output = result.stdout + result.stderr
-            assert "not found" in output.lower() or "Error" in result.stdout, (
-                f"Should indicate feature not found. Got: {result.stdout}"
-            )
+            assert "not found" in output.lower() or "Error" in result.stdout, f"Should indicate feature not found. Got: {result.stdout}"
 
 
 class TestCLIOutputFormatting:

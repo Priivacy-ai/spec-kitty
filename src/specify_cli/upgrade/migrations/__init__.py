@@ -62,11 +62,7 @@ def auto_discover_migrations() -> None:
 
                     for attr_name in dir(module):
                         attr = getattr(module, attr_name)
-                        if (
-                            isinstance(attr, type)
-                            and hasattr(attr, "migration_id")
-                            and attr.migration_id in MigrationRegistry._migrations
-                        ):
+                        if isinstance(attr, type) and hasattr(attr, "migration_id") and attr.migration_id in MigrationRegistry._migrations:
                             has_registered_migration = True
                             break
 

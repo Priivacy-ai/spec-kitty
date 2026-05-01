@@ -88,15 +88,11 @@ def _valid_identity() -> dict[str, Any]:
 
 class TestResources:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_resources_sends_get_with_provider(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_resources_sends_get_with_provider(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"resources": [{"id": "proj-1", "name": "Project One"}]}
-        )
+        mock_http.request.return_value = _make_response(200, {"resources": [{"id": "proj-1", "name": "Project One"}]})
 
         result = client.resources("jira")
 
@@ -107,9 +103,7 @@ class TestResources:
         assert kwargs["params"]["provider"] == "jira"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_resources_parses_empty_list(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_resources_parses_empty_list(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -127,18 +121,14 @@ class TestResources:
 
 class TestBindResolve:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_sends_post_with_provider_and_identity(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_resolve_sends_post_with_provider_and_identity(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
         mock_http.request.return_value = _make_response(
             200,
             {
-                "candidates": [
-                    {"candidate_token": "tok-abc", "display_name": "My Project"}
-                ],
+                "candidates": [{"candidate_token": "tok-abc", "display_name": "My Project"}],
             },
         )
 
@@ -155,9 +145,7 @@ class TestBindResolve:
         assert kwargs["json"]["project_identity"] == identity
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_empty_candidates(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_resolve_empty_candidates(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -175,15 +163,11 @@ class TestBindResolve:
 
 class TestBindConfirm:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_sends_post_with_payload(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_confirm_sends_post_with_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"binding_ref": "bind-123", "status": "confirmed"}
-        )
+        mock_http.request.return_value = _make_response(200, {"binding_ref": "bind-123", "status": "confirmed"})
 
         identity = _valid_identity()
         result = client.bind_confirm("github", "tok-abc", identity)
@@ -199,15 +183,11 @@ class TestBindConfirm:
         assert kwargs["json"]["project_identity"] == identity
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_auto_generates_idempotency_key(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_confirm_auto_generates_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"binding_ref": "bind-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"binding_ref": "bind-123"})
 
         client.bind_confirm("github", "tok-abc", _valid_identity())
 
@@ -217,19 +197,13 @@ class TestBindConfirm:
         uuid.UUID(idem_key)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_custom_idempotency_key(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_confirm_custom_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"binding_ref": "bind-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"binding_ref": "bind-123"})
 
-        client.bind_confirm(
-            "github", "tok-abc", _valid_identity(), idempotency_key="custom-key-456"
-        )
+        client.bind_confirm("github", "tok-abc", _valid_identity(), idempotency_key="custom-key-456")
 
         _, kwargs = mock_http.request.call_args
         assert kwargs["headers"]["Idempotency-Key"] == "custom-key-456"
@@ -242,15 +216,11 @@ class TestBindConfirm:
 
 class TestBindValidate:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_sends_post_with_payload(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_validate_sends_post_with_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"valid": True, "binding_ref": "bind-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"valid": True, "binding_ref": "bind-123"})
 
         identity = _valid_identity()
         result = client.bind_validate("github", "bind-123", identity)
@@ -266,9 +236,7 @@ class TestBindValidate:
         assert kwargs["json"]["project_identity"] == identity
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_invalid_response(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bind_validate_invalid_response(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)

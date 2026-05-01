@@ -23,7 +23,6 @@ from specify_cli.status.transitions import ALLOWED_TRANSITIONS, _run_guard
 from specify_cli.status.wp_state import (
     InReviewState,
     InvalidTransitionError,
-    WPState,
     wp_state_for,
 )
 

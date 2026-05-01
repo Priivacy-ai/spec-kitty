@@ -139,10 +139,7 @@ class RefreshLockTimeoutError(Exception):
 
     def __init__(
         self,
-        message: str = (
-            "Another spec-kitty process is refreshing the auth session; "
-            "retry in a moment."
-        ),
+        message: str = ("Another spec-kitty process is refreshing the auth session; retry in a moment."),
     ) -> None:
         super().__init__(message)
 
@@ -223,9 +220,7 @@ async def run_refresh_transaction(
         # material if it still looks usable; otherwise surface the timeout
         # so the caller can ask the user to retry.
         persisted = storage.read()
-        if persisted is not None and not persisted.is_access_token_expired(
-            buffer_seconds=_ADOPT_BUFFER_SECONDS
-        ):
+        if persisted is not None and not persisted.is_access_token_expired(buffer_seconds=_ADOPT_BUFFER_SECONDS):
             return RefreshResult(
                 outcome=RefreshOutcome.LOCK_TIMEOUT_ADOPTED,
                 session=persisted,
@@ -260,9 +255,7 @@ async def _run_locked(
         )
 
     # FR-004: adopt persisted-newer material instead of refreshing.
-    if not _identity_matches(persisted, in_memory_session) and not (
-        persisted.is_access_token_expired(buffer_seconds=_ADOPT_BUFFER_SECONDS)
-    ):
+    if not _identity_matches(persisted, in_memory_session) and not (persisted.is_access_token_expired(buffer_seconds=_ADOPT_BUFFER_SECONDS)):
         return RefreshResult(
             outcome=RefreshOutcome.ADOPTED_NEWER,
             session=persisted,
@@ -272,9 +265,7 @@ async def _run_locked(
     # Network refresh, bounded by max_hold_s. The lock is released by the
     # outer context manager regardless of which branch we exit through.
     try:
-        updated = await asyncio.wait_for(
-            refresh_flow.refresh(persisted), timeout=max_hold_s
-        )
+        updated = await asyncio.wait_for(refresh_flow.refresh(persisted), timeout=max_hold_s)
     except TimeoutError:
         # Network leg exceeded the hold budget — semantically a retryable
         # lock-timeout-style outcome. The caller surfaces a recovery hint.
@@ -288,15 +279,9 @@ async def _run_locked(
         # Re-read persisted material AFTER the rejection and compare to the
         # token we sent. Identity rule: (session_id, refresh_token) byte
         # equality (data-model.md §"AuthSession", research D4).
-        cause = (
-            RefreshRejectionCause.REFRESH_TOKEN_EXPIRED
-            if isinstance(exc, RefreshTokenExpiredError)
-            else RefreshRejectionCause.SESSION_INVALID
-        )
+        cause = RefreshRejectionCause.REFRESH_TOKEN_EXPIRED if isinstance(exc, RefreshTokenExpiredError) else RefreshRejectionCause.SESSION_INVALID
         repersisted = storage.read()
-        rejected_was_current = (
-            repersisted is not None and _identity_matches(repersisted, persisted)
-        )
+        rejected_was_current = repersisted is not None and _identity_matches(repersisted, persisted)
         if rejected_was_current:
             # FR-005: the SaaS rejected current material. Clear local
             # session and let the caller re-raise the original exception
@@ -356,10 +341,7 @@ async def _run_locked(
         # Re-read persisted session and retry once if a newer token is available.
         repersisted = storage.read()
 
-        _REPLAY_MSG = (
-            "Refresh token replay detected and no newer local token is available. "
-            "Run `spec-kitty auth login` if this persists."
-        )
+        _REPLAY_MSG = "Refresh token replay detected and no newer local token is available. Run `spec-kitty auth login` if this persists."
 
         if repersisted is None:
             # Session cleared concurrently; surface as retryable.
@@ -391,9 +373,7 @@ async def _run_locked(
         # Persisted token differs from spent — another process already rotated it.
         # Retry ONCE with the newer token. CRITICAL: never use `persisted` here.
         try:
-            updated = await asyncio.wait_for(
-                refresh_flow.refresh(repersisted), timeout=max_hold_s
-            )
+            updated = await asyncio.wait_for(refresh_flow.refresh(repersisted), timeout=max_hold_s)
         except Exception:
             # Catch all failures on the second attempt: TokenRefreshError and
             # subclasses (expired, session-invalid, another replay), asyncio

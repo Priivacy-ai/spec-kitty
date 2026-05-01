@@ -10,6 +10,8 @@ from pathlib import Path
 import pytest
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
+
+
 @pytest.fixture
 def research_project_root(tmp_path: Path) -> Path:
     """Create a test research mission project."""
@@ -51,6 +53,7 @@ def research_project_root(tmp_path: Path) -> Path:
 
     return project_dir
 
+
 def test_citation_validation_with_valid_data(tmp_path: Path) -> None:
     """Citation validation should pass with valid citations."""
     import sys
@@ -61,12 +64,12 @@ def test_citation_validation_with_valid_data(tmp_path: Path) -> None:
 
     evidence_log = tmp_path / "evidence-log.csv"
     evidence_log.write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes\n"
-        '2025-01-15T10:00:00,journal,"Smith (2024). Title. Journal.",Finding,high,Notes\n'
+        'timestamp,source_type,citation,key_finding,confidence,notes\n2025-01-15T10:00:00,journal,"Smith (2024). Title. Journal.",Finding,high,Notes\n'
     )
 
     result = validate_citations(evidence_log)
     assert not result.has_errors
+
 
 def test_citation_validation_catches_errors(tmp_path: Path) -> None:
     """Citation validation should catch completeness errors."""
@@ -77,13 +80,12 @@ def test_citation_validation_catches_errors(tmp_path: Path) -> None:
     from specify_cli.validators.research import validate_citations
 
     invalid_log = tmp_path / "invalid.csv"
-    invalid_log.write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes\n2025-01-15T10:00:00,invalid_type,,Empty,wrong,\n"
-    )
+    invalid_log.write_text("timestamp,source_type,citation,key_finding,confidence,notes\n2025-01-15T10:00:00,invalid_type,,Empty,wrong,\n")
 
     result = validate_citations(invalid_log)
     assert result.has_errors
     assert result.error_count >= 2
+
 
 def test_source_register_validation(tmp_path: Path) -> None:
     """Source register validation should work in research context."""
@@ -94,13 +96,11 @@ def test_source_register_validation(tmp_path: Path) -> None:
     from specify_cli.validators.research import validate_source_register
 
     valid = tmp_path / "sources.csv"
-    valid.write_text(
-        "source_id,citation,url,accessed_date,relevance,status\n"
-        'smith2024,"Citation",https://example.com,2025-01-15,high,reviewed\n'
-    )
+    valid.write_text('source_id,citation,url,accessed_date,relevance,status\nsmith2024,"Citation",https://example.com,2025-01-15,high,reviewed\n')
 
     result = validate_source_register(valid)
     assert not result.has_errors
+
 
 def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     """Full research workflow using CLI commands end-to-end."""
@@ -149,13 +149,11 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     research_dir.mkdir()
 
     (research_dir / "evidence-log.csv").write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes\n"
-        '2025-01-15T10:00:00,journal,"Smith (2024). Title.",Finding,high,Notes\n'
+        'timestamp,source_type,citation,key_finding,confidence,notes\n2025-01-15T10:00:00,journal,"Smith (2024). Title.",Finding,high,Notes\n'
     )
 
     (research_dir / "source-register.csv").write_text(
-        "source_id,citation,url,accessed_date,relevance,status\n"
-        'smith2024,"Smith (2024). Title.",https://example.com,2025-01-15,high,reviewed\n'
+        'source_id,citation,url,accessed_date,relevance,status\nsmith2024,"Smith (2024). Title.",https://example.com,2025-01-15,high,reviewed\n'
     )
 
     # Validate artifacts
@@ -169,6 +167,7 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
 
     result_src = validate_source_register(research_dir / "source-register.csv")
     assert not result_src.has_errors
+
 
 def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
     """meta.json should correctly store and retrieve deliverables_path."""
@@ -185,15 +184,12 @@ def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
 
     # Write meta.json with deliverables_path
     meta_file = feature_dir / "meta.json"
-    meta_file.write_text(
-        json.dumps(
-            {"mission": "research", "slug": "001-market-research", "deliverables_path": "docs/research/market-study/"}
-        )
-    )
+    meta_file.write_text(json.dumps({"mission": "research", "slug": "001-market-research", "deliverables_path": "docs/research/market-study/"}))
 
     # Verify retrieval
     result = get_deliverables_path(feature_dir)
     assert result == "docs/research/market-study/"
+
 
 def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
     """deliverables_path must NOT be inside kitty-specs/."""
@@ -211,6 +207,7 @@ def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
     # Should accept proper paths
     is_valid, error = validate_deliverables_path("docs/research/001-test/")
     assert is_valid
+
 
 def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
     """Research deliverables should be separate from planning artifacts."""
@@ -246,6 +243,7 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
 
     # Deliverables path is NOT in kitty-specs
     assert not deliverables.startswith("kitty-specs")
+
 
 def test_default_deliverables_path_generation(tmp_path: Path) -> None:
     """Should generate default deliverables path when not specified."""

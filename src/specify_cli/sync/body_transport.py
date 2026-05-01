@@ -57,7 +57,10 @@ def push_content(
 
     try:
         response = requests.post(
-            url, json=payload, headers=headers, timeout=timeout,
+            url,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
         )
     except requests.ConnectionError as e:
         fallback = request_with_stdlib_fallback_sync(
@@ -147,7 +150,8 @@ def _format_bad_request_reason(body: dict[str, Any]) -> str:
 
 
 def _classify_response(
-    task: BodyUploadTask, response: Any,
+    task: BodyUploadTask,
+    response: Any,
 ) -> UploadOutcome:
     """Map HTTP response to UploadOutcome with retryable semantics."""
     status = response.status_code
@@ -218,7 +222,8 @@ def _classify_response(
 
 
 def _dispatch_404(
-    task: BodyUploadTask, response: requests.Response,
+    task: BodyUploadTask,
+    response: requests.Response,
 ) -> UploadOutcome:
     """Dispatch 404 based on error field in response body.
 

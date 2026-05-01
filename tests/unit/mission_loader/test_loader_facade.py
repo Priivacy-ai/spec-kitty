@@ -53,9 +53,7 @@ def _isolated_context(
     )
 
 
-def _write_mission(
-    base: Path, layer: str, key: str, *, name: str | None = None
-) -> Path:
+def _write_mission(base: Path, layer: str, key: str, *, name: str | None = None) -> Path:
     body = _VALID_BODY.format(key=key, name=name or key.replace("-", " ").title())
     mission_dir = base / layer / key
     mission_dir.mkdir(parents=True, exist_ok=True)
@@ -69,9 +67,7 @@ def _write_mission(
 # ---------------------------------------------------------------------------
 
 
-def test_loads_from_kittify_missions(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_loads_from_kittify_missions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_mission(tmp_path, ".kittify/missions", "foo")
     ctx = _isolated_context(tmp_path, monkeypatch)
     report = validate_custom_mission("foo", ctx)
@@ -82,9 +78,7 @@ def test_loads_from_kittify_missions(
     assert report.warnings == []
 
 
-def test_loads_from_overrides(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_loads_from_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_mission(tmp_path, ".kittify/overrides/missions", "foo")
     ctx = _isolated_context(tmp_path, monkeypatch)
     report = validate_custom_mission("foo", ctx)
@@ -93,9 +87,7 @@ def test_loads_from_overrides(
     assert report.discovered.precedence_tier == "project_override"
 
 
-def test_explicit_paths_win_over_env(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_explicit_paths_win_over_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     explicit_root = tmp_path / "explicit-root"
     env_root = tmp_path / "env-root"
     _write_mission(explicit_root, ".", "foo", name="From Explicit")
@@ -115,35 +107,25 @@ def test_explicit_paths_win_over_env(
     assert report.discovered.precedence_tier == "explicit"
 
 
-def test_project_override_wins_over_legacy_with_shadow_warning(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_project_override_wins_over_legacy_with_shadow_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     legacy_path = _write_mission(tmp_path, ".kittify/missions", "foo", name="Legacy")
-    override_path = _write_mission(
-        tmp_path, ".kittify/overrides/missions", "foo", name="Override"
-    )
+    override_path = _write_mission(tmp_path, ".kittify/overrides/missions", "foo", name="Override")
     ctx = _isolated_context(tmp_path, monkeypatch)
     report = validate_custom_mission("foo", ctx)
     assert report.ok
     assert report.discovered is not None
     assert report.discovered.precedence_tier == "project_override"
     # Exactly one shadow warning, pointing at the legacy path.
-    shadow_warnings = [
-        w for w in report.warnings if w.code is LoaderWarningCode.MISSION_KEY_SHADOWED
-    ]
+    shadow_warnings = [w for w in report.warnings if w.code is LoaderWarningCode.MISSION_KEY_SHADOWED]
     assert len(shadow_warnings) == 1
     details = shadow_warnings[0].details
     assert details["mission_key"] == "foo"
     assert details["selected_tier"] == "project_override"
     assert str(override_path.resolve()) == details["selected_path"]
-    assert any(
-        str(legacy_path.resolve()) == p for p in details["shadowed_paths"]
-    )
+    assert any(str(legacy_path.resolve()) == p for p in details["shadowed_paths"])
 
 
-def test_user_global_lower_than_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_user_global_lower_than_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     project_root = tmp_path / "project"
     user_home = tmp_path / "user-home"
     user_home.mkdir()
@@ -160,9 +142,7 @@ def test_user_global_lower_than_project(
     assert report.ok
     assert report.discovered is not None
     assert report.discovered.precedence_tier == "project_legacy"
-    shadow_warnings = [
-        w for w in report.warnings if w.code is LoaderWarningCode.MISSION_KEY_SHADOWED
-    ]
+    shadow_warnings = [w for w in report.warnings if w.code is LoaderWarningCode.MISSION_KEY_SHADOWED]
     assert len(shadow_warnings) == 1
     assert shadow_warnings[0].details["selected_tier"] == "project_legacy"
 
@@ -172,9 +152,7 @@ def test_user_global_lower_than_project(
 # ---------------------------------------------------------------------------
 
 
-def test_loads_from_mission_pack_manifest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_loads_from_mission_pack_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`.kittify/config.yaml` declares a mission pack containing 'foo'."""
     pack_root = tmp_path / "vendor-pack"
     pack_root.mkdir()
@@ -182,9 +160,7 @@ def test_loads_from_mission_pack_manifest(
     mission_dir = pack_root / "missions" / "foo"
     mission_dir.mkdir(parents=True)
     body = _VALID_BODY.format(key="foo", name="From Pack")
-    (mission_dir / "mission.yaml").write_text(
-        textwrap.dedent(body).lstrip(), encoding="utf-8"
-    )
+    (mission_dir / "mission.yaml").write_text(textwrap.dedent(body).lstrip(), encoding="utf-8")
     # Pack manifest.
     (pack_root / "mission-pack.yaml").write_text(
         textwrap.dedent(
@@ -223,9 +199,7 @@ def test_loads_from_mission_pack_manifest(
 # ---------------------------------------------------------------------------
 
 
-def test_reserved_key_shadow_rejected_with_MISSION_KEY_RESERVED(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_reserved_key_shadow_rejected_with_MISSION_KEY_RESERVED(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Writing a 'software-dev' under .kittify/missions/ must reject."""
     _write_mission(tmp_path, ".kittify/missions", "software-dev", name="Custom")
     ctx = _isolated_context(tmp_path, monkeypatch)
@@ -235,9 +209,7 @@ def test_reserved_key_shadow_rejected_with_MISSION_KEY_RESERVED(
     assert report.template is None
 
 
-def test_builtin_software_dev_not_rejected(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_builtin_software_dev_not_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A reserved key declared by the BUILT-IN tier must load OK."""
     builtin_root = tmp_path / "builtin-root"
     _write_mission(builtin_root, ".", "software-dev", name="Built-in software-dev")

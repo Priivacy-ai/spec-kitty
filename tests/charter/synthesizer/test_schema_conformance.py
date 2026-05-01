@@ -181,14 +181,15 @@ def _make_direct_request(
 class TestAssertSchemaUnit:
     """Unit tests for _assert_schema() — the conformance check function."""
 
-    @pytest.mark.parametrize("kind,slug,artifact_id,body", [
-        ("directive", "test-directive", "PROJECT_001", VALID_DIRECTIVE_BODY),
-        ("tactic", "test-tactic", "test-tactic", VALID_TACTIC_BODY),
-        ("styleguide", "test-styleguide", "test-styleguide", VALID_STYLEGUIDE_BODY),
-    ])
-    def test_valid_body_does_not_raise(
-        self, kind: str, slug: str, artifact_id: str, body: dict
-    ) -> None:
+    @pytest.mark.parametrize(
+        "kind,slug,artifact_id,body",
+        [
+            ("directive", "test-directive", "PROJECT_001", VALID_DIRECTIVE_BODY),
+            ("tactic", "test-tactic", "test-tactic", VALID_TACTIC_BODY),
+            ("styleguide", "test-styleguide", "test-styleguide", VALID_STYLEGUIDE_BODY),
+        ],
+    )
+    def test_valid_body_does_not_raise(self, kind: str, slug: str, artifact_id: str, body: dict) -> None:
         """A conformant body does not raise SynthesisSchemaError."""
         target = SynthesisTarget(
             kind=kind,
@@ -204,14 +205,15 @@ class TestAssertSchemaUnit:
         # Should not raise
         _assert_schema(target, output)
 
-    @pytest.mark.parametrize("kind,slug,artifact_id,body", [
-        ("directive", "test-directive", "PROJECT_001", INVALID_DIRECTIVE_BODY),
-        ("tactic", "test-tactic", "test-tactic", INVALID_TACTIC_BODY),
-        ("styleguide", "test-styleguide", "test-styleguide", INVALID_STYLEGUIDE_BODY),
-    ])
-    def test_invalid_body_raises_synthesis_schema_error(
-        self, kind: str, slug: str, artifact_id: str, body: dict
-    ) -> None:
+    @pytest.mark.parametrize(
+        "kind,slug,artifact_id,body",
+        [
+            ("directive", "test-directive", "PROJECT_001", INVALID_DIRECTIVE_BODY),
+            ("tactic", "test-tactic", "test-tactic", INVALID_TACTIC_BODY),
+            ("styleguide", "test-styleguide", "test-styleguide", INVALID_STYLEGUIDE_BODY),
+        ],
+    )
+    def test_invalid_body_raises_synthesis_schema_error(self, kind: str, slug: str, artifact_id: str, body: dict) -> None:
         """An invalid body raises SynthesisSchemaError."""
         target = SynthesisTarget(
             kind=kind,

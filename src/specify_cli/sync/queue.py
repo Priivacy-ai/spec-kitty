@@ -35,12 +35,10 @@ class OfflineQueueFull(RuntimeError):
     """
 
     def __init__(self, *, cap: int, current: int) -> None:
-        super().__init__(
-            f"Offline sync queue at capacity ({current}/{cap}). "
-            "Drain to file or expand cap before queueing more events."
-        )
+        super().__init__(f"Offline sync queue at capacity ({current}/{cap}). Drain to file or expand cap before queueing more events.")
         self.cap = cap
         self.current = current
+
 
 # Event types eligible for coalescing: when a new event of one of these types
 # arrives and an equivalent event (same type + coalesce key) already exists in
@@ -256,10 +254,7 @@ def _queue_db_has_content(db_path: Path) -> bool:
         return False
     conn = sqlite3.connect(db_path)
     try:
-        return any(
-            _table_row_count(conn, table_name) > 0
-            for table_name in ("queue", "body_upload_queue", "body_upload_failure_log")
-        )
+        return any(_table_row_count(conn, table_name) > 0 for table_name in ("queue", "body_upload_queue", "body_upload_failure_log"))
     finally:
         conn.close()
 
@@ -375,9 +370,7 @@ def _migrate_body_queue_column_rename(conn: sqlite3.Connection) -> None:
     Idempotent: skips if columns are already renamed or if the table does not exist.
     SQLite ALTER TABLE RENAME COLUMN requires SQLite 3.25.0+ (Python 3.11+ bundles 3.39+).
     """
-    cursor = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
-    )
+    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'")
     if cursor.fetchone() is None:
         return  # Table doesn't exist yet; fresh install will create with new names
 
@@ -388,13 +381,9 @@ def _migrate_body_queue_column_rename(conn: sqlite3.Connection) -> None:
         return  # Already migrated
 
     if "mission_slug" in columns:
-        conn.execute(
-            "ALTER TABLE body_upload_queue RENAME COLUMN mission_slug TO mission_slug"
-        )
+        conn.execute("ALTER TABLE body_upload_queue RENAME COLUMN mission_slug TO mission_slug")
     if "mission_type" in columns:
-        conn.execute(
-            "ALTER TABLE body_upload_queue RENAME COLUMN mission_type TO mission_type"
-        )
+        conn.execute("ALTER TABLE body_upload_queue RENAME COLUMN mission_type TO mission_type")
     conn.commit()
 
 
@@ -534,8 +523,7 @@ class OfflineQueue:
                 raise OfflineQueueFull(cap=effective_cap, current=current_size)
 
             conn.execute(
-                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) VALUES (?, ?, ?, ?, ?)",
                 (
                     str(event["event_id"]),
                     str(event["event_type"]),
@@ -573,9 +561,7 @@ class OfflineQueue:
 
         conn = sqlite3.connect(self.db_path)
         try:
-            cursor = conn.execute(
-                "SELECT data FROM queue ORDER BY timestamp ASC, id ASC"
-            )
+            cursor = conn.execute("SELECT data FROM queue ORDER BY timestamp ASC, id ASC")
             rows = cursor.fetchall()
         finally:
             conn.close()
@@ -634,9 +620,7 @@ class OfflineQueue:
                 # FIFO eviction: delete the oldest events to make room
                 overflow = current_size - self._max_queue_size + 1
                 conn.execute(
-                    "DELETE FROM queue WHERE id IN ("
-                    "  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?"
-                    ")",
+                    "DELETE FROM queue WHERE id IN (  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?)",
                     (overflow,),
                 )
                 print(
@@ -648,8 +632,7 @@ class OfflineQueue:
                 )
 
             conn.execute(
-                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) VALUES (?, ?, ?, ?, ?)",
                 (
                     str(event["event_id"]),
                     str(event["event_type"]),
@@ -874,9 +857,7 @@ class OfflineQueue:
         """
         conn = sqlite3.connect(self.db_path)
         try:
-            cursor = conn.execute(
-                "SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC", (max_retries,)
-            )
+            cursor = conn.execute("SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC", (max_retries,))
             events: list[dict[str, Any]] = []
             for row in cursor:
                 _, data = row

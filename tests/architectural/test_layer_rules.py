@@ -8,6 +8,7 @@ architecture/2.x/00_landscape/README.md:
 A violation here means a package imports from a package it should not.
 See ADR 2026-03-27-1 for rationale.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -40,9 +41,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 
 # Layer names as defined in the `landscape` fixture in conftest.py.
 # Keep this in sync with that fixture; both lists must agree.
-_DEFINED_LAYERS: frozenset[str] = frozenset(
-    ["kernel", "doctrine", "charter", "specify_cli"]
-)
+_DEFINED_LAYERS: frozenset[str] = frozenset(["kernel", "doctrine", "charter", "specify_cli"])
 
 
 class TestLayerCoverage:
@@ -57,13 +56,7 @@ class TestLayerCoverage:
         fixture *and* to this file's `_DEFINED_LAYERS` constant, or add it
         to `_EXCLUDED_FROM_LAYER_ENFORCEMENT` with a documented reason.
         """
-        src_packages = {
-            p.name
-            for p in _SRC.iterdir()
-            if p.is_dir()
-            and not p.name.startswith("_")
-            and (p / "__init__.py").exists()
-        }
+        src_packages = {p.name for p in _SRC.iterdir() if p.is_dir() and not p.name.startswith("_") and (p / "__init__.py").exists()}
         unregistered = src_packages - _DEFINED_LAYERS - _EXCLUDED_FROM_LAYER_ENFORCEMENT
         assert not unregistered, (
             f"src/ packages with no architectural layer assignment: "
@@ -98,37 +91,13 @@ class TestKernelIsolation:
     """kernel must not import from any other landscape container."""
 
     def test_kernel_does_not_import_doctrine(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("kernel")
-            .should_not()
-            .access_layers_that()
-            .are_named("doctrine")
-        ).assert_applies(evaluable)
+        (LayerRule().based_on(landscape).layers_that().are_named("kernel").should_not().access_layers_that().are_named("doctrine")).assert_applies(evaluable)
 
     def test_kernel_does_not_import_charter(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("kernel")
-            .should_not()
-            .access_layers_that()
-            .are_named("charter")
-        ).assert_applies(evaluable)
+        (LayerRule().based_on(landscape).layers_that().are_named("kernel").should_not().access_layers_that().are_named("charter")).assert_applies(evaluable)
 
     def test_kernel_does_not_import_specify_cli(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("kernel")
-            .should_not()
-            .access_layers_that()
-            .are_named("specify_cli")
-        ).assert_applies(evaluable)
+        (LayerRule().based_on(landscape).layers_that().are_named("kernel").should_not().access_layers_that().are_named("specify_cli")).assert_applies(evaluable)
 
 
 # --- Invariant 2: doctrine depends only on kernel ---
@@ -138,26 +107,10 @@ class TestDoctrineIsolation:
     """doctrine must not import from specify_cli or charter."""
 
     def test_doctrine_does_not_import_specify_cli(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("doctrine")
-            .should_not()
-            .access_layers_that()
-            .are_named("specify_cli")
-        ).assert_applies(evaluable)
+        (LayerRule().based_on(landscape).layers_that().are_named("doctrine").should_not().access_layers_that().are_named("specify_cli")).assert_applies(evaluable)
 
     def test_doctrine_does_not_import_charter(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("doctrine")
-            .should_not()
-            .access_layers_that()
-            .are_named("charter")
-        ).assert_applies(evaluable)
+        (LayerRule().based_on(landscape).layers_that().are_named("doctrine").should_not().access_layers_that().are_named("charter")).assert_applies(evaluable)
 
 
 # --- Invariant 3: charter boundary ---
@@ -167,12 +120,4 @@ class TestCharterBoundary:
     """charter may import doctrine + kernel only. No specify_cli imports."""
 
     def test_charter_does_not_import_specify_cli(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("charter")
-            .should_not()
-            .access_layers_that()
-            .are_named("specify_cli")
-        ).assert_applies(evaluable)
+        (LayerRule().based_on(landscape).layers_that().are_named("charter").should_not().access_layers_that().are_named("specify_cli")).assert_applies(evaluable)

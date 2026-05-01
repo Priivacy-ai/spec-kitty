@@ -436,11 +436,7 @@ class GitVCS:
                 timeout=10,
             )
 
-            if (
-                merge_base_result.returncode == 0
-                and head_result.returncode == 0
-                and merge_base_result.stdout.strip() == head_result.stdout.strip()
-            ):
+            if merge_base_result.returncode == 0 and head_result.returncode == 0 and merge_base_result.stdout.strip() == head_result.stdout.strip():
                 return SyncResult(
                     status=SyncStatus.UP_TO_DATE,
                     conflicts=[],
@@ -508,9 +504,7 @@ class GitVCS:
             # 6. Count changed files by comparing pre/post rebase commits
             files_updated, files_added, files_deleted = (0, 0, 0)
             if pre_rebase_head:
-                files_updated, files_added, files_deleted = self._parse_rebase_stats(
-                    workspace_path, pre_rebase_head, "HEAD"
-                )
+                files_updated, files_added, files_deleted = self._parse_rebase_stats(workspace_path, pre_rebase_head, "HEAD")
 
             return SyncResult(
                 status=SyncStatus.SYNCED,
@@ -695,11 +689,7 @@ class GitVCS:
                 timeout=30,
             )
 
-            for line in status_result.stdout.strip().split("\n"):
-                if line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
-                    return True
-
-            return False
+            return any(line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD") for line in status_result.stdout.strip().split("\n"))
 
         except (subprocess.TimeoutExpired, OSError):
             return False

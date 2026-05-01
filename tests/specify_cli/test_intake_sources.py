@@ -1,4 +1,5 @@
 """Unit tests for specify_cli.intake_sources."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -117,7 +118,6 @@ class TestScanForPlans:
 
     def test_no_exception_on_permission_error(self, tmp_path: Path):
         mock_sources = [("harness-x", "agent-x", ["secret.md"])]
-        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources), \
-             patch("pathlib.Path.is_file", side_effect=PermissionError("denied")):
+        with patch("specify_cli.intake_sources.HARNESS_PLAN_SOURCES", mock_sources), patch("pathlib.Path.is_file", side_effect=PermissionError("denied")):
             results = scan_for_plans(tmp_path)
         assert results == []

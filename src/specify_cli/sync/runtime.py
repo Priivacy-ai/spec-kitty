@@ -144,10 +144,12 @@ class SyncRuntime:
 
         # Start background service (use existing singleton)
         from .background import get_sync_service
+
         self.background_service = get_sync_service()
 
         # Create body queue sharing same DB as event queue (C-001)
         from .body_queue import OfflineBodyUploadQueue
+
         self.body_queue = OfflineBodyUploadQueue(
             db_path=self.background_service.queue.db_path,
         )
@@ -292,12 +294,7 @@ class SyncRuntime:
             if identity is not None:
                 self.ws_client._project_identity = identity
 
-        if (
-            not self._build_registered
-            and identity is not None
-            and getattr(identity, "is_complete", False) is True
-            and self._attached_repo_slug() is not None
-        ):
+        if not self._build_registered and identity is not None and getattr(identity, "is_complete", False) is True and self._attached_repo_slug() is not None:
             event = emitter.emit_build_registered()
             if event is not None:
                 self._build_registered = True

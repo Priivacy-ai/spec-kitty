@@ -79,18 +79,14 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
     tier_1=TierPolicy(
         name="every_invocation",
         mandatory=True,
-        description=(
-            "One InvocationRecord written locally before executor returns. "
-            "Applies to all advise / ask / do invocations."
-        ),
+        description=("One InvocationRecord written locally before executor returns. Applies to all advise / ask / do invocations."),
         storage_path=".kittify/events/profile-invocations/{invocation_id}.jsonl",
     ),
     tier_2=TierPolicy(
         name="evidence_artifact",
         mandatory=False,
         description=(
-            "Optional EvidenceArtifact for invocations that produce checkable output. "
-            "Created when caller passes --evidence to profile-invocation complete."
+            "Optional EvidenceArtifact for invocations that produce checkable output. Created when caller passes --evidence to profile-invocation complete."
         ),
         storage_path=".kittify/evidence/{invocation_id}/",
         promotion_trigger="caller sets evidence_ref on profile-invocation complete",
@@ -113,18 +109,24 @@ MINIMAL_VIABLE_TRAIL_POLICY = MinimalViableTrailPolicy(
 # ---------------------------------------------------------------------------
 
 # Actions that qualify for Tier 3 (durable project state changes)
-TIER_3_ACTIONS: frozenset[str] = frozenset({
-    "specify", "plan", "tasks", "merge", "accept",
-})
+TIER_3_ACTIONS: frozenset[str] = frozenset(
+    {
+        "specify",
+        "plan",
+        "tasks",
+        "merge",
+        "accept",
+    }
+)
 
 
 @dataclass(frozen=True)
 class TierEligibility:
     """Which trail tiers apply to a given invocation."""
 
-    tier_1: bool = True    # always True — every invocation has Tier 1
-    tier_2: bool = False   # True if evidence_ref is set on completed event
-    tier_3: bool = False   # True if action is in TIER_3_ACTIONS
+    tier_1: bool = True  # always True — every invocation has Tier 1
+    tier_2: bool = False  # True if evidence_ref is set on completed event
+    tier_3: bool = False  # True if action is in TIER_3_ACTIONS
 
 
 def tier_eligible(record: InvocationRecord) -> TierEligibility:
@@ -222,9 +224,7 @@ class ProfileInvocationRecord:
 
         phase_raw = data.get("phase")
         if phase_raw not in ("started", "completed", "failed"):
-            raise ValueError(
-                f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}"
-            )
+            raise ValueError(f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}")
 
         return cls(
             canonical_action_id=str(data["canonical_action_id"]),
@@ -245,7 +245,7 @@ class ProfileInvocationRecord:
 def _ensure_iso_utc(dt: _dt.datetime) -> str:
     """Return ISO-8601 string. Naive datetimes are assumed UTC."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=_dt.timezone.utc)
+        dt = dt.replace(tzinfo=_dt.UTC)
     return dt.isoformat()
 
 

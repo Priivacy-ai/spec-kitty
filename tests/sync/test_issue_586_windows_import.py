@@ -89,9 +89,5 @@ def test_sync_daemon_imports_on_windows_without_fcntl() -> None:
             pytest.fail(f"Windows sync/daemon has fcntl dependency: {exc}")
 
     # Confirm the public API is reachable.
-    assert hasattr(daemon_mod, "ensure_sync_daemon_running"), (
-        "ensure_sync_daemon_running missing from sync.daemon on Windows"
-    )
-    assert hasattr(daemon_mod, "get_sync_daemon_status"), (
-        "get_sync_daemon_status missing from sync.daemon on Windows"
-    )
+    assert hasattr(daemon_mod, "ensure_sync_daemon_running"), "ensure_sync_daemon_running missing from sync.daemon on Windows"
+    assert hasattr(daemon_mod, "get_sync_daemon_status"), "get_sync_daemon_status missing from sync.daemon on Windows"

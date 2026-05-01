@@ -46,18 +46,12 @@ class CodeSignals:
 
     def __post_init__(self) -> None:
         if self.scope_tag != self.primary_language:
-            raise ValueError(
-                f"scope_tag must equal primary_language, "
-                f"got {self.scope_tag!r} != {self.primary_language!r}"
-            )
+            raise ValueError(f"scope_tag must equal primary_language, got {self.scope_tag!r} != {self.primary_language!r}")
         if not _STACK_ID_RE.match(self.stack_id):
             raise ValueError(f"Invalid stack_id format: {self.stack_id!r}")
         for f in self.representative_files:
             if not f or f.startswith("/"):
-                raise ValueError(
-                    "representative_files must be non-empty repo-relative paths "
-                    f"without leading slash: {f!r}"
-                )
+                raise ValueError(f"representative_files must be non-empty repo-relative paths without leading slash: {f!r}")
 
 
 @dataclass(frozen=True)
@@ -125,8 +119,4 @@ class EvidenceBundle:
     @property
     def is_empty(self) -> bool:
         """Return True when no evidence has been populated."""
-        return (
-            self.code_signals is None
-            and not self.url_list
-            and self.corpus_snapshot is None
-        )
+        return self.code_signals is None and not self.url_list and self.corpus_snapshot is None

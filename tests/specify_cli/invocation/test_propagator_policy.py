@@ -6,12 +6,11 @@ Verifies:
 3. Envelope fields respect include_request_text / include_evidence_ref.
 4. NFR-007 / SC-008: propagation-errors.jsonl stays empty under sync-disabled.
 """
+
 from __future__ import annotations
 
-import asyncio
-import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -90,20 +89,19 @@ def test_sync_disabled_never_calls_send(tmp_path: Path, mode: str, event_name: s
     """Sync-disabled checkout never calls send_event regardless of (mode, event)."""
     routing = _make_routing(effective_sync_enabled=False, repo_root=tmp_path)
 
-    if event_name == "started":
-        record = _make_started_record(mode)
-    else:
-        record = _make_completed_record(mode)
+    record = _make_started_record(mode) if event_name == "started" else _make_completed_record(mode)
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
-        ) as mock_client_factory:
-            _propagate_one(record, tmp_path)
-            mock_client_factory.assert_not_called()
+        ) as mock_client_factory,
+    ):
+        _propagate_one(record, tmp_path)
+        mock_client_factory.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -117,15 +115,17 @@ def test_task_execution_started_includes_request_text(tmp_path: Path) -> None:
     record = _make_started_record("task_execution")
     mock_client = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        ),
+    ):
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -141,22 +141,22 @@ def test_advisory_started_omits_request_text(tmp_path: Path) -> None:
     record = _make_started_record("advisory")
     mock_client = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        ),
+    ):
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1, "ADVISORY/started should produce one send_event call"
     envelope = mock_client._captured[0]
     assert envelope["event_type"] == "ProfileInvocationStarted"
-    assert "request_text" not in envelope, (
-        "ADVISORY/started must omit request_text key entirely (not empty string)"
-    )
+    assert "request_text" not in envelope, "ADVISORY/started must omit request_text key entirely (not empty string)"
 
 
 def test_query_started_does_not_project(tmp_path: Path) -> None:
@@ -165,15 +165,17 @@ def test_query_started_does_not_project(tmp_path: Path) -> None:
     record = _make_started_record("query")
     mock_client = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        ),
+    ):
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 0, "QUERY/started should never call send_event"
 
@@ -184,15 +186,17 @@ def test_task_execution_completed_includes_evidence_ref(tmp_path: Path) -> None:
     record = _make_completed_record("task_execution")
     mock_client = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        ),
+    ):
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -207,22 +211,22 @@ def test_advisory_completed_omits_evidence_ref(tmp_path: Path) -> None:
     record = _make_completed_record("advisory")
     mock_client = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        ),
+    ):
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1, "ADVISORY/completed should project (advisory projects)"
     envelope = mock_client._captured[0]
     assert envelope["event_type"] == "ProfileInvocationCompleted"
-    assert "evidence_ref" not in envelope, (
-        "ADVISORY/completed must omit evidence_ref key (policy.include_evidence_ref=False)"
-    )
+    assert "evidence_ref" not in envelope, "ADVISORY/completed must omit evidence_ref key (policy.include_evidence_ref=False)"
 
 
 def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:
@@ -231,15 +235,17 @@ def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:
     record = _make_started_record("mission_step")
     mock_client = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        ),
+    ):
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -253,15 +259,17 @@ def test_null_mode_projects_like_task_execution(tmp_path: Path) -> None:
     record_null = _make_started_record(None)
     mock_client_null = _make_mock_client()
 
-    with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
-    ):
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+            return_value=routing,
+        ),
+        patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client_null,
-        ):
-            _propagate_one(record_null, tmp_path)
+        ),
+    ):
+        _propagate_one(record_null, tmp_path)
 
     # Should have exactly one send_event call (like task_execution)
     assert len(mock_client_null._captured) == 1
@@ -299,7 +307,4 @@ def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) ->
     prop_errors_path = tmp_path / ".kittify" / "events" / "propagation-errors.jsonl"
     if prop_errors_path.exists():
         content = prop_errors_path.read_text(encoding="utf-8").strip()
-        assert not content, (
-            f"Expected empty propagation-errors.jsonl under sync-disabled, "
-            f"but got: {content!r}"
-        )
+        assert not content, f"Expected empty propagation-errors.jsonl under sync-disabled, but got: {content!r}"

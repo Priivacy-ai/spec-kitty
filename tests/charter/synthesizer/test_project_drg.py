@@ -28,16 +28,14 @@ from doctrine.drg.validator import validate_graph
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_shipped_graph(
     nodes: list[tuple[str, NodeKind]] | None = None,
     edges: list[tuple[str, str, Relation]] | None = None,
 ) -> DRGGraph:
     """Build a minimal shipped DRGGraph for testing."""
     drg_nodes = [DRGNode(urn=urn, kind=kind) for urn, kind in (nodes or [])]
-    drg_edges = [
-        DRGEdge(source=src, target=tgt, relation=rel)
-        for src, tgt, rel in (edges or [])
-    ]
+    drg_edges = [DRGEdge(source=src, target=tgt, relation=rel) for src, tgt, rel in (edges or [])]
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-04-17T00:00:00+00:00",
@@ -67,6 +65,7 @@ def _make_target(
 # ---------------------------------------------------------------------------
 # 1. Basic overlay composition
 # ---------------------------------------------------------------------------
+
 
 class TestEmitProjectLayer:
     """Tests for emit_project_layer()."""
@@ -155,13 +154,12 @@ class TestEmitProjectLayer:
 # 2. Edge derivation from source_urns
 # ---------------------------------------------------------------------------
 
+
 class TestEdgeDerivedFromSourceUrns:
     """Tests for edges derived from SynthesisTarget.source_urns."""
 
     def test_directive_source_urn_produces_requires_edge(self) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)]
-        )
+        shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
         target = _make_target(
             kind="directive",
             artifact_id="PROJECT_001",
@@ -176,9 +174,7 @@ class TestEdgeDerivedFromSourceUrns:
         assert edge.relation == Relation.REQUIRES
 
     def test_tactic_source_urn_produces_applies_edge(self) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)]
-        )
+        shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
         target = _make_target(
             kind="tactic",
             slug="how-we-apply-003",
@@ -217,13 +213,12 @@ class TestEdgeDerivedFromSourceUrns:
 # 3. Additive-only enforcement (FR-020 / EC-6, T023)
 # ---------------------------------------------------------------------------
 
+
 class TestAdditiveOnlyEnforcement:
     """Tests for FR-020 / EC-6 — no shadowing of shipped URNs."""
 
     def test_colliding_node_urn_raises_validation_error(self) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("directive:PROJECT_001", NodeKind.DIRECTIVE)]
-        )
+        shipped = _make_shipped_graph(nodes=[("directive:PROJECT_001", NodeKind.DIRECTIVE)])
         target = _make_target(kind="directive", artifact_id="PROJECT_001")
         with pytest.raises(ProjectDRGValidationError) as exc_info:
             emit_project_layer([target], "0.1.0", shipped)
@@ -231,9 +226,7 @@ class TestAdditiveOnlyEnforcement:
         assert "FR-020" in str(exc_info.value)
 
     def test_error_names_colliding_urn(self) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("tactic:how-we-apply-directive-003", NodeKind.TACTIC)]
-        )
+        shipped = _make_shipped_graph(nodes=[("tactic:how-we-apply-directive-003", NodeKind.TACTIC)])
         target = _make_target(
             kind="tactic",
             slug="how-we-apply-directive-003",
@@ -267,9 +260,7 @@ class TestAdditiveOnlyEnforcement:
         # So we place a "pre-existing" edge in shipped from the project URN to a shipped node.
         shipped = _make_shipped_graph(
             nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)],
-            edges=[
-                ("directive:PROJECT_001", "directive:DIRECTIVE_003", Relation.REQUIRES)
-            ],
+            edges=[("directive:PROJECT_001", "directive:DIRECTIVE_003", Relation.REQUIRES)],
         )
         # NOTE: shipped graph has a dangling edge (PROJECT_001 not in nodes) — that's
         # intentional for this test to exercise the EC-6 edge collision path.
@@ -284,9 +275,7 @@ class TestAdditiveOnlyEnforcement:
         assert "Duplicate edge" in str(exc_info.value)
 
     def test_disjoint_urns_succeed(self) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)]
-        )
+        shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
         target = _make_target(
             kind="directive",
             artifact_id="PROJECT_001",
@@ -301,6 +290,7 @@ class TestAdditiveOnlyEnforcement:
 # ---------------------------------------------------------------------------
 # 4. YAML serialization round-trip via persist() + load_graph()
 # ---------------------------------------------------------------------------
+
 
 class TestPersistRoundTrip:
     """Tests for persist() — YAML serialization."""
@@ -329,9 +319,7 @@ class TestPersistRoundTrip:
         assert loaded.generated_by == graph.generated_by
 
     def test_persisted_graph_passes_validate_graph(self, tmp_path: Path) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)]
-        )
+        shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
         target = _make_target(
             kind="directive",
             artifact_id="PROJECT_001",
@@ -380,13 +368,12 @@ class TestPersistRoundTrip:
 # 5. Integration: merged graph from emit_project_layer + shipped validates
 # ---------------------------------------------------------------------------
 
+
 class TestMergedGraphValidation:
     """Integration: merged (shipped + project) graph validates end-to-end."""
 
     def test_merged_graph_validates_with_edges(self) -> None:
-        shipped = _make_shipped_graph(
-            nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)]
-        )
+        shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
         target = _make_target(
             kind="directive",
             artifact_id="PROJECT_001",

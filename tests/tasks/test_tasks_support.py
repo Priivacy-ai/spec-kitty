@@ -5,6 +5,7 @@ from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliE
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
+
 def test_find_repo_root_normal_repo(tmp_path):
     """Test find_repo_root in a normal git repository."""
     # Create a normal repo structure
@@ -60,10 +61,7 @@ def test_find_repo_root_worktree(tmp_path):
     # find_repo_root follows the .git file pointer back to main repo
     # This is critical for preventing nested worktree creation
     result = find_repo_root(worktree)
-    assert result == main_repo, (
-        f"Expected main repo {main_repo}, got {result}. "
-        "find_repo_root should follow worktree .git pointer to main repo."
-    )
+    assert result == main_repo, f"Expected main repo {main_repo}, got {result}. find_repo_root should follow worktree .git pointer to main repo."
 
 
 def test_find_repo_root_worktree_with_subdirs(tmp_path):
@@ -151,11 +149,11 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 1
-        assert entries[0]['timestamp'] == '2026-01-26T15:00:00Z'
-        assert entries[0]['agent'] == 'cursor'
-        assert entries[0]['shell_pid'] == '12345'
-        assert entries[0]['lane'] == 'done'
-        assert entries[0]['note'] == 'All work complete'
+        assert entries[0]["timestamp"] == "2026-01-26T15:00:00Z"
+        assert entries[0]["agent"] == "cursor"
+        assert entries[0]["shell_pid"] == "12345"
+        assert entries[0]["lane"] == "done"
+        assert entries[0]["note"] == "All work complete"
 
     def test_parse_hyphenated_agent_name(self):
         """Test parsing activity log with hyphenated agent name.
@@ -174,14 +172,14 @@ class TestActivityEntries:
         assert len(entries) == 2
 
         # First entry with hyphenated agent name
-        assert entries[0]['agent'] == 'claude-reviewer'
-        assert entries[0]['shell_pid'] == '58988'
-        assert entries[0]['lane'] == 'done'
+        assert entries[0]["agent"] == "claude-reviewer"
+        assert entries[0]["shell_pid"] == "58988"
+        assert entries[0]["lane"] == "done"
 
         # Second entry with hyphenated agent name
-        assert entries[1]['agent'] == 'cursor-agent'
-        assert entries[1]['shell_pid'] == '12345'
-        assert entries[1]['lane'] == 'doing'
+        assert entries[1]["agent"] == "cursor-agent"
+        assert entries[1]["shell_pid"] == "12345"
+        assert entries[1]["lane"] == "doing"
 
     def test_parse_multiple_hyphens_in_agent_name(self):
         """Test parsing agent names with multiple hyphens."""
@@ -191,7 +189,7 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 1
-        assert entries[0]['agent'] == 'my-custom-ai-agent'
+        assert entries[0]["agent"] == "my-custom-ai-agent"
 
     def test_parse_without_shell_pid(self):
         """Test parsing activity log without shell_pid (optional field)."""
@@ -201,9 +199,9 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 1
-        assert entries[0]['agent'] == 'system'
-        assert entries[0]['shell_pid'] == ''
-        assert entries[0]['lane'] == 'planned'
+        assert entries[0]["agent"] == "system"
+        assert entries[0]["shell_pid"] == ""
+        assert entries[0]["lane"] == "planned"
 
     def test_parse_mixed_agent_names(self):
         """Test parsing with mix of simple and hyphenated agent names."""
@@ -218,10 +216,10 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 4
-        assert entries[0]['agent'] == 'system'
-        assert entries[1]['agent'] == 'cursor-agent'
-        assert entries[2]['agent'] == 'cursor'
-        assert entries[3]['agent'] == 'claude-reviewer'
+        assert entries[0]["agent"] == "system"
+        assert entries[1]["agent"] == "cursor-agent"
+        assert entries[2]["agent"] == "cursor"
+        assert entries[3]["agent"] == "claude-reviewer"
 
     def test_parse_with_hyphen_separator(self):
         """Test parsing with regular hyphen separator (not en-dash)."""
@@ -231,8 +229,8 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 1
-        assert entries[0]['agent'] == 'cursor-agent'
-        assert entries[0]['lane'] == 'doing'
+        assert entries[0]["agent"] == "cursor-agent"
+        assert entries[0]["lane"] == "doing"
 
     def test_parse_with_en_dash_separator(self):
         """Test parsing with en-dash separator (–, U+2013)."""
@@ -242,8 +240,8 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 1
-        assert entries[0]['agent'] == 'cursor-agent'
-        assert entries[0]['lane'] == 'doing'
+        assert entries[0]["agent"] == "cursor-agent"
+        assert entries[0]["lane"] == "doing"
 
     def test_parse_multiline_note(self):
         """Test that note field captures everything to end of line."""
@@ -253,7 +251,7 @@ class TestActivityEntries:
         entries = activity_entries(body)
 
         assert len(entries) == 1
-        assert entries[0]['note'] == 'Complex note with - hyphens and – dashes'
+        assert entries[0]["note"] == "Complex note with - hyphens and – dashes"
 
     def test_parse_empty_body(self):
         """Test parsing empty body returns empty list."""
@@ -281,7 +279,7 @@ This is not an activity log.
         entries = activity_entries(body)
 
         assert len(entries) == 4
-        assert entries[0]['lane'] == 'planned'
-        assert entries[1]['lane'] == 'doing'
-        assert entries[2]['lane'] == 'for_review'
-        assert entries[3]['lane'] == 'done'
+        assert entries[0]["lane"] == "planned"
+        assert entries[1]["lane"] == "doing"
+        assert entries[2]["lane"] == "for_review"
+        assert entries[3]["lane"] == "done"

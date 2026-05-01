@@ -74,9 +74,7 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 @pytest.fixture
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
-        "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
-        ],
+        "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
         "edges": [],
         "schema_version": "1",
     }
@@ -138,9 +136,7 @@ class TestNfr002FullSynthesis:
         start = time.monotonic()
         synthesize(base_request, adapter=adapter, repo_root=tmp_path)
         elapsed = time.monotonic() - start
-        assert elapsed < 30.0, (
-            f"NFR-002 violated: full synthesis took {elapsed:.2f}s (limit: 30s)"
-        )
+        assert elapsed < 30.0, f"NFR-002 violated: full synthesis took {elapsed:.2f}s (limit: 30s)"
 
     def test_full_synthesis_completes_successfully(
         self,
@@ -171,7 +167,7 @@ class TestNfr003BoundedResynthesize:
         repo = repo_with_prior_synthesis
 
         start = time.monotonic()
-        result = resynthesize_run(
+        resynthesize_run(
             request=base_request,
             adapter=adapter,
             topic="tactic:how-we-apply-directive-003",
@@ -179,10 +175,8 @@ class TestNfr003BoundedResynthesize:
         )
         elapsed = time.monotonic() - start
 
-        assert elapsed < 15.0, (
-            f"NFR-003 violated: bounded resynthesize took {elapsed:.2f}s (limit: 15s)"
-        )
-        assert not result.is_noop or True  # noop is also acceptable (EC-4)
+        assert elapsed < 15.0, f"NFR-003 violated: bounded resynthesize took {elapsed:.2f}s (limit: 15s)"
+        assert True  # noop is also acceptable (EC-4)
 
 
 # ---------------------------------------------------------------------------
@@ -211,9 +205,7 @@ class TestNfr004FailClosed:
             )
 
         elapsed = time.monotonic() - start
-        assert elapsed < 5.0, (
-            f"NFR-004 violated: fail-closed took {elapsed:.2f}s (limit: 5s)"
-        )
+        assert elapsed < 5.0, f"NFR-004 violated: fail-closed took {elapsed:.2f}s (limit: 5s)"
 
     @pytest.mark.timeout(5)
     def test_unresolved_topic_under_5_seconds(
@@ -234,9 +226,7 @@ class TestNfr004FailClosed:
                 repo_root=repo,
             )
         elapsed = time.monotonic() - start
-        assert elapsed < 5.0, (
-            f"NFR-004 violated: unresolved-topic detection took {elapsed:.2f}s (limit: 5s)"
-        )
+        assert elapsed < 5.0, f"NFR-004 violated: unresolved-topic detection took {elapsed:.2f}s (limit: 5s)"
 
 
 # ---------------------------------------------------------------------------
@@ -260,9 +250,7 @@ class TestSc008UnresolvedSla:
             )
         ]
         drg: dict[str, Any] = {
-            "nodes": [
-                {"urn": "directive:DIRECTIVE_001", "kind": "directive", "id": "DIRECTIVE_001"}
-            ],
+            "nodes": [{"urn": "directive:DIRECTIVE_001", "kind": "directive", "id": "DIRECTIVE_001"}],
             "edges": [],
         }
         sections = ["mission_type", "testing_philosophy"]
@@ -272,13 +260,10 @@ class TestSc008UnresolvedSla:
             resolve_topic("xyzzy:nonexistent", artifacts, drg, sections)
         elapsed = time.monotonic() - start
 
-        assert elapsed < 2.0, (
-            f"SC-008 violated: unresolved selector took {elapsed:.3f}s (limit: 2.0s)"
-        )
+        assert elapsed < 2.0, f"SC-008 violated: unresolved selector took {elapsed:.3f}s (limit: 2.0s)"
 
     def test_unresolved_selector_repeated_calls_fast(self) -> None:
         """SC-008: multiple cold-cache calls remain fast (no warm-up required)."""
-        from charter.synthesizer.request import SynthesisTarget
 
         artifacts: list[SynthesisTarget] = []
         drg: dict[str, Any] = {"nodes": [], "edges": []}

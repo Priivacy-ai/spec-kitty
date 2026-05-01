@@ -14,6 +14,7 @@ silently dropped two real dependency cases:
 
 These tests pin both directions of the cross-mode dependency edge.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -44,8 +45,8 @@ def _plan(wp_id: str) -> OwnershipManifest:
 def test_code_wp_depends_on_planning_wp_creates_lane_edge(tmp_path):
     """Case 1: code WP depends on planning WP → code lane depends on planning lane."""
     deps = {
-        "WP01": [],          # planning-artifact (e.g. ADR)
-        "WP02": ["WP01"],    # code WP that depends on the ADR
+        "WP01": [],  # planning-artifact (e.g. ADR)
+        "WP02": ["WP01"],  # code WP that depends on the ADR
     }
     manifests = {
         "WP01": _plan("WP01"),
@@ -60,13 +61,8 @@ def test_code_wp_depends_on_planning_wp_creates_lane_edge(tmp_path):
     )
 
     by_id = {lane.lane_id: lane for lane in manifest.lanes}
-    assert PLANNING_LANE_ID in by_id, (
-        "FR-005 / P2.7 regression: planning lane must exist when "
-        "the mission has any planning-artifact WPs."
-    )
-    code_lane = next(
-        lane for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID
-    )
+    assert PLANNING_LANE_ID in by_id, "FR-005 / P2.7 regression: planning lane must exist when the mission has any planning-artifact WPs."
+    code_lane = next(lane for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID)
     assert PLANNING_LANE_ID in code_lane.depends_on_lanes, (
         f"FR-005 / P2.7 regression: code lane {code_lane.lane_id!r} declares "
         f"WP02 -> WP01 (planning) but its depends_on_lanes does not include "
@@ -78,8 +74,8 @@ def test_code_wp_depends_on_planning_wp_creates_lane_edge(tmp_path):
 def test_planning_wp_depends_on_code_wp_creates_lane_edge(tmp_path):
     """Case 2: planning WP depends on code WP → planning lane depends on code lane."""
     deps = {
-        "WP01": [],          # code WP (the implementation)
-        "WP02": ["WP01"],    # planning-artifact WP (e.g. migration runbook)
+        "WP01": [],  # code WP (the implementation)
+        "WP02": ["WP01"],  # planning-artifact WP (e.g. migration runbook)
     }
     manifests = {
         "WP01": _code("WP01"),
@@ -98,9 +94,7 @@ def test_planning_wp_depends_on_code_wp_creates_lane_edge(tmp_path):
 
     planning_lane = by_id[PLANNING_LANE_ID]
     # The single code lane in this fixture is whichever lane is not planning.
-    code_lane_ids = [
-        lane.lane_id for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID
-    ]
+    code_lane_ids = [lane.lane_id for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID]
     assert len(code_lane_ids) == 1
     code_lane_id = code_lane_ids[0]
 
@@ -124,10 +118,7 @@ def test_no_planning_wp_means_no_planning_lane_dep_seeded():
         mission_slug="feature",
         target_branch="main",
     )
-    assert all(lane.lane_id != PLANNING_LANE_ID for lane in manifest.lanes), (
-        "Planning lane must NOT be synthesised when there are zero "
-        "planning-artifact WPs."
-    )
+    assert all(lane.lane_id != PLANNING_LANE_ID for lane in manifest.lanes), "Planning lane must NOT be synthesised when there are zero planning-artifact WPs."
 
 
 def test_planning_lane_parallel_group_honours_code_dependency():
@@ -153,9 +144,7 @@ def test_planning_lane_parallel_group_honours_code_dependency():
         target_branch="main",
     )
     by_id = {lane.lane_id: lane for lane in manifest.lanes}
-    code_lane = next(
-        lane for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID
-    )
+    code_lane = next(lane for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID)
     planning_lane = by_id[PLANNING_LANE_ID]
 
     assert planning_lane.parallel_group > code_lane.parallel_group, (

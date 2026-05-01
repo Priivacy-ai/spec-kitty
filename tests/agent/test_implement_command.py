@@ -131,9 +131,9 @@ class TestImplementCommand:
                 "specify_cli.cli.commands.implement.detect_feature_context",
                 return_value=("010", "010-feature"),
             ),
+            pytest.raises(typer.Exit),
         ):
-            with pytest.raises(typer.Exit):
-                implement("WP01", feature="010-feature", recover=False)
+            implement("WP01", feature="010-feature", recover=False)
 
     def test_implement_json_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
@@ -220,9 +220,9 @@ class TestImplementCommand:
             patch(
                 "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
             ),
+            pytest.raises(typer.Exit),
         ):
-            with pytest.raises(typer.Exit):
-                implement("WP01", feature="010-feature", json_output=True, recover=False)
+            implement("WP01", feature="010-feature", json_output=True, recover=False)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload["status"] == "error"
@@ -324,6 +324,7 @@ class TestImplementCommand:
         ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
             from specify_cli.lanes.compute import PLANNING_LANE_ID
+
             mock_resolve_workspace.return_value = MagicMock(
                 execution_mode="planning_artifact",
                 worktree_path=tmp_path,

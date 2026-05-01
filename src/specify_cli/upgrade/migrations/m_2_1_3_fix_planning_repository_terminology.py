@@ -51,9 +51,7 @@ class FixPlanningRepositoryTerminology(BaseMigration):
 
     migration_id = "2.1.3_fix_planning_repository_terminology"
     description = (
-        "Replace 'planning repository' with 'project root checkout' "
-        "in agent command files to prevent agents from creating features "
-        "in the wrong repository"
+        "Replace 'planning repository' with 'project root checkout' in agent command files to prevent agents from creating features in the wrong repository"
     )
     target_version = "2.1.3"
 

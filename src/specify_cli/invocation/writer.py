@@ -112,9 +112,7 @@ class InvocationWriter:
             with path.open("x", encoding="utf-8") as f:
                 f.write(json.dumps(record.model_dump(exclude_none=True)) + "\n")
         except FileExistsError:
-            raise InvocationWriteError(
-                f"ULID collision on {path} — retry with a new invocation_id"
-            )
+            raise InvocationWriteError(f"ULID collision on {path} — retry with a new invocation_id") from None
         except OSError as e:
             raise InvocationWriteError(f"Failed to write invocation record: {e}") from e
         self._append_to_index(record)
@@ -155,7 +153,7 @@ class InvocationWriter:
             invocation_id=invocation_id,
             profile_id=profile_id,
             action="",  # not re-stated in completed event
-            completed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            completed_at=datetime.datetime.now(datetime.UTC).isoformat(),
             outcome=outcome,  # type: ignore[arg-type]
             evidence_ref=evidence_ref,
         )
@@ -206,13 +204,9 @@ class InvocationWriter:
             with path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(entry) + "\n")
         except OSError as e:
-            raise InvocationWriteError(
-                f"Failed to append correlation event: {e}"
-            ) from e
+            raise InvocationWriteError(f"Failed to append correlation event: {e}") from e
 
-    def write_glossary_observation(
-        self, invocation_id: str, bundle: GlossaryObservationBundle
-    ) -> None:
+    def write_glossary_observation(self, invocation_id: str, bundle: GlossaryObservationBundle) -> None:
         """Append glossary_checked event to invocation file. Best-effort only.
 
         This event is ONLY written when ``all_conflicts`` is non-empty OR

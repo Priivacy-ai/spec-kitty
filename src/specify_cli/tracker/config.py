@@ -66,10 +66,17 @@ class TrackerProjectConfig:
         }
         return result
 
-    _KNOWN_KEYS: ClassVar[frozenset[str]] = frozenset({
-        "provider", "binding_ref", "project_slug", "display_label",
-        "provider_context", "workspace", "doctrine",
-    })
+    _KNOWN_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "provider",
+            "binding_ref",
+            "project_slug",
+            "display_label",
+            "provider_context",
+            "workspace",
+            "doctrine",
+        }
+    )
 
     @classmethod
     def from_dict(cls, data: dict[str, object] | None) -> TrackerProjectConfig:
@@ -85,11 +92,7 @@ class TrackerProjectConfig:
                 doctrine_mode = mode_value.strip()
             field_owners = doctrine.get("field_owners")
             if isinstance(field_owners, dict):
-                doctrine_field_owners = {
-                    str(key): str(value)
-                    for key, value in field_owners.items()
-                    if str(key).strip() and str(value).strip()
-                }
+                doctrine_field_owners = {str(key): str(value) for key, value in field_owners.items() if str(key).strip() and str(value).strip()}
 
         provider = data.get("provider")
         binding_ref = data.get("binding_ref")
@@ -100,9 +103,7 @@ class TrackerProjectConfig:
 
         provider_context: dict[str, str] | None = None
         if isinstance(provider_context_raw, dict):
-            provider_context = {
-                str(k): str(v) for k, v in provider_context_raw.items()
-            }
+            provider_context = {str(k): str(v) for k, v in provider_context_raw.items()}
 
         extra = {k: v for k, v in data.items() if k not in cls._KNOWN_KEYS}
 
@@ -110,11 +111,7 @@ class TrackerProjectConfig:
             provider=str(provider).strip() if isinstance(provider, str) and provider.strip() else None,
             binding_ref=str(binding_ref).strip() if isinstance(binding_ref, str) and binding_ref.strip() else None,
             project_slug=str(project_slug).strip() if isinstance(project_slug, str) and project_slug.strip() else None,
-            display_label=(
-                str(display_label).strip()
-                if isinstance(display_label, str) and display_label.strip()
-                else None
-            ),
+            display_label=(str(display_label).strip() if isinstance(display_label, str) and display_label.strip() else None),
             provider_context=provider_context,
             workspace=str(workspace).strip() if isinstance(workspace, str) and workspace.strip() else None,
             doctrine_mode=doctrine_mode,

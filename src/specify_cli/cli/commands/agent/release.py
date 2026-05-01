@@ -67,9 +67,7 @@ def _render_text(payload: ReleasePrepPayload) -> None:
             )
         )
     else:
-        console.print(
-            "[yellow]No accepted missions found for changelog block.[/yellow]"
-        )
+        console.print("[yellow]No accepted missions found for changelog block.[/yellow]")
 
     # Structured inputs table
     inputs_table = Table(show_header=True, box=None, padding=(0, 2))
@@ -87,9 +85,9 @@ def _render_text(payload: ReleasePrepPayload) -> None:
     # Scope-cut notice (FR-023)
     notice = (
         "[bold]Still-manual steps[/bold] (not automated by this command):\n"
-        "  1. PR creation:  [cyan]gh pr create --title \"Release {v}\" "
-        "--body \"<changelog_block>\"[/cyan]\n"
-        "  2. Tag push:     [cyan]git tag -a {v} -m \"Release {v}\" && "
+        '  1. PR creation:  [cyan]gh pr create --title "Release {v}" '
+        '--body "<changelog_block>"[/cyan]\n'
+        '  2. Tag push:     [cyan]git tag -a {v} -m "Release {v}" && '
         "git push origin {v}[/cyan]\n"
         "  3. Monitoring:   [cyan]gh run watch[/cyan]\n"
         "\n"
@@ -100,15 +98,9 @@ def _render_text(payload: ReleasePrepPayload) -> None:
 
 @app.command("prep")
 def prep(
-    channel: ReleaseChannel = typer.Option(
-        ..., "--channel", help="Release channel: alpha | beta | stable"
-    ),
-    repo_root: Path = typer.Option(
-        Path("."), "--repo", help="Repository root (default: current directory)"
-    ),
-    json_output: bool = typer.Option(
-        False, "--json", help="Emit JSON instead of human-readable text"
-    ),
+    channel: ReleaseChannel = typer.Option(..., "--channel", help="Release channel: alpha | beta | stable"),
+    repo_root: Path = typer.Option(Path("."), "--repo", help="Repository root (default: current directory)"),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of human-readable text"),
 ) -> None:
     """Prepare release artifacts (changelog draft, version bump, structured inputs).
 

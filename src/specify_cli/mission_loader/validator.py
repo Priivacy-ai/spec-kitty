@@ -61,9 +61,7 @@ _PACK_TIERS: frozenset[str] = frozenset({"project_config"})
 _MISSING_FIELD_TYPES: frozenset[str] = frozenset({"missing"})
 
 
-def validate_custom_mission(
-    mission_key: str, context: DiscoveryContext
-) -> ValidationReport:
+def validate_custom_mission(mission_key: str, context: DiscoveryContext) -> ValidationReport:
     """Validate the custom mission identified by ``mission_key``.
 
     Performs (in order):
@@ -84,9 +82,7 @@ def validate_custom_mission(
 
     # Step 1: locate the selected mission for the requested key.
     selected = _find_selected(discovery_result, mission_key)
-    warnings = _collect_warnings(
-        discovery_result, mission_key, selected_path=selected.path if selected else None
-    )
+    warnings = _collect_warnings(discovery_result, mission_key, selected_path=selected.path if selected else None)
 
     if selected is None:
         # No selected mission. Two sub-cases:
@@ -102,9 +98,7 @@ def validate_custom_mission(
             errors=[
                 LoaderError(
                     code=LoaderErrorCode.MISSION_KEY_UNKNOWN,
-                    message=(
-                        f"Mission '{mission_key}' was not found in any discovery tier."
-                    ),
+                    message=(f"Mission '{mission_key}' was not found in any discovery tier."),
                     details={
                         "mission_key": mission_key,
                         "tiers_searched": tiers_searched,
@@ -121,11 +115,7 @@ def validate_custom_mission(
             errors=[
                 LoaderError(
                     code=LoaderErrorCode.MISSION_KEY_RESERVED,
-                    message=(
-                        f"Mission key '{mission_key}' is reserved for the built-in "
-                        f"tier; the {selected.precedence_tier!r} tier may not "
-                        f"shadow built-in keys."
-                    ),
+                    message=(f"Mission key '{mission_key}' is reserved for the built-in tier; the {selected.precedence_tier!r} tier may not shadow built-in keys."),
                     details={
                         "mission_key": mission_key,
                         "file": selected.path,
@@ -207,9 +197,7 @@ def validate_custom_mission(
         errors.append(
             LoaderError(
                 code=LoaderErrorCode.MISSION_REQUIRED_FIELD_MISSING,
-                message=(
-                    f"Required mission field(s) missing in {selected.path}: steps"
-                ),
+                message=(f"Required mission field(s) missing in {selected.path}: steps"),
                 details={
                     "file": selected.path,
                     "mission_key": mission_key,
@@ -224,10 +212,7 @@ def validate_custom_mission(
         errors.append(
             LoaderError(
                 code=LoaderErrorCode.MISSION_RETROSPECTIVE_MISSING,
-                message=(
-                    f"Mission '{mission_key}' must end with a step whose id is "
-                    f"'{RETROSPECTIVE_MARKER_ID}'; got {actual_last!r}."
-                ),
+                message=(f"Mission '{mission_key}' must end with a step whose id is '{RETROSPECTIVE_MARKER_ID}'; got {actual_last!r}."),
                 details={
                     "file": selected.path,
                     "mission_key": mission_key,
@@ -250,9 +235,7 @@ def validate_custom_mission(
                 LoaderError(
                     code=LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING,
                     message=(
-                        f"Step '{step.id}' has no requires_inputs, agent_profile, "
-                        "or contract_ref binding; one is required so the "
-                        "composition gate can dispatch it."
+                        f"Step '{step.id}' has no requires_inputs, agent_profile, or contract_ref binding; one is required so the composition gate can dispatch it."
                     ),
                     details={
                         "file": selected.path,
@@ -265,10 +248,7 @@ def validate_custom_mission(
             errors.append(
                 LoaderError(
                     code=LoaderErrorCode.MISSION_STEP_AMBIGUOUS_BINDING,
-                    message=(
-                        f"Step '{step.id}' declares BOTH agent_profile and "
-                        "contract_ref; pick one."
-                    ),
+                    message=(f"Step '{step.id}' declares BOTH agent_profile and contract_ref; pick one."),
                     details={
                         "file": selected.path,
                         "mission_key": mission_key,
@@ -294,9 +274,7 @@ def _has_text(value: str | None) -> bool:
     return bool(value and value.strip())
 
 
-def _find_selected(
-    discovery_result: DiscoveryResult, mission_key: str
-) -> DiscoveredMission | None:
+def _find_selected(discovery_result: DiscoveryResult, mission_key: str) -> DiscoveredMission | None:
     for entry in discovery_result.missions:
         if entry.key == mission_key and entry.selected:
             return entry
@@ -318,28 +296,17 @@ def _collect_warnings(
     """
     warnings: list[LoaderWarning] = []
 
-    shadowed_paths = [
-        entry.path
-        for entry in discovery_result.missions
-        if entry.key == mission_key and not entry.selected
-    ]
+    shadowed_paths = [entry.path for entry in discovery_result.missions if entry.key == mission_key and not entry.selected]
     if shadowed_paths and selected_path is not None:
         # Use the first matching selected entry's tier in the warning.
         selected_tier = next(
-            (
-                entry.precedence_tier
-                for entry in discovery_result.missions
-                if entry.key == mission_key and entry.selected
-            ),
+            (entry.precedence_tier for entry in discovery_result.missions if entry.key == mission_key and entry.selected),
             "unknown",
         )
         warnings.append(
             LoaderWarning(
                 code=LoaderWarningCode.MISSION_KEY_SHADOWED,
-                message=(
-                    f"Mission '{mission_key}' is defined in multiple tiers; the "
-                    f"{selected_tier!r} tier wins."
-                ),
+                message=(f"Mission '{mission_key}' is defined in multiple tiers; the {selected_tier!r} tier wins."),
                 details={
                     "mission_key": mission_key,
                     "selected_path": selected_path,
@@ -354,9 +321,7 @@ def _collect_warnings(
             warnings.append(
                 LoaderWarning(
                     code=LoaderWarningCode.MISSION_PACK_LOAD_FAILED,
-                    message=(
-                        f"Mission pack entry failed to load: {warning.path}"
-                    ),
+                    message=(f"Mission pack entry failed to load: {warning.path}"),
                     details={
                         "pack_root": warning.origin,
                         "failed_path": warning.path,
@@ -369,9 +334,7 @@ def _collect_warnings(
     return warnings
 
 
-def _try_recover_from_warning(
-    discovery_result: DiscoveryResult, mission_key: str
-) -> LoaderError | None:
+def _try_recover_from_warning(discovery_result: DiscoveryResult, mission_key: str) -> LoaderError | None:
     """When discovery dropped a candidate file due to load failure, retry it.
 
     Discovery filters malformed mission YAML files into ``warnings`` and
@@ -394,9 +357,7 @@ def _path_matches_mission_key(path: str, mission_key: str) -> bool:
     return p.name == "mission.yaml" and p.parent.name == mission_key
 
 
-def _classify_load_failure(
-    warning: DiscoveryWarning, mission_key: str
-) -> LoaderError:
+def _classify_load_failure(warning: DiscoveryWarning, mission_key: str) -> LoaderError:
     """Re-attempt the failed load and map the exception type to a code."""
     path = Path(warning.path)
     try:
@@ -451,9 +412,7 @@ def _classify_load_failure(
     )
 
 
-def _map_pydantic_error(
-    exc: PydanticValidationError, file_path: str, mission_key: str
-) -> LoaderError:
+def _map_pydantic_error(exc: PydanticValidationError, file_path: str, mission_key: str) -> LoaderError:
     """Map a Pydantic ValidationError to MISSION_REQUIRED_FIELD_MISSING or
     MISSION_YAML_MALFORMED (shape error fallback)."""
     missing_fields: list[str] = []
@@ -465,10 +424,7 @@ def _map_pydantic_error(
     if missing_fields:
         return LoaderError(
             code=LoaderErrorCode.MISSION_REQUIRED_FIELD_MISSING,
-            message=(
-                f"Required mission field(s) missing in {file_path}: "
-                f"{', '.join(missing_fields)}"
-            ),
+            message=(f"Required mission field(s) missing in {file_path}: {', '.join(missing_fields)}"),
             details={
                 "file": file_path,
                 "mission_key": mission_key,

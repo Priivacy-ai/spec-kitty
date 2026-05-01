@@ -27,9 +27,7 @@ from ._drg import load_merged_drg
 
 logger = logging.getLogger(__name__)
 
-_ALL_CHECKS: frozenset[str] = frozenset(
-    {"orphans", "contradictions", "staleness", "reference_integrity"}
-)
+_ALL_CHECKS: frozenset[str] = frozenset({"orphans", "contradictions", "staleness", "reference_integrity"})
 
 _CHECK_MAP: dict[str, type] = {
     "orphans": OrphanChecker,

@@ -135,9 +135,7 @@ class TestLegacyEventRead:
 
         events = read_events(feature_dir)
         assert events[0].mission_id is not None
-        assert ULID_PATTERN.match(events[0].mission_id), (
-            f"Expected ULID, got {events[0].mission_id!r}"
-        )
+        assert ULID_PATTERN.match(events[0].mission_id), f"Expected ULID, got {events[0].mission_id!r}"
 
     def test_legacy_event_missing_meta_yields_none_mission_id(self, tmp_path: Path) -> None:
         """When meta.json is absent, mission_id should be None (not an error)."""
@@ -243,9 +241,7 @@ class TestMixedEventLogRead:
 
         events = read_events(feature_dir)
         for event in events:
-            assert event.mission_id == _MISSION_ID, (
-                f"Expected mission_id={_MISSION_ID!r} for {event.wp_id}, got {event.mission_id!r}"
-            )
+            assert event.mission_id == _MISSION_ID, f"Expected mission_id={_MISSION_ID!r} for {event.wp_id}, got {event.mission_id!r}"
 
     def test_mixed_log_all_have_correct_slug(self, tmp_path: Path, mixed_events: list[dict[str, Any]]) -> None:
         feature_dir = _make_feature_dir(tmp_path)
@@ -256,9 +252,7 @@ class TestMixedEventLogRead:
         for event in events:
             assert event.mission_slug == _MISSION_SLUG
 
-    def test_mixed_log_reducer_produces_coherent_state(
-        self, tmp_path: Path, mixed_events: list[dict[str, Any]]
-    ) -> None:
+    def test_mixed_log_reducer_produces_coherent_state(self, tmp_path: Path, mixed_events: list[dict[str, Any]]) -> None:
         """Mixed log must reduce to the same lane state for both WPs."""
         from specify_cli.status.reducer import reduce
 
@@ -363,20 +357,20 @@ class TestRoundTripMissionId:
         """Feature directory with meta.json containing mission_id."""
         return _make_feature_dir(tmp_path)
 
-    def test_emitted_event_carries_mission_id_from_meta(
-        self, feature_dir_with_meta: Path
-    ) -> None:
+    def test_emitted_event_carries_mission_id_from_meta(self, feature_dir_with_meta: Path) -> None:
         """New events emitted by the pipeline must have mission_id == meta.json.mission_id."""
         feature_dir = feature_dir_with_meta
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=_MISSION_SLUG,
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=_MISSION_SLUG,
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                )
+            )
 
         events = read_events(feature_dir)
         # Filter to the WP01 claimed transition (bootstrap may already exist)
@@ -384,22 +378,22 @@ class TestRoundTripMissionId:
         assert claimed_events, "Expected at least one claimed event for WP01"
 
         event = claimed_events[-1]
-        assert event.mission_id == _MISSION_ID, (
-            f"Expected mission_id={_MISSION_ID!r}, got {event.mission_id!r}"
-        )
+        assert event.mission_id == _MISSION_ID, f"Expected mission_id={_MISSION_ID!r}, got {event.mission_id!r}"
 
     def test_emitted_event_aggregate_id_is_ulid(self, feature_dir_with_meta: Path) -> None:
         """T028: aggregate identity of new events (mission_id) must be a valid ULID."""
         feature_dir = feature_dir_with_meta
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=_MISSION_SLUG,
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=_MISSION_SLUG,
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                )
+            )
 
         events = read_events(feature_dir)
         claimed_events = [e for e in events if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]
@@ -407,44 +401,35 @@ class TestRoundTripMissionId:
 
         event = claimed_events[-1]
         assert event.mission_id is not None
-        assert ULID_PATTERN.match(event.mission_id), (
-            f"mission_id {event.mission_id!r} does not match ULID pattern"
-        )
+        assert ULID_PATTERN.match(event.mission_id), f"mission_id {event.mission_id!r} does not match ULID pattern"
 
-    def test_emitted_event_omits_legacy_aggregate_id(
-        self, feature_dir_with_meta: Path
-    ) -> None:
+    def test_emitted_event_omits_legacy_aggregate_id(self, feature_dir_with_meta: Path) -> None:
         """On-disk event must not carry legacy_aggregate_id after drift-window closure."""
         import json as _json
 
         feature_dir = feature_dir_with_meta
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=_MISSION_SLUG,
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=_MISSION_SLUG,
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                )
+            )
 
         events_path = feature_dir / EVENTS_FILENAME
         raw_lines = events_path.read_text(encoding="utf-8").strip().splitlines()
         # Find the claimed event for WP01
-        claimed_raw = [
-            _json.loads(line)
-            for line in raw_lines
-            if _json.loads(line).get("wp_id") == "WP01"
-            and _json.loads(line).get("to_lane") == "claimed"
-        ]
+        claimed_raw = [_json.loads(line) for line in raw_lines if _json.loads(line).get("wp_id") == "WP01" and _json.loads(line).get("to_lane") == "claimed"]
         assert claimed_raw, "Expected at least one claimed event for WP01 in JSONL"
 
         raw_event = claimed_raw[-1]
         assert "legacy_aggregate_id" not in raw_event
 
-    def test_emitted_event_mission_id_matches_meta_json(
-        self, feature_dir_with_meta: Path
-    ) -> None:
+    def test_emitted_event_mission_id_matches_meta_json(self, feature_dir_with_meta: Path) -> None:
         """T028: Complete round-trip verification — emitted mission_id == meta.json.mission_id."""
         import json as _json
 
@@ -456,13 +441,15 @@ class TestRoundTripMissionId:
         expected_slug = meta["mission_slug"]
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=_MISSION_SLUG,
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=_MISSION_SLUG,
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                )
+            )
 
         events = read_events(feature_dir)
         claimed_events = [e for e in events if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]
@@ -486,13 +473,15 @@ class TestRoundTripMissionId:
         (feature_dir / "meta.json").write_text(json.dumps(meta_without_id), encoding="utf-8")
 
         with patch("specify_cli.status.emit._saas_fan_out"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=_MISSION_SLUG,
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="claude",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=_MISSION_SLUG,
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="claude",
+                )
+            )
 
         events = read_events(feature_dir)
         claimed_events = [e for e in events if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]

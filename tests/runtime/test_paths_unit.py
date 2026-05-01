@@ -188,9 +188,7 @@ def test_is_worktree_context_separate_git_dir(tmp_path: Path) -> None:
     assert is_worktree_context(nested) is False
 
 
-def test_is_worktree_context_handles_gitfile_read_oserror(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_is_worktree_context_handles_gitfile_read_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Should return False when .git pointer cannot be read."""
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -289,6 +287,7 @@ def test_locate_project_root_with_broken_symlink_kittify(tmp_path: Path, monkeyp
 # ---------------------------------------------------------------------------
 # Regression tests for require_explicit_feature error messages (T031, T033)
 # ---------------------------------------------------------------------------
+
 
 def test_require_explicit_feature_error_uses_mission_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Error message must say --mission, not --feature (T033 regression)."""

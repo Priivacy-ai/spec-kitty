@@ -306,18 +306,14 @@ def list_terms(
     scope_enum: GlossaryScope | None = None
     if scope:
         if scope not in _VALID_SCOPES:
-            console.print(
-                f"[red]Error: Invalid scope '{scope}'. Valid scopes: {', '.join(sorted(_VALID_SCOPES))}[/red]"
-            )
+            console.print(f"[red]Error: Invalid scope '{scope}'. Valid scopes: {', '.join(sorted(_VALID_SCOPES))}[/red]")
             raise typer.Exit(1)
         scope_enum = GlossaryScope(scope)
 
     # Validate status
     valid_statuses = {"active", "deprecated", "draft"}
     if status and status not in valid_statuses:
-        console.print(
-            f"[red]Error: Invalid status '{status}'. Valid statuses: {', '.join(sorted(valid_statuses))}[/red]"
-        )
+        console.print(f"[red]Error: Invalid status '{status}'. Valid statuses: {', '.join(sorted(valid_statuses))}[/red]")
         raise typer.Exit(1)
 
     # Check glossary directory exists
@@ -413,9 +409,7 @@ def conflicts(
 
     # Validate strictness filter
     if strictness and strictness not in _VALID_STRICTNESS:
-        console.print(
-            f"[red]Error: Invalid strictness '{strictness}'. Valid values: {', '.join(sorted(_VALID_STRICTNESS))}[/red]"
-        )
+        console.print(f"[red]Error: Invalid strictness '{strictness}'. Valid values: {', '.join(sorted(_VALID_STRICTNESS))}[/red]")
         raise typer.Exit(1)
 
     # Collect events from all mission event logs
@@ -571,10 +565,7 @@ def resolve(  # noqa: C901
         raise typer.Exit(1)
 
     # Check if already resolved
-    resolved = any(
-        e.get("event_type") == "GlossaryClarificationResolved" and e.get("conflict_id") == conflict_id
-        for e in all_events
-    )
+    resolved = any(e.get("event_type") == "GlossaryClarificationResolved" and e.get("conflict_id") == conflict_id for e in all_events)
 
     if resolved:
         console.print(f"[yellow]Warning: Conflict '{conflict_id}' already resolved[/yellow]")
@@ -601,9 +592,7 @@ def resolve(  # noqa: C901
     if not candidates:
         # Build candidates from requested event options
         options = requested_event.get("options", [])
-        candidates = [
-            {"surface": term_text, "scope": "unknown", "definition": opt, "confidence": 0.5} for opt in options
-        ]
+        candidates = [{"surface": term_text, "scope": "unknown", "definition": opt, "confidence": 0.5} for opt in options]
 
     if candidates:
         console.print("\n[bold]Candidate senses:[/bold]")

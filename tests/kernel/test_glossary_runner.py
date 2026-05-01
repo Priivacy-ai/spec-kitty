@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-import kernel.glossary_runner as gr
 from kernel.glossary_runner import (
     GlossaryRunnerProtocol,
     clear_registry,
@@ -198,12 +197,8 @@ class TestRegisterTypeErrorMessageIdentifiesInput:
             register("not-a-class")  # type: ignore[arg-type]
 
         message = str(exc_info.value)
-        assert "<class 'str'>" in message, (
-            f"expected str type identifier in error, got {message!r}"
-        )
-        assert "NoneType" not in message, (
-            f"error must not misreport bad input as NoneType; got {message!r}"
-        )
+        assert "<class 'str'>" in message, f"expected str type identifier in error, got {message!r}"
+        assert "NoneType" not in message, f"error must not misreport bad input as NoneType; got {message!r}"
 
     def test_type_error_reports_int_input_type(self) -> None:
         """Passing an int produces a message mentioning <class 'int'>.
@@ -216,9 +211,7 @@ class TestRegisterTypeErrorMessageIdentifiesInput:
             register(42)  # type: ignore[arg-type]
 
         message = str(exc_info.value)
-        assert "<class 'int'>" in message, (
-            f"expected int type identifier in error, got {message!r}"
-        )
+        assert "<class 'int'>" in message, f"expected int type identifier in error, got {message!r}"
         assert "<class 'NoneType'>" not in message
 
     def test_type_error_reports_instance_input_type(self) -> None:

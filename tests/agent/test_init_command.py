@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import re
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -18,6 +18,7 @@ from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
 
 pytestmark = pytest.mark.fast
+
 
 @pytest.fixture()
 def cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Typer, Console, list[str]]:
@@ -116,9 +117,7 @@ def test_init_non_interactive_requires_ai(cli_app, monkeypatch: pytest.MonkeyPat
     assert "--ai is required in non-interactive mode" in console_output
 
 
-def test_init_non_interactive_no_project_name_defaults_to_current_directory(
-    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+def test_init_non_interactive_no_project_name_defaults_to_current_directory(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
 

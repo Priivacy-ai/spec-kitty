@@ -92,9 +92,7 @@ def test_missing_required_nested_field_raises_schema_error(tmp_path: Path) -> No
 
 def test_pending_status_raises_schema_error(tmp_path: Path) -> None:
     """status=pending is refused at the read boundary."""
-    yaml_pending = VALID_YAML.replace("status: completed", "status: pending").replace(
-        "completed_at: \"2026-04-27T11:00:00+00:00\"\n", ""
-    )
+    yaml_pending = VALID_YAML.replace("status: completed", "status: pending").replace('completed_at: "2026-04-27T11:00:00+00:00"\n', "")
     bad = tmp_path / "retrospective.yaml"
     bad.write_text(yaml_pending, encoding="utf-8")
     with pytest.raises(SchemaError):

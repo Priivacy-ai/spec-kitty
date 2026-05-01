@@ -60,9 +60,7 @@ def validate_staged_files(
     if policy.block_kitty_specs:
         for f in staged_files:
             if f.startswith("kitty-specs/"):
-                violations.append(
-                    f"Protected path: {f} — implementation branches must not modify kitty-specs/"
-                )
+                violations.append(f"Protected path: {f} — implementation branches must not modify kitty-specs/")
 
     # Check ownership enforcement.
     if policy.enforce_ownership and owned_files:
@@ -70,9 +68,7 @@ def validate_staged_files(
             if f.startswith("kitty-specs/"):
                 continue  # Already flagged above
             if not _matches_any_glob(f, owned_files):
-                violations.append(
-                    f"Out of scope: {f} — not matched by owned_files {owned_files}"
-                )
+                violations.append(f"Out of scope: {f} — not matched by owned_files {owned_files}")
 
     if not violations:
         return CommitGuardResult(allowed=True)

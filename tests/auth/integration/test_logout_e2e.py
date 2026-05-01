@@ -15,7 +15,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import get_token_manager
@@ -50,9 +49,7 @@ def _authenticated_session() -> StoredSession:
     )
 
 
-def _mock_httpx_response(
-    status_code: int, json_body: dict[str, Any] | None = None
-) -> MagicMock:
+def _mock_httpx_response(status_code: int, json_body: dict[str, Any] | None = None) -> MagicMock:
     response = MagicMock(spec=httpx.Response)
     response.status_code = status_code
     response.text = str(json_body or {})
@@ -80,9 +77,7 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch(
-                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
-            ) as mock_client_cls,
+            patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -136,9 +131,7 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch(
-                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
-            ) as mock_client_cls,
+            patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -169,9 +162,7 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch(
-                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
-            ) as mock_client_cls,
+            patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -204,9 +195,7 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch(
-                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
-            ) as mock_client_cls,
+            patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -254,9 +243,7 @@ class TestLogoutE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch(
-                "specify_cli.auth.flows.revoke.httpx.AsyncClient"
-            ) as mock_client_cls,
+            patch("specify_cli.auth.flows.revoke.httpx.AsyncClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)

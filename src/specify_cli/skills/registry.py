@@ -27,9 +27,7 @@ def _collect_files(directory: Path) -> list[Path]:
     """Return sorted list of files in *directory*, excluding dotfiles like .gitkeep."""
     if not directory.is_dir():
         return []
-    return sorted(
-        p for p in directory.iterdir() if p.is_file() and not p.name.startswith(".")
-    )
+    return sorted(p for p in directory.iterdir() if p.is_file() and not p.name.startswith("."))
 
 
 class SkillRegistry:

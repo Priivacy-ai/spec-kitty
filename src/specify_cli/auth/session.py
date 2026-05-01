@@ -147,11 +147,7 @@ class StoredSession:
             "session_id": self.session_id,
             "issued_at": self.issued_at.isoformat(),
             "access_token_expires_at": self.access_token_expires_at.isoformat(),
-            "refresh_token_expires_at": (
-                self.refresh_token_expires_at.isoformat()
-                if self.refresh_token_expires_at is not None
-                else None
-            ),
+            "refresh_token_expires_at": (self.refresh_token_expires_at.isoformat() if self.refresh_token_expires_at is not None else None),
             "scope": self.scope,
             "storage_backend": self.storage_backend,
             "last_used_at": self.last_used_at.isoformat(),
@@ -163,9 +159,7 @@ class StoredSession:
     def from_dict(cls, data: dict[str, Any]) -> StoredSession:
         """Deserialize from the dict produced by ``to_dict``."""
         refresh_exp_raw = data.get("refresh_token_expires_at")
-        refresh_exp = (
-            datetime.fromisoformat(refresh_exp_raw) if refresh_exp_raw else None
-        )
+        refresh_exp = datetime.fromisoformat(refresh_exp_raw) if refresh_exp_raw else None
         return cls(
             user_id=data["user_id"],
             email=data["email"],

@@ -7,7 +7,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import pytest
 
 from specify_cli.mission_v1.guards import GUARD_REGISTRY
 
@@ -43,9 +42,7 @@ categories:
 
 def _write_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
     """Write a meta.json file."""
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def _write_occurrence_map(feature_dir: Path, content: str) -> None:
@@ -85,23 +82,35 @@ class TestGuardPassesNonBulkEdit:
     """Guard passes when the mission is not a bulk_edit mission."""
 
     def test_no_change_mode(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {
-            "slug": "feat", "mission_slug": "feat",
-            "friendly_name": "Test", "mission_type": "software-dev",
-            "target_branch": "main", "created_at": "2026-01-01",
-        })
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "feat",
+                "mission_slug": "feat",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+            },
+        )
         factory = GUARD_REGISTRY["occurrence_map_complete"]
         guard = factory([])
         event_data = _make_event_data(tmp_path)
         assert guard(event_data) is True
 
     def test_standard_change_mode(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {
-            "slug": "feat", "mission_slug": "feat",
-            "friendly_name": "Test", "mission_type": "software-dev",
-            "target_branch": "main", "created_at": "2026-01-01",
-            "change_mode": "standard",
-        })
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "feat",
+                "mission_slug": "feat",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "standard",
+            },
+        )
         factory = GUARD_REGISTRY["occurrence_map_complete"]
         guard = factory([])
         event_data = _make_event_data(tmp_path)
@@ -122,12 +131,18 @@ class TestGuardFailsBulkEditNoMap:
     """Guard fails when change_mode=bulk_edit but no occurrence_map.yaml."""
 
     def test_blocks_missing_map(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {
-            "slug": "feat", "mission_slug": "feat",
-            "friendly_name": "Test", "mission_type": "software-dev",
-            "target_branch": "main", "created_at": "2026-01-01",
-            "change_mode": "bulk_edit",
-        })
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "feat",
+                "mission_slug": "feat",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "bulk_edit",
+            },
+        )
         factory = GUARD_REGISTRY["occurrence_map_complete"]
         guard = factory([])
         event_data = _make_event_data(tmp_path)
@@ -138,12 +153,18 @@ class TestGuardPassesBulkEditValidMap:
     """Guard passes when change_mode=bulk_edit and a valid occurrence map exists."""
 
     def test_passes_valid_map(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {
-            "slug": "feat", "mission_slug": "feat",
-            "friendly_name": "Test", "mission_type": "software-dev",
-            "target_branch": "main", "created_at": "2026-01-01",
-            "change_mode": "bulk_edit",
-        })
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "feat",
+                "mission_slug": "feat",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "bulk_edit",
+            },
+        )
         _write_occurrence_map(tmp_path, VALID_OCCURRENCE_MAP)
         factory = GUARD_REGISTRY["occurrence_map_complete"]
         guard = factory([])

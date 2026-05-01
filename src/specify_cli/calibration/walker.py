@@ -91,140 +91,175 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
     # ------------------------------------------------------------------
     # software-dev
     # ------------------------------------------------------------------
-    ("software-dev", "action:software-dev/specify"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("software-dev", "action:software-dev/plan"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:adr-drafting-workflow",
-        "tactic:premortem-risk-identification",
-        "tactic:problem-decomposition",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("software-dev", "action:software-dev/tasks"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_024",
-        "tactic:adr-drafting-workflow",
-        "tactic:problem-decomposition",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("software-dev", "action:software-dev/implement"): frozenset({
-        "directive:DIRECTIVE_024",
-        "directive:DIRECTIVE_025",
-        "directive:DIRECTIVE_028",
-        "directive:DIRECTIVE_029",
-        "directive:DIRECTIVE_030",
-        "directive:DIRECTIVE_034",
-        "tactic:acceptance-test-first",
-        "tactic:autonomous-operation-protocol",
-        "tactic:change-apply-smallest-viable-diff",
-        "tactic:quality-gate-verification",
-        "tactic:stopping-conditions",
-        "tactic:tdd-red-green-refactor",
-        "toolguide:efficient-local-tooling",
-    }),
-    ("software-dev", "action:software-dev/review"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_024",
-        "directive:DIRECTIVE_025",
-        "directive:DIRECTIVE_028",
-        "directive:DIRECTIVE_029",
-        "directive:DIRECTIVE_030",
-        "directive:DIRECTIVE_034",
-        "directive:DIRECTIVE_037",
-        "tactic:acceptance-test-first",
-        "tactic:usage-examples-sync",
-        "tactic:quality-gate-verification",
-        "tactic:review-intent-and-risk-first",
-        "tactic:stopping-conditions",
-    }),
-    ("software-dev", "action:software-dev/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-    }),
-
+    ("software-dev", "action:software-dev/specify"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("software-dev", "action:software-dev/plan"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:adr-drafting-workflow",
+            "tactic:premortem-risk-identification",
+            "tactic:problem-decomposition",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("software-dev", "action:software-dev/tasks"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_024",
+            "tactic:adr-drafting-workflow",
+            "tactic:problem-decomposition",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("software-dev", "action:software-dev/implement"): frozenset(
+        {
+            "directive:DIRECTIVE_024",
+            "directive:DIRECTIVE_025",
+            "directive:DIRECTIVE_028",
+            "directive:DIRECTIVE_029",
+            "directive:DIRECTIVE_030",
+            "directive:DIRECTIVE_034",
+            "tactic:acceptance-test-first",
+            "tactic:autonomous-operation-protocol",
+            "tactic:change-apply-smallest-viable-diff",
+            "tactic:quality-gate-verification",
+            "tactic:stopping-conditions",
+            "tactic:tdd-red-green-refactor",
+            "toolguide:efficient-local-tooling",
+        }
+    ),
+    ("software-dev", "action:software-dev/review"): frozenset(
+        {
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_024",
+            "directive:DIRECTIVE_025",
+            "directive:DIRECTIVE_028",
+            "directive:DIRECTIVE_029",
+            "directive:DIRECTIVE_030",
+            "directive:DIRECTIVE_034",
+            "directive:DIRECTIVE_037",
+            "tactic:acceptance-test-first",
+            "tactic:usage-examples-sync",
+            "tactic:quality-gate-verification",
+            "tactic:review-intent-and-risk-first",
+            "tactic:stopping-conditions",
+        }
+    ),
+    ("software-dev", "action:software-dev/retrospect"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+        }
+    ),
     # ------------------------------------------------------------------
     # research
     # ------------------------------------------------------------------
-    ("research", "action:research/scoping"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:requirements-validation-workflow",
-        "tactic:premortem-risk-identification",
-    }),
-    ("research", "action:research/methodology"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:adr-drafting-workflow",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("research", "action:research/gathering"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("research", "action:research/synthesis"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:premortem-risk-identification",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("research", "action:research/output"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("research", "action:research/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-    }),
-
+    ("research", "action:research/scoping"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:requirements-validation-workflow",
+            "tactic:premortem-risk-identification",
+        }
+    ),
+    ("research", "action:research/methodology"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:adr-drafting-workflow",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("research", "action:research/gathering"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_037",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("research", "action:research/synthesis"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:premortem-risk-identification",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("research", "action:research/output"): frozenset(
+        {
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_037",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("research", "action:research/retrospect"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+        }
+    ),
     # ------------------------------------------------------------------
     # documentation
     # ------------------------------------------------------------------
-    ("documentation", "action:documentation/audit"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("documentation", "action:documentation/design"): frozenset({
-        "directive:DIRECTIVE_001",
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:adr-drafting-workflow",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("documentation", "action:documentation/discover"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:premortem-risk-identification",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("documentation", "action:documentation/generate"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("documentation", "action:documentation/publish"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("documentation", "action:documentation/validate"): frozenset({
-        "directive:DIRECTIVE_010",
-        "directive:DIRECTIVE_037",
-        "tactic:premortem-risk-identification",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("documentation", "action:documentation/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-    }),
-
+    ("documentation", "action:documentation/audit"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_037",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("documentation", "action:documentation/design"): frozenset(
+        {
+            "directive:DIRECTIVE_001",
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:adr-drafting-workflow",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("documentation", "action:documentation/discover"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:premortem-risk-identification",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("documentation", "action:documentation/generate"): frozenset(
+        {
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_037",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("documentation", "action:documentation/publish"): frozenset(
+        {
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_037",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("documentation", "action:documentation/validate"): frozenset(
+        {
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_037",
+            "tactic:premortem-risk-identification",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("documentation", "action:documentation/retrospect"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+        }
+    ),
     # ------------------------------------------------------------------
     # erp-custom (maps ERP step roles to generic action URNs)
     # query-erp / lookup-provider / write-report → research/gathering
@@ -232,35 +267,43 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
     # ask-user                                   → software-dev/specify
     # retrospective                              → software-dev/retrospect
     # ------------------------------------------------------------------
-    ("erp-custom", "action:research/gathering"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_037",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("erp-custom", "action:software-dev/implement"): frozenset({
-        "directive:DIRECTIVE_024",
-        "directive:DIRECTIVE_025",
-        "directive:DIRECTIVE_028",
-        "directive:DIRECTIVE_029",
-        "directive:DIRECTIVE_030",
-        "directive:DIRECTIVE_034",
-        "tactic:acceptance-test-first",
-        "tactic:autonomous-operation-protocol",
-        "tactic:change-apply-smallest-viable-diff",
-        "tactic:quality-gate-verification",
-        "tactic:stopping-conditions",
-        "tactic:tdd-red-green-refactor",
-        "toolguide:efficient-local-tooling",
-    }),
-    ("erp-custom", "action:software-dev/specify"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-        "tactic:requirements-validation-workflow",
-    }),
-    ("erp-custom", "action:software-dev/retrospect"): frozenset({
-        "directive:DIRECTIVE_003",
-        "directive:DIRECTIVE_010",
-    }),
+    ("erp-custom", "action:research/gathering"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_037",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("erp-custom", "action:software-dev/implement"): frozenset(
+        {
+            "directive:DIRECTIVE_024",
+            "directive:DIRECTIVE_025",
+            "directive:DIRECTIVE_028",
+            "directive:DIRECTIVE_029",
+            "directive:DIRECTIVE_030",
+            "directive:DIRECTIVE_034",
+            "tactic:acceptance-test-first",
+            "tactic:autonomous-operation-protocol",
+            "tactic:change-apply-smallest-viable-diff",
+            "tactic:quality-gate-verification",
+            "tactic:stopping-conditions",
+            "tactic:tdd-red-green-refactor",
+            "toolguide:efficient-local-tooling",
+        }
+    ),
+    ("erp-custom", "action:software-dev/specify"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "tactic:requirements-validation-workflow",
+        }
+    ),
+    ("erp-custom", "action:software-dev/retrospect"): frozenset(
+        {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+        }
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -270,38 +313,38 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
 # Maps mission_key → list of (step_id, action_urn, profile_urn)
 _MISSION_STEPS: dict[str, list[tuple[str, str, str]]] = {
     "software-dev": [
-        ("specify",    "action:software-dev/specify",    "agent_profile:planner-priti"),
-        ("plan",       "action:software-dev/plan",       "agent_profile:planner-priti"),
-        ("tasks",      "action:software-dev/tasks",      "agent_profile:planner-priti"),
-        ("implement",  "action:software-dev/implement",  "agent_profile:implementer-ivan"),
-        ("review",     "action:software-dev/review",     "agent_profile:reviewer-renata"),
+        ("specify", "action:software-dev/specify", "agent_profile:planner-priti"),
+        ("plan", "action:software-dev/plan", "agent_profile:planner-priti"),
+        ("tasks", "action:software-dev/tasks", "agent_profile:planner-priti"),
+        ("implement", "action:software-dev/implement", "agent_profile:implementer-ivan"),
+        ("review", "action:software-dev/review", "agent_profile:reviewer-renata"),
         ("retrospect", "action:software-dev/retrospect", "agent_profile:retrospective-facilitator"),
     ],
     "research": [
-        ("scoping",     "action:research/scoping",     "agent_profile:researcher-robbie"),
+        ("scoping", "action:research/scoping", "agent_profile:researcher-robbie"),
         ("methodology", "action:research/methodology", "agent_profile:researcher-robbie"),
-        ("gathering",   "action:research/gathering",   "agent_profile:researcher-robbie"),
-        ("synthesis",   "action:research/synthesis",   "agent_profile:researcher-robbie"),
-        ("output",      "action:research/output",      "agent_profile:researcher-robbie"),
-        ("retrospect",  "action:research/retrospect",  "agent_profile:retrospective-facilitator"),
+        ("gathering", "action:research/gathering", "agent_profile:researcher-robbie"),
+        ("synthesis", "action:research/synthesis", "agent_profile:researcher-robbie"),
+        ("output", "action:research/output", "agent_profile:researcher-robbie"),
+        ("retrospect", "action:research/retrospect", "agent_profile:retrospective-facilitator"),
     ],
     "documentation": [
-        ("audit",       "action:documentation/audit",    "agent_profile:curator-carla"),
-        ("design",      "action:documentation/design",   "agent_profile:curator-carla"),
-        ("discover",    "action:documentation/discover", "agent_profile:curator-carla"),
-        ("generate",    "action:documentation/generate", "agent_profile:curator-carla"),
-        ("publish",     "action:documentation/publish",  "agent_profile:curator-carla"),
-        ("validate",    "action:documentation/validate", "agent_profile:curator-carla"),
-        ("retrospect",  "action:documentation/retrospect", "agent_profile:retrospective-facilitator"),
+        ("audit", "action:documentation/audit", "agent_profile:curator-carla"),
+        ("design", "action:documentation/design", "agent_profile:curator-carla"),
+        ("discover", "action:documentation/discover", "agent_profile:curator-carla"),
+        ("generate", "action:documentation/generate", "agent_profile:curator-carla"),
+        ("publish", "action:documentation/publish", "agent_profile:curator-carla"),
+        ("validate", "action:documentation/validate", "agent_profile:curator-carla"),
+        ("retrospect", "action:documentation/retrospect", "agent_profile:retrospective-facilitator"),
     ],
     "erp-custom": [
-        ("query-erp",         "action:research/gathering",       "agent_profile:researcher-robbie"),
-        ("lookup-provider",   "action:research/gathering",       "agent_profile:researcher-robbie"),
-        ("ask-user",          "action:software-dev/specify",     "agent_profile:implementer-ivan"),
-        ("create-js",         "action:software-dev/implement",   "agent_profile:implementer-ivan"),
-        ("refactor-function", "action:software-dev/implement",   "agent_profile:implementer-ivan"),
-        ("write-report",      "action:research/gathering",       "agent_profile:researcher-robbie"),
-        ("retrospective",     "action:software-dev/retrospect",  "agent_profile:retrospective-facilitator"),
+        ("query-erp", "action:research/gathering", "agent_profile:researcher-robbie"),
+        ("lookup-provider", "action:research/gathering", "agent_profile:researcher-robbie"),
+        ("ask-user", "action:software-dev/specify", "agent_profile:implementer-ivan"),
+        ("create-js", "action:software-dev/implement", "agent_profile:implementer-ivan"),
+        ("refactor-function", "action:software-dev/implement", "agent_profile:implementer-ivan"),
+        ("write-report", "action:research/gathering", "agent_profile:researcher-robbie"),
+        ("retrospective", "action:software-dev/retrospect", "agent_profile:retrospective-facilitator"),
     ],
 }
 
@@ -323,10 +366,7 @@ def _load_overlay_graph(
 
     Returns None when the overlay file does not exist or is empty.
     """
-    overlay_path = (
-        repo_root / ".kittify" / "doctrine" / "overlays"
-        / f"calibration-{mission_key}.yaml"
-    )
+    overlay_path = repo_root / ".kittify" / "doctrine" / "overlays" / f"calibration-{mission_key}.yaml"
     if not overlay_path.exists():
         return None
 
@@ -371,10 +411,7 @@ def _load_overlay_graph(
 
 def _apply_remove_edges(graph: DRGGraph, repo_root: Path, mission_key: str) -> DRGGraph:
     """Remove edges listed in the overlay's ``remove_edge`` section."""
-    overlay_path = (
-        repo_root / ".kittify" / "doctrine" / "overlays"
-        / f"calibration-{mission_key}.yaml"
-    )
+    overlay_path = repo_root / ".kittify" / "doctrine" / "overlays" / f"calibration-{mission_key}.yaml"
     if not overlay_path.exists():
         return graph
 
@@ -383,18 +420,12 @@ def _apply_remove_edges(graph: DRGGraph, repo_root: Path, mission_key: str) -> D
     if not raw:
         return graph
 
-    removes: list[tuple[str, str, str]] = [
-        (e["source"], e["target"], e["relation"])
-        for e in raw.get("remove_edge", [])
-    ]
+    removes: list[tuple[str, str, str]] = [(e["source"], e["target"], e["relation"]) for e in raw.get("remove_edge", [])]
     if not removes:
         return graph
 
     remove_set = set(removes)
-    kept_edges = [
-        e for e in graph.edges
-        if (e.source, e.target, e.relation.value) not in remove_set
-    ]
+    kept_edges = [e for e in graph.edges if (e.source, e.target, e.relation.value) not in remove_set]
     return DRGGraph(
         schema_version=graph.schema_version,
         generated_at=graph.generated_at,

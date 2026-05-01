@@ -85,46 +85,24 @@ def test_each_documentation_action_has_drg_node_and_context(action: str) -> None
     assert node is not None, f"missing DRG node: {urn}"
 
     ctx = resolve_context(graph, urn, depth=_COMPOSITION_RESOLUTION_DEPTH)
-    assert ctx.artifact_urns, (
-        f"empty artifact_urns for {urn}; verify graph.yaml edges "
-        f"from this action node to directives/tactics."
-    )
+    assert ctx.artifact_urns, f"empty artifact_urns for {urn}; verify graph.yaml edges from this action node to directives/tactics."
 
 
 @pytest.mark.parametrize("action", _DOC_ACTIONS)
 def test_action_bundle_matches_drg_edges(action: str) -> None:
     """FR-006: action-bundle index.yaml directives/tactics match graph.yaml URN edges."""
     repo_root = _repo_root()
-    bundle_path = (
-        repo_root
-        / "src"
-        / "doctrine"
-        / "missions"
-        / "documentation"
-        / "actions"
-        / action
-        / "index.yaml"
-    )
+    bundle_path = repo_root / "src" / "doctrine" / "missions" / "documentation" / "actions" / action / "index.yaml"
     bundle = yaml.safe_load(bundle_path.read_text(encoding="utf-8"))
-    slugs: list[str] = list(bundle.get("directives", []) or []) + list(
-        bundle.get("tactics", []) or []
-    )
+    slugs: list[str] = list(bundle.get("directives", []) or []) + list(bundle.get("tactics", []) or [])
     expected_urns = {_SLUG_TO_URN[slug] for slug in slugs}
 
-    graph_yaml = yaml.safe_load(
-        (repo_root / "src" / "doctrine" / "graph.yaml").read_text(encoding="utf-8")
-    )
+    graph_yaml = yaml.safe_load((repo_root / "src" / "doctrine" / "graph.yaml").read_text(encoding="utf-8"))
     actual_urns = {
-        edge["target"]
-        for edge in graph_yaml.get("edges", [])
-        if edge.get("source") == f"action:documentation/{action}"
-        and edge.get("relation") == "scope"
+        edge["target"] for edge in graph_yaml.get("edges", []) if edge.get("source") == f"action:documentation/{action}" and edge.get("relation") == "scope"
     }
 
-    assert expected_urns == actual_urns, (
-        f"bundle <-> DRG mismatch for {action}: "
-        f"bundle has {expected_urns}, graph has {actual_urns}"
-    )
+    assert expected_urns == actual_urns, f"bundle <-> DRG mismatch for {action}: bundle has {expected_urns}, graph has {actual_urns}"
 
 
 def test_resolve_context_within_research_2x() -> None:
@@ -146,7 +124,4 @@ def test_resolve_context_within_research_2x() -> None:
 
     doc_med = median_runs(_DOC_ACTIONS, "documentation")
     research_med = median_runs(_RESEARCH_ACTIONS, "research")
-    assert doc_med <= 2 * research_med, (
-        f"documentation median {doc_med:.6f}s exceeds "
-        f"2x research median {research_med:.6f}s"
-    )
+    assert doc_med <= 2 * research_med, f"documentation median {doc_med:.6f}s exceeds 2x research median {research_med:.6f}s"

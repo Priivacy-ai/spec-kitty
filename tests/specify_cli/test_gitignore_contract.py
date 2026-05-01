@@ -15,17 +15,11 @@ def test_repo_gitignore_covers_local_runtime():
     repo_root = Path(__file__).resolve().parents[2]  # up to repo root
     gitignore_path = repo_root / ".gitignore"
     gitignore_content = gitignore_path.read_text()
-    gitignore_lines = [
-        line.strip() for line in gitignore_content.splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    ]
+    gitignore_lines = [line.strip() for line in gitignore_content.splitlines() if line.strip() and not line.strip().startswith("#")]
 
     # All project-rooted surfaces that must be ignored
     local_runtime_project = [
-        s for s in STATE_SURFACES
-        if s.root == StateRoot.PROJECT
-        and (s.authority == AuthorityClass.LOCAL_RUNTIME
-             or s.git_class == GitClass.IGNORED)
+        s for s in STATE_SURFACES if s.root == StateRoot.PROJECT and (s.authority == AuthorityClass.LOCAL_RUNTIME or s.git_class == GitClass.IGNORED)
     ]
 
     assert local_runtime_project, "Expected at least one LOCAL_RUNTIME project surface"
@@ -34,12 +28,7 @@ def test_repo_gitignore_covers_local_runtime():
     for surface in local_runtime_project:
         pattern = surface.path_pattern
         # Check if pattern or a parent directory pattern is in gitignore
-        if not any(
-            pattern.startswith(line.rstrip("/"))
-            or line.rstrip("/").startswith(pattern.rstrip("/"))
-            or pattern in line
-            for line in gitignore_lines
-        ):
+        if not any(pattern.startswith(line.rstrip("/")) or line.rstrip("/").startswith(pattern.rstrip("/")) or pattern in line for line in gitignore_lines):
             missing.append(f"{surface.name}: {pattern}")
 
     assert not missing, f"Local runtime surfaces not in .gitignore: {missing}"

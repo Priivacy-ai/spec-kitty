@@ -24,6 +24,7 @@ from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
 
 pytestmark = pytest.mark.fast
 
+
 def _ns(
     mission_slug: str = "047-feat",
     target_branch: str = "main",
@@ -709,7 +710,10 @@ class TestFullPipeline:
 
         # Enqueue via pipeline
         outcomes = prepare_body_uploads(
-            artifacts, _ns(), service._body_queue, feature_dir,
+            artifacts,
+            _ns(),
+            service._body_queue,
+            feature_dir,
         )
         assert sum(1 for o in outcomes if o.status == UploadStatus.QUEUED) == 2
 
@@ -737,7 +741,6 @@ class TestFullPipeline:
     ) -> None:
         """Non-retryable failure (400 bad_request) permanently removes task."""
         from specify_cli.sync.batch import BatchSyncResult
-
 
         mock_batch.return_value = BatchSyncResult()
 

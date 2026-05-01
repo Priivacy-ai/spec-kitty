@@ -35,13 +35,13 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
 
     # spec.md: setup-plan requires this to be committed and substantive.
     (feature_dir / "spec.md").write_text(
-        f"""# {slug.replace('-', ' ').title()}
+        f"""# {slug.replace("-", " ").title()}
 
 ## Functional Requirements
 
 | ID | Requirement | Acceptance Criteria | Status |
 | --- | --- | --- | --- |
-| FR-001 | {slug.replace('-', ' ').title()} has a planned implementation path. | The planning workflow creates and commits a valid plan. | proposed |
+| FR-001 | {slug.replace("-", " ").title()} has a planned implementation path. | The planning workflow creates and commits a valid plan. | proposed |
 """,
         encoding="utf-8",
     )

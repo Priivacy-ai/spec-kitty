@@ -72,8 +72,7 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     # Reject path-traversal payloads early, before any filesystem access.
     if not _SAFE_SLUG_RE.match(mission_handle):
         raise typer.BadParameter(
-            f"Invalid --mission value {mission_handle!r}: must match "
-            f"{_SAFE_SLUG_RE.pattern}",
+            f"Invalid --mission value {mission_handle!r}: must match {_SAFE_SLUG_RE.pattern}",
             param_hint="'--mission'",
         )
 
@@ -421,32 +420,36 @@ def cmd_widen(
         raise typer.Exit(1) from None
 
     if dry_run:
-        typer.echo(json.dumps(
-            {
-                "dry_run": True,
-                "decision_id": decision_id,
-                "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
-                "invited": invited_list,
-                "mission_slug": mission_slug,
-                "payload": {"invited_user_ids": invited_list},
-            },
-            indent=2,
-        ))
+        typer.echo(
+            json.dumps(
+                {
+                    "dry_run": True,
+                    "decision_id": decision_id,
+                    "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
+                    "invited": invited_list,
+                    "mission_slug": mission_slug,
+                    "payload": {"invited_user_ids": invited_list},
+                },
+                indent=2,
+            )
+        )
         raise typer.Exit(0)
 
     try:
         client = SaasClient.from_env()
         response = client.post_widen(decision_id=decision_id, invited=invited_list)
-        typer.echo(json.dumps(
-            {
-                "decision_id": response["decision_id"],
-                "invited_count": response["invited_count"],
-                "slack_thread_url": response["slack_thread_url"],
-                "success": True,
-                "widened_at": response["widened_at"],
-            },
-            indent=2,
-        ))
+        typer.echo(
+            json.dumps(
+                {
+                    "decision_id": response["decision_id"],
+                    "invited_count": response["invited_count"],
+                    "slack_thread_url": response["slack_thread_url"],
+                    "success": True,
+                    "widened_at": response["widened_at"],
+                },
+                indent=2,
+            )
+        )
     except SaasClientError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc

@@ -24,14 +24,13 @@ def _make_wp(tasks_dir: Path, wp_name: str, body: str) -> Path:
     """Write a WP markdown file with the given body."""
     tasks_dir.mkdir(parents=True, exist_ok=True)
     wp_file = tasks_dir / f"{wp_name}.md"
-    wp_file.write_text(
-        f"---\ntitle: {wp_name} Title\ndependencies: []\n---\n\n{body}\n"
-    )
+    wp_file.write_text(f"---\ntitle: {wp_name} Title\ndependencies: []\n---\n\n{body}\n")
     return wp_file
 
 
 def _read_frontmatter(wp_file: Path) -> dict:
     from specify_cli.frontmatter import FrontmatterManager
+
     fm = FrontmatterManager()
     frontmatter, _ = fm.read(wp_file)
     return frontmatter
@@ -124,14 +123,7 @@ class TestBackfillOwnership:
         tasks_dir.mkdir(parents=True, exist_ok=True)
 
         wp_file = tasks_dir / "WP03-partial.md"
-        wp_file.write_text(
-            "---\n"
-            "title: WP03\n"
-            "dependencies: []\n"
-            "execution_mode: code_change\n"
-            "---\n\n"
-            "Work on src/specify_cli/foo.py\n"
-        )
+        wp_file.write_text("---\ntitle: WP03\ndependencies: []\nexecution_mode: code_change\n---\n\nWork on src/specify_cli/foo.py\n")
 
         backfill_ownership(feature_dir, "001-alpha")
         frontmatter = _read_frontmatter(wp_file)

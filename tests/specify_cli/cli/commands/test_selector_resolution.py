@@ -550,17 +550,16 @@ def test_next_step_dual_flag_conflict_fails(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path):
-        with pytest.raises(typer.Exit):
-            next_step.__wrapped__(
-                agent="codex",
-                mission="077-a",
-                feature="077-b",
-                json_output=True,
-                result=None,
-                answer=None,
-                decision_id=None,
-            )
+    with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path), pytest.raises(typer.Exit):
+        next_step.__wrapped__(
+            agent="codex",
+            mission="077-a",
+            feature="077-b",
+            json_output=True,
+            result=None,
+            answer=None,
+            decision_id=None,
+        )
 
     out = capsys.readouterr()
     assert "Conflicting selectors" in out.err

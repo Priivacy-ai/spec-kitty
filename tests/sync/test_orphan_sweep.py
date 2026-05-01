@@ -76,10 +76,7 @@ def _wait_until_port_free(port: int, timeout_s: float = 5.0) -> bool:
 
 def _spawn_daemon(port: int, token: str) -> subprocess.Popen[bytes]:
     """Spawn a real Spec Kitty sync daemon on ``port`` with ``token``."""
-    spawn_script = (
-        "from specify_cli.sync.daemon import run_sync_daemon\n"
-        f"run_sync_daemon({port!r}, {token!r})\n"
-    )
+    spawn_script = f"from specify_cli.sync.daemon import run_sync_daemon\nrun_sync_daemon({port!r}, {token!r})\n"
     proc = subprocess.Popen(
         [sys.executable, "-c", spawn_script],
         stdout=subprocess.DEVNULL,
@@ -329,9 +326,7 @@ class TestOrphanSweep:
 
         proc_singleton = harness.spawn_daemon(port_singleton)
         harness.spawn_daemon(port_orphan)
-        harness.write_state_file(
-            f"http://127.0.0.1:{port_singleton}", port_singleton, "tok", proc_singleton.pid
-        )
+        harness.write_state_file(f"http://127.0.0.1:{port_singleton}", port_singleton, "tok", proc_singleton.pid)
 
         orphans = enumerate_orphans()
         assert len(orphans) == 1
@@ -350,9 +345,7 @@ class TestOrphanSweep:
             sock.close()
         assert proc_singleton.poll() is None
 
-    def test_sweep_records_failure_on_access_denied(
-        self, harness: _DaemonHarness, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sweep_records_failure_on_access_denied(self, harness: _DaemonHarness, monkeypatch: pytest.MonkeyPatch) -> None:
         """psutil.Process.terminate raises AccessDenied → orphan in failed list."""
         port = _find_free_port_in_range(_TEST_PORT_START, _TEST_PORT_END)
         harness.spawn_daemon(port)

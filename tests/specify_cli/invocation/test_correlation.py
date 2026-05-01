@@ -1,4 +1,5 @@
 """FR-007 — append_correlation_link + ref normalisation unit tests."""
+
 from __future__ import annotations
 
 import json
@@ -24,9 +25,7 @@ def test_normalise_ref_in_checkout(tmp_path: Path) -> None:
     assert result == str(Path("subdir") / "file.txt")
 
 
-def test_normalise_ref_outside_checkout(
-    tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
-) -> None:
+def test_normalise_ref_outside_checkout(tmp_path: Path, tmp_path_factory: pytest.TempPathFactory) -> None:
     """A path outside repo_root is returned as an absolute path."""
     elsewhere = tmp_path_factory.mktemp("elsewhere") / "out.log"
     elsewhere.write_text("x")
@@ -41,9 +40,7 @@ def test_normalise_ref_verbatim_fallback(tmp_path: Path) -> None:
     assert result == weird
 
 
-def test_normalise_ref_repo_relative_path_uses_repo_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_normalise_ref_repo_relative_path_uses_repo_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Repo-relative refs must resolve from repo_root, not the caller's cwd."""
     repo_root = tmp_path / "repo"
     artifact = repo_root / "docs" / "output.md"

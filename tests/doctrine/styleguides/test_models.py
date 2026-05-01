@@ -4,8 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from doctrine.styleguides.models import AntiPattern, Styleguide, StyleguideScope
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 class TestStyleguideScope:
@@ -34,9 +34,7 @@ class TestAntiPattern:
             AntiPattern(name="Bad", description="x", bad_example="y")  # type: ignore[call-arg]
 
     def test_frozen(self) -> None:
-        ap = AntiPattern(
-            name="X", description="x", bad_example="b", good_example="g"
-        )
+        ap = AntiPattern(name="X", description="x", bad_example="b", good_example="g")
         with pytest.raises(ValidationError):
             ap.name = "changed"  # type: ignore[misc]
 

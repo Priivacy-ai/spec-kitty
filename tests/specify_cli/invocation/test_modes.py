@@ -1,4 +1,5 @@
 """Unit tests for derive_mode() from CLI entry command."""
+
 from __future__ import annotations
 
 import pytest

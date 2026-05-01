@@ -18,6 +18,7 @@ pytestmark = pytest.mark.fast
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def temp_project(tmp_path: Path) -> Generator[Path, None, None]:
     """Create a temporary spec-kitty project for testing.
@@ -51,19 +52,11 @@ def plan_feature(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
     feature_dir.mkdir()
 
     # Create meta.json with mission_type: "plan"
-    meta = {
-        "mission_number": "001",
-        "slug": mission_slug,
-        "mission_type": "plan",
-        "created_at": "2026-02-22T00:00:00+00:00"
-    }
+    meta = {"mission_number": "001", "slug": mission_slug, "mission_type": "plan", "created_at": "2026-02-22T00:00:00+00:00"}
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
     # Create spec.md
-    (feature_dir / "spec.md").write_text(
-        "# Test Feature\n\n"
-        "This is a test feature for plan mission integration.\n"
-    )
+    (feature_dir / "spec.md").write_text("# Test Feature\n\nThis is a test feature for plan mission integration.\n")
 
     yield (mission_slug, feature_dir)
 
@@ -86,8 +79,8 @@ def mock_runtime_bridge() -> MagicMock:
                 {"id": "specify", "order": 1, "title": "Specify"},
                 {"id": "research", "order": 2, "title": "Research"},
                 {"id": "plan", "order": 3, "title": "Plan"},
-                {"id": "review", "order": 4, "title": "Review"}
-            ]
+                {"id": "review", "order": 4, "title": "Review"},
+            ],
         }
     }
 
@@ -116,6 +109,7 @@ def mock_workspace_context() -> MagicMock:
 # ============================================================================
 # Test Classes
 # ============================================================================
+
 
 class TestPlanMissionIntegration:
     """Integration tests for plan mission feature creation and runtime."""
@@ -172,8 +166,8 @@ class TestPlanMissionIntegration:
 
         # Verify steps are in correct order
         for i, expected_id in enumerate(["specify", "research", "plan", "review"], 1):
-            assert steps[i-1]["id"] == expected_id
-            assert steps[i-1]["order"] == i
+            assert steps[i - 1]["id"] == expected_id
+            assert steps[i - 1]["order"] == i
 
     def test_next_command_plan_feature_not_blocked(self, plan_feature):
         """Verify spec-kitty next doesn't block on plan features (Feature 041 fix).
@@ -362,6 +356,7 @@ class TestPlanMissionSteps:
     def test_specify_step_defined_in_mission_runtime(self):
         """Verify specify step is defined in plan mission-runtime.yaml."""
         import yaml
+
         runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
@@ -370,6 +365,7 @@ class TestPlanMissionSteps:
     def test_research_step_defined_in_mission_runtime(self):
         """Verify research step is defined in plan mission-runtime.yaml."""
         import yaml
+
         runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
@@ -378,6 +374,7 @@ class TestPlanMissionSteps:
     def test_plan_step_defined_in_mission_runtime(self):
         """Verify plan step is defined in plan mission-runtime.yaml."""
         import yaml
+
         runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
@@ -386,6 +383,7 @@ class TestPlanMissionSteps:
     def test_review_step_defined_in_mission_runtime(self):
         """Verify review step is defined in plan mission-runtime.yaml."""
         import yaml
+
         runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
         data = yaml.safe_load(runtime.read_text())
         step_ids = [s["id"] for s in data["mission"]["steps"]]
@@ -407,7 +405,6 @@ class TestPlanMissionWorkflow:
     def test_step_transitions_valid(self):
         """Verify valid transitions between steps follow dependency chain."""
         import yaml
-
 
         # Load mission definition
         mission_yaml = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
@@ -431,12 +428,10 @@ class TestPlanMissionWorkflow:
             else:
                 # Each step depends only on the previous one
                 expected_dep = step_ids[i - 1]
-                assert depends_on == [expected_dep], \
-                    f"Step {step_id} should depend only on {expected_dep}, got {depends_on}"
+                assert depends_on == [expected_dep], f"Step {step_id} should depend only on {expected_dep}, got {depends_on}"
 
         # Verify no cycles (linear chain is acyclic by definition)
         assert len(step_ids) == len(set(step_ids)), "Step IDs must be unique"
 
         # Verify terminal step is correct
-        assert mission["mission"]["runtime"]["terminal_step"] == "review", \
-            "Terminal step must be review (last step)"
+        assert mission["mission"]["runtime"]["terminal_step"] == "review", "Terminal step must be review (last step)"

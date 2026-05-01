@@ -40,10 +40,8 @@ def _is_interactive_environment() -> bool:
     """
     if not sys.stdin.isatty():
         return False
-    return all(
-        os.environ.get(var, "").lower() not in ("true", "1", "yes")
-        for var in _CI_ENV_VARS
-    )
+    return all(os.environ.get(var, "").lower() not in ("true", "1", "yes") for var in _CI_ENV_VARS)
+
 
 if TYPE_CHECKING:
     from specify_cli.status.identity_audit import IdentityState
@@ -103,9 +101,7 @@ def command_files(
 
     for issue in issues:
         severity = issue["severity"]
-        severity_display = (
-            f"[red]{severity}[/red]" if severity == "error" else f"[yellow]{severity}[/yellow]"
-        )
+        severity_display = f"[red]{severity}[/red]" if severity == "error" else f"[yellow]{severity}[/yellow]"
         table.add_row(
             issue["agent"],
             issue["command"],
@@ -159,14 +155,8 @@ def state_roots(
     # 1. State roots table
     console.print("\n[bold]State Roots[/bold]")
     for root_info in report.roots:
-        status = (
-            "[green]exists[/green]"
-            if root_info.exists
-            else "[dim]absent[/dim]"
-        )
-        console.print(
-            f"  {root_info.name:<20} {root_info.resolved_path}  {status}"
-        )
+        status = "[green]exists[/green]" if root_info.exists else "[dim]absent[/dim]"
+        console.print(f"  {root_info.name:<20} {root_info.resolved_path}  {status}")
 
     # 2. Surfaces by root
     console.print()
@@ -215,9 +205,7 @@ def state_roots(
         for w in report.warnings:
             console.print(f"  [yellow]![/yellow] {w}")
     else:
-        console.print(
-            "[green]No warnings -- all runtime surfaces are properly covered.[/green]"
-        )
+        console.print("[green]No warnings -- all runtime surfaces are properly covered.[/green]")
 
     console.print()
     raise typer.Exit(0 if report.healthy else 1)
@@ -321,10 +309,7 @@ def _print_identity_human(
         console.print()
 
     if fail_on_triggered:
-        console.print(
-            f"[bold red]FAIL:[/bold red] --fail-on {fail_on!r} triggered "
-            f"(one or more missions in: {', '.join(sorted(fail_on_states))})"
-        )
+        console.print(f"[bold red]FAIL:[/bold red] --fail-on {fail_on!r} triggered (one or more missions in: {', '.join(sorted(fail_on_states))})")
 
 
 @app.command(name="identity")
@@ -341,10 +326,7 @@ def identity(
         str | None,
         typer.Option(
             "--fail-on",
-            help=(
-                "Exit non-zero if any mission is in the given state(s). "
-                "Comma-separated list of: assigned, pending, legacy, orphan."
-            ),
+            help=("Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan."),
         ),
     ] = None,
 ) -> None:
@@ -399,25 +381,15 @@ def identity(
         dup_prefixes = _scope_prefixes(dup_prefixes, mission)
     ambig_selectors = find_ambiguous_selectors(all_states)
 
-    fail_on_states: set[str] = (
-        {s.strip() for s in fail_on.split(",") if s.strip()} if fail_on else set()
-    )
-    fail_on_triggered = bool(
-        fail_on_states and any(s.state in fail_on_states for s in all_states)
-    )
+    fail_on_states: set[str] = {s.strip() for s in fail_on.split(",") if s.strip()} if fail_on else set()
+    fail_on_triggered = bool(fail_on_states and any(s.state in fail_on_states for s in all_states))
 
     if json_output:
         report = {
             "summary": _summary["counts"],
             "missions": [s.to_dict() for s in all_states],
-            "duplicate_prefixes": {
-                prefix: [s.to_dict() for s in items]
-                for prefix, items in dup_prefixes.items()
-            },
-            "ambiguous_selectors": {
-                handle: [s.to_dict() for s in items]
-                for handle, items in ambig_selectors.items()
-            },
+            "duplicate_prefixes": {prefix: [s.to_dict() for s in items] for prefix, items in dup_prefixes.items()},
+            "ambiguous_selectors": {handle: [s.to_dict() for s in items] for handle, items in ambig_selectors.items()},
             "fail_on_triggered": fail_on_triggered,
         }
         sys.stdout.write(json.dumps(report, indent=2) + "\n")
@@ -464,9 +436,7 @@ def _render_sparse_finding(report: object) -> None:
             )
     active_wts = [w for w in report.worktrees if w.is_active]
     if active_wts:
-        console.print(
-            f"  Lane worktrees: {len(active_wts)} affected", soft_wrap=True
-        )
+        console.print(f"  Lane worktrees: {len(active_wts)} affected", soft_wrap=True)
         for wt in active_wts:
             console.print(f"    {wt.path}", soft_wrap=True)
     console.print()
@@ -479,9 +449,7 @@ def _render_sparse_finding(report: object) -> None:
         "    migration. This state can cause silent data loss during mission merge",
         soft_wrap=True,
     )
-    console.print(
-        "    and broken lane worktrees on agent action implement.", soft_wrap=True
-    )
+    console.print("    and broken lane worktrees on agent action implement.", soft_wrap=True)
     console.print("    See Priivacy-ai/spec-kitty#588.", soft_wrap=True)
     console.print()
     console.print("  Fix:", soft_wrap=True)
@@ -557,9 +525,7 @@ def sparse_checkout(
         if fix:
             console.print("No sparse-checkout state to remediate.")
         else:
-            console.print(
-                "[green]✓ No legacy sparse-checkout state detected.[/green]"
-            )
+            console.print("[green]✓ No legacy sparse-checkout state detected.[/green]")
         raise typer.Exit(0)
 
     # Detection-only surface: print the finding and exit non-zero so CI
@@ -574,10 +540,7 @@ def sparse_checkout(
         # scripts can grep it reliably. No state mutation; non-zero exit.
         # Bypass Rich's auto-wrapping (which splits on terminal width and
         # breaks grep) by using the stdlib print.
-        print(
-            "sparse-checkout --fix requires an interactive terminal; "
-            "run 'spec-kitty doctor sparse-checkout --fix' from a local TTY to remediate."
-        )
+        print("sparse-checkout --fix requires an interactive terminal; run 'spec-kitty doctor sparse-checkout --fix' from a local TTY to remediate.")
         raise typer.Exit(1)
 
     # Interactive mode: show the plan, prompt once, then remediate.
@@ -599,9 +562,7 @@ def sparse_checkout(
 
     # Dirty-tree refusal: surface the specific "commit or stash" message.
     if any(r.dirty_before_remediation for r in results):
-        console.print(
-            "[red]✗ Cannot remediate: uncommitted changes detected.[/red]"
-        )
+        console.print("[red]✗ Cannot remediate: uncommitted changes detected.[/red]")
         for r in results:
             if r.dirty_before_remediation:
                 console.print(f"  {r.path}")
@@ -630,24 +591,14 @@ def _print_overdue_details(report: object, console: Console) -> None:
     console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
     for e in report.entries:  # type: ignore[union-attr]
         if e.status.value == "overdue":
-            canonical = (
-                ", ".join(e.entry.canonical_import)
-                if isinstance(e.entry.canonical_import, list)
-                else e.entry.canonical_import
-            )
+            canonical = ", ".join(e.entry.canonical_import) if isinstance(e.entry.canonical_import, list) else e.entry.canonical_import
             console.print(f"\n  [red]{e.entry.legacy_path}[/red]")
             console.print(f"    Canonical import : {canonical}")
             console.print(f"    Removal target   : {e.entry.removal_target_release}")
             console.print(f"    Tracker          : {e.entry.tracker_issue}")
             console.print("    Remediation:")
-            console.print(
-                f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py"
-                " (or __init__.py)"
-            )
-            console.print(
-                "      Option B: Extend removal_target_release in"
-                " architecture/2.x/shim-registry.yaml with extension_rationale"
-            )
+            console.print(f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py (or __init__.py)")
+            console.print("      Option B: Extend removal_target_release in architecture/2.x/shim-registry.yaml with extension_rationale")
 
 
 @app.command(name="shim-registry")
@@ -726,10 +677,7 @@ def shim_registry(
         console.print("[green]Shim Registry[/green]: registry is empty — no shims to check.")
         raise typer.Exit(0)
 
-    console.print(
-        f"\n[bold]Shim Registry[/bold] — {len(report.entries)} entry/entries"
-        f" (project version: {report.project_version})\n"
-    )
+    console.print(f"\n[bold]Shim Registry[/bold] — {len(report.entries)} entry/entries (project version: {report.project_version})\n")
 
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("Legacy Path", style="cyan", min_width=24)
@@ -745,11 +693,7 @@ def shim_registry(
     }
 
     for e in report.entries:
-        canonical = (
-            ", ".join(e.entry.canonical_import)
-            if isinstance(e.entry.canonical_import, list)
-            else e.entry.canonical_import
-        )
+        canonical = ", ".join(e.entry.canonical_import) if isinstance(e.entry.canonical_import, list) else e.entry.canonical_import
         table.add_row(
             e.entry.legacy_path,
             canonical,
@@ -808,26 +752,17 @@ def invocation_pairing(
     total_groups_raw = report.get("total_groups", 0)
     total_groups = total_groups_raw if isinstance(total_groups_raw, int) else 0
     orphans_raw = report.get("orphans", [])
-    orphans_list: list[dict[str, object]] = (
-        [o for o in orphans_raw if isinstance(o, dict)] if isinstance(orphans_raw, list) else []
-    )
+    orphans_list: list[dict[str, object]] = [o for o in orphans_raw if isinstance(o, dict)] if isinstance(orphans_raw, list) else []
 
     if json_output:
         console.print_json(json.dumps(report, indent=2, sort_keys=True))
         raise typer.Exit(1 if orphan_count else 0)
 
     if orphan_count == 0:
-        console.print(
-            "[green]Invocation Pairing[/green]: no orphan started records "
-            f"(pairing rate: {pairing_rate:.0%}, "
-            f"groups: {total_groups})."
-        )
+        console.print(f"[green]Invocation Pairing[/green]: no orphan started records (pairing rate: {pairing_rate:.0%}, groups: {total_groups}).")
         raise typer.Exit(0)
 
-    console.print(
-        f"\n[bold]Invocation Pairing[/bold] — {orphan_count} orphan "
-        f"started record(s)\n"
-    )
+    console.print(f"\n[bold]Invocation Pairing[/bold] — {orphan_count} orphan started record(s)\n")
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("Canonical Action ID", style="cyan", min_width=24)
     table.add_column("Agent", min_width=10)
@@ -843,9 +778,6 @@ def invocation_pairing(
             str(entry.get("started_at", "")),
         )
     console.print(table)
-    console.print(
-        f"\nPairing rate: {pairing_rate:.0%} "
-        f"across {total_groups} group(s)."
-    )
+    console.print(f"\nPairing rate: {pairing_rate:.0%} across {total_groups} group(s).")
     console.print()
     raise typer.Exit(1)

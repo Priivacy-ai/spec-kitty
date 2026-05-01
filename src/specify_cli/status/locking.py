@@ -95,9 +95,7 @@ def feature_status_lock(
     try:
         lock.acquire()
     except Timeout as exc:
-        raise FeatureStatusLockTimeoutError(
-            f"Timed out acquiring feature status lock for {mission_slug}: {lock_path}"
-        ) from exc
+        raise FeatureStatusLockTimeoutError(f"Timed out acquiring feature status lock for {mission_slug}: {lock_path}") from exc
 
     held_locks[lock_key] = (lock, 1)
     try:

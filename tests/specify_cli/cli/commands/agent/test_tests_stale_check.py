@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-import textwrap
 from pathlib import Path
 from unittest import mock
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app as agent_app
@@ -25,6 +23,7 @@ from specify_cli.post_merge.stale_assertions import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _git(args: list[str], cwd: Path) -> str:
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
@@ -75,6 +74,7 @@ runner = CliRunner()
 # FR-004: CLI subcommand invokes run_check (not subprocess)
 # ---------------------------------------------------------------------------
 
+
 class TestCliSubcommandInvokesLibrary:
     """FR-004: the CLI must call run_check() directly, not spawn a subprocess."""
 
@@ -97,9 +97,7 @@ class TestCliSubcommandInvokesLibrary:
                 ["--base", "HEAD~1", "--repo", str(tmp_path)],
             )
 
-        assert result.exit_code == 0, (
-            f"CLI exited with code {result.exit_code}:\n{result.output}"
-        )
+        assert result.exit_code == 0, f"CLI exited with code {result.exit_code}:\n{result.output}"
         mock_run_check.assert_called_once()
         call_kwargs = mock_run_check.call_args
         assert call_kwargs is not None
@@ -118,28 +116,27 @@ class TestCliSubcommandInvokesLibrary:
                 subprocess_calls.append(list(args))
             return original_run(args, **kwargs)
 
-        with mock.patch(
-            "specify_cli.cli.commands.agent.tests.run_check",
-            return_value=dummy_report,
+        with (
+            mock.patch(
+                "specify_cli.cli.commands.agent.tests.run_check",
+                return_value=dummy_report,
+            ),
+            mock.patch("subprocess.run", side_effect=spy_run),
         ):
-            with mock.patch("subprocess.run", side_effect=spy_run):
-                runner.invoke(
-                    tests_app,
-                    ["--base", "HEAD~1", "--repo", str(tmp_path)],
-                )
+            runner.invoke(
+                tests_app,
+                ["--base", "HEAD~1", "--repo", str(tmp_path)],
+            )
 
         # Assert no call contained "stale-check" (that would be self-invocation).
-        stale_check_calls = [
-            c for c in subprocess_calls if "stale-check" in " ".join(c)
-        ]
-        assert stale_check_calls == [], (
-            f"CLI must not invoke stale-check as a subprocess: {stale_check_calls}"
-        )
+        stale_check_calls = [c for c in subprocess_calls if "stale-check" in " ".join(c)]
+        assert stale_check_calls == [], f"CLI must not invoke stale-check as a subprocess: {stale_check_calls}"
 
 
 # ---------------------------------------------------------------------------
 # T007: --json output mode
 # ---------------------------------------------------------------------------
+
 
 class TestJsonOutputMode:
     """T007: --json flag causes JSON output that parses cleanly."""
@@ -156,9 +153,7 @@ class TestJsonOutputMode:
                 ["--base", "HEAD~1", "--repo", str(tmp_path), "--json"],
             )
 
-        assert result.exit_code == 0, (
-            f"CLI exited with code {result.exit_code}:\n{result.output}"
-        )
+        assert result.exit_code == 0, f"CLI exited with code {result.exit_code}:\n{result.output}"
 
         # Output should parse as JSON.
         parsed = json.loads(result.output)
@@ -179,13 +174,16 @@ class TestJsonOutputMode:
         parsed = json.loads(result.output)
 
         required_fields = {
-            "base_ref", "head_ref", "repo_root", "findings",
-            "elapsed_seconds", "files_scanned", "findings_per_100_loc",
+            "base_ref",
+            "head_ref",
+            "repo_root",
+            "findings",
+            "elapsed_seconds",
+            "files_scanned",
+            "findings_per_100_loc",
         }
         for field_name in required_fields:
-            assert field_name in parsed, (
-                f"JSON output missing required field: {field_name}"
-            )
+            assert field_name in parsed, f"JSON output missing required field: {field_name}"
 
     def test_json_output_findings_have_required_fields(self, tmp_path: Path) -> None:
         dummy_report = _make_dummy_report(tmp_path)
@@ -204,13 +202,16 @@ class TestJsonOutputMode:
 
         finding = parsed["findings"][0]
         required_finding_fields = {
-            "test_file", "test_line", "source_file", "source_line",
-            "changed_symbol", "confidence", "hint",
+            "test_file",
+            "test_line",
+            "source_file",
+            "source_line",
+            "changed_symbol",
+            "confidence",
+            "hint",
         }
         for field_name in required_finding_fields:
-            assert field_name in finding, (
-                f"Finding JSON missing required field: {field_name}"
-            )
+            assert field_name in finding, f"Finding JSON missing required field: {field_name}"
 
     def test_json_output_round_trips(self, tmp_path: Path) -> None:
         """The JSON output must round-trip through json.loads."""
@@ -238,6 +239,7 @@ class TestJsonOutputMode:
 # Registration: agent/__init__.py registers the tests subapp
 # ---------------------------------------------------------------------------
 
+
 class TestAgentRegistration:
     """Verify agent/__init__.py registers tests subapp correctly."""
 
@@ -245,21 +247,15 @@ class TestAgentRegistration:
         """The agent app must have a 'tests' subgroup."""
         # Check via CLI runner — stale-check --help should be reachable.
         result = runner.invoke(agent_app, ["tests", "--help"])
-        assert result.exit_code == 0, (
-            f"'agent tests --help' failed with exit code {result.exit_code}:\n"
-            f"{result.output}"
-        )
-        assert "stale-check" in result.output, (
-            "Expected 'stale-check' in agent tests help output"
-        )
+        assert result.exit_code == 0, f"'agent tests --help' failed with exit code {result.exit_code}:\n{result.output}"
+        assert "stale-check" in result.output, "Expected 'stale-check' in agent tests help output"
 
     def test_stale_check_help_reachable_from_agent(self) -> None:
         """spec-kitty agent tests stale-check --help must return help text."""
         import re
+
         result = runner.invoke(agent_app, ["tests", "stale-check", "--help"])
-        assert result.exit_code == 0, (
-            f"Exit code {result.exit_code}:\n{result.output}"
-        )
+        assert result.exit_code == 0, f"Exit code {result.exit_code}:\n{result.output}"
         # Strip ANSI escape codes before checking option names — Rich may
         # wrap individual characters in colour codes on some terminals.
         plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)

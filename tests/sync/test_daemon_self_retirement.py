@@ -60,9 +60,7 @@ def _mtime(path: Path) -> float | None:
 class TestDecideSelfRetire:
     """Branch-by-branch coverage of ``_decide_self_retire``."""
 
-    def test_retires_on_port_mismatch_and_recorded_pid_alive(
-        self, isolated_state_file: Path
-    ) -> None:
+    def test_retires_on_port_mismatch_and_recorded_pid_alive(self, isolated_state_file: Path) -> None:
         """Recorded port differs and recorded PID is alive => shutdown()."""
         # Use the current process's PID — it is always alive.
         _write_state(isolated_state_file, port=9401, pid=os.getpid())
@@ -76,9 +74,7 @@ class TestDecideSelfRetire:
         # State-file ownership invariant: the function MUST NOT rewrite it.
         assert _mtime(isolated_state_file) == before
 
-    def test_does_not_retire_on_port_mismatch_when_recorded_pid_dead(
-        self, isolated_state_file: Path
-    ) -> None:
+    def test_does_not_retire_on_port_mismatch_when_recorded_pid_dead(self, isolated_state_file: Path) -> None:
         """Recorded port differs but recorded PID is dead => keep running."""
         # PID 1 is init on POSIX (never dead).  Use a high impossible PID.
         # 4294967295 (2**32 - 1) is well above the typical max PID and
@@ -106,9 +102,7 @@ class TestDecideSelfRetire:
         server.shutdown.assert_not_called()
         assert _mtime(isolated_state_file) == before
 
-    def test_continues_when_state_file_missing(
-        self, isolated_state_file: Path
-    ) -> None:
+    def test_continues_when_state_file_missing(self, isolated_state_file: Path) -> None:
         """No state file => keep running, do not rewrite."""
         # File does not exist (fixture created the path but not the file).
         assert not isolated_state_file.exists()
@@ -121,9 +115,7 @@ class TestDecideSelfRetire:
         # Confirm the function did not create the file.
         assert not isolated_state_file.exists()
 
-    def test_continues_when_state_file_malformed(
-        self, isolated_state_file: Path
-    ) -> None:
+    def test_continues_when_state_file_malformed(self, isolated_state_file: Path) -> None:
         """Garbage in the state file (no parsable port) => keep running."""
         isolated_state_file.parent.mkdir(parents=True, exist_ok=True)
         isolated_state_file.write_text("not a valid daemon file\n", encoding="utf-8")
@@ -136,9 +128,7 @@ class TestDecideSelfRetire:
         server.shutdown.assert_not_called()
         # Malformed file is preserved verbatim (no rewrite, no unlink).
         assert _mtime(isolated_state_file) == before
-        assert isolated_state_file.read_text(encoding="utf-8") == (
-            "not a valid daemon file\n"
-        )
+        assert isolated_state_file.read_text(encoding="utf-8") == ("not a valid daemon file\n")
 
 
 # ---------------------------------------------------------------------------
@@ -149,9 +139,7 @@ class TestDecideSelfRetire:
 class TestStartSelfCheckTick:
     """Behavioural tests for the periodic tick scheduler."""
 
-    def test_tick_invokes_decide_repeatedly_until_cancelled(
-        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tick_invokes_decide_repeatedly_until_cancelled(self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """At sub-second cadence the tick fires multiple times before cancel."""
         calls: list[int] = []
 
@@ -175,9 +163,7 @@ class TestStartSelfCheckTick:
         time.sleep(0.2)
         assert len(calls) == observed_after_cancel
 
-    def test_returned_timer_thread_is_daemon(
-        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returned_timer_thread_is_daemon(self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The Timer thread must be daemonised so it never blocks process exit."""
         monkeypatch.setattr(daemon, "_decide_self_retire", lambda *a, **kw: None)
 
@@ -189,9 +175,7 @@ class TestStartSelfCheckTick:
         finally:
             tick.cancel()
 
-    def test_uses_daemon_tick_seconds_constant_when_not_overridden(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_uses_daemon_tick_seconds_constant_when_not_overridden(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verify the patchable ``DAEMON_TICK_SECONDS`` constant exists.
 
         Other tests rely on overriding the interval explicitly; this test
@@ -210,9 +194,7 @@ class TestStartSelfCheckTick:
 class TestRunSyncDaemonWiring:
     """Smoke test that ``run_sync_daemon`` arms and cancels the tick."""
 
-    def test_serve_forever_exits_cleanly_when_server_shutdown(
-        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_serve_forever_exits_cleanly_when_server_shutdown(self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Patch ``HTTPServer`` to a controllable stub; verify tick lifecycle.
 
         Simulates a daemon whose ``serve_forever`` returns shortly after a
@@ -283,11 +265,7 @@ class TestRunSyncDaemonWiring:
         # Give cancelled timers a moment to retire.
         time.sleep(0.2)
 
-        leaked = {
-            t
-            for t in threading.enumerate()
-            if t not in threads_before and t.is_alive() and not t.daemon
-        }
+        leaked = {t for t in threading.enumerate() if t not in threads_before and t.is_alive() and not t.daemon}
         assert not leaked, f"non-daemon threads leaked: {leaked}"
 
 
@@ -304,9 +282,7 @@ class TestStateFileOwnershipInvariant:
     ``contracts/daemon-singleton.md``).  Reviewers grep for this test.
     """
 
-    def test_decide_self_retire_never_calls_write_or_unlink(
-        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_decide_self_retire_never_calls_write_or_unlink(self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Sentinel: trip the test if ``_decide_self_retire`` mutates the file."""
         write_calls: list[object] = []
         unlink_calls: list[object] = []
@@ -349,9 +325,5 @@ class TestStateFileOwnershipInvariant:
         _write_state(isolated_state_file, port=9401, pid=os.getpid())
         daemon._decide_self_retire(server, my_port=9400)
 
-        assert write_calls == [], (
-            f"_decide_self_retire wrote to state file: {write_calls}"
-        )
-        assert unlink_calls == [], (
-            f"_decide_self_retire unlinked state file: {unlink_calls}"
-        )
+        assert write_calls == [], f"_decide_self_retire wrote to state file: {write_calls}"
+        assert unlink_calls == [], f"_decide_self_retire unlinked state file: {unlink_calls}"

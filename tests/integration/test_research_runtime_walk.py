@@ -63,9 +63,7 @@ def _init_min_repo(repo_root: Path) -> None:
         check=True,
     )
     (repo_root / "README.md").write_text("# test", encoding="utf-8")
-    subprocess.run(
-        ["git", "add", "README.md"], cwd=repo_root, capture_output=True, check=True
-    )
+    subprocess.run(["git", "add", "README.md"], cwd=repo_root, capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
         cwd=repo_root,
@@ -118,9 +116,7 @@ def test_get_or_start_run_succeeds_for_research(isolated_repo: Path) -> None:
     # Run was created and persisted under .kittify/runtime/runs/.
     run_dir = Path(run_ref.run_dir)
     assert run_dir.is_dir(), f"run_dir not created: {run_dir}"
-    assert (run_dir / "state.json").is_file(), (
-        f"state.json missing — run never bootstrapped: {run_dir}"
-    )
+    assert (run_dir / "state.json").is_file(), f"state.json missing — run never bootstrapped: {run_dir}"
 
     # The run_ref must carry a research mission key (NOT a default fallback).
     assert run_ref.mission_key == "research", (
@@ -174,10 +170,7 @@ def test_research_advances_one_composed_step(isolated_repo: Path) -> None:
         "needs_initialization",
         isolated_repo,
     )
-    assert first.step_id == "scoping", (
-        f"Expected scoping as first step; got {first.step_id!r}. "
-        "If this is 'specify' the planner is using software-dev defaults."
-    )
+    assert first.step_id == "scoping", f"Expected scoping as first step; got {first.step_id!r}. If this is 'specify' the planner is using software-dev defaults."
 
     # Snapshot before the composition dispatch — completed_steps is empty.
     run_ref = get_or_start_run("demo-research-walk", isolated_repo, "research")
@@ -195,10 +188,7 @@ def test_research_advances_one_composed_step(isolated_repo: Path) -> None:
 
     # (a) The snapshot advanced — scoping is now in completed_steps.
     snapshot_after = _read_snapshot(Path(run_ref.run_dir))
-    assert "scoping" in snapshot_after.completed_steps, (
-        f"scoping not marked completed; completed_steps="
-        f"{snapshot_after.completed_steps!r}"
-    )
+    assert "scoping" in snapshot_after.completed_steps, f"scoping not marked completed; completed_steps={snapshot_after.completed_steps!r}"
 
     # (b) Next research-native step issued — methodology, not 'plan'.
     assert snapshot_after.issued_step_id == "methodology", (
@@ -206,14 +196,8 @@ def test_research_advances_one_composed_step(isolated_repo: Path) -> None:
         f"{snapshot_after.issued_step_id!r}. A value of 'plan' would mean "
         "the bridge fell back to software-dev planning."
     )
-    decision_kind = (
-        decision.kind.value
-        if hasattr(decision.kind, "value")
-        else str(decision.kind)
-    )
-    assert decision_kind in ("step", "blocked"), (
-        f"Expected step or blocked decision; got {decision.kind!r}"
-    )
+    decision_kind = decision.kind.value if hasattr(decision.kind, "value") else str(decision.kind)
+    assert decision_kind in ("step", "blocked"), f"Expected step or blocked decision; got {decision.kind!r}"
     assert decision.mission == "research"
 
 
@@ -253,15 +237,10 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
     )
 
     invocations_dir = isolated_repo / ".kittify" / "events" / "profile-invocations"
-    assert invocations_dir.is_dir(), (
-        f"Invocations dir missing: {invocations_dir}. Composition dispatch "
-        "did not produce a paired invocation trail."
-    )
+    assert invocations_dir.is_dir(), f"Invocations dir missing: {invocations_dir}. Composition dispatch did not produce a paired invocation trail."
     trail_files = sorted(invocations_dir.glob("*.jsonl"))
     assert trail_files, (
-        f"No invocation trail files written under {invocations_dir}. "
-        "ProfileInvocationExecutor.invoke was not called from the composed "
-        "research/scoping dispatch."
+        f"No invocation trail files written under {invocations_dir}. ProfileInvocationExecutor.invoke was not called from the composed research/scoping dispatch."
     )
 
     research_actions = {"scoping", "methodology", "gathering", "synthesis", "output"}
@@ -282,9 +261,7 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
         assert events, f"Invocation trail empty: {trail}"
         # The first record is always a started event.
         first = events[0]
-        assert first.get("event") == "started", (
-            f"First record in {trail.name} is not a started event: {first!r}"
-        )
+        assert first.get("event") == "started", f"First record in {trail.name} is not a started event: {first!r}"
         saw_started = True
         # The recorded action MUST be a research-native step ID — not a
         # software-dev verb (e.g., 'specify', 'plan'). The action_hint flows
@@ -292,24 +269,15 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
         # the InvocationRecord, so this is the structural assertion that the
         # research dispatch wired the right action.
         action = first.get("action")
-        assert action in research_actions, (
-            f"Recorded action {action!r} is not a research-native step ID. "
-            f"Trail={trail.name}; record={first!r}"
-        )
+        assert action in research_actions, f"Recorded action {action!r} is not a research-native step ID. Trail={trail.name}; record={first!r}"
         # FR-012: every started invocation in this trail MUST be paired with
         # a completed event whose outcome is 'done' or 'failed'. A trail
         # that holds only a started record indicates a torn lifecycle and
         # would let FR-012 silently regress.
         completed = [e for e in events if e.get("event") == "completed"]
-        assert completed, (
-            f"Trail {trail.name} has a started record but no completed event; "
-            "FR-012 requires paired lifecycle for every dispatched invocation."
-        )
+        assert completed, f"Trail {trail.name} has a started record but no completed event; FR-012 requires paired lifecycle for every dispatched invocation."
         outcome = completed[-1].get("outcome")
-        assert outcome in valid_outcomes, (
-            f"Completed event in {trail.name} has invalid outcome {outcome!r}; "
-            f"FR-012 requires one of {sorted(valid_outcomes)}."
-        )
+        assert outcome in valid_outcomes, f"Completed event in {trail.name} has invalid outcome {outcome!r}; FR-012 requires one of {sorted(valid_outcomes)}."
         saw_pair = True
     assert saw_started, "No started records found across the invocation trail."
     assert saw_pair, "No paired started+completed records found across the trail."
@@ -354,35 +322,18 @@ def test_missing_artifact_blocks_advancement_with_structured_error(
     )
 
     # Surface check: the Decision is blocked with the spec.md failure.
-    decision_kind = (
-        decision.kind.value
-        if hasattr(decision.kind, "value")
-        else str(decision.kind)
-    )
-    assert decision_kind == "blocked", (
-        f"Expected blocked decision when spec.md is missing; got {decision.kind!r}"
-    )
-    assert decision.guard_failures, (
-        f"Expected guard_failures populated; got {decision.guard_failures!r}"
-    )
-    assert any(
-        "spec.md" in failure for failure in decision.guard_failures
-    ), (
-        f"spec.md not mentioned in guard_failures={decision.guard_failures!r}. "
-        "Structured failure surface regressed."
+    decision_kind = decision.kind.value if hasattr(decision.kind, "value") else str(decision.kind)
+    assert decision_kind == "blocked", f"Expected blocked decision when spec.md is missing; got {decision.kind!r}"
+    assert decision.guard_failures, f"Expected guard_failures populated; got {decision.guard_failures!r}"
+    assert any("spec.md" in failure for failure in decision.guard_failures), (
+        f"spec.md not mentioned in guard_failures={decision.guard_failures!r}. Structured failure surface regressed."
     )
 
     # State did not advance — scoping stayed pending.
     run_ref = get_or_start_run("demo-research-walk", isolated_repo, "research")
     snapshot = _read_snapshot(Path(run_ref.run_dir))
-    assert list(snapshot.completed_steps) == [], (
-        f"Run advanced despite guard failure; completed_steps="
-        f"{snapshot.completed_steps!r}"
-    )
-    assert snapshot.issued_step_id == "scoping", (
-        f"issued_step_id moved off scoping despite guard failure: "
-        f"{snapshot.issued_step_id!r}"
-    )
+    assert list(snapshot.completed_steps) == [], f"Run advanced despite guard failure; completed_steps={snapshot.completed_steps!r}"
+    assert snapshot.issued_step_id == "scoping", f"issued_step_id moved off scoping despite guard failure: {snapshot.issued_step_id!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -409,9 +360,7 @@ def test_unknown_research_action_fails_closed(tmp_path: Path) -> None:
     # artifact check; the unknown-action default is the only path left.
     (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
-    (feature_dir / "source-register.csv").write_text(
-        "id,citation\n1,A\n2,B\n3,C\n", encoding="utf-8"
-    )
+    (feature_dir / "source-register.csv").write_text("id,citation\n1,A\n2,B\n3,C\n", encoding="utf-8")
     (feature_dir / "findings.md").write_text("# findings", encoding="utf-8")
     (feature_dir / "report.md").write_text("# report", encoding="utf-8")
     (feature_dir / "mission-events.jsonl").write_text(
@@ -428,10 +377,7 @@ def test_unknown_research_action_fails_closed(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    failures = _check_composed_action_guard(
-        "bogus", feature_dir, mission="research"
-    )
+    failures = _check_composed_action_guard("bogus", feature_dir, mission="research")
     assert failures == ["No guard registered for research action: bogus"], (
-        f"Fail-closed default did not fire for unknown research action; "
-        f"got failures={failures!r}"
+        f"Fail-closed default did not fire for unknown research action; got failures={failures!r}"
     )

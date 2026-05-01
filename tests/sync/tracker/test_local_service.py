@@ -171,9 +171,7 @@ class TestStatus:
             credentials={"command": "beads"},
         )
 
-        with patch.object(
-            svc, "_run_async", return_value=[]
-        ):
+        with patch.object(svc, "_run_async", return_value=[]):
             result = svc.status()
 
         assert result["configured"] is True
@@ -230,15 +228,15 @@ class TestSyncOperations:
 
         mock_engine.pull = mock_pull
 
-        with patch.object(svc, "_build_engine", return_value=(mock_connector, mock_engine)):
-            with patch(
-                "specify_cli.tracker.local_service.TrackerSqliteStore"
-            ) as MockStore:
-                mock_store = MagicMock()
-                mock_store.get_checkpoint.return_value = None
-                MockStore.return_value = mock_store
+        with (
+            patch.object(svc, "_build_engine", return_value=(mock_connector, mock_engine)),
+            patch("specify_cli.tracker.local_service.TrackerSqliteStore") as MockStore,
+        ):
+            mock_store = MagicMock()
+            mock_store.get_checkpoint.return_value = None
+            MockStore.return_value = mock_store
 
-                result = svc.sync_pull(limit=50)
+            result = svc.sync_pull(limit=50)
 
         assert result["provider"] == "beads"
         assert result["stats"]["pulled_created"] == 1
@@ -257,14 +255,14 @@ class TestSyncOperations:
 
         mock_engine.push = mock_push
 
-        with patch.object(svc, "_build_engine", return_value=(mock_connector, mock_engine)):
-            with patch(
-                "specify_cli.tracker.local_service.TrackerSqliteStore"
-            ) as MockStore:
-                mock_store = MagicMock()
-                MockStore.return_value = mock_store
+        with (
+            patch.object(svc, "_build_engine", return_value=(mock_connector, mock_engine)),
+            patch("specify_cli.tracker.local_service.TrackerSqliteStore") as MockStore,
+        ):
+            mock_store = MagicMock()
+            MockStore.return_value = mock_store
 
-                result = svc.sync_push(limit=50)
+            result = svc.sync_push(limit=50)
 
         assert result["provider"] == "beads"
 
@@ -282,15 +280,15 @@ class TestSyncOperations:
 
         mock_engine.sync = mock_sync
 
-        with patch.object(svc, "_build_engine", return_value=(mock_connector, mock_engine)):
-            with patch(
-                "specify_cli.tracker.local_service.TrackerSqliteStore"
-            ) as MockStore:
-                mock_store = MagicMock()
-                mock_store.get_checkpoint.return_value = None
-                MockStore.return_value = mock_store
+        with (
+            patch.object(svc, "_build_engine", return_value=(mock_connector, mock_engine)),
+            patch("specify_cli.tracker.local_service.TrackerSqliteStore") as MockStore,
+        ):
+            mock_store = MagicMock()
+            mock_store.get_checkpoint.return_value = None
+            MockStore.return_value = mock_store
 
-                result = svc.sync_run(limit=50)
+            result = svc.sync_run(limit=50)
 
         assert result["provider"] == "beads"
 
@@ -311,7 +309,7 @@ class TestMapOperations:
             credentials={"command": "beads"},
         )
 
-        mock_ref_cls = MagicMock()
+        MagicMock()
         mock_store = MagicMock()
         mock_store.list_mappings.return_value = [
             {
@@ -322,17 +320,23 @@ class TestMapOperations:
             }
         ]
 
-        with patch.object(svc, "_load_runtime", return_value=(
-            load_tracker_config(repo),
-            {"command": "beads"},
-            mock_store,
-        )):
-            with patch(
+        with (
+            patch.object(
+                svc,
+                "_load_runtime",
+                return_value=(
+                    load_tracker_config(repo),
+                    {"command": "beads"},
+                    mock_store,
+                ),
+            ),
+            patch(
                 "specify_cli.tracker.local_service.LocalTrackerService.map_add",
                 wraps=None,
-            ):
-                # Directly test map_list via the mocked runtime
-                mappings = svc.map_list()
+            ),
+        ):
+            # Directly test map_list via the mocked runtime
+            mappings = svc.map_list()
 
         assert len(mappings) == 1
         assert mappings[0]["wp_id"] == "WP01"
@@ -358,18 +362,24 @@ class TestMapOperations:
 
         import sys
 
-        with patch.object(svc, "_load_runtime", return_value=(
-            config,
-            {"command": "beads"},
-            mock_store,
-        )):
-            with patch.dict(sys.modules, {"spec_kitty_tracker": MagicMock(), "spec_kitty_tracker.models": fake_models}):
-                svc.map_add(
-                    wp_id="WP01",
-                    external_id="BEAD-1",
-                    external_key="K1",
-                    external_url=None,
-                )
+        with (
+            patch.object(
+                svc,
+                "_load_runtime",
+                return_value=(
+                    config,
+                    {"command": "beads"},
+                    mock_store,
+                ),
+            ),
+            patch.dict(sys.modules, {"spec_kitty_tracker": MagicMock(), "spec_kitty_tracker.models": fake_models}),
+        ):
+            svc.map_add(
+                wp_id="WP01",
+                external_id="BEAD-1",
+                external_key="K1",
+                external_url=None,
+            )
 
         mock_external_ref_cls.assert_called_once_with(
             system="beads",
@@ -379,7 +389,8 @@ class TestMapOperations:
             url=None,
         )
         mock_store.upsert_mapping.assert_called_once_with(
-            wp_id="WP01", ref=mock_external_ref_instance,
+            wp_id="WP01",
+            ref=mock_external_ref_instance,
         )
 
 
@@ -414,6 +425,7 @@ class TestNoSaaSImports:
 
     def test_no_saas_client_import(self) -> None:
         import specify_cli.tracker.local_service as mod
+
         source = Path(mod.__file__).read_text(encoding="utf-8")
         assert "import" not in source or "saas_client" not in source
         # Check no actual import of SaaS tracker client
@@ -422,6 +434,7 @@ class TestNoSaaSImports:
 
     def test_no_sync_auth_import(self) -> None:
         import specify_cli.tracker.local_service as mod
+
         source = Path(mod.__file__).read_text(encoding="utf-8")
         # CredentialStore from sync/auth should not appear
         assert "sync.auth" not in source

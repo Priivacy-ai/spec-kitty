@@ -6,7 +6,7 @@ Coverage target: 90%+ for src/specify_cli/review/artifacts.py
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -18,6 +18,7 @@ pytestmark = pytest.mark.git_repo
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _sample_artifact(**kwargs: object) -> ReviewCycleArtifact:
     defaults: dict = {
@@ -44,6 +45,7 @@ def _sample_artifact(**kwargs: object) -> ReviewCycleArtifact:
 # T1: to_dict / from_dict round-trip
 # ---------------------------------------------------------------------------
 
+
 def test_review_cycle_artifact_to_dict_round_trip() -> None:
     original = _sample_artifact()
     d = original.to_dict()
@@ -65,6 +67,7 @@ def test_review_cycle_artifact_to_dict_round_trip() -> None:
 # ---------------------------------------------------------------------------
 # T2: write() / from_file() round-trip
 # ---------------------------------------------------------------------------
+
 
 def test_write_and_from_file_round_trip(tmp_path: Path) -> None:
     artifact = _sample_artifact()
@@ -91,6 +94,7 @@ def test_write_and_from_file_round_trip(tmp_path: Path) -> None:
 # T3: next_cycle_number() on empty dir → 1
 # ---------------------------------------------------------------------------
 
+
 def test_next_cycle_number_empty_dir(tmp_path: Path) -> None:
     assert ReviewCycleArtifact.next_cycle_number(tmp_path) == 1
 
@@ -98,6 +102,7 @@ def test_next_cycle_number_empty_dir(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # T4: next_cycle_number() with 3 existing files → 4
 # ---------------------------------------------------------------------------
+
 
 def test_next_cycle_number_with_existing(tmp_path: Path) -> None:
     for i in range(1, 4):
@@ -109,6 +114,7 @@ def test_next_cycle_number_with_existing(tmp_path: Path) -> None:
 # T5: latest() on empty dir → None
 # ---------------------------------------------------------------------------
 
+
 def test_latest_empty_dir(tmp_path: Path) -> None:
     assert ReviewCycleArtifact.latest(tmp_path) is None
 
@@ -116,6 +122,7 @@ def test_latest_empty_dir(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # T6: latest() with multiple files → highest cycle number
 # ---------------------------------------------------------------------------
+
 
 def test_latest_with_multiple(tmp_path: Path) -> None:
     for cycle_n in (1, 3, 2):
@@ -131,6 +138,7 @@ def test_latest_with_multiple(tmp_path: Path) -> None:
 # T7: AffectedFile with optional line_range = None
 # ---------------------------------------------------------------------------
 
+
 def test_affected_file_optional_line_range() -> None:
     af = AffectedFile(path="src/foo.py")
     assert af.line_range is None
@@ -143,6 +151,7 @@ def test_affected_file_optional_line_range() -> None:
 # ---------------------------------------------------------------------------
 # T8: frontmatter field completeness
 # ---------------------------------------------------------------------------
+
 
 def test_frontmatter_field_completeness(tmp_path: Path) -> None:
     artifact = _sample_artifact()
@@ -166,6 +175,7 @@ def test_frontmatter_field_completeness(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # T9: legacy feedback:// pointer resolution
 # ---------------------------------------------------------------------------
+
 
 def test_legacy_feedback_pointer_resolution(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
@@ -192,17 +202,12 @@ def test_legacy_feedback_pointer_resolution(tmp_path: Path) -> None:
 # T10: new review-cycle:// pointer resolution
 # ---------------------------------------------------------------------------
 
+
 def test_new_review_cycle_pointer_resolution(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
 
     # Create a fake review artifact
-    artifact_dir = (
-        tmp_path
-        / "kitty-specs"
-        / "066-review-loop-stabilization"
-        / "tasks"
-        / "WP01-persisted-review-artifact-model"
-    )
+    artifact_dir = tmp_path / "kitty-specs" / "066-review-loop-stabilization" / "tasks" / "WP01-persisted-review-artifact-model"
     artifact_dir.mkdir(parents=True)
     artifact_file = artifact_dir / "review-cycle-1.md"
     artifact_file.write_text("---\n---\n", encoding="utf-8")
@@ -218,6 +223,7 @@ def test_new_review_cycle_pointer_resolution(tmp_path: Path) -> None:
 # T11: "force-override" sentinel returns None
 # ---------------------------------------------------------------------------
 
+
 def test_force_override_pointer_returns_none(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
 
@@ -229,17 +235,12 @@ def test_force_override_pointer_returns_none(tmp_path: Path) -> None:
 # T12: _persist_review_feedback() creates artifact file
 # ---------------------------------------------------------------------------
 
+
 def test_persist_review_feedback_creates_artifact(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent.tasks import _persist_review_feedback
 
     # Build kitty-specs task directory so _resolve_wp_slug finds the slug
-    task_dir = (
-        tmp_path
-        / "kitty-specs"
-        / "066-test-mission"
-        / "tasks"
-        / "WP01-some-title"
-    )
+    task_dir = tmp_path / "kitty-specs" / "066-test-mission" / "tasks" / "WP01-some-title"
     task_dir.mkdir(parents=True)
     # Create a stub WP file so the directory scanner finds it
     (task_dir.parent / "WP01-some-title.md").write_text("---\n---\n", encoding="utf-8")

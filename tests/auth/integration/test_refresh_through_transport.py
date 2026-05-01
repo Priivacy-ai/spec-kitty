@@ -31,7 +31,7 @@ import httpx
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.auth import get_token_manager, reset_token_manager
+from specify_cli.auth import reset_token_manager
 from specify_cli.auth.secure_storage.abstract import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 
@@ -165,6 +165,7 @@ def seeded_tm(monkeypatch: pytest.MonkeyPatch, install_fake_refresh: FakeRefresh
 # Stub helpers for sync infrastructure
 # ---------------------------------------------------------------------------
 
+
 def _stub_sync_deps():
     """Return a context manager that stubs all non-auth sync dependencies.
 
@@ -195,12 +196,8 @@ def _stub_sync_deps():
 
     stack = ExitStack()
     # Patch at source modules (lazy imports inside the function body)
-    stack.enter_context(
-        patch("specify_cli.sync.config.SyncConfig", return_value=mock_config)
-    )
-    stack.enter_context(
-        patch("specify_cli.sync.queue.OfflineQueue", return_value=mock_queue)
-    )
+    stack.enter_context(patch("specify_cli.sync.config.SyncConfig", return_value=mock_config))
+    stack.enter_context(patch("specify_cli.sync.queue.OfflineQueue", return_value=mock_queue))
     stack.enter_context(
         patch(
             "specify_cli.sync.feature_flags.is_saas_sync_enabled",
@@ -243,9 +240,7 @@ class TestRefreshThroughTransport:
 
         captured_auth_headers: list[str] = []
 
-        def _fake_request(
-            method: str, url: str, *, headers: dict | None = None, **kw: Any
-        ) -> httpx.Response:
+        def _fake_request(method: str, url: str, *, headers: dict | None = None, **kw: Any) -> httpx.Response:
             # Commit 533e47d2 routes sync health probes through
             # request_with_fallback_sync, which calls httpx.Client.request(...)
             # rather than .get(...). Capture headers on every request.
@@ -258,34 +253,21 @@ class TestRefreshThroughTransport:
         mock_http_client.__exit__ = MagicMock(return_value=False)
         mock_http_client.request = _fake_request
         mock_http_client.get = _fake_request  # Legacy compat, same behavior.
-        mock_http_client.post = MagicMock(
-            return_value=httpx.Response(200, json={"status": "ok"})
-        )
+        mock_http_client.post = MagicMock(return_value=httpx.Response(200, json={"status": "ok"}))
 
         with _stub_sync_deps() as stack:
-            stack.enter_context(
-                patch("httpx.Client", return_value=mock_http_client)
-            )
+            stack.enter_context(patch("httpx.Client", return_value=mock_http_client))
             result = runner.invoke(sync_app, ["status", "--check"])
 
         # Command completed successfully.
-        assert result.exit_code == 0, (
-            f"exit_code={result.exit_code}\n"
-            f"stdout={result.stdout}\n"
-            f"exception={result.exception!r}"
-        )
+        assert result.exit_code == 0, f"exit_code={result.exit_code}\nstdout={result.stdout}\nexception={result.exception!r}"
 
         # The refresh flow was called exactly once (FR-009 + FR-010).
-        assert install_fake_refresh.call_count == 1, (
-            f"Expected exactly 1 refresh call, got {install_fake_refresh.call_count}"
-        )
+        assert install_fake_refresh.call_count == 1, f"Expected exactly 1 refresh call, got {install_fake_refresh.call_count}"
 
         # The health probe used the REFRESHED token, not the stale one.
         assert len(captured_auth_headers) >= 1, "No health probe was made"
-        assert captured_auth_headers[0] == "Bearer refreshed_access_token", (
-            f"Expected refreshed token in Authorization header, "
-            f"got: {captured_auth_headers[0]!r}"
-        )
+        assert captured_auth_headers[0] == "Bearer refreshed_access_token", f"Expected refreshed token in Authorization header, got: {captured_auth_headers[0]!r}"
         assert "stale_access_token" not in result.stdout
 
         # The refreshed session was persisted to storage.

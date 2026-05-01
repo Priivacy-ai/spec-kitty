@@ -16,6 +16,7 @@ from specify_cli.upgrade.migrations.m_0_13_0_research_csv_schema_check import (
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture
 def mock_research_project(tmp_path):
     """Create a mock spec-kitty project with research features."""
@@ -42,15 +43,13 @@ def research_feature_with_correct_schema(mock_research_project):
 
     # Correct evidence-log.csv schema
     (research_dir / "evidence-log.csv").write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes\n"
-        "2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
+        "timestamp,source_type,citation,key_finding,confidence,notes\n2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
         encoding="utf-8",
     )
 
     # Correct source-register.csv schema
     (research_dir / "source-register.csv").write_text(
-        "source_id,citation,url,accessed_date,relevance,status\n"
-        "S001,Citation,https://example.com,2025-01-25,high,reviewed\n",
+        "source_id,citation,url,accessed_date,relevance,status\nS001,Citation,https://example.com,2025-01-25,high,reviewed\n",
         encoding="utf-8",
     )
 
@@ -73,8 +72,7 @@ def research_feature_with_wrong_evidence_schema(mock_research_project):
 
     # WRONG evidence-log.csv schema (wrong column names and order)
     (research_dir / "evidence-log.csv").write_text(
-        "evidence_id,component,finding,citation,confidence,timestamp,notes\n"
-        "E001,Component,Finding,Citation,high,2025-01-25T10:00:00,Notes\n",
+        "evidence_id,component,finding,citation,confidence,timestamp,notes\nE001,Component,Finding,Citation,high,2025-01-25T10:00:00,Notes\n",
         encoding="utf-8",
     )
 
@@ -237,13 +235,7 @@ class TestMigrationApply:
 
     def test_apply_does_not_modify_files(self, research_feature_with_wrong_evidence_schema):
         """Test migration does NOT modify CSV files (informational only)."""
-        csv_path = (
-            research_feature_with_wrong_evidence_schema
-            / "kitty-specs"
-            / "002-wrong-evidence"
-            / "research"
-            / "evidence-log.csv"
-        )
+        csv_path = research_feature_with_wrong_evidence_schema / "kitty-specs" / "002-wrong-evidence" / "research" / "evidence-log.csv"
         original_content = csv_path.read_text()
 
         migration = ResearchCSVSchemaCheckMigration()

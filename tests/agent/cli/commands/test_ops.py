@@ -21,7 +21,6 @@ from specify_cli.core.vcs import (
 )
 
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -389,4 +388,3 @@ class TestIntegration:
         assert "Undo not supported" in result.output
         # Should suggest alternatives
         assert "git reset" in result.output or "git revert" in result.output
-

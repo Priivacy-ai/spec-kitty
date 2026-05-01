@@ -132,14 +132,9 @@ def check_stale_claims(
                     category=Category.STALE_CLAIM,
                     wp_id=wp_id,
                     message=(
-                        f"{wp_id} has been in 'claimed' for {age_days} days "
-                        f"(threshold: {claimed_threshold_days} days). "
-                        f"Actor: {wp_state.get('actor', 'unknown')}"
+                        f"{wp_id} has been in 'claimed' for {age_days} days (threshold: {claimed_threshold_days} days). Actor: {wp_state.get('actor', 'unknown')}"
                     ),
-                    recommended_action=(
-                        f"Either begin work on {wp_id} (move to in_progress) "
-                        f"or release the claim (move back to planned)."
-                    ),
+                    recommended_action=(f"Either begin work on {wp_id} (move to in_progress) or release the claim (move back to planned)."),
                 )
             )
 
@@ -154,10 +149,7 @@ def check_stale_claims(
                         f"(threshold: {in_progress_threshold_days} days). "
                         f"Actor: {wp_state.get('actor', 'unknown')}"
                     ),
-                    recommended_action=(
-                        f"Check if {wp_id} is blocked (move to blocked with reason) "
-                        f"or complete the work (move to for_review)."
-                    ),
+                    recommended_action=(f"Check if {wp_id} is blocked (move to blocked with reason) or complete the work (move to for_review)."),
                 )
             )
 
@@ -236,9 +228,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
                 category=Category.MATERIALIZATION_DRIFT,
                 wp_id=None,
                 message=msg,
-                recommended_action=(
-                    "Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."
-                ),
+                recommended_action=("Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."),
             )
         )
 
@@ -259,9 +249,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
                         category=Category.DERIVED_VIEW_DRIFT,
                         wp_id=None,
                         message=msg,
-                        recommended_action=(
-                            "Run 'spec-kitty agent status materialize' to regenerate derived views from status.json."
-                        ),
+                        recommended_action=("Run 'spec-kitty agent status materialize' to regenerate derived views from status.json."),
                     )
                 )
     except Exception:
@@ -314,10 +302,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     if report.primary.is_active:
         pattern_note = ""
         if report.primary.pattern_file_present:
-            pattern_note = (
-                f" (pattern file: {report.primary.pattern_file_path}, "
-                f"{report.primary.pattern_line_count} lines)"
-            )
+            pattern_note = f" (pattern file: {report.primary.pattern_file_path}, {report.primary.pattern_line_count} lines)"
         lines.append(f"Primary: {report.primary.path}{pattern_note}")
     active_wts = [w for w in report.worktrees if w.is_active]
     if active_wts:

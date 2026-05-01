@@ -443,9 +443,7 @@ class TestNFR004InactivityReminder:
 
         output = buf.getvalue()
         # The reminder must have been printed
-        assert "waiting" in output.lower() or "widen" in output.lower(), (
-            f"Inactivity reminder not found in output: {output!r}"
-        )
+        assert "waiting" in output.lower() or "widen" in output.lower(), f"Inactivity reminder not found in output: {output!r}"
 
     def test_inactivity_timer_is_daemon(self) -> None:
         """Timer thread is a daemon so it does not block process exit."""

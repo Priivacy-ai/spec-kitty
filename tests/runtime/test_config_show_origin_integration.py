@@ -19,15 +19,18 @@ pytestmark = pytest.mark.git_repo
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _create_file(path: Path, content: str = "placeholder") -> Path:
     """Create a file (and any missing parent dirs), return its path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
     return path
 
+
 # ---------------------------------------------------------------------------
 # T027 -- Integration: tier labels match actual resolution
 # ---------------------------------------------------------------------------
+
 
 class TestShowOriginLabelsMatchResolution:
     """Each tier label corresponds to actual resolved file (1A-14, 1A-15)."""
@@ -120,9 +123,11 @@ class TestShowOriginLabelsMatchResolution:
         agents_entries = [e for e in entries if e.name == "AGENTS.md"]
         assert len(agents_entries) == 1
 
+
 # ---------------------------------------------------------------------------
 # T027b -- Extended asset coverage (PRD §6.4)
 # ---------------------------------------------------------------------------
+
 
 class TestShowOriginExtendedAssets:
     """Verify collect_origins covers scripts, AGENTS.md, and dynamic discovery."""
@@ -238,9 +243,7 @@ class TestShowOriginExtendedAssets:
         mission_names = {e.name for e in mission_entries}
         assert mission_names == {"software-dev", "research", "documentation"}
 
-    def test_collect_origins_includes_all_required_asset_types(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_collect_origins_includes_all_required_asset_types(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """PRD §6.4: collect_origins returns templates, commands, missions, scripts, and files."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)

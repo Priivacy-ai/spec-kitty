@@ -27,7 +27,6 @@ import json
 import os
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -141,7 +140,7 @@ def test_autonomous_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     # Should not raise.
     run_terminus(
         mission_id=_MISSION_ID,
-            mission_type="software-dev",
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -225,7 +224,7 @@ def test_hic_operator_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     # Should not raise.
     run_terminus(
         mission_id=_MISSION_ID,
-            mission_type="software-dev",
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -269,7 +268,7 @@ def test_hic_operator_skips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     # Should not raise (gate allows skips in HiC mode).
     run_terminus(
         mission_id=_MISSION_ID,
-            mission_type="software-dev",
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -292,6 +291,7 @@ def test_hic_operator_skips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     canonical = tmp_path / ".kittify" / "missions" / _MISSION_ID / "retrospective.yaml"
     assert canonical.exists(), "Skipped record was not persisted"
     from specify_cli.retrospective.reader import read_record  # noqa: PLC0415
+
     persisted = read_record(canonical)
     assert persisted.status == "skipped"
     assert persisted.skip_reason == skip_reason
@@ -338,7 +338,7 @@ def test_hic_skip_empty_reason_loops(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     run_terminus(
         mission_id=_MISSION_ID,
-            mission_type="software-dev",
+        mission_type="software-dev",
         feature_dir=feature_dir,
         repo_root=tmp_path,
         operator_actor=_HUMAN_ACTOR,
@@ -362,6 +362,7 @@ def test_hic_skip_empty_reason_loops(tmp_path: Path, monkeypatch: pytest.MonkeyP
     # Persisted record has non-empty skip_reason.
     canonical = tmp_path / ".kittify" / "missions" / _MISSION_ID / "retrospective.yaml"
     from specify_cli.retrospective.reader import read_record  # noqa: PLC0415
+
     persisted = read_record(canonical)
     assert persisted.skip_reason == "low-value fix"
 

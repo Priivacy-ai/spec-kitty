@@ -7,12 +7,12 @@ import task_helpers as th
 
 
 def test_set_scalar_inserts_and_updates() -> None:
-    original = "agent: \"system\"\n"
+    original = 'agent: "system"\n'
     updated = th.set_scalar(original, "lane", "planned")
-    assert "lane: \"planned\"" in updated
+    assert 'lane: "planned"' in updated
 
     replaced = th.set_scalar(updated, "lane", "doing")
-    assert "lane: \"doing\"" in replaced
+    assert 'lane: "doing"' in replaced
     assert replaced.count("lane:") == 1
 
 

@@ -10,6 +10,7 @@ This module is the sole canonical-root authority for the unified charter
 bundle chokepoint (FR-003, FR-006, NFR-003). It raises loudly per C-001 — no
 fallback handlers, no silent degradation.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -26,10 +27,7 @@ class NotInsideRepositoryError(RuntimeError):
 
     def __init__(self, path: Path):
         self.path = path
-        super().__init__(
-            f"Path {path!r} is not inside a git repository. "
-            f"Charter resolution requires a git-tracked project root."
-        )
+        super().__init__(f"Path {path!r} is not inside a git repository. Charter resolution requires a git-tracked project root.")
 
 
 class GitCommonDirUnavailableError(RuntimeError):
@@ -43,10 +41,7 @@ class GitCommonDirUnavailableError(RuntimeError):
     def __init__(self, path: Path, detail: str):
         self.path = path
         self.detail = detail
-        super().__init__(
-            f"git rev-parse --git-common-dir failed for {path!r}: {detail}. "
-            f"Install a supported git binary and retry."
-        )
+        super().__init__(f"git rev-parse --git-common-dir failed for {path!r}: {detail}. Install a supported git binary and retry.")
 
 
 @lru_cache(maxsize=256)
@@ -84,10 +79,7 @@ def _resolve_cached(abs_path_str: str) -> str:
     # Step 4: parse stdout; resolve relative-to-cwd when not absolute.
     raw = result.stdout.strip()
     common_dir = Path(raw)
-    if not common_dir.is_absolute():
-        common_dir = (cwd / common_dir).resolve()
-    else:
-        common_dir = common_dir.resolve()
+    common_dir = (cwd / common_dir).resolve() if not common_dir.is_absolute() else common_dir.resolve()
 
     # Step 5: explicit ``.git/``-interior detection.
     if path == common_dir or common_dir in path.parents:

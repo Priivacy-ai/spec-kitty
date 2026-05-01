@@ -32,9 +32,7 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     assert lines[0] == "#!/bin/sh", f"First line must be #!/bin/sh, got {lines[0]!r}"
 
     exec_lines = [line for line in lines if line.startswith("exec ")]
-    assert len(exec_lines) == 1, (
-        f"Expected exactly one 'exec ' line, found {len(exec_lines)}: {exec_lines}"
-    )
+    assert len(exec_lines) == 1, f"Expected exactly one 'exec ' line, found {len(exec_lines)}: {exec_lines}"
     exec_line = exec_lines[0]
 
     # Interpreter must appear in double quotes (handles paths with spaces).
@@ -42,12 +40,8 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     # keep their sys.prefix — so we expect the abspath of sys.executable, not its
     # resolved target.
     expected = os.path.abspath(sys.executable)
-    assert f'"{expected}"' in exec_line, (
-        f'Expected quoted interpreter "{expected}" in exec line: {exec_line!r}'
-    )
-    assert "-m specify_cli.policy.commit_guard_hook" in exec_line, (
-        f"Expected module invocation in exec line: {exec_line!r}"
-    )
+    assert f'"{expected}"' in exec_line, f'Expected quoted interpreter "{expected}" in exec line: {exec_line!r}'
+    assert "-m specify_cli.policy.commit_guard_hook" in exec_line, f"Expected module invocation in exec line: {exec_line!r}"
     assert '"$@"' in exec_line, f'Expected "$@" in exec line: {exec_line!r}'
 
     # No PATH-based python/python3/py literals (the whole point of this WP)

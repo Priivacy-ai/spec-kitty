@@ -33,25 +33,19 @@ class ReferenceIntegrityChecker:
             return []
 
         # Build node-urn set for O(1) membership tests
-        node_urns: set[str] = {
-            getattr(n, "urn", None) or "" for n in getattr(drg, "nodes", [])
-        }
+        node_urns: set[str] = {getattr(n, "urn", None) or "" for n in getattr(drg, "nodes", [])}
         node_urns.discard("")
 
         findings: list[LintFinding] = []
         findings.extend(self._check_dangling_edges(drg, node_urns, feature_scope))
-        findings.extend(
-            self._check_superseded_adr_references(drg, node_urns, feature_scope)
-        )
+        findings.extend(self._check_superseded_adr_references(drg, node_urns, feature_scope))
         return findings
 
     # ------------------------------------------------------------------
     # Rule 1 — dangling edges
     # ------------------------------------------------------------------
 
-    def _check_dangling_edges(
-        self, drg: Any, node_urns: set[str], feature_scope: str | None
-    ) -> list[LintFinding]:
+    def _check_dangling_edges(self, drg: Any, node_urns: set[str], feature_scope: str | None) -> list[LintFinding]:
         findings: list[LintFinding] = []
         for edge in getattr(drg, "edges", []):
             target: str = getattr(edge, "target", None) or ""
@@ -60,27 +54,16 @@ class ReferenceIntegrityChecker:
             if target not in node_urns:
                 source: str = getattr(edge, "source", None) or ""
                 relation = getattr(edge, "relation", None)
-                relation_val: str = (
-                    relation.value
-                    if hasattr(relation, "value")
-                    else str(relation)
-                    if relation
-                    else ""
-                )
+                relation_val: str = relation.value if hasattr(relation, "value") else str(relation) if relation else ""
                 findings.append(
                     LintFinding(
                         category="reference_integrity",
                         type="dangling_edge",
                         id=f"edge:{source}->{target}",
                         severity="high",
-                        message=(
-                            f"Edge from '{source}' to '{target}' via '{relation_val}' "
-                            f"is dangling — target URN '{target}' does not exist in the DRG."
-                        ),
+                        message=(f"Edge from '{source}' to '{target}' via '{relation_val}' is dangling — target URN '{target}' does not exist in the DRG."),
                         feature_id=feature_scope,
-                        remediation_hint=(
-                            f"Remove the edge or add the missing node '{target}'."
-                        ),
+                        remediation_hint=(f"Remove the edge or add the missing node '{target}'."),
                     )
                 )
         return findings
@@ -89,22 +72,14 @@ class ReferenceIntegrityChecker:
     # Rule 2 — WP references a superseded ADR
     # ------------------------------------------------------------------
 
-    def _check_superseded_adr_references(
-        self, drg: Any, _node_urns: set[str], feature_scope: str | None
-    ) -> list[LintFinding]:
+    def _check_superseded_adr_references(self, drg: Any, _node_urns: set[str], feature_scope: str | None) -> list[LintFinding]:
         """Flag WP->ADR edges where the referenced ADR has been superseded."""
         # Build set of ADR URNs that have outgoing "replaces" edges
         # (i.e. they are older ADRs replaced by a newer one)
         superseded_adrs: set[str] = set()
         for edge in getattr(drg, "edges", []):
             relation = getattr(edge, "relation", None)
-            relation_val: str = (
-                relation.value
-                if hasattr(relation, "value")
-                else str(relation)
-                if relation
-                else ""
-            )
+            relation_val: str = relation.value if hasattr(relation, "value") else str(relation) if relation else ""
             if relation_val == "replaces":
                 # The *source* of a "replaces" edge is the newer ADR.
                 # The *target* is the older (superseded) ADR.
@@ -135,14 +110,9 @@ class ReferenceIntegrityChecker:
                     type="superseded_adr_reference",
                     id=f"edge:{source}->{target}",
                     severity="medium",
-                    message=(
-                        f"Work package '{source}' references ADR '{target}' "
-                        f"which has been superseded by a newer ADR."
-                    ),
+                    message=(f"Work package '{source}' references ADR '{target}' which has been superseded by a newer ADR."),
                     feature_id=feature_scope,
-                    remediation_hint=(
-                        "Update the WP to reference the superseding ADR instead."
-                    ),
+                    remediation_hint=("Update the WP to reference the superseding ADR instead."),
                 )
             )
 

@@ -122,12 +122,7 @@ class TestLoadActionIndexFields:
 
     def test_all_fields_populated(self, tmp_path: Path):
         yaml = (
-            "action: custom-action\n"
-            "directives:\n  - DIR-001\n"
-            "tactics:\n  - tactic-a\n"
-            "styleguides:\n  - style-b\n"
-            "toolguides:\n  - tool-c\n"
-            "procedures:\n  - proc-d\n"
+            "action: custom-action\ndirectives:\n  - DIR-001\ntactics:\n  - tactic-a\nstyleguides:\n  - style-b\ntoolguides:\n  - tool-c\nprocedures:\n  - proc-d\n"
         )
         _write_index(tmp_path, "m", "act", yaml)
         result = load_action_index(tmp_path, "m", "act")

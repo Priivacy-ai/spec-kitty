@@ -242,8 +242,7 @@ def load(repo_root: Path) -> SkillsManifest:
     unknown = set(data.keys()) - known_top_level
     if unknown:
         warnings.warn(
-            f"command-skills-manifest.json contains unknown top-level fields that will be "
-            f"dropped on next save: {sorted(unknown)}",
+            f"command-skills-manifest.json contains unknown top-level fields that will be dropped on next save: {sorted(unknown)}",
             stacklevel=2,
         )
         data = {k: v for k, v in data.items() if k in known_top_level}

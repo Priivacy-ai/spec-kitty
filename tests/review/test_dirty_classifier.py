@@ -17,6 +17,7 @@ pytestmark = pytest.mark.fast
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _classify(paths: list[str], wp_id: str = "WP01", mission_slug: str = "066-test") -> tuple[list[str], list[str]]:
     """Thin wrapper so tests stay concise."""
     return classify_dirty_paths(paths, wp_id=wp_id, mission_slug=mission_slug)
@@ -25,6 +26,7 @@ def _classify(paths: list[str], wp_id: str = "WP01", mission_slug: str = "066-te
 # ---------------------------------------------------------------------------
 # 1. Empty input
 # ---------------------------------------------------------------------------
+
 
 def test_empty_dirty_list():
     blocking, benign = _classify([])
@@ -35,6 +37,7 @@ def test_empty_dirty_list():
 # ---------------------------------------------------------------------------
 # 2. Status artifacts are benign
 # ---------------------------------------------------------------------------
+
 
 def test_status_artifacts_are_benign():
     paths = [
@@ -49,6 +52,7 @@ def test_status_artifacts_are_benign():
 # ---------------------------------------------------------------------------
 # 3. Other WP task files are benign (WP02 when checking WP01)
 # ---------------------------------------------------------------------------
+
 
 def test_other_wp_task_files_are_benign():
     paths = [
@@ -65,6 +69,7 @@ def test_other_wp_task_files_are_benign():
 # 4. Own task file is benign (planning artifact, auto-committed by move-task)
 # ---------------------------------------------------------------------------
 
+
 def test_own_task_file_is_benign():
     """WP task files are planning artifacts modified by move-task itself.
     They should not block review handoff even for the current WP."""
@@ -77,6 +82,7 @@ def test_own_task_file_is_benign():
 # ---------------------------------------------------------------------------
 # 5. Source files are blocking
 # ---------------------------------------------------------------------------
+
 
 def test_source_files_are_blocking():
     paths = [
@@ -93,6 +99,7 @@ def test_source_files_are_blocking():
 # 6. meta.json is benign
 # ---------------------------------------------------------------------------
 
+
 def test_meta_json_is_benign():
     paths = ["kitty-specs/066-test/meta.json"]
     blocking, benign = _classify(paths)
@@ -103,6 +110,7 @@ def test_meta_json_is_benign():
 # ---------------------------------------------------------------------------
 # 7. .kittify/ paths are benign
 # ---------------------------------------------------------------------------
+
 
 def test_kittify_paths_are_benign():
     paths = [
@@ -118,6 +126,7 @@ def test_kittify_paths_are_benign():
 # ---------------------------------------------------------------------------
 # 8. Mixed dirty paths — correct partition
 # ---------------------------------------------------------------------------
+
 
 def test_mixed_dirty_paths():
     blocking_paths = [
@@ -143,6 +152,7 @@ def test_mixed_dirty_paths():
 # ---------------------------------------------------------------------------
 # Additional edge cases
 # ---------------------------------------------------------------------------
+
 
 def test_lanes_json_is_benign():
     paths = ["kitty-specs/066-test/lanes.json"]

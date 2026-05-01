@@ -44,15 +44,11 @@ _BENIGN_PATH_PREFIXES: tuple[str, ...] = (
 
 # Matches `kitty-specs/<any-mission>/tasks/WP<digits>-<rest>.md`
 # Capture group 1 is the WP identifier (e.g. "WP01", "WP10").
-_WP_TASK_PATTERN: re.Pattern[str] = re.compile(
-    r"kitty-specs/[^/]+/tasks/(WP\d+)-.+\.md$"
-)
+_WP_TASK_PATTERN: re.Pattern[str] = re.compile(r"kitty-specs/[^/]+/tasks/(WP\d+)-.+\.md$")
 
 # Also match tasks.md at the root of a mission directory (benign — auto-updated
 # by mark-status and committed atomically).
-_ROOT_TASKS_MD_PATTERN: re.Pattern[str] = re.compile(
-    r"kitty-specs/[^/]+/tasks\.md$"
-)
+_ROOT_TASKS_MD_PATTERN: re.Pattern[str] = re.compile(r"kitty-specs/[^/]+/tasks\.md$")
 
 
 def _is_benign(path: str, wp_id: str) -> bool:
@@ -86,10 +82,7 @@ def _is_benign(path: str, wp_id: str) -> bool:
         return True
 
     # 4. Root-level tasks.md (auto-updated by mark-status)
-    if _ROOT_TASKS_MD_PATTERN.search(normalised):
-        return True
-
-    return False
+    return bool(_ROOT_TASKS_MD_PATTERN.search(normalised))
 
 
 def classify_dirty_paths(

@@ -1,4 +1,5 @@
 """Architectural test: every __deprecated__ = True module must be in the shim registry (FR-010)."""
+
 from __future__ import annotations
 
 import ast
@@ -28,17 +29,9 @@ def _scan_deprecated_modules(src_root: Path) -> set[str]:
 
 def _is_deprecated_assignment(node: ast.AST) -> bool:
     if isinstance(node, ast.Assign):
-        return any(
-            isinstance(t, ast.Name) and t.id == "__deprecated__"
-            for t in node.targets
-        ) and isinstance(node.value, ast.Constant) and node.value.value is True
+        return any(isinstance(t, ast.Name) and t.id == "__deprecated__" for t in node.targets) and isinstance(node.value, ast.Constant) and node.value.value is True
     if isinstance(node, ast.AnnAssign):
-        return (
-            isinstance(node.target, ast.Name)
-            and node.target.id == "__deprecated__"
-            and isinstance(node.value, ast.Constant)
-            and node.value.value is True
-        )
+        return isinstance(node.target, ast.Name) and node.target.id == "__deprecated__" and isinstance(node.value, ast.Constant) and node.value.value is True
     return False
 
 
@@ -62,10 +55,7 @@ class TestShimScanner:
         registry_paths = _load_registry_paths()
 
         unregistered = deprecated_modules - registry_paths
-        assert not unregistered, (
-            "Found __deprecated__ = True modules not in shim-registry.yaml:\n"
-            + "\n".join(f"  {p}" for p in sorted(unregistered))
-        )
+        assert not unregistered, "Found __deprecated__ = True modules not in shim-registry.yaml:\n" + "\n".join(f"  {p}" for p in sorted(unregistered))
 
     def test_scanner_detects_simple_assignment(self, tmp_path: Path) -> None:
         shim = tmp_path / "my_shim.py"

@@ -24,7 +24,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.evidence import (    CodeSignals,
+from charter.synthesizer.evidence import (
+    CodeSignals,
     CorpusEntry,
     CorpusSnapshot,
     EvidenceBundle,
@@ -118,13 +119,13 @@ def test_phase3_hash_differentiation() -> None:
         source_section="testing_philosophy",
         source_urns=("urn:drg:directive:DIRECTIVE_010",),
     )
-    base_kwargs: dict = dict(
-        target=target,
-        interview_snapshot={"testing_philosophy": "We test at multiple levels."},
-        doctrine_snapshot={},
-        drg_snapshot={},
-        run_id="test",
-    )
+    base_kwargs: dict = {
+        "target": target,
+        "interview_snapshot": {"testing_philosophy": "We test at multiple levels."},
+        "doctrine_snapshot": {},
+        "drg_snapshot": {},
+        "run_id": "test",
+    }
 
     req_empty = SynthesisRequest(**base_kwargs)
     hash_empty = compute_inputs_hash(req_empty, "fixture", "1.0.0")
@@ -132,10 +133,7 @@ def test_phase3_hash_differentiation() -> None:
     req_enriched = SynthesisRequest(**base_kwargs, evidence=_make_evidence())
     hash_enriched = compute_inputs_hash(req_enriched, "fixture", "1.0.0")
 
-    assert hash_empty != hash_enriched, (
-        "Enriched evidence must change the inputs_hash; "
-        f"both produced: {hash_empty[:12]}"
-    )
+    assert hash_empty != hash_enriched, f"Enriched evidence must change the inputs_hash; both produced: {hash_empty[:12]}"
 
 
 # ---------------------------------------------------------------------------
@@ -149,12 +147,8 @@ def test_phase3_provenance_fields_exist() -> None:
 
     # ProvenanceEntry is a Pydantic model (not a dataclass), so use model_fields.
     field_names = set(ProvenanceEntry.model_fields.keys())
-    assert "evidence_bundle_hash" in field_names, (
-        "ProvenanceEntry must have an evidence_bundle_hash field"
-    )
-    assert "corpus_snapshot_id" in field_names, (
-        "ProvenanceEntry must have a corpus_snapshot_id field"
-    )
+    assert "evidence_bundle_hash" in field_names, "ProvenanceEntry must have an evidence_bundle_hash field"
+    assert "corpus_snapshot_id" in field_names, "ProvenanceEntry must have a corpus_snapshot_id field"
 
 
 # ---------------------------------------------------------------------------
@@ -220,12 +214,8 @@ def test_phase3_is_generic_scoped_logic() -> None:
         detected_at="",
     )
     bundle = EvidenceBundle(code_signals=cs)
-    assert _is_generic_scoped("tactic", "python-style-guide", bundle) is False, (
-        "slug containing scope_tag must be language-scoped, not generic"
-    )
-    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True, (
-        "slug not containing scope_tag must be generic-scoped"
-    )
+    assert _is_generic_scoped("tactic", "python-style-guide", bundle) is False, "slug containing scope_tag must be language-scoped, not generic"
+    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True, "slug not containing scope_tag must be generic-scoped"
 
 
 # ---------------------------------------------------------------------------
@@ -238,15 +228,9 @@ def test_phase3_neutrality_violation_structure() -> None:
     from charter.synthesizer.errors import NeutralityGateViolation
 
     field_names = {f.name for f in dataclasses.fields(NeutralityGateViolation)}
-    assert "artifact_urn" in field_names, (
-        "NeutralityGateViolation must have artifact_urn"
-    )
-    assert "detected_terms" in field_names, (
-        "NeutralityGateViolation must have detected_terms"
-    )
-    assert "staging_dir" in field_names, (
-        "NeutralityGateViolation must have staging_dir"
-    )
+    assert "artifact_urn" in field_names, "NeutralityGateViolation must have artifact_urn"
+    assert "detected_terms" in field_names, "NeutralityGateViolation must have detected_terms"
+    assert "staging_dir" in field_names, "NeutralityGateViolation must have staging_dir"
 
 
 # ---------------------------------------------------------------------------
@@ -261,14 +245,10 @@ def test_phase3_corpus_loader_returns_snapshot() -> None:
     snap = CorpusLoader().load("python+django+pytest")
 
     assert snap is not None, "CorpusLoader must return a snapshot for 'python+django+pytest'"
-    assert snap.profile_key == "python", (
-        f"Expected profile_key='python', got {snap.profile_key!r}"
-    )
+    assert snap.profile_key == "python", f"Expected profile_key='python', got {snap.profile_key!r}"
     assert snap.snapshot_id, "snapshot_id must be non-empty (used for provenance)"
     # Verify the snapshot_id matches the expected format
-    assert snap.snapshot_id == "python-v1.0.0", (
-        f"Expected snapshot_id='python-v1.0.0', got {snap.snapshot_id!r}"
-    )
+    assert snap.snapshot_id == "python-v1.0.0", f"Expected snapshot_id='python-v1.0.0', got {snap.snapshot_id!r}"
     assert len(snap.entries) > 0, "Python corpus must have at least one entry"
 
 
@@ -282,9 +262,7 @@ def test_phase3_code_reader_detects_python(tmp_path: Path) -> None:
     from charter.evidence.code_reader import CodeReadingCollector
 
     # Create minimal Python project structure
-    (tmp_path / "pyproject.toml").write_text(
-        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
-    )
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test-project'\nversion = '0.1.0'\n")
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("# main module\n")
     (tmp_path / "conftest.py").write_text("# pytest conftest\n")
@@ -292,15 +270,9 @@ def test_phase3_code_reader_detects_python(tmp_path: Path) -> None:
     collector = CodeReadingCollector(tmp_path)
     signals = collector.collect()
 
-    assert signals.primary_language == "python", (
-        f"Expected primary_language='python', got {signals.primary_language!r}"
-    )
-    assert signals.scope_tag == "python", (
-        "scope_tag must equal primary_language for neutrality gate correctness"
-    )
-    assert "pytest" in signals.test_frameworks, (
-        "conftest.py should be detected as a pytest indicator"
-    )
+    assert signals.primary_language == "python", f"Expected primary_language='python', got {signals.primary_language!r}"
+    assert signals.scope_tag == "python", "scope_tag must equal primary_language for neutrality gate correctness"
+    assert "pytest" in signals.test_frameworks, "conftest.py should be detected as a pytest indicator"
 
 
 # ---------------------------------------------------------------------------
@@ -339,18 +311,10 @@ def test_phase3_dry_run_evidence_smoke() -> None:
         env=env,
     )
 
-    assert result.returncode == 0, (
-        f"Expected exit code 0, got {result.returncode}\n"
-        f"stdout: {result.stdout}\n"
-        f"stderr: {result.stderr}"
-    )
-    assert "Evidence dry-run summary" in result.stdout, (
-        f"Expected 'Evidence dry-run summary' in stdout; got:\n{result.stdout}"
-    )
+    assert result.returncode == 0, f"Expected exit code 0, got {result.returncode}\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    assert "Evidence dry-run summary" in result.stdout, f"Expected 'Evidence dry-run summary' in stdout; got:\n{result.stdout}"
     # spec-kitty is a Python project — code signals should detect Python
-    assert "Code signals:" in result.stdout, (
-        f"Expected 'Code signals:' in stdout; got:\n{result.stdout}"
-    )
+    assert "Code signals:" in result.stdout, f"Expected 'Code signals:' in stdout; got:\n{result.stdout}"
 
 
 # ---------------------------------------------------------------------------
@@ -360,7 +324,7 @@ def test_phase3_dry_run_evidence_smoke() -> None:
 
 def test_phase3_fixture_adapter_evidence_hash() -> None:
     """Evidence changes the hash, and the fixture adapter resolves the enriched-evidence fixture."""
-    from charter.synthesizer.fixture_adapter import FixtureAdapter, FixtureAdapterMissingError
+    from charter.synthesizer.fixture_adapter import FixtureAdapter
     from charter.synthesizer.request import compute_inputs_hash, short_hash
 
     target = SynthesisTarget(
@@ -393,9 +357,7 @@ def test_phase3_fixture_adapter_evidence_hash() -> None:
     hash_enriched = compute_inputs_hash(req_enriched, "fixture", "1.0.0")
 
     # Different hashes confirm evidence is included in the hash
-    assert hash_empty != hash_enriched, (
-        "Evidence must change the inputs_hash for fixture lookup"
-    )
+    assert hash_empty != hash_enriched, "Evidence must change the inputs_hash for fixture lookup"
     assert short_hash(hash_empty) != short_hash(hash_enriched)
 
     # Fixture adapter must successfully load the enriched-evidence fixture

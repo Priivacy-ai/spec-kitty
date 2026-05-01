@@ -13,22 +13,21 @@ The invariant we test is the contract from the WP02 prompt:
 A "partial file" — ``target`` exists but its contents are anything
 other than the full payload — counts as a failure.
 """
+
 from __future__ import annotations
 
 import hashlib
 import os
 import random
 import signal
-import sys
 import time
-from pathlib import Path
 
 import pytest
 
 from specify_cli.intake.brief_writer import (
-    CrossFilesystemWriteError,
     atomic_write_bytes,
 )
+import contextlib
 
 
 pytestmark = [pytest.mark.integration]
@@ -96,10 +95,7 @@ def test_kill9_mid_write_never_leaves_partial_file(tmp_path):
             else:
                 partial += 1
 
-    assert partial == 0, (
-        f"NFR-004 violation: {partial} partial files in 100 trials "
-        f"(completed={completed}, missing={missing})"
-    )
+    assert partial == 0, f"NFR-004 violation: {partial} partial files in 100 trials (completed={completed}, missing={missing})"
     # Sanity: the harness must exercise *both* outcomes — at least one
     # completion and at least one kill-before-replace.  If the OS
     # always finishes before our SIGKILL we're not really testing the
@@ -128,10 +124,8 @@ def test_no_tmp_files_left_behind_after_kill(tmp_path):
             os._exit(0)
         else:
             time.sleep(rng.uniform(0.0, 0.0005))
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
             os.waitpid(pid, 0)
 
     # After the loop, no ``.tmp`` files should remain.  (Killed children
@@ -144,9 +138,7 @@ def test_no_tmp_files_left_behind_after_kill(tmp_path):
     # We allow leftovers — the contract is about ``target``, not tmps —
     # but we record the count so a future hardening pass can drive it
     # to zero by running a janitor.
-    assert all(p.suffix == ".tmp" for p in leftovers), (
-        f"unexpected non-.tmp residue in {tmp_path}: {leftovers}"
-    )
+    assert all(p.suffix == ".tmp" for p in leftovers), f"unexpected non-.tmp residue in {tmp_path}: {leftovers}"
 
 
 def test_happy_path_atomic_write(tmp_path):

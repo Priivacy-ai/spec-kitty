@@ -135,9 +135,7 @@ def emit_project_layer(
 
     # Build indexes for additive-only checks.
     shipped_node_urns: frozenset[str] = frozenset(n.urn for n in shipped_drg.nodes)
-    shipped_edge_triples: frozenset[tuple[str, str, str]] = frozenset(
-        (e.source, e.target, e.relation.value) for e in shipped_drg.edges
-    )
+    shipped_edge_triples: frozenset[tuple[str, str, str]] = frozenset((e.source, e.target, e.relation.value) for e in shipped_drg.edges)
 
     nodes: list[DRGNode] = []
     edges: list[DRGEdge] = []
@@ -154,22 +152,14 @@ def emit_project_layer(
                     f"already exists in the shipped DRG layer.  Synthesized "
                     f"artifacts must carry new URNs disjoint from shipped nodes.",
                 ),
-                merged_graph_summary=(
-                    f"shipped_nodes={len(shipped_drg.nodes)}, "
-                    f"colliding_urn={urn!r}"
-                ),
+                merged_graph_summary=(f"shipped_nodes={len(shipped_drg.nodes)}, colliding_urn={urn!r}"),
             )
 
         # Overlay-internal duplicate guard.
         if urn in seen_urns:
             raise ProjectDRGValidationError(
-                errors=(
-                    f"Duplicate project-layer URN '{urn}': each target must "
-                    f"produce a distinct URN within one synthesis run.",
-                ),
-                merged_graph_summary=(
-                    f"colliding_urn={urn!r}"
-                ),
+                errors=(f"Duplicate project-layer URN '{urn}': each target must produce a distinct URN within one synthesis run.",),
+                merged_graph_summary=(f"colliding_urn={urn!r}"),
             )
         seen_urns.add(urn)
 
@@ -183,23 +173,14 @@ def emit_project_layer(
         # Derive edges from source_urns: project node *derived_from* (or
         # *requires* for directives) the upstream shipped/project URN.
         for source_urn in target.source_urns:
-            relation = (
-                Relation.REQUIRES if target.kind == "directive"
-                else Relation.APPLIES
-            )
+            relation = Relation.REQUIRES if target.kind == "directive" else Relation.APPLIES
             triple = (urn, source_urn, relation.value)
 
             # FR-020: reject edges whose triple already exists in shipped.
             if triple in shipped_edge_triples:
                 raise ProjectDRGValidationError(
-                    errors=(
-                        f"Duplicate edge (FR-020 / EC-6): triple "
-                        f"({urn!r} --{relation.value}--> {source_urn!r}) "
-                        f"already exists in the shipped DRG layer.",
-                    ),
-                    merged_graph_summary=(
-                        f"colliding_edge=({urn} --{relation.value}--> {source_urn})"
-                    ),
+                    errors=(f"Duplicate edge (FR-020 / EC-6): triple ({urn!r} --{relation.value}--> {source_urn!r}) already exists in the shipped DRG layer.",),
+                    merged_graph_summary=(f"colliding_edge=({urn} --{relation.value}--> {source_urn})"),
                 )
 
             edge = DRGEdge(

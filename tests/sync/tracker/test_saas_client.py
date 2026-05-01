@@ -126,9 +126,7 @@ class TestParseErrorEnvelope:
 
 class TestAuthInjection:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bearer_token_on_every_request(
-        self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_bearer_token_on_every_request(self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_httpx_client_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_httpx_client_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -140,9 +138,7 @@ class TestAuthInjection:
         assert kwargs["headers"]["Authorization"] == "Bearer test-access-token"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_team_slug_header_on_every_request(
-        self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_team_slug_header_on_every_request(self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_httpx_client_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_httpx_client_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -154,9 +150,7 @@ class TestAuthInjection:
         assert kwargs["headers"]["X-Team-Slug"] == "team-acme"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_token_fetched_at_request_time(
-        self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_token_fetched_at_request_time(self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """Token is read on each call, not cached at construction."""
         mock_http = MagicMock()
         mock_httpx_client_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -203,9 +197,7 @@ class TestPull:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"items": [{"id": "1"}], "cursor": "abc"}
-        )
+        mock_http.request.return_value = _make_response(200, {"items": [{"id": "1"}], "cursor": "abc"})
 
         result = client.pull("jira", "proj-1")
 
@@ -216,17 +208,13 @@ class TestPull:
         assert kwargs["json"]["limit"] == 100
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_pull_with_cursor_and_filters(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_pull_with_cursor_and_filters(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
         mock_http.request.return_value = _make_response(200, {"items": []})
 
-        client.pull(
-            "jira", "proj-1", limit=50, cursor="xyz", filters={"status": ["open"]}
-        )
+        client.pull("jira", "proj-1", limit=50, cursor="xyz", filters={"status": ["open"]})
 
         _, kwargs = mock_http.request.call_args
         assert kwargs["json"]["cursor"] == "xyz"
@@ -234,9 +222,7 @@ class TestPull:
         assert kwargs["json"]["limit"] == 50
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_pull_uses_post_method(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_pull_uses_post_method(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -255,9 +241,7 @@ class TestStatus:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"connected": True, "last_sync": "2026-01-01"}
-        )
+        mock_http.request.return_value = _make_response(200, {"connected": True, "last_sync": "2026-01-01"})
 
         result = client.status("jira", "proj-1")
 
@@ -275,9 +259,7 @@ class TestMappings:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"fields": [{"src": "title", "dst": "summary"}]}
-        )
+        mock_http.request.return_value = _make_response(200, {"fields": [{"src": "title", "dst": "summary"}]})
 
         result = client.mappings("jira", "proj-1")
 
@@ -298,17 +280,13 @@ class TestPush:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"pushed": 3, "errors": []}
-        )
+        mock_http.request.return_value = _make_response(200, {"pushed": 3, "errors": []})
 
         result = client.push("jira", "proj-1", [{"title": "Bug"}])
         assert result == {"pushed": 3, "errors": []}
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_push_has_idempotency_key(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_push_has_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -322,9 +300,7 @@ class TestPush:
         uuid.UUID(idem_key)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_push_custom_idempotency_key(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_push_custom_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -392,9 +368,7 @@ class TestRun:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"pulled": 5, "pushed": 3}
-        )
+        mock_http.request.return_value = _make_response(200, {"pulled": 5, "pushed": 3})
 
         result = client.run("jira", "proj-1")
         assert result == {"pulled": 5, "pushed": 3}
@@ -403,9 +377,7 @@ class TestRun:
         assert kwargs["json"]["limit"] == 100
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_run_has_idempotency_key(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_run_has_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -661,9 +633,7 @@ class TestRetryBehaviors:
             client._request_with_retry("GET", "/api/v1/tracker/status")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_4xx_error_envelope_parsed(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_4xx_error_envelope_parsed(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -678,31 +648,23 @@ class TestRetryBehaviors:
             },
         )
 
-        with pytest.raises(
-            SaaSTrackerClientError, match="Jira app not installed"
-        ) as exc_info:
+        with pytest.raises(SaaSTrackerClientError, match="Jira app not installed") as exc_info:
             client._request_with_retry("GET", "/api/v1/tracker/status")
         assert "action required" in str(exc_info.value)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_5xx_error_envelope_parsed(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_5xx_error_envelope_parsed(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
-        mock_http.request.return_value = _make_response(
-            500, {"error_code": "internal_error", "message": "Something broke"}
-        )
+        mock_http.request.return_value = _make_response(500, {"error_code": "internal_error", "message": "Something broke"})
 
         with pytest.raises(SaaSTrackerClientError, match="Something broke"):
             client._request_with_retry("GET", "/api/v1/tracker/status")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_malformed_error_response(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_malformed_error_response(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -715,9 +677,7 @@ class TestRetryBehaviors:
 
 class TestNetworkErrors:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_connect_error(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_connect_error(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -728,9 +688,7 @@ class TestNetworkErrors:
             client._request("GET", "/api/v1/tracker/status")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_timeout_error(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_timeout_error(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -758,9 +716,7 @@ class TestConstructorDefaults:
     def test_defaults_when_none(self) -> None:
         pass
 
-    def test_custom_instances_used(
-        self, mock_credential_store: MagicMock, mock_sync_config: MagicMock
-    ) -> None:
+    def test_custom_instances_used(self, mock_credential_store: MagicMock, mock_sync_config: MagicMock) -> None:
         c = SaaSTrackerClient(
             credential_store=mock_credential_store,
             sync_config=mock_sync_config,
@@ -902,9 +858,7 @@ class TestErrorEnrichmentAttributes:
     """T013: Verify enriched SaaSTrackerClientError attributes from PRI-12 envelope."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_enrichment_preserves_error_code(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_error_enrichment_preserves_error_code(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """error_code is extracted from the envelope 'error_code' field."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -924,9 +878,7 @@ class TestErrorEnrichmentAttributes:
         assert exc_info.value.error_code == "binding_not_found"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_enrichment_preserves_status_code(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_error_enrichment_preserves_status_code(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """status_code is the HTTP status from the response."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -943,9 +895,7 @@ class TestErrorEnrichmentAttributes:
         assert exc_info.value.status_code == 400
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_enrichment_preserves_details(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_error_enrichment_preserves_details(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """details dict is the full parsed envelope."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -974,9 +924,7 @@ class TestErrorEnrichmentAttributes:
         assert details["source"] == "jira"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_enrichment_user_action_required(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_error_enrichment_user_action_required(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """user_action_required is True when envelope says so."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -997,9 +945,7 @@ class TestErrorEnrichmentAttributes:
         assert exc_info.value.user_action_required is True
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_enrichment_backward_compat_str(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_error_enrichment_backward_compat_str(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """str(e) still returns the human-readable message."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -1016,17 +962,13 @@ class TestErrorEnrichmentAttributes:
         assert str(exc_info.value) == "No binding found"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_enrichment_missing_envelope(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_error_enrichment_missing_envelope(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """Empty/malformed body: error_code=None, status_code preserved."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
-        mock_http.request.return_value = _make_response(
-            400, text="Bad Request"
-        )
+        mock_http.request.return_value = _make_response(400, text="Bad Request")
 
         with pytest.raises(SaaSTrackerClientError) as exc_info:
             client._request_with_retry("GET", "/api/v1/tracker/status")

@@ -37,16 +37,8 @@ def test_apply_installs_attributes_and_local_git_config(tmp_path: Path) -> None:
     assert result.success is True
     attributes = (tmp_path / ".gitattributes").read_text(encoding="utf-8")
     assert "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log" in attributes
-    assert (
-        _git(["config", "--local", "--get", "merge.spec-kitty-event-log.driver"], tmp_path)
-        .stdout.strip()
-        == "spec-kitty merge-driver-event-log %O %A %B"
-    )
-    assert (
-        _git(["config", "--local", "--get", "merge.spec-kitty-event-log.name"], tmp_path)
-        .stdout.strip()
-        == "Spec Kitty event log union merge"
-    )
+    assert _git(["config", "--local", "--get", "merge.spec-kitty-event-log.driver"], tmp_path).stdout.strip() == "spec-kitty merge-driver-event-log %O %A %B"
+    assert _git(["config", "--local", "--get", "merge.spec-kitty-event-log.name"], tmp_path).stdout.strip() == "Spec Kitty event log union merge"
     assert migration.detect(tmp_path) is False
 
 

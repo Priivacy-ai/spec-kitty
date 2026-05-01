@@ -5,6 +5,7 @@ charter-read in the dashboard's hot loop. The warm path — bundle present,
 hashes match, no regeneration — must complete under 10 ms p95 with zero
 ``git`` invocations on the resolver path.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -92,9 +93,7 @@ def test_warm_chokepoint_does_not_shell_out_to_git_on_cache_hit(warm_bundle: Pat
         result = ensure_charter_bundle_fresh(warm_bundle)
     assert result is not None
     assert result.synced is False
-    assert spy.call_count == 0, (
-        f"Warm chokepoint triggered {spy.call_count} git invocations; expected 0."
-    )
+    assert spy.call_count == 0, f"Warm chokepoint triggered {spy.call_count} git invocations; expected 0."
 
 
 def test_warm_chokepoint_returns_canonical_root(warm_bundle: Path) -> None:

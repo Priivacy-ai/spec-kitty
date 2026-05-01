@@ -12,11 +12,9 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api.commands import app
-from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 
 runner = CliRunner()
 
@@ -33,8 +31,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\n"
-            f"lane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 
@@ -49,7 +46,8 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
         "status_phase": 2,
     }
     (mission_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
     return repo_root, mission_dir
 
@@ -67,10 +65,7 @@ def _invoke(args: list[str], repo_root: Path) -> tuple[dict, int]:
 
     # Parse the JSON output (first line of stdout)
     output = result.output.strip()
-    if output:
-        envelope = json.loads(output.split("\n")[0])
-    else:
-        envelope = {}
+    envelope = json.loads(output.split("\n")[0]) if output else {}
     return envelope, result.exit_code
 
 
@@ -125,9 +120,7 @@ class TestMissionNotFoundError:
         )
 
         for forbidden_code in orchestrator_api_contract["forbidden_error_codes"]:
-            assert envelope["error_code"] != forbidden_code, (
-                f"Error code '{forbidden_code}' is forbidden by contract"
-            )
+            assert envelope["error_code"] != forbidden_code, f"Error code '{forbidden_code}' is forbidden by contract"
 
 
 class TestAcceptMissionNotReady:
@@ -208,6 +201,4 @@ class TestAllowedCommandNames:
         registered = set(group.commands.keys()) if hasattr(group, "commands") else set()
 
         for forbidden_cmd in orchestrator_api_contract["forbidden_commands"]:
-            assert forbidden_cmd not in registered, (
-                f"Forbidden command '{forbidden_cmd}' is registered in orchestrator-api app"
-            )
+            assert forbidden_cmd not in registered, f"Forbidden command '{forbidden_cmd}' is registered in orchestrator-api app"

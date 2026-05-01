@@ -134,9 +134,7 @@ def install_fake_refresh_flow(monkeypatch: pytest.MonkeyPatch):
     refresh_module.TokenRefreshFlow = _FakeRefreshFlow  # type: ignore[attr-defined]
 
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(
-        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
-    )
+    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
     yield _FakeRefreshFlow
 
 
@@ -175,10 +173,7 @@ async def test_ten_concurrent_callers_single_flight_via_factory(
         results = await asyncio.gather(*tasks)
 
     # HARD invariant: exactly one refresh call despite 10 concurrent callers.
-    assert install_fake_refresh_flow.call_count == 1, (
-        f"Expected single-flight refresh but got "
-        f"{install_fake_refresh_flow.call_count} refresh calls"
-    )
+    assert install_fake_refresh_flow.call_count == 1, f"Expected single-flight refresh but got {install_fake_refresh_flow.call_count} refresh calls"
 
     # All 10 callers must see the same, fresh token.
     assert len(set(results)) == 1
@@ -207,10 +202,7 @@ async def test_fifty_concurrent_callers_single_flight(
         tasks = [asyncio.create_task(tm.get_access_token()) for _ in range(50)]
         results = await asyncio.gather(*tasks)
 
-    assert install_fake_refresh_flow.call_count == 1, (
-        f"Expected 1 refresh call for 50 callers, got "
-        f"{install_fake_refresh_flow.call_count}"
-    )
+    assert install_fake_refresh_flow.call_count == 1, f"Expected 1 refresh call for 50 callers, got {install_fake_refresh_flow.call_count}"
     assert len(set(results)) == 1
     assert results[0] == "fresh_access_token_v2"
 
@@ -234,16 +226,12 @@ async def test_second_burst_after_refresh_uses_cached_token(
         tm = get_token_manager()
 
         # First burst triggers refresh #1.
-        first = await asyncio.gather(
-            *[tm.get_access_token() for _ in range(10)]
-        )
+        first = await asyncio.gather(*[tm.get_access_token() for _ in range(10)])
         assert install_fake_refresh_flow.call_count == 1
         assert all(t == "fresh_access_token_v2" for t in first)
 
         # Second burst must reuse the fresh token — no new refresh.
-        second = await asyncio.gather(
-            *[tm.get_access_token() for _ in range(10)]
-        )
+        second = await asyncio.gather(*[tm.get_access_token() for _ in range(10)])
         assert install_fake_refresh_flow.call_count == 1
         assert all(t == "fresh_access_token_v2" for t in second)
 
@@ -275,10 +263,7 @@ async def test_factory_returns_same_instance_across_concurrent_callers(
     tm_ids = {pair[0] for pair in pairs}
     tokens = {pair[1] for pair in pairs}
     # All 10 callers resolved the SAME TokenManager instance.
-    assert len(tm_ids) == 1, (
-        f"Factory returned {len(tm_ids)} distinct TokenManagers; "
-        f"expected 1 (singleton regression)"
-    )
+    assert len(tm_ids) == 1, f"Factory returned {len(tm_ids)} distinct TokenManagers; expected 1 (singleton regression)"
     # And refresh still ran exactly once.
     assert install_fake_refresh_flow.call_count == 1
     assert tokens == {"fresh_access_token_v2"}

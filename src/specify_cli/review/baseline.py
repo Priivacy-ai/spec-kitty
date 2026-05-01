@@ -12,6 +12,7 @@ Design decisions:
 - Supported output formats are parser-specific; JUnit XML is supported today.
 - Artifact format: structured JSON with test name, status, one-line error for failures only.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,7 +21,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -31,9 +32,9 @@ logger = logging.getLogger(__name__)
 class BaselineFailure:
     """A single test failure recorded in the baseline."""
 
-    test: str   # fully qualified test name
+    test: str  # fully qualified test name
     error: str  # one-line error summary (max 200 chars)
-    file: str   # file:line
+    file: str  # file:line
 
     def to_dict(self) -> dict[str, Any]:
         return {"test": self.test, "error": self.error, "file": self.file}
@@ -52,13 +53,13 @@ class BaselineTestResult:
     """Baseline test results captured at implement time."""
 
     wp_id: str
-    captured_at: str      # ISO 8601 UTC
+    captured_at: str  # ISO 8601 UTC
     base_branch: str
-    base_commit: str      # 7-40 hex chars
-    test_runner: str      # "pytest", "custom"
+    base_commit: str  # 7-40 hex chars
+    test_runner: str  # "pytest", "custom"
     total: int
     passed: int
-    failed: int           # -1 means capture failed (sentinel)
+    failed: int  # -1 means capture failed (sentinel)
     skipped: int
     failures: tuple[BaselineFailure, ...] = field(default_factory=tuple)
 
@@ -124,6 +125,7 @@ def _get_test_command(repo_root: Path) -> tuple[str | None, str | None]:
     if config_path.exists():
         try:
             from ruamel.yaml import YAML
+
             yaml = YAML()
             config = yaml.load(config_path)
             if config:
@@ -144,7 +146,7 @@ def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[Bas
 
     Handles nested <testsuite> elements via ``root.iter("testcase")``.
     """
-    tree = ET.parse(str(junit_xml_path))  # nosec B314 — XML comes from local test-runner output, not network input
+    tree = ET.parse(str(junit_xml_path))  # noqa: S314 - XML comes from local test-runner output, not network input
     root = tree.getroot()
 
     failures: list[BaselineFailure] = []
@@ -168,11 +170,13 @@ def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[Bas
             test_name = f"{classname}.{name}" if classname else name
             file_attr = testcase.get("file", "unknown") or "unknown"
             line_attr = testcase.get("line", "?") or "?"
-            failures.append(BaselineFailure(
-                test=test_name,
-                error=msg,
-                file=f"{file_attr}:{line_attr}",
-            ))
+            failures.append(
+                BaselineFailure(
+                    test=test_name,
+                    error=msg,
+                    file=f"{file_attr}:{line_attr}",
+                )
+            )
         elif skip_el is not None:
             skipped += 1
         else:
@@ -275,9 +279,7 @@ def capture_baseline(
                 check=False,
             )
             if wt_result.returncode != 0:
-                logger.warning(
-                    "Could not create baseline worktree for %s: %s", base_branch, wt_result.stderr
-                )
+                logger.warning("Could not create baseline worktree for %s: %s", base_branch, wt_result.stderr)
                 return _make_sentinel(wp_id, base_branch, base_commit)
         except Exception as exc:
             logger.warning("git worktree add failed: %s", exc)
@@ -287,9 +289,9 @@ def capture_baseline(
             # Build the final command string with output_file substituted
             cmd_str = test_command.format(output_file=str(junit_xml_path))
             try:
-                run_result = subprocess.run(
+                run_result = subprocess.run(  # noqa: S602 - user-authored command string; shell required for pipes/redirects
                     cmd_str,
-                    shell=True,  # nosec B602 — test_command is user-authored config string, shell required for pipes/redirects
+                    shell=True,
                     cwd=str(tmp_worktree),
                     capture_output=True,
                     text=True,
@@ -382,9 +384,7 @@ def diff_baseline(
         else:
             new_failures.append(failure)
 
-    fixed: list[str] = [
-        f.test for f in baseline.failures if f.test not in current_test_names
-    ]
+    fixed: list[str] = [f.test for f in baseline.failures if f.test not in current_test_names]
 
     return pre_existing, new_failures, fixed
 
@@ -392,6 +392,7 @@ def diff_baseline(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _find_repo_root(start: Path) -> Path | None:
     """Walk up from start until we find a .git directory or file."""

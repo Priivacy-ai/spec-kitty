@@ -15,6 +15,7 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture()
 def package_assets(tmp_path: Path) -> Path:
     """Create a minimal package asset tree for comparison."""
@@ -57,9 +58,7 @@ def project_with_stale_overrides(tmp_path: Path, package_assets: Path) -> Path:
 class TestFixStaleOverridesDetect:
     """Test detect() logic."""
 
-    def test_detects_stale_overrides(
-        self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_stale_overrides(self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -78,9 +77,7 @@ class TestFixStaleOverridesDetect:
         migration = FixStaleOverridesMigration()
         assert migration.detect(project) is False
 
-    def test_no_detection_when_all_genuine_customizations(
-        self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_detection_when_all_genuine_customizations(self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -98,9 +95,7 @@ class TestFixStaleOverridesDetect:
 class TestFixStaleOverridesApply:
     """Test apply() logic."""
 
-    def test_removes_stale_overrides(
-        self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_removes_stale_overrides(self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -121,9 +116,7 @@ class TestFixStaleOverridesApply:
         assert (overrides / "templates" / "tasks.md").exists()
         assert (overrides / "templates" / "tasks.md").read_text() == "my custom tasks template"
 
-    def test_preserves_genuine_customizations(
-        self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_preserves_genuine_customizations(self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -141,9 +134,7 @@ class TestFixStaleOverridesApply:
         assert (overrides / "templates" / "spec.md").exists()
         assert (overrides / "templates" / "spec.md").read_text() == "my unique customization"
 
-    def test_dry_run_no_filesystem_changes(
-        self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_dry_run_no_filesystem_changes(self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -163,9 +154,7 @@ class TestFixStaleOverridesApply:
         files_after = {str(p.relative_to(overrides)) for p in overrides.rglob("*") if p.is_file()}
         assert files_before == files_after
 
-    def test_idempotent(
-        self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_idempotent(self, project_with_stale_overrides: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -196,9 +185,7 @@ class TestFixStaleOverridesApply:
         assert result.success is True
         assert any("nothing to do" in c.lower() for c in result.changes_made)
 
-    def test_cleans_up_empty_dirs(
-        self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cleans_up_empty_dirs(self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
             FixStaleOverridesMigration,
         )
@@ -216,12 +203,9 @@ class TestFixStaleOverridesApply:
         # Empty overrides directory should be cleaned up
         assert not overrides.exists()
 
-    def test_preserves_user_created_files_without_package_counterpart(
-        self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_preserves_user_created_files_without_package_counterpart(self, tmp_path: Path, package_assets: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Files in overrides/ that have no package counterpart are preserved."""
         from specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides import (
-
             FixStaleOverridesMigration,
         )
 

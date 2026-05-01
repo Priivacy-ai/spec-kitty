@@ -5,7 +5,6 @@ templates or runtime decision JSON for a valid run (FR-020, WP04/T019).
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -32,9 +31,7 @@ class TestNoLegacyQueryPlaceholderInTemplates:
                 continue
             if _PLACEHOLDER in text:
                 offenders.append(path)
-        assert not offenders, (
-            f"Found legacy placeholder '{_PLACEHOLDER}' in shipped templates: {offenders}"
-        )
+        assert not offenders, f"Found legacy placeholder '{_PLACEHOLDER}' in shipped templates: {offenders}"
 
     def test_placeholder_is_absent_from_runtime_source(self) -> None:
         runtime_root = _REPO_ROOT / "src" / "specify_cli" / "next"
@@ -47,10 +44,7 @@ class TestNoLegacyQueryPlaceholderInTemplates:
             for idx, line in enumerate(lines, start=1):
                 if _PLACEHOLDER in line:
                     offenders.append((path, idx))
-        assert not offenders, (
-            "Runtime source must not emit the legacy placeholder. Offenders: "
-            f"{offenders}"
-        )
+        assert not offenders, f"Runtime source must not emit the legacy placeholder. Offenders: {offenders}"
 
 
 class TestQueryModeDoesNotReturnUnknownForValidMission:
@@ -81,9 +75,7 @@ class TestQueryModeDoesNotReturnUnknownForValidMission:
         rendered = repr(payload)
         assert _PLACEHOLDER not in rendered
 
-    def test_query_decision_for_missing_feature_dir_is_structured(
-        self, tmp_path: Path
-    ) -> None:
+    def test_query_decision_for_missing_feature_dir_is_structured(self, tmp_path: Path) -> None:
         """A missing feature dir is still a query, but the kind is structured.
 
         We do not require ``mission_state != "unknown"`` for a feature
@@ -114,13 +106,9 @@ class TestRuntimeBridgeBlockedReasonIsConcrete:
         We grep for the legacy placeholder in the function body — it is a
         regression guard for future edits.
         """
-        runtime_bridge_path = (
-            _REPO_ROOT / "src" / "specify_cli" / "next" / "runtime_bridge.py"
-        )
+        runtime_bridge_path = _REPO_ROOT / "src" / "specify_cli" / "next" / "runtime_bridge.py"
         text = runtime_bridge_path.read_text(encoding="utf-8")
         # Acceptable: "no result provided" appearing inside human-readable
         # query mode banner. We forbid only the bracket form that historically
         # leaked into prompt files.
-        assert _PLACEHOLDER not in text, (
-            f"runtime_bridge.py must not emit the legacy placeholder {_PLACEHOLDER}"
-        )
+        assert _PLACEHOLDER not in text, f"runtime_bridge.py must not emit the legacy placeholder {_PLACEHOLDER}"

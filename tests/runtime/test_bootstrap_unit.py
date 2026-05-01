@@ -702,9 +702,7 @@ class TestCheckVersionPin:
 class TestVersionPinWiredIntoCallback:
     """Verify check_version_pin is called from the root CLI callback."""
 
-    def test_main_callback_calls_check_version_pin_when_project_found(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_main_callback_calls_check_version_pin_when_project_found(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """main_callback() calls check_version_pin when locate_project_root finds a project."""
         mock_pin = MagicMock()
 
@@ -726,9 +724,7 @@ class TestVersionPinWiredIntoCallback:
 
         mock_pin.assert_called_once_with(tmp_path)
 
-    def test_main_callback_skips_check_version_pin_outside_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_main_callback_skips_check_version_pin_outside_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """main_callback() skips check_version_pin when not inside a spec-kitty project."""
         mock_pin = MagicMock()
 

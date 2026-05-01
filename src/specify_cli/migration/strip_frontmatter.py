@@ -118,6 +118,7 @@ def strip_mutable_fields(feature_dir: Path) -> StripResult:
 
         # Derive wp_code for the lane_records key
         import re
+
         m = re.match(r"^(WP\d+)", wp_file.stem)
         wp_code = m.group(1) if m else wp_file.stem
 

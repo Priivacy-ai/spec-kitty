@@ -29,9 +29,7 @@ def _setup_kittify(repo: Path) -> None:
     (repo / "kitty-specs").mkdir(exist_ok=True)
 
 
-def _run_create_feature(
-    repo: Path, slug: str, current_branch: str, extra_args: list[str] | None = None
-) -> tuple[Result, dict[str, object] | None]:
+def _run_create_feature(repo: Path, slug: str, current_branch: str, extra_args: list[str] | None = None) -> tuple[Result, dict[str, object] | None]:
     """Invoke create with mocked git layer and return (result, meta)."""
     args = ["create", slug, "--json"] + (extra_args or [])
     with (

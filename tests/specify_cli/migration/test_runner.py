@@ -23,7 +23,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from specify_cli.migration.runner import (    _create_backup,
+from specify_cli.migration.runner import (
+    _create_backup,
     _restore_backup,
     _update_gitignore,
     _update_schema_version,
@@ -61,12 +62,14 @@ def _make_legacy_project(
     kittify = root / ".kittify"
     kittify.mkdir()
     (kittify / "metadata.yaml").write_text(
-        yaml.dump({
-            "spec_kitty": {
-                "version": "2.1.0",
-                "initialized_at": "2026-01-01T00:00:00",
+        yaml.dump(
+            {
+                "spec_kitty": {
+                    "version": "2.1.0",
+                    "initialized_at": "2026-01-01T00:00:00",
+                }
             }
-        }),
+        ),
         encoding="utf-8",
     )
     (kittify / "config.yaml").write_text(
@@ -84,30 +87,20 @@ def _make_legacy_project(
     kitty_specs = root / "kitty-specs"
     kitty_specs.mkdir()
 
-    for feat in (features or []):
+    for feat in features or []:
         slug = feat["slug"]
         feature_dir = kitty_specs / slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         meta = {"mission_slug": slug, "title": f"Feature {slug}"}
-        (feature_dir / "meta.json").write_text(
-            json.dumps(meta, indent=2), encoding="utf-8"
-        )
+        (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
         for wp in feat.get("wps", []):
             wp_name = wp["name"]
             lane = wp.get("lane", "planned")
             content = (
-                f"---\n"
-                f"work_package_id: ''\n"
-                f"wp_code: {wp_name!r}\n"
-                f"title: {wp_name} Title\n"
-                f"lane: {lane!r}\n"
-                f"dependencies: []\n"
-                f"subtasks: []\n"
-                f"---\n\n"
-                f"# {wp_name}\n"
+                f"---\nwork_package_id: ''\nwp_code: {wp_name!r}\ntitle: {wp_name} Title\nlane: {lane!r}\ndependencies: []\nsubtasks: []\n---\n\n# {wp_name}\n"
             )
             (tasks_dir / f"{wp_name}-title.md").write_text(content, encoding="utf-8")
 
@@ -116,16 +109,19 @@ def _make_legacy_project(
         subprocess.run(["git", "init"], cwd=root, capture_output=True)
         subprocess.run(
             ["git", "config", "user.email", "test@test.com"],
-            cwd=root, capture_output=True,
+            cwd=root,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "config", "user.name", "Test User"],
-            cwd=root, capture_output=True,
+            cwd=root,
+            capture_output=True,
         )
         subprocess.run(["git", "add", "-A"], cwd=root, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "initial"],
-            cwd=root, capture_output=True,
+            cwd=root,
+            capture_output=True,
         )
 
     return root
@@ -313,9 +309,7 @@ class TestRollbackOnSchemaVersionFailure:
         # (.gitignore is outside .kittify/ so it may have been partially updated
         # before the schema_version step failed — the schema_version absence is
         # the authoritative rollback indicator.)
-        restored_data = yaml.safe_load(
-            (root / ".kittify" / "metadata.yaml").read_text(encoding="utf-8")
-        )
+        restored_data = yaml.safe_load((root / ".kittify" / "metadata.yaml").read_text(encoding="utf-8"))
         assert restored_data.get("spec_kitty", {}).get("schema_version") != 3
 
 
@@ -351,8 +345,7 @@ class TestDryRun:
 
         # No schema_version set
         data = yaml.safe_load((root / ".kittify" / "metadata.yaml").read_text(encoding="utf-8"))
-        assert "schema_version" not in data.get("spec_kitty", {}), \
-            "schema_version must not be written in dry run"
+        assert "schema_version" not in data.get("spec_kitty", {}), "schema_version must not be written in dry run"
 
 
 # ---------------------------------------------------------------------------
@@ -362,9 +355,7 @@ class TestDryRun:
 
 class TestPerformance:
     @pytest.mark.slow
-    def test_migration_completes_in_under_10_seconds_for_5_features(
-        self, tmp_path: Path
-    ) -> None:
+    def test_migration_completes_in_under_10_seconds_for_5_features(self, tmp_path: Path) -> None:
         """5 features / 10 WPs each migrates in < 30 seconds.
 
         The threshold is set to 30 s to accommodate shared CI runners, which
@@ -376,10 +367,7 @@ class TestPerformance:
         features = [
             {
                 "slug": f"{i:03d}-perf-feature",
-                "wps": [
-                    {"name": f"WP{j:02d}", "lane": "in_progress"}
-                    for j in range(1, 11)
-                ],
+                "wps": [{"name": f"WP{j:02d}", "lane": "in_progress"} for j in range(1, 11)],
             }
             for i in range(1, 6)
         ]

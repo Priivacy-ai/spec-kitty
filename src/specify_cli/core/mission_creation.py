@@ -135,10 +135,7 @@ def _default_mission_display_name(mission_slug: str) -> str:
 
 def _default_mission_purpose_context(display_name: str, target_branch: str) -> str:
     """Keep mission-create defaults aligned with MissionCreated sync payloads."""
-    return (
-        f"This mission advances {display_name} on {target_branch} so stakeholders can "
-        "track the work from mission creation onward."
-    )
+    return f"This mission advances {display_name} on {target_branch} so stakeholders can track the work from mission creation onward."
 
 
 def render_tasks_readme_content(planning_branch: str) -> str:
@@ -284,9 +281,7 @@ def create_mission_core(
 
     normalized_purpose_tldr = " ".join((purpose_tldr or "").split()) if purpose_tldr is not None else normalized_friendly_name
     normalized_purpose_context = (
-        " ".join((purpose_context or "").split())
-        if purpose_context is not None
-        else _default_mission_purpose_context(normalized_friendly_name, planning_branch)
+        " ".join((purpose_context or "").split()) if purpose_context is not None else _default_mission_purpose_context(normalized_friendly_name, planning_branch)
     )
     purpose_errors = validate_purpose_summary(normalized_purpose_tldr, normalized_purpose_context)
     if purpose_errors:
@@ -433,12 +428,10 @@ def create_mission_core(
     origin_binding_succeeded = False
     origin_binding_error: str | None = None
 
-    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = (
-        _consume_pending_origin_if_present(
-            repo_root=resolved_root,
-            feature_dir=feature_dir,
-            meta=meta,
-        )
+    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = _consume_pending_origin_if_present(
+        repo_root=resolved_root,
+        feature_dir=feature_dir,
+        meta=meta,
     )
 
     # ------------------------------------------------------------------

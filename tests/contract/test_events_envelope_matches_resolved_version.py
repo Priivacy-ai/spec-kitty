@@ -12,6 +12,7 @@ See:
 - ``architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md``
 - ``docs/development/contract-pinning.md``
 """
+
 from __future__ import annotations
 
 import json
@@ -30,9 +31,7 @@ _UV_LOCK = _REPO_ROOT / "uv.lock"
 _SNAPSHOT_DIR = _REPO_ROOT / "tests" / "contract" / "snapshots"
 _PACKAGE_NAME = "spec-kitty-events"
 _REGEN_HINT = (
-    "Run `python scripts/snapshot_events_envelope.py --force` from the repo "
-    "root after bumping spec-kitty-events. See "
-    "docs/development/contract-pinning.md."
+    "Run `python scripts/snapshot_events_envelope.py --force` from the repo root after bumping spec-kitty-events. See docs/development/contract-pinning.md."
 )
 
 
@@ -60,18 +59,14 @@ def _resolve_version() -> tuple[str, str]:
     if locked:
         return locked, "uv.lock"
     warnings.warn(
-        f"Could not resolve {_PACKAGE_NAME} from uv.lock; falling back to "
-        "importlib.metadata.",
+        f"Could not resolve {_PACKAGE_NAME} from uv.lock; falling back to importlib.metadata.",
         RuntimeWarning,
         stacklevel=2,
     )
     meta = _resolve_version_from_metadata()
     if meta:
         return meta, "importlib.metadata"
-    pytest.fail(
-        f"Cannot resolve {_PACKAGE_NAME} version from uv.lock or "
-        f"importlib.metadata. {_REGEN_HINT}"
-    )
+    pytest.fail(f"Cannot resolve {_PACKAGE_NAME} version from uv.lock or importlib.metadata. {_REGEN_HINT}")
 
 
 def _snapshot_path(version: str) -> Path:
@@ -92,10 +87,7 @@ def test_resolved_version_snapshot_exists() -> None:
     """
     version, source = _resolve_version()
     path = _snapshot_path(version)
-    assert path.is_file(), (
-        f"Missing envelope snapshot for {_PACKAGE_NAME} {version} "
-        f"(resolved via {source}). Expected at {path}. {_REGEN_HINT}"
-    )
+    assert path.is_file(), f"Missing envelope snapshot for {_PACKAGE_NAME} {version} (resolved via {source}). Expected at {path}. {_REGEN_HINT}"
 
 
 def test_envelope_field_names_match_resolved_snapshot() -> None:
@@ -105,10 +97,7 @@ def test_envelope_field_names_match_resolved_snapshot() -> None:
     version, _source = _resolve_version()
     path = _snapshot_path(version)
     if not path.is_file():
-        pytest.fail(
-            f"Snapshot missing for {_PACKAGE_NAME} {version}: {path}. "
-            f"{_REGEN_HINT}"
-        )
+        pytest.fail(f"Snapshot missing for {_PACKAGE_NAME} {version}: {path}. {_REGEN_HINT}")
 
     snapshot = json.loads(path.read_text(encoding="utf-8"))
     expected_fields = set(snapshot.get("field_names", []))
@@ -131,10 +120,7 @@ def test_envelope_required_fields_match_resolved_snapshot() -> None:
     version, _source = _resolve_version()
     path = _snapshot_path(version)
     if not path.is_file():
-        pytest.fail(
-            f"Snapshot missing for {_PACKAGE_NAME} {version}: {path}. "
-            f"{_REGEN_HINT}"
-        )
+        pytest.fail(f"Snapshot missing for {_PACKAGE_NAME} {version}: {path}. {_REGEN_HINT}")
 
     snapshot = json.loads(path.read_text(encoding="utf-8"))
     expected_required = set(snapshot.get("required_fields", []))
@@ -162,11 +148,6 @@ def test_snapshot_metadata_self_consistent() -> None:
         pytest.skip("Snapshot missing -- handled by sibling test.")
     snapshot = json.loads(path.read_text(encoding="utf-8"))
     assert snapshot.get("resolved_version") == version, (
-        f"Snapshot at {path} stores resolved_version="
-        f"{snapshot.get('resolved_version')!r} but filename pins {version!r}. "
-        f"{_REGEN_HINT}"
+        f"Snapshot at {path} stores resolved_version={snapshot.get('resolved_version')!r} but filename pins {version!r}. {_REGEN_HINT}"
     )
-    assert snapshot.get("package") == _PACKAGE_NAME, (
-        f"Snapshot at {path} is for package {snapshot.get('package')!r}; "
-        f"expected {_PACKAGE_NAME!r}."
-    )
+    assert snapshot.get("package") == _PACKAGE_NAME, f"Snapshot at {path} is for package {snapshot.get('package')!r}; expected {_PACKAGE_NAME!r}."

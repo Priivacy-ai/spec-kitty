@@ -71,9 +71,7 @@ def _build_feature(tmp_path: Path) -> tuple[Path, Path]:
     return feature_dir, tasks_dir
 
 
-def _patch_context(
-    tmp_path: Path, feature_dir: Path, *, commit_success: bool = True, git_status_out: str = "M tasks.md"
-):
+def _patch_context(tmp_path: Path, feature_dir: Path, *, commit_success: bool = True, git_status_out: str = "M tasks.md"):
     """Return a context-manager stack that patches the infrastructure helpers."""
     return (
         patch(
@@ -150,9 +148,7 @@ class TestFinalizeTasks:
         commit_hash = payload["commit_hash"]
         assert commit_hash is not None
         assert len(commit_hash) == 40, f"Expected 40-char SHA, got: {commit_hash!r}"
-        assert all(c in "0123456789abcdef" for c in commit_hash), (
-            f"commit_hash should be lowercase hex, got: {commit_hash!r}"
-        )
+        assert all(c in "0123456789abcdef" for c in commit_hash), f"commit_hash should be lowercase hex, got: {commit_hash!r}"
 
     def test_json_output_commit_created_true_when_changes_exist(self, tmp_path: Path) -> None:
         """commit_created should be True when relevant files have changes to commit."""

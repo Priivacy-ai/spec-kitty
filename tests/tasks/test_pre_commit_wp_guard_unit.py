@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: reads scripts/git-hooks/ not in sandbox
+
+
 def _init_repo(repo: Path) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
@@ -54,13 +56,7 @@ def test_lane_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
     blocked_file = repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test.md"
     blocked_file.parent.mkdir(parents=True)
     blocked_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        'shell_pid: "123"\n'
-        'agent: "tester"\n'
-        "---\n\n"
-        "## Activity Log\n"
-        "- 2026-01-01T00:00:00Z -- tester -- Started implementation\n",
+        '---\nwork_package_id: WP01\nshell_pid: "123"\nagent: "tester"\n---\n\n## Activity Log\n- 2026-01-01T00:00:00Z -- tester -- Started implementation\n',
         encoding="utf-8",
     )
     subprocess.run(["git", "add", str(blocked_file)], cwd=repo, check=True, capture_output=True)
@@ -76,6 +72,7 @@ def test_lane_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "lane branches must not commit kitty-specs/" in result.stdout.lower()
 
+
 def test_lane_branch_hook_allows_non_lane_branches(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -85,13 +82,7 @@ def test_lane_branch_hook_allows_non_lane_branches(tmp_path: Path) -> None:
     allowed_file = repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test.md"
     allowed_file.parent.mkdir(parents=True)
     allowed_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        'shell_pid: "123"\n'
-        'agent: "tester"\n'
-        "---\n\n"
-        "## Activity Log\n"
-        "- 2026-01-01T00:00:00Z -- tester -- Started implementation\n",
+        '---\nwork_package_id: WP01\nshell_pid: "123"\nagent: "tester"\n---\n\n## Activity Log\n- 2026-01-01T00:00:00Z -- tester -- Started implementation\n',
         encoding="utf-8",
     )
     subprocess.run(["git", "add", str(allowed_file)], cwd=repo, check=True, capture_output=True)

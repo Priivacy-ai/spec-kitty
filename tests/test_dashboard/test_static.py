@@ -21,8 +21,8 @@ def test_dashboard_template_references_static_assets():
 
 def test_dashboard_template_omits_mission_badge():
     html = get_dashboard_html()
-    assert 'mission-display' not in html
-    assert 'Mission:' not in html
+    assert "mission-display" not in html
+    assert "Mission:" not in html
 
 
 def test_static_assets_exist():

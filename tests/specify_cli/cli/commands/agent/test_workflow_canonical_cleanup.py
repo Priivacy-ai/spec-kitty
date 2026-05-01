@@ -11,7 +11,6 @@ Verifies:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -409,7 +408,7 @@ class TestPlanningArtifactWorkflowPrompt:
         assert f"Workspace: {workflow_repo}" in prompt
         assert "Workspace contract: lane lane-planning" in prompt
         assert f"cd {workflow_repo}" in prompt
-        assert "workspace_kind\": \"repo_root" in prompt
+        assert 'workspace_kind": "repo_root' in prompt
         assert "<!-- WORKTREE_TOPOLOGY -->" in prompt
         assert "runs in the repository root planning workspace" in prompt
 

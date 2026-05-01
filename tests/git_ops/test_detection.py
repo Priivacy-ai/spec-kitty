@@ -97,9 +97,7 @@ class TestDetectAvailableBackends:
 
     def test_empty_when_nothing_available(self):
         """Should return empty list when no VCS tools available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_git_available", return_value=False
-        ):
+        with patch("specify_cli.core.vcs.detection.is_git_available", return_value=False):
             backends = detect_available_backends()
             assert backends == []
 
@@ -135,9 +133,7 @@ class TestGetVCS:
 
     def test_raises_when_nothing_available(self):
         """Should raise VCSNotFoundError when no VCS available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_git_available", return_value=False
-        ), pytest.raises(VCSNotFoundError):
+        with patch("specify_cli.core.vcs.detection.is_git_available", return_value=False), pytest.raises(VCSNotFoundError):
             get_vcs(Path("."))
 
 
@@ -178,7 +174,6 @@ class TestLockedVCSFromMeta:
     def test_explicit_backend_matching_locked_works(self, tmp_path):
         """Explicit backend that matches locked VCS should work."""
         import json
-
 
         # Create feature with git locked
         feature_dir = tmp_path / "kitty-specs" / "001-test-feature"

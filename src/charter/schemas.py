@@ -12,10 +12,7 @@ from pydantic import BaseModel, Field
 from ruamel.yaml import YAML
 
 # Header comment for all emitted YAML files
-YAML_HEADER = (
-    "# Auto-generated from charter.md — do not edit directly.\n"
-    "# Run 'spec-kitty charter sync' to regenerate.\n\n"
-)
+YAML_HEADER = "# Auto-generated from charter.md — do not edit directly.\n# Run 'spec-kitty charter sync' to regenerate.\n\n"
 
 
 class CharterTestingConfig(BaseModel):

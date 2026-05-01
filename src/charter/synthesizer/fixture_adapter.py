@@ -53,6 +53,7 @@ def _deterministic_generated_at(inputs_hash_hex: str) -> datetime:
     """
     offset_us = int(inputs_hash_hex[:8], 16)
     from datetime import timedelta
+
     return _EPOCH + timedelta(microseconds=offset_us)
 
 
@@ -114,8 +115,6 @@ class FixtureAdapter:
             notes=f"fixture:{full_hash[:12]}",
         )
 
-    def generate_batch(
-        self, requests: list[SynthesisRequest]
-    ) -> list[AdapterOutput]:
+    def generate_batch(self, requests: list[SynthesisRequest]) -> list[AdapterOutput]:
         """Sequential batch generate (fixture adapter has no batching benefit)."""
         return [self.generate(r) for r in requests]

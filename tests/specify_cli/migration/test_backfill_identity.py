@@ -67,11 +67,9 @@ def _make_feature(tmp_path: Path, slug: str, wps: list[str] | None = None) -> Pa
     with open(feature_dir / "meta.json", "w") as fh:
         json.dump(meta, fh, indent=2)
 
-    for wp_name in (wps or []):
+    for wp_name in wps or []:
         wp_file = tasks_dir / f"{wp_name}.md"
-        wp_file.write_text(
-            f"---\ntitle: {wp_name} Title\ndependencies: []\n---\n\n# {wp_name} body\n"
-        )
+        wp_file.write_text(f"---\ntitle: {wp_name} Title\ndependencies: []\n---\n\n# {wp_name} body\n")
 
     return feature_dir
 
@@ -187,9 +185,7 @@ class TestBackfillMissionIds:
 class TestBackfillWpIds:
     def test_assigns_wp_ids(self, tmp_path: Path) -> None:
         """T060-5: work_package_id, wp_code, mission_id are written to each WP."""
-        feature_dir = _make_feature(
-            tmp_path, "001-alpha", wps=["WP01-core", "WP02-extras"]
-        )
+        feature_dir = _make_feature(tmp_path, "001-alpha", wps=["WP01-core", "WP02-extras"])
         mission_id = "01MISSION000000000000000000"
 
         mapping = backfill_wp_ids(feature_dir, mission_id)
@@ -206,6 +202,7 @@ class TestBackfillWpIds:
         backfill_wp_ids(feature_dir, mission_id)
 
         from specify_cli.frontmatter import FrontmatterManager
+
         fm = FrontmatterManager()
         frontmatter, _ = fm.read(feature_dir / "tasks" / "WP01-core.md")
         assert frontmatter["wp_code"] == "WP01"
@@ -249,9 +246,7 @@ class TestBackfillWpIds:
 
     def test_ids_are_unique(self, tmp_path: Path) -> None:
         """T060-7: Each WP receives a distinct ULID."""
-        feature_dir = _make_feature(
-            tmp_path, "001-alpha", wps=["WP01", "WP02", "WP03"]
-        )
+        feature_dir = _make_feature(tmp_path, "001-alpha", wps=["WP01", "WP02", "WP03"])
         mapping = backfill_wp_ids(feature_dir, "01MISSION000000000000000000")
         ids = list(mapping.values())
         assert len(set(ids)) == len(ids), "Duplicate ULIDs assigned"

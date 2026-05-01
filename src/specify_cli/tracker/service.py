@@ -75,19 +75,14 @@ class TrackerService:
         if config.provider in LOCAL_PROVIDERS:
             return LocalTrackerService(self._repo_root, config)
         if config.provider in REMOVED_PROVIDERS:
-            raise TrackerServiceError(
-                f"Provider '{config.provider}' is no longer supported. "
-                "See the Spec Kitty documentation for supported providers."
-            )
+            raise TrackerServiceError(f"Provider '{config.provider}' is no longer supported. See the Spec Kitty documentation for supported providers.")
         raise TrackerServiceError(f"Unknown provider: {config.provider}")
 
     def _resolve_saas_backend_for_provider(self, provider: str) -> Any:
         from specify_cli.tracker.saas_service import SaaSTrackerService
 
         if provider in LOCAL_PROVIDERS:
-            raise TrackerServiceError(
-                f"Provider-scoped hosted reads are not available for local provider '{provider}'."
-            )
+            raise TrackerServiceError(f"Provider-scoped hosted reads are not available for local provider '{provider}'.")
         if provider in REMOVED_PROVIDERS:
             raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
         if provider not in SAAS_PROVIDERS:
@@ -110,9 +105,7 @@ class TrackerService:
     def discover(self, *, provider: str) -> list:
         """List bindable resources for the given provider (SaaS only)."""
         if provider in LOCAL_PROVIDERS:
-            raise TrackerServiceError(
-                f"Discovery is not available for local provider '{provider}'."
-            )
+            raise TrackerServiceError(f"Discovery is not available for local provider '{provider}'.")
         if provider in REMOVED_PROVIDERS:
             raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
         if provider not in SAAS_PROVIDERS:
@@ -181,9 +174,7 @@ class TrackerService:
         if all:
             config = load_tracker_config(self._repo_root)
             if not config.provider or config.provider not in SAAS_PROVIDERS:
-                raise TrackerServiceError(
-                    "Installation-wide status (--all) is only available for SaaS providers."
-                )
+                raise TrackerServiceError("Installation-wide status (--all) is only available for SaaS providers.")
             from specify_cli.tracker.saas_service import SaaSTrackerService
 
             service = SaaSTrackerService(self._repo_root, config)

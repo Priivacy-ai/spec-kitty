@@ -33,9 +33,7 @@ _SHIPPED_RUNTIME_MISSIONS = ("plan", "software-dev")
 @pytest.mark.parametrize("mission_key", _SHIPPED_RUNTIME_MISSIONS)
 def test_shipped_mission_runtime_yaml_validates(mission_key: str) -> None:
     runtime_path = _MISSIONS_ROOT / mission_key / "mission-runtime.yaml"
-    assert runtime_path.exists(), (
-        f"Expected shipped runtime YAML at {runtime_path}"
-    )
+    assert runtime_path.exists(), f"Expected shipped runtime YAML at {runtime_path}"
 
     template = load_mission_template_file(runtime_path)
     assert template.mission.key, "mission.key must be populated"
@@ -50,9 +48,7 @@ def test_plan_mission_runtime_steps_match_documented_workflow() -> None:
     template = load_mission_template_file(runtime_path)
 
     step_ids = [step.id for step in template.steps]
-    assert step_ids == ["specify", "research", "plan", "review"], (
-        f"Plan mission must keep the 4-step linear workflow; got {step_ids}"
-    )
+    assert step_ids == ["specify", "research", "plan", "review"], f"Plan mission must keep the 4-step linear workflow; got {step_ids}"
 
 
 def test_software_dev_mission_runtime_yaml_validates() -> None:
@@ -67,11 +63,7 @@ def test_invalid_runtime_yaml_raises_structured_error(tmp_path: Path) -> None:
     """Sanity: a malformed YAML triggers MissionRuntimeError, not a bare crash."""
     bad = tmp_path / "mission-runtime.yaml"
     bad.write_text(
-        "mission:\n"
-        "  key: bad\n"
-        "  name: Bad\n"
-        "  version: '1'\n"
-        "# missing top-level steps\n",
+        "mission:\n  key: bad\n  name: Bad\n  version: '1'\n# missing top-level steps\n",
         encoding="utf-8",
     )
     with pytest.raises(MissionRuntimeError):

@@ -18,6 +18,7 @@ The contract surface is twofold:
    "promote" without that artifact, mirroring the behavior the workflow
    enforces.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,9 +32,7 @@ pytestmark = [pytest.mark.integration]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RELEASE_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "release.yml"
-_VERIFICATION_ARTIFACT = (
-    _REPO_ROOT / ".kittify" / "release" / "downstream-verified.json"
-)
+_VERIFICATION_ARTIFACT = _REPO_ROOT / ".kittify" / "release" / "downstream-verified.json"
 
 
 def _load_yaml_text() -> str:
@@ -88,10 +87,7 @@ def test_release_workflow_promote_needs_downstream_consumer_verify() -> None:
     elif list_match:
         needs_value = list_match.group("items")
     else:
-        pytest.fail(
-            "Promotion job is missing a `needs:` declaration. It must depend "
-            "on `downstream-consumer-verify` per FR-026."
-        )
+        pytest.fail("Promotion job is missing a `needs:` declaration. It must depend on `downstream-consumer-verify` per FR-026.")
     assert "downstream-consumer-verify" in needs_value, (
         f"Promotion job needs={needs_value!r} does not include "
         "`downstream-consumer-verify`. FR-026 requires the verify job to "
@@ -155,21 +151,13 @@ def _promote_if_verified(artifact_path: Path) -> dict:
     """
     if not artifact_path.is_file():
         raise _PromotionBlocked(
-            f"No downstream verification artifact at {artifact_path}. FR-026 "
-            "requires a green downstream-consumer-verify run before stable "
-            "promotion."
+            f"No downstream verification artifact at {artifact_path}. FR-026 requires a green downstream-consumer-verify run before stable promotion."
         )
     payload = json.loads(artifact_path.read_text(encoding="utf-8"))
     if payload.get("status") != "passed":
-        raise _PromotionBlocked(
-            f"Downstream verification artifact at {artifact_path} reports "
-            f"status={payload.get('status')!r}; promotion blocked."
-        )
+        raise _PromotionBlocked(f"Downstream verification artifact at {artifact_path} reports status={payload.get('status')!r}; promotion blocked.")
     if not payload.get("candidate_version"):
-        raise _PromotionBlocked(
-            f"Downstream verification artifact at {artifact_path} is missing "
-            "a candidate_version field; cannot trust the evidence."
-        )
+        raise _PromotionBlocked(f"Downstream verification artifact at {artifact_path} is missing a candidate_version field; cannot trust the evidence.")
     return payload
 
 
@@ -227,7 +215,4 @@ def test_verification_artifact_path_is_documented_constant() -> None:
     # constant matches the documented location.
     expected_relative = Path(".kittify") / "release" / "downstream-verified.json"
     actual_relative = _VERIFICATION_ARTIFACT.relative_to(_REPO_ROOT)
-    assert actual_relative == expected_relative, (
-        f"Verification artifact path drifted: expected {expected_relative}, "
-        f"got {actual_relative}"
-    )
+    assert actual_relative == expected_relative, f"Verification artifact path drifted: expected {expected_relative}, got {actual_relative}"

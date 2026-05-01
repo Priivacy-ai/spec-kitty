@@ -122,9 +122,7 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
                             # Symlink failed (Windows?), try copying instead
                             try:
                                 shutil.copy2(main_agents, wt_agents)
-                                changes.append(
-                                    f"Copied .kittify/AGENTS.md to worktree {worktree.name} (symlink failed)"
-                                )
+                                changes.append(f"Copied .kittify/AGENTS.md to worktree {worktree.name} (symlink failed)")
                             except OSError as copy_error:
                                 errors.append(
                                     f"Failed to create AGENTS.md in {worktree.name}: {e}, copy also failed: {copy_error}"  # noqa: E501

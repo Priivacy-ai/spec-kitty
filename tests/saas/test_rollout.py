@@ -51,18 +51,14 @@ _FALSY_CASES = [
 
 
 @pytest.mark.parametrize("value", _TRUTHY_CASES)
-def test_is_saas_sync_enabled_truthy(
-    monkeypatch: pytest.MonkeyPatch, value: str
-) -> None:
+def test_is_saas_sync_enabled_truthy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     """Truthy env-var values must return True."""
     monkeypatch.setenv(_ENV_VAR, value)
     assert is_saas_sync_enabled() is True
 
 
 @pytest.mark.parametrize("value", _FALSY_CASES)
-def test_is_saas_sync_enabled_falsy(
-    monkeypatch: pytest.MonkeyPatch, value: str
-) -> None:
+def test_is_saas_sync_enabled_falsy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     """Falsy env-var values (including empty string) must return False."""
     monkeypatch.setenv(_ENV_VAR, value)
     assert is_saas_sync_enabled() is False
@@ -86,10 +82,7 @@ def test_is_saas_sync_enabled_strips_whitespace(
 # Stable disabled-message wording (byte-wise assertion per contract)
 # ---------------------------------------------------------------------------
 
-_EXPECTED_MESSAGE = (
-    "Hosted SaaS sync is not enabled on this machine. "
-    "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
-)
+_EXPECTED_MESSAGE = "Hosted SaaS sync is not enabled on this machine. Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
 
 
 def test_saas_sync_disabled_message_wording() -> None:
@@ -109,8 +102,7 @@ def test_tracker_shim_identity() -> None:
     )
 
     assert tr_fn is is_saas_sync_enabled, (
-        "specify_cli.tracker.feature_flags.is_saas_sync_enabled must be the "
-        "identical object as specify_cli.saas.rollout.is_saas_sync_enabled"
+        "specify_cli.tracker.feature_flags.is_saas_sync_enabled must be the identical object as specify_cli.saas.rollout.is_saas_sync_enabled"
     )
 
 
@@ -121,8 +113,7 @@ def test_sync_shim_identity() -> None:
     )
 
     assert sync_fn is is_saas_sync_enabled, (
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled must be the "
-        "identical object as specify_cli.saas.rollout.is_saas_sync_enabled"
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled must be the identical object as specify_cli.saas.rollout.is_saas_sync_enabled"
     )
 
 

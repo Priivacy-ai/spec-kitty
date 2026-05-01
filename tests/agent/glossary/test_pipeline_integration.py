@@ -21,6 +21,7 @@ from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
 
+
 def _make_context(**overrides):
     """Helper to create a PrimitiveExecutionContext with defaults."""
     defaults = {
@@ -72,13 +73,7 @@ class TestPipelineNoConflicts:
         _create_seed_file(
             tmp_path,
             "team_domain",
-            (
-                "terms:\n"
-                "  - surface: workspace\n"
-                "    definition: Git worktree directory\n"
-                "    confidence: 1.0\n"
-                "    status: active\n"
-            ),
+            ("terms:\n  - surface: workspace\n    definition: Git worktree directory\n    confidence: 1.0\n    status: active\n"),
         )
 
         ctx = _make_context(
@@ -721,13 +716,7 @@ class TestEndToEndSpecifyWithConflict:
         _create_seed_file(
             tmp_path,
             "team_domain",
-            (
-                "terms:\n"
-                "  - surface: workspace\n"
-                "    definition: Git worktree directory for a work package\n"
-                "    confidence: 1.0\n"
-                "    status: active\n"
-            ),
+            ("terms:\n  - surface: workspace\n    definition: Git worktree directory for a work package\n    confidence: 1.0\n    status: active\n"),
         )
 
         ctx = PrimitiveExecutionContext(
@@ -1169,10 +1158,7 @@ class TestClarificationBeforeGate:
 
         assert clarification_idx is not None, "ClarificationMiddleware not in pipeline"
         assert gate_idx is not None, "GenerationGateMiddleware not in pipeline"
-        assert clarification_idx < gate_idx, (
-            f"ClarificationMiddleware (index {clarification_idx}) must run "
-            f"BEFORE GenerationGateMiddleware (index {gate_idx})"
-        )
+        assert clarification_idx < gate_idx, f"ClarificationMiddleware (index {clarification_idx}) must run BEFORE GenerationGateMiddleware (index {gate_idx})"
 
 
 # ---------------------------------------------------------------------------
@@ -1210,7 +1196,6 @@ class TestExecuteWithGlossaryEndToEnd:
         function executes successfully.
         """
         from specify_cli.missions import execute_with_glossary
-
 
         self._setup_ambiguous_workspace(tmp_path)
 

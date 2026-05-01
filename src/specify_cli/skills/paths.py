@@ -47,4 +47,3 @@ def iter_installable_agents() -> list[str]:
         installable.append(agent_key)
 
     return installable
-

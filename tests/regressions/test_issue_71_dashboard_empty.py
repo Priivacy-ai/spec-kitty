@@ -60,7 +60,4 @@ def test_dashboard_json_returns_non_empty_on_windows(tmp_path: pytest.TempPathFa
 
     # Non-empty output = at least one non-whitespace character
     output = result.stdout or ""
-    assert output.strip() != "", (
-        f"dashboard --json returned empty output on Windows. "
-        f"rc={result.exit_code} stderr={getattr(result, 'stderr', '')!r}"
-    )
+    assert output.strip() != "", f"dashboard --json returned empty output on Windows. rc={result.exit_code} stderr={getattr(result, 'stderr', '')!r}"

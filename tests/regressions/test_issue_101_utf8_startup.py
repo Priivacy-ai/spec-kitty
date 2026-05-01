@@ -36,9 +36,7 @@ def test_cli_startup_under_non_utf8_codepage_does_not_crash(tmp_path: pytest.Tem
     """
     script = tmp_path / "smoke.py"
     script.write_text(
-        "from specify_cli.encoding import ensure_utf8_on_windows\n"
-        "ensure_utf8_on_windows()\n"
-        'print("path: \u00f1\u00e1m\u00e9 \u2014 caf\u00e9/\u03a9")\n',
+        'from specify_cli.encoding import ensure_utf8_on_windows\nensure_utf8_on_windows()\nprint("path: \u00f1\u00e1m\u00e9 \u2014 caf\u00e9/\u03a9")\n',
         encoding="utf-8",
     )
     env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
@@ -52,6 +50,4 @@ def test_cli_startup_under_non_utf8_codepage_does_not_crash(tmp_path: pytest.Tem
     )
     # Expect zero exit even though cp1252 can't encode all characters.
     # 'errors=replace' should have produced replacement chars, not a crash.
-    assert proc.returncode == 0, (
-        f"CLI startup crashed on non-UTF-8 codepage: stderr={proc.stderr!r}"
-    )
+    assert proc.returncode == 0, f"CLI startup crashed on non-UTF-8 codepage: stderr={proc.stderr!r}"

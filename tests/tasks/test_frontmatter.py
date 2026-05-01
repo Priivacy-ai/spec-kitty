@@ -11,6 +11,7 @@ from specify_cli.frontmatter import (
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture
 def temp_wp_file(tmp_path):
     """Create a temporary work package file."""

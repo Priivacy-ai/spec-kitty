@@ -202,11 +202,7 @@ class TestConcurrentMigration:
         successes = [success for success, _errors in results]
         assert successes.count(True) == 1
         assert successes.count(False) == 1
-        assert any(
-            any("Cannot apply" in err or "Upgrade lock" in err for err in errors)
-            for success, errors in results
-            if not success
-        )
+        assert any(any("Cannot apply" in err or "Upgrade lock" in err for err in errors) for success, errors in results if not success)
 
 
 class TestPartialMigrationRecovery:

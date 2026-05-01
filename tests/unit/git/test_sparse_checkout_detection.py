@@ -324,9 +324,7 @@ class TestScanRepo:
 
 
 class TestWarnOnce:
-    def test_emits_once_on_active_repo(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_emits_once_on_active_repo(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         _init_git_repo(tmp_path)
         _enable_sparse_config(tmp_path)
 
@@ -335,71 +333,48 @@ class TestWarnOnce:
         for _ in range(5):
             warn_if_sparse_once(tmp_path, command="merge")
 
-        marker_hits = [
-            r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()
-        ]
-        assert len(marker_hits) == 1, (
-            f"Expected exactly one warning, got {len(marker_hits)}: "
-            f"{[r.getMessage() for r in caplog.records]}"
-        )
+        marker_hits = [r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()]
+        assert len(marker_hits) == 1, f"Expected exactly one warning, got {len(marker_hits)}: {[r.getMessage() for r in caplog.records]}"
         msg = marker_hits[0].getMessage()
         assert "command=merge" in msg
         assert str(tmp_path) in msg
         assert "spec-kitty doctor sparse-checkout --fix" in msg
 
-    def test_no_emit_on_clean_repo(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_no_emit_on_clean_repo(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         _init_git_repo(tmp_path)
         caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
 
         warn_if_sparse_once(tmp_path, command="merge")
 
-        assert not any(
-            "spec_kitty.sparse_checkout.detected" in r.getMessage()
-            for r in caplog.records
-        )
+        assert not any("spec_kitty.sparse_checkout.detected" in r.getMessage() for r in caplog.records)
 
-    def test_swallows_detection_errors(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_swallows_detection_errors(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
         with patch.object(sc_mod, "scan_repo", side_effect=RuntimeError("boom")):
             # Must not raise.
             warn_if_sparse_once(tmp_path, command="merge")
 
         # And no emission either.
-        assert not any(
-            "spec_kitty.sparse_checkout.detected" in r.getMessage()
-            for r in caplog.records
-        )
+        assert not any("spec_kitty.sparse_checkout.detected" in r.getMessage() for r in caplog.records)
 
-    def test_reset_helper_rearms_emitter(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_reset_helper_rearms_emitter(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         _init_git_repo(tmp_path)
         _enable_sparse_config(tmp_path)
         caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
 
         warn_if_sparse_once(tmp_path, command="merge")
-        first_hits = [
-            r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()
-        ]
+        first_hits = [r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()]
         assert len(first_hits) == 1
 
         # Second call is a no-op.
         warn_if_sparse_once(tmp_path, command="merge")
-        still_one = [
-            r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()
-        ]
+        still_one = [r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()]
         assert len(still_one) == 1
 
         # Reset and call again — should emit once more.
         _reset_session_warning_state()
         warn_if_sparse_once(tmp_path, command="merge")
-        now_two = [
-            r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()
-        ]
+        now_two = [r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()]
         assert len(now_two) == 2
 
 
@@ -409,9 +384,7 @@ class TestWarnOnce:
 
 
 class TestPerformance:
-    def test_scan_path_under_20ms_with_negligible_subprocess_overhead(
-        self, tmp_path: Path
-    ) -> None:
+    def test_scan_path_under_20ms_with_negligible_subprocess_overhead(self, tmp_path: Path) -> None:
         _init_git_repo(tmp_path)
         _enable_sparse_config(tmp_path)
         _write_pattern_file(tmp_path, ["src/", "docs/"])

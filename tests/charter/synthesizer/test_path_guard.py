@@ -213,17 +213,17 @@ class TestNoDirectWritesInSynthesizer:
     # (e.g. guard.write_text, guard.write_bytes, guard.rename) which ARE the
     # sanctioned write seam and must not be flagged (R-10, WP03 addition).
     _FORBIDDEN_PATTERNS = [
-        r"open\s*\(.*['\"]w['\"]",                    # open(..., 'w') or open(..., "w")
-        r"open\s*\(.*['\"]wb['\"]",                   # open(..., 'wb')
-        r"open\s*\(.*['\"]a['\"]",                    # open(..., 'a')
-        r"(?<!guard)(?<!self\.guard)\.write_text\s*\(",   # Path.write_text( (not guard.write_text)
+        r"open\s*\(.*['\"]w['\"]",  # open(..., 'w') or open(..., "w")
+        r"open\s*\(.*['\"]wb['\"]",  # open(..., 'wb')
+        r"open\s*\(.*['\"]a['\"]",  # open(..., 'a')
+        r"(?<!guard)(?<!self\.guard)\.write_text\s*\(",  # Path.write_text( (not guard.write_text)
         r"(?<!guard)(?<!self\.guard)\.write_bytes\s*\(",  # Path.write_bytes( (not guard.write_bytes)
-        r"shutil\.move\s*\(",                         # shutil.move(
-        r"shutil\.copy\s*\(",                         # shutil.copy(
-        r"shutil\.copy2\s*\(",                        # shutil.copy2(
-        r"os\.replace\s*\(",                          # os.replace(
-        r"os\.rename\s*\(",                           # os.rename(
-        r"(?<!guard)(?<!self\.guard)\.rename\s*\(",       # Path.rename( (not guard.rename)
+        r"shutil\.move\s*\(",  # shutil.move(
+        r"shutil\.copy\s*\(",  # shutil.copy(
+        r"shutil\.copy2\s*\(",  # shutil.copy2(
+        r"os\.replace\s*\(",  # os.replace(
+        r"os\.rename\s*\(",  # os.rename(
+        r"(?<!guard)(?<!self\.guard)\.rename\s*\(",  # Path.rename( (not guard.rename)
     ]
 
     # Modules exempt from the check (path_guard.py IS the write seam)
@@ -273,12 +273,9 @@ class TestNoDirectWritesInSynthesizer:
                     continue
                 for pattern in self._FORBIDDEN_PATTERNS:
                     if re.search(pattern, line):
-                        violations.append(
-                            f"{py_file.name}:{i}: matches pattern '{pattern}': {line.rstrip()}"
-                        )
+                        violations.append(f"{py_file.name}:{i}: matches pattern '{pattern}': {line.rstrip()}")
 
         assert not violations, (
             "Direct write primitives found outside path_guard.py — "
-            "all synthesizer writes must go through PathGuard methods (R-10):\n"
-            + "\n".join(f"  {v}" for v in violations)
+            "all synthesizer writes must go through PathGuard methods (R-10):\n" + "\n".join(f"  {v}" for v in violations)
         )

@@ -20,10 +20,10 @@ import pytest
 pytestmark = pytest.mark.non_sandbox
 
 
-
 # --------------------------------------------------------------------------- #
 # verify_enhanced tests
 # --------------------------------------------------------------------------- #
+
 
 def test_verify_with_research_feature(tmp_path: Path) -> None:
     """Verify resolves mission to 'research' when feature meta.json says so."""
@@ -131,6 +131,7 @@ def test_verify_resolves_mission_from_mission_slug(tmp_path: Path) -> None:
 # mission CLI: current command – no-feature-context test
 # --------------------------------------------------------------------------- #
 
+
 def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
     """When no mission is detected, 'mission current' should show a clear message."""
     from typer.testing import CliRunner
@@ -151,6 +152,7 @@ def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # _resolve_feature_dir (verify.py helper) tests
 # --------------------------------------------------------------------------- #
+
 
 def test_resolve_feature_dir_with_explicit_feature(tmp_path: Path) -> None:
     """_resolve_feature_dir returns feature directory when given an explicit slug."""
@@ -242,10 +244,7 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
     # have kitty-specs/, so the result is None.
     # This confirms the contract: resolution does NOT walk up through the
     # worktree .git pointer (that was feature_detection heuristics, removed).
-    assert result is None, (
-        "_resolve_feature_dir should return None when the feature directory "
-        "does not exist under the given project_root (worktree path)"
-    )
+    assert result is None, "_resolve_feature_dir should return None when the feature directory does not exist under the given project_root (worktree path)"
 
 
 def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
@@ -295,6 +294,7 @@ def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # verify_setup production caller wiring tests
 # --------------------------------------------------------------------------- #
+
 
 def test_verify_setup_passes_feature_dir_to_run_enhanced_verify(tmp_path: Path) -> None:
     """verify_setup should detect feature_dir and pass it to run_enhanced_verify."""
@@ -362,6 +362,7 @@ def test_diagnostics_mode_passes_feature_dir_to_run_diagnostics(tmp_path: Path) 
 # --------------------------------------------------------------------------- #
 # api.py handle_diagnostics wiring test
 # --------------------------------------------------------------------------- #
+
 
 def test_api_handle_diagnostics_runs_without_feature_dir(tmp_path: Path) -> None:
     """APIHandler.handle_diagnostics runs diagnostics with feature_dir=None.

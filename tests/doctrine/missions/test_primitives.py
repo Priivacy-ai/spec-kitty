@@ -16,8 +16,8 @@ It flows through the glossary middleware pipeline, accumulating state
 from doctrine.missions.primitives import PrimitiveExecutionContext
 from specify_cli.glossary.strictness import Strictness
 import pytest
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 def _make_context(**overrides):

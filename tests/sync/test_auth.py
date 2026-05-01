@@ -67,10 +67,7 @@ def test_legacy_auth_classes_not_reintroduced_in_src() -> None:
             if "class CredentialStore" in line and "TrackerCredentialStore" not in line:
                 offenders.append((py_file, line.strip()))
 
-    assert not offenders, (
-        "Legacy password-era classes were reintroduced: "
-        + "; ".join(f"{p}: {snippet}" for p, snippet in offenders)
-    )
+    assert not offenders, "Legacy password-era classes were reintroduced: " + "; ".join(f"{p}: {snippet}" for p, snippet in offenders)
 
 
 # ---------------------------------------------------------------------------
@@ -121,9 +118,7 @@ def test_no_oauth_prefixed_commands() -> None:
         "oauth-status",
         "oauth_status",
     ):
-        assert forbidden not in command_names, (
-            f"Unexpected parallel command '{forbidden}' found: {sorted(command_names)}"
-        )
+        assert forbidden not in command_names, f"Unexpected parallel command '{forbidden}' found: {sorted(command_names)}"
 
 
 # ---------------------------------------------------------------------------

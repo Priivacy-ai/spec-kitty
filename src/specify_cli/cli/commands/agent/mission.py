@@ -223,7 +223,7 @@ def _enforce_git_preflight(
         console.print(f"[red]Error:[/red] {payload['error']}")
         for cmd in payload.get("remediation", []):
             console.print(f"  - Run: {cmd}")
-    raise typer.Exit(1)
+    raise typer.Exit(1) from None
 
 
 def _show_branch_context(
@@ -481,7 +481,7 @@ def branch_context(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         if not is_git_repo(repo_root):
             error_msg = "Not in a git repository. Branch context requires git."
@@ -489,7 +489,7 @@ def branch_context(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         current_branch = get_current_branch(repo_root)
         if not current_branch or current_branch == "HEAD":
@@ -498,7 +498,7 @@ def branch_context(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         resolved_target_branch = str(target_branch).strip() if target_branch and str(target_branch).strip() else current_branch
         payload = {
@@ -616,15 +616,12 @@ def create_mission(
         raise typer.Exit(1) from exc
 
     if gate_outcome.prompted and not gate_outcome.decision.proceed:
-        message = (
-            "Mission creation aborted by operator at branch-strategy gate. "
-            "Switch to a feature branch or pass `--branch-strategy already-confirmed`."
-        )
+        message = "Mission creation aborted by operator at branch-strategy gate. Switch to a feature branch or pass `--branch-strategy already-confirmed`."
         if json_output:
             _emit_json({"error": message, "branch_strategy_gate": "aborted"})
         else:
             console.print(f"[yellow]Aborted:[/yellow] {message}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     try:
         result = create_mission_core(
@@ -892,7 +889,7 @@ def setup_plan(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         _enforce_git_preflight(
             repo_root,
@@ -947,7 +944,7 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {payload['error']}")
                 for step in payload["remediation"]:
                     console.print(f"  - {step}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         # Issue #846 entry gate: spec.md must be committed AND substantive
         # before plan.md can be scaffolded or committed. Section-presence only;
@@ -1469,7 +1466,7 @@ def finalize_tasks(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         # Determine feature directory
         cwd = Path.cwd().resolve()
@@ -1511,7 +1508,7 @@ def finalize_tasks(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
         wp_files = list(tasks_dir.glob("WP*.md"))
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
@@ -1522,7 +1519,7 @@ def finalize_tasks(
                 print(json.dumps({"error": error_msg}))
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         spec_content = spec_md.read_text(encoding="utf-8")
         spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
@@ -1538,7 +1535,7 @@ def finalize_tasks(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 2-tier priority:
@@ -1588,7 +1585,7 @@ def finalize_tasks(
                     if extra_wp_sections:
                         console.print(f"  Extra WP sections: {', '.join(extra_wp_sections)}")
                     console.print(f"  {payload['hint']}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             # FALLBACK: tasks.md text (backward compat for pre-API projects)
             tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
@@ -1608,7 +1605,7 @@ def finalize_tasks(
                     console.print("[red]Error:[/red] Circular dependencies detected:")
                     for cycle in cycles:
                         console.print(f"  {' → '.join(cycle)}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             # Validate each WP's dependencies
             for wp_id, deps in wp_dependencies.items():
@@ -1621,7 +1618,7 @@ def finalize_tasks(
                         console.print(f"[red]Error:[/red] Invalid dependencies for {wp_id}:")
                         for err in errors:
                             console.print(f"  - {err}")
-                    raise typer.Exit(1)
+                    raise typer.Exit(1) from None
 
         # Update each WP file's frontmatter with dependencies + requirement refs
         wp_files = list(tasks_dir.glob("WP*.md"))
@@ -1671,7 +1668,7 @@ def finalize_tasks(
                     console.print("[red]Unmapped functional requirements:[/red]")
                     for req_id in unmapped_functional_requirements:
                         console.print(f"  - {req_id}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         updated_count = 0
         work_packages: list[dict[str, object]] = []
@@ -1719,7 +1716,7 @@ def finalize_tasks(
                 _emit_json({"error": error_msg, "dependency_conflicts": dep_conflict_errors})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         all_ownership_warnings: list[str] = []
 
@@ -2057,8 +2054,7 @@ def finalize_tasks(
                             console.print(f"    coupling: {c}")
             if risk_report.exceeds_threshold and _policy.risk.mode == "block":
                 error_msg = (
-                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold "
-                    f"{risk_report.threshold:.2f}. Adjust the risk policy to proceed."
+                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold {risk_report.threshold:.2f}. Adjust the risk policy to proceed."
                 )
                 if json_output:
                     _emit_json(
@@ -2072,7 +2068,7 @@ def finalize_tasks(
                     )
                 else:
                     console.print(f"[red]Error:[/red] {error_msg}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
         # Run dossier sync before the commit so its deterministic snapshot lands
         # atomically with the rest of the planning artifacts.
@@ -2142,7 +2138,7 @@ def finalize_tasks(
                         print(json.dumps({"error": f"Git commit failed: {error_output}"}))
                     else:
                         console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
-                    raise typer.Exit(1)
+                    raise typer.Exit(1) from None
 
         except typer.Exit:
             raise

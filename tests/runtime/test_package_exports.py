@@ -13,5 +13,6 @@ def test_runtime_lazy_exports_resolve_symbols() -> None:
 
 
 def test_runtime_unknown_export_raises_attribute_error() -> None:
+    missing_export = "definitely_missing_export"
     with pytest.raises(AttributeError):
-        getattr(runtime_pkg, "definitely_missing_export")
+        getattr(runtime_pkg, missing_export)

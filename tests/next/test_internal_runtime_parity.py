@@ -39,6 +39,7 @@ def _load_capture_module() -> ModuleType:
     spec.loader.exec_module(module)
     return module
 
+
 SNAPSHOT_FILES = (
     "snapshot_start_mission_run.json",
     "snapshot_next_step_1.json",
@@ -78,10 +79,7 @@ def test_internalized_runtime_matches_upstream_snapshot(
     captured_text = json.dumps(captured, sort_keys=True, indent=2)
     expected_text = json.dumps(expected, sort_keys=True, indent=2)
 
-    assert captured_text == expected_text, (
-        f"Parity drift in {snapshot_name}:\n--- expected\n{expected_text}\n"
-        f"+++ captured\n{captured_text}"
-    )
+    assert captured_text == expected_text, f"Parity drift in {snapshot_name}:\n--- expected\n{expected_text}\n+++ captured\n{captured_text}"
 
 
 def test_no_spec_kitty_runtime_imports_in_internal_package() -> None:
@@ -90,51 +88,29 @@ def test_no_spec_kitty_runtime_imports_in_internal_package() -> None:
     Walks the ``_internal_runtime`` source files and asserts none of them
     import from ``spec_kitty_runtime`` (top-level, lazy, or conditional).
     """
-    package_root = (
-        Path(__file__).resolve().parents[1].parent
-        / "src"
-        / "specify_cli"
-        / "next"
-        / "_internal_runtime"
-    )
+    package_root = Path(__file__).resolve().parents[1].parent / "src" / "specify_cli" / "next" / "_internal_runtime"
     offenders: list[tuple[Path, int, str]] = []
     for py_file in package_root.rglob("*.py"):
         for lineno, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             stripped = line.lstrip()
             # Match `import spec_kitty_runtime` and `from spec_kitty_runtime…`
             # but ignore any string/docstring mention (look only at top-of-line).
-            if stripped.startswith("import spec_kitty_runtime"):
+            if stripped.startswith("import spec_kitty_runtime") or stripped.startswith("from spec_kitty_runtime"):
                 offenders.append((py_file, lineno, line))
-            elif stripped.startswith("from spec_kitty_runtime"):
-                offenders.append((py_file, lineno, line))
-    assert not offenders, (
-        "spec_kitty_runtime imports must not appear inside _internal_runtime/:\n"
-        + "\n".join(f"  {p}:{n}: {ln}" for p, n, ln in offenders)
-    )
+    assert not offenders, "spec_kitty_runtime imports must not appear inside _internal_runtime/:\n" + "\n".join(f"  {p}:{n}: {ln}" for p, n, ln in offenders)
 
 
 def test_no_rich_or_typer_imports_in_internal_package() -> None:
     """Layer-rule gate: presentation belongs in the CLI layer, not the runtime."""
-    package_root = (
-        Path(__file__).resolve().parents[1].parent
-        / "src"
-        / "specify_cli"
-        / "next"
-        / "_internal_runtime"
-    )
+    package_root = Path(__file__).resolve().parents[1].parent / "src" / "specify_cli" / "next" / "_internal_runtime"
     offenders: list[tuple[Path, int, str]] = []
     for py_file in package_root.rglob("*.py"):
         for lineno, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             stripped = line.lstrip()
             for forbidden in ("rich", "typer"):
-                if stripped.startswith(f"import {forbidden}") or stripped.startswith(
-                    f"from {forbidden}"
-                ):
+                if stripped.startswith(f"import {forbidden}") or stripped.startswith(f"from {forbidden}"):
                     offenders.append((py_file, lineno, line))
-    assert not offenders, (
-        "rich/typer imports must not appear inside _internal_runtime/:\n"
-        + "\n".join(f"  {p}:{n}: {ln}" for p, n, ln in offenders)
-    )
+    assert not offenders, "rich/typer imports must not appear inside _internal_runtime/:\n" + "\n".join(f"  {p}:{n}: {ln}" for p, n, ln in offenders)
 
 
 def test_public_surface_matches_contract() -> None:

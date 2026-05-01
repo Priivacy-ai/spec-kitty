@@ -268,14 +268,9 @@ class ManifestRegistry:
         ]:
             for spec in specs_list:
                 if spec.path_pattern.startswith("/"):
-                    errors.append(
-                        f"Path pattern must be relative: '{spec.path_pattern}' (artifact_key={spec.artifact_key})"
-                    )
+                    errors.append(f"Path pattern must be relative: '{spec.path_pattern}' (artifact_key={spec.artifact_key})")
                 if ".." in spec.path_pattern:
-                    errors.append(
-                        f"Path pattern cannot reference parent directory: '{spec.path_pattern}' "
-                        f"(artifact_key={spec.artifact_key})"
-                    )
+                    errors.append(f"Path pattern cannot reference parent directory: '{spec.path_pattern}' (artifact_key={spec.artifact_key})")
 
         return len(errors) == 0, errors
 

@@ -29,6 +29,7 @@ from specify_cli.core.execution_context import ActionName, ACTION_NAMES
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _setup_project(tmp_path: Path, agents: list[str]) -> None:
     """Create a minimal project with .kittify/config.yaml and agent dirs."""
     kittify = tmp_path / ".kittify"
@@ -55,6 +56,7 @@ def _setup_project(tmp_path: Path, agents: list[str]) -> None:
 # T017-1: implement maps to direct canonical command
 # ---------------------------------------------------------------------------
 
+
 class TestDirectImplementCommand:
     def test_generate_shim_content_direct_implement(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -69,6 +71,7 @@ class TestDirectImplementCommand:
 # ---------------------------------------------------------------------------
 # T017-2: accept maps to direct canonical command
 # ---------------------------------------------------------------------------
+
 
 class TestDirectAcceptCommand:
     def test_generate_shim_content_direct_accept(self) -> None:
@@ -85,6 +88,7 @@ class TestDirectAcceptCommand:
 # ---------------------------------------------------------------------------
 # T017-3: All 7 CLI-driven commands produce correct canonical calls
 # ---------------------------------------------------------------------------
+
 
 class TestAllCliDrivenCommands:
     EXPECTED_PREFIXES = {
@@ -104,9 +108,7 @@ class TestAllCliDrivenCommands:
     def test_command_uses_canonical_prefix(self, command: str) -> None:
         content = generate_shim_content(command, "claude", "$ARGUMENTS")
         expected = self.EXPECTED_PREFIXES[command]
-        assert expected in content, (
-            f"Command '{command}' should contain '{expected}' but got:\n{content}"
-        )
+        assert expected in content, f"Command '{command}' should contain '{expected}' but got:\n{content}"
 
     @pytest.mark.parametrize("command", sorted(CLI_DRIVEN_COMMANDS))
     def test_no_shim_dispatch_in_any_command(self, command: str) -> None:
@@ -117,6 +119,7 @@ class TestAllCliDrivenCommands:
 # ---------------------------------------------------------------------------
 # T017-4: "accept" is in ACTION_NAMES
 # ---------------------------------------------------------------------------
+
 
 class TestAcceptInActionNames:
     def test_accept_in_action_names(self) -> None:
@@ -135,28 +138,33 @@ class TestAcceptInActionNames:
 # T017-5: spec-kitty agent shim CLI is no longer registered
 # ---------------------------------------------------------------------------
 
+
 class TestShimCliRemoved:
     def test_shim_module_deleted(self) -> None:
         """The shim CLI module should no longer exist."""
         import importlib
+
         with pytest.raises((ImportError, ModuleNotFoundError)):
             importlib.import_module("specify_cli.cli.commands.shim")
 
     def test_entrypoints_module_deleted(self) -> None:
         """The shim entrypoints module should no longer exist."""
         import importlib
+
         with pytest.raises((ImportError, ModuleNotFoundError)):
             importlib.import_module("specify_cli.shims.entrypoints")
 
     def test_models_module_deleted(self) -> None:
         """The shim models module should no longer exist."""
         import importlib
+
         with pytest.raises((ImportError, ModuleNotFoundError)):
             importlib.import_module("specify_cli.shims.models")
 
     def test_shim_not_in_agent_app(self) -> None:
         """The agent CLI app should not have a 'shim' subcommand."""
         from specify_cli.cli.commands.agent import app
+
         # Typer stores registered sub-apps in registered_groups
         sub_names = []
         for group in getattr(app, "registered_groups", []):
@@ -168,6 +176,7 @@ class TestShimCliRemoved:
 # ---------------------------------------------------------------------------
 # T017-6: rewrite_agent_shims produces direct commands
 # ---------------------------------------------------------------------------
+
 
 class TestRewriteProducesDirectCommands:
     def test_rewrite_produces_direct_commands(self, tmp_path: Path) -> None:
@@ -183,14 +192,13 @@ class TestRewriteProducesDirectCommands:
             shim_file = cmd_dir / f"spec-kitty.{command}.md"
             if shim_file.exists():
                 content = shim_file.read_text()
-                assert "agent shim" not in content, (
-                    f"{command} still uses old shim dispatch"
-                )
+                assert "agent shim" not in content, f"{command} still uses old shim dispatch"
 
 
 # ---------------------------------------------------------------------------
 # T017-7/8/9: Agent surface verification (.claude, .codex, .opencode)
 # ---------------------------------------------------------------------------
+
 
 class TestAgentSurfaces:
     def test_claude_commands_have_direct_calls(self, tmp_path: Path) -> None:
@@ -216,9 +224,7 @@ class TestAgentSurfaces:
         install(tmp_path, "codex")
 
         skill_md = tmp_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
-        assert skill_md.exists(), (
-            f"Expected Agent Skills package at {skill_md} (post-083 codex layout)"
-        )
+        assert skill_md.exists(), f"Expected Agent Skills package at {skill_md} (post-083 codex layout)"
         content = skill_md.read_text()
         assert "spec-kitty agent action implement" in content
         assert "agent shim" not in content
@@ -238,6 +244,7 @@ class TestAgentSurfaces:
 # ---------------------------------------------------------------------------
 # T017-10: Migration is idempotent
 # ---------------------------------------------------------------------------
+
 
 class TestMigrationIdempotent:
     def test_migration_idempotent(self, tmp_path: Path) -> None:

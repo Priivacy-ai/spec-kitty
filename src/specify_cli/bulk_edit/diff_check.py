@@ -110,9 +110,7 @@ _PATH_RULES: list[tuple[str, list[str]]] = [
 ]
 
 
-_COMPILED_RULES: list[tuple[str, list[re.Pattern[str]]]] = [
-    (category, [re.compile(p) for p in patterns]) for category, patterns in _PATH_RULES
-]
+_COMPILED_RULES: list[tuple[str, list[re.Pattern[str]]]] = [(category, [re.compile(p) for p in patterns]) for category, patterns in _PATH_RULES]
 
 
 def classify_path(path: str) -> str | None:
@@ -160,13 +158,7 @@ def _fnmatch_recursive(path: str, pattern: str) -> bool:
     #   ``*``  -> ``[^/]*``
     #   ``?``  -> ``[^/]``
     placeholder = "\x00DOUBLESTAR\x00"
-    regex = (
-        pattern.replace("**", placeholder)
-        .replace(".", r"\.")
-        .replace("*", "[^/]*")
-        .replace("?", "[^/]")
-        .replace(placeholder, ".*")
-    )
+    regex = pattern.replace("**", placeholder).replace(".", r"\.").replace("*", "[^/]*").replace("?", "[^/]").replace(placeholder, ".*")
     return re.fullmatch(regex, path) is not None
 
 
@@ -180,11 +172,11 @@ class FileAssessment:
     """Per-file classification and verdict."""
 
     path: str
-    category: str | None           # None => unclassified
-    source: str                    # "path-heuristic" | "exception"
-    action: str | None             # None => no action defined in map
-    violation: bool                # True when this file blocks approval
-    reason: str                    # Human-readable rationale
+    category: str | None  # None => unclassified
+    source: str  # "path-heuristic" | "exception"
+    action: str | None  # None => no action defined in map
+    violation: bool  # True when this file blocks approval
+    reason: str  # Human-readable rationale
 
 
 @dataclass(frozen=True)
@@ -247,10 +239,7 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             source="path-heuristic",
             action=None,
             violation=True,
-            reason=(
-                f"File classified as '{category}' but that category is not "
-                "present in the occurrence map (FR-008)."
-            ),
+            reason=(f"File classified as '{category}' but that category is not present in the occurrence map (FR-008)."),
         )
 
     action = category_entry.get("action")
@@ -274,9 +263,7 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
         source="path-heuristic",
         action=action,
         violation=False,
-        reason=(
-            f"Category '{category}' action '{action}' permits modification."
-        ),
+        reason=(f"Category '{category}' action '{action}' permits modification."),
     )
 
 
@@ -294,13 +281,8 @@ def check_diff_compliance(
     violations = [a for a in assessments if a.violation]
     errors = [f"{a.path}: {a.reason}" for a in violations]
 
-    manual_review_files = [
-        a for a in assessments if a.action == "manual_review"
-    ]
-    warnings = [
-        f"{a.path}: category '{a.category}' requires manual_review — document justification"
-        for a in manual_review_files
-    ]
+    manual_review_files = [a for a in assessments if a.action == "manual_review"]
+    warnings = [f"{a.path}: category '{a.category}' requires manual_review — document justification" for a in manual_review_files]
 
     return DiffCheckResult(
         passed=len(violations) == 0,

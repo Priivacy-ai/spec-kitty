@@ -49,8 +49,7 @@ def _resolved_events_version() -> str:
     if locked:
         return locked
     warnings.warn(
-        f"Could not resolve {_PACKAGE_NAME} from uv.lock; falling back to "
-        "importlib.metadata.",
+        f"Could not resolve {_PACKAGE_NAME} from uv.lock; falling back to importlib.metadata.",
         RuntimeWarning,
         stacklevel=2,
     )
@@ -81,9 +80,7 @@ def test_spec_kitty_events_module_version_matches_resolved_pin() -> None:
 
 def test_spec_kitty_events_fixture_shape_retains_mission_identity_fields() -> None:
     """Pinned downstream fixtures MUST retain the canonical mission identity names."""
-    fixture_dir = (
-        resources.files("spec_kitty_events") / "conformance" / "fixtures" / "events" / "valid"
-    )
+    fixture_dir = resources.files("spec_kitty_events") / "conformance" / "fixtures" / "events" / "valid"
     for fixture_name in ("mission_created.json", "mission_closed.json"):
         payload = json.loads((fixture_dir / fixture_name).read_text(encoding="utf-8"))
         assert payload["mission_slug"] == "mission-001"

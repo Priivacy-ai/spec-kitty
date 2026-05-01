@@ -341,9 +341,7 @@ def extract_action_edges(
         # Derive mission name from path: .../missions/<mission>/actions/<action>/index.yaml
         mission_name = index_path.parent.parent.parent.name
         action_urn = f"action:{mission_name}/{action_name}"
-        _ensure_node(
-            nodes_by_urn, action_urn, NodeKind.ACTION, action_name
-        )
+        _ensure_node(nodes_by_urn, action_urn, NodeKind.ACTION, action_name)
 
         # Map of field name -> artifact kind for scope edges
         scope_fields: list[tuple[str, str]] = [
@@ -357,9 +355,7 @@ def extract_action_edges(
         for field_name, kind in scope_fields:
             for raw_id in data.get(field_name, []) or []:
                 tgt_urn = artifact_to_urn(kind, raw_id)
-                _ensure_node(
-                    nodes_by_urn, tgt_urn, _KIND_MAP.get(kind, NodeKind.GLOSSARY_SCOPE)
-                )
+                _ensure_node(nodes_by_urn, tgt_urn, _KIND_MAP.get(kind, NodeKind.GLOSSARY_SCOPE))
                 _add_edge(
                     DRGEdge(
                         source=action_urn,
@@ -507,14 +503,8 @@ def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
         "schema_version": graph.schema_version,
         "generated_at": graph.generated_at,
         "generated_by": graph.generated_by,
-        "nodes": [
-            _node_to_dict(n)
-            for n in graph.nodes
-        ],
-        "edges": [
-            _edge_to_dict(e)
-            for e in graph.edges
-        ],
+        "nodes": [_node_to_dict(n) for n in graph.nodes],
+        "edges": [_edge_to_dict(e) for e in graph.edges],
     }
 
     yaml_writer = YAML()

@@ -124,9 +124,7 @@ def _load_contract_schema() -> dict | None:
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
-_FEATURE_SLUG_PATTERN = re.compile(
-    r"^(?:\d{3}-[a-z0-9-]+|[a-z0-9]+(?:-[a-z0-9]+)*-[0-9A-HJKMNP-TV-Z]{8})$"
-)
+_FEATURE_SLUG_PATTERN = re.compile(r"^(?:\d{3}-[a-z0-9-]+|[a-z0-9]+(?:-[a-z0-9]+)*-[0-9A-HJKMNP-TV-Z]{8})$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
 
 
@@ -150,11 +148,7 @@ def _is_actor_payload(value: Any) -> bool:
         return False
     actor_id = value.get("actor_id")
     actor_type = value.get("actor_type")
-    return (
-        isinstance(actor_id, str)
-        and len(actor_id.strip()) >= 1
-        and actor_type in {"human", "llm", "service"}
-    )
+    return isinstance(actor_id, str) and len(actor_id.strip()) >= 1 and actor_type in {"human", "llm", "service"}
 
 
 def _is_non_negative_number(value: Any) -> bool:
@@ -169,10 +163,7 @@ def _default_mission_display_name(mission_slug: str) -> str:
 
 
 def _default_mission_purpose_context(display_name: str, target_branch: str) -> str:
-    return (
-        f"This mission advances {display_name} on {target_branch} so stakeholders can "
-        "track the work from mission creation onward."
-    )
+    return f"This mission advances {display_name} on {target_branch} so stakeholders can track the work from mission creation onward."
 
 
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
@@ -229,8 +220,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "title": lambda v: isinstance(v, str) and len(v) >= 1,
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "dependencies": lambda v: isinstance(v, list)
-            and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
+            "dependencies": lambda v: isinstance(v, list) and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
         },
     },
     "WPAssigned": {
@@ -502,8 +492,12 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     },
     "MissionOriginBound": {
         "required": {
-            "mission_slug", "provider", "external_issue_id",
-            "external_issue_key", "external_issue_url", "title",
+            "mission_slug",
+            "provider",
+            "external_issue_id",
+            "external_issue_key",
+            "external_issue_url",
+            "title",
         },
         "validators": {
             "mission_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
@@ -1030,15 +1024,9 @@ class EventEmitter:
         if hasattr(value, "model_dump"):
             return value.model_dump(mode="json")
         if hasattr(value, "__dict__"):
-            return {
-                key: EventEmitter._jsonify(val)
-                for key, val in vars(value).items()
-            }
+            return {key: EventEmitter._jsonify(val) for key, val in vars(value).items()}
         if isinstance(value, dict):
-            return {
-                str(key): EventEmitter._jsonify(val)
-                for key, val in value.items()
-            }
+            return {str(key): EventEmitter._jsonify(val) for key, val in value.items()}
         if isinstance(value, tuple):
             return [EventEmitter._jsonify(item) for item in value]
         if isinstance(value, list):
@@ -1412,7 +1400,8 @@ class EventEmitter:
             clock_value = self.clock.tick()
             logger.debug(
                 "Emitting %s event with Lamport clock: %d",
-                event_type, clock_value,
+                event_type,
+                clock_value,
             )
 
             # Resolve identity and team_slug
@@ -1459,9 +1448,7 @@ class EventEmitter:
 
             # Check project_uuid: if missing, queue only (no WebSocket send)
             if not event.get("project_uuid"):
-                _console.print(
-                    "[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]"
-                )
+                _console.print("[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]")
                 self.queue.queue_event(event)
                 return event
 
@@ -1518,18 +1505,13 @@ class EventEmitter:
                 return False
 
             if event.get("aggregate_type") not in VALID_AGGREGATE_TYPES:
-                _console.print(
-                    f"[yellow]Warning: Invalid aggregate_type: "
-                    f"{event.get('aggregate_type')}[/yellow]"
-                )
+                _console.print(f"[yellow]Warning: Invalid aggregate_type: {event.get('aggregate_type')}[/yellow]")
                 return False
 
             # 3. Validate event_type is one of the 8 known types
             event_type = event["event_type"]
             if event_type not in VALID_EVENT_TYPES:
-                _console.print(
-                    f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]"
-                )
+                _console.print(f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]")
                 return False
 
             # 3b. Normalize + validate envelope IDs (ULID or UUID accepted)
@@ -1575,10 +1557,7 @@ class EventEmitter:
         # Check required fields
         missing = rules["required"] - set(payload.keys())
         if missing:
-            _console.print(
-                f"[yellow]Warning: {event_type} payload missing required "
-                f"fields: {missing}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: {event_type} payload missing required fields: {missing}[/yellow]")
             return False
 
         # Run field-level validators
@@ -1586,10 +1565,7 @@ class EventEmitter:
             if field_name in payload:
                 value = payload[field_name]
                 if not validator(value):
-                    _console.print(
-                        f"[yellow]Warning: {event_type} payload field "
-                        f"'{field_name}' has invalid value: {value!r}[/yellow]"
-                    )
+                    _console.print(f"[yellow]Warning: {event_type} payload field '{field_name}' has invalid value: {value!r}[/yellow]")
                     return False
 
         return True
@@ -1613,6 +1589,7 @@ class EventEmitter:
             if authenticated and self.ws_client is not None and self.ws_client.connected:
                 try:
                     import asyncio
+
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         task = asyncio.ensure_future(self.ws_client.send_event(event))
@@ -1623,16 +1600,12 @@ class EventEmitter:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True
                 except Exception as e:
-                    _console.print(
-                        f"[yellow]Warning: WebSocket send failed; event remains queued: {e}[/yellow]"
-                    )
+                    _console.print(f"[yellow]Warning: WebSocket send failed; event remains queued: {e}[/yellow]")
 
             return queued
 
         except Exception as e:
-            _console.print(
-                f"[yellow]Warning: Event routing failed: {e}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: Event routing failed: {e}[/yellow]")
             return False
 
     def _queue_if_async_send_failed(self, completed: object, event: dict[str, Any]) -> None:

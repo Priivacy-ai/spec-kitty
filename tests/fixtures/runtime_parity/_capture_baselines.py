@@ -31,7 +31,8 @@ import re
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 FIXTURE_DIR = Path(__file__).resolve().parent
 REFERENCE_MISSION_DIR = FIXTURE_DIR / "reference_mission"

@@ -175,9 +175,7 @@ class BackgroundSyncService:
             # Timer thread is stuck holding the lock; skip the final sync
             # rather than blocking shutdown.
             if succeeded:
-                logger.debug(
-                    "Could not acquire sync lock within 5 s; skipping final sync (post-success)"
-                )
+                logger.debug("Could not acquire sync lock within 5 s; skipping final sync (post-success)")
             else:
                 logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
             return
@@ -188,21 +186,20 @@ class BackgroundSyncService:
         body_queue_has_work = _safe_optional_queue_size(self._body_queue) > 0
         if self.queue.size() > 0 or body_queue_has_work:
             sync_thread = threading.Thread(
-                target=self._guarded_final_sync, daemon=True,
+                target=self._guarded_final_sync,
+                daemon=True,
             )
             sync_thread.start()
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
                 if succeeded:
                     logger.debug(
-                        "Final sync did not complete within %ds (post-success); "
-                        "queued events will be drained by the daemon",
+                        "Final sync did not complete within %ds (post-success); queued events will be drained by the daemon",
                         _STOP_SYNC_TIMEOUT_SECONDS,
                     )
                 else:
                     logger.warning(
-                        "Final sync did not complete within %ds; "
-                        "queued events will be drained by the daemon",
+                        "Final sync did not complete within %ds; queued events will be drained by the daemon",
                         _STOP_SYNC_TIMEOUT_SECONDS,
                     )
         logger.debug("Background sync service stopped")
@@ -303,8 +300,7 @@ class BackgroundSyncService:
                     self._consecutive_failures += 1
                     self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
                     logger.warning(
-                        "Full sync auth failure (attempt %d): "
-                        "run `spec-kitty auth login` to re-authenticate",
+                        "Full sync auth failure (attempt %d): run `spec-kitty auth login` to re-authenticate",
                         self._consecutive_failures,
                     )
                     return result
@@ -364,8 +360,7 @@ class BackgroundSyncService:
                 self._consecutive_failures += 1
                 self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
                 logger.warning(
-                    "Sync auth failure (attempt %d, next backoff %.1fs): "
-                    "run `spec-kitty auth login` to re-authenticate",
+                    "Sync auth failure (attempt %d, next backoff %.1fs): run `spec-kitty auth login` to re-authenticate",
                     self._consecutive_failures,
                     self._backoff_seconds,
                 )
@@ -426,7 +421,9 @@ class BackgroundSyncService:
             self._handle_body_outcome(task, outcome)
 
     def _handle_body_outcome(
-        self, task: BodyUploadTask, outcome: UploadOutcome,
+        self,
+        task: BodyUploadTask,
+        outcome: UploadOutcome,
     ) -> None:
         """Update queue based on upload outcome."""
         from .namespace import UploadStatus

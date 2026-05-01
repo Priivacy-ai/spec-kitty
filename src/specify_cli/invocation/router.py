@@ -22,14 +22,55 @@ from specify_cli.invocation.registry import ProfileRegistry
 # Stop-words stripped during token normalization (ADR-3 §"Token normalization")
 # ---------------------------------------------------------------------------
 
-STOP_WORDS = frozenset({
-    "a", "an", "the", "this", "that", "these", "those",
-    "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did",
-    "will", "would", "could", "should", "may", "might", "must", "can",
-    "please", "kindly", "some", "for", "me", "us", "our", "my",
-    "to", "and", "or", "in", "on", "at", "of", "with", "by",
-})
+STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "this",
+        "that",
+        "these",
+        "those",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "can",
+        "please",
+        "kindly",
+        "some",
+        "for",
+        "me",
+        "us",
+        "our",
+        "my",
+        "to",
+        "and",
+        "or",
+        "in",
+        "on",
+        "at",
+        "of",
+        "with",
+        "by",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # CANONICAL_VERB_MAP: request token → (canonical_action, Role)
@@ -111,6 +152,7 @@ CANONICAL_VERB_MAP: dict[str, tuple[str, Role]] = {
 # RouterDecision: frozen result returned on successful routing
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class RouterDecision:
     """Resolved routing result — immutable, serializable."""
@@ -126,6 +168,7 @@ class RouterDecision:
 # Reserved for future hybrid routing; not called in v1.
 # ---------------------------------------------------------------------------
 
+
 class ActionRouterPlugin:
     """No-op Protocol stub — reserved for future hybrid routing extension.
 
@@ -138,6 +181,7 @@ class ActionRouterPlugin:
 # Public helpers
 # ---------------------------------------------------------------------------
 
+
 def _normalize_tokens(text: str) -> list[str]:
     """Lowercase, split on whitespace/punctuation, drop stop-words."""
     raw = re.split(r"[\s\W]+", text.lower())
@@ -147,6 +191,7 @@ def _normalize_tokens(text: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # ActionRouter
 # ---------------------------------------------------------------------------
+
 
 class ActionRouter:
     """Deterministic request → (profile_id, action) router.
@@ -242,9 +287,7 @@ class ActionRouter:
             kws: list[str] = list(sc.domain_keywords) if sc and sc.domain_keywords else []
             # Also fold in collaboration.canonical_verbs as profile-level verb signals
             collab = getattr(profile, "collaboration", None)
-            collab_verbs: list[str] = (
-                list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
-            )
+            collab_verbs: list[str] = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
             for cv in collab_verbs:
                 if cv not in kws:
                     kws.append(cv)
@@ -263,23 +306,27 @@ class ActionRouter:
         for role, (action, token) in verb_matches.items():
             role_profiles = [p for p in profiles if getattr(p, "role", None) == role]
             for p in role_profiles:
-                candidates.append({
-                    "profile_id": p.profile_id,
-                    "action": action,
-                    "match_reason": f"token '{token}' matched {role.value} canonical verb",
-                    "_confidence": "canonical_verb",
-                })
+                candidates.append(
+                    {
+                        "profile_id": p.profile_id,
+                        "action": action,
+                        "match_reason": f"token '{token}' matched {role.value} canonical verb",
+                        "_confidence": "canonical_verb",
+                    }
+                )
 
         # Keyword-matched profiles (only add if not already in candidates)
         existing_ids = {c["profile_id"] for c in candidates}
         for profile_id, action, kw in keyword_matches:
             if profile_id not in existing_ids:
-                candidates.append({
-                    "profile_id": profile_id,
-                    "action": action,
-                    "match_reason": f"domain keyword '{kw}' matched",
-                    "_confidence": "domain_keyword",
-                })
+                candidates.append(
+                    {
+                        "profile_id": profile_id,
+                        "action": action,
+                        "match_reason": f"domain keyword '{kw}' matched",
+                        "_confidence": "domain_keyword",
+                    }
+                )
                 existing_ids.add(profile_id)
 
         if not candidates:

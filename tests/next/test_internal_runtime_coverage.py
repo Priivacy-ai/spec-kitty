@@ -13,7 +13,7 @@ constructed in-memory inputs.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -31,17 +31,14 @@ from specify_cli.next._internal_runtime import (
     provide_decision_answer,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime import contracts as contracts_mod
 from specify_cli.next._internal_runtime import discovery as discovery_mod
 from specify_cli.next._internal_runtime import emitter as emitter_mod
 from specify_cli.next._internal_runtime import engine as engine_mod
 from specify_cli.next._internal_runtime import events as events_mod
 from specify_cli.next._internal_runtime import lifecycle as lifecycle_mod
 from specify_cli.next._internal_runtime import models as models_mod
-from specify_cli.next._internal_runtime import planner as planner_mod
 from specify_cli.next._internal_runtime import raci as raci_mod
 from specify_cli.next._internal_runtime import schema as schema_mod
-from specify_cli.next._internal_runtime import significance as sig_mod
 from specify_cli.next._internal_runtime.contracts import RemediationPayload
 from specify_cli.next._internal_runtime.discovery import (
     DiscoveryResult,
@@ -54,9 +51,7 @@ from specify_cli.next._internal_runtime.discovery import (
     load_mission_template,
 )
 from specify_cli.next._internal_runtime.engine import (
-    TransitionGate,
     notify_decision_timeout,
-    resolve_context,
     validate_binding,
 )
 from specify_cli.next._internal_runtime.events import JsonlEventLog
@@ -72,8 +67,6 @@ from specify_cli.next._internal_runtime.schema import (
     AuditStep,
     ContextType,
     ContextTypeRegistry,
-    DecisionAnswer,
-    DecisionRequest,
     MissionMeta,
     MissionRunSnapshot,
     MissionRuntimeError,
@@ -90,11 +83,8 @@ from specify_cli.next._internal_runtime.significance import (
     HARD_TRIGGER_REGISTRY,
     DimensionScoreOverride,
     HardTriggerClass,
-    RoutingBand,
     SignificanceDimension,
     SignificanceScore,
-    SoftGateDecision,
-    TimeoutPolicy,
     compute_escalation_targets,
     evaluate_significance,
     make_routing_bands,
@@ -153,9 +143,7 @@ def _make_simple_template() -> MissionTemplate:
         mission=MissionMeta(key="t", name="T", version="1.0.0"),
         steps=[
             PromptStep(id="s1", title="Step 1", prompt="Do 1."),
-            PromptStep(
-                id="s2", title="Step 2", depends_on=["s1"], prompt="Do 2."
-            ),
+            PromptStep(id="s2", title="Step 2", depends_on=["s1"], prompt="Do 2."),
         ],
         audit_steps=[],
     )
@@ -200,9 +188,7 @@ def test_remediation_missing_default_metadata() -> None:
 
 
 def test_remediation_missing_with_metadata() -> None:
-    payload = RemediationPayload.missing(
-        "feature_binding", resolver_metadata={"resolver": "explicit_inputs"}
-    )
+    payload = RemediationPayload.missing("feature_binding", resolver_metadata={"resolver": "explicit_inputs"})
     assert payload.resolver_metadata == {"resolver": "explicit_inputs"}
 
 
@@ -235,9 +221,7 @@ def test_remediation_invalid_with_validation_failures() -> None:
 
 
 def test_remediation_invalid_without_validation_failures() -> None:
-    payload = RemediationPayload.invalid(
-        "spec_artifact", candidates=[{"source": "fs"}]
-    )
+    payload = RemediationPayload.invalid("spec_artifact", candidates=[{"source": "fs"}])
     assert "failed validation against declared rules" in payload.remediation_hint
 
 
@@ -332,9 +316,7 @@ def test_discover_missions_with_warnings_collects_load_failures(tmp_path: Path) 
     bad_mission = tmp_path / "bad" / "mission.yaml"
     bad_mission.parent.mkdir(parents=True)
     bad_mission.write_text("not: yaml: but {valid}? [\n", encoding="utf-8")
-    ctx = DiscoveryContext(
-        explicit_paths=[bad_mission], user_home=tmp_path / "home"
-    )
+    ctx = DiscoveryContext(explicit_paths=[bad_mission], user_home=tmp_path / "home")
     result = discover_missions_with_warnings(ctx)
     assert isinstance(result, DiscoveryResult)
     assert result.warnings, "Expected at least one DiscoveryWarning"
@@ -470,27 +452,11 @@ def test_null_emitter_methods_are_no_ops() -> None:
     )
 
     null = NullEmitter(correlation_id="test")
-    actor = RuntimeActorIdentity(
-        actor_id="a", actor_type="service", provider=None, model=None, tool=None
-    )
-    null.emit_mission_run_started(
-        MissionRunStartedPayload(run_id="r", mission_type="m", actor=actor)
-    )
-    null.emit_next_step_issued(
-        NextStepIssuedPayload(
-            run_id="r", step_id="s", agent_id="agent-1", actor=actor
-        )
-    )
-    null.emit_next_step_auto_completed(
-        NextStepAutoCompletedPayload(
-            run_id="r", step_id="s", agent_id="agent-1", result="success", actor=actor
-        )
-    )
-    null.emit_decision_input_requested(
-        DecisionInputRequestedPayload(
-            run_id="r", step_id="s", decision_id="d", question="q?", actor=actor
-        )
-    )
+    actor = RuntimeActorIdentity(actor_id="a", actor_type="service", provider=None, model=None, tool=None)
+    null.emit_mission_run_started(MissionRunStartedPayload(run_id="r", mission_type="m", actor=actor))
+    null.emit_next_step_issued(NextStepIssuedPayload(run_id="r", step_id="s", agent_id="agent-1", actor=actor))
+    null.emit_next_step_auto_completed(NextStepAutoCompletedPayload(run_id="r", step_id="s", agent_id="agent-1", result="success", actor=actor))
+    null.emit_decision_input_requested(DecisionInputRequestedPayload(run_id="r", step_id="s", decision_id="d", question="q?", actor=actor))
     null.emit_decision_input_answered(
         DecisionInputAnsweredPayload(
             run_id="r",
@@ -499,9 +465,7 @@ def test_null_emitter_methods_are_no_ops() -> None:
             actor=actor,
         )
     )
-    null.emit_mission_run_completed(
-        MissionRunCompletedPayload(run_id="r", mission_type="m", actor=actor)
-    )
+    null.emit_mission_run_completed(MissionRunCompletedPayload(run_id="r", mission_type="m", actor=actor))
     # Assertions: just checking these don't raise; correlation_id stored.
     assert null.correlation_id == "test"
 
@@ -535,13 +499,9 @@ def test_plan_next_template_drift_blocks(tmp_path: Path) -> None:
         template_path=str(live),
         template_hash="0" * 64,  # bogus hash -> drift
     )
-    decision = plan_next(
-        snap, template, MissionPolicySnapshot(), live_template_path=live
-    )
+    decision = plan_next(snap, template, MissionPolicySnapshot(), live_template_path=live)
     assert decision.kind == "blocked"
-    assert "drift" in (decision.reason or "").lower() or "Template changed" in (
-        decision.reason or ""
-    )
+    assert "drift" in (decision.reason or "").lower() or "Template changed" in (decision.reason or "")
 
 
 def test_plan_next_template_drift_skipped_when_live_missing(tmp_path: Path) -> None:
@@ -553,9 +513,7 @@ def test_plan_next_template_drift_skipped_when_live_missing(tmp_path: Path) -> N
         template_path=str(live),
         template_hash="0" * 64,
     )
-    decision = plan_next(
-        snap, template, MissionPolicySnapshot(), live_template_path=live
-    )
+    decision = plan_next(snap, template, MissionPolicySnapshot(), live_template_path=live)
     # No drift error because live file doesn't exist
     assert decision.kind == "step"
 
@@ -568,10 +526,8 @@ def test_plan_next_pending_decision_audit_branch() -> None:
             "step_id": "s1",
             "question": "Audit ok?",
             "options": ["approve", "reject"],
-            "requested_by": ActorIdentity(
-                actor_id="x", actor_type="human", provider=None, model=None, tool=None
-            ).model_dump(mode="json"),
-            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "requested_by": ActorIdentity(actor_id="x", actor_type="human", provider=None, model=None, tool=None).model_dump(mode="json"),
+            "requested_at": datetime.now(UTC).isoformat(),
         }
     }
     snap = MissionRunSnapshot(
@@ -595,10 +551,8 @@ def test_plan_next_pending_decision_input_branch() -> None:
             "step_id": "s1",
             "question": "Topic?",
             "options": [],
-            "requested_by": ActorIdentity(
-                actor_id="x", actor_type="human", provider=None, model=None, tool=None
-            ).model_dump(mode="json"),
-            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "requested_by": ActorIdentity(actor_id="x", actor_type="human", provider=None, model=None, tool=None).model_dump(mode="json"),
+            "requested_at": datetime.now(UTC).isoformat(),
         }
     }
     snap = MissionRunSnapshot(
@@ -693,11 +647,7 @@ def test_plan_next_audit_advisory_returns_step() -> None:
 def test_plan_next_step_with_missing_input_emits_input_decision() -> None:
     template = MissionTemplate(
         mission=MissionMeta(key="t", name="T", version="1.0.0"),
-        steps=[
-            PromptStep(
-                id="s1", title="S1", requires_inputs=["topic"], prompt="Do."
-            )
-        ],
+        steps=[PromptStep(id="s1", title="S1", requires_inputs=["topic"], prompt="Do.")],
     )
     snap = MissionRunSnapshot(
         run_id="r1",
@@ -728,9 +678,7 @@ def test_plan_next_step_default_prompt_falls_back() -> None:
 
 
 def test_serialize_decision_is_canonical() -> None:
-    decision = NextDecision(
-        kind="terminal", run_id="r", mission_key="t", reason="done"
-    )
+    decision = NextDecision(kind="terminal", run_id="r", mission_key="t", reason="done")
     serialized = serialize_decision(decision)
     assert '"kind":"terminal"' in serialized
     assert '"run_id":"r"' in serialized
@@ -750,9 +698,7 @@ def test_infer_raci_for_prompt_step() -> None:
 
 
 def test_infer_raci_for_audit_blocking() -> None:
-    step = AuditStep(
-        id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="blocking")
-    )
+    step = AuditStep(id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="blocking"))
     binding = infer_raci(step, MissionPolicySnapshot())
     assert binding.responsible.actor_type == "human"
     assert binding.accountable.actor_type == "human"
@@ -760,9 +706,7 @@ def test_infer_raci_for_audit_blocking() -> None:
 
 
 def test_infer_raci_for_audit_advisory() -> None:
-    step = AuditStep(
-        id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="advisory")
-    )
+    step = AuditStep(id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="advisory"))
     binding = infer_raci(step, MissionPolicySnapshot())
     assert binding.responsible.actor_type == "llm"
     assert binding.inferred_rule == "audit_advisory"
@@ -784,9 +728,7 @@ def test_validate_raci_assignment_blocks_audit_with_llm_responsible() -> None:
         responsible=RACIRoleBinding(actor_type="llm"),
         accountable=RACIRoleBinding(actor_type="human"),
     )
-    audit_step = AuditStep(
-        id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="blocking")
-    )
+    audit_step = AuditStep(id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="blocking"))
     ok, errors = validate_raci_assignment(assignment, audit_step)
     assert not ok
     assert any("responsible must be human" in e for e in errors)
@@ -835,9 +777,7 @@ def test_resolve_raci_optional_consulted_passthrough() -> None:
         raci=explicit,
         raci_override_reason="reason",
     )
-    binding = resolve_raci(
-        step, {"service_id": "audit-bot"}, MissionPolicySnapshot()
-    )
+    binding = resolve_raci(step, {"service_id": "audit-bot"}, MissionPolicySnapshot())
     assert binding.consulted[0].actor_id == "audit-bot"
 
 
@@ -846,10 +786,7 @@ def test_actor_type_to_input_key_unknown_falls_through() -> None:
 
 
 def test_lookup_actor_id_strips_whitespace() -> None:
-    assert (
-        raci_mod._lookup_actor_id("human", {"mission_owner_id": "  joe  "})
-        == "joe"
-    )
+    assert raci_mod._lookup_actor_id("human", {"mission_owner_id": "  joe  "}) == "joe"
     assert raci_mod._lookup_actor_id("human", {"mission_owner_id": "   "}) is None
     assert raci_mod._lookup_actor_id("human", {"mission_owner_id": 42}) is None
 
@@ -897,23 +834,17 @@ def test_validate_band_cutoffs_rejects_missing_band() -> None:
 
 def test_validate_band_cutoffs_rejects_overlap() -> None:
     with pytest.raises(ValueError, match="Overlap"):
-        validate_band_cutoffs(
-            {"low": [0, 8], "medium": [7, 11], "high": [12, 18]}
-        )
+        validate_band_cutoffs({"low": [0, 8], "medium": [7, 11], "high": [12, 18]})
 
 
 def test_validate_band_cutoffs_rejects_non_pair() -> None:
     with pytest.raises(ValueError, match="must be a"):
-        validate_band_cutoffs(
-            {"low": [0], "medium": [7, 11], "high": [12, 18]}
-        )
+        validate_band_cutoffs({"low": [0], "medium": [7, 11], "high": [12, 18]})
 
 
 def test_validate_band_cutoffs_rejects_min_gt_max() -> None:
     with pytest.raises(ValueError, match="min_score"):
-        validate_band_cutoffs(
-            {"low": [6, 0], "medium": [7, 11], "high": [12, 18]}
-        )
+        validate_band_cutoffs({"low": [6, 0], "medium": [7, 11], "high": [12, 18]})
 
 
 def test_make_routing_bands_returns_default_when_none() -> None:
@@ -922,9 +853,7 @@ def test_make_routing_bands_returns_default_when_none() -> None:
 
 
 def test_make_routing_bands_uses_custom_cutoffs() -> None:
-    bands = make_routing_bands(
-        {"low": [0, 5], "medium": [6, 10], "high": [11, 18]}
-    )
+    bands = make_routing_bands({"low": [0, 5], "medium": [6, 10], "high": [11, 18]})
     assert len(bands) == 3
     band_names = {b.name for b in bands}
     assert band_names == {"low", "medium", "high"}
@@ -951,7 +880,7 @@ def test_evaluate_significance_low_band_no_triggers() -> None:
 
 
 def test_evaluate_significance_high_band_via_score() -> None:
-    high_dims = {k: 3 for k in _VALID_DIMS}
+    high_dims = dict.fromkeys(_VALID_DIMS, 3)
     score = evaluate_significance(high_dims)
     assert score.composite == 18
     assert score.effective_band.name == "high"
@@ -978,7 +907,7 @@ def test_dimension_score_override_records_audit() -> None:
         override_reason="manual review forced this",
         original_scores={"user_customer_impact": 0},
         new_scores={"user_customer_impact": 3},
-        override_timestamp=datetime.now(timezone.utc),
+        override_timestamp=datetime.now(UTC),
     )
     assert override.override_reason == "manual review forced this"
 
@@ -991,7 +920,7 @@ def test_dimension_score_override_rejects_non_human_actor() -> None:
             override_reason="bot override",
             original_scores={"user_customer_impact": 0},
             new_scores={"user_customer_impact": 1},
-            override_timestamp=datetime.now(timezone.utc),
+            override_timestamp=datetime.now(UTC),
         )
 
 
@@ -1039,24 +968,18 @@ def test_parse_timeout_from_policy_returns_default_when_absent() -> None:
 
 
 def test_parse_timeout_from_policy_extracts_seconds() -> None:
-    policy = MissionPolicySnapshot(
-        extras={"significance_default_timeout_seconds": 120}
-    )
+    policy = MissionPolicySnapshot(extras={"significance_default_timeout_seconds": 120})
     assert parse_timeout_from_policy(policy) == 120
 
 
 def test_parse_timeout_from_policy_rejects_non_int() -> None:
-    policy = MissionPolicySnapshot(
-        extras={"significance_default_timeout_seconds": "120"}
-    )
+    policy = MissionPolicySnapshot(extras={"significance_default_timeout_seconds": "120"})
     with pytest.raises(ValueError, match="must be int"):
         parse_timeout_from_policy(policy)
 
 
 def test_parse_timeout_from_policy_rejects_non_positive() -> None:
-    policy = MissionPolicySnapshot(
-        extras={"significance_default_timeout_seconds": 0}
-    )
+    policy = MissionPolicySnapshot(extras={"significance_default_timeout_seconds": 0})
     with pytest.raises(ValueError, match="> 0"):
         parse_timeout_from_policy(policy)
 
@@ -1102,9 +1025,7 @@ def test_context_type_registry_lists_builtins() -> None:
 
 def test_step_context_contract_rejects_unknown_type_without_resolver() -> None:
     with pytest.raises(ValidationError):
-        StepContextContract(
-            requires=[ContextType(type="zzz_unknown_xyz")]
-        )
+        StepContextContract(requires=[ContextType(type="zzz_unknown_xyz")])
 
 
 def test_step_context_contract_validate_contract_detects_overlap() -> None:
@@ -1132,9 +1053,7 @@ def test_load_mission_template_file_rejects_non_mapping(tmp_path: Path) -> None:
 def test_load_mission_template_file_rejects_no_steps(tmp_path: Path) -> None:
     bad = tmp_path / "mission.yaml"
     bad.write_text(
-        yaml.safe_dump(
-            {"mission": {"key": "x", "name": "X", "version": "1.0.0"}}
-        ),
+        yaml.safe_dump({"mission": {"key": "x", "name": "X", "version": "1.0.0"}}),
         encoding="utf-8",
     )
     with pytest.raises(MissionRuntimeError, match="no steps"):
@@ -1240,25 +1159,19 @@ def test_validate_binding_path_exists_fail(tmp_path: Path) -> None:
 
 
 def test_validate_binding_slug_format_pass() -> None:
-    ctx = ContextType(
-        type="feature_binding", validation={"slug_format": r"[a-z0-9-]+"}
-    )
+    ctx = ContextType(type="feature_binding", validation={"slug_format": r"[a-z0-9-]+"})
     ok, err = validate_binding("my-feature-01", ctx)
     assert ok
 
 
 def test_validate_binding_slug_format_fail() -> None:
-    ctx = ContextType(
-        type="feature_binding", validation={"slug_format": r"[a-z0-9-]+"}
-    )
+    ctx = ContextType(type="feature_binding", validation={"slug_format": r"[a-z0-9-]+"})
     ok, err = validate_binding("INVALID Slug!", ctx)
     assert not ok
 
 
 def test_validate_binding_unknown_rule_returns_error() -> None:
-    ctx = ContextType(
-        type="feature_binding", validation={"made_up_rule": True}
-    )
+    ctx = ContextType(type="feature_binding", validation={"made_up_rule": True})
     ok, err = validate_binding("x", ctx)
     assert not ok
     assert err is not None
@@ -1266,9 +1179,7 @@ def test_validate_binding_unknown_rule_returns_error() -> None:
 
 
 def test_validate_binding_artifact_exists_disabled() -> None:
-    ctx = ContextType(
-        type="spec_artifact", validation={"artifact_exists": False}
-    )
+    ctx = ContextType(type="spec_artifact", validation={"artifact_exists": False})
     # Disabled rule -> always passes.
     ok, err = validate_binding("/no/such/path", ctx)
     assert ok
@@ -1361,9 +1272,7 @@ def test_provide_decision_answer_without_pending_raises(tmp_path: Path) -> None:
 def test_next_step_failed_result_blocks_run(tmp_path: Path) -> None:
     yaml_path = _write_simple_mission(tmp_path / "missions")
     run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home"
-    )
+    ctx = DiscoveryContext(explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home")
     run_ref = start_mission_run(
         template_key=str(yaml_path),
         inputs={"topic": "x"},
@@ -1375,9 +1284,7 @@ def test_next_step_failed_result_blocks_run(tmp_path: Path) -> None:
     # Issue first step (success path).
     next_step(run_ref, agent_id="a", emitter=NullEmitter())
     # Mark current step as failed -> blocked.
-    decision = next_step(
-        run_ref, agent_id="a", result="failed", emitter=NullEmitter()
-    )
+    decision = next_step(run_ref, agent_id="a", result="failed", emitter=NullEmitter())
     assert decision.kind == "blocked"
     assert "failed" in (decision.reason or "").lower()
 
@@ -1385,9 +1292,7 @@ def test_next_step_failed_result_blocks_run(tmp_path: Path) -> None:
 def test_next_step_blocked_result_blocks_run(tmp_path: Path) -> None:
     yaml_path = _write_simple_mission(tmp_path / "missions")
     run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home"
-    )
+    ctx = DiscoveryContext(explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home")
     run_ref = start_mission_run(
         template_key=str(yaml_path),
         inputs={"topic": "x"},
@@ -1397,9 +1302,7 @@ def test_next_step_blocked_result_blocks_run(tmp_path: Path) -> None:
         emitter=NullEmitter(),
     )
     next_step(run_ref, agent_id="a", emitter=NullEmitter())
-    decision = next_step(
-        run_ref, agent_id="a", result="blocked", emitter=NullEmitter()
-    )
+    decision = next_step(run_ref, agent_id="a", result="blocked", emitter=NullEmitter())
     assert decision.kind == "blocked"
     assert "blocked" in (decision.reason or "").lower()
 
@@ -1412,9 +1315,7 @@ def test_next_step_blocked_result_blocks_run(tmp_path: Path) -> None:
 def test_notify_decision_timeout_raises_for_unknown_decision(tmp_path: Path) -> None:
     yaml_path = _write_simple_mission(tmp_path / "missions")
     run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home"
-    )
+    ctx = DiscoveryContext(explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home")
     run_ref = start_mission_run(
         template_key=str(yaml_path),
         inputs={"topic": "x", "mission_owner_id": "owner-9"},
@@ -1453,6 +1354,4 @@ def test_internal_runtime_does_not_import_quarantined_runtime() -> None:
                 continue
             if "spec_kitty_runtime" in stripped:
                 offenders.append(f"{py_file.name}: {stripped}")
-    assert offenders == [], (
-        "_internal_runtime must not import spec_kitty_runtime: " + "; ".join(offenders)
-    )
+    assert offenders == [], "_internal_runtime must not import spec_kitty_runtime: " + "; ".join(offenders)

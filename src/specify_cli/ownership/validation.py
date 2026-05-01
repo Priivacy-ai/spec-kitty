@@ -73,15 +73,11 @@ def _globs_overlap(pattern_a: str, pattern_b: str) -> bool:
     prefix_b = _prefix(pattern_b)
 
     # One prefix is a path-prefix of the other → the globs overlap.
-    if prefix_a and prefix_b:
-        if prefix_b.startswith(prefix_a) or prefix_a.startswith(prefix_b):
-            return True
-
-    # Fnmatch cross-check: does pattern_a match the literal prefix_b (or vice versa)?
-    if fnmatch.fnmatch(prefix_b, pattern_a) or fnmatch.fnmatch(prefix_a, pattern_b):
+    if prefix_a and prefix_b and (prefix_b.startswith(prefix_a) or prefix_a.startswith(prefix_b)):
         return True
 
-    return False
+    # Fnmatch cross-check: does pattern_a match the literal prefix_b (or vice versa)?
+    return bool(fnmatch.fnmatch(prefix_b, pattern_a) or fnmatch.fnmatch(prefix_a, pattern_b))
 
 
 def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
@@ -99,9 +95,7 @@ def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
     errors: list[str] = []
 
     # Filter out codebase-wide WPs -- they are allowed to overlap with anything.
-    narrow_manifests = {
-        wp_id: m for wp_id, m in manifests.items() if not m.is_codebase_wide
-    }
+    narrow_manifests = {wp_id: m for wp_id, m in manifests.items() if not m.is_codebase_wide}
     skipped = set(manifests.keys()) - set(narrow_manifests.keys())
     for wp_id in sorted(skipped):
         logger.info("Skipping overlap check for %s (codebase-wide scope)", wp_id)
@@ -115,10 +109,7 @@ def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
         for glob_a in manifest_a.owned_files:
             for glob_b in manifest_b.owned_files:
                 if _globs_overlap(glob_a, glob_b):
-                    errors.append(
-                        f"Overlap: {wp_a} ({glob_a!r}) and {wp_b} ({glob_b!r}) "
-                        f"claim overlapping paths."
-                    )
+                    errors.append(f"Overlap: {wp_a} ({glob_a!r}) and {wp_b} ({glob_b!r}) claim overlapping paths.")
 
     return errors
 
@@ -149,10 +140,7 @@ def validate_authoritative_surface(manifest: OwnershipManifest) -> list[str]:
         if pattern == surface or pattern.startswith(surface):
             return []  # At least one match — valid
 
-    errors.append(
-        f"authoritative_surface {surface!r} is not a prefix of any owned_files entry: "
-        f"{list(manifest.owned_files)!r}"
-    )
+    errors.append(f"authoritative_surface {surface!r} is not a prefix of any owned_files entry: {list(manifest.owned_files)!r}")
     return errors
 
 
@@ -176,27 +164,15 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
 
     if manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
         # All owned_files should be under kitty-specs/ or docs/
-        bad = [
-            p
-            for p in manifest.owned_files
-            if not any(p.startswith(prefix) for prefix in _PLANNING_PREFIXES)
-        ]
+        bad = [p for p in manifest.owned_files if not any(p.startswith(prefix) for prefix in _PLANNING_PREFIXES)]
         if bad:
-            warnings.append(
-                f"planning_artifact WP owns files outside planning paths "
-                f"(kitty-specs/, docs/): {bad!r}"
-            )
+            warnings.append(f"planning_artifact WP owns files outside planning paths (kitty-specs/, docs/): {bad!r}")
 
     elif manifest.execution_mode == ExecutionMode.CODE_CHANGE:
         # At least one owned_files entry should be under src/ or tests/ (not kitty-specs-only)
-        has_code_path = any(
-            p.startswith(prefix) for p in manifest.owned_files for prefix in _CODE_PREFIXES
-        )
+        has_code_path = any(p.startswith(prefix) for p in manifest.owned_files for prefix in _CODE_PREFIXES)
         if manifest.owned_files and not has_code_path:
-            warnings.append(
-                f"code_change WP does not own any files under src/ or tests/. "
-                f"owned_files: {list(manifest.owned_files)!r}"
-            )
+            warnings.append(f"code_change WP does not own any files under src/ or tests/. owned_files: {list(manifest.owned_files)!r}")
 
     return warnings
 
@@ -255,8 +231,5 @@ def validate_glob_matches(
         manifest = manifests[wp_id]
         for pattern in manifest.owned_files:
             if not any(repo_root.glob(pattern)):
-                warnings.append(
-                    f"{wp_id}: owned_files glob '{pattern}' matches "
-                    f"zero files in the repository"
-                )
+                warnings.append(f"{wp_id}: owned_files glob '{pattern}' matches zero files in the repository")
     return warnings

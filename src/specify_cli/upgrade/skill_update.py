@@ -35,19 +35,19 @@ from pathlib import Path
 # All possible skill root directories from agent-path-matrix.md.
 # Covers native-root-required, shared-root-capable, and agent-specific roots.
 SKILL_ROOTS: list[str] = [
-    ".claude/skills",       # Claude Code (native-root-required)
-    ".agents/skills",       # Shared root for shared-root-capable agents
-    ".qwen/skills",         # Qwen Code (native-root-required)
-    ".kilocode/skills",     # Kilo Code (native-root-required)
-    ".github/skills",       # GitHub Copilot (agent-specific)
-    ".gemini/skills",       # Gemini CLI (agent-specific)
-    ".cursor/skills",       # Cursor (agent-specific)
-    ".opencode/skills",     # opencode (agent-specific)
-    ".windsurf/skills",     # Windsurf (agent-specific)
-    ".augment/skills",      # Auggie CLI (agent-specific)
-    ".roo/skills",          # Roo Code (agent-specific)
-    ".agent/skills",        # Google Antigravity (agent-specific)
-    ".codex/skills",        # Codex CLI (if agent-specific root exists)
+    ".claude/skills",  # Claude Code (native-root-required)
+    ".agents/skills",  # Shared root for shared-root-capable agents
+    ".qwen/skills",  # Qwen Code (native-root-required)
+    ".kilocode/skills",  # Kilo Code (native-root-required)
+    ".github/skills",  # GitHub Copilot (agent-specific)
+    ".gemini/skills",  # Gemini CLI (agent-specific)
+    ".cursor/skills",  # Cursor (agent-specific)
+    ".opencode/skills",  # opencode (agent-specific)
+    ".windsurf/skills",  # Windsurf (agent-specific)
+    ".augment/skills",  # Auggie CLI (agent-specific)
+    ".roo/skills",  # Roo Code (agent-specific)
+    ".agent/skills",  # Google Antigravity (agent-specific)
+    ".codex/skills",  # Codex CLI (if agent-specific root exists)
 ]
 
 
@@ -95,23 +95,27 @@ def find_skill_files(
             for pattern in file_patterns:
                 file_path = skill_dir / pattern
                 if file_path.is_file():
-                    found.append(SkillFileInfo(
-                        path=file_path,
-                        skill_root=root,
-                        skill_name=skill_name,
-                        relative_path=pattern,
-                    ))
+                    found.append(
+                        SkillFileInfo(
+                            path=file_path,
+                            skill_root=root,
+                            skill_name=skill_name,
+                            relative_path=pattern,
+                        )
+                    )
         else:
             for file_path in sorted(skill_dir.rglob("*")):
                 if not file_path.is_file():
                     continue
                 rel = str(file_path.relative_to(skill_dir))
-                found.append(SkillFileInfo(
-                    path=file_path,
-                    skill_root=root,
-                    skill_name=skill_name,
-                    relative_path=rel,
-                ))
+                found.append(
+                    SkillFileInfo(
+                        path=file_path,
+                        skill_root=root,
+                        skill_name=skill_name,
+                        relative_path=rel,
+                    )
+                )
 
     return found
 

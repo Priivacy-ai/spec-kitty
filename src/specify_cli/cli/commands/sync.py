@@ -86,10 +86,7 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     summary_lines: list[str] = []
     pct = (stats.total_queued / stats.max_queue_size * 100) if stats.max_queue_size > 0 else 0
     depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
-    summary_lines.append(
-        f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] "
-        f"({pct:.0f}%)"
-    )
+    summary_lines.append(f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] ({pct:.0f}%)")
     summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
     if stats.oldest_event_age is not None:
         age_str = humanize_timedelta(stats.oldest_event_age)
@@ -216,18 +213,10 @@ def routes() -> None:
         "[green]Enabled[/green]" if routing.effective_sync_enabled else "[yellow]Disabled[/yellow]",
     )
 
-    local_value = (
-        "[dim]Not set[/dim]"
-        if routing.local_sync_enabled is None
-        else ("enabled" if routing.local_sync_enabled else "disabled")
-    )
+    local_value = "[dim]Not set[/dim]" if routing.local_sync_enabled is None else ("enabled" if routing.local_sync_enabled else "disabled")
     table.add_row("Local Override", local_value)
 
-    repo_default = (
-        "[dim]Not set[/dim]"
-        if routing.repo_default_sync_enabled is None
-        else ("enabled" if routing.repo_default_sync_enabled else "disabled")
-    )
+    repo_default = "[dim]Not set[/dim]" if routing.repo_default_sync_enabled is None else ("enabled" if routing.repo_default_sync_enabled else "disabled")
     table.add_row("Future Repo Default", repo_default)
 
     try:
@@ -310,18 +299,12 @@ def share(
     except RepositorySharingClientError as exc:
         if exc.status_code == 404:
             if not routing.effective_sync_enabled:
-                console.print(
-                    "[red]Error:[/red] This checkout is opted out of SaaS sync. "
-                    "Run `spec-kitty sync opt-in` first."
-                )
+                console.print("[red]Error:[/red] This checkout is opted out of SaaS sync. Run `spec-kitty sync opt-in` first.")
                 raise typer.Exit(1) from None
             try:
                 _materialize_private_source_project()
             except Exception as materialize_error:
-                console.print(
-                    "[red]Error:[/red] Could not materialize this checkout in Private Teamspace: "
-                    f"{materialize_error}"
-                )
+                console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
                 raise typer.Exit(1) from materialize_error
             response = request_repository_share_sync(
                 source_project_uuid=routing.project_uuid,
@@ -334,14 +317,9 @@ def share(
     share_data = response.get("share") or {}
     share_state = share_data.get("state", "unknown")
     if share_state == "shared":
-        console.print(
-            f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] "
-            f"to [cyan]{team_slug}[/cyan]."
-        )
+        console.print(f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] to [cyan]{team_slug}[/cyan].")
     else:
-        console.print(
-            f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan]."
-        )
+        console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan].")
 
     if response.get("auto_approved"):
         console.print("[dim]Team policy auto-approved the repository share.[/dim]")
@@ -418,14 +396,8 @@ def opt_out(
         remember_repo_default=not checkout_only,
     )
 
-    console.print(
-        f"[green]✓[/green] Disabled SaaS sync for this checkout "
-        f"([cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan])."
-    )
-    console.print(
-        f"[dim]Removed {result.removed_events} queued event(s) and "
-        f"{result.removed_body_uploads} queued body upload(s) for this checkout.[/dim]"
-    )
+    console.print(f"[green]✓[/green] Disabled SaaS sync for this checkout ([cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan]).")
+    console.print(f"[dim]Removed {result.removed_events} queued event(s) and {result.removed_body_uploads} queued body upload(s) for this checkout.[/dim]")
     if result.remembered_for_repo:
         console.print("[dim]Future checkouts of this repository will also default to sync disabled.[/dim]")
 
@@ -433,9 +405,7 @@ def opt_out(
         return
 
     if not is_saas_sync_enabled():
-        console.print(
-            "[yellow]Skipping private-data deletion because SaaS sync is disabled in this shell.[/yellow]"
-        )
+        console.print("[yellow]Skipping private-data deletion because SaaS sync is disabled in this shell.[/yellow]")
         return
 
     try:
@@ -446,9 +416,7 @@ def opt_out(
         return
 
     if shares:
-        console.print(
-            "[yellow]Private data was not deleted because this repository has team share history.[/yellow]"
-        )
+        console.print("[yellow]Private data was not deleted because this repository has team share history.[/yellow]")
         return
 
     confirmed = yes or typer.confirm(
@@ -489,10 +457,7 @@ def opt_in(
         remember_repo_default=not checkout_only,
     )
 
-    console.print(
-        f"[green]✓[/green] Enabled SaaS sync for this checkout "
-        f"([cyan]{refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid}[/cyan])."
-    )
+    console.print(f"[green]✓[/green] Enabled SaaS sync for this checkout ([cyan]{refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid}[/cyan]).")
     if not checkout_only and refreshed.repo_slug:
         console.print("[dim]Future checkouts of this repository will also default to sync enabled.[/dim]")
 
@@ -579,11 +544,7 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
 
     for conflict in conflicts:
         # Format line ranges
-        lines = (
-            ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges)
-            if conflict.line_ranges
-            else "entire file"
-        )
+        lines = ", ".join(f"{start}-{end}" for start, end in conflict.line_ranges) if conflict.line_ranges else "entire file"
 
         table.add_row(
             str(conflict.file_path),
@@ -921,18 +882,12 @@ def sync_server(
     normalized_url = url.strip().rstrip("/")
     parsed = urlparse(normalized_url)
     if parsed.scheme != "https" or not parsed.netloc:
-        console.print(
-            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, "
-            "for example: https://spec-kitty-dev.fly.dev"
-        )
+        console.print("[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, for example: https://spec-kitty-dev.fly.dev")
         raise typer.Exit(1)
 
     config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
-    console.print(
-        "[dim]If you switched environments, run "
-        "'spec-kitty auth login --force' to refresh credentials.[/dim]"
-    )
+    console.print("[dim]If you switched environments, run 'spec-kitty auth login --force' to refresh credentials.[/dim]")
 
 
 @app.command()
@@ -983,11 +938,7 @@ def now(
         if line.startswith("  "):
             console.print(f"  [yellow]{line.strip()}[/yellow]")
         else:
-            console.print(
-                f"[green]Synced:[/green] {result.synced_count}  "
-                f"[dim]Duplicates:[/dim] {result.duplicate_count}  "
-                f"[red]Errors:[/red] {result.error_count}"
-            )
+            console.print(f"[green]Synced:[/green] {result.synced_count}  [dim]Duplicates:[/dim] {result.duplicate_count}  [red]Errors:[/red] {result.error_count}")
 
     # Write failure report if requested and there are failures
     if report and result.failed_results:
@@ -1190,11 +1141,7 @@ def diagnose(
 
     # Rich output
     console.print()
-    console.print(
-        f"Validated [cyan]{len(results)}[/cyan] event(s): "
-        f"[green]{valid_count} valid[/green], "
-        f"[red]{invalid_count} invalid[/red]"
-    )
+    console.print(f"Validated [cyan]{len(results)}[/cyan] event(s): [green]{valid_count} valid[/green], [red]{invalid_count} invalid[/red]")
 
     # Show valid events (brief)
     for r in results:
@@ -1205,9 +1152,7 @@ def diagnose(
     for r in results:
         if not r.valid:
             category_label = f" [{r.error_category}]" if r.error_category else ""
-            console.print(
-                f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}"
-            )
+            console.print(f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}")
             for err in r.errors:
                 console.print(f"    - {err}")
 
@@ -1264,24 +1209,15 @@ def doctor() -> None:  # noqa: C901
     table.add_row("Queue DB", str(queue.db_path))
     table.add_row(
         "Body uploads",
-        f"{body_diagnostics['total_tasks']} queued, "
-        f"{body_diagnostics['recorded_failure_count']} recorded failure(s)",
+        f"{body_diagnostics['total_tasks']} queued, {body_diagnostics['recorded_failure_count']} recorded failure(s)",
     )
 
     if pct >= 100:
-        issues.append(
-            "Queue is FULL -- oldest events are being evicted to make room for new ones. "
-            "Run `spec-kitty sync now` after fixing auth/connectivity."
-        )
+        issues.append("Queue is FULL -- oldest events are being evicted to make room for new ones. Run `spec-kitty sync now` after fixing auth/connectivity.")
     elif pct >= 80:
-        issues.append(
-            f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`."
-        )
+        issues.append(f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`.")
     if body_diagnostics["recorded_failure_count"] > 0:
-        issues.append(
-            "Body upload failures were recorded. Review the recent body upload failures below "
-            "and fix the underlying artifact or contract mismatch."
-        )
+        issues.append("Body upload failures were recorded. Review the recent body upload failures below and fix the underlying artifact or contract mismatch.")
 
     # --- 2. Auth status ---
     config = SyncConfig()
@@ -1349,15 +1285,9 @@ def doctor() -> None:  # noqa: C901
             table.add_row("Team", team_slug)
 
         if not access_ok and not refresh_ok:
-            issues.append(
-                "Both access and refresh tokens are expired. "
-                "Run `spec-kitty auth login` to re-authenticate."
-            )
+            issues.append("Both access and refresh tokens are expired. Run `spec-kitty auth login` to re-authenticate.")
         elif not access_ok and refresh_ok:
-            issues.append(
-                "Access token expired but refresh token is still valid. "
-                "Token will auto-refresh on next sync attempt."
-            )
+            issues.append("Access token expired but refresh token is still valid. Token will auto-refresh on next sync attempt.")
 
     # --- 3. Server reachability ---
     connection_status, connection_note = _check_server_connection(server_url)
@@ -1366,10 +1296,7 @@ def doctor() -> None:  # noqa: C901
         table.add_row("", f"[dim]{connection_note}[/dim]")
 
     if "Unreachable" in connection_status or "Error" in connection_status:
-        issues.append(
-            f"Cannot reach server at {server_url}. "
-            "Events will continue to queue locally."
-        )
+        issues.append(f"Cannot reach server at {server_url}. Events will continue to queue locally.")
 
     console.print(table)
     console.print()

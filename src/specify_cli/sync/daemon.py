@@ -16,10 +16,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 if sys.platform == "win32":
     import msvcrt
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 import psutil
 
 from specify_cli.core.atomic import atomic_write
+import contextlib
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ def _sync_root() -> Path:
     """
     if sys.platform == "win32":
         from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+
         return get_runtime_root().sync_dir
     return Path.home() / _SPEC_KITTY_DIRNAME / "sync"
 
@@ -61,6 +63,7 @@ def _daemon_root() -> Path:
     """
     if sys.platform == "win32":
         from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+
         return get_runtime_root().daemon_dir
     return Path.home() / _SPEC_KITTY_DIRNAME
 
@@ -73,7 +76,7 @@ DAEMON_LOG_FILE = _daemon_root() / "sync-daemon.log"
 DAEMON_LOCK_FILE = _daemon_root() / "sync-daemon.lock"
 
 
-class DaemonIntent(str, Enum):
+class DaemonIntent(StrEnum):
     """Caller intent for daemon startup — LOCAL_ONLY suppresses auto-start."""
 
     LOCAL_ONLY = "local_only"
@@ -87,6 +90,7 @@ class DaemonStartOutcome:
     started: bool
     skipped_reason: str | None
     pid: int | None
+
 
 # Port range for the sync daemon — well above the dashboard range (9237-9337)
 # to prevent overlap.
@@ -262,16 +266,13 @@ def _daemon_version_matches(port: int, expected_token: str | None, timeout: floa
         return False
     if data.get("status") != "ok":
         return False
-    if expected_token:
-        if data.get("token") != expected_token:
-            return False
+    if expected_token and data.get("token") != expected_token:
+        return False
     remote_proto = data.get("protocol_version")
     remote_pkg = data.get("package_version")
     if remote_proto != DAEMON_PROTOCOL_VERSION:
         return False
-    if remote_pkg != _get_package_version():
-        return False
-    return True
+    return remote_pkg == _get_package_version()
 
 
 # ---------------------------------------------------------------------------
@@ -614,10 +615,8 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
 def _kill_and_cleanup(pid: int | None) -> None:
     """Best-effort kill a daemon process and remove the state file."""
     if pid is not None:
-        try:
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
             psutil.Process(pid).kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
     DAEMON_STATE_FILE.unlink(missing_ok=True)
 
 
@@ -695,9 +694,7 @@ def ensure_sync_daemon_running(
         try:
             _url, _port, _started = _ensure_sync_daemon_running_locked()
         except Exception as exc:
-            return DaemonStartOutcome(
-                started=False, skipped_reason=f"start_failed: {exc}", pid=None
-            )
+            return DaemonStartOutcome(started=False, skipped_reason=f"start_failed: {exc}", pid=None)
         # Retrieve the PID from the state file after successful start
         pid: int | None = None
         if DAEMON_STATE_FILE.exists():
@@ -735,10 +732,7 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
         else:
             DAEMON_STATE_FILE.unlink(missing_ok=True)
 
-    if preferred_port is not None:
-        port = preferred_port
-    else:
-        port = _find_free_port()
+    port = preferred_port if preferred_port is not None else _find_free_port()
     token = secrets.token_hex(16)
 
     # Redirect daemon output to a log file for diagnostics
@@ -812,9 +806,7 @@ def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
         time.sleep(0.05)
 
     if pid is not None:
-        try:
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
             psutil.Process(pid).kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
     DAEMON_STATE_FILE.unlink(missing_ok=True)
     return True, "Sync daemon stopped."

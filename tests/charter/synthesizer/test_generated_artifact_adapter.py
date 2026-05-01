@@ -48,14 +48,7 @@ def _directive_request(evidence: EvidenceBundle | None = None) -> SynthesisReque
 
 
 def _generated_directive_path(repo_root: Path) -> Path:
-    return (
-        repo_root
-        / ".kittify"
-        / "charter"
-        / "generated"
-        / "directives"
-        / "001-mission-type-scope-directive.directive.yaml"
-    )
+    return repo_root / ".kittify" / "charter" / "generated" / "directives" / "001-mission-type-scope-directive.directive.yaml"
 
 
 def _write_generated_directive(repo_root: Path, body: dict[str, object]) -> Path:
@@ -137,13 +130,7 @@ def test_evidence_hash_survives_synthesize_and_resynthesize_roundtrip(tmp_path: 
 
     synthesize(request, adapter=adapter, repo_root=tmp_path)
 
-    prov_path = (
-        tmp_path
-        / ".kittify"
-        / "charter"
-        / "provenance"
-        / "directive-mission-type-scope-directive.yaml"
-    )
+    prov_path = tmp_path / ".kittify" / "charter" / "provenance" / "directive-mission-type-scope-directive.yaml"
     first_prov = load_provenance(prov_path)
     assert first_prov.artifact_urn == "directive:PROJECT_001"
     assert first_prov.evidence_bundle_hash == expected_hash

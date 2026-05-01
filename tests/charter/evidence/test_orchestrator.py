@@ -1,4 +1,5 @@
 """Tests for EvidenceOrchestrator and load_url_list_from_config."""
+
 from __future__ import annotations
 
 import subprocess
@@ -8,7 +9,8 @@ from pathlib import Path
 import pytest
 import ruamel.yaml
 
-from charter.evidence.orchestrator import (    EvidenceOrchestrator,
+from charter.evidence.orchestrator import (
+    EvidenceOrchestrator,
     EvidenceResult,
     load_url_list_from_config,
 )
@@ -124,6 +126,4 @@ def test_dry_run_evidence_on_spec_kitty_repo() -> None:
     assert "Code signals:" in result.stdout
     # spec-kitty has both pyproject.toml (Python) and package.json (JavaScript tooling),
     # so either language is a valid detection outcome — but "unknown" is not acceptable.
-    assert "lang=python" in result.stdout or "lang=javascript" in result.stdout, (
-        f"Expected lang=python or lang=javascript in output, got:\n{result.stdout}"
-    )
+    assert "lang=python" in result.stdout or "lang=javascript" in result.stdout, f"Expected lang=python or lang=javascript in output, got:\n{result.stdout}"

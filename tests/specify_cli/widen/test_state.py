@@ -117,9 +117,7 @@ class TestDuplicateDecisionId:
         with pytest.raises(ValueError, match="already pending"):
             store.add_pending(entry)
 
-    def test_second_entry_not_written_after_duplicate_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_second_entry_not_written_after_duplicate_error(self, tmp_path: Path) -> None:
         store = WidenPendingStore(tmp_path, "slug-dup2")
         e1 = _make_entry(decision_id="01AAAA0000000000000000AA01")
         store.add_pending(e1)
@@ -186,10 +184,7 @@ class TestCorruptedJsonl:
         # Inject a bad line between two good lines
         good2 = _make_entry(decision_id="01AAAA0000000000000000GD02")
         store.path.write_text(
-            good_entry.model_dump_json()
-            + "\n{CORRUPT JSON LINE\n"
-            + good2.model_dump_json()
-            + "\n",
+            good_entry.model_dump_json() + "\n{CORRUPT JSON LINE\n" + good2.model_dump_json() + "\n",
             encoding="utf-8",
         )
 
@@ -204,9 +199,7 @@ class TestCorruptedJsonl:
         assert good2.decision_id in ids
         assert any("corrupted" in msg.lower() for msg in caplog.messages)
 
-    def test_fully_corrupt_file_returns_empty(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_fully_corrupt_file_returns_empty(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         store = WidenPendingStore(tmp_path, "slug-corrupt2")
         store.path.parent.mkdir(parents=True, exist_ok=True)
         store.path.write_text("{bad\n{alsoBad\n", encoding="utf-8")

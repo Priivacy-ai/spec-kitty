@@ -35,22 +35,12 @@ def _make_project(tmp_path: Path, *, mission_slug: str = "057-test-feature", wp_
         "mission_id": mission_slug,
         "target_branch": "main",
     }
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
 
     # kitty-specs/<slug>/tasks/<WP>.md
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
-    wp_content = (
-        f"---\n"
-        f"work_package_id: {wp_code}\n"
-        f"title: Test WP\n"
-        f"lane: planned\n"
-        f"dependencies: []\n"
-        f"---\n\n"
-        f"# {wp_code} – Test\n"
-    )
+    wp_content = f"---\nwork_package_id: {wp_code}\ntitle: Test WP\nlane: planned\ndependencies: []\n---\n\n# {wp_code} – Test\n"
     (tasks_dir / f"{wp_code}-test-wp.md").write_text(wp_content, encoding="utf-8")
     write_single_lane_manifest(feature_dir, wp_ids=(wp_code,))
 
@@ -234,29 +224,35 @@ class TestRequireExplicitFeature:
 
     def test_returns_slug_when_provided(self) -> None:
         from specify_cli.core.paths import require_explicit_feature
+
         assert require_explicit_feature("057-my-feature") == "057-my-feature"
 
     def test_strips_whitespace(self) -> None:
         from specify_cli.core.paths import require_explicit_feature
+
         assert require_explicit_feature("  057-my-feature  ") == "057-my-feature"
 
     def test_raises_when_none(self) -> None:
         from specify_cli.core.paths import require_explicit_feature
+
         with pytest.raises(ValueError, match="--mission"):
             require_explicit_feature(None)
 
     def test_raises_when_empty_string(self) -> None:
         from specify_cli.core.paths import require_explicit_feature
+
         with pytest.raises(ValueError, match="--mission"):
             require_explicit_feature("")
 
     def test_raises_when_whitespace_only(self) -> None:
         from specify_cli.core.paths import require_explicit_feature
+
         with pytest.raises(ValueError, match="--mission"):
             require_explicit_feature("   ")
 
     def test_custom_command_hint(self) -> None:
         from specify_cli.core.paths import require_explicit_feature
+
         with pytest.raises(ValueError, match="--wp <WP_CODE>"):
             require_explicit_feature(None, command_hint="--wp <WP_CODE>")
 
@@ -271,11 +267,10 @@ class TestGetFeatureTargetBranch:
 
     def test_reads_from_meta_json(self, tmp_path: Path) -> None:
         from specify_cli.core.paths import get_feature_target_branch
+
         feature_dir = tmp_path / "kitty-specs" / "057-test"
         feature_dir.mkdir(parents=True)
-        (feature_dir / "meta.json").write_text(
-            json.dumps({"target_branch": "2.x"}) + "\n", encoding="utf-8"
-        )
+        (feature_dir / "meta.json").write_text(json.dumps({"target_branch": "2.x"}) + "\n", encoding="utf-8")
         # Need a fake .git directory so resolve_primary_branch can run
         (tmp_path / ".git").mkdir()
         branch = get_feature_target_branch(tmp_path, "057-test")
@@ -283,6 +278,7 @@ class TestGetFeatureTargetBranch:
 
     def test_falls_back_when_no_meta(self, tmp_path: Path) -> None:
         from specify_cli.core.paths import get_feature_target_branch
+
         (tmp_path / ".git").mkdir()
         # No kitty-specs directory at all -- should return primary branch fallback
         branch = get_feature_target_branch(tmp_path, "099-nonexistent")
@@ -292,6 +288,7 @@ class TestGetFeatureTargetBranch:
 
     def test_falls_back_on_malformed_meta(self, tmp_path: Path) -> None:
         from specify_cli.core.paths import get_feature_target_branch
+
         feature_dir = tmp_path / "kitty-specs" / "057-test"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("INVALID JSON {{", encoding="utf-8")

@@ -220,18 +220,14 @@ class JSDocGenerator:
             )
 
         # Check if npx is available
-        check_npx = subprocess.run(
-            ["npx", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
+        check_npx = subprocess.run(["npx", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         if check_npx.returncode != 0:
             raise GeneratorError("npx not found - install Node.js to use JSDoc generator\nVisit: https://nodejs.org/")
 
         # Run JSDoc
         cmd = ["npx", "jsdoc", "-c", str(config_file)]
-        result = subprocess.run(
-            cmd, cwd=str(source_dir), capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
+        result = subprocess.run(cmd, cwd=str(source_dir), capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         # Parse output
         errors = []
@@ -384,15 +380,10 @@ sys.path.insert(0, os.path.abspath('..'))
             )
 
         # Check if sphinx-build is available
-        check_sphinx = subprocess.run(
-            ["sphinx-build", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
+        check_sphinx = subprocess.run(["sphinx-build", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         if check_sphinx.returncode != 0:
-            raise GeneratorError(
-                "sphinx-build not found - install Sphinx to use this generator\n"
-                "Run: pip install sphinx sphinx-rtd-theme"
-            )
+            raise GeneratorError("sphinx-build not found - install Sphinx to use this generator\nRun: pip install sphinx sphinx-rtd-theme")
 
         # Create build directory
         build_dir = output_dir / "_build" / "html"
@@ -533,14 +524,10 @@ No separate configuration file is needed for rustdoc.
             )
 
         # Check if cargo is available
-        check_cargo = subprocess.run(
-            ["cargo", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
+        check_cargo = subprocess.run(["cargo", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         if check_cargo.returncode != 0:
-            raise GeneratorError(
-                "cargo not found - install Rust toolchain to use rustdoc generator\nVisit: https://rustup.rs/"
-            )
+            raise GeneratorError("cargo not found - install Rust toolchain to use rustdoc generator\nVisit: https://rustup.rs/")
 
         # Run cargo doc
         cmd = [
@@ -551,9 +538,7 @@ No separate configuration file is needed for rustdoc.
             str(output_dir),
         ]
 
-        result = subprocess.run(
-            cmd, cwd=str(source_dir), capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
+        result = subprocess.run(cmd, cwd=str(source_dir), capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         # Parse output
         errors = []

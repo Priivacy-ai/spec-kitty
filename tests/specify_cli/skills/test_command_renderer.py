@@ -28,7 +28,6 @@ import pytest
 from specify_cli.skills._user_input_block import REPLACEMENT_BLOCK, identify, rewrite
 from specify_cli.skills.command_renderer import (
     SUPPORTED_AGENTS,
-    RenderedSkill,
     SkillRenderError,
     render,
 )
@@ -37,14 +36,7 @@ from specify_cli.skills.command_renderer import (
 # Test constants
 # ---------------------------------------------------------------------------
 
-TEMPLATES_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "specify_cli"
-    / "missions"
-    / "software-dev"
-    / "command-templates"
-)
+TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
 
 SNAPSHOTS_DIR = Path(__file__).parent / "__snapshots__"
 
@@ -80,14 +72,10 @@ def _render_and_compare(template_path: Path, agent_key: str) -> None:
         snap.write_text(output, encoding="utf-8")
         return
 
-    assert snap.exists(), (
-        f"Snapshot missing: {snap}\n"
-        "Run with PYTEST_UPDATE_SNAPSHOTS=1 to generate it."
-    )
+    assert snap.exists(), f"Snapshot missing: {snap}\nRun with PYTEST_UPDATE_SNAPSHOTS=1 to generate it."
     expected = snap.read_text(encoding="utf-8")
     assert output == expected, (
-        f"Skill output for {template_path.name} ({agent_key}) differs from snapshot.\n"
-        "If the change is intentional, run with PYTEST_UPDATE_SNAPSHOTS=1."
+        f"Skill output for {template_path.name} ({agent_key}) differs from snapshot.\nIf the change is intentional, run with PYTEST_UPDATE_SNAPSHOTS=1."
     )
 
 
@@ -114,9 +102,7 @@ def test_deterministic(template_path: Path, agent_key: str) -> None:
     """Rendering the same template twice produces byte-identical output."""
     first = render(template_path, agent_key, _TEST_VERSION).to_skill_md()
     second = render(template_path, agent_key, _TEST_VERSION).to_skill_md()
-    assert first == second, (
-        f"Non-deterministic output for {template_path.name} ({agent_key})"
-    )
+    assert first == second, f"Non-deterministic output for {template_path.name} ({agent_key})"
 
 
 # ---------------------------------------------------------------------------
@@ -146,10 +132,7 @@ def test_user_input_block_missing(tmp_path: Path) -> None:
     """A template without '## User Input' raises SkillRenderError(user_input_block_missing)."""
     template = tmp_path / "no-user-input.md"
     template.write_text(
-        "---\ndescription: A test template\n---\n"
-        "# Test Template\n\n"
-        "## Purpose\n\nDoes something useful.\n\n"
-        "## Steps\n\nDo the thing.\n",
+        "---\ndescription: A test template\n---\n# Test Template\n\n## Purpose\n\nDoes something useful.\n\n## Steps\n\nDo the thing.\n",
         encoding="utf-8",
     )
     with pytest.raises(SkillRenderError) as exc_info:
@@ -212,9 +195,7 @@ def test_frontmatter_key_order(tmp_path: Path) -> None:
     )
     skill = render(template, "codex", _TEST_VERSION)
     keys = list(skill.frontmatter.keys())
-    assert keys == ["name", "description", "user-invocable"], (
-        f"Unexpected frontmatter key order: {keys}"
-    )
+    assert keys == ["name", "description", "user-invocable"], f"Unexpected frontmatter key order: {keys}"
 
 
 def test_frontmatter_user_invocable_true(tmp_path: Path) -> None:
@@ -292,9 +273,7 @@ def test_description_fallback_to_canonical(tmp_path: Path) -> None:
     template = tmp_path / "fallback.md"
     template.write_text(
         # No description in frontmatter, no ## Purpose section.
-        "---\n---\n"
-        "## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
-        "You **MUST** consider the user input before proceeding (if not empty).\n",
+        "---\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
@@ -324,9 +303,7 @@ def test_rendered_skill_name(tmp_path: Path) -> None:
     """RenderedSkill.name must be 'spec-kitty.<command>'."""
     template = tmp_path / "my-command.md"
     template.write_text(
-        "---\ndescription: A command\n---\n"
-        "## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
-        "You **MUST** consider the user input before proceeding (if not empty).\n",
+        "---\ndescription: A command\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
@@ -337,18 +314,14 @@ def test_rendered_skill_no_arguments_in_body(tmp_path: Path) -> None:
     """The rendered body must not contain $ARGUMENTS."""
     for tmpl in _all_templates():
         skill = render(tmpl, "codex", _TEST_VERSION)
-        assert "$ARGUMENTS" not in skill.body, (
-            f"$ARGUMENTS found in rendered body for {tmpl.name}"
-        )
+        assert "$ARGUMENTS" not in skill.body, f"$ARGUMENTS found in rendered body for {tmpl.name}"
 
 
 def test_rendered_skill_source_hash(tmp_path: Path) -> None:
     """source_hash must be a SHA-256 hex string (64 chars)."""
     template = tmp_path / "hash-test.md"
     template.write_text(
-        "---\ndescription: Hash test\n---\n"
-        "## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
-        "You **MUST** consider the user input before proceeding (if not empty).\n",
+        "---\ndescription: Hash test\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
@@ -392,9 +365,9 @@ def test_identify_returns_correct_span() -> None:
     assert span is not None
     start, end = span
     # The block starts at the '## User Input' line.
-    assert body[start:start + 14] == "## User Input\n"
+    assert body[start : start + 14] == "## User Input\n"
     # The block ends just before '## Next Section'.
-    assert body[end:end + 16] == "## Next Section\n"
+    assert body[end : end + 16] == "## Next Section\n"
 
 
 def test_identify_returns_none_when_missing() -> None:
@@ -457,6 +430,5 @@ def test_replacement_block_constant_unchanged() -> None:
         "You **MUST** consider this user input before proceeding (if not empty).\n"
     )
     assert expected == REPLACEMENT_BLOCK, (
-        "REPLACEMENT_BLOCK has drifted from its locked value. "
-        "This is a load-bearing constant — any change requires a deliberate version bump."
+        "REPLACEMENT_BLOCK has drifted from its locked value. This is a load-bearing constant — any change requires a deliberate version bump."
     )

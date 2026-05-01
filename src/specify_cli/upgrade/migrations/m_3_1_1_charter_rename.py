@@ -71,7 +71,7 @@ class CharterRenameMigration(BaseMigration):
                 return True
 
         # Agent skills: old constitution-doctrine skill dirs
-        for agent_root, subdir in get_agent_dirs_for_project(project_path):
+        for agent_root, _subdir in get_agent_dirs_for_project(project_path):
             skills_dir = project_path / agent_root / "skills"
             if skills_dir.exists() and (skills_dir / "spec-kitty-constitution-doctrine").exists():
                 return True
@@ -186,9 +186,7 @@ class CharterRenameMigration(BaseMigration):
                                 shutil.move(str(item), str(dest))
                                 changes.append(f"Merged {item.name} from constitution/ to charter/")
                             else:
-                                warnings.append(
-                                    f"Skipped {item.name} (already exists in charter/)"
-                                )
+                                warnings.append(f"Skipped {item.name} (already exists in charter/)")
                         # Remove the now-empty (or residual) constitution dir
                         shutil.rmtree(constitution_dir)
                         changes.append("Removed residual .kittify/constitution/ after merge")
@@ -324,10 +322,7 @@ class CharterRenameMigration(BaseMigration):
                 else:
                     try:
                         shutil.move(str(old_skill), str(new_skill))
-                        changes.append(
-                            f"Renamed {agent_root}/skills/spec-kitty-constitution-doctrine/ "
-                            f"-> spec-kitty-charter-doctrine/"
-                        )
+                        changes.append(f"Renamed {agent_root}/skills/spec-kitty-constitution-doctrine/ -> spec-kitty-charter-doctrine/")
                         # Rewrite content inside skill files
                         for file_path in sorted(new_skill.rglob("*")):
                             if file_path.is_file() and file_path.suffix in _TEXT_SUFFIXES:

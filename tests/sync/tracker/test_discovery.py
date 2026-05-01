@@ -343,34 +343,26 @@ class TestFindCandidateByPosition:
             ),
         ]
 
-    def test_find_candidate_valid(
-        self, two_candidates: list[BindCandidate]
-    ) -> None:
+    def test_find_candidate_valid(self, two_candidates: list[BindCandidate]) -> None:
         """select_n=1 returns sort_position=0."""
         result = find_candidate_by_position(two_candidates, select_n=1)
         assert result is not None
         assert result.candidate_token == "cand_a"
         assert result.sort_position == 0
 
-    def test_find_candidate_second(
-        self, two_candidates: list[BindCandidate]
-    ) -> None:
+    def test_find_candidate_second(self, two_candidates: list[BindCandidate]) -> None:
         """select_n=2 returns sort_position=1."""
         result = find_candidate_by_position(two_candidates, select_n=2)
         assert result is not None
         assert result.candidate_token == "cand_b"
         assert result.sort_position == 1
 
-    def test_find_candidate_out_of_range(
-        self, two_candidates: list[BindCandidate]
-    ) -> None:
+    def test_find_candidate_out_of_range(self, two_candidates: list[BindCandidate]) -> None:
         """select_n=99 returns None."""
         result = find_candidate_by_position(two_candidates, select_n=99)
         assert result is None
 
-    def test_find_candidate_zero(
-        self, two_candidates: list[BindCandidate]
-    ) -> None:
+    def test_find_candidate_zero(self, two_candidates: list[BindCandidate]) -> None:
         """select_n=0 returns None (no sort_position=-1)."""
         result = find_candidate_by_position(two_candidates, select_n=0)
         assert result is None

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -48,17 +48,23 @@ def git_repo(tmp_path: Path) -> Path:
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
-        cwd=tmp_path, check=True, capture_output=True,
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
-        cwd=tmp_path, check=True, capture_output=True,
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
     )
     (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit"],
-        cwd=tmp_path, check=True, capture_output=True,
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
     )
     return tmp_path
 
@@ -145,7 +151,10 @@ class TestCleanupPreservesState:
         """cleanup_merge_workspace removes worktree but preserves state.json."""
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
 
         # Create workspace and state
@@ -194,7 +203,10 @@ class TestCleanupPreservesState:
         """After cleanup + clear_state, state file is gone."""
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
 
         create_merge_workspace(MISSION_ID, branch, git_repo)
@@ -351,7 +363,10 @@ class TestResumeAbort:
         """Abort removes both workspace and state."""
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
 
         create_merge_workspace(MISSION_ID, branch, git_repo)
@@ -417,7 +432,10 @@ class TestRetryTolerance:
         """Double cleanup should not raise."""
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
 
         create_merge_workspace(MISSION_ID, branch, git_repo)
@@ -432,7 +450,10 @@ class TestRetryTolerance:
         """After cleanup removes worktree but state persists, resume works."""
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
 
         create_merge_workspace(MISSION_ID, branch, git_repo)

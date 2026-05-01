@@ -198,7 +198,7 @@ def test_next_mission_sees_applied_glossary_term(
     # Run mission A's terminus.
     run_terminus(
         mission_id=mission_id_a,
-            mission_type="software-dev",
+        mission_type="software-dev",
         feature_dir=feature_dir_a,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,
@@ -206,9 +206,7 @@ def test_next_mission_sees_applied_glossary_term(
     )
 
     names_a = event_names(feature_dir_a)
-    assert "retrospective.completed" in names_a, (
-        f"Mission A did not complete retrospective: {names_a}"
-    )
+    assert "retrospective.completed" in names_a, f"Mission A did not complete retrospective: {names_a}"
 
     # --------------------
     # Apply the proposal (simulating the operator running the synthesizer CLI).
@@ -223,19 +221,14 @@ def test_next_mission_sees_applied_glossary_term(
         dry_run=False,
     )
 
-    assert len(result.applied) == 1, (
-        f"Expected 1 applied change, got {len(result.applied)}. "
-        f"Rejected: {result.rejected}"
-    )
+    assert len(result.applied) == 1, f"Expected 1 applied change, got {len(result.applied)}. Rejected: {result.rejected}"
     assert len(result.rejected) == 0, f"Unexpected rejections: {result.rejected}"
 
     # --------------------
     # Verify glossary term was written.
     # --------------------
     glossary_file = tmp_path / ".kittify" / "glossary" / f"{term_key}.yaml"
-    assert glossary_file.exists(), (
-        f"Glossary term file not found: {glossary_file}"
-    )
+    assert glossary_file.exists(), f"Glossary term file not found: {glossary_file}"
 
     term_data = yaml.safe_load(glossary_file.read_text(encoding="utf-8"))
     assert term_data["term_key"] == term_key
@@ -250,12 +243,8 @@ def test_next_mission_sees_applied_glossary_term(
     assert prov_path.exists(), f"Provenance sidecar not found: {prov_path}"
 
     prov_data = yaml.safe_load(prov_path.read_text(encoding="utf-8"))
-    assert prov_data["source_mission_id"] == mission_id_a, (
-        f"Provenance source_mission_id mismatch: {prov_data}"
-    )
-    assert prov_data["source_proposal_id"] == proposal.id, (
-        f"Provenance source_proposal_id mismatch: {prov_data}"
-    )
+    assert prov_data["source_mission_id"] == mission_id_a, f"Provenance source_mission_id mismatch: {prov_data}"
+    assert prov_data["source_proposal_id"] == proposal.id, f"Provenance source_proposal_id mismatch: {prov_data}"
 
     # --------------------
     # Mission B: run through terminus (HiC skip path to keep test self-contained).
@@ -272,7 +261,7 @@ def test_next_mission_sees_applied_glossary_term(
     # at repo_root/.kittify/glossary/ for B's context loading.
     run_terminus(
         mission_id=mission_id_b,
-            mission_type="software-dev",
+        mission_type="software-dev",
         feature_dir=feature_dir_b,
         repo_root=tmp_path,
         operator_actor=HUMAN_ACTOR,
@@ -282,18 +271,12 @@ def test_next_mission_sees_applied_glossary_term(
 
     # Gate must allow mission B to complete (HiC skip is permitted).
     names_b = event_names(feature_dir_b)
-    assert "retrospective.skipped" in names_b, (
-        f"Mission B did not emit skipped event: {names_b}"
-    )
+    assert "retrospective.skipped" in names_b, f"Mission B did not emit skipped event: {names_b}"
 
     # --------------------
     # Assert the glossary term persists and is accessible after mission B's terminus.
     # This verifies the "next mission sees the change" contract.
     # --------------------
-    assert glossary_file.exists(), (
-        "Glossary term file should still exist after mission B's terminus"
-    )
+    assert glossary_file.exists(), "Glossary term file should still exist after mission B's terminus"
     final_term = yaml.safe_load(glossary_file.read_text(encoding="utf-8"))
-    assert final_term["term_key"] == term_key, (
-        f"Glossary term_key changed unexpectedly: {final_term}"
-    )
+    assert final_term["term_key"] == term_key, f"Glossary term_key changed unexpectedly: {final_term}"

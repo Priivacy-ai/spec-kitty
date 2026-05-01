@@ -507,11 +507,7 @@ def implement(
         bool,
         typer.Option(
             "--allow-sparse-checkout",
-            help=(
-                "Proceed even if legacy sparse-checkout state is detected. "
-                "Use of this override is logged. Does not bypass the commit-time "
-                "data-loss backstop."
-            ),
+            help=("Proceed even if legacy sparse-checkout state is detected. Use of this override is logged. Does not bypass the commit-time data-loss backstop."),
         ),
     ] = False,
     acknowledge_not_bulk_edit: Annotated[
@@ -559,9 +555,7 @@ def implement(
         try:
             from specify_cli.mission_metadata import resolve_mission_identity
 
-            _identity = resolve_mission_identity(
-                _main_repo_for_preflight / "kitty-specs" / mission_slug
-            )
+            _identity = resolve_mission_identity(_main_repo_for_preflight / "kitty-specs" / mission_slug)
             _mission_id_for_preflight = _identity.mission_id
         except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
             _mission_id_for_preflight = None
@@ -702,7 +696,7 @@ def implement(
                     print("This tracks WHO is working on the WP (prevents abandoned tasks).")
                     raise typer.Exit(1)
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             import os
 
             review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
@@ -722,43 +716,51 @@ def implement(
 
                 if current_lane == Lane.PLANNED or current_lane == Lane.CANCELED:
                     # Two-step: planned→claimed, claimed→in_progress
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.CLAIMED,
-                        actor=_actor,
-                        execution_mode=status_execution_mode,
-                    ))
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.IN_PROGRESS,
-                        actor=_actor,
-                        execution_mode=status_execution_mode,
-                    ))
+                    emit_status_transition(
+                        TransitionRequest(
+                            feature_dir=_impl_feature_dir,
+                            mission_slug=mission_slug,
+                            wp_id=normalized_wp_id,
+                            to_lane=Lane.CLAIMED,
+                            actor=_actor,
+                            execution_mode=status_execution_mode,
+                        )
+                    )
+                    emit_status_transition(
+                        TransitionRequest(
+                            feature_dir=_impl_feature_dir,
+                            mission_slug=mission_slug,
+                            wp_id=normalized_wp_id,
+                            to_lane=Lane.IN_PROGRESS,
+                            actor=_actor,
+                            execution_mode=status_execution_mode,
+                        )
+                    )
                 elif current_lane == Lane.CLAIMED:
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.IN_PROGRESS,
-                        actor=_actor,
-                        execution_mode=status_execution_mode,
-                    ))
+                    emit_status_transition(
+                        TransitionRequest(
+                            feature_dir=_impl_feature_dir,
+                            mission_slug=mission_slug,
+                            wp_id=normalized_wp_id,
+                            to_lane=Lane.IN_PROGRESS,
+                            actor=_actor,
+                            execution_mode=status_execution_mode,
+                        )
+                    )
                 elif current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
                     # Re-implementing after review — force back to in_progress
-                    emit_status_transition(TransitionRequest(
-                        feature_dir=_impl_feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=Lane.IN_PROGRESS,
-                        actor=_actor,
-                        force=True,
-                        reason="Re-implementing after review feedback",
-                        execution_mode=status_execution_mode,
-                    ))
+                    emit_status_transition(
+                        TransitionRequest(
+                            feature_dir=_impl_feature_dir,
+                            mission_slug=mission_slug,
+                            wp_id=normalized_wp_id,
+                            to_lane=Lane.IN_PROGRESS,
+                            actor=_actor,
+                            force=True,
+                            reason="Re-implementing after review feedback",
+                            execution_mode=status_execution_mode,
+                        )
+                    )
                 # If already in_progress, no event needed
             except Exception as _evt_err:
                 logger.warning("Could not emit status event: %s", _evt_err)
@@ -1430,6 +1432,7 @@ def review(
             render_gate_failure,
         )
         from rich.console import Console as _RichConsole
+
         _rich_console = _RichConsole()
         _gate_result = ensure_occurrence_classification_ready(feature_dir)
         if not _gate_result.passed:
@@ -1476,7 +1479,7 @@ def review(
                 print("This tracks WHO is reviewing the WP (prevents abandoned reviews).")
                 raise typer.Exit(1)
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             import os
 
             # Capture current shell PID
@@ -1484,18 +1487,20 @@ def review(
 
             with feature_status_lock(main_repo_root, mission_slug):
                 # Emit the actual for_review -> in_review transition
-                emit_status_transition(TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=normalized_wp_id,
-                    to_lane=Lane.IN_REVIEW,
-                    actor=agent,
-                    reason="Started review via action command",
-                    review_ref="action-review-claim",
-                    workspace_context=f"action-review:{main_repo_root}",
-                    execution_mode=status_execution_mode,
-                    repo_root=main_repo_root,
-                ))
+                emit_status_transition(
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug=mission_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane=Lane.IN_REVIEW,
+                        actor=agent,
+                        reason="Started review via action command",
+                        review_ref="action-review-claim",
+                        workspace_context=f"action-review:{main_repo_root}",
+                        execution_mode=status_execution_mode,
+                        repo_root=main_repo_root,
+                    )
+                )
 
                 # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
                 wp_content = wp.path.read_text(encoding="utf-8-sig")

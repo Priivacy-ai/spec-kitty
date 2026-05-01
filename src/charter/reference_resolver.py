@@ -1,4 +1,5 @@
 """Thin charter-facing wrapper around the DRG transitive reference resolver."""
+
 from __future__ import annotations
 
 from pathlib import Path

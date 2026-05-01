@@ -1,4 +1,5 @@
 """WP03 — README Governance layer subsection regression tests."""
+
 import re
 from pathlib import Path
 
@@ -9,10 +10,7 @@ README = REPO_ROOT / "README.md"
 
 def test_readme_has_governance_layer_section() -> None:
     content = README.read_text()
-    assert "## Governance layer" in content, (
-        "README.md must contain a '## Governance layer' subsection "
-        "(WP03 / FR-005)."
-    )
+    assert "## Governance layer" in content, "README.md must contain a '## Governance layer' subsection (WP03 / FR-005)."
 
 
 def test_governance_section_links_to_trail_model() -> None:
@@ -21,9 +19,7 @@ def test_governance_section_links_to_trail_model() -> None:
     # Next top-level section or EOF
     next_h2 = content.find("\n## ", gov_idx + 1)
     section = content[gov_idx : next_h2 if next_h2 != -1 else len(content)]
-    assert "docs/trail-model.md" in section, (
-        "Governance layer subsection must link to docs/trail-model.md."
-    )
+    assert "docs/trail-model.md" in section, "Governance layer subsection must link to docs/trail-model.md."
 
 
 def test_governance_section_links_to_host_surface_parity() -> None:
@@ -31,9 +27,7 @@ def test_governance_section_links_to_host_surface_parity() -> None:
     gov_idx = content.index("## Governance layer")
     next_h2 = content.find("\n## ", gov_idx + 1)
     section = content[gov_idx : next_h2 if next_h2 != -1 else len(content)]
-    assert "docs/host-surface-parity.md" in section, (
-        "Governance layer subsection must link to docs/host-surface-parity.md."
-    )
+    assert "docs/host-surface-parity.md" in section, "Governance layer subsection must link to docs/host-surface-parity.md."
 
 
 def test_governance_section_mentions_advise_ask_do() -> None:

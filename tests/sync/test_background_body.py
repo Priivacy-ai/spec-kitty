@@ -21,10 +21,14 @@ def _patch_bg_token_fetch(monkeypatch):
     attribute (e.g., ``_make_service(..., auth_token=None, monkeypatch=monkeypatch)``).
     """
     import specify_cli.sync.background as bg_mod
+
     monkeypatch.setattr(
-        bg_mod, "_fetch_access_token_sync", MagicMock(return_value="token"),
+        bg_mod,
+        "_fetch_access_token_sync",
+        MagicMock(return_value="token"),
     )
     yield
+
 
 def _make_task(
     row_id: int = 1,
@@ -143,6 +147,7 @@ class TestDrainOrdering:
         )
 
         call_order: list[str] = []
+
         def track_batch(*args, **kwargs):
             call_order.append("event_drain")
             return BatchSyncResult()
@@ -438,7 +443,8 @@ class TestEdgeCases:
         # _body_queue is None by default — this should not raise
         with (
             patch(
-                "specify_cli.sync.background.is_saas_sync_enabled", return_value=True,
+                "specify_cli.sync.background.is_saas_sync_enabled",
+                return_value=True,
             ),
             patch("specify_cli.sync.background.batch_sync") as mock_batch,
         ):
@@ -651,7 +657,6 @@ class TestRuntimeLifecycle:
         """Body queue and event queue must share the same DB file."""
         from specify_cli.sync.queue import OfflineQueue
         from specify_cli.sync.runtime import SyncRuntime
-
 
         db_path = tmp_path / "queue.db"
         mock_service = MagicMock()

@@ -20,7 +20,6 @@ from charter.synthesizer.request import (
     SynthesisRequest,
     SynthesisTarget,
     compute_inputs_hash,
-    normalize_request_for_hash,
     short_hash,
 )
 
@@ -86,9 +85,7 @@ def _make_request(
 
 
 class TestMissingFixture:
-    def test_missing_fixture_raises_with_correct_expected_path(
-        self, tmp_path: Path
-    ) -> None:
+    def test_missing_fixture_raises_with_correct_expected_path(self, tmp_path: Path) -> None:
         """FixtureAdapterMissingError contains the expected fixture path."""
         adapter = FixtureAdapter(fixture_root=tmp_path)
         req = _make_request()
@@ -127,9 +124,7 @@ class TestNormalizationInvariance:
         """Two requests with identical semantic content hash identically."""
         req_a = _make_request(run_id="run-aaa")
         req_b = _make_request(run_id="run-bbb")  # different run_id, same semantic content
-        assert compute_inputs_hash(req_a, "fixture", "1.0.0") == compute_inputs_hash(
-            req_b, "fixture", "1.0.0"
-        )
+        assert compute_inputs_hash(req_a, "fixture", "1.0.0") == compute_inputs_hash(req_b, "fixture", "1.0.0")
 
     def test_key_order_permutation_does_not_change_hash(self) -> None:
         """Different dict key orderings produce the same hash (sorted-key normalization)."""
@@ -172,25 +167,27 @@ class TestNormalizationInvariance:
         }
 
         req_a = SynthesisRequest(
-            target=target, interview_snapshot=interview_a,
-            doctrine_snapshot=doctrine, drg_snapshot=drg, run_id="r1",
+            target=target,
+            interview_snapshot=interview_a,
+            doctrine_snapshot=doctrine,
+            drg_snapshot=drg,
+            run_id="r1",
         )
         req_b = SynthesisRequest(
-            target=target, interview_snapshot=interview_b,
-            doctrine_snapshot=doctrine, drg_snapshot=drg, run_id="r2",
+            target=target,
+            interview_snapshot=interview_b,
+            doctrine_snapshot=doctrine,
+            drg_snapshot=drg,
+            run_id="r2",
         )
 
-        assert compute_inputs_hash(req_a, "fixture", "1.0.0") == compute_inputs_hash(
-            req_b, "fixture", "1.0.0"
-        )
+        assert compute_inputs_hash(req_a, "fixture", "1.0.0") == compute_inputs_hash(req_b, "fixture", "1.0.0")
 
     def test_run_id_excluded_from_hash(self) -> None:
         """Changing run_id does not change the fixture hash (R-0-6 rule 4)."""
         req_a = _make_request(run_id="01AAAAAAAAAAAAAAAAAAAAAAAAA")
         req_b = _make_request(run_id="01BBBBBBBBBBBBBBBBBBBBBBBBB")
-        assert compute_inputs_hash(req_a, "fixture", "1.0.0") == compute_inputs_hash(
-            req_b, "fixture", "1.0.0"
-        )
+        assert compute_inputs_hash(req_a, "fixture", "1.0.0") == compute_inputs_hash(req_b, "fixture", "1.0.0")
 
     def test_adapter_version_changes_hash(self) -> None:
         """Different adapter versions produce different hashes (R-0-6 rule 5)."""
@@ -210,9 +207,7 @@ class TestNormalizationInvariance:
         """A semantic change in interview answers produces a different hash."""
         req_a = _make_request(extra_interview={"testing_philosophy": "tdd"})
         req_b = _make_request(extra_interview={"testing_philosophy": "bdd"})
-        assert compute_inputs_hash(req_a, "fixture", "1.0.0") != compute_inputs_hash(
-            req_b, "fixture", "1.0.0"
-        )
+        assert compute_inputs_hash(req_a, "fixture", "1.0.0") != compute_inputs_hash(req_b, "fixture", "1.0.0")
 
 
 # ---------------------------------------------------------------------------
@@ -236,18 +231,9 @@ class TestPresentFixture:
         # Verify the fixture file exists first
         full_hash = compute_inputs_hash(req, "fixture", "1.0.0")
         sh = short_hash(full_hash, 12)
-        fixture_path = (
-            fixture_root
-            / "directive"
-            / "project-decision-doc-directive"
-            / f"{sh}.directive.yaml"
-        )
+        fixture_path = fixture_root / "directive" / "project-decision-doc-directive" / f"{sh}.directive.yaml"
         if not fixture_path.exists():
-            pytest.skip(
-                f"Fixture not found at {fixture_path}. "
-                f"Expected hash: {full_hash[:12]}. "
-                f"Create the fixture to enable this test."
-            )
+            pytest.skip(f"Fixture not found at {fixture_path}. Expected hash: {full_hash[:12]}. Create the fixture to enable this test.")
 
         output = adapter.generate(req)
         assert output is not None
@@ -268,10 +254,7 @@ class TestPresentFixture:
         )
         full_hash = compute_inputs_hash(req, "fixture", "1.0.0")
         sh = short_hash(full_hash, 12)
-        fixture_path = (
-            fixture_root / "directive" / "project-decision-doc-directive"
-            / f"{sh}.directive.yaml"
-        )
+        fixture_path = fixture_root / "directive" / "project-decision-doc-directive" / f"{sh}.directive.yaml"
         if not fixture_path.exists():
             pytest.skip("Fixture not present; skipping body-type test.")
 
@@ -290,10 +273,7 @@ class TestPresentFixture:
         )
         full_hash = compute_inputs_hash(req, "fixture", "1.0.0")
         sh = short_hash(full_hash, 12)
-        fixture_path = (
-            fixture_root / "directive" / "project-decision-doc-directive"
-            / f"{sh}.directive.yaml"
-        )
+        fixture_path = fixture_root / "directive" / "project-decision-doc-directive" / f"{sh}.directive.yaml"
         if not fixture_path.exists():
             pytest.skip("Fixture not present; skipping determinism test.")
 

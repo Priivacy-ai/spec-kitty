@@ -61,9 +61,7 @@ class TestBareNextDoesNotAdvance:
                 "specify_cli.next.runtime_bridge.query_current_state",
                 return_value=decision,
             ) as mock_query,
-            patch(
-                "specify_cli.cli.commands.next_cmd.decide_next"
-            ) as mock_decide,
+            patch("specify_cli.cli.commands.next_cmd.decide_next") as mock_decide,
         ):
             result = runner.invoke(
                 cli_app,
@@ -92,9 +90,7 @@ class TestBareNextDoesNotAdvance:
                 "specify_cli.next.runtime_bridge.query_current_state",
                 return_value=decision,
             ),
-            patch(
-                "specify_cli.cli.commands.next_cmd._emit_mission_next_invoked"
-            ) as mock_emit,
+            patch("specify_cli.cli.commands.next_cmd._emit_mission_next_invoked") as mock_emit,
         ):
             runner.invoke(cli_app, ["next", "--mission", "fixture-mission", "--json"])
 
@@ -160,12 +156,8 @@ class TestBareNextDoesNotAdvance:
                 "specify_cli.cli.commands.next_cmd.decide_next",
                 return_value=decision,
             ) as mock_decide,
-            patch(
-                "specify_cli.cli.commands.next_cmd._emit_mission_next_invoked"
-            ),
-            patch(
-                "specify_cli.next.runtime_bridge.query_current_state"
-            ) as mock_query,
+            patch("specify_cli.cli.commands.next_cmd._emit_mission_next_invoked"),
+            patch("specify_cli.next.runtime_bridge.query_current_state") as mock_query,
         ):
             runner.invoke(
                 cli_app,

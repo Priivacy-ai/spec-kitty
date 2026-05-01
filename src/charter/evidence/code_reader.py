@@ -10,7 +10,7 @@ No external runtime dependencies — stdlib ``pathlib`` and ``os.walk`` only.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
@@ -117,9 +117,7 @@ def _is_test_file(rel_path: str, filename: str) -> bool:
             return True
     # Directory-based heuristic
     parts = rel_path.replace("\\", "/").split("/")
-    if "tests" in parts or "__tests__" in parts:
-        return True
-    return False
+    return bool("tests" in parts or "__tests__" in parts)
 
 
 # ---------------------------------------------------------------------------
@@ -160,9 +158,7 @@ class CodeReadingCollector:
         "unknown" ``CodeSignals`` instance rather than propagating them.
         """
         if not self._repo_root.exists():
-            raise CodeReadingError(
-                f"Repository root does not exist: {self._repo_root}"
-            )
+            raise CodeReadingError(f"Repository root does not exist: {self._repo_root}")
 
         try:
             return self._detect()
@@ -191,15 +187,11 @@ class CodeReadingCollector:
                 continue
 
             # Prune excluded directories in-place so os.walk skips them
-            dirnames[:] = [
-                d for d in dirnames if d not in EXCLUDED_DIRS
-            ]
+            dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
 
             for filename in filenames:
                 abs_path = os.path.join(dirpath, filename)
-                rel_path = os.path.relpath(abs_path, root_str).replace(
-                    os.sep, "/"
-                )
+                rel_path = os.path.relpath(abs_path, root_str).replace(os.sep, "/")
 
                 # Track indicator filenames for language/framework detection
                 indicator_files.add(filename)
@@ -249,9 +241,7 @@ class CodeReadingCollector:
         stack_id = "+".join(parts_stack) if language != "unknown" else "unknown"
 
         # --- representative files (5 source + 5 test) -------------------
-        representative: list[str] = (
-            source_files[:5] + test_files[:5]
-        )
+        representative: list[str] = source_files[:5] + test_files[:5]
 
         return CodeSignals(
             stack_id=stack_id,

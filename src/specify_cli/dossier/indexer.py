@@ -223,9 +223,7 @@ class Indexer:
         """
         # Strategy 1: Check manifest definitions (if manifest exists)
         if manifest:
-            for specs in (
-                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
-            ):
+            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
                 if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
                     return specs.artifact_class.value
 
@@ -357,9 +355,7 @@ class Indexer:
         manifest = self.manifest_registry.load_manifest(mission_type)
 
         if manifest:
-            for specs in (
-                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
-            ):
+            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
                 if self._matches_pattern(file_path, specs.path_pattern):
                     return specs.artifact_key
 

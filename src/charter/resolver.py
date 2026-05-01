@@ -65,8 +65,7 @@ def _validate_paradigm_selection(
         raise GovernanceResolutionError(
             [
                 "Charter selected unavailable paradigm(s): " + ", ".join(missing),
-                "Available shipped paradigms: "
-                + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
+                "Available shipped paradigms: " + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
                 "Update charter selected_paradigms to values present in doctrine/paradigms/shipped/.",
             ]
         )
@@ -116,11 +115,7 @@ def _resolve_directives_selection(
             )
         return list(doctrine.selected_directives), "charter"
 
-    fallback = (
-        [d.id for d in directives_cfg.directives]
-        if directives_cfg.directives
-        else sorted(doctrine_catalog.directives)
-    )
+    fallback = [d.id for d in directives_cfg.directives] if directives_cfg.directives else sorted(doctrine_catalog.directives)
     return fallback, "catalog_fallback"
 
 
@@ -132,15 +127,11 @@ def _resolve_template_set_selection(
 ) -> tuple[str, str]:
     """Resolve template set from charter selection or fallback."""
     if doctrine.template_set:
-        if (
-            "template_sets" in doctrine_catalog.domains_present
-            and doctrine.template_set not in doctrine_catalog.template_sets
-        ):
+        if "template_sets" in doctrine_catalog.domains_present and doctrine.template_set not in doctrine_catalog.template_sets:
             raise GovernanceResolutionError(
                 [
                     f"Charter selected unavailable template_set: '{doctrine.template_set}'",
-                    "Available template sets: "
-                    + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
+                    "Available template sets: " + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
                     "Update charter template_set to a value available in doctrine missions.",
                 ]
             )
@@ -169,9 +160,7 @@ def resolve_governance(
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
     resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog)
-    template_set, template_set_source = _resolve_template_set_selection(
-        doctrine, doctrine_catalog, fallback_template_set, diagnostics
-    )
+    template_set, template_set_source = _resolve_template_set_selection(doctrine, doctrine_catalog, fallback_template_set, diagnostics)
 
     return GovernanceResolution(
         paradigms=selected_paradigms,
@@ -218,9 +207,7 @@ def resolve_governance_for_profile(
         graph=graph,
         repo_root=repo_root,
     )
-    diagnostics = [
-        f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in resolution_graph.unresolved
-    ]
+    diagnostics = [f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in resolution_graph.unresolved]
 
     return GovernanceResolution(
         paradigms=list(interview.selected_paradigms),

@@ -40,9 +40,7 @@ __all__ = ["run_candidate_review"]
 
 #: Default timeout in seconds for reading the LLM JSON response from stdin.
 #: Override with the ``SPEC_KITTY_WIDEN_SUMMARIZE_TIMEOUT`` environment variable.
-SUMMARIZE_TIMEOUT: float = float(
-    os.environ.get("SPEC_KITTY_WIDEN_SUMMARIZE_TIMEOUT", "30")
-)
+SUMMARIZE_TIMEOUT: float = float(os.environ.get("SPEC_KITTY_WIDEN_SUMMARIZE_TIMEOUT", "30"))
 
 # ---------------------------------------------------------------------------
 # T033 — Emit LLM Summarization Request instruction block (§5.1)
@@ -70,9 +68,7 @@ def _emit_summarization_request(
         "╚══════════════════════════════════════════════════════════════════╝",
     ]
 
-    participants_str = (
-        ", ".join(discussion.participants) if discussion.participants else "(none)"
-    )
+    participants_str = ", ".join(discussion.participants) if discussion.participants else "(none)"
     thread_url = discussion.thread_url or "unavailable"
 
     body_lines = [
@@ -282,9 +278,7 @@ def _handle_accept(
             actor=actor,
         )
     except DecisionError as exc:
-        console.print(
-            f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]"
-        )
+        console.print(f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]")
         return False
     console.print("[green]Decision resolved.[/green]")
     return True
@@ -324,10 +318,7 @@ def _handle_edit(
     rationale: str | None = None
     if source in (SummarySource.MISSION_OWNER_OVERRIDE, SummarySource.MANUAL):
         try:
-            rationale = (
-                console.input("Optional rationale (press Enter to skip): ").strip()
-                or None
-            )
+            rationale = console.input("Optional rationale (press Enter to skip): ").strip() or None
         except (KeyboardInterrupt, EOFError):
             rationale = None
 
@@ -346,9 +337,7 @@ def _handle_edit(
             actor=actor,
         )
     except DecisionError as exc:
-        console.print(
-            f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]"
-        )
+        console.print(f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]")
         return False
     console.print("[green]Decision resolved.[/green]")
     return True
@@ -427,20 +416,14 @@ def run_candidate_review(
     # ------------------------------------------------------------------
     raw = _read_llm_response(timeout=SUMMARIZE_TIMEOUT)
 
-    candidate = (
-        _parse_candidate(raw, decision_id, discussion_data)
-        if raw is not None
-        else _make_fallback_candidate(decision_id, discussion_data)
-    )
+    candidate = _parse_candidate(raw, decision_id, discussion_data) if raw is not None else _make_fallback_candidate(decision_id, discussion_data)
 
     # ------------------------------------------------------------------
     # Step 4 — render Candidate Review Panel
     # ------------------------------------------------------------------
     if candidate.llm_timed_out:
         # §5.3 fallback message
-        console.print(
-            "[yellow]Summarization timed out or produced invalid output.[/yellow]"
-        )
+        console.print("[yellow]Summarization timed out or produced invalid output.[/yellow]")
         console.print("Showing raw discussion. Please write the answer manually.")
         console.print()
         console.print("[a]ccept empty | [e]dit (blank pre-fill) | [d]efer")
@@ -448,18 +431,8 @@ def run_candidate_review(
         summary_display = candidate.candidate_summary or "(no summary)"
         answer_display = candidate.candidate_answer or "(no answer)"
 
-        panel_text = (
-            f"Question: {question_text}\n"
-            f"\n"
-            f"Summary:\n"
-            f"  {summary_display}\n"
-            f"\n"
-            f"Proposed answer:\n"
-            f"  {answer_display}"
-        )
-        console.print(
-            Panel(panel_text, title="Candidate Review", expand=False)
-        )
+        panel_text = f"Question: {question_text}\n\nSummary:\n  {summary_display}\n\nProposed answer:\n  {answer_display}"
+        console.print(Panel(panel_text, title="Candidate Review", expand=False))
 
     # ------------------------------------------------------------------
     # Step 5 — prompt owner
@@ -483,6 +456,4 @@ def run_candidate_review(
             _handle_defer(candidate, mission_slug, repo_root, dm_service, actor, console)
             return candidate
 
-        console.print(
-            "[yellow]Invalid choice. Please enter 'a' (accept), 'e' (edit), or 'd' (defer).[/yellow]"
-        )
+        console.print("[yellow]Invalid choice. Please enter 'a' (accept), 'e' (edit), or 'd' (defer).[/yellow]")

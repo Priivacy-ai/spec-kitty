@@ -42,9 +42,7 @@ def test_version_mismatch_fails(tmp_path: Path) -> None:
     assert issue is not None
     assert "3.1.1" in issue.message
     assert "3.1.1a3" in issue.message
-    assert "metadata.yaml" in issue.message or (
-        issue.hint and "metadata.yaml" in issue.hint
-    )
+    assert "metadata.yaml" in issue.message or (issue.hint and "metadata.yaml" in issue.hint)
 
 
 def test_version_mismatch_message_names_both_files(tmp_path: Path) -> None:

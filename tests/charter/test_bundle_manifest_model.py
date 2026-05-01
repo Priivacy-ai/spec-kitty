@@ -3,6 +3,7 @@
 Pins the v1.0.0 manifest contract. Regressions here indicate scope creep
 or a change in the tracked/derived invariants.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

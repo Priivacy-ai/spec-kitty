@@ -40,9 +40,7 @@ def load_graph(path: Path) -> DRGGraph:
     try:
         return DRGGraph.model_validate(data)
     except ValidationError as exc:
-        raise DRGLoadError(
-            f"Validation error in {path}: {exc}"
-        ) from exc
+        raise DRGLoadError(f"Validation error in {path}: {exc}") from exc
 
 
 def merge_layers(
@@ -72,9 +70,7 @@ def merge_layers(
         if pn.urn in node_index:
             # Override label only -- keep shipped kind
             existing = node_index[pn.urn]
-            node_index[pn.urn] = existing.model_copy(
-                update={"label": pn.label} if pn.label is not None else {}
-            )
+            node_index[pn.urn] = existing.model_copy(update={"label": pn.label} if pn.label is not None else {})
         else:
             node_index[pn.urn] = pn
 

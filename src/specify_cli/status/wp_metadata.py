@@ -350,9 +350,7 @@ class WPMetadata(BaseModel):
             return Lane(canonical)
         except ValueError as err:
             valid = ", ".join(lane.value for lane in Lane)
-            raise ValueError(
-                f"Invalid lane value: {v!r}. Must be one of: {valid}"
-            ) from err
+            raise ValueError(f"Invalid lane value: {v!r}. Must be one of: {valid}") from err
 
     # ── Computed properties ──────────────────────────────────────
 

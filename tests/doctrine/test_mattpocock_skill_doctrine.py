@@ -93,9 +93,7 @@ def test_software_dev_action_indexes_expose_design_and_triage_doctrine() -> None
 
 
 def test_diagnosis_procedure_preserves_hypothesis_and_feedback_loop_discipline() -> None:
-    procedure = _load_yaml(
-        DOCTRINE_ROOT / "procedures" / "shipped" / "disciplined-defect-diagnosis.procedure.yaml"
-    )
+    procedure = _load_yaml(DOCTRINE_ROOT / "procedures" / "shipped" / "disciplined-defect-diagnosis.procedure.yaml")
 
     step_text = "\n".join(step["title"] + " " + step.get("description", "") for step in procedure["steps"])
     assert "feedback loop" in step_text

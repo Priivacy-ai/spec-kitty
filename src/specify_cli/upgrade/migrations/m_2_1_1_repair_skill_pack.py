@@ -89,16 +89,8 @@ class RepairSkillPackMigration(BaseMigration):
         if manifest is None or not manifest.entries:
             return True
 
-        expected_pairs = {
-            (agent_key, skill.name)
-            for agent_key in installable_agents
-            for skill in skills
-        }
-        actual_pairs = {
-            (entry.agent_key, entry.skill_name)
-            for entry in manifest.entries
-            if entry.source_file == "SKILL.md"
-        }
+        expected_pairs = {(agent_key, skill.name) for agent_key in installable_agents for skill in skills}
+        actual_pairs = {(entry.agent_key, entry.skill_name) for entry in manifest.entries if entry.source_file == "SKILL.md"}
         if not expected_pairs.issubset(actual_pairs):
             return True
 
@@ -142,9 +134,7 @@ class RepairSkillPackMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
         if dry_run:
-            changes.append(
-                f"Would repair/install {len(skills)} skill(s) for {len(installable_agents)} agent(s)"
-            )
+            changes.append(f"Would repair/install {len(skills)} skill(s) for {len(installable_agents)} agent(s)")
             return MigrationResult(success=True, changes_made=changes)
 
         try:
@@ -160,10 +150,7 @@ class RepairSkillPackMigration(BaseMigration):
         manifest.spec_kitty_version = "2.1.1"
         save_manifest(manifest, project_path)
 
-        changes.append(
-            f"Installed {len(skills)} skill(s) for {len(installable_agents)} agent(s) "
-            f"({len(manifest.entries)} managed files)"
-        )
+        changes.append(f"Installed {len(skills)} skill(s) for {len(installable_agents)} agent(s) ({len(manifest.entries)} managed files)")
         changes.append("Rebuilt .kittify/skills-manifest.json")
 
         return MigrationResult(success=True, changes_made=changes, warnings=warnings)

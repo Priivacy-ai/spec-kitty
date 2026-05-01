@@ -10,13 +10,13 @@ from specify_cli.validators.csv_schema import CSVSchemaValidation, validate_csv_
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture
 def correct_schema_csv(tmp_path: Path) -> Path:
     """CSV file with correct schema."""
     csv_file = tmp_path / "test.csv"
     csv_file.write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes\n"
-        "2025-01-25T10:00:00,journal,Citation text,Finding,high,Notes\n",
+        "timestamp,source_type,citation,key_finding,confidence,notes\n2025-01-25T10:00:00,journal,Citation text,Finding,high,Notes\n",
         encoding="utf-8",
     )
     return csv_file
@@ -38,8 +38,7 @@ def wrong_column_order_csv(tmp_path: Path) -> Path:
     """CSV file with correct columns but wrong order."""
     csv_file = tmp_path / "test.csv"
     csv_file.write_text(
-        "source_type,timestamp,citation,key_finding,confidence,notes\n"
-        "journal,2025-01-25T10:00:00,Citation,Finding,high,Notes\n",
+        "source_type,timestamp,citation,key_finding,confidence,notes\njournal,2025-01-25T10:00:00,Citation,Finding,high,Notes\n",
         encoding="utf-8",
     )
     return csv_file
@@ -58,8 +57,7 @@ def extra_columns_csv(tmp_path: Path) -> Path:
     """CSV file with extra columns."""
     csv_file = tmp_path / "test.csv"
     csv_file.write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes,extra\n"
-        "2025-01-25T10:00:00,journal,Citation,Finding,high,Notes,Extra data\n",
+        "timestamp,source_type,citation,key_finding,confidence,notes,extra\n2025-01-25T10:00:00,journal,Citation,Finding,high,Notes,Extra data\n",
         encoding="utf-8",
     )
     return csv_file
@@ -78,9 +76,7 @@ def csv_with_comments(tmp_path: Path) -> Path:
     """CSV file with comment headers."""
     csv_file = tmp_path / "test.csv"
     csv_file.write_text(
-        "# This is a comment\n"
-        "timestamp,source_type,citation,key_finding,confidence,notes\n"
-        "2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
+        "# This is a comment\ntimestamp,source_type,citation,key_finding,confidence,notes\n2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
         encoding="utf-8",
     )
     return csv_file
@@ -223,8 +219,7 @@ def test_whitespace_handling(tmp_path):
     """Test that whitespace in headers is stripped."""
     csv_file = tmp_path / "test.csv"
     csv_file.write_text(
-        " timestamp , source_type , citation , key_finding , confidence , notes \n"
-        "2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
+        " timestamp , source_type , citation , key_finding , confidence , notes \n2025-01-25T10:00:00,journal,Citation,Finding,high,Notes\n",
         encoding="utf-8",
     )
 

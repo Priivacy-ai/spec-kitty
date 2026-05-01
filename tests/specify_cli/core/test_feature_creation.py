@@ -61,10 +61,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -255,10 +252,7 @@ def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
     try:
         create_mission_core(tmp_path, "123-fix", **_mission_summary("123-fix"))
     except MissionCreationError as exc:
-        assert "Invalid feature slug" not in str(exc), (
-            "Digit-prefixed slug '123-fix' must no longer be rejected for slug format. "
-            f"Got: {exc}"
-        )
+        assert "Invalid feature slug" not in str(exc), f"Digit-prefixed slug '123-fix' must no longer be rejected for slug format. Got: {exc}"
 
 
 def test_uppercase_slug_raises(tmp_path: Path) -> None:
@@ -339,9 +333,7 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["target_branch"] == "2.x"
 
-    tasks_readme = (result.feature_dir / "tasks" / "README.md").read_text(
-        encoding="utf-8"
-    )
+    tasks_readme = (result.feature_dir / "tasks" / "README.md").read_text(encoding="utf-8")
     assert 'planning_base_branch: "2.x"' in tasks_readme
     assert 'merge_target_branch: "2.x"' in tasks_readme
 
@@ -364,9 +356,7 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["target_branch"] == "develop"
 
-    tasks_readme = (result.feature_dir / "tasks" / "README.md").read_text(
-        encoding="utf-8"
-    )
+    tasks_readme = (result.feature_dir / "tasks" / "README.md").read_text(encoding="utf-8")
     assert 'planning_base_branch: "develop"' in tasks_readme
     assert 'merge_target_branch: "develop"' in tasks_readme
 

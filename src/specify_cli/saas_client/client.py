@@ -326,10 +326,7 @@ class SaasClient:
 
         raw_participants = data.get("participants", []) or []
         participants = [
-            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id"))
-            if isinstance(p, dict)
-            else str(p)
-            for p in raw_participants
+            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id")) if isinstance(p, dict) else str(p) for p in raw_participants
         ]
 
         return DiscussionData(

@@ -9,6 +9,7 @@ from specify_cli.glossary.conflict import classify_conflict, score_severity, cre
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture
 def sample_term() -> ExtractedTerm:
     """Sample extracted term."""

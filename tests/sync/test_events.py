@@ -124,9 +124,7 @@ class TestEventEnvelope:
         assert event is not None
         assert event["team_slug"] == "test-team"
 
-    def test_team_slug_defaults_to_local(
-        self, temp_queue, temp_clock, mock_config, monkeypatch
-    ):
+    def test_team_slug_defaults_to_local(self, temp_queue, temp_clock, mock_config, monkeypatch):
         """team_slug defaults to 'local' when auth is unavailable (SC-010)."""
 
         def _boom():
@@ -313,9 +311,7 @@ class TestWPStatusChanged:
         assert event["payload"]["review_ref"] == "review:123"
         assert event["payload"]["execution_mode"] == "worktree"
         assert event["payload"]["evidence"]["review"] == evidence["review"]
-        assert event["payload"]["evidence"]["repos"] == [
-            {"repo": "test-org/test-repo", "branch": "test-branch", "commit": "a" * 40}
-        ]
+        assert event["payload"]["evidence"]["repos"] == [{"repo": "test-org/test-repo", "branch": "test-branch", "commit": "a" * 40}]
         assert event["evidence"] == event["payload"]["evidence"]
         assert "repos" not in evidence
 
@@ -829,9 +825,7 @@ class TestCausationId:
 class TestGitMetadataInEvents:
     """Test git metadata field behavior in emitted events."""
 
-    def test_null_git_metadata(
-        self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth
-    ):
+    def test_null_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth):
         """Events still emit when git metadata is all None."""
         del mock_auth  # side-effect-only
         from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
@@ -854,9 +848,7 @@ class TestGitMetadataInEvents:
         assert event["head_commit_sha"] is None
         assert event["repo_slug"] is None
 
-    def test_partial_git_metadata(
-        self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth
-    ):
+    def test_partial_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth):
         """Events emit with partial git metadata (branch but no repo slug)."""
         del mock_auth  # side-effect-only
         from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
@@ -987,9 +979,7 @@ class TestInternalValidation:
         )
         assert event is None
 
-    def test_validation_exception_returns_none(
-        self, temp_queue, temp_clock, mock_config, mock_auth
-    ):
+    def test_validation_exception_returns_none(self, temp_queue, temp_clock, mock_config, mock_auth):
         """Exception during validation returns None."""
         mock_auth.is_authenticated = False
 
@@ -1006,9 +996,7 @@ class TestInternalValidation:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
-    def test_emitter_constructs_without_auth_arg(
-        self, temp_queue, temp_clock, mock_config, mock_auth
-    ):
+    def test_emitter_constructs_without_auth_arg(self, temp_queue, temp_clock, mock_config, mock_auth):
         """Post-WP08 EventEmitter no longer takes an ``_auth`` argument.
 
         The sync layer reaches for ``get_token_manager()`` internally; the
@@ -1091,9 +1079,7 @@ class TestInternalValidation:
 class TestRouteEvent:
     """Test _route_event behavior with WebSocket integration."""
 
-    def test_ws_send_with_running_loop(
-        self, emitter: EventEmitter, mock_auth: MagicMock
-    ):
+    def test_ws_send_with_running_loop(self, emitter: EventEmitter, mock_auth: MagicMock):
         """WebSocket send uses ensure_future when loop is running."""
         import asyncio
 
@@ -1141,9 +1127,7 @@ class TestRouteEvent:
             asyncio.get_event_loop = original_get_event_loop
             asyncio.ensure_future = original_ensure_future
 
-    def test_async_ws_send_failure_is_queued(
-        self, emitter: EventEmitter, mock_auth: MagicMock
-    ):
+    def test_async_ws_send_failure_is_queued(self, emitter: EventEmitter, mock_auth: MagicMock):
         """A later fire-and-forget WebSocket failure must not drop the event."""
         del mock_auth
 
@@ -1167,9 +1151,7 @@ class TestRouteEvent:
 
         emitter.queue.queue_event.assert_called_once_with(event)
 
-    def test_auth_exception_falls_back_to_queue(
-        self, emitter: EventEmitter, monkeypatch
-    ):
+    def test_auth_exception_falls_back_to_queue(self, emitter: EventEmitter, monkeypatch):
         """Auth failures do not prevent queueing."""
         emitter.ws_client = None
 

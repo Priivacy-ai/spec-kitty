@@ -30,17 +30,11 @@ class FixOrchestratorApiSkillMigration(BaseMigration):
     """Expand orchestrator-api skill with output examples and internals."""
 
     migration_id = "2.1.2_fix_orchestrator_api_skill"
-    description = (
-        "Expand orchestrator-api skill with JSON output examples, error codes, "
-        "idempotency behavior, and preflight details"
-    )
+    description = "Expand orchestrator-api skill with JSON output examples, error codes, idempotency behavior, and preflight details"
     target_version = "2.1.2"
 
     def detect(self, project_path: Path) -> bool:
-        for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
-            if file_contains_any(info.path, _OLD_MARKERS):
-                return True
-        return False
+        return any(file_contains_any(info.path, _OLD_MARKERS) for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         files_found = find_skill_files(project_path, _SKILL_NAME)
@@ -54,18 +48,10 @@ class FixOrchestratorApiSkillMigration(BaseMigration):
 
         try:
             doctrine_root = files("doctrine")
-            canonical_path = doctrine_root.joinpath(
-                "skills", _SKILL_NAME, "SKILL.md"
-            )
+            canonical_path = doctrine_root.joinpath("skills", _SKILL_NAME, "SKILL.md")
             new_content = canonical_path.read_text(encoding="utf-8")
         except Exception:
-            fallback = (
-                Path(__file__).resolve().parents[3]
-                / "doctrine"
-                / "skills"
-                / _SKILL_NAME
-                / "SKILL.md"
-            )
+            fallback = Path(__file__).resolve().parents[3] / "doctrine" / "skills" / _SKILL_NAME / "SKILL.md"
             if fallback.is_file():
                 new_content = fallback.read_text(encoding="utf-8")
             else:

@@ -7,6 +7,7 @@ Tests cover:
 All 16 rows of POLICY_TABLE are tested individually via parametrize, plus
 golden-path assertions for rows that govern existing dashboard behaviour (3.2.0a5).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -66,12 +67,8 @@ def test_advisory_events_omit_body() -> None:
     """All ADVISORY events project without request_text or evidence_ref."""
     for event in EventKind:
         rule = resolve_projection(ModeOfWork.ADVISORY, event)
-        assert not rule.include_request_text, (
-            f"ADVISORY/{event} should not include request_text"
-        )
-        assert not rule.include_evidence_ref, (
-            f"ADVISORY/{event} should not include evidence_ref"
-        )
+        assert not rule.include_request_text, f"ADVISORY/{event} should not include request_text"
+        assert not rule.include_evidence_ref, f"ADVISORY/{event} should not include evidence_ref"
 
 
 def test_query_never_projects() -> None:
@@ -85,9 +82,7 @@ def test_correlation_events_on_advisory_do_not_project() -> None:
     """ADVISORY correlation events (artifact_link, commit_link) produce no SaaS traffic."""
     for event in (EventKind.ARTIFACT_LINK, EventKind.COMMIT_LINK):
         rule = resolve_projection(ModeOfWork.ADVISORY, event)
-        assert not rule.project, (
-            f"ADVISORY/{event} should not project (correlation event suppressed for advisory)"
-        )
+        assert not rule.project, f"ADVISORY/{event} should not project (correlation event suppressed for advisory)"
 
 
 def test_correlation_events_on_task_execution_project_without_body() -> None:
@@ -95,9 +90,7 @@ def test_correlation_events_on_task_execution_project_without_body() -> None:
     for event in (EventKind.ARTIFACT_LINK, EventKind.COMMIT_LINK):
         rule = resolve_projection(ModeOfWork.TASK_EXECUTION, event)
         assert rule.project, f"TASK_EXECUTION/{event} should project"
-        assert not rule.include_request_text, (
-            f"TASK_EXECUTION/{event} should not include request_text"
-        )
+        assert not rule.include_request_text, f"TASK_EXECUTION/{event} should not include request_text"
 
 
 def test_null_mode_falls_back_to_task_execution() -> None:
@@ -105,10 +98,7 @@ def test_null_mode_falls_back_to_task_execution() -> None:
     for event in EventKind:
         rule_none = resolve_projection(None, event)
         rule_task_exec = resolve_projection(ModeOfWork.TASK_EXECUTION, event)
-        assert rule_none == rule_task_exec, (
-            f"None mode should be identical to TASK_EXECUTION for event={event}, "
-            f"got {rule_none!r} vs {rule_task_exec!r}"
-        )
+        assert rule_none == rule_task_exec, f"None mode should be identical to TASK_EXECUTION for event={event}, got {rule_none!r} vs {rule_task_exec!r}"
 
 
 # ---------------------------------------------------------------------------

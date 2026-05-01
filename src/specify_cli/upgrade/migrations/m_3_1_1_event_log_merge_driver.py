@@ -52,9 +52,7 @@ class EventLogMergeDriverMigration(BaseMigration):
         attributes_path = project_path / ".gitattributes"
         attributes_missing = True
         if attributes_path.exists():
-            attributes_missing = _ATTRIBUTES_ENTRY not in attributes_path.read_text(
-                encoding="utf-8"
-            )
+            attributes_missing = _ATTRIBUTES_ENTRY not in attributes_path.read_text(encoding="utf-8")
 
         if not (project_path / ".git").exists():
             return attributes_missing

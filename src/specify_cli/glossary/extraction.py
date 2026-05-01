@@ -184,9 +184,7 @@ def extract_metadata_hints(metadata: dict[str, Any]) -> list[ExtractedTerm]:
                     if normalized_canonical not in exclude_terms:
                         terms.add(normalized_canonical)
 
-    return [
-        ExtractedTerm(surface=term, source="metadata_hint", confidence=1.0, original=term) for term in sorted(terms)
-    ]
+    return [ExtractedTerm(surface=term, source="metadata_hint", confidence=1.0, original=term) for term in sorted(terms)]
 
 
 def extract_quoted_phrases(text: str) -> list[ExtractedTerm]:
@@ -207,9 +205,7 @@ def extract_quoted_phrases(text: str) -> list[ExtractedTerm]:
         if normalized and len(normalized) > 1 and normalized not in COMMON_WORDS:
             terms.add(normalized)
 
-    return [
-        ExtractedTerm(surface=term, source="quoted_phrase", confidence=0.8, original=term) for term in sorted(terms)
-    ]
+    return [ExtractedTerm(surface=term, source="quoted_phrase", confidence=0.8, original=term) for term in sorted(terms)]
 
 
 def extract_acronyms(text: str) -> list[ExtractedTerm]:
@@ -233,9 +229,7 @@ def extract_acronyms(text: str) -> list[ExtractedTerm]:
         # Don't normalize further (acronyms are already normalized)
         terms.add(normalized)
 
-    return [
-        ExtractedTerm(surface=term, source="acronym", confidence=0.8, original=term.upper()) for term in sorted(terms)
-    ]
+    return [ExtractedTerm(surface=term, source="acronym", confidence=0.8, original=term.upper()) for term in sorted(terms)]
 
 
 def extract_casing_patterns(text: str) -> list[ExtractedTerm]:
@@ -263,9 +257,7 @@ def extract_casing_patterns(text: str) -> list[ExtractedTerm]:
         if normalized and normalized not in COMMON_WORDS:
             terms.add(normalized)
 
-    return [
-        ExtractedTerm(surface=term, source="casing_pattern", confidence=0.8, original=term) for term in sorted(terms)
-    ]
+    return [ExtractedTerm(surface=term, source="casing_pattern", confidence=0.8, original=term) for term in sorted(terms)]
 
 
 def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> list[ExtractedTerm]:
@@ -292,9 +284,7 @@ def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> list[Extracte
     # Filter by min occurrences
     repeated = {word for word, count in word_counts.items() if count >= min_occurrences}
 
-    return [
-        ExtractedTerm(surface=word, source="repeated_noun", confidence=0.5, original=word) for word in sorted(repeated)
-    ]
+    return [ExtractedTerm(surface=word, source="repeated_noun", confidence=0.5, original=word) for word in sorted(repeated)]
 
 
 def normalize_term(surface: str) -> str:
@@ -405,9 +395,7 @@ def score_confidence(term: str, source: str) -> float:  # noqa: ARG001
         return 0.3  # Default low
 
 
-def extract_all_terms(
-    text: str, metadata: dict[str, Any] | None = None, limit_words: int = 1000
-) -> list[ExtractedTerm]:
+def extract_all_terms(text: str, metadata: dict[str, Any] | None = None, limit_words: int = 1000) -> list[ExtractedTerm]:
     """Extract all terms from text using metadata hints and heuristics.
 
     Args:

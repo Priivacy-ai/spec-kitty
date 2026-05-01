@@ -114,11 +114,7 @@ def test_architecture_required_paths_exist() -> None:
 
 
 def test_architecture_adr_directories_are_not_empty() -> None:
-    empty = [
-        str(adr_dir.relative_to(REPO_ROOT))
-        for adr_dir in ADR_TRACKS.values()
-        if adr_dir.is_dir() and not list(adr_dir.glob("*.md"))
-    ]
+    empty = [str(adr_dir.relative_to(REPO_ROOT)) for adr_dir in ADR_TRACKS.values() if adr_dir.is_dir() and not list(adr_dir.glob("*.md"))]
     assert not empty, f"ADR directories are empty (expected at least one .md file): {empty}"
 
 
@@ -129,10 +125,7 @@ def test_architecture_adr_directories_are_not_empty() -> None:
 
 @pytest.mark.parametrize("track,adr_path", ADR_FILES, ids=ADR_IDS)
 def test_adr_filename_follows_naming_convention(track: str, adr_path: Path) -> None:
-    assert ADR_FILENAME_RE.match(adr_path.name), (
-        f"ADR in track '{track}' does not follow naming convention "
-        f"'YYYY-MM-DD-N-descriptive-title.md': {adr_path.name}"
-    )
+    assert ADR_FILENAME_RE.match(adr_path.name), f"ADR in track '{track}' does not follow naming convention 'YYYY-MM-DD-N-descriptive-title.md': {adr_path.name}"
 
 
 # ---------------------------------------------------------------------------
@@ -145,15 +138,8 @@ def test_adr_contains_required_sections(track: str, adr_path: Path) -> None:
     if not REQUIRED_ADR_SECTION_CHECKS:
         pytest.skip("No required section checks defined")
     text = adr_path.read_text(encoding="utf-8")
-    missing_sections = [
-        label
-        for label, pattern in REQUIRED_ADR_SECTION_CHECKS
-        if not pattern.search(text)
-    ]
-    assert not missing_sections, (
-        f"ADR '{adr_path.relative_to(REPO_ROOT)}' (track '{track}') is missing "
-        f"required sections: {missing_sections}"
-    )
+    missing_sections = [label for label, pattern in REQUIRED_ADR_SECTION_CHECKS if not pattern.search(text)]
+    assert not missing_sections, f"ADR '{adr_path.relative_to(REPO_ROOT)}' (track '{track}') is missing required sections: {missing_sections}"
 
 
 # ---------------------------------------------------------------------------
@@ -175,15 +161,11 @@ def test_architecture_relative_links_resolve(source_path: Path) -> None:
         try:
             destination.relative_to(REPO_ROOT.resolve())
         except ValueError:
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} link escapes repo: {target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} link escapes repo: {target}")
             continue
 
         if not destination.exists():
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing file target: {target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing file target: {target}")
 
     assert not failures, "\n".join(failures)
 
@@ -219,14 +201,10 @@ def test_user_journey_persona_links_resolve(source_path: Path) -> None:
             destination.relative_to(REPO_ROOT.resolve())
         except ValueError:
             line_number = text.count("\n", 0, match.start()) + 1
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} persona link escapes repo: {raw_target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} persona link escapes repo: {raw_target}")
             continue
         if not destination.exists():
             line_number = text.count("\n", 0, match.start()) + 1
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing persona file: {raw_target}"
-            )
+            failures.append(f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing persona file: {raw_target}")
 
     assert not failures, "\n".join(failures)

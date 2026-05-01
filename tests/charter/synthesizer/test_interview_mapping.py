@@ -32,33 +32,25 @@ class TestInterviewMappingsTable:
     def test_all_entries_are_interview_section_mapping(self) -> None:
         """Every entry in INTERVIEW_MAPPINGS is an InterviewSectionMapping."""
         for entry in INTERVIEW_MAPPINGS:
-            assert isinstance(entry, InterviewSectionMapping), (
-                f"Expected InterviewSectionMapping, got {type(entry)}"
-            )
+            assert isinstance(entry, InterviewSectionMapping), f"Expected InterviewSectionMapping, got {type(entry)}"
 
     def test_all_kinds_are_valid(self) -> None:
         """Every kind in every entry is a valid artifact kind."""
         valid_kinds = {"directive", "tactic", "styleguide"}
         for entry in INTERVIEW_MAPPINGS:
             for kind in entry.kinds:
-                assert kind in valid_kinds, (
-                    f"Section '{entry.section_label}' has unknown kind '{kind}'"
-                )
+                assert kind in valid_kinds, f"Section '{entry.section_label}' has unknown kind '{kind}'"
 
     def test_section_labels_are_nonempty_strings(self) -> None:
         """Every section_label is a non-empty string."""
         for entry in INTERVIEW_MAPPINGS:
             assert isinstance(entry.section_label, str)
-            assert entry.section_label.strip(), (
-                f"Empty section_label in entry {entry}"
-            )
+            assert entry.section_label.strip(), f"Empty section_label in entry {entry}"
 
     def test_kinds_tuples_are_nonempty(self) -> None:
         """Every kinds tuple has at least one kind."""
         for entry in INTERVIEW_MAPPINGS:
-            assert len(entry.kinds) >= 1, (
-                f"Section '{entry.section_label}' has empty kinds tuple"
-            )
+            assert len(entry.kinds) >= 1, f"Section '{entry.section_label}' has empty kinds tuple"
 
     def test_section_labels_are_unique(self) -> None:
         """No duplicate section_label in INTERVIEW_MAPPINGS."""
@@ -78,17 +70,14 @@ class TestInterviewMappingsTable:
             "documentation_policy",
         }
         for section in expected:
-            assert section in present, (
-                f"Expected section '{section}' not in INTERVIEW_MAPPINGS"
-            )
+            assert section in present, f"Expected section '{section}' not in INTERVIEW_MAPPINGS"
 
     def test_expanded_sections_not_in_mappings_table(self) -> None:
         """Expanded sections (per-item) must NOT appear in INTERVIEW_MAPPINGS."""
         table_labels = {m.section_label for m in INTERVIEW_MAPPINGS}
         for expanded in _EXPANDED_SECTIONS:
             assert expanded not in table_labels, (
-                f"Expanded section '{expanded}' must not be in INTERVIEW_MAPPINGS "
-                f"(it is handled via per-item expansion in resolve_sections())"
+                f"Expanded section '{expanded}' must not be in INTERVIEW_MAPPINGS (it is handled via per-item expansion in resolve_sections())"
             )
 
 
@@ -137,32 +126,24 @@ class TestResolveSectionsTableDriven:
         snapshot = {mapping.section_label: "non-empty answer"}
         results = resolve_sections(snapshot)
         labels = [label for label, _ in results]
-        assert mapping.section_label in labels, (
-            f"Section '{mapping.section_label}' not emitted for non-empty answer"
-        )
+        assert mapping.section_label in labels, f"Section '{mapping.section_label}' not emitted for non-empty answer"
 
     @pytest.mark.parametrize(
         "mapping",
         [m for m in INTERVIEW_MAPPINGS if m.requires_nonempty],
     )
-    def test_empty_answer_suppresses_requires_nonempty_section(
-        self, mapping: InterviewSectionMapping
-    ) -> None:
+    def test_empty_answer_suppresses_requires_nonempty_section(self, mapping: InterviewSectionMapping) -> None:
         """A blank answer for a requires_nonempty section is NOT emitted."""
         snapshot = {mapping.section_label: "   "}  # whitespace only
         results = resolve_sections(snapshot)
         labels = [label for label, _ in results]
-        assert mapping.section_label not in labels, (
-            f"Section '{mapping.section_label}' was emitted despite blank answer"
-        )
+        assert mapping.section_label not in labels, f"Section '{mapping.section_label}' was emitted despite blank answer"
 
     @pytest.mark.parametrize(
         "mapping",
         [m for m in INTERVIEW_MAPPINGS if m.requires_nonempty],
     )
-    def test_absent_answer_suppresses_requires_nonempty_section(
-        self, mapping: InterviewSectionMapping
-    ) -> None:
+    def test_absent_answer_suppresses_requires_nonempty_section(self, mapping: InterviewSectionMapping) -> None:
         """An absent key for a requires_nonempty section is NOT emitted."""
         snapshot: dict = {}  # no answers at all
         results = resolve_sections(snapshot)
@@ -173,21 +154,15 @@ class TestResolveSectionsTableDriven:
         "mapping",
         [m for m in INTERVIEW_MAPPINGS if not m.requires_nonempty],
     )
-    def test_absent_answer_emits_optional_section(
-        self, mapping: InterviewSectionMapping
-    ) -> None:
+    def test_absent_answer_emits_optional_section(self, mapping: InterviewSectionMapping) -> None:
         """An absent answer for a requires_nonempty=False section IS emitted."""
         snapshot: dict = {}
         results = resolve_sections(snapshot)
         labels = [label for label, _ in results]
-        assert mapping.section_label in labels, (
-            f"Optional section '{mapping.section_label}' was NOT emitted for absent answer"
-        )
+        assert mapping.section_label in labels, f"Optional section '{mapping.section_label}' was NOT emitted for absent answer"
 
     @pytest.mark.parametrize("mapping", INTERVIEW_MAPPINGS)
-    def test_answer_context_contains_source_section(
-        self, mapping: InterviewSectionMapping
-    ) -> None:
+    def test_answer_context_contains_source_section(self, mapping: InterviewSectionMapping) -> None:
         """answer_context carries source_section equal to the section_label."""
         snapshot = {mapping.section_label: "answer"}
         results = resolve_sections(snapshot)
@@ -208,9 +183,7 @@ class TestResolveSectionsSelectedDirectives:
             "selected_directives": ["DIRECTIVE_003", "DIRECTIVE_010"],
         }
         results = resolve_sections(snapshot)
-        directive_results = [
-            (label, ctx) for label, ctx in results if label == "selected_directives"
-        ]
+        directive_results = [(label, ctx) for label, ctx in results if label == "selected_directives"]
         assert len(directive_results) == 2
 
     def test_directive_id_in_context(self) -> None:
@@ -233,18 +206,14 @@ class TestResolveSectionsSelectedDirectives:
         """Empty selected_directives list produces zero results for that section."""
         snapshot = {"selected_directives": []}
         results = resolve_sections(snapshot)
-        directive_results = [
-            label for label, _ in results if label == "selected_directives"
-        ]
+        directive_results = [label for label, _ in results if label == "selected_directives"]
         assert len(directive_results) == 0
 
     def test_blank_directive_items_are_skipped(self) -> None:
         """Blank items in selected_directives are ignored."""
         snapshot = {"selected_directives": ["", "  ", "DIRECTIVE_003"]}
         results = resolve_sections(snapshot)
-        directive_results = [
-            (label, ctx) for label, ctx in results if label == "selected_directives"
-        ]
+        directive_results = [(label, ctx) for label, ctx in results if label == "selected_directives"]
         assert len(directive_results) == 1
         assert directive_results[0][1]["directive_id"] == "DIRECTIVE_003"
 
@@ -259,9 +228,7 @@ class TestResolveSectionsLanguageScope:
         """Two languages → two (language_scope, ctx) pairs."""
         snapshot = {"language_scope": ["python", "typescript"]}
         results = resolve_sections(snapshot)
-        lang_results = [
-            (label, ctx) for label, ctx in results if label == "language_scope"
-        ]
+        lang_results = [(label, ctx) for label, ctx in results if label == "language_scope"]
         assert len(lang_results) == 2
 
     def test_language_in_context(self) -> None:
@@ -276,11 +243,7 @@ class TestResolveSectionsLanguageScope:
         """Language strings are normalised to lower-case."""
         snapshot = {"language_scope": ["Python", "TypeScript"]}
         results = resolve_sections(snapshot)
-        langs = [
-            ctx["language"]
-            for label, ctx in results
-            if label == "language_scope"
-        ]
+        langs = [ctx["language"] for label, ctx in results if label == "language_scope"]
         assert "python" in langs
         assert "typescript" in langs
 
@@ -288,9 +251,7 @@ class TestResolveSectionsLanguageScope:
         """A scalar string for language_scope is treated as a single language."""
         snapshot = {"language_scope": "python"}
         results = resolve_sections(snapshot)
-        lang_results = [
-            (label, ctx) for label, ctx in results if label == "language_scope"
-        ]
+        lang_results = [(label, ctx) for label, ctx in results if label == "language_scope"]
         assert len(lang_results) == 1
         assert lang_results[0][1]["language"] == "python"
 
@@ -327,9 +288,7 @@ class TestResolveFullSnapshot:
         labels = [label for label, _ in results]
 
         # Standard sections
-        for section in ["mission_type", "testing_philosophy", "neutrality_posture",
-                        "risk_appetite", "quality_gates", "review_policy",
-                        "documentation_policy"]:
+        for section in ["mission_type", "testing_philosophy", "neutrality_posture", "risk_appetite", "quality_gates", "review_policy", "documentation_policy"]:
             assert section in labels, f"Section '{section}' not emitted"
 
         # Expanded sections

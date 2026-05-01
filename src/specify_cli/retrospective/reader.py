@@ -58,18 +58,13 @@ def read_record(path: Path, *, verify_evidence: bool = False) -> RetrospectiveRe
     try:
         record = RetrospectiveRecord.model_validate(data)
     except ValidationError as exc:
-        raise SchemaError(
-            f"Schema validation failed for {path}:\n{exc}"
-        ) from exc
+        raise SchemaError(f"Schema validation failed for {path}:\n{exc}") from exc
 
     # status='pending' is explicitly refused at the read boundary too.
     # (The model validator already raises for pending, but guard explicitly
     # in case the validator is bypassed via model_construct in future.)
     if record.status == "pending":
-        raise SchemaError(
-            f"Refused to return a record with status='pending' from {path}. "
-            "Pending records must not be persisted."
-        )
+        raise SchemaError(f"Refused to return a record with status='pending' from {path}. Pending records must not be persisted.")
 
     # Evidence verification (stub; WP03 wires the actual event log lookup).
     if verify_evidence:

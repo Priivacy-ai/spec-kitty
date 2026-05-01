@@ -61,9 +61,7 @@ class StateGitignoreMigration(BaseMigration):
         if dry_run:
             return MigrationResult(
                 success=True,
-                changes_made=[
-                    f"Would add {len(_NEW_RUNTIME_ENTRIES)} runtime state entries to .gitignore"
-                ],
+                changes_made=[f"Would add {len(_NEW_RUNTIME_ENTRIES)} runtime state entries to .gitignore"],
             )
 
         manager = GitignoreManager(project_path)
@@ -72,9 +70,7 @@ class StateGitignoreMigration(BaseMigration):
         if modified:
             return MigrationResult(
                 success=True,
-                changes_made=[
-                    f"Added runtime state entries to .gitignore: {', '.join(_NEW_RUNTIME_ENTRIES)}"
-                ],
+                changes_made=[f"Added runtime state entries to .gitignore: {', '.join(_NEW_RUNTIME_ENTRIES)}"],
             )
 
         return MigrationResult(

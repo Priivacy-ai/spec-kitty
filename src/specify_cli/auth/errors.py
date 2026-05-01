@@ -41,10 +41,7 @@ class RefreshReplayError(TokenRefreshError):
     """
 
     def __init__(self, retry_after: int = 0) -> None:
-        super().__init__(
-            f"Refresh token was just rotated by another process "
-            f"(retry_after={retry_after}s)."
-        )
+        super().__init__(f"Refresh token was just rotated by another process (retry_after={retry_after}s).")
         self.retry_after: int = retry_after
 
 

@@ -96,17 +96,11 @@ def _patch_state(
         def exists(self) -> bool:
             return self._exists
 
-    monkeypatch.setattr(
-        _auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists)
-    )
+    monkeypatch.setattr(_auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists))
     if daemon_status is None:
         daemon_status = SyncDaemonStatus(healthy=False)
-    monkeypatch.setattr(
-        _auth_doctor, "get_sync_daemon_status", lambda: daemon_status
-    )
-    monkeypatch.setattr(
-        _auth_doctor, "enumerate_orphans", lambda: list(orphans or [])
-    )
+    monkeypatch.setattr(_auth_doctor, "get_sync_daemon_status", lambda: daemon_status)
+    monkeypatch.setattr(_auth_doctor, "enumerate_orphans", lambda: list(orphans or []))
     import sys
 
     fake_rollout = type(sys)("specify_cli.saas.rollout")
@@ -133,9 +127,7 @@ def _write_lock_record(path: Path, *, age_s: float) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_reset_sweeps_orphans(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_reset_sweeps_orphans(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Orphan present; ``--reset`` invokes ``sweep_orphans``."""
     session = _make_session()
     orphan = OrphanDaemon(port=9401, pid=12345, package_version="3.2.0a4", protocol_version=1)
@@ -156,18 +148,14 @@ def test_reset_sweeps_orphans(
         orphans=[orphan],
     )
 
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
-    )
+    exit_code = doctor_impl(json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0)
 
     assert sweep_calls == [[orphan]]
     # Warn-severity F-002 shouldn't drive exit-code 1.
     assert exit_code == 0
 
 
-def test_reset_noop_when_no_orphans(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_reset_noop_when_no_orphans(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """No orphans ⇒ ``--reset`` does NOT call ``sweep_orphans``."""
     session = _make_session()
 
@@ -185,17 +173,13 @@ def test_reset_noop_when_no_orphans(
         orphans=[],
     )
 
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
-    )
+    exit_code = doctor_impl(json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0)
 
     assert sweep_called == []
     assert exit_code == 0
 
 
-def test_reset_repairs_recorded_unhealthy_daemon(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_reset_repairs_recorded_unhealthy_daemon(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Recorded-but-unhealthy singleton daemon is repaired by ``--reset``."""
     session = _make_session()
     stop_calls: list[None] = []
@@ -214,9 +198,7 @@ def test_reset_repairs_recorded_unhealthy_daemon(
         orphans=[],
     )
 
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0
-    )
+    exit_code = doctor_impl(json_output=True, reset=True, unstick_lock=False, stuck_threshold=60.0)
 
     assert stop_calls == [None]
     assert exit_code == 0
@@ -227,9 +209,7 @@ def test_reset_repairs_recorded_unhealthy_daemon(
 # ---------------------------------------------------------------------------
 
 
-def test_unstick_drops_old_lock(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_unstick_drops_old_lock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """120-second-old lock + ``--unstick-lock`` ⇒ lock file removed."""
     session = _make_session()
     lock_path = tmp_path / "auth" / "refresh.lock"
@@ -242,9 +222,7 @@ def test_unstick_drops_old_lock(
         lock_path=lock_path,
     )
 
-    exit_code = doctor_impl(
-        json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0
-    )
+    exit_code = doctor_impl(json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0)
 
     assert not lock_path.exists()
     # F-003 was the only critical finding; after the unstick repair the
@@ -252,9 +230,7 @@ def test_unstick_drops_old_lock(
     assert exit_code == 0
 
 
-def test_unstick_preserves_fresh_lock(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_unstick_preserves_fresh_lock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """5-second-old lock + ``--unstick-lock`` ⇒ no-op; lock still present."""
     session = _make_session()
     lock_path = tmp_path / "auth" / "refresh.lock"
@@ -267,18 +243,14 @@ def test_unstick_preserves_fresh_lock(
         lock_path=lock_path,
     )
 
-    exit_code = doctor_impl(
-        json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0
-    )
+    exit_code = doctor_impl(json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0)
 
     assert lock_path.exists(), "Fresh lock must not be removed"
     # No F-003 (lock not stuck), no other critical findings, exit 0.
     assert exit_code == 0
 
 
-def test_combined_flags_run_both(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_combined_flags_run_both(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """``--reset --unstick-lock`` runs both repairs."""
     session = _make_session()
     orphan = OrphanDaemon(port=9402, pid=22222, package_version="3.2.0a4", protocol_version=1)
@@ -300,9 +272,7 @@ def test_combined_flags_run_both(
         orphans=[orphan],
     )
 
-    exit_code = doctor_impl(
-        json_output=True, reset=True, unstick_lock=True, stuck_threshold=60.0
-    )
+    exit_code = doctor_impl(json_output=True, reset=True, unstick_lock=True, stuck_threshold=60.0)
 
     assert sweep_calls == [[orphan]]
     assert not lock_path.exists()

@@ -44,8 +44,7 @@ class DirectCanonicalCommandsMigration(BaseMigration):
 
     migration_id = "3.1.1_direct_canonical_commands"
     description = (
-        "Replace agent shim dispatch files with direct canonical CLI commands "
-        "(e.g. spec-kitty agent action implement instead of spec-kitty agent shim implement)"
+        "Replace agent shim dispatch files with direct canonical CLI commands (e.g. spec-kitty agent action implement instead of spec-kitty agent shim implement)"
     )
     target_version = "3.1.1"
 
@@ -90,9 +89,7 @@ class DirectCanonicalCommandsMigration(BaseMigration):
         errors: list[str] = []
 
         if dry_run:
-            changes.append(
-                "Would regenerate all CLI-driven command files to use direct canonical commands"
-            )
+            changes.append("Would regenerate all CLI-driven command files to use direct canonical commands")
             return MigrationResult(
                 success=True,
                 changes_made=changes,

@@ -13,9 +13,7 @@ from doctrine.shared.errors import reject_inline_refs
 AGENT_PROFILE_SCHEMA_FILENAME = "agent-profile.schema.yaml"
 
 
-def reject_agent_profile_inline_refs(
-    data: dict[str, Any], *, file_path: str
-) -> None:
+def reject_agent_profile_inline_refs(data: dict[str, Any], *, file_path: str) -> None:
     """Raise ``InlineReferenceRejectedError`` if the agent-profile YAML
     carries a forbidden inline reference field."""
     reject_inline_refs(data, file_path=file_path, artifact_kind="agent_profile")

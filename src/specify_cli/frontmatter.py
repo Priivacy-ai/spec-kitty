@@ -175,9 +175,7 @@ class FrontmatterManager:
         frontmatter, _ = self.read(file_path)
         return frontmatter.get(field, default)
 
-    def add_history_entry(
-        self, file_path: Path, action: str, agent: str | None = None, note: str | None = None
-    ) -> None:
+    def add_history_entry(self, file_path: Path, action: str, agent: str | None = None, note: str | None = None) -> None:
         """Add an entry to the history field.
 
         Args:

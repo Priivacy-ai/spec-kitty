@@ -16,7 +16,6 @@ moved from line 1 (legacy) to immediately after the YAML frontmatter
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -31,11 +30,7 @@ def _bootstrap_project(tmp_path: Path, agent_root: str = ".claude", subdir: str 
     kittify.mkdir(parents=True, exist_ok=True)
     agent_key = agent_root.lstrip(".")
     (kittify / "config.yaml").write_text(
-        "project:\n"
-        "  uuid: test-uuid-1234\n"
-        "agents:\n"
-        "  available:\n"
-        f"    - {agent_key}\n",
+        f"project:\n  uuid: test-uuid-1234\nagents:\n  available:\n    - {agent_key}\n",
         encoding="utf-8",
     )
     (tmp_path / agent_root / subdir).mkdir(parents=True, exist_ok=True)
@@ -54,13 +49,9 @@ def _write_full_consumer_file_set(
 
     target_dir = project / agent_root / subdir
     for command in PROMPT_DRIVEN_COMMANDS:
-        (target_dir / f"spec-kitty.{command}.md").write_text(
-            factory(command, True), encoding="utf-8"
-        )
+        (target_dir / f"spec-kitty.{command}.md").write_text(factory(command, True), encoding="utf-8")
     for command in CLI_DRIVEN_COMMANDS:
-        (target_dir / f"spec-kitty.{command}.md").write_text(
-            factory(command, False), encoding="utf-8"
-        )
+        (target_dir / f"spec-kitty.{command}.md").write_text(factory(command, False), encoding="utf-8")
 
 
 def _current_marker() -> str:
@@ -99,14 +90,7 @@ def _legacy_layout_shim() -> str:
 def _new_layout_prompt() -> str:
     """Prompt-driven file: long body + frontmatter + marker after frontmatter."""
     body_lines = [f"Body line {i}" for i in range(60)]
-    return (
-        "---\n"
-        "description: Demo prompt\n"
-        "---\n"
-        f"{_current_marker()}\n"
-        + "\n".join(body_lines)
-        + "\n"
-    )
+    return f"---\ndescription: Demo prompt\n---\n{_current_marker()}\n" + "\n".join(body_lines) + "\n"
 
 
 def test_new_layout_shim_passes_health_check(tmp_path: Path) -> None:
@@ -147,12 +131,7 @@ def test_stale_marker_emits_warning(tmp_path: Path) -> None:
         stale = "<!-- spec-kitty-command-version: 0.0.1-stale -->"
         if is_prompt:
             body_lines = [f"Body line {i}" for i in range(60)]
-            return (
-                "---\n"
-                "description: Demo prompt\n"
-                "---\n"
-                f"{stale}\n" + "\n".join(body_lines) + "\n"
-            )
+            return f"---\ndescription: Demo prompt\n---\n{stale}\n" + "\n".join(body_lines) + "\n"
         return (
             "---\n"
             "description: Demo command\n"
@@ -209,9 +188,7 @@ def test_unknown_agent_root_skipped(tmp_path: Path) -> None:
     project = _bootstrap_project(tmp_path)
     # Create a fake agent dir with no key mapping; doctor must not crash on it.
     (project / ".bogus" / "commands").mkdir(parents=True)
-    (project / ".bogus" / "commands" / "spec-kitty.implement.md").write_text(
-        _new_layout_shim(), encoding="utf-8"
-    )
+    (project / ".bogus" / "commands" / "spec-kitty.implement.md").write_text(_new_layout_shim(), encoding="utf-8")
     # Should still report missing for the configured agent without crashing
     issues = check_command_file_health(project)
     bogus_issues = [i for i in issues if i["agent"] == "bogus"]
@@ -243,56 +220,33 @@ def test_short_shim_under_threshold(tmp_path: Path) -> None:
     _write_full_consumer_file_set(project, factory=factory)
     issues = check_command_file_health(project)
     # Specifically: no shim should hit the "non-empty lines" length warning.
-    length_issues = [
-        i for i in issues
-        if "non-empty lines" in i["issue"] and "thin shim" in i["issue"]
-    ]
-    assert length_issues == [], (
-        f"new-layout shims (8 non-empty lines) must stay under the 15-line "
-        f"threshold; got: {length_issues}"
-    )
+    length_issues = [i for i in issues if "non-empty lines" in i["issue"] and "thin shim" in i["issue"]]
+    assert length_issues == [], f"new-layout shims (8 non-empty lines) must stay under the 15-line threshold; got: {length_issues}"
 
 
 def test_oversized_shim_emits_warning(tmp_path: Path) -> None:
     """A bloated shim (>=15 non-empty lines) raises a length warning."""
     project = _bootstrap_project(tmp_path)
-    bloated = (
-        "---\n"
-        "description: Demo command\n"
-        "---\n"
-        f"{_current_marker()}\n"
-        + "\n".join([f"extra body line {i}" for i in range(20)])
-        + "\n"
-    )
+    bloated = f"---\ndescription: Demo command\n---\n{_current_marker()}\n" + "\n".join([f"extra body line {i}" for i in range(20)]) + "\n"
 
     def factory(command: str, is_prompt: bool) -> str:
         return _new_layout_prompt() if is_prompt else bloated
 
     _write_full_consumer_file_set(project, factory=factory)
     issues = check_command_file_health(project)
-    length_issues = [
-        i for i in issues if "thin shim" in i["issue"]
-    ]
+    length_issues = [i for i in issues if "thin shim" in i["issue"]]
     assert length_issues, "expected length warning for oversized shim"
 
 
 def test_short_prompt_emits_warning(tmp_path: Path) -> None:
     """A prompt-driven file under 50 non-empty lines raises a length warning."""
     project = _bootstrap_project(tmp_path)
-    short_prompt = (
-        "---\n"
-        "description: Tiny prompt\n"
-        "---\n"
-        f"{_current_marker()}\n"
-        "Just a few lines.\n"
-    )
+    short_prompt = f"---\ndescription: Tiny prompt\n---\n{_current_marker()}\nJust a few lines.\n"
 
     def factory(command: str, is_prompt: bool) -> str:
         return short_prompt if is_prompt else _new_layout_shim()
 
     _write_full_consumer_file_set(project, factory=factory)
     issues = check_command_file_health(project)
-    length_issues = [
-        i for i in issues if "prompt-driven" in i["issue"]
-    ]
+    length_issues = [i for i in issues if "prompt-driven" in i["issue"]]
     assert length_issues, "expected length warning for tiny prompt"

@@ -41,9 +41,7 @@ class TestFullFlow:
             events = temp_queue.drain_queue()
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_response.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             mock_post.return_value = mock_response
 
             result = batch_sync(
@@ -66,9 +64,7 @@ class TestFullFlow:
         with patch("specify_cli.sync.batch.requests.post") as mock_post:
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "results": [{"event_id": f"id{i}", "status": "success"} for i in range(3)]
-            }
+            mock_response.json.return_value = {"results": [{"event_id": f"id{i}", "status": "success"} for i in range(3)]}
             mock_post.return_value = mock_response
 
             batch_sync(
@@ -215,9 +211,7 @@ class TestMultiEventBatch:
             events = temp_queue.drain_queue()
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_response.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             mock_post.return_value = mock_response
 
             result = batch_sync(

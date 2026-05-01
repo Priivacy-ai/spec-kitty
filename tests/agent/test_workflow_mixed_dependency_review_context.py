@@ -62,9 +62,7 @@ class TestMixedDependencyReviewContext:
     resolves to a repo-root planning workspace with ``branch_name=None``.
     """
 
-    def test_planning_artifact_dependency_does_not_crash_review_context(
-        self, tmp_path: Path
-    ) -> None:
+    def test_planning_artifact_dependency_does_not_crash_review_context(self, tmp_path: Path) -> None:
         repo = _make_repo(tmp_path)
         lane_branch = "kitty/mission-078-feature-lane-a"
         worktree = _make_lane_worktree(repo, lane_branch, ".worktrees/078-feature-lane-a")
@@ -106,12 +104,7 @@ class TestMixedDependencyReviewContext:
                 return planning_dependency
             raise ValueError(f"unexpected wp_id {wp_id}")
 
-        wp_frontmatter = (
-            "work_package_id: WP02\n"
-            "title: Feature WP\n"
-            "execution_mode: code_change\n"
-            'dependencies: ["WP01"]\n'
-        )
+        wp_frontmatter = 'work_package_id: WP02\ntitle: Feature WP\nexecution_mode: code_change\ndependencies: ["WP01"]\n'
 
         with patch(
             "specify_cli.cli.commands.agent.workflow.resolve_workspace_for_wp",
@@ -132,9 +125,7 @@ class TestMixedDependencyReviewContext:
         assert ctx["base_branch"] in {"main", "master"}
         assert ctx["commit_count"] >= 1
 
-    def test_planning_artifact_dependency_does_not_pollute_candidates(
-        self, tmp_path: Path
-    ) -> None:
+    def test_planning_artifact_dependency_does_not_pollute_candidates(self, tmp_path: Path) -> None:
         """The exact mechanism: even when ``main`` does not exist, dependency
         ``branch_name=None`` must not be appended to the candidate list and
         passed to ``git merge-base``.
@@ -186,12 +177,7 @@ class TestMixedDependencyReviewContext:
                     assert isinstance(arg, str), f"git merge-base arg is not str: {arg!r} in {args}"
             return original_run(args, *a, **kw)
 
-        wp_frontmatter = (
-            "work_package_id: WP03\n"
-            "title: Code change WP\n"
-            "execution_mode: code_change\n"
-            'dependencies: ["WP01"]\n'
-        )
+        wp_frontmatter = 'work_package_id: WP03\ntitle: Code change WP\nexecution_mode: code_change\ndependencies: ["WP01"]\n'
 
         with (
             patch(

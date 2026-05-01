@@ -7,6 +7,7 @@ Tests verify that:
 - All 9 lanes map to the correct display categories
 - Canonical status validation is preserved (error if no events)
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -169,9 +170,9 @@ def test_derive_current_lane_tracks_latest_event(tmp_path: Path) -> None:
     [
         # Actual display_category() values from WPState concrete classes:
         ("planned", "Planned"),
-        ("claimed", "In Progress"),   # ClaimedState groups under "In Progress"
+        ("claimed", "In Progress"),  # ClaimedState groups under "In Progress"
         ("in_progress", "In Progress"),
-        ("for_review", "Review"),      # ForReviewState uses "Review" not "For Review"
+        ("for_review", "Review"),  # ForReviewState uses "Review" not "For Review"
         ("in_review", "In Progress"),  # InReviewState groups under "In Progress"
         ("approved", "Approved"),
         ("done", "Done"),
@@ -198,87 +199,67 @@ def test_wp_state_for_lane_enum_input_works() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_list_command_shows_display_category_for_in_progress(
-    tmp_path: Path, isolated_env: dict[str, str]
-) -> None:
+def test_list_command_shows_display_category_for_in_progress(tmp_path: Path, isolated_env: dict[str, str]) -> None:
     """list command shows 'In Progress' (display_category) for in_progress WP."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)
     feature_dir = _build_feature(repo, to_lane=Lane.IN_PROGRESS)
 
-    result = run_python_script(
-        SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env
-    )
+    result = run_python_script(SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env)
 
     assert result.returncode == 0, result.stderr
     assert "In Progress" in result.stdout
 
 
-def test_list_command_shows_display_category_for_done(
-    tmp_path: Path, isolated_env: dict[str, str]
-) -> None:
+def test_list_command_shows_display_category_for_done(tmp_path: Path, isolated_env: dict[str, str]) -> None:
     """list command shows 'Done' (display_category) for done WP."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)
     feature_dir = _build_feature(repo, to_lane=Lane.DONE)
 
-    result = run_python_script(
-        SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env
-    )
+    result = run_python_script(SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env)
 
     assert result.returncode == 0, result.stderr
     assert "Done" in result.stdout
 
 
-def test_list_command_shows_display_category_for_planned(
-    tmp_path: Path, isolated_env: dict[str, str]
-) -> None:
+def test_list_command_shows_display_category_for_planned(tmp_path: Path, isolated_env: dict[str, str]) -> None:
     """list command shows 'Planned' (display_category) for planned WP."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)
     feature_dir = _build_feature(repo, to_lane=Lane.PLANNED)
 
-    result = run_python_script(
-        SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env
-    )
+    result = run_python_script(SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env)
 
     assert result.returncode == 0, result.stderr
     assert "Planned" in result.stdout
 
 
-def test_list_command_fails_without_canonical_status(
-    tmp_path: Path, isolated_env: dict[str, str]
-) -> None:
+def test_list_command_fails_without_canonical_status(tmp_path: Path, isolated_env: dict[str, str]) -> None:
     """list command fails with clear error when no canonical status events exist."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)
     feature_dir = _build_feature(repo, with_events=False)
 
-    result = run_python_script(
-        SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env
-    )
+    result = run_python_script(SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env)
 
     assert result.returncode == 1
     assert "Canonical status not found" in result.stderr
     assert "finalize-tasks" in result.stderr
 
 
-def test_list_command_shows_wp_id_in_output(
-    tmp_path: Path, isolated_env: dict[str, str]
-) -> None:
+def test_list_command_shows_wp_id_in_output(tmp_path: Path, isolated_env: dict[str, str]) -> None:
     """list command shows the work package ID in the output table."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)
     feature_dir = _build_feature(repo, to_lane=Lane.CLAIMED)
 
-    result = run_python_script(
-        SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env
-    )
+    result = run_python_script(SRC_TASKS_CLI, ["list", feature_dir.name], cwd=repo, env=isolated_env)
 
     assert result.returncode == 0, result.stderr
     assert "WP01" in result.stdout

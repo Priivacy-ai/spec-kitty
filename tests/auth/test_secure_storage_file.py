@@ -97,9 +97,7 @@ def test_write_creates_salt_file_with_0600(storage: FastFileFallback, tmp_path: 
     assert len(salt_file.read_bytes()) == 16
 
 
-def test_write_creates_credentials_file_with_0600(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_write_creates_credentials_file_with_0600(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
     assert cred_file.exists()
@@ -129,9 +127,7 @@ def test_salt_is_random_across_instances(tmp_path: Path):
     assert salt1 != salt2
 
 
-def test_encrypted_file_does_not_contain_plaintext(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_encrypted_file_does_not_contain_plaintext(storage: FastFileFallback, tmp_path: Path):
     s = _make_session(access_token="SUPER_SECRET_TOKEN_VALUE")
     storage.write(s)
     raw_bytes = (tmp_path / "session.json").read_bytes()
@@ -150,27 +146,21 @@ def test_file_format_is_version_2(storage: FastFileFallback, tmp_path: Path):
 def test_v1_plaintext_is_rejected(storage: FastFileFallback, tmp_path: Path):
     # Simulate a stale v1 file.
     (tmp_path).mkdir(parents=True, exist_ok=True)
-    (tmp_path / "session.json").write_text(
-        json.dumps({"version": 1, "user_id": "old"})
-    )
+    (tmp_path / "session.json").write_text(json.dumps({"version": 1, "user_id": "old"}))
     os.chmod(tmp_path / "session.json", 0o600)
     with pytest.raises(StorageDecryptionError) as excinfo:
         storage.read()
     assert "v1" in str(excinfo.value) or "version" in str(excinfo.value).lower()
 
 
-def test_missing_salt_rejects_decryption(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_missing_salt_rejects_decryption(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     (tmp_path / "session.salt").unlink()
     with pytest.raises(StorageDecryptionError):
         storage.read()
 
 
-def test_tampered_ciphertext_fails_authentication(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_tampered_ciphertext_fails_authentication(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
     blob = json.loads(cred_file.read_text())
@@ -183,9 +173,7 @@ def test_tampered_ciphertext_fails_authentication(
         storage.read()
 
 
-def test_wrong_salt_fails_decryption(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_wrong_salt_fails_decryption(storage: FastFileFallback, tmp_path: Path):
     """Simulate the scenario where the salt file was replaced (e.g. user moved machine).
 
     The ciphertext was encrypted with the original salt-derived key; rotating
@@ -201,9 +189,7 @@ def test_wrong_salt_fails_decryption(
         storage.read()
 
 
-def test_malformed_json_raises_decryption_error(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_malformed_json_raises_decryption_error(storage: FastFileFallback, tmp_path: Path):
     (tmp_path).mkdir(parents=True, exist_ok=True)
     (tmp_path / "session.json").write_text("{not-json")
     os.chmod(tmp_path / "session.json", 0o600)
@@ -211,9 +197,7 @@ def test_malformed_json_raises_decryption_error(
         storage.read()
 
 
-def test_delete_removes_cred_and_salt(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_delete_removes_cred_and_salt(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     assert (tmp_path / "session.json").exists()
     assert (tmp_path / "session.salt").exists()
@@ -247,9 +231,7 @@ def test_concurrent_writes_do_not_corrupt(tmp_path: Path):
 
 
 @pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
-def test_read_rejects_group_readable_credentials(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_read_rejects_group_readable_credentials(storage: FastFileFallback, tmp_path: Path):
     """NFR-013: read() must reject credentials files that are not owner-only."""
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
@@ -260,9 +242,7 @@ def test_read_rejects_group_readable_credentials(
 
 
 @pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
-def test_read_rejects_world_readable_credentials(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_read_rejects_world_readable_credentials(storage: FastFileFallback, tmp_path: Path):
     """NFR-013: read() must reject world-readable credentials files."""
     storage.write(_make_session())
     cred_file = tmp_path / "session.json"
@@ -275,9 +255,7 @@ def test_backend_name_is_file(storage: FastFileFallback):
     assert storage.backend_name == "file"
 
 
-def test_rewrite_reuses_existing_salt(
-    storage: FastFileFallback, tmp_path: Path
-):
+def test_rewrite_reuses_existing_salt(storage: FastFileFallback, tmp_path: Path):
     storage.write(_make_session())
     salt_before = (tmp_path / "session.salt").read_bytes()
     storage.write(_make_session(access_token="different"))

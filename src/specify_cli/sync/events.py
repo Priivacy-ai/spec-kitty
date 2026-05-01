@@ -325,7 +325,6 @@ def emit_mission_created(
     return event
 
 
-
 def emit_mission_closed(
     mission_slug: str,
     total_wps: int,
@@ -348,7 +347,6 @@ def emit_mission_closed(
         _publish_event_via_sync_daemon(event, repo_root)
         _request_dashboard_sync(repo_root)
     return event
-
 
 
 def emit_history_added(

@@ -13,9 +13,11 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
+
 def _write_yaml(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.dump(data, default_flow_style=False), encoding="utf-8")
+
 
 def test_v1_mission_e2e(tmp_path: Path):
     """Full v1 mission flow with guard blocking until artifact exists."""
@@ -68,6 +70,7 @@ def test_v1_mission_e2e(tmp_path: Path):
     mission.trigger("rollback")
     assert mission.state == "alpha"
 
+
 def test_v0_mission_e2e(tmp_path: Path):
     """v0 mission loads via PhaseMission and progresses linearly."""
     mission_dir = tmp_path / "legacy-mission"
@@ -101,6 +104,7 @@ def test_v0_mission_e2e(tmp_path: Path):
 
     mission.trigger("advance")
     assert mission.state == "done"
+
 
 def test_all_missions_coexist(tmp_path: Path):
     """Ensure bundled missions (3 v1 + 1 v0) load together."""

@@ -21,9 +21,8 @@ if _bootstrap_marker.exists():
         _marker_src = Path(_bootstrap_marker.read_text(encoding="utf-8").strip()).expanduser()
     except OSError:
         _marker_src = None
-    if _marker_src and (_marker_src / "specify_cli").is_dir():
-        if str(_marker_src) not in sys.path:
-            sys.path.insert(0, str(_marker_src))
+    if _marker_src and (_marker_src / "specify_cli").is_dir() and str(_marker_src) not in sys.path:
+        sys.path.insert(0, str(_marker_src))
 
 # Fall back to walking parents when running from a source checkout.
 # Always break on the first matching src/ to avoid traversing past

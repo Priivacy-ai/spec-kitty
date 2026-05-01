@@ -76,10 +76,7 @@ def _prepend_flags(pattern: str, flags: int) -> str:
             bad.append("re.VERBOSE")
         if flags & _stdlib_re.LOCALE:
             bad.append("re.LOCALE")
-        raise _stdlib_re.error(
-            f"kernel._safe_re: {', '.join(bad)} not supported by RE2. "
-            "Use stdlib re directly for patterns that require these flags."
-        )
+        raise _stdlib_re.error(f"kernel._safe_re: {', '.join(bad)} not supported by RE2. Use stdlib re directly for patterns that require these flags.")
 
     inline: list[str] = []
     for flag_val, letter in _FLAG_TO_INLINE.items():

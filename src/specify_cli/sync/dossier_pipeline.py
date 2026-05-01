@@ -72,7 +72,10 @@ def sync_feature_dossier(
     except Exception as e:
         logger.error("Indexer failed for %s: %s", feature_dir, e)
         return DossierSyncResult(
-            dossier=None, events_emitted=0, body_outcomes=[], errors=[str(e)],
+            dossier=None,
+            events_emitted=0,
+            body_outcomes=[],
+            errors=[str(e)],
         )
 
     # Step 2: Emit dossier events for present and missing artifacts
@@ -96,7 +99,9 @@ def sync_feature_dossier(
                     events_emitted += 1
             except Exception as e:
                 logger.warning(
-                    "Event emission failed for %s: %s", artifact.relative_path, e,
+                    "Event emission failed for %s: %s",
+                    artifact.relative_path,
+                    e,
                 )
         else:
             # Emit missing event for non-present required artifacts
@@ -117,7 +122,8 @@ def sync_feature_dossier(
             except Exception as e:
                 logger.warning(
                     "Missing event emission failed for %s: %s",
-                    artifact.relative_path, e,
+                    artifact.relative_path,
+                    e,
                 )
 
     # Step 3: Compute + emit snapshot (always) and drift (if baseline exists)
@@ -182,7 +188,9 @@ def sync_feature_dossier(
         )
     except Exception as e:
         logger.error(
-            "Body upload preparation failed for %s: %s", feature_dir, e,
+            "Body upload preparation failed for %s: %s",
+            feature_dir,
+            e,
         )
         errors.append(f"body_upload_preparation_failed: {e}")
 
@@ -195,7 +203,10 @@ def sync_feature_dossier(
     skipped = sum(1 for o in body_outcomes if o.status == UploadStatus.SKIPPED)
     logger.info(
         "Dossier sync for %s: %d events emitted, %d bodies queued, %d skipped",
-        namespace_ref.mission_slug, events_emitted, queued, skipped,
+        namespace_ref.mission_slug,
+        events_emitted,
+        queued,
+        skipped,
     )
 
     return DossierSyncResult(

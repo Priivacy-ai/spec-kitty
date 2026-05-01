@@ -1,2 +1,1 @@
 """Paradigm test package."""
-

@@ -28,9 +28,7 @@ class MissionCompletionBlocked(Exception):
 
     def __init__(self, decision: GateDecision) -> None:
         self.decision = decision
-        super().__init__(
-            f"Mission completion blocked: {decision.reason.code}: {decision.reason.detail}"
-        )
+        super().__init__(f"Mission completion blocked: {decision.reason.code}: {decision.reason.detail}")
 
 
 def before_mark_done(

@@ -5,6 +5,7 @@ consulted for lane values. When the event log file is absent the feature has
 not been finalized and callers must surface a hard-fail with actionable
 guidance.
 """
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -30,9 +31,7 @@ def _require_event_log(feature_dir: Path) -> None:
     if not has_event_log(feature_dir):
         slug = feature_dir.name
         raise CanonicalStatusNotFoundError(
-            f"Canonical status not found for feature '{slug}'. "
-            f"Run 'spec-kitty agent mission finalize-tasks --mission {slug}' "
-            f"to bootstrap the event log."
+            f"Canonical status not found for feature '{slug}'. Run 'spec-kitty agent mission finalize-tasks --mission {slug}' to bootstrap the event log."
         )
 
 
@@ -48,6 +47,7 @@ def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane | str:
     _require_event_log(feature_dir)
     from .store import read_events
     from .reducer import reduce
+
     events = read_events(feature_dir)
     if not events:
         # File exists but is empty — treat WP as uninitialized.
@@ -71,11 +71,9 @@ def get_all_wp_lanes(feature_dir: Path) -> dict[str, str]:
     _require_event_log(feature_dir)
     from .store import read_events
     from .reducer import reduce
+
     events = read_events(feature_dir)
     if not events:
         return {}
     snapshot = reduce(events)
-    return {
-        wp_id: Lane(state.get("lane", Lane.PLANNED))
-        for wp_id, state in snapshot.work_packages.items()
-    }
+    return {wp_id: Lane(state.get("lane", Lane.PLANNED)) for wp_id, state in snapshot.work_packages.items()}

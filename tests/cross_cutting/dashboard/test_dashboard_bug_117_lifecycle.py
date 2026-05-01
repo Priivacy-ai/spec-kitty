@@ -31,13 +31,14 @@ class TestProcessDetectionWithHealthTimeout:
         mock_pid = 12345
         mock_port = 9237
 
-        with patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start, \
-             patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
-             patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
-             patch("specify_cli.dashboard.lifecycle._write_dashboard_file"), \
-             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc, \
-             patch("specify_cli.dashboard.lifecycle.time.sleep"):
-
+        with (
+            patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start,
+            patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health,
+            patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive,
+            patch("specify_cli.dashboard.lifecycle._write_dashboard_file"),
+            patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc,
+            patch("specify_cli.dashboard.lifecycle.time.sleep"),
+        ):
             # Setup: Process starts successfully
             mock_start.return_value = (mock_port, mock_pid)
 
@@ -109,17 +110,13 @@ class TestKillAfterStartupFallback:
 
         # Simulate dashboard running with fallback detection
         # (process alive but health check was slow)
-        dashboard_file.write_text(
-            "http://127.0.0.1:9237\n"
-            "9237\n"
-            "abc123token\n"
-            "12345\n"
-        )
+        dashboard_file.write_text("http://127.0.0.1:9237\n9237\nabc123token\n12345\n")
 
-        with patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
-             patch("specify_cli.dashboard.lifecycle.urllib.request.urlopen") as mock_urlopen, \
-             patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive:
-
+        with (
+            patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health,
+            patch("specify_cli.dashboard.lifecycle.urllib.request.urlopen") as mock_urlopen,
+            patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive,
+        ):
             # Dashboard is healthy on the initial stop check, then immediately gone.
             mock_health.side_effect = [True, False]
             mock_alive.return_value = True
@@ -148,12 +145,13 @@ class TestDashboardLifecycleImprovement:
         mock_pid = 12345
         mock_port = 9237
 
-        with patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start, \
-             patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
-             patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
-             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc, \
-             patch("specify_cli.dashboard.lifecycle.time.sleep"):
-
+        with (
+            patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start,
+            patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health,
+            patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive,
+            patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc,
+            patch("specify_cli.dashboard.lifecycle.time.sleep"),
+        ):
             mock_start.return_value = (mock_port, mock_pid)
             mock_health.return_value = False
 

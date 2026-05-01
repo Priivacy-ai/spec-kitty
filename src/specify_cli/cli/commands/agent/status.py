@@ -218,8 +218,7 @@ def emit(
                 example = '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
                 _output_error(
                     json_output,
-                    f"Invalid JSON in --evidence-json: {exc}\n"
-                    f"Expected valid JSON object, e.g.: '{example}'",
+                    f"Invalid JSON in --evidence-json: {exc}\nExpected valid JSON object, e.g.: '{example}'",
                 )
                 raise typer.Exit(1)
 
@@ -230,22 +229,24 @@ def emit(
         )
         from specify_cli.status.models import TransitionRequest
 
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            to_lane=to,
-            actor=actor,
-            force=force,
-            reason=reason,
-            evidence=evidence,
-            review_ref=review_ref,
-            workspace_context=workspace_context,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            execution_mode=execution_mode,
-            repo_root=main_repo_root,
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=to,
+                actor=actor,
+                force=force,
+                reason=reason,
+                evidence=evidence,
+                review_ref=review_ref,
+                workspace_context=workspace_context,
+                subtasks_complete=subtasks_complete,
+                implementation_evidence_present=implementation_evidence_present,
+                execution_mode=execution_mode,
+                repo_root=main_repo_root,
+            )
+        )
 
         # Build result
         result = {
@@ -259,9 +260,7 @@ def emit(
         _output_result(
             json_output,
             result,
-            f"[green]OK[/green] {event.wp_id}: "
-            f"{event.from_lane} -> {event.to_lane} "
-            f"(event: {event.event_id[:12]}...)",
+            f"[green]OK[/green] {event.wp_id}: {event.from_lane} -> {event.to_lane} (event: {event.event_id[:12]}...)",
         )
 
     except typer.Exit:
@@ -270,6 +269,7 @@ def emit(
         # Check if it's a TransitionError (imported lazily above)
         try:
             from specify_cli.status.emit import TransitionError
+
             if isinstance(exc, TransitionError):
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
@@ -339,10 +339,7 @@ def materialize(
             wp_count = len(snapshot.work_packages)
             event_count = snapshot.event_count
 
-            console.print(
-                f"[green]Materialized[/green] {mission_slug}: "
-                f"{event_count} events -> {wp_count} WPs"
-            )
+            console.print(f"[green]Materialized[/green] {mission_slug}: {event_count} events -> {wp_count} WPs")
 
             # Lane distribution
             lane_parts = []
@@ -376,9 +373,7 @@ def doctor(
     ] = None,
     stale_claimed: Annotated[
         int,
-        typer.Option(
-            "--stale-claimed-days", help="Threshold for stale claims (days)"
-        ),
+        typer.Option("--stale-claimed-days", help="Threshold for stale claims (days)"),
     ] = 7,
     stale_in_progress: Annotated[
         int,
@@ -423,9 +418,7 @@ def doctor(
         )
     except FileNotFoundError as e:
         if json_output:
-            console.print_json(
-                json.dumps({"error": str(e), "healthy": False})
-            )
+            console.print_json(json.dumps({"error": str(e), "healthy": False}))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -485,9 +478,7 @@ def doctor(
             table.add_column("Message")
             table.add_column("Action")
             for f in result.findings:
-                severity_style = (
-                    "red" if f.severity == "error" else "yellow"
-                )
+                severity_style = "red" if f.severity == "error" else "yellow"
                 table.add_row(
                     f"[{severity_style}]{f.severity}[/{severity_style}]",
                     str(f.category),
@@ -770,9 +761,7 @@ def validate(
                 )
             )
         else:
-            console.print(
-                f"[green]Status Validation: {mission_slug}[/green]"
-            )
+            console.print(f"[green]Status Validation: {mission_slug}[/green]")
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
         raise typer.Exit(0)
@@ -801,9 +790,7 @@ def validate(
             )
         )
     else:
-        console.print(
-            f"\n[bold]Status Validation: {mission_slug}[/bold]"
-        )
+        console.print(f"\n[bold]Status Validation: {mission_slug}[/bold]")
         console.print("-" * 50)
 
         if result.errors:
@@ -818,9 +805,7 @@ def validate(
 
         if result.passed:
             if result.warnings:
-                console.print(
-                    f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))"
-                )
+                console.print(f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))")
             else:
                 console.print("\n[green]Result: PASS[/green]")
         else:

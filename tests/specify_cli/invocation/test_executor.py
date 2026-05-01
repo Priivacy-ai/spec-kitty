@@ -102,16 +102,16 @@ class TestInvokeNoRouterNoHintRaises:
 
 
 class TestInvokeMissingProfileHintRaises:
-    def test_invoke_with_unknown_profile_hint_raises_profile_not_found_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_invoke_with_unknown_profile_hint_raises_profile_not_found_error(self, tmp_path: Path) -> None:
         executor = ProfileInvocationExecutor(tmp_path)
-        with patch(
-            "specify_cli.invocation.executor.build_charter_context",
-            return_value=_COMPACT_CTX,
+        with (
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            pytest.raises(ProfileNotFoundError),
         ):
-            with pytest.raises(ProfileNotFoundError):
-                executor.invoke("test", profile_hint="no-such-profile")
+            executor.invoke("test", profile_hint="no-such-profile")
 
 
 class TestInvokeDegradedCharter:
@@ -162,12 +162,15 @@ class TestInvokeMarkLoadedFalse:
 class TestInvokeWriteFailureRaises:
     def test_invoke_propagates_invocation_write_error(self, tmp_path: Path) -> None:
         _setup_fixture_profiles(tmp_path)
-        with patch(
-            "specify_cli.invocation.executor.build_charter_context",
-            return_value=_COMPACT_CTX,
-        ), patch(
-            "specify_cli.invocation.executor.InvocationWriter.write_started",
-            side_effect=InvocationWriteError("disk full"),
+        with (
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            patch(
+                "specify_cli.invocation.executor.InvocationWriter.write_started",
+                side_effect=InvocationWriteError("disk full"),
+            ),
         ):
             executor = ProfileInvocationExecutor(tmp_path)
             with pytest.raises(InvocationWriteError):

@@ -82,8 +82,7 @@ class TestPersistence:
                 AcceptanceCriterion("AC-01", "Test passes", "automated_test", pass_fail="pass"),
             ],
             negative_invariants=[
-                NegativeInvariant("NI-01", "No legacy route", "grep_absence",
-                                  verification_command="/old-route", result="confirmed_absent"),
+                NegativeInvariant("NI-01", "No legacy route", "grep_absence", verification_command="/old-route", result="confirmed_absent"),
             ],
         )
         write_acceptance_matrix(tmp_path, matrix)
@@ -101,7 +100,9 @@ class TestPersistence:
 class TestManualEvidence:
     def test_valid_manual_qa(self):
         c = AcceptanceCriterion(
-            "AC-01", "Check dashboard", "manual_qa",
+            "AC-01",
+            "Check dashboard",
+            "manual_qa",
             evidence="http://localhost:8000/dashboard",
             verified_at="2026-04-03T12:00:00Z",
             verified_by="qa-operator",
@@ -141,7 +142,8 @@ class TestNegativeInvariants:
 
         invariants = [
             NegativeInvariant(
-                "NI-01", "No legacy route",
+                "NI-01",
+                "No legacy route",
                 "grep_absence",
                 verification_command="old_legacy_route",
             ),
@@ -155,7 +157,8 @@ class TestNegativeInvariants:
 
         invariants = [
             NegativeInvariant(
-                "NI-01", "No legacy route",
+                "NI-01",
+                "No legacy route",
                 "grep_absence",
                 verification_command="old_legacy_route",
             ),
@@ -166,7 +169,8 @@ class TestNegativeInvariants:
     def test_custom_command_pass(self, tmp_path):
         invariants = [
             NegativeInvariant(
-                "NI-01", "No stale files",
+                "NI-01",
+                "No stale files",
                 "custom_command",
                 verification_command="true",  # always exits 0
             ),
@@ -177,7 +181,8 @@ class TestNegativeInvariants:
     def test_custom_command_fail(self, tmp_path):
         invariants = [
             NegativeInvariant(
-                "NI-01", "Check fails",
+                "NI-01",
+                "Check fails",
                 "custom_command",
                 verification_command="false",  # always exits 1
             ),

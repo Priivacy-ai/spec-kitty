@@ -33,9 +33,7 @@ class TestAutoDiscovery:
 
         # Verify all discovered
         discovered = MigrationRegistry.get_all()
-        assert len(discovered) == expected_count, (
-            f"Expected {expected_count} migrations (matching m_*.py pattern), but discovered {len(discovered)}"
-        )
+        assert len(discovered) == expected_count, f"Expected {expected_count} migrations (matching m_*.py pattern), but discovered {len(discovered)}"
 
     def test_auto_discover_is_idempotent(self):
         """Running auto-discovery multiple times doesn't cause issues."""
@@ -141,9 +139,7 @@ class TestAutoDiscovery:
             content = migration_file.read_text()
 
             # Check for @MigrationRegistry.register
-            assert "@MigrationRegistry.register" in content, (
-                f"Migration {migration_file.name} missing @MigrationRegistry.register decorator"
-            )
+            assert "@MigrationRegistry.register" in content, f"Migration {migration_file.name} missing @MigrationRegistry.register decorator"
 
 
 class TestAutoDiscoveryIntegration:

@@ -27,6 +27,7 @@ from specify_cli.glossary.rendering import (
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture
 def mock_console():
     """Mock Rich console for capturing output."""

@@ -160,9 +160,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 if kitty_specs.is_dir():
                     # Find the specific feature directory matching feature_num
                     for feature_dir in kitty_specs.iterdir():
-                        if feature_dir.is_dir() and feature_dir.name.startswith(
-                            f"{feature_num}-"
-                        ):
+                        if feature_dir.is_dir() and feature_dir.name.startswith(f"{feature_num}-"):
                             meta_path = feature_dir / "meta.json"
                             if meta_path.is_file():
                                 try:
@@ -251,10 +249,7 @@ def get_vcs(
         return GitVCS()
 
     # 4. git not available
-    raise VCSNotFoundError(
-        "git is not available. "
-        "Please install git: https://git-scm.com/downloads"
-    )
+    raise VCSNotFoundError("git is not available. Please install git: https://git-scm.com/downloads")
 
 
 # =============================================================================

@@ -55,10 +55,7 @@ class RestorePromptCommandsMigration302(BaseMigration):
     """
 
     migration_id = "3.0.2_restore_prompt_commands"
-    description = (
-        "Restore prompt-driven command templates (specify, plan, tasks, etc.) "
-        "that were deleted by the 3.0.0 canonical context migration"
-    )
+    description = "Restore prompt-driven command templates (specify, plan, tasks, etc.) that were deleted by the 3.0.0 canonical context migration"
     target_version = "3.0.2"
 
     def detect(self, project_path: Path) -> bool:

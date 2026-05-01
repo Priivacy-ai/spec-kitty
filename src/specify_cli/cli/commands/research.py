@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -41,7 +40,7 @@ def research(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     project_root = get_project_root_or_exit(repo_root)
 
@@ -71,7 +70,7 @@ def research(
         tracker.error("feature", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -95,7 +94,7 @@ def research(
         console.print("  2. Complete all [FEATURE], [DATE], and technical context placeholders")
         console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
         console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     created_paths: list[Path] = []
 
@@ -120,7 +119,7 @@ def research(
         except Exception as exc:  # pragma: no cover - surfaces filesystem errors
             tracker.error(step_key, str(exc))
             console.print(tracker.render())
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
     _copy_asset("research-md", "research.md ready", Path("research.md"), Path("research.md"))
     _copy_asset("data-model", "data-model.md ready", Path("data-model.md"), Path("data-model.md"))
@@ -152,7 +151,7 @@ def research(
     if csv_errors:
         tracker.error("research-csv", "; ".join(csv_errors))
         console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     else:
         tracker.complete("research-csv", "CSV templates ready")
 
@@ -168,15 +167,14 @@ def research(
         )
 
         trigger_feature_dossier_sync_if_enabled(
-            feature_dir, mission_slug, repo_root,
+            feature_dir,
+            mission_slug,
+            repo_root,
         )
     except Exception:
         pass
 
-    relative_paths = [
-        str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path)
-        for path in created_paths
-    ]
+    relative_paths = [str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path) for path in created_paths]
     summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
     console.print()
     console.print(

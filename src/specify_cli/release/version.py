@@ -70,10 +70,7 @@ def propose_version(current: str, channel: ReleaseChannel) -> str:
             return f"{current}a1"
         if pre_match and pre_match.group(2) == "b":
             # Beta -> alpha: not a supported promotion direction.
-            raise ValueError(
-                f"Cannot promote a beta release ({current!r}) to alpha. "
-                "Beta is ahead of alpha in the release sequence."
-            )
+            raise ValueError(f"Cannot promote a beta release ({current!r}) to alpha. Beta is ahead of alpha in the release sequence.")
 
     if channel == "beta":
         if pre_match and pre_match.group(2) == "a":

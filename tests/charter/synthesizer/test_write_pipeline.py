@@ -31,10 +31,7 @@ def _staged_generic_with_pytest_bias(tmp_path: Path) -> Path:
     staged_dir = tmp_path / "staging" / "generic"
     staged_dir.mkdir(parents=True)
     (staged_dir / "testing-philosophy.tactic.yaml").write_text(
-        "title: Testing Philosophy\n"
-        "body: |\n"
-        "  Always run pytest to verify your code.\n"
-        "  Configure pytest.ini for test discovery.\n"
+        "title: Testing Philosophy\nbody: |\n  Always run pytest to verify your code.\n  Configure pytest.ini for test discovery.\n"
     )
     return staged_dir
 
@@ -43,11 +40,7 @@ def _staged_language_scoped(tmp_path: Path) -> Path:
     """A python-scoped tactic containing 'pytest' — should NOT trigger gate."""
     staged_dir = tmp_path / "staging" / "python-scoped"
     staged_dir.mkdir(parents=True)
-    (staged_dir / "python-style-guide.tactic.yaml").write_text(
-        "title: Python Style Guide\n"
-        "body: |\n"
-        "  Use pytest for Python test discovery.\n"
-    )
+    (staged_dir / "python-style-guide.tactic.yaml").write_text("title: Python Style Guide\nbody: |\n  Use pytest for Python test discovery.\n")
     return staged_dir
 
 
@@ -56,10 +49,7 @@ def _staged_neutral_generic(tmp_path: Path) -> Path:
     staged_dir = tmp_path / "staging" / "neutral"
     staged_dir.mkdir(parents=True)
     (staged_dir / "testing-philosophy.tactic.yaml").write_text(
-        "title: Testing Philosophy\n"
-        "body: |\n"
-        "  Test at multiple levels: unit, integration, and end-to-end.\n"
-        "  Fast tests should run frequently; slow tests in CI.\n"
+        "title: Testing Philosophy\nbody: |\n  Test at multiple levels: unit, integration, and end-to-end.\n  Fast tests should run frequently; slow tests in CI.\n"
     )
     return staged_dir
 
@@ -80,10 +70,7 @@ def test_extract_directive_number_falls_back_for_malformed_ids() -> None:
 
 
 def test_artifact_filename_builds_directive_filename_without_regex() -> None:
-    assert (
-        artifact_filename("directive", "mission-type-scope-directive", "PROJECT_001")
-        == "001-mission-type-scope-directive.directive.yaml"
-    )
+    assert artifact_filename("directive", "mission-type-scope-directive", "PROJECT_001") == "001-mission-type-scope-directive.directive.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -236,13 +223,8 @@ def test_gate_fires_on_biased_generic_content(tmp_path: Path) -> None:
     """Generic artifact with 'pytest' triggers NeutralityGateViolation."""
     from charter.synthesizer.write_pipeline import _run_neutrality_gate
 
-    biased_content = (
-        "Always run pytest to verify your code.\n"
-        "Configure pytest.ini for test discovery.\n"
-    )
-    stage, prov = _make_staging_dir_with_artifact(
-        tmp_path, "tactic", "testing-philosophy", biased_content
-    )
+    biased_content = "Always run pytest to verify your code.\nConfigure pytest.ini for test discovery.\n"
+    stage, prov = _make_staging_dir_with_artifact(tmp_path, "tactic", "testing-philosophy", biased_content)
 
     with pytest.raises(NeutralityGateViolation) as exc_info:
         _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
@@ -273,9 +255,7 @@ def test_gate_skips_language_scoped_artifact(tmp_path: Path) -> None:
 
     biased_content = "Use pytest for Python test discovery.\n"
     # Slug contains "python" → language-scoped → gate must skip
-    stage, prov = _make_staging_dir_with_artifact(
-        tmp_path, "tactic", "python-style-guide", biased_content
-    )
+    stage, prov = _make_staging_dir_with_artifact(tmp_path, "tactic", "python-style-guide", biased_content)
 
     # Should not raise
     _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=bundle)
@@ -285,13 +265,8 @@ def test_gate_passes_on_neutral_generic_content(tmp_path: Path) -> None:
     """Clean generic artifact passes the neutrality gate without raising."""
     from charter.synthesizer.write_pipeline import _run_neutrality_gate
 
-    neutral_content = (
-        "Test at multiple levels: unit, integration, and end-to-end.\n"
-        "Fast tests should run frequently; slow tests in CI.\n"
-    )
-    stage, prov = _make_staging_dir_with_artifact(
-        tmp_path, "tactic", "testing-philosophy", neutral_content
-    )
+    neutral_content = "Test at multiple levels: unit, integration, and end-to-end.\nFast tests should run frequently; slow tests in CI.\n"
+    stage, prov = _make_staging_dir_with_artifact(tmp_path, "tactic", "testing-philosophy", neutral_content)
 
     # Should not raise
     _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
@@ -310,13 +285,8 @@ def test_gate_timing(tmp_path: Path) -> None:
     """Neutrality gate completes in under 5 seconds on neutral content."""
     from charter.synthesizer.write_pipeline import _run_neutrality_gate
 
-    neutral_content = (
-        "Test at multiple levels: unit, integration, and end-to-end.\n"
-        "Fast tests should run frequently; slow tests in CI.\n"
-    )
-    stage, prov = _make_staging_dir_with_artifact(
-        tmp_path, "tactic", "testing-philosophy", neutral_content
-    )
+    neutral_content = "Test at multiple levels: unit, integration, and end-to-end.\nFast tests should run frequently; slow tests in CI.\n"
+    stage, prov = _make_staging_dir_with_artifact(tmp_path, "tactic", "testing-philosophy", neutral_content)
 
     start = time.monotonic()
     _run_neutrality_gate(stage, [({"title": "test"}, prov)], evidence=None)
@@ -330,9 +300,7 @@ def test_gate_preserves_staging_on_violation(tmp_path: Path) -> None:
     from charter.synthesizer.write_pipeline import _run_neutrality_gate
 
     biased_content = "Always run pytest to verify your code.\n"
-    stage, prov = _make_staging_dir_with_artifact(
-        tmp_path, "tactic", "testing-philosophy", biased_content
-    )
+    stage, prov = _make_staging_dir_with_artifact(tmp_path, "tactic", "testing-philosophy", biased_content)
 
     staging_root = stage.root
     assert staging_root.exists()

@@ -94,16 +94,10 @@ def _derive_ticket_summary(candidate: OriginCandidate) -> tuple[str, str, str]:
     purpose_tldr = friendly_name
 
     body = candidate.body or ""
-    paragraphs = [
-        _normalize_summary_text(chunk)
-        for chunk in re.split(r"\n\s*\n", body)
-        if _normalize_summary_text(chunk)
-    ]
+    paragraphs = [_normalize_summary_text(chunk) for chunk in re.split(r"\n\s*\n", body) if _normalize_summary_text(chunk)]
     purpose_context = next((paragraph for paragraph in paragraphs if len(paragraph) >= 24), "")
     if not purpose_context:
-        raise OriginBindingError(
-            "Ticket-first mission creation requires ticket body text with at least one non-empty explanatory paragraph."
-        )
+        raise OriginBindingError("Ticket-first mission creation requires ticket body text with at least one non-empty explanatory paragraph.")
 
     return friendly_name, purpose_tldr, purpose_context
 
@@ -476,13 +470,8 @@ def _resolve_tracker_config_for_origin(
     """
     tracker_config = load_tracker_config(repo_root)
     if tracker_config.provider and tracker_config.provider != provider:
-        raise OriginBindingError(
-            f"This repo is bound to '{tracker_config.provider}', not '{provider}'. "
-            f"Run `spec-kitty tracker bind --provider {provider}`."
-        )
-    if tracker_config.provider == provider and (
-        tracker_config.binding_ref or tracker_config.project_slug
-    ):
+        raise OriginBindingError(f"This repo is bound to '{tracker_config.provider}', not '{provider}'. Run `spec-kitty tracker bind --provider {provider}`.")
+    if tracker_config.provider == provider and (tracker_config.binding_ref or tracker_config.project_slug):
         return tracker_config
 
     project_identity = _project_identity_payload(repo_root)
@@ -505,10 +494,7 @@ def _resolve_tracker_config_for_origin(
             raise OriginBindingError(str(exc)) from exc
         validation_context = validation.get("provider_context")
         if isinstance(validation_context, dict):
-            provider_context = {
-                str(key): str(value)
-                for key, value in validation_context.items()
-            }
+            provider_context = {str(key): str(value) for key, value in validation_context.items()}
         if validation.get("display_label"):
             display_label = validation["display_label"]
 
@@ -556,23 +542,13 @@ def _resolve_origin_resource_context(
     if provider == "jira":
         return (
             explicit_type or "jira_project",
-            explicit_id
-            or provider_context.get("project_key")
-            or provider_context.get("key")
-            or tracker_config.binding_ref
-            or tracker_config.project_slug
-            or "",
+            explicit_id or provider_context.get("project_key") or provider_context.get("key") or tracker_config.binding_ref or tracker_config.project_slug or "",
         )
 
     if provider == "github":
         return (
             explicit_type or "github_repo",
-            explicit_id
-            or provider_context.get("repository")
-            or provider_context.get("repo")
-            or tracker_config.binding_ref
-            or tracker_config.project_slug
-            or "",
+            explicit_id or provider_context.get("repository") or provider_context.get("repo") or tracker_config.binding_ref or tracker_config.project_slug or "",
         )
 
     if provider == "gitlab":

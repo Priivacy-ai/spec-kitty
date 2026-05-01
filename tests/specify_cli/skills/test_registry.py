@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
+from specify_cli.skills.registry import SkillRegistry
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
@@ -24,9 +24,7 @@ def _make_skill(
     """Helper: create a minimal skill directory under *root*."""
     skill_dir = root / name
     skill_dir.mkdir(parents=True, exist_ok=True)
-    (skill_dir / "SKILL.md").write_text(
-        f"---\nname: {name}\n---\n# {name}\nPlaceholder.\n"
-    )
+    (skill_dir / "SKILL.md").write_text(f"---\nname: {name}\n---\n# {name}\nPlaceholder.\n")
     for sub, files in [
         ("references", references or []),
         ("scripts", scripts or []),
@@ -152,6 +150,7 @@ def test_discover_multiple_skills_sorted(tmp_path: Path) -> None:
 def test_skills_module_importable() -> None:
     """Verify the skills module is importable (packaging sanity check)."""
     import specify_cli.skills
+
     assert hasattr(specify_cli.skills, "CanonicalSkill")
     assert hasattr(specify_cli.skills, "SkillRegistry")
     assert hasattr(specify_cli.skills, "ManagedSkillManifest")
@@ -167,7 +166,9 @@ def test_doctrine_skills_exist_in_repo() -> None:
     # Find repo root via git
     result = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     repo_root = Path(result.stdout.strip())
 

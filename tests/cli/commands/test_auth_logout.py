@@ -242,9 +242,7 @@ class TestAuthLogoutCommand:
                 new_callable=AsyncMock,
                 return_value=RevokeOutcome.REVOKED,
             ),
-            patch(
-                "specify_cli.cli.commands._auth_logout.get_token_manager"
-            ) as mock_get_tm,
+            patch("specify_cli.cli.commands._auth_logout.get_token_manager") as mock_get_tm,
         ):
             mock_tm = MagicMock()
             mock_tm.get_current_session.return_value = _make_session()

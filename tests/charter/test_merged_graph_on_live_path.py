@@ -8,7 +8,6 @@ charter resolver / compiler evolves through Phase 1 cutovers.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -24,18 +23,17 @@ def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
     shipped_root = tmp_path / "doctrine"
     shipped_root.mkdir()
     (shipped_root / "graph.yaml").write_text(
-        "schema_version: '1.0'\n"
-        "generated_at: '2026-04-14T00:00:00Z'\n"
-        "generated_by: test\n"
-        "nodes: []\n"
-        "edges: []\n",
+        "schema_version: '1.0'\ngenerated_at: '2026-04-14T00:00:00Z'\ngenerated_by: test\nnodes: []\nedges: []\n",
         encoding="utf-8",
     )
 
-    with patch(
-        "charter._drg_helpers.resolve_doctrine_root",
-        return_value=shipped_root,
-    ), patch("charter._drg_helpers.assert_valid") as mock_validator:
+    with (
+        patch(
+            "charter._drg_helpers.resolve_doctrine_root",
+            return_value=shipped_root,
+        ),
+        patch("charter._drg_helpers.assert_valid") as mock_validator,
+    ):
         load_validated_graph(tmp_path)
     assert mock_validator.called, "assert_valid() was not called"
 
@@ -46,24 +44,14 @@ def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
     shipped_root = tmp_path / "doctrine"
     shipped_root.mkdir()
     (shipped_root / "graph.yaml").write_text(
-        "schema_version: '1.0'\n"
-        "generated_at: '2026-04-14T00:00:00Z'\n"
-        "generated_by: test\n"
-        "nodes:\n"
-        "- {urn: 'directive:shipped-one', kind: directive}\n"
-        "edges: []\n",
+        "schema_version: '1.0'\ngenerated_at: '2026-04-14T00:00:00Z'\ngenerated_by: test\nnodes:\n- {urn: 'directive:shipped-one', kind: directive}\nedges: []\n",
         encoding="utf-8",
     )
 
     project_graph_dir = tmp_path / ".kittify" / "doctrine"
     project_graph_dir.mkdir(parents=True)
     (project_graph_dir / "graph.yaml").write_text(
-        "schema_version: '1.0'\n"
-        "generated_at: '2026-04-14T00:00:00Z'\n"
-        "generated_by: test\n"
-        "nodes:\n"
-        "- {urn: 'directive:project-one', kind: directive}\n"
-        "edges: []\n",
+        "schema_version: '1.0'\ngenerated_at: '2026-04-14T00:00:00Z'\ngenerated_by: test\nnodes:\n- {urn: 'directive:project-one', kind: directive}\nedges: []\n",
         encoding="utf-8",
     )
 
@@ -94,12 +82,14 @@ def test_load_validated_graph_rejects_invalid_merge(tmp_path: Path) -> None:
         "- {source: 'directive:a', target: 'directive:missing', relation: requires}\n",
         encoding="utf-8",
     )
-    with patch(
-        "charter._drg_helpers.resolve_doctrine_root",
-        return_value=shipped_root,
-    ):
-        with pytest.raises(Exception):  # noqa: B017, assert_valid may raise a variety
-            load_validated_graph(tmp_path)
+    with (
+        patch(
+            "charter._drg_helpers.resolve_doctrine_root",
+            return_value=shipped_root,
+        ),
+        pytest.raises(Exception),
+    ):  # noqa: B017, assert_valid may raise a variety
+        load_validated_graph(tmp_path)
 
 
 def test_shipped_graph_is_valid() -> None:

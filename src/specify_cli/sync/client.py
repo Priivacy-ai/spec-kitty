@@ -105,15 +105,10 @@ class WebSocketClient:
         tm = get_token_manager()
         session = tm.get_current_session()
         if session is None:
-            raise NotAuthenticatedError(
-                "WebSocket connect requires an authenticated session. "
-                "Run `spec-kitty auth login`."
-            )
+            raise NotAuthenticatedError("WebSocket connect requires an authenticated session. Run `spec-kitty auth login`.")
         if not session.default_team_id:
             if not session.teams:
-                raise NotAuthenticatedError(
-                    "No teams associated with the current session."
-                )
+                raise NotAuthenticatedError("No teams associated with the current session.")
             private_team_id = get_private_team_id(session.teams)
             if private_team_id:
                 return private_team_id
@@ -162,9 +157,7 @@ class WebSocketClient:
         if not ws_url or not ws_token:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            raise AuthenticationError(
-                "WebSocket provisioning returned an incomplete bundle."
-            )
+            raise AuthenticationError("WebSocket provisioning returned an incomplete bundle.")
 
         ws_url = self._normalize_ws_url(ws_url)
 
@@ -312,22 +305,16 @@ class WebSocketClient:
         if scheme == "ws":
             host = (parsed.hostname or "").lower()
             if host not in _LOOPBACK_HOSTS:
-                raise AuthenticationError(
-                    "Refusing insecure WebSocket provisioning URL outside loopback."
-                )
+                raise AuthenticationError("Refusing insecure WebSocket provisioning URL outside loopback.")
             return parsed.geturl()
         if scheme == "https":
             return parsed._replace(scheme=_WS_SCHEME_MAP[scheme]).geturl()
         if scheme == "http":
             host = (parsed.hostname or "").lower()
             if host not in _LOOPBACK_HOSTS:
-                raise AuthenticationError(
-                    "Refusing insecure WebSocket provisioning URL outside loopback."
-                )
+                raise AuthenticationError("Refusing insecure WebSocket provisioning URL outside loopback.")
             return parsed._replace(scheme=_WS_SCHEME_MAP[scheme]).geturl()
-        raise AuthenticationError(
-            f"Unsupported WebSocket provisioning URL scheme: {ws_url!r}"
-        )
+        raise AuthenticationError(f"Unsupported WebSocket provisioning URL scheme: {ws_url!r}")
 
     def get_reconnect_delay(self, attempt: int) -> float:
         """

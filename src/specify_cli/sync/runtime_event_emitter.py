@@ -34,7 +34,7 @@ class SyncRuntimeEventEmitter:
         feature_dir: Path,
         mission_slug: str,
         mission_type: str,
-    ) -> "SyncRuntimeEventEmitter":
+    ) -> SyncRuntimeEventEmitter:
         try:
             mission_id = resolve_mission_identity(feature_dir).mission_id
         except Exception:

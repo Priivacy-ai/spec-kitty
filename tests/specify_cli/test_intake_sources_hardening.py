@@ -1,10 +1,8 @@
 """Regression tests for WP04 T022/T023: path containment and symlink exclusion."""
+
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-from unittest.mock import patch
-from specify_cli.intake_sources import scan_for_plans, HARNESS_PLAN_SOURCES
+from specify_cli.intake_sources import scan_for_plans
 
 
 def test_scan_excludes_out_of_bounds_path(tmp_path, monkeypatch):

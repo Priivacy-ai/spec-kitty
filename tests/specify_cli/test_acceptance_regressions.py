@@ -16,13 +16,13 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Tuple
 
 import pytest
 
-from specify_cli.acceptance import (    AcceptanceError,
+from specify_cli.acceptance import (
+    AcceptanceError,
     AcceptanceSummary,
     collect_feature_summary,
     perform_acceptance,
@@ -47,7 +47,7 @@ def _create_test_feature(
     mission_slug: str = _FEATURE_SLUG,
     *,
     malformed_events: str | None = None,
-) -> Tuple[Path, Path]:
+) -> tuple[Path, Path]:
     """Create a minimal but valid feature for acceptance testing.
 
     Returns (repo_root, feature_dir).
@@ -92,15 +92,7 @@ def _create_test_feature(
 
     # WP file with all required frontmatter fields
     wp_content = (
-        "---\n"
-        'work_package_id: "WP01"\n'
-        'title: "Test WP"\n'
-        'lane: "done"\n'
-        'assignee: "test-agent"\n'
-        'agent: "test-agent"\n'
-        'shell_pid: "12345"\n'
-        "---\n"
-        "# WP01\nDone.\n"
+        '---\nwork_package_id: "WP01"\ntitle: "Test WP"\nlane: "done"\nassignee: "test-agent"\nagent: "test-agent"\nshell_pid: "12345"\n---\n# WP01\nDone.\n'
     )
     (tasks_dir / "WP01-test.md").write_text(wp_content)
 
@@ -200,9 +192,7 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
     )
 
     # AcceptanceResult.accept_commit must also match
-    assert result.accept_commit == accept_commit, (
-        f"Result.accept_commit mismatch: {result.accept_commit!r} != {accept_commit!r}"
-    )
+    assert result.accept_commit == accept_commit, f"Result.accept_commit mismatch: {result.accept_commit!r} != {accept_commit!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -216,9 +206,7 @@ class TestIntegrationBranchGuard:
     branch (e.g. main, 2.x).
     """
 
-    def _make_summary_on_branch(
-        self, tmp_path: Path, branch: str, *, target_branch: str = "main"
-    ) -> AcceptanceSummary:
+    def _make_summary_on_branch(self, tmp_path: Path, branch: str, *, target_branch: str = "main") -> AcceptanceSummary:
         """Create a minimal AcceptanceSummary as if on *branch*."""
         repo_root, feature_dir = _create_test_feature(tmp_path)
         # Patch meta.json with the desired target_branch and recommit
@@ -229,7 +217,8 @@ class TestIntegrationBranchGuard:
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
         subprocess.run(
             ["git", "-C", str(repo_root), "add", "-A"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         # Commit only if there are staged changes (target_branch may already
         # match the value written by _create_test_feature).
@@ -240,7 +229,8 @@ class TestIntegrationBranchGuard:
         if diff.returncode != 0:
             subprocess.run(
                 ["git", "-C", str(repo_root), "commit", "-m", "patch target_branch"],
-                check=True, capture_output=True,
+                check=True,
+                capture_output=True,
             )
 
         summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
@@ -254,12 +244,8 @@ class TestIntegrationBranchGuard:
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "git merge main" not in merged, (
-            f"Should not suggest merging integration branch. instructions={result.instructions}"
-        )
-        assert "git branch -d main" not in merged, (
-            f"Should not suggest deleting integration branch. cleanup={result.cleanup_instructions}"
-        )
+        assert "git merge main" not in merged, f"Should not suggest merging integration branch. instructions={result.instructions}"
+        assert "git branch -d main" not in merged, f"Should not suggest deleting integration branch. cleanup={result.cleanup_instructions}"
 
     def test_branch_2x_no_merge_guidance(self, tmp_path: Path) -> None:
         """branch='2.x' with target_branch='2.x' must NOT produce 'git merge 2.x'."""
@@ -276,24 +262,16 @@ class TestIntegrationBranchGuard:
         result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions)
-        assert "Push your branch" not in merged, (
-            f"Should not suggest pushing integration branch as feature. instructions={result.instructions}"
-        )
+        assert "Push your branch" not in merged, f"Should not suggest pushing integration branch as feature. instructions={result.instructions}"
 
     def test_feature_branch_still_gets_merge_guidance(self, tmp_path: Path) -> None:
         """A real feature branch must still get full merge + cleanup guidance."""
-        summary = self._make_summary_on_branch(
-            tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main"
-        )
+        summary = self._make_summary_on_branch(tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main")
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "git merge kitty/mission-054-my-feature-lane-a" in merged, (
-            f"Feature branch should get merge guidance. instructions={result.instructions}"
-        )
-        assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, (
-            f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
-        )
+        assert "git merge kitty/mission-054-my-feature-lane-a" in merged, f"Feature branch should get merge guidance. instructions={result.instructions}"
+        assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
 
     def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:
         """When meta.json has no target_branch, well-known names are guarded."""
@@ -305,11 +283,13 @@ class TestIntegrationBranchGuard:
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
         subprocess.run(
             ["git", "-C", str(repo_root), "add", "-A"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "-C", str(repo_root), "commit", "-m", "remove target_branch"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
         summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
@@ -348,9 +328,7 @@ def test_standalone_tasks_cli_help() -> None:
     assert result.returncode == 0, f"tasks_cli.py --help failed (rc={result.returncode}):\n{result.stderr}"
     assert "ModuleNotFoundError" not in result.stderr, f"ModuleNotFoundError in stderr:\n{result.stderr}"
     # Confirm help text actually rendered
-    assert "usage" in result.stdout.lower() or "--help" in result.stdout, (
-        f"Help text not found in stdout:\n{result.stdout}"
-    )
+    assert "usage" in result.stdout.lower() or "--help" in result.stdout, f"Help text not found in stdout:\n{result.stdout}"
 
 
 # ---------------------------------------------------------------------------
@@ -424,16 +402,12 @@ def test_copy_parity_between_acceptance_modules() -> None:
     core_exports = set(acceptance.__all__)
     standalone_exports = set(acceptance_support.__all__)
     assert core_exports == standalone_exports, (
-        f"Wrapper must re-export all canonical names. "
-        f"Missing: {core_exports - standalone_exports}, "
-        f"Extra: {standalone_exports - core_exports}"
+        f"Wrapper must re-export all canonical names. Missing: {core_exports - standalone_exports}, Extra: {standalone_exports - core_exports}"
     )
 
     # Object identity: re-exports must be the same objects, not copies
     for name in acceptance.__all__:
-        assert getattr(acceptance, name) is getattr(acceptance_support, name), (
-            f"{name} in acceptance_support is not the same object as in acceptance"
-        )
+        assert getattr(acceptance, name) is getattr(acceptance_support, name), f"{name} in acceptance_support is not the same object as in acceptance"
 
     # Function signature parity for key functions (validates re-exports match)
     parity_functions = [
@@ -445,6 +419,4 @@ def test_copy_parity_between_acceptance_modules() -> None:
     for fn_name in parity_functions:
         sig_core = inspect.signature(getattr(acceptance, fn_name))
         sig_standalone = inspect.signature(getattr(acceptance_support, fn_name))
-        assert sig_core == sig_standalone, (
-            f"{fn_name} signature mismatch:\n  acceptance:         {sig_core}\n  acceptance_support: {sig_standalone}"
-        )
+        assert sig_core == sig_standalone, f"{fn_name} signature mismatch:\n  acceptance:         {sig_core}\n  acceptance_support: {sig_standalone}"

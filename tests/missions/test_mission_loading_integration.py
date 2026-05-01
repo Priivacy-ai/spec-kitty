@@ -38,10 +38,12 @@ pytestmark = pytest.mark.fast
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _write_yaml(path: Path, data: dict) -> None:
     """Write a dict to a YAML file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.dump(data, default_flow_style=False), encoding="utf-8")
+
 
 def _minimal_v0_config(**overrides) -> dict:
     """Return a minimal valid v0 mission config."""
@@ -60,6 +62,7 @@ def _minimal_v0_config(**overrides) -> dict:
     }
     config.update(overrides)
     return config
+
 
 def _minimal_v1_config(**overrides) -> dict:
     """Return a minimal valid v1 mission config."""
@@ -82,6 +85,7 @@ def _minimal_v1_config(**overrides) -> dict:
     }
     config.update(overrides)
     return config
+
 
 def _hybrid_config() -> dict:
     """Return a config with both v1 AND v0 keys."""
@@ -109,9 +113,11 @@ def _hybrid_config() -> dict:
         "artifacts": {"required": ["spec.md"], "optional": []},
     }
 
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def v0_mission_dir(tmp_path) -> Path:
@@ -121,6 +127,7 @@ def v0_mission_dir(tmp_path) -> Path:
     _write_yaml(mission_dir / "mission.yaml", _minimal_v0_config())
     return mission_dir
 
+
 @pytest.fixture()
 def v1_mission_dir(tmp_path) -> Path:
     """Create a v1 mission directory."""
@@ -129,6 +136,7 @@ def v1_mission_dir(tmp_path) -> Path:
     _write_yaml(mission_dir / "mission.yaml", _minimal_v1_config())
     return mission_dir
 
+
 @pytest.fixture()
 def hybrid_mission_dir(tmp_path) -> Path:
     """Create a hybrid mission directory (v1 + v0 keys)."""
@@ -136,6 +144,7 @@ def hybrid_mission_dir(tmp_path) -> Path:
     mission_dir.mkdir()
     _write_yaml(mission_dir / "mission.yaml", _hybrid_config())
     return mission_dir
+
 
 @pytest.fixture()
 def kittify_dir(tmp_path, v0_mission_dir, v1_mission_dir) -> Path:
@@ -152,15 +161,20 @@ def kittify_dir(tmp_path, v0_mission_dir, v1_mission_dir) -> Path:
     # v1 mission at .kittify/missions/custom-v1/
     v1_dir = missions / "custom-v1"
     v1_dir.mkdir()
-    _write_yaml(v1_dir / "mission.yaml", _minimal_v1_config(
-        mission={"name": "Custom v1", "version": "1.0.0", "description": "Custom"},
-    ))
+    _write_yaml(
+        v1_dir / "mission.yaml",
+        _minimal_v1_config(
+            mission={"name": "Custom v1", "version": "1.0.0", "description": "Custom"},
+        ),
+    )
 
     return kittify
+
 
 # ---------------------------------------------------------------------------
 # T033 -- load_mission() dispatch
 # ---------------------------------------------------------------------------
+
 
 class TestLoadMissionDispatch:
     """Verify load_mission() auto-detects v0 vs v1 and returns correct type."""
@@ -219,9 +233,11 @@ class TestLoadMissionDispatch:
         # The model should have the feature_dir set
         assert result.model.feature_dir == feature
 
+
 # ---------------------------------------------------------------------------
 # T034 -- MissionProtocol
 # ---------------------------------------------------------------------------
+
 
 class TestMissionProtocol:
     """Verify both types satisfy the MissionProtocol."""
@@ -282,9 +298,11 @@ class TestMissionProtocol:
         assert "implement" in states
         assert "done" in states  # PhaseMission adds terminal "done"
 
+
 # ---------------------------------------------------------------------------
 # T035 -- load_mission_by_name()
 # ---------------------------------------------------------------------------
+
 
 class TestLoadMissionByName:
     """Verify load_mission_by_name() convenience function."""
@@ -303,9 +321,11 @@ class TestLoadMissionByName:
         with pytest.raises(MissionNotFoundError):
             load_mission_by_name("nonexistent", kittify_dir=kittify_dir)
 
+
 # ---------------------------------------------------------------------------
 # T036 -- Hybrid YAML handling
 # ---------------------------------------------------------------------------
+
 
 class TestHybridYAML:
     """Verify correct handling of YAML with both v1 and v0 keys."""
@@ -328,9 +348,11 @@ class TestHybridYAML:
         assert m.name == "Hybrid Mission"
         assert m.version == "3.0.0"
 
+
 # ---------------------------------------------------------------------------
 # T036 -- strip_v1_keys
 # ---------------------------------------------------------------------------
+
 
 class TestStripV1Keys:
     """Verify strip_v1_keys removes v1-only keys correctly."""
@@ -386,9 +408,11 @@ class TestStripV1Keys:
         strip_v1_keys(config)
         assert set(config.keys()) == original_keys
 
+
 # ---------------------------------------------------------------------------
 # Backward compatibility: Mission(path) still works for v0
 # ---------------------------------------------------------------------------
+
 
 class TestBackwardCompatibility:
     """Verify that the existing Mission class still works for v0 configs."""

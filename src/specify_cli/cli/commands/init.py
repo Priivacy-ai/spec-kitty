@@ -268,9 +268,7 @@ def _resolve_mission_command_templates_dir(
     for candidate_dir in candidate_dirs:
         if not candidate_dir.is_dir():
             continue
-        template_names.update(
-            path.name for path in candidate_dir.glob("*.md") if path.is_file()
-        )
+        template_names.update(path.name for path in candidate_dir.glob("*.md") if path.is_file())
 
     scratch_base = scratch_parent or (project_path / ".kittify")
     resolved_dir = scratch_base / f".resolved-command-templates-{mission}"
@@ -286,12 +284,6 @@ def _resolve_mission_command_templates_dir(
         shutil.copy2(resolved.path, resolved_dir / template_name)
 
     return resolved_dir
-
-
-
-
-
-
 
 
 # =============================================================================
@@ -317,7 +309,6 @@ def _is_non_interactive_mode(flag: bool) -> bool:
     if _is_truthy_env(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
         return True
     return not sys.stdin.isatty()
-
 
 
 def _detect_default_vcs() -> VCSBackend:
@@ -453,8 +444,7 @@ def init(  # noqa: C901
     if _config_yaml.exists():
         _console.print(
             Panel(
-                "[yellow]Already initialized.[/yellow]\n"
-                "Run [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version.",
+                "[yellow]Already initialized.[/yellow]\nRun [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version.",
                 title="[yellow]Already Initialized[/yellow]",
                 border_style="yellow",
                 padding=(1, 2),
@@ -493,10 +483,7 @@ def init(  # noqa: C901
         # non-git init is not).
         probe_dir = project_path if project_path.exists() else project_path.parent
         if not _is_inside_git_work_tree(probe_dir):
-            _console.print(
-                "[yellow]ℹ Target is not a git repository[/yellow] — "
-                "run `git init` here before using `spec-kitty agent ...` commands."
-            )
+            _console.print("[yellow]ℹ Target is not a git repository[/yellow] — run `git init` here before using `spec-kitty agent ...` commands.")
     except VCSNotFoundError:
         # git not available - not an error, just informational
         selected_vcs = None
@@ -608,6 +595,7 @@ def init(  # noqa: C901
                 for skill in skills:
                     for agent_key in iter_installable_agents():
                         from specify_cli.skills.paths import get_primary_global_skill_root
+
                         global_root = get_primary_global_skill_root(agent_key)
                         if global_root is not None:
                             _sync_global_skill(skill, global_root)
@@ -804,9 +792,7 @@ def init(  # noqa: C901
     # first thing the user sees. Recompute against the now-existing
     # project_path (not the parent) for the post-init check.
     if not _is_inside_git_work_tree(project_path):
-        steps_lines.append(
-            "○ [yellow]Run [cyan]git init[/cyan][/yellow] - this directory is not yet a git repository"
-        )
+        steps_lines.append("○ [yellow]Run [cyan]git init[/cyan][/yellow] - this directory is not yet a git repository")
     step_num = 1
     if not here:
         steps_lines.append(f"{step_num}. Go to the project folder: [cyan]cd {project_name}[/cyan]")
@@ -984,7 +970,6 @@ def init(  # noqa: C901
                     shutil.rmtree(scratch)
                 except Exception:  # noqa: S110
                     pass  # best-effort cleanup
-
 
 
 def register_init_command(

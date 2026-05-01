@@ -6,10 +6,9 @@ not required.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from types import SimpleNamespace
 
-import pytest
 
 from specify_cli.charter_lint.checks.staleness import StalenessChecker
 
@@ -21,7 +20,7 @@ from specify_cli.charter_lint.checks.staleness import StalenessChecker
 
 def _utc_days_ago(days: int) -> str:
     """Return an ISO-8601 UTC string for *days* ago."""
-    dt = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    dt = datetime.now(tz=UTC) - timedelta(days=days)
     return dt.isoformat()
 
 

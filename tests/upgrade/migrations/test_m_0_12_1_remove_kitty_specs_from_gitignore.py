@@ -14,6 +14,7 @@ from specify_cli.upgrade.migrations.m_0_12_1_remove_kitty_specs_from_gitignore i
 
 pytestmark = pytest.mark.fast
 
+
 class TestIsBlockingPattern:
     """Test the pattern detection logic."""
 

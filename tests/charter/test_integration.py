@@ -19,6 +19,7 @@ from charter.sync import SyncResult, ensure_charter_bundle_fresh
 
 pytestmark = pytest.mark.fast
 
+
 class TestEndToEndWorkflow:
     def test_write_sync_load_governance(self, tmp_path: Path) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
@@ -73,9 +74,7 @@ Pre-commit hooks required.
         assert len(config.directives) == 2
         assert config.directives[0].id == "DIR-001"
 
-    def test_modify_charter_auto_syncs_stale_bundle(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_modify_charter_auto_syncs_stale_bundle(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         charter_path = charter_dir / "charter.md"
@@ -147,9 +146,7 @@ class TestPostSaveHook:
 
 
 class TestLoaderFunctions:
-    def test_load_governance_config_missing_yaml_returns_empty(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_load_governance_config_missing_yaml_returns_empty(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         caplog.clear()
         config = load_governance_config(tmp_path)
 
@@ -158,9 +155,7 @@ class TestLoaderFunctions:
         assert config.testing.tdd_required is False
         assert any("governance.yaml not found and charter.md is absent" in record.message for record in caplog.records)
 
-    def test_load_directives_config_missing_yaml_returns_empty(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_load_directives_config_missing_yaml_returns_empty(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         caplog.clear()
         config = load_directives_config(tmp_path)
 
@@ -231,9 +226,7 @@ quality:
 
 
 class TestEnsureCharterBundleFresh:
-    def test_recovers_from_stale_check_exception(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_recovers_from_stale_check_exception(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         charter_path = charter_dir / "charter.md"
@@ -241,6 +234,7 @@ class TestEnsureCharterBundleFresh:
         sync(charter_path)
 
         call_count = 0
+
         def raise_then_pass(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -257,17 +251,18 @@ class TestEnsureCharterBundleFresh:
         assert result.synced
         assert any("Failed to evaluate charter bundle freshness" in r.message for r in caplog.records)
 
-    def test_logs_sync_failure(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_logs_sync_failure(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text("## Testing\n\nCoverage: 80%", encoding="utf-8")
 
         with patch("charter.sync.sync") as mock_sync:
             mock_sync.return_value = SyncResult(
-                synced=False, stale_before=False, files_written=[],
-                extraction_mode="", error="Engine unavailable",
+                synced=False,
+                stale_before=False,
+                files_written=[],
+                extraction_mode="",
+                error="Engine unavailable",
                 canonical_root=tmp_path,
             )
             caplog.clear()
@@ -280,17 +275,18 @@ class TestEnsureCharterBundleFresh:
 
 
 class TestLoaderAutoSyncEdgeCases:
-    def test_governance_unavailable_after_failed_auto_sync(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_governance_unavailable_after_failed_auto_sync(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text("## Testing\n\nCoverage: 80%", encoding="utf-8")
 
         with patch("charter.sync.ensure_charter_bundle_fresh") as mock_ensure:
             mock_ensure.return_value = SyncResult(
-                synced=False, stale_before=False, files_written=[],
-                extraction_mode="", error="Engine unavailable",
+                synced=False,
+                stale_before=False,
+                files_written=[],
+                extraction_mode="",
+                error="Engine unavailable",
                 canonical_root=tmp_path,
             )
             caplog.clear()
@@ -300,9 +296,7 @@ class TestLoaderAutoSyncEdgeCases:
         assert isinstance(config, GovernanceConfig)
         assert any("governance.yaml unavailable after charter auto-sync" in r.message for r in caplog.records)
 
-    def test_governance_stale_after_sync_failure(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_governance_stale_after_sync_failure(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         charter_path = charter_dir / "charter.md"
@@ -312,8 +306,11 @@ class TestLoaderAutoSyncEdgeCases:
 
         with patch("charter.sync.ensure_charter_bundle_fresh") as mock_ensure:
             mock_ensure.return_value = SyncResult(
-                synced=False, stale_before=True, files_written=[],
-                extraction_mode="", error="Sync failed",
+                synced=False,
+                stale_before=True,
+                files_written=[],
+                extraction_mode="",
+                error="Sync failed",
                 canonical_root=tmp_path,
             )
             caplog.clear()
@@ -323,17 +320,18 @@ class TestLoaderAutoSyncEdgeCases:
         assert isinstance(config, GovernanceConfig)
         assert any("stale after auto-sync failure" in r.message for r in caplog.records)
 
-    def test_directives_unavailable_after_failed_auto_sync(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_directives_unavailable_after_failed_auto_sync(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text("## Testing\n\nCoverage: 80%", encoding="utf-8")
 
         with patch("charter.sync.ensure_charter_bundle_fresh") as mock_ensure:
             mock_ensure.return_value = SyncResult(
-                synced=False, stale_before=False, files_written=[],
-                extraction_mode="", error="Engine unavailable",
+                synced=False,
+                stale_before=False,
+                files_written=[],
+                extraction_mode="",
+                error="Engine unavailable",
                 canonical_root=tmp_path,
             )
             caplog.clear()
@@ -343,9 +341,7 @@ class TestLoaderAutoSyncEdgeCases:
         assert isinstance(config, DirectivesConfig)
         assert any("directives.yaml unavailable after charter auto-sync" in r.message for r in caplog.records)
 
-    def test_directives_stale_after_sync_failure(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_directives_stale_after_sync_failure(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         charter_path = charter_dir / "charter.md"
@@ -355,8 +351,11 @@ class TestLoaderAutoSyncEdgeCases:
 
         with patch("charter.sync.ensure_charter_bundle_fresh") as mock_ensure:
             mock_ensure.return_value = SyncResult(
-                synced=False, stale_before=True, files_written=[],
-                extraction_mode="", error="Sync failed",
+                synced=False,
+                stale_before=True,
+                files_written=[],
+                extraction_mode="",
+                error="Sync failed",
                 canonical_root=tmp_path,
             )
             caplog.clear()

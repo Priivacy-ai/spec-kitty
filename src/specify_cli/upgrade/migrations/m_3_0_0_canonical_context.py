@@ -66,10 +66,7 @@ class M300CanonicalContext(BaseMigration):
         # Treat commit failures as non-fatal — the file changes are what matter.
         # In non-git environments (tests, CI) the commit step fails but the
         # migration's file-level work is complete.
-        is_commit_failure = (
-            not report.success
-            and report.failed_step == "commit"
-        )
+        is_commit_failure = not report.success and report.failed_step == "commit"
         result = MigrationResult(success=report.success or is_commit_failure)
         if is_commit_failure:
             result.warnings = report.errors + report.warnings
@@ -79,19 +76,13 @@ class M300CanonicalContext(BaseMigration):
             result.warnings = report.warnings
 
         if report.success:
-            summary = (
-                f"Migrated {report.features_migrated} feature(s), "
-                f"{report.wps_backfilled} WPs backfilled, "
-                f"{report.events_generated} events generated"
-            )
+            summary = f"Migrated {report.features_migrated} feature(s), {report.wps_backfilled} WPs backfilled, {report.events_generated} events generated"
             if dry_run:
                 summary = f"[DRY RUN] {summary}"
             result.changes_made.append(summary)
             if report.files_moved:
                 result.changes_made.append(f"Moved {len(report.files_moved)} derived file(s)")
         else:
-            result.changes_made.append(
-                f"Migration failed at step: {report.failed_step or 'unknown'}"
-            )
+            result.changes_made.append(f"Migration failed at step: {report.failed_step or 'unknown'}")
 
         return result

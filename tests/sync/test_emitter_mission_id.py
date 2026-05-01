@@ -57,9 +57,7 @@ class TestEmitMissionCreatedAggregateId:
             mission_id=_MISSION_ID,
         )
         assert event is not None, "emit_mission_created returned None"
-        assert event["aggregate_id"] == _MISSION_ID, (
-            f"Expected aggregate_id={_MISSION_ID!r}, got {event['aggregate_id']!r}"
-        )
+        assert event["aggregate_id"] == _MISSION_ID, f"Expected aggregate_id={_MISSION_ID!r}, got {event['aggregate_id']!r}"
 
     def test_aggregate_id_is_ulid_shaped(
         self,
@@ -75,9 +73,7 @@ class TestEmitMissionCreatedAggregateId:
             mission_id=_MISSION_ID,
         )
         assert event is not None
-        assert _ULID_RE.match(event["aggregate_id"]), (
-            f"aggregate_id {event['aggregate_id']!r} is not a valid ULID"
-        )
+        assert _ULID_RE.match(event["aggregate_id"]), f"aggregate_id {event['aggregate_id']!r} is not a valid ULID"
 
     def test_payload_contains_mission_id(
         self,
@@ -142,9 +138,7 @@ class TestEmitMissionCreatedAggregateId:
             mission_id=_MISSION_ID,
         )
         assert event is not None
-        assert event["aggregate_id"] != _MISSION_SLUG, (
-            "aggregate_id must be mission_id (ULID), not mission_slug"
-        )
+        assert event["aggregate_id"] != _MISSION_SLUG, "aggregate_id must be mission_id (ULID), not mission_slug"
 
 
 # ---------------------------------------------------------------------------
@@ -167,9 +161,7 @@ class TestEmitMissionClosedAggregateId:
             mission_id=_MISSION_ID,
         )
         assert event is not None, "emit_mission_closed returned None"
-        assert event["aggregate_id"] == _MISSION_ID, (
-            f"Expected aggregate_id={_MISSION_ID!r}, got {event['aggregate_id']!r}"
-        )
+        assert event["aggregate_id"] == _MISSION_ID, f"Expected aggregate_id={_MISSION_ID!r}, got {event['aggregate_id']!r}"
 
     def test_aggregate_id_is_ulid_shaped(
         self,
@@ -252,9 +244,7 @@ class TestEmitMissionOriginBoundAggregateId:
             mission_id=_MISSION_ID,
         )
         assert event is not None, "emit_mission_origin_bound returned None"
-        assert event["aggregate_id"] == _MISSION_ID, (
-            f"Expected aggregate_id={_MISSION_ID!r}, got {event['aggregate_id']!r}"
-        )
+        assert event["aggregate_id"] == _MISSION_ID, f"Expected aggregate_id={_MISSION_ID!r}, got {event['aggregate_id']!r}"
 
     def test_aggregate_id_is_ulid_shaped(
         self,
@@ -355,9 +345,7 @@ class TestMissionNumberTypeInPayload:
         parsed = json.loads(payload_json)
         # Must be null (None in Python), not "", not "pending", not absent
         assert "mission_number" in parsed, "mission_number key missing from payload"
-        assert parsed["mission_number"] is None, (
-            f"Expected null, got {parsed['mission_number']!r}"
-        )
+        assert parsed["mission_number"] is None, f"Expected null, got {parsed['mission_number']!r}"
         # Paranoia: raw JSON string must contain the null literal
         assert '"mission_number": null' in payload_json or '"mission_number":null' in payload_json
 
@@ -378,9 +366,7 @@ class TestMissionNumberTypeInPayload:
         payload_json = json.dumps(event["payload"])
         parsed = json.loads(payload_json)
         assert parsed["mission_number"] == 42
-        assert isinstance(parsed["mission_number"], int), (
-            f"Expected int, got {type(parsed['mission_number'])}"
-        )
+        assert isinstance(parsed["mission_number"], int), f"Expected int, got {type(parsed['mission_number'])}"
         # Must not be a string like "42" or "042"
         assert '"mission_number": 42' in payload_json or '"mission_number":42' in payload_json
 

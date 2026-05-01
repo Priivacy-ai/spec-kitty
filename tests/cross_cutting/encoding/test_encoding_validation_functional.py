@@ -85,9 +85,7 @@ class TestTextSanitization:
     def test_sanitize_text_replaces_characters_correctly(self):
         """Verify sanitization replaces characters without corrupting text."""
         original = "User\u2019s \u201cfavorite\u201d feature costs $100 \u00b1 $10 at 72\u00b0F"
-        expected = (
-            'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
-        )
+        expected = 'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
 
         result = sanitize_markdown_text(original)
 
@@ -313,9 +311,7 @@ class TestEdgeCases:
 
             # Should either handle gracefully or report error
             if error:
-                assert "encoding" in error.lower() or "decode" in error.lower(), (
-                    f"Error should mention encoding issue: {error}"
-                )
+                assert "encoding" in error.lower() or "decode" in error.lower(), f"Error should mention encoding issue: {error}"
             else:
                 # If no error, file should still exist
                 assert binary_file.exists()
@@ -362,9 +358,7 @@ class TestEdgeCases:
 
                 # Should report error
                 assert error is not None, "Should report permission error"
-                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), (
-                    f"Error should mention permission issue: {error}"
-                )
+                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), f"Error should mention permission issue: {error}"
             finally:
                 # Restore permissions for cleanup
                 with contextlib.suppress(BaseException):

@@ -122,9 +122,7 @@ class GlobalizeSkillPackMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
         if dry_run:
-            changes.append(
-                f"Would relink {len(skills)} canonical skill(s) for {len(agents)} agent(s)"
-            )
+            changes.append(f"Would relink {len(skills)} canonical skill(s) for {len(agents)} agent(s)")
             return MigrationResult(success=True, changes_made=changes)
 
         archived_paths: list[Path] = []
@@ -133,11 +131,7 @@ class GlobalizeSkillPackMigration(BaseMigration):
         preserved: list[Any] = []
         if existing is not None:
             canonical_names = {skill.name for skill in skills}
-            preserved = [
-                entry
-                for entry in existing.entries
-                if entry.skill_name not in canonical_names or entry.agent_key not in agents
-            ]
+            preserved = [entry for entry in existing.entries if entry.skill_name not in canonical_names or entry.agent_key not in agents]
             manifest.entries.extend(preserved)
 
         if not manifest.entries and not preserved:
@@ -147,20 +141,11 @@ class GlobalizeSkillPackMigration(BaseMigration):
         manifest.spec_kitty_version = "3.0.3"
         save_manifest(manifest, project_path)
 
-        preserved_paths = sorted(
-            str(path.relative_to(project_path)).replace("\\", "/")
-            for path in archived_paths
-        )
+        preserved_paths = sorted(str(path.relative_to(project_path)).replace("\\", "/") for path in archived_paths)
 
-        changes.append(
-            f"Relinked {len(skills)} canonical skill(s) for {len(agents)} agent(s) "
-            f"({len(manifest.entries)} managed files)"
-        )
+        changes.append(f"Relinked {len(skills)} canonical skill(s) for {len(agents)} agent(s) ({len(manifest.entries)} managed files)")
         changes.append("Updated .kittify/skills-manifest.json for global canonical skill links")
-        changes.extend(
-            f"Archived customized skill file for manual review: {path}"
-            for path in preserved_paths
-        )
+        changes.extend(f"Archived customized skill file for manual review: {path}" for path in preserved_paths)
         return MigrationResult(
             success=True,
             changes_made=changes,

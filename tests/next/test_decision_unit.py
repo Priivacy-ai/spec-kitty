@@ -702,7 +702,6 @@ class TestInReviewLaneDecision:
 
     def test_implement_skips_in_review_wp(self, feature_only_in_review: Path) -> None:
         """Implement state must not pick up in_review WPs for review redirect."""
-        from unittest.mock import patch, MagicMock
 
         repo_root = feature_only_in_review.parent.parent
         action, wp_id, ws = _state_to_action(

@@ -63,7 +63,5 @@ class MissionStepContract(BaseModel):
         ids = [s.id for s in self.steps]
         duplicates = [sid for sid in ids if ids.count(sid) > 1]
         if duplicates:
-            raise ValueError(
-                f"duplicate step IDs: {sorted(set(duplicates))}"
-            )
+            raise ValueError(f"duplicate step IDs: {sorted(set(duplicates))}")
         return self

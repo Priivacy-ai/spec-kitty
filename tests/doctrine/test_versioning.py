@@ -10,7 +10,6 @@ from doctrine.versioning import (
     CURRENT_BUNDLE_SCHEMA_VERSION,
     MAX_READABLE_BUNDLE_SCHEMA,
     MIN_READABLE_BUNDLE_SCHEMA,
-    BundleCompatibilityResult,
     BundleCompatibilityStatus,
     MigrationResult,
     check_bundle_compatibility,
@@ -259,9 +258,7 @@ def test_run_migration_raises_key_error_for_unregistered_version(tmp_path: Path)
 def test_run_migration_v1_returns_migration_result(tmp_path: Path) -> None:
     """The v1 migration (WP03 implementation) returns a MigrationResult; does not raise."""
     # A metadata.yaml without bundle_schema_version is treated as v1 and gets stamped.
-    (tmp_path / "metadata.yaml").write_text(
-        "charter_slug: test-charter\n", encoding="utf-8"
-    )
+    (tmp_path / "metadata.yaml").write_text("charter_slug: test-charter\n", encoding="utf-8")
     result = run_migration(1, tmp_path)
     assert isinstance(result, MigrationResult)
     assert result.from_version == 1
@@ -300,7 +297,7 @@ def test_versioning_does_not_import_charter() -> None:
     # Trigger import (already loaded, but explicit)
     import doctrine.versioning  # noqa: F401
 
-    charter_modules = [k for k in sys.modules if k.startswith("charter")]
+    [k for k in sys.modules if k.startswith("charter")]
     # If charter was imported by versioning itself that would be a violation.
     # We can't guarantee charter isn't loaded by OTHER tests, but we can
     # inspect the module's __file__ and check it doesn't directly import charter.
@@ -312,11 +309,7 @@ def test_versioning_does_not_import_charter() -> None:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             if isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith("charter"), (
-                    f"doctrine.versioning imports from charter: {node.module}"
-                )
+                assert not node.module.startswith("charter"), f"doctrine.versioning imports from charter: {node.module}"
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    assert not alias.name.startswith("charter"), (
-                        f"doctrine.versioning imports charter: {alias.name}"
-                    )
+                    assert not alias.name.startswith("charter"), f"doctrine.versioning imports charter: {alias.name}"

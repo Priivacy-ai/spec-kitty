@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from specify_cli.ownership.audit_targets import (
     AUDIT_TEMPLATE_TARGETS,
@@ -286,9 +285,7 @@ class TestAuditTemplateTargets:
 
         for agent_root, subdir in AGENT_DIRS:
             target = f"{agent_root}/{subdir}/"
-            assert target in AUDIT_TEMPLATE_TARGETS, (
-                f"Missing agent target: {target}"
-            )
+            assert target in AUDIT_TEMPLATE_TARGETS, f"Missing agent target: {target}"
 
     def test_includes_docs(self) -> None:
         assert "docs/" in AUDIT_TEMPLATE_TARGETS

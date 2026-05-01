@@ -21,7 +21,7 @@ All registries are fixed in V1 (no custom dimensions or triggers).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -35,25 +35,29 @@ if TYPE_CHECKING:
 # Fixed dimension names (V1, C-001)
 # ---------------------------------------------------------------------------
 
-DIMENSION_NAMES: frozenset[str] = frozenset({
-    "user_customer_impact",
-    "architectural_system_impact",
-    "data_security_compliance_impact",
-    "operational_reliability_impact",
-    "financial_commercial_impact",
-    "cross_team_blast_radius",
-})
+DIMENSION_NAMES: frozenset[str] = frozenset(
+    {
+        "user_customer_impact",
+        "architectural_system_impact",
+        "data_security_compliance_impact",
+        "operational_reliability_impact",
+        "financial_commercial_impact",
+        "cross_team_blast_radius",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # T001: SignificanceDimension model
 # ---------------------------------------------------------------------------
 
+
 class SignificanceDimension(BaseModel):
     """A single significance dimension with a name and score.
 
     Represents one of the six fixed impact dimensions. Score must be 0–3.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str = Field(..., min_length=1)
@@ -63,16 +67,14 @@ class SignificanceDimension(BaseModel):
     @model_validator(mode="after")
     def _validate_dimension(self) -> SignificanceDimension:
         if self.name not in DIMENSION_NAMES:
-            raise ValueError(
-                f"Unknown dimension name: {self.name!r}. "
-                f"Valid dimensions: {sorted(DIMENSION_NAMES)}"
-            )
+            raise ValueError(f"Unknown dimension name: {self.name!r}. Valid dimensions: {sorted(DIMENSION_NAMES)}")
         return self
 
 
 # ---------------------------------------------------------------------------
 # T002: RoutingBand model with default bands
 # ---------------------------------------------------------------------------
+
 
 class RoutingBand(BaseModel):
     """Significance tier determining gating behavior.
@@ -82,6 +84,7 @@ class RoutingBand(BaseModel):
     - medium (7–11): soft gate
     - high (12–18): hard gate
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: Literal["low", "medium", "high"]
@@ -91,9 +94,7 @@ class RoutingBand(BaseModel):
     @model_validator(mode="after")
     def _validate_range(self) -> RoutingBand:
         if self.min_score > self.max_score:
-            raise ValueError(
-                f"min_score ({self.min_score}) > max_score ({self.max_score})"
-            )
+            raise ValueError(f"min_score ({self.min_score}) > max_score ({self.max_score})")
         return self
 
 
@@ -107,6 +108,7 @@ DEFAULT_BANDS: tuple[RoutingBand, ...] = (
 # ---------------------------------------------------------------------------
 # T004: Band cutoff validation logic
 # ---------------------------------------------------------------------------
+
 
 def validate_band_cutoffs(cutoffs: dict[str, list[int]]) -> None:
     """Validate custom band cutoffs for contiguous, non-overlapping coverage of 0–18.
@@ -122,37 +124,27 @@ def validate_band_cutoffs(cutoffs: dict[str, list[int]]) -> None:
     provided_keys = set(cutoffs.keys())
 
     if provided_keys != expected_keys:
-        raise ValueError(
-            f"Expected exactly 3 bands (low, medium, high), got: {sorted(provided_keys)}"
-        )
+        raise ValueError(f"Expected exactly 3 bands (low, medium, high), got: {sorted(provided_keys)}")
 
     for band_name, pair in cutoffs.items():
         if not isinstance(pair, list) or len(pair) != 2:
-            raise ValueError(
-                f"Band '{band_name}' must be a [min, max] pair, got: {pair!r}"
-            )
+            raise ValueError(f"Band '{band_name}' must be a [min, max] pair, got: {pair!r}")
 
     # Sort bands by min_score for contiguity checks
     sorted_bands = sorted(cutoffs.items(), key=lambda item: item[1][0])
 
     for band_name, (lo, hi) in sorted_bands:
         if lo > hi:
-            raise ValueError(
-                f"Band '{band_name}': min_score ({lo}) > max_score ({hi})"
-            )
+            raise ValueError(f"Band '{band_name}': min_score ({lo}) > max_score ({hi})")
 
     # Check boundaries
     first_name, (first_lo, _) = sorted_bands[0]
     if first_lo != 0:
-        raise ValueError(
-            f"Band '{first_name}' must start at 0, starts at {first_lo}"
-        )
+        raise ValueError(f"Band '{first_name}' must start at 0, starts at {first_lo}")
 
     last_name, (_, last_hi) = sorted_bands[-1]
     if last_hi != 18:
-        raise ValueError(
-            f"Band '{last_name}' must end at 18, ends at {last_hi}"
-        )
+        raise ValueError(f"Band '{last_name}' must end at 18, ends at {last_hi}")
 
     # Check contiguity and no overlaps
     for i in range(1, len(sorted_bands)):
@@ -160,15 +152,9 @@ def validate_band_cutoffs(cutoffs: dict[str, list[int]]) -> None:
         next_name, (next_lo, _) = sorted_bands[i]
 
         if next_lo > prev_hi + 1:
-            raise ValueError(
-                f"Gap between band '{prev_name}' (max={prev_hi}) "
-                f"and '{next_name}' (min={next_lo})"
-            )
+            raise ValueError(f"Gap between band '{prev_name}' (max={prev_hi}) and '{next_name}' (min={next_lo})")
         if next_lo <= prev_hi:
-            raise ValueError(
-                f"Overlap between band '{prev_name}' (max={prev_hi}) "
-                f"and '{next_name}' (min={next_lo})"
-            )
+            raise ValueError(f"Overlap between band '{prev_name}' (max={prev_hi}) and '{next_name}' (min={next_lo})")
 
 
 def make_routing_bands(
@@ -203,11 +189,13 @@ def make_routing_bands(
 # T003: HardTriggerClass model with fixed registry
 # ---------------------------------------------------------------------------
 
+
 class HardTriggerClass(BaseModel):
     """A predefined condition that overrides numeric scoring and forces hard-gate.
 
     V1 defines exactly five fixed hard-trigger classes (C-003).
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     class_id: str = Field(..., min_length=1)
@@ -253,10 +241,7 @@ def resolve_hard_triggers(class_ids: list[str]) -> tuple[HardTriggerClass, ...]:
     resolved = []
     for cid in class_ids:
         if cid not in HARD_TRIGGER_REGISTRY:
-            raise ValueError(
-                f"Unknown hard-trigger class: {cid!r}. "
-                f"Valid: {sorted(HARD_TRIGGER_REGISTRY.keys())}"
-            )
+            raise ValueError(f"Unknown hard-trigger class: {cid!r}. Valid: {sorted(HARD_TRIGGER_REGISTRY.keys())}")
         resolved.append(HARD_TRIGGER_REGISTRY[cid])
     return tuple(resolved)
 
@@ -264,6 +249,7 @@ def resolve_hard_triggers(class_ids: list[str]) -> tuple[HardTriggerClass, ...]:
 # ---------------------------------------------------------------------------
 # T005: Validation helpers and exports
 # ---------------------------------------------------------------------------
+
 
 def validate_dimension_scores(scores: dict[str, int]) -> None:
     """Validate that dimension scores contain exactly the 6 required dimensions, each scored 0–3.
@@ -283,10 +269,7 @@ def validate_dimension_scores(scores: dict[str, int]) -> None:
             parts.append(f"missing: {sorted(missing)}")
         if extra:
             parts.append(f"unexpected: {sorted(extra)}")
-        raise ValueError(
-            f"Dimension scores must contain exactly {len(DIMENSION_NAMES)} dimensions. "
-            f"{', '.join(parts)}"
-        )
+        raise ValueError(f"Dimension scores must contain exactly {len(DIMENSION_NAMES)} dimensions. {', '.join(parts)}")
     for name, score in scores.items():
         if not (0 <= score <= 3):
             raise ValueError(f"Dimension '{name}' score must be 0-3, got {score}")
@@ -296,12 +279,14 @@ def validate_dimension_scores(scores: dict[str, int]) -> None:
 # T006: SignificanceScore model
 # ---------------------------------------------------------------------------
 
+
 class SignificanceScore(BaseModel):
     """Composite evaluation result capturing the full significance assessment.
 
     Contains all six dimension scores, the computed composite, the numeric band,
     any hard-trigger overrides, and the effective routing band.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     dimensions: tuple[SignificanceDimension, ...] = Field(...)
@@ -322,29 +307,20 @@ class SignificanceScore(BaseModel):
                 parts.append(f"missing: {sorted(missing)}")
             if extra:
                 parts.append(f"unexpected: {sorted(extra)}")
-            raise ValueError(
-                f"dimensions must contain exactly 6 fixed dimensions. "
-                f"{', '.join(parts)}"
-            )
+            raise ValueError(f"dimensions must contain exactly 6 fixed dimensions. {', '.join(parts)}")
 
         # composite must equal sum of dimension scores
         expected = sum(d.score for d in self.dimensions)
         if self.composite != expected:
-            raise ValueError(
-                f"composite ({self.composite}) != sum of scores ({expected})"
-            )
+            raise ValueError(f"composite ({self.composite}) != sum of scores ({expected})")
 
         # effective_band must be 'high' when hard triggers present
         if self.hard_trigger_classes and self.effective_band.name != "high":
-            raise ValueError(
-                "effective_band must be 'high' when hard_trigger_classes present"
-            )
+            raise ValueError("effective_band must be 'high' when hard_trigger_classes present")
 
         # When no hard triggers, effective_band must equal band
         if not self.hard_trigger_classes and self.effective_band != self.band:
-            raise ValueError(
-                "effective_band must equal band when no hard triggers"
-            )
+            raise ValueError("effective_band must equal band when no hard triggers")
 
         return self
 
@@ -352,6 +328,7 @@ class SignificanceScore(BaseModel):
 # ---------------------------------------------------------------------------
 # T007: evaluate_significance() pure function
 # ---------------------------------------------------------------------------
+
 
 def evaluate_significance(
     dimension_scores: dict[str, int],
@@ -378,10 +355,12 @@ def evaluate_significance(
     validate_dimension_scores(dimension_scores)
 
     # Build SignificanceDimension instances, sorted by name for deterministic ordering
-    dims = tuple(sorted(
-        [SignificanceDimension(name=k, score=v) for k, v in dimension_scores.items()],
-        key=lambda d: d.name,
-    ))
+    dims = tuple(
+        sorted(
+            [SignificanceDimension(name=k, score=v) for k, v in dimension_scores.items()],
+            key=lambda d: d.name,
+        )
+    )
 
     # Compute composite
     composite = sum(dimension_scores.values())
@@ -397,19 +376,13 @@ def evaluate_significance(
             break
 
     if band is None:
-        raise ValueError(
-            f"composite score {composite} does not fall within any band"
-        )
+        raise ValueError(f"composite score {composite} does not fall within any band")
 
     # Resolve hard triggers
     triggers = resolve_hard_triggers(hard_trigger_classes or [])
 
     # Determine effective_band
-    if triggers:
-        # Hard triggers override to high band
-        effective_band = next(b for b in bands if b.name == "high")
-    else:
-        effective_band = band
+    effective_band = next(b for b in bands if b.name == "high") if triggers else band
 
     return SignificanceScore(
         dimensions=dims,
@@ -424,12 +397,14 @@ def evaluate_significance(
 # T008: TimeoutPolicy model
 # ---------------------------------------------------------------------------
 
+
 class TimeoutPolicy(BaseModel):
     """Configuration governing the timeout window for decisions.
 
     Default timeout is 600 seconds (10 minutes). Per-decision override
     can be set by a responsible human at decision time.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     default_timeout_seconds: int = Field(default=600, gt=0)
@@ -445,15 +420,14 @@ class TimeoutPolicy(BaseModel):
     @model_validator(mode="after")
     def _validate_timeouts(self) -> TimeoutPolicy:
         if self.per_decision_timeout_seconds is not None and self.per_decision_timeout_seconds <= 0:
-            raise ValueError(
-                f"per_decision_timeout_seconds must be > 0, got {self.per_decision_timeout_seconds}"
-            )
+            raise ValueError(f"per_decision_timeout_seconds must be > 0, got {self.per_decision_timeout_seconds}")
         return self
 
 
 # ---------------------------------------------------------------------------
 # T009: parse_band_cutoffs_from_policy()
 # ---------------------------------------------------------------------------
+
 
 def parse_band_cutoffs_from_policy(
     policy: MissionPolicySnapshot,
@@ -467,18 +441,12 @@ def parse_band_cutoffs_from_policy(
     if cutoffs is None:
         return None
     if not isinstance(cutoffs, dict):
-        raise ValueError(
-            f"significance_band_cutoffs must be a dict, got {type(cutoffs).__name__}"
-        )
+        raise ValueError(f"significance_band_cutoffs must be a dict, got {type(cutoffs).__name__}")
     for band_name, bounds in cutoffs.items():
         if not isinstance(bounds, list) or len(bounds) != 2:
-            raise ValueError(
-                f"Band '{band_name}' cutoff must be [min, max], got {bounds}"
-            )
+            raise ValueError(f"Band '{band_name}' cutoff must be [min, max], got {bounds}")
         if not all(isinstance(b, int) for b in bounds):
-            raise ValueError(
-                f"Band '{band_name}' cutoff values must be integers"
-            )
+            raise ValueError(f"Band '{band_name}' cutoff values must be integers")
     validate_band_cutoffs(cutoffs)
     return cutoffs
 
@@ -486,6 +454,7 @@ def parse_band_cutoffs_from_policy(
 # ---------------------------------------------------------------------------
 # T010: parse_timeout_from_policy()
 # ---------------------------------------------------------------------------
+
 
 def parse_timeout_from_policy(
     policy: MissionPolicySnapshot,
@@ -499,13 +468,9 @@ def parse_timeout_from_policy(
     if timeout is None:
         return 600
     if not isinstance(timeout, int):
-        raise ValueError(
-            f"significance_default_timeout_seconds must be int, got {type(timeout).__name__}"
-        )
+        raise ValueError(f"significance_default_timeout_seconds must be int, got {type(timeout).__name__}")
     if timeout <= 0:
-        raise ValueError(
-            f"significance_default_timeout_seconds must be > 0, got {timeout}"
-        )
+        raise ValueError(f"significance_default_timeout_seconds must be > 0, got {timeout}")
     return timeout
 
 
@@ -513,12 +478,14 @@ def parse_timeout_from_policy(
 # T011: SignificanceEvaluatedPayload
 # ---------------------------------------------------------------------------
 
+
 class SignificanceEvaluatedPayload(BaseModel):
     """Event payload emitted when a decision's significance is scored and routed.
 
     Persisted in JSONL event log. Field names align with
     contracts/significance-evaluation.yaml.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     run_id: str = Field(..., min_length=1)
@@ -534,11 +501,13 @@ class SignificanceEvaluatedPayload(BaseModel):
 # T012: TimeoutExpiredPayload
 # ---------------------------------------------------------------------------
 
+
 class TimeoutExpiredPayload(BaseModel):
     """Event payload emitted when a decision exceeds its configured timeout window.
 
     Field names align with contracts/timeout-expired-event.yaml.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     run_id: str = Field(..., min_length=1)
@@ -556,12 +525,14 @@ class TimeoutExpiredPayload(BaseModel):
 # T013: SoftGateDecision model
 # ---------------------------------------------------------------------------
 
+
 class SoftGateDecision(BaseModel):
     """Captures the responsible human's action on a medium-band decision.
 
     Per FR-005 and FR-006. Field names align with
     contracts/soft-gate-decision.yaml.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     decision_id: str = Field(..., min_length=1)
@@ -576,9 +547,7 @@ class SoftGateDecision(BaseModel):
     @model_validator(mode="after")
     def _validate_actor_human(self) -> SoftGateDecision:
         if self.actor.actor_type != "human":
-            raise ValueError(
-                f"SoftGateDecision actor must be human, got {self.actor.actor_type}"
-            )
+            raise ValueError(f"SoftGateDecision actor must be human, got {self.actor.actor_type}")
         return self
 
 
@@ -586,12 +555,14 @@ class SoftGateDecision(BaseModel):
 # T014: DimensionScoreOverride model
 # ---------------------------------------------------------------------------
 
+
 class DimensionScoreOverride(BaseModel):
     """Audit record for runtime score overrides.
 
     The secondary scoring path where a human adjusts template-declared scores.
     Per research R-004 and ED-4.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     decision_id: str = Field(..., min_length=1)
@@ -604,9 +575,7 @@ class DimensionScoreOverride(BaseModel):
     @model_validator(mode="after")
     def _validate_override(self) -> DimensionScoreOverride:
         if self.overridden_by.actor_type != "human":
-            raise ValueError(
-                f"Overrides must be by human actors, got {self.overridden_by.actor_type}"
-            )
+            raise ValueError(f"Overrides must be by human actors, got {self.overridden_by.actor_type}")
         # Validate that overridden dimensions exist in DIMENSION_NAMES
         for name in {**self.original_scores, **self.new_scores}:
             if name not in DIMENSION_NAMES:
@@ -617,6 +586,7 @@ class DimensionScoreOverride(BaseModel):
 # ---------------------------------------------------------------------------
 # T017: compute_escalation_targets() pure function
 # ---------------------------------------------------------------------------
+
 
 def compute_escalation_targets(
     raci_binding: ResolvedRACIBinding,
@@ -644,12 +614,14 @@ def compute_escalation_targets(
 # T018: TimeoutEscalationResult model
 # ---------------------------------------------------------------------------
 
+
 class TimeoutEscalationResult(BaseModel):
     """Return type from notify_decision_timeout().
 
     Provides the caller with escalation targets and the emitted event payload.
     The caller (host process) uses escalation_targets to deliver notifications.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     decision_id: str = Field(..., min_length=1)

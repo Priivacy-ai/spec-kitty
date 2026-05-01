@@ -313,24 +313,26 @@ def test_collect_notices_completes_within_50ms(tmp_path: Path) -> None:
     events = []
     for i in range(1000):
         severity = "high" if i % 10 == 0 else "low"
-        events.append({
-            "event_type": "SemanticCheckEvaluated",
-            "step_id": f"inv-{i % 5}",
-            "timestamp": "2026-04-23T05:00:00Z",
-            "overall_severity": severity,
-            "findings": [
-                {
-                    "term": {"surface_text": f"term-{i}"},
-                    "term_id": f"glossary:term-{i}",
-                    "severity": severity,
-                    "conflict_type": "scope_mismatch",
-                    "candidate_senses": [
-                        {"surface": f"term-{i}", "scope": "team_domain", "definition": "a", "confidence": 0.9},
-                        {"surface": f"term-{i}", "scope": "spec_kitty_core", "definition": "b", "confidence": 0.8},
-                    ],
-                }
-            ],
-        })
+        events.append(
+            {
+                "event_type": "SemanticCheckEvaluated",
+                "step_id": f"inv-{i % 5}",
+                "timestamp": "2026-04-23T05:00:00Z",
+                "overall_severity": severity,
+                "findings": [
+                    {
+                        "term": {"surface_text": f"term-{i}"},
+                        "term_id": f"glossary:term-{i}",
+                        "severity": severity,
+                        "conflict_type": "scope_mismatch",
+                        "candidate_senses": [
+                            {"surface": f"term-{i}", "scope": "team_domain", "definition": "a", "confidence": 0.9},
+                            {"surface": f"term-{i}", "scope": "spec_kitty_core", "definition": "b", "confidence": 0.8},
+                        ],
+                    }
+                ],
+            }
+        )
     _write_event_log(tmp_path, events)
 
     surface = ObservationSurface()
@@ -345,7 +347,4 @@ def test_collect_notices_completes_within_50ms(tmp_path: Path) -> None:
         total += time.monotonic() - t0
     avg_ms = (total / ITERATIONS) * 1000
 
-    assert avg_ms < 50.0, (
-        f"collect_notices() averaged {avg_ms:.1f}ms over {ITERATIONS} runs "
-        f"on a 1000-event log — exceeds the 50ms NFR-001 target"
-    )
+    assert avg_ms < 50.0, f"collect_notices() averaged {avg_ms:.1f}ms over {ITERATIONS} runs on a 1000-event log — exceeds the 50ms NFR-001 target"

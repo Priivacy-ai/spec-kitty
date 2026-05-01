@@ -125,8 +125,7 @@ def test_workflow_module_does_not_mutate_review_cycle_counter() -> None:
     )
     for needle in forbidden_call_substrings:
         assert needle not in body_text, (
-            f"workflow.py contains a forbidden counter-mutation call: {needle!r}. "
-            "The rejection handler in tasks.py is the only allowed mutation site (#676)."
+            f"workflow.py contains a forbidden counter-mutation call: {needle!r}. The rejection handler in tasks.py is the only allowed mutation site (#676)."
         )
 
 
@@ -185,9 +184,7 @@ def test_implement_rerun_does_not_advance_counter(tmp_path: Path) -> None:
         current_files = sorted(p.name for p in sub_dir.glob("review-cycle-*.md"))
         assert current_files == initial_files
         for name, mtime in initial_mtimes.items():
-            assert (sub_dir / name).stat().st_mtime_ns == mtime, (
-                f"Re-running implement must not rewrite {name}"
-            )
+            assert (sub_dir / name).stat().st_mtime_ns == mtime, f"Re-running implement must not rewrite {name}"
 
     # Counter unchanged after three "reruns".
     assert _count_cycle_artifacts(sub_dir) == 1
@@ -228,12 +225,8 @@ def test_counter_is_monotonic(tmp_path: Path) -> None:
     observed_counts: list[int] = [0]
     persisted_paths: list[Path] = []
     for cycle in range(1, 4):
-        feedback = _write_feedback_file(
-            tmp_path, body=f"## Issues for cycle {cycle}\n\nFix me."
-        )
-        persisted_path, pointer = _trigger_rejection(
-            main_repo_root, "066-test-mission", feedback
-        )
+        feedback = _write_feedback_file(tmp_path, body=f"## Issues for cycle {cycle}\n\nFix me.")
+        persisted_path, pointer = _trigger_rejection(main_repo_root, "066-test-mission", feedback)
         persisted_paths.append(persisted_path)
         observed_counts.append(_count_cycle_artifacts(sub_dir))
         assert f"review-cycle-{cycle}.md" in pointer
@@ -241,7 +234,7 @@ def test_counter_is_monotonic(tmp_path: Path) -> None:
 
     # Strict +1 advancement, monotonic non-decreasing.
     assert observed_counts == [0, 1, 2, 3]
-    for prev, curr in zip(observed_counts, observed_counts[1:]):
+    for prev, curr in zip(observed_counts, observed_counts[1:], strict=False):
         assert curr == prev + 1
 
     # Exactly three artifacts at indices 1, 2, 3 — no gaps, no duplicates.

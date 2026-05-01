@@ -8,12 +8,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.task_utils import find_repo_root, TaskCliError

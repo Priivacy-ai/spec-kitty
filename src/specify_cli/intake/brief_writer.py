@@ -67,8 +67,7 @@ class CrossFilesystemWriteError(IntakeError):
 
     def __init__(self, *, target: Path) -> None:
         super().__init__(
-            f"INTAKE_CROSS_FS: refusing to atomic-write across filesystems for {target}; "
-            "set intake.allow_cross_fs=True in .kittify/config.yaml to override.",
+            f"INTAKE_CROSS_FS: refusing to atomic-write across filesystems for {target}; set intake.allow_cross_fs=True in .kittify/config.yaml to override.",
             target=str(target),
         )
 

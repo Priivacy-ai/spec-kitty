@@ -35,25 +35,16 @@ def validate_graph(graph: DRGGraph) -> list[str]:
     # -- 1. Dangling references ---------------------------------------------
     for edge in graph.edges:
         if edge.source not in urns:
-            errors.append(
-                f"Dangling source: edge ({edge.source} --{edge.relation}--> "
-                f"{edge.target}) references non-existent node {edge.source!r}"
-            )
+            errors.append(f"Dangling source: edge ({edge.source} --{edge.relation}--> {edge.target}) references non-existent node {edge.source!r}")
         if edge.target not in urns:
-            errors.append(
-                f"Dangling target: edge ({edge.source} --{edge.relation}--> "
-                f"{edge.target}) references non-existent node {edge.target!r}"
-            )
+            errors.append(f"Dangling target: edge ({edge.source} --{edge.relation}--> {edge.target}) references non-existent node {edge.target!r}")
 
     # -- 2. Duplicate edges --------------------------------------------------
     seen_triples: set[tuple[str, str, str]] = set()
     for edge in graph.edges:
         triple = (edge.source, edge.target, edge.relation.value)
         if triple in seen_triples:
-            errors.append(
-                f"Duplicate edge: ({edge.source} --{edge.relation}--> "
-                f"{edge.target})"
-            )
+            errors.append(f"Duplicate edge: ({edge.source} --{edge.relation}--> {edge.target})")
         seen_triples.add(triple)
 
     # -- 3. Cycles in requires subgraph (DFS) --------------------------------
@@ -74,9 +65,7 @@ def validate_graph(graph: DRGGraph) -> list[str]:
                 # Found a back edge -- extract the cycle
                 cycle_start = path.index(neighbor)
                 cycle = path[cycle_start:] + [neighbor]
-                errors.append(
-                    f"Cycle in requires: {' -> '.join(cycle)}"
-                )
+                errors.append(f"Cycle in requires: {' -> '.join(cycle)}")
             elif color[neighbor] == WHITE:
                 _dfs(neighbor, path)
         path.pop()

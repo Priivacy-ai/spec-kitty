@@ -402,9 +402,7 @@ def test_verify_accepts_manifest_paths_with_windows_separators(tmp_path: Path) -
                 kind="tactic",
                 slug="windows-path",
                 path=artifact_rel.replace("/", "\\"),
-                provenance_path=".kittify/charter/provenance/tactic-windows-path.yaml".replace(
-                    "/", "\\"
-                ),
+                provenance_path=".kittify/charter/provenance/tactic-windows-path.yaml".replace("/", "\\"),
                 content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
             )
         ]

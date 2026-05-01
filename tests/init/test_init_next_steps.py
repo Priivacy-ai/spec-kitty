@@ -28,6 +28,7 @@ from specify_cli.cli.commands.init import register_init_command
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_app_with_buf() -> tuple[Typer, io.StringIO]:
     """Return a minimal Typer app and the buffer backing the injected console."""
     buf = io.StringIO()
@@ -59,6 +60,7 @@ def _fake_copy_package(project_path: Path) -> Path:
 # T1.4: Next-steps output names spec-kitty next + agent action
 # ---------------------------------------------------------------------------
 
+
 def test_init_next_steps_names_spec_kitty_next(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -81,15 +83,11 @@ def test_init_next_steps_names_spec_kitty_next(
     output = buf.getvalue()
 
     # The canonical loop entry must appear
-    assert "spec-kitty next" in output, (
-        "Expected 'spec-kitty next' in init console output, but it was absent.\n"
-        f"Actual console output:\n{output}"
-    )
+    assert "spec-kitty next" in output, f"Expected 'spec-kitty next' in init console output, but it was absent.\nActual console output:\n{output}"
 
     # The per-WP implement verb must appear
     assert "spec-kitty agent action implement" in output, (
-        "Expected 'spec-kitty agent action implement' in init console output, but it was absent.\n"
-        f"Actual console output:\n{output}"
+        f"Expected 'spec-kitty agent action implement' in init console output, but it was absent.\nActual console output:\n{output}"
     )
 
     # The bare top-level CLI invocation must NOT appear
@@ -103,6 +101,7 @@ def test_init_next_steps_names_spec_kitty_next(
 # ---------------------------------------------------------------------------
 # T1.4b: The literal commit string must be absent from src/
 # ---------------------------------------------------------------------------
+
 
 def test_init_commit_string_absent_from_source() -> None:
     """T1.4b: The literal string 'Initial commit from Specify template' must not exist in src/.

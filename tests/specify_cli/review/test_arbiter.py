@@ -5,9 +5,9 @@ Tests verify that:
 - Arbiter override detection logic is unchanged after migration
 - All lane comparison scenarios work correctly with typed Lane enum
 """
+
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -15,7 +15,6 @@ import pytest
 from specify_cli.review.arbiter import (
     ArbiterCategory,
     ArbiterChecklist,
-    ArbiterDecision,
     _is_arbiter_override,
     create_arbiter_decision,
     parse_category_from_note,

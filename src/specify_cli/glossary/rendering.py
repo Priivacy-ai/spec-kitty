@@ -121,11 +121,7 @@ def render_conflict(
         body = "(No candidates available)"
 
     # Create metadata subtitle
-    metadata = (
-        f"[bold]Term:[/bold] {conflict.term.surface_text}  "
-        f"[bold]Type:[/bold] {conflict.conflict_type.value}  "
-        f"[bold]Context:[/bold] {conflict.context}"
-    )
+    metadata = f"[bold]Term:[/bold] {conflict.term.surface_text}  [bold]Type:[/bold] {conflict.conflict_type.value}  [bold]Context:[/bold] {conflict.context}"
 
     panel = Panel(
         body,

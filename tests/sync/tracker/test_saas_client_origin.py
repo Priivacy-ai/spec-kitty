@@ -76,9 +76,7 @@ class TestSearchIssues:
     """Tests for SaaSTrackerClient.search_issues()."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_200_with_candidates(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_200_with_candidates(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -101,9 +99,7 @@ class TestSearchIssues:
         assert result["resource_type"] == "project"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_200_empty_candidates(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_200_empty_candidates(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -117,19 +113,13 @@ class TestSearchIssues:
         assert result["candidates"] == []
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_query_key_and_query_text_both_in_payload(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_query_key_and_query_text_both_in_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"candidates": []}
-        )
+        mock_http.request.return_value = _make_response(200, {"candidates": []})
 
-        client.search_issues(
-            "jira", "proj-1", query_key="PROJ-42", query_text="login bug"
-        )
+        client.search_issues("jira", "proj-1", query_key="PROJ-42", query_text="login bug")
 
         _, kwargs = mock_http.request.call_args
         payload = kwargs["json"]
@@ -140,9 +130,7 @@ class TestSearchIssues:
         assert payload["limit"] == 20
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_binding_ref_search_payload(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_binding_ref_search_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -156,9 +144,7 @@ class TestSearchIssues:
         assert "project_slug" not in payload
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_provider_only_search_payload(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_provider_only_search_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -171,9 +157,7 @@ class TestSearchIssues:
         assert payload == {"provider": "jira", "limit": 20, "query_text": "login"}
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_401_raises_after_refresh(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_401_raises_after_refresh(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """401 user_action_required: raises SaaSTrackerClientError after refresh attempt."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -191,15 +175,11 @@ class TestSearchIssues:
             ),
         ]
 
-        with patch("specify_cli.tracker.saas_client._force_refresh_sync"), pytest.raises(
-            SaaSTrackerClientError, match="Session expired"
-        ):
+        with patch("specify_cli.tracker.saas_client._force_refresh_sync"), pytest.raises(SaaSTrackerClientError, match="Session expired"):
             client.search_issues("jira", "proj-1", query_text="test")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_404_raises(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_404_raises(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -212,9 +192,7 @@ class TestSearchIssues:
             client.search_issues("jira", "proj-1", query_text="test")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_422_raises(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_422_raises(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -228,9 +206,7 @@ class TestSearchIssues:
 
     @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_429_retries_then_raises(
-        self, mock_cls: MagicMock, mock_sleep: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_429_retries_then_raises(self, mock_cls: MagicMock, mock_sleep: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -261,15 +237,11 @@ class TestSearchIssues:
         mock_sleep.assert_called_once_with(2.0)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_auth_headers_sent(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_auth_headers_sent(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"candidates": []}
-        )
+        mock_http.request.return_value = _make_response(200, {"candidates": []})
 
         client.search_issues("jira", "proj-1", query_text="test")
 
@@ -278,15 +250,11 @@ class TestSearchIssues:
         assert kwargs["headers"]["X-Team-Slug"] == "team-acme"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_uses_post_method_to_search_path(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_uses_post_method_to_search_path(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"candidates": []}
-        )
+        mock_http.request.return_value = _make_response(200, {"candidates": []})
 
         client.search_issues("jira", "proj-1")
 
@@ -313,9 +281,7 @@ class TestBindMissionOrigin:
     }
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_200_success(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_200_success(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -334,9 +300,7 @@ class TestBindMissionOrigin:
         assert result["bound_at"] == "2026-04-01T12:00:00Z"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_200_same_origin_noop(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_200_same_origin_noop(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """Re-binding same origin returns success (idempotent no-op)."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -356,9 +320,7 @@ class TestBindMissionOrigin:
         assert result["already_bound"] is True
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_409_different_origin_raises(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_409_different_origin_raises(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -370,15 +332,11 @@ class TestBindMissionOrigin:
             },
         )
 
-        with pytest.raises(
-            SaaSTrackerClientError, match="already bound to a different issue"
-        ):
+        with pytest.raises(SaaSTrackerClientError, match="already bound to a different issue"):
             client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_401_raises_after_refresh(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_401_raises_after_refresh(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -388,22 +346,16 @@ class TestBindMissionOrigin:
             _make_response(401, {"message": "Unauthorized"}),
         ]
 
-        with patch("specify_cli.tracker.saas_client._force_refresh_sync"), pytest.raises(
-            SaaSTrackerClientError, match="Session expired"
-        ):
+        with patch("specify_cli.tracker.saas_client._force_refresh_sync"), pytest.raises(SaaSTrackerClientError, match="Session expired"):
             client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_idempotency_key_auto_generated(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_idempotency_key_auto_generated(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """When no idempotency_key provided, one is auto-generated and sent as header."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"origin_link_id": "link-abc-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"origin_link_id": "link-abc-123"})
 
         client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 
@@ -414,16 +366,12 @@ class TestBindMissionOrigin:
         assert len(key_value) > 0
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_idempotency_key_provided(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_idempotency_key_provided(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         """When idempotency_key is explicitly provided, it is forwarded as-is."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"origin_link_id": "link-abc-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"origin_link_id": "link-abc-123"})
 
         client.bind_mission_origin(
             "jira",
@@ -436,15 +384,11 @@ class TestBindMissionOrigin:
         assert kwargs["headers"]["Idempotency-Key"] == "my-custom-key-123"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_uses_post_method_to_bind_path(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_uses_post_method_to_bind_path(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"origin_link_id": "link-abc-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"origin_link_id": "link-abc-123"})
 
         client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 
@@ -453,15 +397,11 @@ class TestBindMissionOrigin:
         assert args[1].endswith("/api/v1/tracker/mission-origin/bind/")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_payload_contains_all_fields(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_payload_contains_all_fields(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"origin_link_id": "link-abc-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"origin_link_id": "link-abc-123"})
 
         client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 
@@ -478,15 +418,11 @@ class TestBindMissionOrigin:
         assert payload["external_status"] == ""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_binding_ref_routing_in_payload(
-        self, mock_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
+    def test_binding_ref_routing_in_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(
-            200, {"origin_link_id": "link-abc-123"}
-        )
+        mock_http.request.return_value = _make_response(200, {"origin_link_id": "link-abc-123"})
 
         client.bind_mission_origin("jira", binding_ref="bind-origin-123", **self._BIND_KWARGS)
 

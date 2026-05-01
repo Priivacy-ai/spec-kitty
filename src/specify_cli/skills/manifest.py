@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
@@ -46,11 +46,7 @@ class ManagedSkillManifest:
         Shared-root agents intentionally share ``installed_path`` so deduplication
         must include ``agent_key`` to avoid collapsing entries for different agents.
         """
-        self.entries = [
-            e
-            for e in self.entries
-            if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)
-        ]
+        self.entries = [e for e in self.entries if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)]
         self.entries.append(entry)
 
     def remove_entries_for_agent(self, agent_key: str) -> list[ManagedFileEntry]:

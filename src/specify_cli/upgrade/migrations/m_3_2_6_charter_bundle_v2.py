@@ -60,9 +60,7 @@ class CharterBundleV2Migration(BaseMigration):
             return False, compatibility.message
         return True, ""
 
-    def apply(
-        self, project_path: Path, dry_run: bool = False
-    ) -> BaseMigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> BaseMigrationResult:
         """Apply all pending charter bundle migrations up to CURRENT_BUNDLE_SCHEMA_VERSION."""
         charter_dir = project_path / ".kittify" / "charter"
 

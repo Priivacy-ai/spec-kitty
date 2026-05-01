@@ -16,7 +16,6 @@ from pathlib import Path
 
 from specify_cli.migration.strip_frontmatter import (
     MUTABLE_FIELDS,
-    STATIC_FIELDS,
     StripResult,
     strip_mutable_fields,
 )
@@ -53,6 +52,7 @@ def _make_wp(tasks_dir: Path, wp_name: str, extra_fields: str = "", body: str = 
 
 def _read_frontmatter(wp_file: Path) -> dict:
     from specify_cli.frontmatter import FrontmatterManager
+
     fm = FrontmatterManager()
     frontmatter, _ = fm.read(wp_file)
     return frontmatter
@@ -135,9 +135,7 @@ class TestStripMutableFields:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True, exist_ok=True)
         wp_file = tasks_dir / "WP01-clean.md"
-        wp_file.write_text(
-            "---\ntitle: WP01-clean\ndependencies: []\nwork_package_id: 01WP000000000000000000000B\n---\n\n# Body\n"
-        )
+        wp_file.write_text("---\ntitle: WP01-clean\ndependencies: []\nwork_package_id: 01WP000000000000000000000B\n---\n\n# Body\n")
         result = strip_mutable_fields(feature_dir)
         assert result.wps_processed == 1
         assert result.fields_stripped == 0
@@ -159,15 +157,14 @@ class TestStripMutableFields:
 
         # Create a tasks.md with a mutable field
         tasks_md = feature_dir / "tasks.md"
-        tasks_md.write_text(
-            "---\ntitle: Tasks Overview\nlane: planned\n---\n\n# Tasks\n"
-        )
+        tasks_md.write_text("---\ntitle: Tasks Overview\nlane: planned\n---\n\n# Tasks\n")
 
         result = strip_mutable_fields(feature_dir)
         assert result.fields_stripped >= 1
 
         # Verify stripped
         from specify_cli.frontmatter import FrontmatterManager
+
         fm = FrontmatterManager()
         try:
             fm_data, _ = fm.read(tasks_md)

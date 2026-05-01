@@ -403,7 +403,6 @@ class TestCategorizeConflicts:
         """Mixed-severity conflicts are categorized into correct buckets."""
         from specify_cli.glossary.models import SenseRef
 
-
         low = SemanticConflict(
             term=TermSurface(surface_text="test1"),
             conflict_type=ConflictType.UNKNOWN,

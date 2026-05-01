@@ -31,10 +31,4 @@ def test_mission_step_contracts_executor_is_mypy_strict_clean() -> None:
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, (
-        "mypy --strict failed on mission_step_contracts/executor.py.\n"
-        "stdout:\n"
-        + result.stdout
-        + "\nstderr:\n"
-        + result.stderr
-    )
+    assert result.returncode == 0, "mypy --strict failed on mission_step_contracts/executor.py.\nstdout:\n" + result.stdout + "\nstderr:\n" + result.stderr

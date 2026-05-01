@@ -14,6 +14,7 @@ gate's correctness contract:
 The "red" branch is exercised against an isolated synthetic test file in
 ``tmp_path`` -- we never inject a real failing test into the live suite.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -44,12 +45,9 @@ def test_gate_command_is_documented_one_liner() -> None:
     """
     expected = ["pytest", "tests/contract/", "-q"]
     actual = list(_GATE_COMMAND[1:])  # strip the python interpreter path
-    assert actual[0] == "-m" and actual[1] == "pytest", (
-        f"Unexpected gate command shape: {actual!r}"
-    )
+    assert actual[0] == "-m" and actual[1] == "pytest", f"Unexpected gate command shape: {actual!r}"
     assert actual[2:] == expected[1:], (
-        "Gate command in test does not match the documented mission-review "
-        f"one-liner. Expected {expected[1:]!r}, got {actual[2:]!r}."
+        f"Gate command in test does not match the documented mission-review one-liner. Expected {expected[1:]!r}, got {actual[2:]!r}."
     )
 
 
@@ -82,9 +80,7 @@ def test_contract_suite_runs_under_subprocess_and_propagates_exit_code(tmp_path:
         timeout=60,
     )
     assert green_result.returncode == 0, (
-        "Green contract suite should exit 0; got "
-        f"{green_result.returncode}\nstdout:\n{green_result.stdout}\n"
-        f"stderr:\n{green_result.stderr}"
+        f"Green contract suite should exit 0; got {green_result.returncode}\nstdout:\n{green_result.stdout}\nstderr:\n{green_result.stderr}"
     )
 
     # --- Red half: synthetic failing contract test ---
@@ -161,7 +157,4 @@ def test_pytest_is_available_for_gate() -> None:
         text=True,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"pytest is not importable from {sys.executable!r}; the gate "
-        f"cannot run.\nstderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"pytest is not importable from {sys.executable!r}; the gate cannot run.\nstderr:\n{result.stderr}"

@@ -81,9 +81,7 @@ class TestFullCLIWorkflow:
             "smoke-test",
             "--json",
         )
-        assert result.returncode == 0, (
-            f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
         output = json.loads(result.stdout)
         assert output["result"] == "success"
@@ -126,9 +124,7 @@ class TestFullCLIWorkflow:
             mission_slug,
             "--json",
         )
-        assert result.returncode == 0, (
-            f"setup-plan failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"setup-plan failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
         plan_file = feature_dir / "plan.md"
         assert plan_file.exists(), "plan.md not created by setup-plan"
@@ -325,10 +321,7 @@ Create a hello module.
 
         # Verify worktree was created
         assert worktree_dir.exists(), (
-            f"Workspace not created at {worktree_dir}\n"
-            f"implement stdout: {result.stdout}\n"
-            f"implement stderr: {result.stderr}\n"
-            f"implement rc: {result.returncode}"
+            f"Workspace not created at {worktree_dir}\nimplement stdout: {result.stdout}\nimplement stderr: {result.stderr}\nimplement rc: {result.returncode}"
         )
 
         # === Step 6: Make a change in the workspace and commit ===

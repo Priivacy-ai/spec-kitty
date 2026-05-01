@@ -182,8 +182,11 @@ def execute_migration(
         if path.is_dir():
             continue
         disposition = classify_asset(
-            path, global_home, kittify_dir,
-            mission=mission, package_root=package_root,
+            path,
+            global_home,
+            kittify_dir,
+            mission=mission,
+            package_root=package_root,
         )
 
         if disposition in (AssetDisposition.IDENTICAL, AssetDisposition.SUPERSEDED):

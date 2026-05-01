@@ -139,15 +139,14 @@ ps: python -c "print('test')"
 # WP02 – Active-mission fallback removal tests
 # --------------------------------------------------------------------------- #
 
+
 def test_manifest_no_active_mission_attribute(tmp_path: Path):
     """FileManifest must not expose an ``active_mission`` attribute."""
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
 
     manifest = FileManifest(kittify_dir)
-    assert not hasattr(manifest, "active_mission"), (
-        "FileManifest should no longer have an active_mission attribute"
-    )
+    assert not hasattr(manifest, "active_mission"), "FileManifest should no longer have an active_mission attribute"
 
 
 def test_manifest_without_mission_type_has_no_mission_dir(tmp_path: Path):

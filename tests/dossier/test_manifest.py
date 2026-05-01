@@ -11,7 +11,6 @@ Tests cover:
 
 import pytest
 from pathlib import Path
-from typing import Optional
 from pydantic import ValidationError
 
 from specify_cli.dossier.manifest import (
@@ -438,42 +437,21 @@ class TestManifestYAMLFormat:
 
     def test_from_yaml_file_software_dev(self):
         """Load software-dev manifest from YAML file."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "src"
-            / "doctrine"
-            / "missions"
-            / "software-dev"
-            / "expected-artifacts.yaml"
-        )
+        yaml_path = Path(__file__).parent.parent.parent / "src" / "doctrine" / "missions" / "software-dev" / "expected-artifacts.yaml"
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "software-dev"
 
     def test_from_yaml_file_research(self):
         """Load research manifest from YAML file."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "src"
-            / "doctrine"
-            / "missions"
-            / "research"
-            / "expected-artifacts.yaml"
-        )
+        yaml_path = Path(__file__).parent.parent.parent / "src" / "doctrine" / "missions" / "research" / "expected-artifacts.yaml"
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "research"
 
     def test_from_yaml_file_documentation(self):
         """Load documentation manifest from YAML file."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "src"
-            / "doctrine"
-            / "missions"
-            / "documentation"
-            / "expected-artifacts.yaml"
-        )
+        yaml_path = Path(__file__).parent.parent.parent / "src" / "doctrine" / "missions" / "documentation" / "expected-artifacts.yaml"
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "documentation"

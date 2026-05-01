@@ -136,9 +136,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_done_with_uncommitted_changes_fails(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_done_with_uncommitted_changes_fails(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Should fail when moving to done with uncommitted changes."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -164,9 +162,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_done_with_committed_changes_but_unmerged_fails(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_done_with_committed_changes_but_unmerged_fails(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Should fail when moving to done if branch is not merged and no override provided."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -198,9 +194,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_done_with_force_requires_override_reason_when_unmerged(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_done_with_force_requires_override_reason_when_unmerged(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Even with --force, done transition should require explicit override reason when unmerged."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -221,9 +215,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_done_with_override_reason_succeeds_when_unmerged(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_done_with_override_reason_succeeds_when_unmerged(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Should allow done transition when unmerged only with explicit override reason."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -250,9 +242,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_done_after_branch_merged_succeeds_without_override(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_done_after_branch_merged_succeeds_without_override(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Should allow done transition without override when ancestry is verified."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -278,9 +268,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_for_review_still_validates(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_for_review_still_validates(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Should still validate when moving to for_review (existing behavior)."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -302,9 +290,7 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_move_to_done_with_staged_but_uncommitted_fails(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_move_to_done_with_staged_but_uncommitted_fails(self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Should fail when moving to done with staged but uncommitted changes."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -326,9 +312,7 @@ class TestMoveTaskGitValidation:
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
 
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
-    def test_review_validation_allows_behind_status_only_commits(
-        self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_review_validation_allows_behind_status_only_commits(self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Status-only commits on planning branch should not force rebases."""
         repo_root, worktree = git_repo_with_worktree
         mission_slug = "017-test-feature"
@@ -356,9 +340,7 @@ class TestMoveTaskGitValidation:
         assert guidance == []
 
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
-    def test_review_validation_allows_behind_config_and_status_commits(
-        self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    def test_review_validation_allows_behind_config_and_status_commits(self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]):
         """Config/status-only commits on planning branch should not force rebase."""
         repo_root, worktree = git_repo_with_worktree
         mission_slug = "017-test-feature"

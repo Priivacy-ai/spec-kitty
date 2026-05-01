@@ -28,8 +28,6 @@ def get_saas_base_url() -> str:
     url = os.environ.get(_ENV_VAR)
     if not url:
         raise ConfigurationError(
-            f"{_ENV_VAR} environment variable is not set. "
-            f"Set it to your spec-kitty-saas instance URL (e.g. "
-            f"https://api.spec-kitty.example.com) and try again."
+            f"{_ENV_VAR} environment variable is not set. Set it to your spec-kitty-saas instance URL (e.g. https://api.spec-kitty.example.com) and try again."
         )
     return url.rstrip("/")

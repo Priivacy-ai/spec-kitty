@@ -24,7 +24,7 @@ from __future__ import annotations
 import http.server
 import threading
 from pathlib import Path
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pytest
@@ -131,9 +131,7 @@ def fake_mission_binding_present(
     kittify.mkdir(parents=True, exist_ok=True)
     config_file = kittify / "config.yaml"
     config_file.write_text(
-        "tracker:\n"
-        "  provider: linear\n"
-        "  binding_ref: TEST-123\n",
+        "tracker:\n  provider: linear\n  binding_ref: TEST-123\n",
         encoding="utf-8",
     )
     yield _FAKE_FEATURE_SLUG

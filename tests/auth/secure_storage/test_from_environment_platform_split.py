@@ -42,13 +42,9 @@ def test_from_environment_windows_returns_windows_file_storage(monkeypatch):
 
         from specify_cli.auth.secure_storage.windows_storage import WindowsFileStorage
 
-        assert isinstance(storage, WindowsFileStorage), (
-            f"Expected WindowsFileStorage on win32, got {type(storage).__name__}"
-        )
+        assert isinstance(storage, WindowsFileStorage), f"Expected WindowsFileStorage on win32, got {type(storage).__name__}"
         assert storage.store_path == Path.home() / ".spec-kitty" / "auth"
-        assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, (
-            "keychain module must never be imported in the file-only storage model"
-        )
+        assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, "keychain module must never be imported in the file-only storage model"
     finally:
         _restore_modules(snapshot, *prefixes)
 
@@ -72,11 +68,7 @@ def test_from_environment_posix_returns_encrypted_file_storage(monkeypatch):
 
         from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 
-        assert isinstance(storage, FileFallbackStorage), (
-            f"Expected FileFallbackStorage on linux, got {type(storage).__name__}"
-        )
-        assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, (
-            "keychain module must never be imported in the file-only storage model"
-        )
+        assert isinstance(storage, FileFallbackStorage), f"Expected FileFallbackStorage on linux, got {type(storage).__name__}"
+        assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, "keychain module must never be imported in the file-only storage model"
     finally:
         _restore_modules(snapshot, *prefixes)

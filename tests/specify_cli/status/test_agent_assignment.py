@@ -218,9 +218,7 @@ class TestAgentAssignmentPassthrough:
 
     def test_agent_assignment_passthrough_with_profile_and_role(self) -> None:
         """AgentAssignment passthrough preserves its own profile_id and role."""
-        existing = AgentAssignment(
-            tool="cursor", model="cursor-fast", profile_id="my-profile", role="reviewer"
-        )
+        existing = AgentAssignment(tool="cursor", model="cursor-fast", profile_id="my-profile", role="reviewer")
         wp = make_wp(agent=existing)
         result = wp.resolved_agent()
         assert result.tool == "cursor"

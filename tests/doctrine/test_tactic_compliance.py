@@ -36,11 +36,7 @@ _TEMPLATES_DIR = DOCTRINE_DIR / "templates"
 # Styleguides use recursive glob because subdirectories are allowed.
 ARTIFACT_DIRS: dict[str, list[tuple[Path, str]]] = {
     "tactic": [(d, "**/*.tactic.yaml") for d in _TACTICS_DIRS],
-    "styleguide": [
-        (DOCTRINE_DIR / "styleguides" / d, pat)
-        for d in _SHIPPED_SUBDIRS
-        for pat in ("*.styleguide.yaml", "**/*.styleguide.yaml")
-    ],
+    "styleguide": [(DOCTRINE_DIR / "styleguides" / d, pat) for d in _SHIPPED_SUBDIRS for pat in ("*.styleguide.yaml", "**/*.styleguide.yaml")],
     "directive": [(DOCTRINE_DIR / "directives" / d, "*.directive.yaml") for d in _SHIPPED_SUBDIRS],
     "toolguide": [(DOCTRINE_DIR / "toolguides" / d, "*.toolguide.yaml") for d in _SHIPPED_SUBDIRS],
     "template": [(_TEMPLATES_DIR, "**/*.md")],
@@ -161,9 +157,7 @@ def test_tactic_schema_valid(tactic_path: Path) -> None:
 
 
 @pytest.mark.parametrize("tactic_path", _shipped_tactic_files, ids=_shipped_tactic_ids)
-def test_references_resolve(
-    tactic_path: Path, artifact_index: dict[str, set[str]]
-) -> None:
+def test_references_resolve(tactic_path: Path, artifact_index: dict[str, set[str]]) -> None:
     """Every reference (root and step) in a shipped tactic must point to an existing artifact.
 
     _proposed tactics are excluded — they are work-in-progress and may reference
@@ -177,19 +171,14 @@ def test_references_resolve(
         ref_id = ref.get("id", "missing")
         known_ids = artifact_index.get(ref_type, set())
         if ref_id not in known_ids:
-            unresolved.append(
-                f"  root reference: type={ref_type} id={ref_id} (known {ref_type} ids: {sorted(known_ids) or 'none'})"
-            )
+            unresolved.append(f"  root reference: type={ref_type} id={ref_id} (known {ref_type} ids: {sorted(known_ids) or 'none'})")
 
     for step_idx, step_title, ref in _extract_step_references(tactic):
         ref_type = ref.get("type", "unknown")
         ref_id = ref.get("id", "missing")
         known_ids = artifact_index.get(ref_type, set())
         if ref_id not in known_ids:
-            unresolved.append(
-                f"  step {step_idx} ({step_title}): type={ref_type} id={ref_id}"
-                f" (known {ref_type} ids: {sorted(known_ids) or 'none'})"
-            )
+            unresolved.append(f"  step {step_idx} ({step_title}): type={ref_type} id={ref_id} (known {ref_type} ids: {sorted(known_ids) or 'none'})")
 
     assert not unresolved, f"{tactic_path.name} has unresolved references:\n" + "\n".join(unresolved)
 
@@ -223,14 +212,10 @@ def test_step_references_not_over_duplicated(tactic_path: Path) -> None:
         ratio = len(step_indices) / total_steps
         if ratio >= ELEVATION_THRESHOLD and (ref_type, ref_id) not in root_keys:
             pct = int(ratio * 100)
-            violations.append(
-                f"  ({ref_type}, {ref_id}) appears in {len(step_indices)}/{total_steps}"
-                f" steps ({pct}%) — elevate to root-level references"
-            )
+            violations.append(f"  ({ref_type}, {ref_id}) appears in {len(step_indices)}/{total_steps} steps ({pct}%) — elevate to root-level references")
 
-    assert not violations, (
-        f"{tactic_path.name} has step references that should be elevated to root"
-        f" (>={int(ELEVATION_THRESHOLD * 100)}% threshold):\n" + "\n".join(violations)
+    assert not violations, f"{tactic_path.name} has step references that should be elevated to root (>={int(ELEVATION_THRESHOLD * 100)}% threshold):\n" + "\n".join(
+        violations
     )
 
 
@@ -253,11 +238,6 @@ def test_root_references_not_repeated_in_steps(tactic_path: Path) -> None:
     for step_idx, step_title, ref in _extract_step_references(tactic):
         key = (ref.get("type", ""), ref.get("id", ""))
         if key in root_keys:
-            redundant.append(
-                f"  step {step_idx} ({step_title}): ({key[0]}, {key[1]})"
-                f" is already a root-level reference — remove from step"
-            )
+            redundant.append(f"  step {step_idx} ({step_title}): ({key[0]}, {key[1]}) is already a root-level reference — remove from step")
 
-    assert not redundant, f"{tactic_path.name} has step references that duplicate root-level refs:\n" + "\n".join(
-        redundant
-    )
+    assert not redundant, f"{tactic_path.name} has step references that duplicate root-level refs:\n" + "\n".join(redundant)

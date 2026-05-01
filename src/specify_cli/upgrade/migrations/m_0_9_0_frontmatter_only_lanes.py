@@ -145,9 +145,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         total_skipped = 0
 
         for feature_dir, location_label in features_found:
-            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(
-                feature_dir, location_label, dry_run
-            )
+            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(feature_dir, location_label, dry_run)
             changes.extend(feature_changes)
             warnings.extend(feature_warnings)
             errors.extend(feature_errors)

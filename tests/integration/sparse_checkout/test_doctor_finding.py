@@ -77,9 +77,7 @@ def _add_worktree(repo: Path, name: str) -> Path:
     return wt
 
 
-def test_doctor_clean_repo_no_sparse_finding(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_doctor_clean_repo_no_sparse_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A 3.x repo with no sparse state must not emit the finding."""
     repo = tmp_path / "clean"
     _init_bare_repo(repo)
@@ -96,9 +94,7 @@ def test_doctor_clean_repo_no_sparse_finding(
     assert "Legacy sparse-checkout state detected" not in result.stdout
 
 
-def test_doctor_sparse_primary_emits_finding(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_doctor_sparse_primary_emits_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Sparse-configured primary repo surfaces the finding with pattern info."""
     repo = tmp_path / "sparse"
     _init_bare_repo(repo)
@@ -125,9 +121,7 @@ def test_doctor_sparse_primary_emits_finding(
     assert "stale_claim" not in result.stdout
 
 
-def test_doctor_sparse_primary_and_worktrees_lists_all_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_doctor_sparse_primary_and_worktrees_lists_all_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Primary + two inherited worktrees each appear in the finding."""
     repo = tmp_path / "sparse-wts"
     _init_bare_repo(repo)

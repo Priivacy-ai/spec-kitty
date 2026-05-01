@@ -844,7 +844,7 @@ class TestStatusCanonicalStaleFields:
         tmp_path: Path,
     ):
         mission_slug = "077-status-missing-lanes"
-        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01")
+        _build_wp_file(tmp_path, mission_slug, "WP01")
 
         mock_root.return_value = tmp_path
         mock_slug.return_value = mission_slug

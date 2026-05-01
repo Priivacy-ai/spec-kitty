@@ -19,6 +19,7 @@ from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
 
 pytestmark = pytest.mark.fast
 
+
 def _ns() -> NamespaceRef:
     return NamespaceRef(
         project_uuid="uuid-1",

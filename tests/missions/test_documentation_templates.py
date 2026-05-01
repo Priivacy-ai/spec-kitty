@@ -101,5 +101,3 @@ def test_explanation_template_required_sections():
     assert "## Background" in content or "## Overview" in content
     assert "## Concepts" in content or "## How It Works" in content
     assert "## Design" in content or "## Trade-offs" in content or "## Alternatives" in content
-
-

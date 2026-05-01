@@ -24,9 +24,7 @@ class TestScoreSpecForBulkEdit:
         assert result.threshold == INFERENCE_THRESHOLD
 
     def test_single_high_phrase_scores_3(self) -> None:
-        result = score_spec_for_bulk_edit(
-            "We need to run a codemod on the entire project."
-        )
+        result = score_spec_for_bulk_edit("We need to run a codemod on the entire project.")
         assert result.score == 3
         assert ("codemod", 3) in result.matched_phrases
         assert result.triggered is False  # 3 < 4
@@ -44,9 +42,7 @@ class TestScoreSpecForBulkEdit:
         assert result.triggered is False
 
     def test_threshold_reached_with_mixed(self) -> None:
-        result = score_spec_for_bulk_edit(
-            "Rename all occurrences across the codebase."
-        )
+        result = score_spec_for_bulk_edit("Rename all occurrences across the codebase.")
         # "rename all occurrences" = 3 (high)
         # "across the codebase" = 2 (medium)
         # "rename" would be skipped (substring of "rename all occurrences")
@@ -102,17 +98,13 @@ class TestScoreSpecForBulkEdit:
         assert result.score < INFERENCE_THRESHOLD
 
     def test_medium_multi_word_keyword_matches(self) -> None:
-        result = score_spec_for_bulk_edit(
-            "Apply the change across the codebase in all modules."
-        )
+        result = score_spec_for_bulk_edit("Apply the change across the codebase in all modules.")
         assert ("across the codebase", 2) in result.matched_phrases
         assert ("change", 1) in result.matched_phrases
 
     def test_word_boundary_prevents_partial_match(self) -> None:
         # "update" should not match inside "updated_at" due to word boundary
-        result = score_spec_for_bulk_edit(
-            "The updated_at column stores timestamps."
-        )
+        result = score_spec_for_bulk_edit("The updated_at column stores timestamps.")
         # "update" won't match because of word boundary regex
         assert result.score == 0
         assert result.triggered is False
@@ -131,10 +123,7 @@ class TestScanSpecFile:
         assert result.threshold == INFERENCE_THRESHOLD
 
     def test_scan_existing_spec_returns_result(self, tmp_path: Path) -> None:
-        spec_content = (
-            "Rename across the entire codebase. Apply find-and-replace "
-            "to update all references globally."
-        )
+        spec_content = "Rename across the entire codebase. Apply find-and-replace to update all references globally."
         spec_file = tmp_path / "spec.md"
         spec_file.write_text(spec_content, encoding="utf-8")
 

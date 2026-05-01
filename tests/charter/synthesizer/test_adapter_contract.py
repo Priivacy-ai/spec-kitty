@@ -9,14 +9,12 @@ Verifies:
 
 from __future__ import annotations
 
-import inspect
 from pathlib import Path
 
 import pytest
 
 from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
 from charter.synthesizer.fixture_adapter import FixtureAdapter
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
 from datetime import UTC
 
 
@@ -30,8 +28,7 @@ class TestProtocolConformance:
         """FixtureAdapter satisfies the SynthesisAdapter runtime-checkable Protocol."""
         adapter = FixtureAdapter()
         assert isinstance(adapter, SynthesisAdapter), (
-            "FixtureAdapter must satisfy isinstance(adapter, SynthesisAdapter). "
-            "Check that FixtureAdapter exposes .id, .version, and .generate()."
+            "FixtureAdapter must satisfy isinstance(adapter, SynthesisAdapter). Check that FixtureAdapter exposes .id, .version, and .generate()."
         )
 
     def test_fixture_adapter_has_required_attributes(self) -> None:
@@ -44,9 +41,7 @@ class TestProtocolConformance:
     def test_fixture_adapter_has_optional_batch(self) -> None:
         """FixtureAdapter also exposes generate_batch (optional, detected via hasattr)."""
         adapter = FixtureAdapter()
-        assert hasattr(adapter, "generate_batch"), (
-            "FixtureAdapter should expose generate_batch for batch-orchestration paths."
-        )
+        assert hasattr(adapter, "generate_batch"), "FixtureAdapter should expose generate_batch for batch-orchestration paths."
 
 
 # ---------------------------------------------------------------------------
@@ -68,15 +63,10 @@ class TestContractStructuralEquivalence:
         """Dynamically load the planning contract module."""
         import importlib.util
         import sys
+
         # Climb from tests/charter/synthesizer/ up to repo root
         repo_root = Path(__file__).parent.parent.parent.parent
-        contract_path = (
-            repo_root
-            / "kitty-specs"
-            / "phase-3-charter-synthesizer-pipeline-01KPE222"
-            / "contracts"
-            / "adapter.py"
-        )
+        contract_path = repo_root / "kitty-specs" / "phase-3-charter-synthesizer-pipeline-01KPE222" / "contracts" / "adapter.py"
         if not contract_path.exists():
             pytest.skip(f"Contract file not found at {contract_path}")
 
@@ -105,10 +95,7 @@ class TestContractStructuralEquivalence:
             for cls in proto.__mro__:
                 members.update(getattr(cls, "__annotations__", {}).keys())
             # Methods defined directly on the class
-            members.update(
-                name for name, val in vars(proto).items()
-                if callable(val) and not name.startswith("__")
-            )
+            members.update(name for name, val in vars(proto).items() if callable(val) and not name.startswith("__"))
             return members
 
         contract_members = _protocol_members(contract_proto)
@@ -126,11 +113,7 @@ class TestContractStructuralEquivalence:
 
         contract_fields = {f.name for f in dataclasses.fields(contract.AdapterOutput)}
         impl_fields = {f.name for f in dataclasses.fields(AdapterOutput)}
-        assert contract_fields == impl_fields, (
-            f"AdapterOutput field mismatch.\n"
-            f"  contract: {sorted(contract_fields)}\n"
-            f"  impl:     {sorted(impl_fields)}"
-        )
+        assert contract_fields == impl_fields, f"AdapterOutput field mismatch.\n  contract: {sorted(contract_fields)}\n  impl:     {sorted(impl_fields)}"
 
     def test_synthesis_request_same_fields(self) -> None:
         """SynthesisRequest in impl and contract have the same dataclass fields."""
@@ -139,12 +122,9 @@ class TestContractStructuralEquivalence:
 
         contract_fields = {f.name for f in dataclasses.fields(contract.SynthesisRequest)}
         from charter.synthesizer.request import SynthesisRequest as ImplReq
+
         impl_fields = {f.name for f in dataclasses.fields(ImplReq)}
-        assert contract_fields == impl_fields, (
-            f"SynthesisRequest field mismatch.\n"
-            f"  contract: {sorted(contract_fields)}\n"
-            f"  impl:     {sorted(impl_fields)}"
-        )
+        assert contract_fields == impl_fields, f"SynthesisRequest field mismatch.\n  contract: {sorted(contract_fields)}\n  impl:     {sorted(impl_fields)}"
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +145,7 @@ class TestAdapterOutputOverrides:
 
     def test_override_first_resolution(self) -> None:
         """Effective adapter identity uses override-first, fallback to adapter.id/version."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         output = AdapterOutput(
             body={"id": "TEST", "title": "t"},
@@ -184,7 +164,7 @@ class TestAdapterOutputOverrides:
 
     def test_no_override_falls_back_to_adapter_identity(self) -> None:
         """Without overrides, effective identity falls back to adapter.id/version."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         output = AdapterOutput(
             body={"id": "TEST", "title": "t"},

@@ -24,12 +24,6 @@ def test_resolve_phase_not_in_status_init():
     """Verify resolve_phase is not exported from status __init__."""
     import specify_cli.status as status_pkg
 
-    assert not hasattr(status_pkg, "resolve_phase"), (
-        "resolve_phase was removed in WP05 (phase.py deleted)"
-    )
-    assert not hasattr(status_pkg, "DEFAULT_PHASE"), (
-        "DEFAULT_PHASE was removed in WP05 (phase.py deleted)"
-    )
-    assert not hasattr(status_pkg, "VALID_PHASES"), (
-        "VALID_PHASES was removed in WP05 (phase.py deleted)"
-    )
+    assert not hasattr(status_pkg, "resolve_phase"), "resolve_phase was removed in WP05 (phase.py deleted)"
+    assert not hasattr(status_pkg, "DEFAULT_PHASE"), "DEFAULT_PHASE was removed in WP05 (phase.py deleted)"
+    assert not hasattr(status_pkg, "VALID_PHASES"), "VALID_PHASES was removed in WP05 (phase.py deleted)"

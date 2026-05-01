@@ -141,9 +141,8 @@ def test_subcommand_verbose_short_flag_does_not_bypass_stale_gate(
     fixture_project_stale: Path,
 ) -> None:
     """Only root-position -v is --version; subcommand -v remains unsafe."""
-    with patch.object(sys, "argv", ["spec-kitty", "next", "-v"]):
-        with pytest.raises(SystemExit) as exc_info:
-            check_schema_version(fixture_project_stale, invoked_subcommand="next")
+    with patch.object(sys, "argv", ["spec-kitty", "next", "-v"]), pytest.raises(SystemExit) as exc_info:
+        check_schema_version(fixture_project_stale, invoked_subcommand="next")
 
     assert exc_info.value.code == _EXIT_STALE
 
@@ -152,8 +151,7 @@ def test_orchestrator_mutating_verb_stale_project_exits_4(
     fixture_project_stale: Path,
 ) -> None:
     """State-mutating orchestrator-api verbs remain blocked on stale schemas."""
-    with patch.object(sys, "argv", ["spec-kitty", "orchestrator-api", "start-implementation"]):
-        with pytest.raises(SystemExit) as exc_info:
-            check_schema_version(fixture_project_stale, invoked_subcommand="orchestrator-api")
+    with patch.object(sys, "argv", ["spec-kitty", "orchestrator-api", "start-implementation"]), pytest.raises(SystemExit) as exc_info:
+        check_schema_version(fixture_project_stale, invoked_subcommand="orchestrator-api")
 
     assert exc_info.value.code == _EXIT_STALE

@@ -91,7 +91,7 @@ class AmbiguousHandleError(Exception):
             lines.append(f"  spec-kitty <command> --mission {c.mission_slug}")
         lines.append("")
         lines.append("For JSON output of all candidates:")
-        lines.append(f'  spec-kitty doctor identity --mission {self.handle} --json')
+        lines.append(f"  spec-kitty doctor identity --mission {self.handle} --json")
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, object]:
@@ -239,9 +239,7 @@ def resolve_mission(handle: str, repo_root: Path) -> ResolvedMission:
     # Priority 4: Human slug without numeric prefix (e.g. "foo-bar")
     # ------------------------------------------------------------------
     if not _is_numeric_prefix(handle):
-        human_matches = [
-            m for m in missions if strip_numeric_prefix(m.mission_slug) == handle
-        ]
+        human_matches = [m for m in missions if strip_numeric_prefix(m.mission_slug) == handle]
         if human_matches:
             return _resolve_or_raise(handle, human_matches)
 
@@ -250,8 +248,9 @@ def resolve_mission(handle: str, repo_root: Path) -> ResolvedMission:
     # ------------------------------------------------------------------
     if _is_numeric_prefix(handle):
         prefix_matches = [
-            m for m in missions if _PREFIX_RE.match(m.mission_slug) and
-            _PREFIX_RE.match(m.mission_slug).group(1) == handle  # type: ignore[union-attr]
+            m
+            for m in missions
+            if _PREFIX_RE.match(m.mission_slug) and _PREFIX_RE.match(m.mission_slug).group(1) == handle  # type: ignore[union-attr]
         ]
         return _resolve_or_raise(handle, prefix_matches)
 

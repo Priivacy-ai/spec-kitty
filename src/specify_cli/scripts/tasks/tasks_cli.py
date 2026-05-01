@@ -9,7 +9,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -67,6 +66,7 @@ from specify_cli.status.models import Lane, StatusEvent  # noqa: E402
 from specify_cli.status.reducer import materialize as _materialize  # noqa: E402
 from specify_cli.status.store import append_event  # noqa: E402
 from specify_cli.status.transitions import resolve_lane_alias  # noqa: E402
+import contextlib
 
 
 def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
@@ -253,6 +253,7 @@ def update_command(args: argparse.Namespace) -> None:
     wp = locate_work_package(repo_root, feature, args.work_package)
 
     from specify_cli.status.models import Lane as _LaneCheck  # noqa: PLC0415
+
     if _LaneCheck(wp.current_lane) == _LaneCheck(validated_lane):
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
@@ -367,8 +368,7 @@ def list_command(args: argparse.Namespace) -> None:
         _feature_events = _read_events(feature_path)
         if not _feature_events:
             print(
-                "Error: Canonical status not found for this feature.\n"
-                "Run 'spec-kitty agent mission finalize-tasks' to bootstrap status events.",
+                "Error: Canonical status not found for this feature.\nRun 'spec-kitty agent mission finalize-tasks' to bootstrap status events.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -441,10 +441,7 @@ def rollback_command(args: argparse.Namespace) -> None:
     if not wp_events:
         raise TaskCliError(f"No canonical status events for {wp_id}. Cannot determine the previous lane.")
 
-    if len(wp_events) == 1:
-        previous_lane_canonical = str(wp_events[0].from_lane)
-    else:
-        previous_lane_canonical = str(wp_events[-2].to_lane)
+    previous_lane_canonical = str(wp_events[0].from_lane) if len(wp_events) == 1 else str(wp_events[-2].to_lane)
     # Use the canonical lane value directly — alias resolution stays inside the status boundary.
     previous_lane = ensure_lane(previous_lane_canonical)
     current_event = wp_events[-1]
@@ -646,10 +643,8 @@ def _finalize_merge_metadata(meta_path: Path | None, merge_commit: str) -> None:
         return
 
     feature_dir = meta_path.parent
-    try:
+    with contextlib.suppress(ValueError, FileNotFoundError):
         finalize_merge(feature_dir, merged_commit=merge_commit)
-    except (ValueError, FileNotFoundError):
-        pass
 
 
 def merge_command(args: argparse.Namespace) -> None:
@@ -776,9 +771,8 @@ def merge_command(args: argparse.Namespace) -> None:
     elif args.push and not has_remote:
         print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
 
-    if in_worktree and args.remove_worktree:
-        if repo_root.exists():
-            git(["worktree", "remove", str(repo_root), "--force"])
+    if in_worktree and args.remove_worktree and repo_root.exists():
+        git(["worktree", "remove", str(repo_root), "--force"])
 
     if args.delete_branch:
         delete = git(["branch", "-d", feature], check=False)

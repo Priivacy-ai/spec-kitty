@@ -151,9 +151,7 @@ def _coerce_mission_number(raw: object) -> int | None:
         return None
     if isinstance(raw, bool):
         # bool is a subclass of int, but a bool mission_number is a bug
-        raise TypeError(
-            f"meta.json mission_number must be int or null, got bool {raw!r}."
-        )
+        raise TypeError(f"meta.json mission_number must be int or null, got bool {raw!r}.")
     if isinstance(raw, int):
         return raw
     if isinstance(raw, str):
@@ -161,21 +159,13 @@ def _coerce_mission_number(raw: object) -> int | None:
             # empty or whitespace-only string → None
             return None
         if raw.strip() in _SENTINEL_STRINGS:
-            raise ValueError(
-                f"meta.json mission_number must be int or null, got {raw!r}. "
-                "Run `spec-kitty migrate backfill-identity` to migrate."
-            )
+            raise ValueError(f"meta.json mission_number must be int or null, got {raw!r}. Run `spec-kitty migrate backfill-identity` to migrate.")
         try:
             stripped = raw.strip().lstrip("0")
             return int(stripped) if stripped else 0
         except ValueError:
-            raise ValueError(
-                f"meta.json mission_number must be int or null, got {raw!r}. "
-                "Run `spec-kitty migrate backfill-identity` to migrate."
-            ) from None
-    raise TypeError(
-        f"meta.json mission_number must be int, str, or null, got {type(raw).__name__!r}."
-    )
+            raise ValueError(f"meta.json mission_number must be int or null, got {raw!r}. Run `spec-kitty migrate backfill-identity` to migrate.") from None
+    raise TypeError(f"meta.json mission_number must be int, str, or null, got {type(raw).__name__!r}.")
 
 
 def mission_identity_fields(
@@ -275,10 +265,7 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
             elif not " ".join(value.split()):
                 errors.append(f"Field {field} must not be empty when present")
     if "change_mode" in meta and meta["change_mode"] not in VALID_CHANGE_MODES:
-        errors.append(
-            f"Invalid change_mode {meta['change_mode']!r}; "
-            f"valid values: {sorted(VALID_CHANGE_MODES)}"
-        )
+        errors.append(f"Invalid change_mode {meta['change_mode']!r}; valid values: {sorted(VALID_CHANGE_MODES)}")
     return errors
 
 
@@ -560,9 +547,7 @@ def set_change_mode(
         FileNotFoundError: If meta.json does not exist in *feature_dir*.
     """
     if mode not in VALID_CHANGE_MODES:
-        raise ValueError(
-            f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}"
-        )
+        raise ValueError(f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}")
     meta = load_meta(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No meta.json in {feature_dir}")

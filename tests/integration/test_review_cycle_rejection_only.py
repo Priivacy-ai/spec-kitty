@@ -106,9 +106,7 @@ def _list_cycle_artifacts(sub_artifact_dir: Path) -> list[str]:
 
 
 @pytest.fixture()
-def for_review_repo(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> tuple[Path, Path, Path]:
+def for_review_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
     """Initialise a git repo with one mission, one WP, currently in ``for_review``.
 
     Returns ``(repo_root, feature_dir, sub_artifact_dir)``.
@@ -116,9 +114,7 @@ def for_review_repo(
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
         cwd=repo,
@@ -169,9 +165,7 @@ def for_review_repo(
             computed_from="test",
         ),
     )
-    (feature_dir / "tasks.md").write_text(
-        "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-    )
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     _write_cli_wp(tasks_dir / f"{WP_SLUG}.md")
 
     # Drive event log: planned -> claimed -> in_progress -> for_review.
@@ -279,8 +273,7 @@ def test_review_cycle_counter_advances_only_on_real_rejection(
         # purposes of this test we only care that no review-cycle artifact
         # appeared as a side effect.
         assert _count_cycle_artifacts(sub_artifact_dir) == 0, (
-            f"Implement rerun #{attempt + 1} unexpectedly created an artifact: "
-            f"{_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
+            f"Implement rerun #{attempt + 1} unexpectedly created an artifact: {_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
         )
 
     # Step 3: Trigger a real rejection event. Counter must advance by 1.
@@ -309,12 +302,9 @@ def test_review_cycle_counter_advances_only_on_real_rejection(
         ],
     )
     assert _count_cycle_artifacts(sub_artifact_dir) == 1, (
-        f"Implement rerun after rejection unexpectedly inflated counter; "
-        f"artifacts now: {_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
+        f"Implement rerun after rejection unexpectedly inflated counter; artifacts now: {_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
     )
-    assert persisted.stat().st_mtime_ns == artifact_mtime, (
-        "Existing review-cycle-1.md must not be rewritten by an implement rerun."
-    )
+    assert persisted.stat().st_mtime_ns == artifact_mtime, "Existing review-cycle-1.md must not be rewritten by an implement rerun."
     assert persisted.stat().st_size == artifact_size
 
     # Bonus: confirm that the canonical artifact-set is exactly {1}.

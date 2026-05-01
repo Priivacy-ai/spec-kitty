@@ -48,10 +48,7 @@ def _write_task(feature_dir: Path) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / "WP01-test.md").write_text(
-        "---\n"
-        "title: Test WP\n"
-        "lane: in_progress\n"
-        "---\n",
+        "---\ntitle: Test WP\nlane: in_progress\n---\n",
         encoding="utf-8",
     )
 

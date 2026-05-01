@@ -61,6 +61,7 @@ class Role(str):
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> Any:
         from pydantic_core import core_schema
+
         return core_schema.no_info_after_validator_function(
             cls,
             core_schema.str_schema(),
@@ -69,31 +70,38 @@ class Role(str):
 
     # ── Well-known constants ──────────────────────────────────────────────
     IMPLEMENTER: ClassVar[Role]
-    REVIEWER:    ClassVar[Role]
-    ARCHITECT:   ClassVar[Role]
-    DESIGNER:    ClassVar[Role]
-    PLANNER:     ClassVar[Role]
-    RESEARCHER:  ClassVar[Role]
-    CURATOR:     ClassVar[Role]
-    MANAGER:     ClassVar[Role]
+    REVIEWER: ClassVar[Role]
+    ARCHITECT: ClassVar[Role]
+    DESIGNER: ClassVar[Role]
+    PLANNER: ClassVar[Role]
+    RESEARCHER: ClassVar[Role]
+    CURATOR: ClassVar[Role]
+    MANAGER: ClassVar[Role]
 
 
 # Assign constants after the class body so __new__ is already defined
 Role.IMPLEMENTER = Role("implementer")
-Role.REVIEWER    = Role("reviewer")
-Role.ARCHITECT   = Role("architect")
-Role.DESIGNER    = Role("designer")
-Role.PLANNER     = Role("planner")
-Role.RESEARCHER  = Role("researcher")
-Role.CURATOR     = Role("curator")
-Role.MANAGER     = Role("manager")
+Role.REVIEWER = Role("reviewer")
+Role.ARCHITECT = Role("architect")
+Role.DESIGNER = Role("designer")
+Role.PLANNER = Role("planner")
+Role.RESEARCHER = Role("researcher")
+Role.CURATOR = Role("curator")
+Role.MANAGER = Role("manager")
 
 # Populate _KNOWN after constants exist
-Role._KNOWN = frozenset({
-    str(Role.IMPLEMENTER), str(Role.REVIEWER), str(Role.ARCHITECT),
-    str(Role.DESIGNER), str(Role.PLANNER), str(Role.RESEARCHER),
-    str(Role.CURATOR), str(Role.MANAGER),
-})
+Role._KNOWN = frozenset(
+    {
+        str(Role.IMPLEMENTER),
+        str(Role.REVIEWER),
+        str(Role.ARCHITECT),
+        str(Role.DESIGNER),
+        str(Role.PLANNER),
+        str(Role.RESEARCHER),
+        str(Role.CURATOR),
+        str(Role.MANAGER),
+    }
+)
 
 
 # Value Objects (Section components)
@@ -259,8 +267,7 @@ class AgentProfile(BaseModel):
             norm = value.lower() if isinstance(value, str) else value
             profile_id = data.get("profile-id", "<unknown>")
             warnings.warn(
-                f"Profile '{profile_id}': the scalar 'role:' field is deprecated. "
-                f"Replace with: roles: [{norm}]",
+                f"Profile '{profile_id}': the scalar 'role:' field is deprecated. Replace with: roles: [{norm}]",
                 DeprecationWarning,
                 stacklevel=2,
             )

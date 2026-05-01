@@ -233,9 +233,7 @@ def test_surface_carries_identity(surface: ContractSurface) -> None:
     regression is immediately traceable.
     """
     payload = surface.builder()
-    assert isinstance(payload, dict), (
-        f"Surface {surface.name!r} produced non-dict payload: {type(payload).__name__}"
-    )
+    assert isinstance(payload, dict), f"Surface {surface.name!r} produced non-dict payload: {type(payload).__name__}"
     assert payload, f"Surface {surface.name!r} produced an empty payload"
 
     for key in surface.identity_locations:
@@ -248,10 +246,7 @@ def test_surface_carries_identity(surface: ContractSurface) -> None:
 
     for key in surface.ulid_equals:
         value = _dig(payload, key)
-        assert value == ULID_CANONICAL, (
-            f"Surface {surface.name!r} field {key!r} must equal the canonical "
-            f"ULID {ULID_CANONICAL!r}, got {value!r}"
-        )
+        assert value == ULID_CANONICAL, f"Surface {surface.name!r} field {key!r} must equal the canonical ULID {ULID_CANONICAL!r}, got {value!r}"
 
 
 def test_legacy_wp_status_event_without_mission_id_is_valid() -> None:
@@ -275,12 +270,8 @@ def test_legacy_wp_status_event_without_mission_id_is_valid() -> None:
         # No mission_id — legacy event.
     )
     payload = legacy_event.to_dict()
-    assert "mission_id" not in payload, (
-        "Legacy StatusEvent without mission_id must not synthesise a false value"
-    )
-    assert "legacy_aggregate_id" not in payload, (
-        "legacy_aggregate_id is only emitted when mission_id is present"
-    )
+    assert "mission_id" not in payload, "Legacy StatusEvent without mission_id must not synthesise a false value"
+    assert "legacy_aggregate_id" not in payload, "legacy_aggregate_id is only emitted when mission_id is present"
     assert payload["mission_slug"] == MISSION_SLUG
 
 
@@ -358,15 +349,9 @@ def test_saas_mission_created_emits_mission_id_as_aggregate(
         mission_id=ULID_CANONICAL,
     )
     assert event is not None, "emit_mission_created returned None"
-    assert event["aggregate_id"] == ULID_CANONICAL, (
-        f"MissionCreated aggregate_id must be the ULID, got {event['aggregate_id']!r}"
-    )
-    assert event["payload"]["mission_id"] == ULID_CANONICAL, (
-        "MissionCreated payload.mission_id must equal the canonical ULID"
-    )
-    assert event["payload"]["mission_slug"] == MISSION_SLUG, (
-        "mission_slug must still be carried as a display field"
-    )
+    assert event["aggregate_id"] == ULID_CANONICAL, f"MissionCreated aggregate_id must be the ULID, got {event['aggregate_id']!r}"
+    assert event["payload"]["mission_id"] == ULID_CANONICAL, "MissionCreated payload.mission_id must equal the canonical ULID"
+    assert event["payload"]["mission_slug"] == MISSION_SLUG, "mission_slug must still be carried as a display field"
 
 
 def test_saas_mission_closed_emits_mission_id_as_aggregate(
@@ -418,12 +403,8 @@ def test_saas_legacy_call_without_mission_id_falls_back_to_slug(
         # No mission_id — legacy call site.
     )
     assert event is not None
-    assert event["aggregate_id"] == MISSION_SLUG, (
-        f"Legacy call must fall back to slug, got {event['aggregate_id']!r}"
-    )
-    assert "mission_id" not in event["payload"], (
-        "Legacy payload must not contain a false mission_id key"
-    )
+    assert event["aggregate_id"] == MISSION_SLUG, f"Legacy call must fall back to slug, got {event['aggregate_id']!r}"
+    assert "mission_id" not in event["payload"], "Legacy payload must not contain a false mission_id key"
 
 
 # ---------------------------------------------------------------------------

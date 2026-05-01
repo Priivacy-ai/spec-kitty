@@ -17,8 +17,8 @@ import pytest
 
 from doctrine.agent_profiles.profile import AgentProfile, Role, TaskContext
 from doctrine.agent_profiles.repository import AgentProfileRepository
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 @pytest.fixture
@@ -183,13 +183,9 @@ class TestAgentProfileRepositoryMany:
         profile_ids = {p.profile_id for p in profiles}
         assert profile_ids == {"architect-alphonso", "python-pedro", "generic-implementer"}
 
-    def test_load_shipped_and_project_profiles(
-        self, shipped_profiles_dir: Path, project_profiles_dir: Path
-    ):
+    def test_load_shipped_and_project_profiles(self, shipped_profiles_dir: Path, project_profiles_dir: Path):
         """Both shipped and project profiles load correctly."""
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir)
         profiles = repo.list_all()
         # 3 shipped + 1 new project - 1 override = 4 total
         assert len(profiles) == 4
@@ -201,9 +197,7 @@ class TestAgentProfileRepositoryMany:
             "custom-reviewer",
         }
 
-    def test_filters_language_scoped_profiles_when_active_languages_do_not_match(
-        self, tmp_path: Path
-    ) -> None:
+    def test_filters_language_scoped_profiles_when_active_languages_do_not_match(self, tmp_path: Path) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
 
@@ -238,9 +232,7 @@ specialization:
         assert "generic" in profile_ids
         assert "python-only" not in profile_ids
 
-    def test_keeps_language_scoped_profiles_when_active_languages_are_unset(
-        self, tmp_path: Path
-    ) -> None:
+    def test_keeps_language_scoped_profiles_when_active_languages_are_unset(self, tmp_path: Path) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
 
@@ -275,9 +267,7 @@ specialization:
         assert "generic" in profile_ids
         assert "python-only" in profile_ids
 
-    def test_skips_project_profiles_when_language_scope_does_not_match(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ) -> None:
+    def test_skips_project_profiles_when_language_scope_does_not_match(self, shipped_profiles_dir: Path, tmp_path: Path) -> None:
         project = tmp_path / "project"
         project.mkdir()
         (project / "python-pedro.agent.yaml").write_text(
@@ -349,13 +339,9 @@ specialization:
 class TestAgentProfileRepositoryInterface:
     """Test interface contracts and field-level merge."""
 
-    def test_field_level_merge_overrides_some_fields(
-        self, shipped_profiles_dir: Path, project_profiles_dir: Path
-    ):
+    def test_field_level_merge_overrides_some_fields(self, shipped_profiles_dir: Path, project_profiles_dir: Path):
         """Project profile overrides specific fields, retains others from shipped."""
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir)
         pedro = repo.get("python-pedro")
 
         # Overridden fields from project
@@ -367,13 +353,9 @@ class TestAgentProfileRepositoryInterface:
         assert pedro.role == Role.IMPLEMENTER  # Not overridden, from shipped
         assert pedro.purpose == "Python implementation specialist"  # From shipped
 
-    def test_project_only_profile_loads(
-        self, shipped_profiles_dir: Path, project_profiles_dir: Path
-    ):
+    def test_project_only_profile_loads(self, shipped_profiles_dir: Path, project_profiles_dir: Path):
         """Project-only profile (not in shipped) loads correctly."""
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir)
         custom = repo.get("custom-reviewer")
         assert custom is not None
         assert custom.profile_id == "custom-reviewer"
@@ -383,9 +365,7 @@ class TestAgentProfileRepositoryInterface:
 class TestAgentProfileRepositoryExceptions:
     """Test exception handling and validation."""
 
-    def test_invalid_yaml_skipped_with_warning(
-        self, shipped_profiles_dir: Path, caplog: pytest.LogCaptureFixture
-    ):
+    def test_invalid_yaml_skipped_with_warning(self, shipped_profiles_dir: Path, caplog: pytest.LogCaptureFixture):
         """Invalid YAML file is skipped and warning is logged."""
         (shipped_profiles_dir / "invalid.agent.yaml").write_text("invalid: yaml: {")
 
@@ -530,9 +510,7 @@ class TestAgentProfileRepositoryMatching:
         assert match is not None
         assert match.profile_id == "python-pedro"  # Specialist with higher priority
 
-    def test_find_best_match_no_context_returns_highest_priority(
-        self, shipped_profiles_dir: Path
-    ):
+    def test_find_best_match_no_context_returns_highest_priority(self, shipped_profiles_dir: Path):
         """Find best match with no context returns highest routing_priority."""
         repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=None)
         context = TaskContext(task_type="implement", complexity="medium")
@@ -564,16 +542,12 @@ class TestAgentProfileRepositoryMatching:
 class TestAgentProfileRepositorySaveDelete:
     """Test save and delete operations."""
 
-    def test_save_creates_yaml_file(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_save_creates_yaml_file(self, shipped_profiles_dir: Path, tmp_path: Path):
         """Save writes profile as YAML to project directory."""
         project_dir = tmp_path / "project"
         project_dir.mkdir()
 
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_dir)
 
         new_profile = AgentProfile(
             profile_id="new-tester",
@@ -606,13 +580,9 @@ class TestAgentProfileRepositorySaveDelete:
         with pytest.raises(ValueError, match="project_dir"):
             repo.save(profile)
 
-    def test_delete_removes_project_only_profile(
-        self, shipped_profiles_dir: Path, project_profiles_dir: Path
-    ):
+    def test_delete_removes_project_only_profile(self, shipped_profiles_dir: Path, project_profiles_dir: Path):
         """Delete removes project-only profile."""
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir)
 
         # custom-reviewer is project-only
         assert repo.get("custom-reviewer") is not None
@@ -620,13 +590,9 @@ class TestAgentProfileRepositorySaveDelete:
         assert result is True
         assert repo.get("custom-reviewer") is None
 
-    def test_delete_reverts_merged_profile_to_shipped(
-        self, shipped_profiles_dir: Path, project_profiles_dir: Path
-    ):
+    def test_delete_reverts_merged_profile_to_shipped(self, shipped_profiles_dir: Path, project_profiles_dir: Path):
         """Delete on merged profile reverts to shipped version."""
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_profiles_dir)
 
         # python-pedro is merged (project overrides shipped)
         pedro_before = repo.get("python-pedro")
@@ -640,16 +606,12 @@ class TestAgentProfileRepositorySaveDelete:
         assert pedro_after is not None
         assert pedro_after.routing_priority == 90  # Back to shipped value
 
-    def test_delete_nonexistent_returns_false(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_delete_nonexistent_returns_false(self, shipped_profiles_dir: Path, tmp_path: Path):
         """Delete nonexistent profile returns False."""
         project_dir = tmp_path / "project"
         project_dir.mkdir()
 
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project_dir
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project_dir)
         result = repo.delete("nonexistent")
         assert result is False
 
@@ -674,26 +636,18 @@ class TestAgentProfileRepositoryLoader:
         sub = shipped / "sub"
         sub.mkdir()
         (sub / "nested.agent.yaml").write_text(
-            "profile-id: nested\nname: Nested\npurpose: Test\n"
-            "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
+            "profile-id: nested\nname: Nested\npurpose: Test\nroles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
         )
         repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
         assert repo.get("nested") is not None
 
-    def test_project_glob_does_not_find_profiles_in_subdirectory(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_project_glob_does_not_find_profiles_in_subdirectory(self, shipped_profiles_dir: Path, tmp_path: Path):
         """Project loader uses glob (not rglob) and ignores nested profiles."""
         project = tmp_path / "project"
         sub = project / "sub"
         sub.mkdir(parents=True)
-        (sub / "deep.agent.yaml").write_text(
-            "profile-id: deep\nname: Deep\npurpose: Test\n"
-            "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
-        )
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project
-        )
+        (sub / "deep.agent.yaml").write_text("profile-id: deep\nname: Deep\npurpose: Test\nroles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n")
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project)
         assert repo.get("deep") is None
 
     def test_non_agent_yaml_files_are_ignored(self, tmp_path: Path):
@@ -713,20 +667,13 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
         assert repo.list_all() == []
 
-    def test_project_profile_missing_profile_id_emits_warning(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_project_profile_missing_profile_id_emits_warning(self, shipped_profiles_dir: Path, tmp_path: Path):
         """Project YAML with no profile-id key emits UserWarning and is skipped."""
         project = tmp_path / "project"
         project.mkdir()
-        (project / "no-id.agent.yaml").write_text(
-            "name: No ID Profile\npurpose: Test\nroles:\n  - implementer\n"
-            "specialization:\n  primary-focus: Testing\n"
-        )
+        (project / "no-id.agent.yaml").write_text("name: No ID Profile\npurpose: Test\nroles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n")
         with pytest.warns(UserWarning, match="no profile-id"):
-            repo = AgentProfileRepository(
-                shipped_dir=shipped_profiles_dir, project_dir=project
-            )
+            repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project)
         ids = {p.profile_id for p in repo.list_all()}
         assert "no-id" not in ids
 
@@ -735,8 +682,7 @@ class TestAgentProfileRepositoryLoader:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
         (shipped / "good.agent.yaml").write_text(
-            "profile-id: good\nname: Good\npurpose: Test\n"
-            "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
+            "profile-id: good\nname: Good\npurpose: Test\nroles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
         )
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
         with pytest.warns(UserWarning):
@@ -754,17 +700,13 @@ class TestAgentProfileRepositoryLoader:
         user_warnings = [w for w in record if issubclass(w.category, UserWarning)]
         assert len(user_warnings) == 1
 
-    def test_invalid_project_yaml_emits_warning(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_invalid_project_yaml_emits_warning(self, shipped_profiles_dir: Path, tmp_path: Path):
         """Project YAML with parse error emits UserWarning for that file."""
         project = tmp_path / "project"
         project.mkdir()
         (project / "broken.agent.yaml").write_text("broken: yaml: {")
         with pytest.warns(UserWarning):
-            AgentProfileRepository(
-                shipped_dir=shipped_profiles_dir, project_dir=project
-            )
+            AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project)
 
 
 # ── _apply_excluding tests ─────────────────────────────────────────────────
@@ -827,27 +769,19 @@ class TestResolveProfileWithExcluding:
 class TestFieldLevelMergeComplete:
     """Project override: verify every asserted field individually."""
 
-    def test_project_override_preserves_all_non_overridden_shipped_fields(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_project_override_preserves_all_non_overridden_shipped_fields(self, shipped_profiles_dir: Path, tmp_path: Path):
         """When project overrides only routing-priority, all other fields come from shipped."""
         project = tmp_path / "project"
         project.mkdir()
-        (project / "architect-alphonso.agent.yaml").write_text(
-            "profile-id: architect-alphonso\nrouting-priority: 99\n"
-        )
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project
-        )
+        (project / "architect-alphonso.agent.yaml").write_text("profile-id: architect-alphonso\nrouting-priority: 99\n")
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project)
         profile = repo.get("architect-alphonso")
-        assert profile.routing_priority == 99          # overridden
-        assert profile.name == "Architect Alphonso"    # from shipped
-        assert profile.role == Role.ARCHITECT           # from shipped
+        assert profile.routing_priority == 99  # overridden
+        assert profile.name == "Architect Alphonso"  # from shipped
+        assert profile.role == Role.ARCHITECT  # from shipped
         assert profile.purpose == "System design and architecture"  # from shipped
 
-    def test_project_new_profile_is_fully_independent(
-        self, shipped_profiles_dir: Path, tmp_path: Path
-    ):
+    def test_project_new_profile_is_fully_independent(self, shipped_profiles_dir: Path, tmp_path: Path):
         """New project-only profile is completely independent; no shipped merge."""
         project = tmp_path / "project"
         project.mkdir()
@@ -856,9 +790,7 @@ class TestFieldLevelMergeComplete:
             "roles:\n  - curator\nrouting-priority: 42\n"
             "specialization:\n  primary-focus: Standalone work\n"
         )
-        repo = AgentProfileRepository(
-            shipped_dir=shipped_profiles_dir, project_dir=project
-        )
+        repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=project)
         profile = repo.get("standalone")
         assert profile is not None
         assert profile.profile_id == "standalone"
@@ -875,17 +807,12 @@ class TestMultiLevelHierarchy:
     def _three_level_shipped(self, tmp_path: Path) -> Path:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
-        (shipped / "root.agent.yaml").write_text(
-            "profile-id: root\nname: Root\npurpose: Root\nroles:\n  - implementer\n"
-            "specialization:\n  primary-focus: Root\n"
-        )
+        (shipped / "root.agent.yaml").write_text("profile-id: root\nname: Root\npurpose: Root\nroles:\n  - implementer\nspecialization:\n  primary-focus: Root\n")
         (shipped / "mid.agent.yaml").write_text(
-            "profile-id: mid\nname: Mid\npurpose: Mid\nroles:\n  - implementer\n"
-            "specializes-from: root\nspecialization:\n  primary-focus: Mid\n"
+            "profile-id: mid\nname: Mid\npurpose: Mid\nroles:\n  - implementer\nspecializes-from: root\nspecialization:\n  primary-focus: Mid\n"
         )
         (shipped / "leaf.agent.yaml").write_text(
-            "profile-id: leaf\nname: Leaf\npurpose: Leaf\nroles:\n  - implementer\n"
-            "specializes-from: mid\nspecialization:\n  primary-focus: Leaf\n"
+            "profile-id: leaf\nname: Leaf\npurpose: Leaf\nroles:\n  - implementer\nspecializes-from: mid\nspecialization:\n  primary-focus: Leaf\n"
         )
         return shipped
 
@@ -939,13 +866,15 @@ from doctrine.agent_profiles.repository import _filter_candidates_by_role, _exac
 
 
 def _make_profile(profile_id: str, roles: list[str]) -> AgentProfile:
-    return AgentProfile(**{
-        "profile-id": profile_id,
-        "name": f"Test {profile_id}",
-        "purpose": "Test purpose",
-        "roles": roles,
-        "specialization": {"primary-focus": "Testing"},
-    })
+    return AgentProfile(
+        **{
+            "profile-id": profile_id,
+            "name": f"Test {profile_id}",
+            "purpose": "Test purpose",
+            "roles": roles,
+            "specialization": {"primary-focus": "Testing"},
+        }
+    )
 
 
 class TestMultiRoleRouting:

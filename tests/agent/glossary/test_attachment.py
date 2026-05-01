@@ -1,6 +1,5 @@
 """Tests for glossary pipeline attachment (T042)."""
 
-
 import pytest
 from specify_cli.glossary.attachment import (
     attach_glossary_pipeline,
@@ -12,6 +11,7 @@ from specify_cli.glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
+
 
 def _make_context(**overrides):
     """Helper to create a PrimitiveExecutionContext with defaults."""
@@ -228,12 +228,14 @@ class TestGlossaryAwarePrimitiveRunner:
 
     def test_runner_creates_successfully(self, tmp_path):
         from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
         (tmp_path / ".kittify").mkdir()
         runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
         assert runner is not None
 
     def test_runner_execute_calls_pipeline_then_primitive(self, tmp_path):
         from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
         (tmp_path / ".kittify").mkdir()
 
         runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
@@ -251,6 +253,7 @@ class TestGlossaryAwarePrimitiveRunner:
 
     def test_runner_passes_extra_args_to_primitive(self, tmp_path):
         from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
         (tmp_path / ".kittify").mkdir()
 
         runner = GlossaryAwarePrimitiveRunner(

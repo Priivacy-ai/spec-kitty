@@ -16,6 +16,7 @@ import pytest
 
 pytestmark = pytest.mark.git_repo
 
+
 class TestCharterDiscovery:
     """Tests for charter file discovery."""
 
@@ -218,6 +219,7 @@ Code reviewers check compliance
 
         for section in required_sections:
             assert section in content, f"Missing required section: {section}"
+
 
 class TestCharterGracefulFallback:
     """Tests for graceful fallback when charter is missing."""

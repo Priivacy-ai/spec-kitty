@@ -33,6 +33,7 @@ satisfy R4, R5, and R6. Until then, the live assertions are
 ``xfail``-marked with a clear reason. WP08's subtask T030 explicitly
 removes those markers as part of its acceptance criteria.
 """
+
 from __future__ import annotations
 
 import tomllib
@@ -115,12 +116,10 @@ def test_pyproject_uses_compatible_ranges_for_shared_packages() -> None:
             failures.append(f"pyproject.toml does not list {pkg}")
             continue
         for entry in matching:
-            spec = entry[len(pkg):].strip()
+            spec = entry[len(pkg) :].strip()
             if "==" in spec:
                 failures.append(
-                    f"pyproject.toml pins {pkg} exactly: {entry!r}. "
-                    "Per C-004, exact pins live in uv.lock; pyproject.toml "
-                    "uses compatible ranges (>=X.Y,<X+1)."
+                    f"pyproject.toml pins {pkg} exactly: {entry!r}. Per C-004, exact pins live in uv.lock; pyproject.toml uses compatible ranges (>=X.Y,<X+1)."
                 )
     assert not failures, "\n".join(failures)
 

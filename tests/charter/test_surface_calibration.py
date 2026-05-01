@@ -16,7 +16,6 @@ Subtasks:
 from __future__ import annotations
 
 import ast
-import textwrap
 from collections import Counter
 from pathlib import Path
 
@@ -41,9 +40,7 @@ _ACTIONS = ("specify", "plan", "tasks", "implement", "review")
 _ACTION_URNS = {a: f"action:software-dev/{a}" for a in _ACTIONS}
 
 # Real graph.yaml shipped with the project
-_GRAPH_PATH = (
-    Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
-)
+_GRAPH_PATH = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -54,10 +51,7 @@ _GRAPH_PATH = (
 @pytest.fixture(scope="module")
 def loaded_graph() -> DRGGraph:
     """Load the real shipped DRG graph (not a test fixture)."""
-    assert _GRAPH_PATH.exists(), (
-        f"graph.yaml not found at {_GRAPH_PATH}. "
-        f"Was it removed or renamed?"
-    )
+    assert _GRAPH_PATH.exists(), f"graph.yaml not found at {_GRAPH_PATH}. Was it removed or renamed?"
     return load_graph(_GRAPH_PATH)
 
 
@@ -77,7 +71,9 @@ def measure_surface(graph: DRGGraph, action_urn: str, depth: int = 2) -> int:
 
 
 def measure_surface_detailed(
-    graph: DRGGraph, action_urn: str, depth: int = 2,
+    graph: DRGGraph,
+    action_urn: str,
+    depth: int = 2,
 ) -> dict[str, int]:
     """Break down the governance surface by artifact kind.
 
@@ -102,32 +98,24 @@ class TestSurfaceMeasurement:
     def test_each_action_has_positive_surface(self, loaded_graph: DRGGraph) -> None:
         for action_name, urn in _ACTION_URNS.items():
             size = measure_surface(loaded_graph, urn)
-            assert size > 0, (
-                f"Action {action_name!r} ({urn}) resolved zero artifacts. "
-                f"Fix: add scope edges in graph.yaml"
-            )
+            assert size > 0, f"Action {action_name!r} ({urn}) resolved zero artifacts. Fix: add scope edges in graph.yaml"
 
     def test_detailed_breakdown_sums_to_total(self, loaded_graph: DRGGraph) -> None:
         for action_name, urn in _ACTION_URNS.items():
             total = measure_surface(loaded_graph, urn)
             detailed = measure_surface_detailed(loaded_graph, urn)
-            assert sum(detailed.values()) == total, (
-                f"Detailed breakdown for {action_name!r} sums to "
-                f"{sum(detailed.values())} but total is {total}"
-            )
+            assert sum(detailed.values()) == total, f"Detailed breakdown for {action_name!r} sums to {sum(detailed.values())} but total is {total}"
 
     def test_detailed_breakdown_keys_are_valid_kinds(
-        self, loaded_graph: DRGGraph,
+        self,
+        loaded_graph: DRGGraph,
     ) -> None:
         valid_kinds = {k.value for k in NodeKind}
         valid_kinds.add("unknown")  # safety bucket
         for action_name, urn in _ACTION_URNS.items():
             detailed = measure_surface_detailed(loaded_graph, urn)
             for kind_name in detailed:
-                assert kind_name in valid_kinds, (
-                    f"Unexpected kind {kind_name!r} in detailed breakdown "
-                    f"for {action_name!r}"
-                )
+                assert kind_name in valid_kinds, f"Unexpected kind {kind_name!r} in detailed breakdown for {action_name!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +127,8 @@ class TestCalibrationInequalities:
     """T029: enforce minimum-effective-dose ordering from the spec."""
 
     def test_surface_calibration_inequalities(
-        self, loaded_graph: DRGGraph,
+        self,
+        loaded_graph: DRGGraph,
     ) -> None:
         """Each action's surface respects minimum-effective-dose ordering."""
         specify = measure_surface(loaded_graph, _ACTION_URNS["specify"])
@@ -149,20 +138,11 @@ class TestCalibrationInequalities:
         review = measure_surface(loaded_graph, _ACTION_URNS["review"])
 
         # Strict ordering: specify < plan < implement
-        assert specify < plan, (
-            f"specify ({specify}) must be < plan ({plan}). "
-            f"Fix: remove scope edges from specify or add to plan in graph.yaml"
-        )
-        assert plan < implement, (
-            f"plan ({plan}) must be < implement ({implement}). "
-            f"Fix: add scope edges to implement or remove from plan in graph.yaml"
-        )
+        assert specify < plan, f"specify ({specify}) must be < plan ({plan}). Fix: remove scope edges from specify or add to plan in graph.yaml"
+        assert plan < implement, f"plan ({plan}) must be < implement ({implement}). Fix: add scope edges to implement or remove from plan in graph.yaml"
 
         # tasks < implement
-        assert tasks < implement, (
-            f"tasks ({tasks}) must be < implement ({implement}). "
-            f"Fix: remove scope edges from tasks or add to implement in graph.yaml"
-        )
+        assert tasks < implement, f"tasks ({tasks}) must be < implement ({implement}). Fix: remove scope edges from tasks or add to implement in graph.yaml"
 
         # Approximate equality: review >= 80% of implement
         assert review >= implement * REVIEW_THRESHOLD, (
@@ -216,9 +196,7 @@ def _find_action_conditionals(func_ast: ast.FunctionDef) -> list[str]:
             matches = strings_in_test & action_names
             if matches:
                 lineno = getattr(node, "lineno", "?")
-                violations.append(
-                    f"Line {lineno}: if-branch references action names {matches}"
-                )
+                violations.append(f"Line {lineno}: if-branch references action names {matches}")
     return violations
 
 
@@ -239,9 +217,7 @@ def _find_action_name_dicts_or_sets(func_ast: ast.FunctionDef) -> list[str]:
             # an innocuous default/example string)
             if len(matches) >= 2:
                 lineno = getattr(node, "lineno", "?")
-                violations.append(
-                    f"Line {lineno}: dict/set contains action names {matches}"
-                )
+                violations.append(f"Line {lineno}: dict/set contains action names {matches}")
     return violations
 
 
@@ -254,23 +230,16 @@ def _parse_module(path: Path) -> ast.Module:
 def _find_function_def(module: ast.Module, name: str) -> ast.FunctionDef | None:
     """Find a top-level (or nested) function definition by name."""
     for node in ast.walk(module):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.name == name:
-                return node  # type: ignore[return-value]
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return node  # type: ignore[return-value]
     return None
 
 
 class TestDRGOnlyKnob:
     """T030: structural regression -- no per-action filtering in code."""
 
-    _CONTEXT_PY = (
-        Path(__file__).resolve().parents[2]
-        / "src" / "charter" / "context.py"
-    )
-    _QUERY_PY = (
-        Path(__file__).resolve().parents[2]
-        / "src" / "doctrine" / "drg" / "query.py"
-    )
+    _CONTEXT_PY = Path(__file__).resolve().parents[2] / "src" / "charter" / "context.py"
+    _QUERY_PY = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "drg" / "query.py"
 
     def test_build_charter_context_has_no_action_conditionals(self) -> None:
         """build_charter_context must not branch on specific action names.
@@ -286,9 +255,7 @@ class TestDRGOnlyKnob:
         violations = _find_action_conditionals(func)
         assert not violations, (
             "build_charter_context contains action-specific conditionals "
-            "(DRG-only-knob violation):\n"
-            + "\n".join(f"  - {v}" for v in violations)
-            + "\nFix: adjust scope edges in graph.yaml instead of adding "
+            "(DRG-only-knob violation):\n" + "\n".join(f"  - {v}" for v in violations) + "\nFix: adjust scope edges in graph.yaml instead of adding "
             "code-level filtering"
         )
 
@@ -301,9 +268,7 @@ class TestDRGOnlyKnob:
         violations = _find_action_name_dicts_or_sets(func)
         assert not violations, (
             "build_charter_context contains action-name dicts/sets "
-            "(DRG-only-knob violation):\n"
-            + "\n".join(f"  - {v}" for v in violations)
-            + "\nFix: adjust scope edges in graph.yaml instead of adding "
+            "(DRG-only-knob violation):\n" + "\n".join(f"  - {v}" for v in violations) + "\nFix: adjust scope edges in graph.yaml instead of adding "
             "code-level filtering"
         )
 
@@ -326,9 +291,7 @@ class TestDRGOnlyKnob:
 
         assert not all_violations, (
             "DRG query module contains action-specific logic "
-            "(DRG-only-knob violation):\n"
-            + "\n".join(f"  - {v}" for v in all_violations)
-            + "\nFix: adjust scope edges in graph.yaml instead of adding "
+            "(DRG-only-knob violation):\n" + "\n".join(f"  - {v}" for v in all_violations) + "\nFix: adjust scope edges in graph.yaml instead of adding "
             "code-level filtering"
         )
 

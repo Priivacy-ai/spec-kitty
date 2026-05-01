@@ -37,13 +37,7 @@ def _load_canonical(relative_path: str) -> str | None:
         canonical = doctrine_root.joinpath("skills", _SKILL_NAME, relative_path)
         return canonical.read_text(encoding="utf-8")
     except Exception:
-        fallback = (
-            Path(__file__).resolve().parents[3]
-            / "doctrine"
-            / "skills"
-            / _SKILL_NAME
-            / relative_path
-        )
+        fallback = Path(__file__).resolve().parents[3] / "doctrine" / "skills" / _SKILL_NAME / relative_path
         if fallback.is_file():
             return fallback.read_text(encoding="utf-8")
     return None

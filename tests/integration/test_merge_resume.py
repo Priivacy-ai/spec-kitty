@@ -28,7 +28,7 @@ import pytest
 
 from specify_cli.cli.commands.merge import _run_lane_based_merge
 from specify_cli.merge.config import MergeStrategy
-from specify_cli.merge.state import MergeState, save_state
+from specify_cli.merge.state import MergeState
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -63,7 +63,7 @@ def _make_manifest(slug: str, lane_count: int = 10) -> MagicMock:
     for i in range(lane_count):
         lane = MagicMock()
         lane.lane_id = f"lane-{chr(ord('a') + i)}"
-        lane.wp_ids = [f"WP{i+1:02d}"]
+        lane.wp_ids = [f"WP{i + 1:02d}"]
         lanes.append(lane)
     manifest.lanes = lanes
     return manifest
@@ -261,18 +261,12 @@ class TestMergeResumeAfterInterruption:
             )
 
         # WP01 already done — must not be re-marked.
-        assert "WP01" not in mark_done_calls, (
-            f"Resume re-marked already-completed WP01: {mark_done_calls!r}"
-        )
+        assert "WP01" not in mark_done_calls, f"Resume re-marked already-completed WP01: {mark_done_calls!r}"
         # WP02 + WP03 must be marked.
-        assert "WP02" in mark_done_calls and "WP03" in mark_done_calls, (
-            f"Resume failed to finish remaining WPs: {mark_done_calls!r}"
-        )
+        assert "WP02" in mark_done_calls and "WP03" in mark_done_calls, f"Resume failed to finish remaining WPs: {mark_done_calls!r}"
 
         # Lane-a (WP01) skipped, lane-b/lane-c merged.
-        assert "lane-a" not in lane_merge_calls, (
-            f"Resume re-merged completed lane-a: {lane_merge_calls!r}"
-        )
+        assert "lane-a" not in lane_merge_calls, f"Resume re-merged completed lane-a: {lane_merge_calls!r}"
         assert "lane-b" in lane_merge_calls and "lane-c" in lane_merge_calls
 
 
@@ -286,7 +280,7 @@ class TestMergeResumeBounded:
         feature_dir.mkdir(parents=True)
 
         manifest = _make_manifest(slug, lane_count=10)
-        wp_ids = [f"WP{i+1:02d}" for i in range(10)]
+        wp_ids = [f"WP{i + 1:02d}" for i in range(10)]
 
         existing = MergeState(
             mission_id=slug,
@@ -333,9 +327,6 @@ class TestMergeResumeBounded:
             )
         elapsed = time.monotonic() - start
 
-        assert elapsed < 30.0, (
-            f"NFR-005 budget regression: 10-lane resume took {elapsed:.2f}s "
-            "(budget 30s). The merge code path is doing pathological work."
-        )
+        assert elapsed < 30.0, f"NFR-005 budget regression: 10-lane resume took {elapsed:.2f}s (budget 30s). The merge code path is doing pathological work."
         # All 10 WPs eventually marked done.
         assert set(mark_done_calls) == set(wp_ids)

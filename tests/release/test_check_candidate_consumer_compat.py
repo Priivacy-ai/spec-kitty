@@ -7,12 +7,7 @@ import zipfile
 from pathlib import Path
 from textwrap import dedent
 
-SCRIPT = (
-    Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "release"
-    / "check_candidate_consumer_compat.py"
-)
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "release" / "check_candidate_consumer_compat.py"
 
 
 def write_wheel(dist_dir: Path, *, version: str, requirements: list[str]) -> Path:

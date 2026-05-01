@@ -93,9 +93,7 @@ def _compute_active(governance_path: Path, directives_path: Path) -> bool:
     """Compute activation by inspecting governance and directives YAML files."""
     if _governance_selects_pack(governance_path):
         return True
-    if _directives_select_pack(directives_path):
-        return True
-    return False
+    return bool(_directives_select_pack(directives_path))
 
 
 def _governance_selects_pack(governance_path: Path) -> bool:
@@ -123,10 +121,7 @@ def _governance_selects_pack(governance_path: Path) -> bool:
         return True
 
     directives = _coerce_str_list(doctrine.get("selected_directives"))
-    if _directive_id_matches(directives):
-        return True
-
-    return False
+    return bool(_directive_id_matches(directives))
 
 
 def _directives_select_pack(directives_path: Path) -> bool:
@@ -166,9 +161,7 @@ def _is_directive_038(raw: str) -> bool:
     match = re.match(r"^(\d+)", raw)
     if match and match.group(1).zfill(3) == DIRECTIVE_NUMERIC_HINT:
         return True
-    if raw.upper() == DIRECTIVE_ID.upper():
-        return True
-    return False
+    return raw.upper() == DIRECTIVE_ID.upper()
 
 
 def _coerce_str_list(raw: Any) -> list[str]:

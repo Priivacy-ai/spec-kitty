@@ -23,9 +23,7 @@ MAX_PROVENANCE_BYTES: int = 256
 
 def _strip_control_chars(s: str) -> str:
     """Remove ASCII control characters (0x00–0x1F, 0x7F) except ``\\t``."""
-    return "".join(
-        ch for ch in s if ch == "\t" or (ord(ch) >= 0x20 and ord(ch) != 0x7F)
-    )
+    return "".join(ch for ch in s if ch == "\t" or (ord(ch) >= 0x20 and ord(ch) != 0x7F))
 
 
 def _truncate_utf8_safe(s: str, max_bytes: int) -> str:
@@ -60,9 +58,7 @@ def escape_for_comment(s: str) -> str:
     value.
     """
     if not isinstance(s, str):  # defensive: reject non-strings loudly
-        raise TypeError(
-            f"escape_for_comment requires str, got {type(s).__name__}"
-        )
+        raise TypeError(f"escape_for_comment requires str, got {type(s).__name__}")
 
     # Step 1: strip control chars (newlines included → provenance lines
     # are single-line by construction; any embedded newline is dropped).

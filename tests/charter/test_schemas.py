@@ -21,6 +21,7 @@ from charter.schemas import (
 
 pytestmark = pytest.mark.fast
 
+
 class TestCharterTestingConfig:
     def test_default_values(self) -> None:
         config = CharterTestingConfig()

@@ -56,9 +56,7 @@ class CharterTemplateResolver:
         # No project context — doctrine-only lookup
         template = self._repo.get_command_template(mission, name)
         if template is None:
-            raise FileNotFoundError(
-                f"Command template '{name}.md' not found for mission '{mission}'"
-            )
+            raise FileNotFoundError(f"Command template '{name}.md' not found for mission '{mission}'")
         return TemplateResult(
             content=template.content,
             origin=template.origin,
@@ -94,9 +92,7 @@ class CharterTemplateResolver:
         # No project context — doctrine-only lookup
         template = self._repo.get_content_template(mission, name)
         if template is None:
-            raise FileNotFoundError(
-                f"Content template '{name}' not found for mission '{mission}'"
-            )
+            raise FileNotFoundError(f"Content template '{name}' not found for mission '{mission}'")
         return TemplateResult(
             content=template.content,
             origin=template.origin,

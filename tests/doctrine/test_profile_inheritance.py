@@ -8,8 +8,8 @@ import pytest
 
 from doctrine.agent_profiles.profile import TaskContext
 from doctrine.agent_profiles.repository import AgentProfileRepository
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 @pytest.fixture
@@ -344,9 +344,7 @@ specialization:
 # WP09: Generic profile specialization tactic inheritance tests (FR-008)
 # ---------------------------------------------------------------------------
 
-_SHIPPED_PROFILE_DIR = (
-    Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "shipped"
-)
+_SHIPPED_PROFILE_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "shipped"
 
 
 @pytest.fixture(scope="module")
@@ -381,9 +379,7 @@ def test_resolved_specialist_profiles_include_base_tactic_references(
             continue
 
         base = shipped_repo.resolve_profile(base_id)
-        base_tactic_ids = {
-            ref.id for ref in base.tactic_references
-        }
+        base_tactic_ids = {ref.id for ref in base.tactic_references}
         if not base_tactic_ids:
             continue
 
@@ -397,10 +393,7 @@ def test_resolved_specialist_profiles_include_base_tactic_references(
                 f"verify 'tactic-references' is in _LIST_FIELDS in repository.py"
             )
 
-    assert not violations, (
-        f"Found {len(violations)} tactic inheritance violation(s):\n"
-        + "\n".join(f"  - {v}" for v in violations)
-    )
+    assert not violations, f"Found {len(violations)} tactic inheritance violation(s):\n" + "\n".join(f"  - {v}" for v in violations)
 
 
 @pytest.mark.doctrine
@@ -496,10 +489,6 @@ tactic-references:
 
     merged_tactic_ids = {ref.id for ref in resolved.tactic_references}
 
-    assert "base-tactic" in merged_tactic_ids, (
-        "base-tactic must survive union merge — check that tactic-references is in _LIST_FIELDS"
-    )
-    assert "specialist-tactic" in merged_tactic_ids, (
-        "specialist-tactic must be in merged profile"
-    )
+    assert "base-tactic" in merged_tactic_ids, "base-tactic must survive union merge — check that tactic-references is in _LIST_FIELDS"
+    assert "specialist-tactic" in merged_tactic_ids, "specialist-tactic must be in merged profile"
     assert [ref.id for ref in resolved.tactic_references].count("base-tactic") == 1

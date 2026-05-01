@@ -104,13 +104,9 @@ class Decision:
         if self.kind == DecisionKind.step:
             prompt = self.prompt_file
             if not prompt:
-                raise InvalidStepDecision(
-                    "kind='step' requires a non-empty prompt_file; got None/empty"
-                )
+                raise InvalidStepDecision("kind='step' requires a non-empty prompt_file; got None/empty")
             if not Path(prompt).is_file():
-                raise InvalidStepDecision(
-                    f"kind='step' prompt_file must resolve on disk: {prompt!r} does not"
-                )
+                raise InvalidStepDecision(f"kind='step' prompt_file must resolve on disk: {prompt!r} does not")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -555,17 +551,9 @@ def _build_prompt_or_error(
         path_str = str(prompt_path)
         try:
             if not Path(path_str).exists():
-                return None, (
-                    f"prompt template did not materialize on disk for action "
-                    f"'{action}' (path={path_str})"
-                )
+                return None, (f"prompt template did not materialize on disk for action '{action}' (path={path_str})")
         except OSError as exc:
-            return None, (
-                f"prompt template path is not stat-able for action '{action}': {exc}"
-            )
+            return None, (f"prompt template path is not stat-able for action '{action}': {exc}")
         return path_str, None
     except Exception as exc:
-        return None, (
-            f"prompt resolution failed for action '{action}': "
-            f"{type(exc).__name__}: {exc}"
-        )
+        return None, (f"prompt resolution failed for action '{action}': {type(exc).__name__}: {exc}")

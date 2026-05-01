@@ -130,9 +130,7 @@ class UnifiedBundleMigration(BaseMigration):
             a file).
         """
         git_marker = project_path / ".git"
-        if git_marker.is_file():
-            return False
-        return True
+        return not git_marker.is_file()
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Always applicable; the migration itself is a no-op when nothing to do."""
@@ -186,14 +184,8 @@ class UnifiedBundleMigration(BaseMigration):
         # ------------------------------------------------------------------
         # Pre-refresh snapshot against the v1.0.0 manifest.
         # ------------------------------------------------------------------
-        tracked_before_missing = [
-            str(rel) for rel in CANONICAL_MANIFEST.tracked_files
-            if not (canonical_root / rel).exists()
-        ]
-        derived_before_missing = [
-            str(rel) for rel in CANONICAL_MANIFEST.derived_files
-            if not (canonical_root / rel).exists()
-        ]
+        tracked_before_missing = [str(rel) for rel in CANONICAL_MANIFEST.tracked_files if not (canonical_root / rel).exists()]
+        derived_before_missing = [str(rel) for rel in CANONICAL_MANIFEST.derived_files if not (canonical_root / rel).exists()]
 
         # ------------------------------------------------------------------
         # Invoke the chokepoint. ``ensure_charter_bundle_fresh`` resolves
@@ -217,24 +209,14 @@ class UnifiedBundleMigration(BaseMigration):
         # ------------------------------------------------------------------
         # Post-refresh snapshot — what the migration report presents.
         # ------------------------------------------------------------------
-        tracked_after_missing = [
-            str(rel) for rel in CANONICAL_MANIFEST.tracked_files
-            if not (canonical_root / rel).exists()
-        ]
-        derived_after_missing = [
-            str(rel) for rel in CANONICAL_MANIFEST.derived_files
-            if not (canonical_root / rel).exists()
-        ]
+        tracked_after_missing = [str(rel) for rel in CANONICAL_MANIFEST.tracked_files if not (canonical_root / rel).exists()]
+        derived_after_missing = [str(rel) for rel in CANONICAL_MANIFEST.derived_files if not (canonical_root / rel).exists()]
 
         # Enumerate any files under ``.kittify/charter/`` that the v1.0.0
         # manifest does not declare (``references.yaml``, ``context-state.json``,
         # ``interview/answers.yaml``, ``library/*.md``). Operator visibility
         # only — the migration does NOT delete or modify these.
-        declared_rel: set[str] = {
-            str(p) for p in CANONICAL_MANIFEST.tracked_files
-        } | {
-            str(p) for p in CANONICAL_MANIFEST.derived_files
-        }
+        declared_rel: set[str] = {str(p) for p in CANONICAL_MANIFEST.tracked_files} | {str(p) for p in CANONICAL_MANIFEST.derived_files}
         unexpected: list[str] = []
         if charter_dir.exists():
             for entry in charter_dir.rglob("*"):

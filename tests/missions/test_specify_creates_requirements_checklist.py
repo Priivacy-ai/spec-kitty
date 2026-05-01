@@ -28,9 +28,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-SOFTWARE_DEV_DIR = (
-    REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev"
-)
+SOFTWARE_DEV_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev"
 SPECIFY_TEMPLATE = SOFTWARE_DEV_DIR / "command-templates" / "specify.md"
 MISSION_YAML = SOFTWARE_DEV_DIR / "mission.yaml"
 
@@ -65,9 +63,7 @@ def test_specify_template_blocks_artifacts_until_intent_confirmed() -> None:
     interview and calling `mission create` before confirming intent.
     """
     assert SPECIFY_TEMPLATE.exists(), (
-        f"Source template missing: {SPECIFY_TEMPLATE}.\n"
-        "The software-dev /spec-kitty.specify template is the canonical "
-        "owner of the discovery gate."
+        f"Source template missing: {SPECIFY_TEMPLATE}.\nThe software-dev /spec-kitty.specify template is the canonical owner of the discovery gate."
     )
     text = SPECIFY_TEMPLATE.read_text(encoding="utf-8")
     required_phrases = [

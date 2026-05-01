@@ -155,23 +155,14 @@ class TestExtractArtifactEdges:
     def test_directive_opposed_by_produces_replaces(self) -> None:
         """Directive opposed_by should produce 'replaces' edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        d024_replaces = [
-            e for e in edges
-            if e.source == "directive:DIRECTIVE_024"
-            and e.relation == Relation.REPLACES
-        ]
+        d024_replaces = [e for e in edges if e.source == "directive:DIRECTIVE_024" and e.relation == Relation.REPLACES]
         assert len(d024_replaces) == 1
         assert d024_replaces[0].target == "directive:DIRECTIVE_025"
 
     def test_paradigm_directive_refs_normalised(self) -> None:
         """Paradigm directive_refs (DIRECTIVE_NNN format) should be normalised."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        ddd_requires = [
-            e for e in edges
-            if e.source == "paradigm:domain-driven-design"
-            and e.relation == Relation.REQUIRES
-            and e.target.startswith("directive:")
-        ]
+        ddd_requires = [e for e in edges if e.source == "paradigm:domain-driven-design" and e.relation == Relation.REQUIRES and e.target.startswith("directive:")]
         targets = {e.target for e in ddd_requires}
         assert "directive:DIRECTIVE_001" in targets
         assert "directive:DIRECTIVE_031" in targets
@@ -180,11 +171,7 @@ class TestExtractArtifactEdges:
     def test_tactic_references_produce_suggests(self) -> None:
         """Tactic references should produce 'suggests' edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        pd_suggests = [
-            e for e in edges
-            if e.source == "tactic:problem-decomposition"
-            and e.relation == Relation.SUGGESTS
-        ]
+        pd_suggests = [e for e in edges if e.source == "tactic:problem-decomposition" and e.relation == Relation.SUGGESTS]
         # problem-decomposition has 4 top-level refs (skipping template)
         # -> eisenhower-prioritisation, stakeholder-alignment, review-intent-and-risk-first
         targets = {e.target for e in pd_suggests}
@@ -193,12 +180,7 @@ class TestExtractArtifactEdges:
     def test_procedure_template_references_produce_template_edges(self) -> None:
         """Procedure template references should be represented in the DRG."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        issue_triage_suggests = [
-            e
-            for e in edges
-            if e.source == "procedure:issue-triage-state-machine"
-            and e.relation == Relation.SUGGESTS
-        ]
+        issue_triage_suggests = [e for e in edges if e.source == "procedure:issue-triage-state-machine" and e.relation == Relation.SUGGESTS]
 
         targets = {e.target for e in issue_triage_suggests}
         assert "template:agent-brief-template" in targets
@@ -206,27 +188,15 @@ class TestExtractArtifactEdges:
 
     def test_walks_all_shipped_directives(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
-        directive_count = len(
-            list(
-                (DOCTRINE_ROOT / "directives" / "shipped").glob("*.directive.yaml")
-            )
-        )
-        graph_directive_nodes = [
-            n for n in nodes
-            if n.kind == NodeKind.DIRECTIVE and n.label is not None
-        ]
+        directive_count = len(list((DOCTRINE_ROOT / "directives" / "shipped").glob("*.directive.yaml")))
+        graph_directive_nodes = [n for n in nodes if n.kind == NodeKind.DIRECTIVE and n.label is not None]
         # Each shipped directive should appear as a labelled node
         assert len(graph_directive_nodes) >= directive_count
 
     def test_walks_all_shipped_paradigms(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
-        paradigm_files = list(
-            (DOCTRINE_ROOT / "paradigms" / "shipped").glob("*.paradigm.yaml")
-        )
-        graph_paradigm_nodes = [
-            n for n in nodes
-            if n.kind == NodeKind.PARADIGM and n.label is not None
-        ]
+        paradigm_files = list((DOCTRINE_ROOT / "paradigms" / "shipped").glob("*.paradigm.yaml"))
+        graph_paradigm_nodes = [n for n in nodes if n.kind == NodeKind.PARADIGM and n.label is not None]
         assert len(graph_paradigm_nodes) == len(paradigm_files)
 
 
@@ -257,11 +227,7 @@ class TestExtractActionEdges:
     def test_directive_slugs_normalised(self) -> None:
         """Directive slugs in action indices should be normalised to DIRECTIVE_NNN."""
         _, edges = extract_action_edges(DOCTRINE_ROOT)
-        implement_edges = [
-            e for e in edges
-            if e.source == "action:software-dev/implement"
-            and e.target.startswith("directive:")
-        ]
+        implement_edges = [e for e in edges if e.source == "action:software-dev/implement" and e.target.startswith("directive:")]
         for edge in implement_edges:
             assert edge.target.startswith("directive:DIRECTIVE_")
 
@@ -274,20 +240,14 @@ class TestExtractActionEdges:
     def test_empty_lists_produce_no_edges(self) -> None:
         """Empty styleguides/toolguides/procedures lists should produce no edges."""
         _, edges = extract_action_edges(DOCTRINE_ROOT)
-        specify_edges = [
-            e for e in edges
-            if e.source == "action:software-dev/specify"
-        ]
+        specify_edges = [e for e in edges if e.source == "action:software-dev/specify"]
         # specify has 2 directives + 1 tactic = 3 scope edges
         assert len(specify_edges) == 3
 
     def test_tasks_action_has_seven_refs(self) -> None:
         """The tasks action index should produce 7 scope edges."""
         _, edges = extract_action_edges(DOCTRINE_ROOT)
-        tasks_edges = [
-            e for e in edges
-            if e.source == "action:software-dev/tasks"
-        ]
+        tasks_edges = [e for e in edges if e.source == "action:software-dev/tasks"]
         assert len(tasks_edges) == 7
 
     def test_nonexistent_doctrine_root(self) -> None:
@@ -360,9 +320,7 @@ class TestGenerateGraph:
         assert specify < plan, f"|specify| ({specify}) should be < |plan| ({plan})"
         assert plan < implement, f"|plan| ({plan}) should be < |implement| ({implement})"
         assert tasks < implement, f"|tasks| ({tasks}) should be < |implement| ({implement})"
-        assert review >= 0.80 * implement, (
-            f"|review| ({review}) should be >= 80% of |implement| ({implement})"
-        )
+        assert review >= 0.80 * implement, f"|review| ({review}) should be >= 80% of |implement| ({implement})"
 
     def test_discovers_styleguide_nodes(self, tmp_path: Path) -> None:
         output = tmp_path / "graph.yaml"
@@ -399,10 +357,7 @@ class TestEdgeCountCompleteness:
         output = tmp_path / "graph.yaml"
         graph = generate_graph(DOCTRINE_ROOT, output)
         total_inline = _count_inline_refs(DOCTRINE_ROOT)
-        assert len(graph.edges) >= total_inline, (
-            f"Edge count ({len(graph.edges)}) < inline refs ({total_inline}). "
-            f"Some references were dropped."
-        )
+        assert len(graph.edges) >= total_inline, f"Edge count ({len(graph.edges)}) < inline refs ({total_inline}). Some references were dropped."
 
     def test_per_directive_edges_complete(self) -> None:
         """Each directive's inline refs should have corresponding edges."""
@@ -424,10 +379,7 @@ class TestEdgeCountCompleteness:
                 if opp.get("type", "") not in _SKIP_REF_TYPES:
                     expected_count += 1
 
-            assert len(src_edges) >= expected_count, (
-                f"{path.name}: expected >= {expected_count} edges from "
-                f"{src_urn}, found {len(src_edges)}"
-            )
+            assert len(src_edges) >= expected_count, f"{path.name}: expected >= {expected_count} edges from {src_urn}, found {len(src_edges)}"
 
     def test_per_paradigm_edges_complete(self) -> None:
         """Each paradigm's inline refs should have corresponding edges."""
@@ -441,18 +393,12 @@ class TestEdgeCountCompleteness:
             src_urn = f"paradigm:{src_id}"
             src_edges = [e for e in edges if e.source == src_urn]
 
-            expected_count = (
-                len(data.get("tactic_refs", []) or [])
-                + len(data.get("directive_refs", []) or [])
-            )
+            expected_count = len(data.get("tactic_refs", []) or []) + len(data.get("directive_refs", []) or [])
             for opp in data.get("opposed_by", []) or []:
                 if opp.get("type", "") not in _SKIP_REF_TYPES:
                     expected_count += 1
 
-            assert len(src_edges) >= expected_count, (
-                f"{path.name}: expected >= {expected_count} edges from "
-                f"{src_urn}, found {len(src_edges)}"
-            )
+            assert len(src_edges) >= expected_count, f"{path.name}: expected >= {expected_count} edges from {src_urn}, found {len(src_edges)}"
 
     def test_per_action_edges_complete(self) -> None:
         """Each action's scope refs should have corresponding edges."""
@@ -471,7 +417,4 @@ class TestEdgeCountCompleteness:
             for field in ("directives", "tactics", "styleguides", "toolguides", "procedures"):
                 expected_count += len(data.get(field, []) or [])
 
-            assert len(action_edges) == expected_count, (
-                f"{action_name}: expected {expected_count} edges, "
-                f"found {len(action_edges)}"
-            )
+            assert len(action_edges) == expected_count, f"{action_name}: expected {expected_count} edges, found {len(action_edges)}"

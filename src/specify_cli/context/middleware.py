@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import functools
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
+from collections.abc import Callable
 
 import typer
 
@@ -95,11 +96,7 @@ def get_context(ctx: typer.Context) -> MissionContext:
     mission_ctx = obj.get(_CONTEXT_OBJ_KEY)
 
     if not isinstance(mission_ctx, MissionContext):
-        msg = (
-            "No context token provided. "
-            "Run `spec-kitty agent context resolve --wp <WP> --mission <slug>` first, "
-            "then pass the token: --context <token>"
-        )
+        msg = "No context token provided. Run `spec-kitty agent context resolve --wp <WP> --mission <slug>` first, then pass the token: --context <token>"
         raise typer.BadParameter(msg)
 
     return mission_ctx

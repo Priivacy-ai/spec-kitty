@@ -8,6 +8,7 @@ environment. The notice points at the migration runbook.
 These tests verify the gating logic without exercising the live
 ``next_step`` command path.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -60,8 +61,7 @@ def test_notice_emitted_on_first_invocation(
     """First invocation with the package installed emits the notice."""
     monkeypatch.delenv("SPEC_KITTY_SUPPRESS_RUNTIME_NOTICE", raising=False)
     marker_path = tmp_path / "marker"
-    with patch.object(notice_mod, "_runtime_package_installed", return_value=True), \
-         patch.object(notice_mod, "_marker_path", return_value=marker_path):
+    with patch.object(notice_mod, "_runtime_package_installed", return_value=True), patch.object(notice_mod, "_marker_path", return_value=marker_path):
         emitted = notice_mod.maybe_emit_runtime_pkg_notice()
 
     assert emitted is True
@@ -83,8 +83,7 @@ def test_notice_silent_on_repeat_invocation(
     marker_path.parent.mkdir(parents=True, exist_ok=True)
     marker_path.touch()  # pre-existing marker == previous invocation already emitted
 
-    with patch.object(notice_mod, "_runtime_package_installed", return_value=True), \
-         patch.object(notice_mod, "_marker_path", return_value=marker_path):
+    with patch.object(notice_mod, "_runtime_package_installed", return_value=True), patch.object(notice_mod, "_marker_path", return_value=marker_path):
         emitted = notice_mod.maybe_emit_runtime_pkg_notice()
 
     assert emitted is False
@@ -105,10 +104,7 @@ def test_runtime_package_not_imported() -> None:
     leaked_before = [k for k in sys.modules if "spec_kitty_runtime" in k]
     notice_mod._runtime_package_installed()
     leaked_after = [k for k in sys.modules if "spec_kitty_runtime" in k]
-    assert leaked_after == leaked_before, (
-        f"spec_kitty_runtime was imported by the detection: "
-        f"new modules = {set(leaked_after) - set(leaked_before)}"
-    )
+    assert leaked_after == leaked_before, f"spec_kitty_runtime was imported by the detection: new modules = {set(leaked_after) - set(leaked_before)}"
 
 
 def test_marker_path_uses_xdg_state_home_when_set(

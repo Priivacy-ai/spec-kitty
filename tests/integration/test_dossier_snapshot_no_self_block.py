@@ -76,7 +76,7 @@ def test_is_dossier_snapshot_matches_documented_paths(candidate: str) -> None:
         "kitty-specs/foo/spec.md",
         ".kittify/config.yaml",
         ".kittify/dossiers/my-mission/manifest.json",  # different filename
-        "snapshot-latest.json",                          # bare filename
+        "snapshot-latest.json",  # bare filename
         "tests/integration/test_thing.py",
     ],
 )
@@ -197,9 +197,7 @@ def snapshot_repo(tmp_path: Path) -> tuple[Path, Path, str]:
     )
     (worktree_dir / "implementation.py").write_text("# Implementation\n")
     subprocess.run(["git", "add", "."], cwd=worktree_dir, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "feat(WP01): implement"], cwd=worktree_dir, check=True, capture_output=True
-    )
+    subprocess.run(["git", "commit", "-m", "feat(WP01): implement"], cwd=worktree_dir, check=True, capture_output=True)
 
     return repo, worktree_dir, mission_slug
 
@@ -315,11 +313,7 @@ def test_unrelated_dirty_state_still_blocks_and_names_offender(
     assert is_valid is False, "Unrelated dirty state must still block the transition"
 
     guidance_text = "\n".join(guidance)
-    assert offending_name in guidance_text, (
-        "Guidance must name the unrelated dirty file. "
-        f"Guidance was: {guidance_text!r}"
-    )
+    assert offending_name in guidance_text, f"Guidance must name the unrelated dirty file. Guidance was: {guidance_text!r}"
     assert "snapshot-latest.json" not in guidance_text, (
-        "Guidance must NOT name the dossier snapshot — the EXCLUDE policy is "
-        f"compromised. Guidance was: {guidance_text!r}"
+        f"Guidance must NOT name the dossier snapshot — the EXCLUDE policy is compromised. Guidance was: {guidance_text!r}"
     )

@@ -106,15 +106,11 @@ class TestReconnectionTriggersBatchSync:
         # Phase 2: Simulate reconnection - batch sync
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(50)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(50)]}
         mock_post.return_value = mock_response
 
         # This would be called by reconnection handler
-        result = batch_sync(
-            queue=temp_queue, auth_token="reconnect-token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=temp_queue, auth_token="reconnect-token", server_url="http://localhost:8000", show_progress=False)
 
         # Verify batch sync was triggered and succeeded
         assert result.total_events == 50
@@ -133,9 +129,7 @@ class TestReconnectionTriggersBatchSync:
 
             mock_resp = Mock()
             mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             return mock_resp
 
         mock_post.side_effect = mock_batch_response
@@ -183,9 +177,7 @@ class TestBatchSyncThroughput:
         # Mock successful response for all events
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(event_count)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(event_count)]}
         mock_post.return_value = mock_response
 
         # Measure sync time
@@ -228,9 +220,7 @@ class TestBatchSyncThroughput:
 
             mock_resp = Mock()
             mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             return mock_resp
 
         mock_post.side_effect = mock_batch_response
@@ -265,9 +255,7 @@ class TestIdempotency:
         # First sync - all success
         mock_response1 = Mock()
         mock_response1.status_code = 200
-        mock_response1.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(10)]
-        }
+        mock_response1.json.return_value = {"results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(10)]}
         mock_post.return_value = mock_response1
 
         result1 = batch_sync(temp_queue, "token", "http://localhost:8000", show_progress=False)
@@ -281,9 +269,7 @@ class TestIdempotency:
         # Second sync - all duplicates
         mock_response2 = Mock()
         mock_response2.status_code = 200
-        mock_response2.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "duplicate"} for i in range(10)]
-        }
+        mock_response2.json.return_value = {"results": [{"event_id": f"evt-{i:06d}", "status": "duplicate"} for i in range(10)]}
         mock_post.return_value = mock_response2
 
         result2 = batch_sync(temp_queue, "token", "http://localhost:8000", show_progress=False)
@@ -302,9 +288,7 @@ class TestIdempotency:
         # Mock: first 10 are duplicates, next 10 are new
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "duplicate" if i < 10 else "success"} for i in range(20)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:06d}", "status": "duplicate" if i < 10 else "success"} for i in range(20)]}
         mock_post.return_value = mock_response
 
         result = batch_sync(temp_queue, "token", "http://localhost:8000", show_progress=False)
@@ -387,9 +371,7 @@ class TestEventRecovery:
 
             mock_resp = Mock()
             mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             return mock_resp
 
         mock_post.side_effect = mock_batch_response
@@ -442,9 +424,7 @@ class TestEventRecovery:
         # Second attempt: remaining 20 succeed
         mock_response2 = Mock()
         mock_response2.status_code = 200
-        mock_response2.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(80, 100)]
-        }
+        mock_response2.json.return_value = {"results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(80, 100)]}
         mock_post.return_value = mock_response2
 
         result2 = batch_sync(temp_queue, "token", "http://localhost:8000", show_progress=False)
@@ -476,9 +456,7 @@ class TestEventRecovery:
 
             mock_resp = Mock()
             mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             return mock_resp
 
         mock_post.side_effect = mock_batch_response
@@ -519,16 +497,12 @@ class TestOfflineWorkflowEndToEnd:
 
             mock_resp = Mock()
             mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             return mock_resp
 
         mock_post.side_effect = mock_batch_response
 
-        result = batch_sync(
-            queue=temp_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=temp_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         # Phase 4: Verify all synced
         assert result.synced_count == 200
@@ -554,9 +528,7 @@ class TestOfflineWorkflowEndToEnd:
                 mock_resp.status_code = 503  # Service unavailable
             else:
                 mock_resp.status_code = 200
-                mock_resp.json.return_value = {
-                    "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-                }
+                mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
 
             return mock_resp
 

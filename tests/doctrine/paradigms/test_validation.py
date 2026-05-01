@@ -2,8 +2,8 @@
 
 from doctrine.paradigms.validation import validate_paradigm
 import pytest
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 class TestValidateParadigm:
@@ -24,4 +24,3 @@ class TestValidateParadigm:
         sample_paradigm_data["id"] = "Invalid_ID"
         errors = validate_paradigm(sample_paradigm_data)
         assert any("id" in e for e in errors)
-

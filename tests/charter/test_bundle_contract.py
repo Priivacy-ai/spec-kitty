@@ -93,37 +93,26 @@ def test_manifest_vs_on_disk_contract(tmp_path: Path) -> None:
 
     sync_result = ensure_charter_bundle_fresh(repo_root)
     assert sync_result is not None, "Chokepoint returned None despite charter.md present"
-    assert sync_result.canonical_root == repo_root, (
-        f"canonical_root mismatch: {sync_result.canonical_root} != {repo_root}"
-    )
+    assert sync_result.canonical_root == repo_root, f"canonical_root mismatch: {sync_result.canonical_root} != {repo_root}"
 
     # Tracked files exist and are git-tracked.
     tracked_in_git = _git_ls_files(repo_root)
     for rel in CANONICAL_MANIFEST.tracked_files:
         abs_path = repo_root / rel
         assert abs_path.exists(), f"tracked_file missing on disk: {rel}"
-        assert str(rel).replace("\\", "/") in tracked_in_git, (
-            f"tracked_file not in git: {rel}"
-        )
+        assert str(rel).replace("\\", "/") in tracked_in_git, f"tracked_file not in git: {rel}"
 
     # Derived files exist post-chokepoint.
     for rel in CANONICAL_MANIFEST.derived_files:
         abs_path = repo_root / rel
-        assert abs_path.exists(), (
-            f"derived_file missing after chokepoint: {rel} "
-            f"(files_written={sync_result.files_written}, error={sync_result.error})"
-        )
+        assert abs_path.exists(), f"derived_file missing after chokepoint: {rel} (files_written={sync_result.files_written}, error={sync_result.error})"
 
     # gitignore_required_entries present as own-line entries.
     gitignore_lines = {
-        line.strip()
-        for line in (repo_root / ".gitignore").read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith("#")
+        line.strip() for line in (repo_root / ".gitignore").read_text(encoding="utf-8").splitlines() if line.strip() and not line.strip().startswith("#")
     }
     for entry in CANONICAL_MANIFEST.gitignore_required_entries:
-        assert entry in gitignore_lines, (
-            f"gitignore entry missing: {entry} (gitignore has: {gitignore_lines})"
-        )
+        assert entry in gitignore_lines, f"gitignore entry missing: {entry} (gitignore has: {gitignore_lines})"
 
 
 def test_derived_files_are_not_git_tracked(tmp_path: Path) -> None:
@@ -142,9 +131,7 @@ def test_derived_files_are_not_git_tracked(tmp_path: Path) -> None:
     tracked_in_git = _git_ls_files(repo_root)
     for rel in CANONICAL_MANIFEST.derived_files:
         rel_str = str(rel).replace("\\", "/")
-        assert rel_str not in tracked_in_git, (
-            f"derived_file unexpectedly tracked in git: {rel_str}"
-        )
+        assert rel_str not in tracked_in_git, f"derived_file unexpectedly tracked in git: {rel_str}"
 
 
 def test_second_chokepoint_call_is_noop(tmp_path: Path) -> None:

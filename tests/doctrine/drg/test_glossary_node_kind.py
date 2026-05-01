@@ -62,6 +62,5 @@ def test_shipped_graph_still_loads_after_glossary_addition() -> None:
     # (the layer is built dynamically, not baked into the shipped graph)
     glossary_nodes = [n for n in merged.nodes if n.kind == NodeKind.GLOSSARY]
     assert glossary_nodes == [], (
-        "Shipped graph.yaml should not contain NodeKind.GLOSSARY nodes; "
-        "the glossary layer is built dynamically by build_glossary_drg_layer()"
+        "Shipped graph.yaml should not contain NodeKind.GLOSSARY nodes; the glossary layer is built dynamically by build_glossary_drg_layer()"
     )

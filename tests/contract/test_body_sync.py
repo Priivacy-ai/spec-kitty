@@ -8,7 +8,6 @@ Run: python -m pytest tests/contract/test_body_sync.py -v
 
 from __future__ import annotations
 
-import pytest
 
 from specify_cli.sync.body_queue import BodyUploadTask
 from specify_cli.sync.body_transport import _build_request_body
@@ -125,8 +124,4 @@ class TestBodySyncFieldNames:
             "content_body",
         }
         actual_fields = set(body.keys())
-        assert actual_fields == expected_fields, (
-            f"Field mismatch.\n"
-            f"  Missing: {expected_fields - actual_fields}\n"
-            f"  Extra: {actual_fields - expected_fields}"
-        )
+        assert actual_fields == expected_fields, f"Field mismatch.\n  Missing: {expected_fields - actual_fields}\n  Extra: {actual_fields - expected_fields}"

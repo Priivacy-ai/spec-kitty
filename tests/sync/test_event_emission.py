@@ -228,9 +228,7 @@ class TestOrchestrateEmitsWPAssigned:
 class TestEmissionFailureNonBlocking:
     """SC-008: CLI commands succeed even when emission fails."""
 
-    def test_clock_failure_returns_none(
-        self, temp_queue: OfflineQueue, mock_auth
-    ):
+    def test_clock_failure_returns_none(self, temp_queue: OfflineQueue, mock_auth):
         """Clock explosion returns None, never raises."""
         del mock_auth  # side-effect-only (installs fake TokenManager)
         clock = MagicMock()
@@ -248,9 +246,7 @@ class TestEmissionFailureNonBlocking:
         assert event is None
         assert temp_queue.size() == 0
 
-    def test_queue_failure_returns_event(
-        self, temp_queue: OfflineQueue, temp_clock, mock_config, mock_auth
-    ):
+    def test_queue_failure_returns_event(self, temp_queue: OfflineQueue, temp_clock, mock_config, mock_auth):
         """Queue write failure still returns the event (non-blocking)."""
         broken_queue = MagicMock(spec=OfflineQueue)
         broken_queue.queue_event.side_effect = Exception("Disk full")
@@ -454,9 +450,7 @@ class TestMissingIdentityQueuesOnly:
         # Event has None project_uuid
         assert event.get("project_uuid") is None
 
-    def test_missing_identity_warning_shown(
-        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue, capsys
-    ):
+    def test_missing_identity_warning_shown(self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue, capsys):
         """Warning is logged when identity is missing."""
         emitter_without_identity.emit_wp_status_changed(
             wp_id="WP01",
@@ -468,9 +462,7 @@ class TestMissingIdentityQueuesOnly:
         captured = capsys.readouterr()
         assert "missing project_uuid" in captured.err or "queued locally only" in captured.err
 
-    def test_multiple_events_without_identity_all_queued(
-        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_multiple_events_without_identity_all_queued(self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue):
         """Multiple events without identity are all queued."""
         for i in range(1, 4):
             emitter_without_identity.emit_wp_status_changed(

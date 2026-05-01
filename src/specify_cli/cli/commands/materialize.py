@@ -82,12 +82,7 @@ def materialize(
             console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)
     else:
-        if not specs_dir.exists():
-            feature_dirs = []
-        else:
-            feature_dirs = sorted(
-                p for p in specs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
-            )
+        feature_dirs = [] if not specs_dir.exists() else sorted(p for p in specs_dir.iterdir() if p.is_dir() and not p.name.startswith("."))
 
     processed: list[dict[str, Any]] = []
     errors: list[str] = []
@@ -102,11 +97,13 @@ def materialize(
             files_written.append("progress.json")
             generate_lifecycle_json(feature_dir, derived_dir)
             files_written.append("lifecycle.json")
-            processed.append({
-                "mission_slug": slug,
-                "files_written": files_written,
-                "timestamp": datetime.now(UTC).isoformat(),
-            })
+            processed.append(
+                {
+                    "mission_slug": slug,
+                    "files_written": files_written,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            )
         except Exception as exc:  # noqa: BLE001 — per-mission derived-view failure must not abort the full materialize pass
             errors.append(f"{slug}: {exc}")
 

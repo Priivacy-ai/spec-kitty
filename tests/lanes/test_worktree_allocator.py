@@ -23,17 +23,23 @@ def _make_git_repo(path):
     subprocess.run(["git", "init", str(path)], capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=str(path), capture_output=True, check=True,
+        cwd=str(path),
+        capture_output=True,
+        check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=str(path), capture_output=True, check=True,
+        cwd=str(path),
+        capture_output=True,
+        check=True,
     )
     (path / "README.md").write_text("init\n")
     subprocess.run(["git", "add", "."], cwd=str(path), capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
-        cwd=str(path), capture_output=True, check=True,
+        cwd=str(path),
+        capture_output=True,
+        check=True,
     )
 
 
@@ -75,7 +81,9 @@ class TestAllocateLaneWorktree:
         # Rename default branch to "main" for consistency
         subprocess.run(
             ["git", "branch", "-M", "main"],
-            cwd=str(repo), capture_output=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            check=True,
         )
 
         manifest = _make_manifest()
@@ -88,7 +96,9 @@ class TestAllocateLaneWorktree:
         # Mission branch should also exist
         result = subprocess.run(
             ["git", "rev-parse", "--verify", "refs/heads/kitty/mission-010-feat"],
-            cwd=str(repo), capture_output=True, text=True,
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
 
@@ -98,7 +108,9 @@ class TestAllocateLaneWorktree:
         _make_git_repo(repo)
         subprocess.run(
             ["git", "branch", "-M", "main"],
-            cwd=str(repo), capture_output=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            check=True,
         )
 
         manifest = _make_manifest()
@@ -118,7 +130,9 @@ class TestAllocateLaneWorktree:
         _make_git_repo(repo)
         subprocess.run(
             ["git", "branch", "-M", "main"],
-            cwd=str(repo), capture_output=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            check=True,
         )
 
         manifest = _make_manifest()
@@ -136,7 +150,9 @@ class TestAllocateLaneWorktree:
         _make_git_repo(repo)
         subprocess.run(
             ["git", "branch", "-M", "main"],
-            cwd=str(repo), capture_output=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            check=True,
         )
 
         manifest = _make_manifest()
@@ -166,7 +182,9 @@ class TestAllocateLaneWorktree:
         _make_git_repo(repo)
         subprocess.run(
             ["git", "branch", "-M", "main"],
-            cwd=str(repo), capture_output=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            check=True,
         )
 
         manifest = _make_manifest()
@@ -177,7 +195,10 @@ class TestAllocateLaneWorktree:
         # Get mission branch commit
         result1 = subprocess.run(
             ["git", "rev-parse", "kitty/mission-010-feat"],
-            cwd=str(repo), capture_output=True, text=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
         )
 
         # Second lane should NOT recreate it
@@ -185,7 +206,10 @@ class TestAllocateLaneWorktree:
 
         result2 = subprocess.run(
             ["git", "rev-parse", "kitty/mission-010-feat"],
-            cwd=str(repo), capture_output=True, text=True, check=True,
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
         )
 
         assert result1.stdout.strip() == result2.stdout.strip()

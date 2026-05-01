@@ -94,12 +94,8 @@ class AcceptanceMatrix:
         )
         return cls(
             mission_slug=identity["mission_slug"],
-            criteria=[
-                AcceptanceCriterion(**c) for c in data.get("criteria", [])
-            ],
-            negative_invariants=[
-                NegativeInvariant(**ni) for ni in data.get("negative_invariants", [])
-            ],
+            criteria=[AcceptanceCriterion(**c) for c in data.get("criteria", [])],
+            negative_invariants=[NegativeInvariant(**ni) for ni in data.get("negative_invariants", [])],
             mission_number=identity["mission_number"],
             mission_type=identity["mission_type"],
         )
@@ -150,17 +146,11 @@ def validate_manual_evidence(criterion: AcceptanceCriterion) -> list[str]:
     if criterion.proof_type != "manual_qa":
         return errors
     if not criterion.evidence:
-        errors.append(
-            f"{criterion.criterion_id}: manual QA requires evidence (URL/screenshot)"
-        )
+        errors.append(f"{criterion.criterion_id}: manual QA requires evidence (URL/screenshot)")
     if not criterion.verified_at:
-        errors.append(
-            f"{criterion.criterion_id}: manual QA requires verified_at timestamp"
-        )
+        errors.append(f"{criterion.criterion_id}: manual QA requires verified_at timestamp")
     if not criterion.verified_by:
-        errors.append(
-            f"{criterion.criterion_id}: manual QA requires verified_by identity"
-        )
+        errors.append(f"{criterion.criterion_id}: manual QA requires verified_by identity")
     return errors
 
 

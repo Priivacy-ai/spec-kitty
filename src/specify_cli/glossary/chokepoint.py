@@ -29,9 +29,7 @@ _logger = logging.getLogger(__name__)
 # Default applicable scopes (T009)
 # ---------------------------------------------------------------------------
 
-DEFAULT_APPLICABLE_SCOPES: frozenset[GlossaryScope] = frozenset(
-    {GlossaryScope.SPEC_KITTY_CORE, GlossaryScope.TEAM_DOMAIN}
-)
+DEFAULT_APPLICABLE_SCOPES: frozenset[GlossaryScope] = frozenset({GlossaryScope.SPEC_KITTY_CORE, GlossaryScope.TEAM_DOMAIN})
 
 # Tokeniser: split on whitespace and non-word characters
 _TOKEN_RE = re.compile(r"[\s\W]+")
@@ -121,9 +119,7 @@ class GlossaryChokepoint:
         applicable_scopes: frozenset[GlossaryScope] | None = None,
     ) -> None:
         self._repo_root = repo_root
-        self._applicable_scopes: frozenset[GlossaryScope] = (
-            applicable_scopes if applicable_scopes is not None else DEFAULT_APPLICABLE_SCOPES
-        )
+        self._applicable_scopes: frozenset[GlossaryScope] = applicable_scopes if applicable_scopes is not None else DEFAULT_APPLICABLE_SCOPES
         self._index: GlossaryTermIndex | None = None
 
     # ------------------------------------------------------------------
@@ -163,8 +159,7 @@ class GlossaryChokepoint:
             self._index = build_index(store, scope_values)
             if self._index.term_count == 0:
                 _logger.debug(
-                    "GlossaryChokepoint: term index is empty for scopes %s "
-                    "(no .kittify/glossaries/*.yaml seed files found?)",
+                    "GlossaryChokepoint: term index is empty for scopes %s (no .kittify/glossaries/*.yaml seed files found?)",
                     scope_values,
                 )
         return self._index

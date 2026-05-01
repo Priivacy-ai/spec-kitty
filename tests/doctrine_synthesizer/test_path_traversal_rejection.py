@@ -162,9 +162,7 @@ def test_synthesize_directive_accepts_documented_artifact_ids(good_id: str) -> N
         "",
     ],
 )
-def test_synthesize_payloads_reject_unsafe_artifact_id(
-    model_cls: type, kind_literal: str, bad_id: str
-) -> None:
+def test_synthesize_payloads_reject_unsafe_artifact_id(model_cls: type, kind_literal: str, bad_id: str) -> None:
     with pytest.raises(ValidationError):
         model_cls(
             kind=kind_literal,

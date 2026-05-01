@@ -38,9 +38,7 @@ class StateManager:
         """
         if state.is_expired():
             raise StateExpiredError(
-                f"PKCEState expired (created {state.created_at.isoformat()}, "
-                f"expires {state.expires_at.isoformat()}). "
-                "Run `spec-kitty auth login` again."
+                f"PKCEState expired (created {state.created_at.isoformat()}, expires {state.expires_at.isoformat()}). Run `spec-kitty auth login` again."
             )
 
     def cleanup(self, state: PKCEState) -> None:

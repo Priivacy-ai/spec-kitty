@@ -48,23 +48,11 @@ class LintTileHandler(DashboardHandler):
                 response = {
                     "has_data": True,
                     "scanned_at": data.get("scanned_at"),
-                    "orphan_count": sum(
-                        1 for f in findings if f.get("category") == "orphan"
-                    ),
-                    "contradiction_count": sum(
-                        1 for f in findings if f.get("category") == "contradiction"
-                    ),
-                    "staleness_count": sum(
-                        1 for f in findings if f.get("category") == "staleness"
-                    ),
-                    "reference_integrity_count": sum(
-                        1 for f in findings if f.get("category") == "reference_integrity"
-                    ),
-                    "high_severity_count": sum(
-                        1
-                        for f in findings
-                        if f.get("severity") in {"high", "critical"}
-                    ),
+                    "orphan_count": sum(1 for f in findings if f.get("category") == "orphan"),
+                    "contradiction_count": sum(1 for f in findings if f.get("category") == "contradiction"),
+                    "staleness_count": sum(1 for f in findings if f.get("category") == "staleness"),
+                    "reference_integrity_count": sum(1 for f in findings if f.get("category") == "reference_integrity"),
+                    "high_severity_count": sum(1 for f in findings if f.get("severity") in {"high", "critical"}),
                     "total_count": len(findings),
                     "feature_scope": data.get("feature_scope"),
                     "duration_seconds": data.get("duration_seconds"),

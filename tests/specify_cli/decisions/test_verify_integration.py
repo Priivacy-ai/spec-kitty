@@ -108,7 +108,7 @@ def test_mixed_state_drift(tmp_path: Path) -> None:
 
     # Counts
     assert result.deferred_count == 2  # A and B are deferred
-    assert result.marker_count == 2    # one in spec.md, one in plan.md
+    assert result.marker_count == 2  # one in spec.md, one in plan.md
 
     # Exactly 2 findings: DEFERRED_WITHOUT_MARKER (B) + STALE_MARKER (C)
     assert len(result.findings) == 2

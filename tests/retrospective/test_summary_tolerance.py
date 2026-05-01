@@ -23,7 +23,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.retrospective.summary import (
-    MalformedSummaryEntry,
     SummarySnapshot,
     build_summary,
 )
@@ -245,33 +244,29 @@ def _build_corpus(tmp_path: Path) -> Path:
     # Rich record
     rich_dir = missions_root / MISSION_ID_1
     rich_dir.mkdir()
-    (rich_dir / "retrospective.yaml").write_text(
-        _make_completed_yaml(), encoding="utf-8"
-    )
+    (rich_dir / "retrospective.yaml").write_text(_make_completed_yaml(), encoding="utf-8")
 
     # Brief record
     brief_dir = missions_root / MISSION_ID_2
     brief_dir.mkdir()
-    (brief_dir / "retrospective.yaml").write_text(
-        _make_brief_yaml(), encoding="utf-8"
-    )
+    (brief_dir / "retrospective.yaml").write_text(_make_brief_yaml(), encoding="utf-8")
 
     # Skipped record
     skipped_dir = missions_root / MISSION_ID_3
     skipped_dir.mkdir()
-    (skipped_dir / "retrospective.yaml").write_text(
-        _make_skipped_yaml(), encoding="utf-8"
-    )
+    (skipped_dir / "retrospective.yaml").write_text(_make_skipped_yaml(), encoding="utf-8")
 
     # Missing / legacy: mission started before tranche cutoff (2026-04-27)
     legacy_dir = missions_root / "legacy-mission-01KQ0000"
     legacy_dir.mkdir()
     (legacy_dir / "meta.json").write_text(
-        json.dumps({
-            "mission_slug": "legacy-mission",
-            "mission_started_at": "2026-01-01T00:00:00+00:00",
-            "status": "done",
-        }),
+        json.dumps(
+            {
+                "mission_slug": "legacy-mission",
+                "mission_started_at": "2026-01-01T00:00:00+00:00",
+                "status": "done",
+            }
+        ),
         encoding="utf-8",
     )
     # No retrospective.yaml
@@ -280,11 +275,13 @@ def _build_corpus(tmp_path: Path) -> Path:
     inflight_dir = missions_root / "inflight-01KQ0001"
     inflight_dir.mkdir()
     (inflight_dir / "meta.json").write_text(
-        json.dumps({
-            "mission_slug": "inflight-mission",
-            "mission_started_at": "2026-04-27T08:00:00+00:00",
-            "status": "in_progress",
-        }),
+        json.dumps(
+            {
+                "mission_slug": "inflight-mission",
+                "mission_started_at": "2026-04-27T08:00:00+00:00",
+                "status": "in_progress",
+            }
+        ),
         encoding="utf-8",
     )
     # No retrospective.yaml
@@ -293,11 +290,13 @@ def _build_corpus(tmp_path: Path) -> Path:
     terminus_dir = missions_root / "terminus-01KQ0002"
     terminus_dir.mkdir()
     (terminus_dir / "meta.json").write_text(
-        json.dumps({
-            "mission_slug": "terminus-mission",
-            "mission_started_at": "2026-04-27T08:00:00+00:00",
-            "status": "done",
-        }),
+        json.dumps(
+            {
+                "mission_slug": "terminus-mission",
+                "mission_started_at": "2026-04-27T08:00:00+00:00",
+                "status": "done",
+            }
+        ),
         encoding="utf-8",
     )
     # No retrospective.yaml
@@ -305,16 +304,12 @@ def _build_corpus(tmp_path: Path) -> Path:
     # Malformed: corrupt YAML
     mf1_dir = missions_root / "malformed-01KQ0003"
     mf1_dir.mkdir()
-    (mf1_dir / "retrospective.yaml").write_text(
-        "{ not valid yaml: [unclosed\n", encoding="utf-8"
-    )
+    (mf1_dir / "retrospective.yaml").write_text("{ not valid yaml: [unclosed\n", encoding="utf-8")
 
     # Malformed: schema failure (missing required field)
     mf2_dir = missions_root / "malformed-01KQ0004"
     mf2_dir.mkdir()
-    (mf2_dir / "retrospective.yaml").write_text(
-        "schema_version: '1'\nmission_id: INVALID\n", encoding="utf-8"
-    )
+    (mf2_dir / "retrospective.yaml").write_text("schema_version: '1'\nmission_id: INVALID\n", encoding="utf-8")
 
     return tmp_path
 
@@ -588,20 +583,14 @@ def large_corpus(tmp_path_factory: pytest.TempPathFactory) -> Path:
     # Real ULIDs are 26 chars; we craft deterministic ones by encoding index.
     for i in range(200):
         # Simple valid ULID-like: pad index into Crockford base32 chars
-        suffix = f"{i:026d}".replace("0", "A").replace(
-            "1", "B"
-        ).replace("2", "C").replace("3", "D").replace("4", "E").replace(
-            "5", "F"
-        ).replace("6", "G").replace("7", "H").replace("8", "J").replace(
-            "9", "K"
-        )
+        f"{i:026d}".replace("0", "A").replace("1", "B").replace("2", "C").replace("3", "D").replace("4", "E").replace("5", "F").replace("6", "G").replace(
+            "7", "H"
+        ).replace("8", "J").replace("9", "K")
         # Use a fixed valid prefix + sequential suffix
         mid = f"01KQ6YEGT4YBZ3GZF7X{i:07d}"[:26]
         # Ensure no invalid ULID chars by using safe chars
         safe_chars = "ABCDEFGHJKMNPQRSTVWXYZ0123456789"
-        mid_safe = "".join(
-            c if c in safe_chars else "A" for c in mid.upper()
-        )
+        mid_safe = "".join(c if c in safe_chars else "A" for c in mid.upper())
         mid_safe = mid_safe[:26]
         if len(mid_safe) < 26:
             mid_safe = mid_safe + "A" * (26 - len(mid_safe))

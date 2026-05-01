@@ -16,7 +16,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 
 from specify_cli.missions._legacy_aliases import (
     LEGACY_FEATURE_HELP,
@@ -69,10 +68,7 @@ def test_no_unhidden_feature_typer_options_in_commands_tree() -> None:
                 continue
             offenders.append(f"{path.relative_to(REPO_ROOT)}: {block[:120]}")
 
-    assert offenders == [], (
-        "These typer.Option blocks declare --feature without hidden=True:\n"
-        + "\n".join(offenders)
-    )
+    assert offenders == [], "These typer.Option blocks declare --feature without hidden=True:\n" + "\n".join(offenders)
 
 
 def test_charter_lint_help_does_not_mention_feature_flag() -> None:
@@ -85,15 +81,10 @@ def test_charter_lint_help_does_not_mention_feature_flag() -> None:
     """
     charter_py = COMMANDS_DIR / "charter.py"
     text = charter_py.read_text(encoding="utf-8")
-    feature_blocks = [
-        block for block in _scan_typer_option_blocks(text) if '"--feature"' in block
-    ]
+    feature_blocks = [block for block in _scan_typer_option_blocks(text) if '"--feature"' in block]
     assert feature_blocks, "Expected at least one --feature option block in charter.py"
     for block in feature_blocks:
-        assert "hidden=True" in block, (
-            "charter.py declares a --feature typer.Option without "
-            f"hidden=True:\n{block}"
-        )
+        assert "hidden=True" in block, f"charter.py declares a --feature typer.Option without hidden=True:\n{block}"
 
 
 def test_charter_lint_offers_canonical_mission_option() -> None:
@@ -102,7 +93,4 @@ def test_charter_lint_offers_canonical_mission_option() -> None:
     text = charter_py.read_text(encoding="utf-8")
     # We do not require a specific format, only that `--mission` is
     # declared somewhere within charter_lint's option declarations.
-    assert '"--mission"' in text, (
-        "charter.py is expected to expose --mission as the canonical "
-        "alternative to the hidden --feature alias."
-    )
+    assert '"--mission"' in text, "charter.py is expected to expose --mission as the canonical alternative to the hidden --feature alias."

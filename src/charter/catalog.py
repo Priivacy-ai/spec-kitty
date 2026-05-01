@@ -41,6 +41,7 @@ class DoctrineCatalog:
     agent_profiles: frozenset[str]
     domains_present: frozenset[str] = frozenset()
 
+
 def load_doctrine_catalog(
     *,
     include_proposed: bool = False,
@@ -216,9 +217,7 @@ def _extract_artifact_id(
         data = yaml.load(path.read_text(encoding="utf-8")) or {}  # type: ignore[attr-defined]
     except (OSError, YAMLError, TypeError):
         return None
-    if isinstance(data, dict) and not applies_to_languages_match(
-        data.get("applies_to_languages"), active_languages
-    ):
+    if isinstance(data, dict) and not applies_to_languages_match(data.get("applies_to_languages"), active_languages):
         return None
     if isinstance(data, dict):
         raw_id = str(data.get(id_field, "")).strip()

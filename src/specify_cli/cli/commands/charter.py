@@ -60,9 +60,7 @@ def _resolve_charter_path(repo_root: Path) -> Path:
         return charter_path
 
     raise TaskCliError(
-        f"Charter not found at {charter_path}\n"
-        "  Run 'spec-kitty charter interview' to create one,\n"
-        "  or 'spec-kitty upgrade' if migrating from an older version."
+        f"Charter not found at {charter_path}\n  Run 'spec-kitty charter interview' to create one,\n  or 'spec-kitty upgrade' if migrating from an older version."
     )
 
 
@@ -123,14 +121,11 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         # Generate glossary entity pages (non-blocking; silent on failure)
         try:
             from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer
+
             GlossaryEntityPageRenderer(repo_root).generate_all()
         except Exception as _ep_exc:  # noqa: BLE001 — entity-page generation is optional; failure is logged and ignored
             logger.debug("entity page generation failed (non-fatal): %s", _ep_exc)
-        canonical_root = (
-            sync_result.canonical_root
-            if sync_result and sync_result.canonical_root
-            else repo_root
-        )
+        canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
         charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
         metadata_path = output_dir / "metadata.yaml"
@@ -148,19 +143,11 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
             if file_path.exists():
                 size = file_path.stat().st_size
                 size_kb = size / 1024
-                files_info.append(
-                    {"name": filename, "exists": True, "size_kb": size_kb}
-                )
+                files_info.append({"name": filename, "exists": True, "size_kb": size_kb})
             else:
-                files_info.append(
-                    {"name": filename, "exists": False, "size_kb": 0.0}
-                )
+                files_info.append({"name": filename, "exists": False, "size_kb": 0.0})
 
-        library_count = (
-            len(list((output_dir / "library").glob("*.md")))
-            if (output_dir / "library").exists()
-            else 0
-        )
+        library_count = len(list((output_dir / "library").glob("*.md"))) if (output_dir / "library").exists() else 0
 
         last_sync = None
         if metadata_path.exists():
@@ -169,9 +156,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
             yaml = YAML(typ="safe")
             metadata = yaml.load(metadata_path.read_text(encoding="utf-8")) or {}
             if isinstance(metadata, dict):
-                last_sync = metadata.get("timestamp_utc") or metadata.get(
-                    "extracted_at"
-                )
+                last_sync = metadata.get("timestamp_utc") or metadata.get("extracted_at")
 
         return {
             "available": True,
@@ -211,10 +196,7 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     manifest_path = repo_root / MANIFEST_PATH
     doctrine_root = repo_root / ".kittify" / "doctrine"
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
-    live_artifact_count = sum(
-        len(list((doctrine_root / subdir).glob("*.yaml")))
-        for subdir in ("directives", "tactics", "styleguides")
-    )
+    live_artifact_count = sum(len(list((doctrine_root / subdir).glob("*.yaml"))) for subdir in ("directives", "tactics", "styleguides"))
     live_provenance_count = len(list(provenance_root.glob("*.yaml")))
 
     if not manifest_path.exists():
@@ -265,11 +247,7 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
             None,
         )
 
-    missing_provenance_paths = [
-        entry.provenance_path
-        for entry in manifest.artifacts
-        if not (repo_root / entry.provenance_path).exists()
-    ]
+    missing_provenance_paths = [entry.provenance_path for entry in manifest.artifacts if not (repo_root / entry.provenance_path).exists()]
 
     return (
         {
@@ -303,11 +281,7 @@ def _collect_provenance_status(
     warnings: list[str] = []
     entries: list[dict[str, Any]] = []
     visible_paths = {_display_path(path, repo_root) for path in paths}
-    manifest_paths = (
-        {entry.provenance_path for entry in manifest.artifacts}
-        if manifest is not None
-        else set()
-    )
+    manifest_paths = {entry.provenance_path for entry in manifest.artifacts} if manifest is not None else set()
     corpus_snapshot_ids: set[str] = set()
     adapters: set[str] = set()
 
@@ -369,12 +343,8 @@ def _summarize_evidence(repo_root: Path) -> dict[str, Any]:
             "primary_language": bundle.code_signals.primary_language,
             "frameworks": list(bundle.code_signals.frameworks),
             "test_frameworks": list(bundle.code_signals.test_frameworks),
-            "representative_files_count": len(
-                bundle.code_signals.representative_files
-            ),
-            "representative_files_preview": list(
-                bundle.code_signals.representative_files[:5]
-            ),
+            "representative_files_count": len(bundle.code_signals.representative_files),
+            "representative_files_preview": list(bundle.code_signals.representative_files[:5]),
         }
 
     return {
@@ -382,16 +352,8 @@ def _summarize_evidence(repo_root: Path) -> dict[str, Any]:
         "code": code_summary,
         "configured_urls": list(bundle.url_list),
         "configured_url_count": len(bundle.url_list),
-        "corpus_snapshot_id": (
-            bundle.corpus_snapshot.snapshot_id
-            if bundle.corpus_snapshot is not None
-            else None
-        ),
-        "corpus_entry_count": (
-            len(bundle.corpus_snapshot.entries)
-            if bundle.corpus_snapshot is not None
-            else 0
-        ),
+        "corpus_snapshot_id": (bundle.corpus_snapshot.snapshot_id if bundle.corpus_snapshot is not None else None),
+        "corpus_entry_count": (len(bundle.corpus_snapshot.entries) if bundle.corpus_snapshot is not None else 0),
     }
 
 
@@ -409,17 +371,9 @@ def _collect_synthesis_status(
     )
     evidence_summary = _summarize_evidence(repo_root)
 
-    if (
-        manifest_status["state"] == "valid"
-        and provenance_status["missing_for_manifest_count"] == 0
-        and not provenance_status["warnings"]
-    ):
+    if manifest_status["state"] == "valid" and provenance_status["missing_for_manifest_count"] == 0 and not provenance_status["warnings"]:
         generation_state = "promoted"
-    elif (
-        manifest_status["state"] in {"invalid", "partial"}
-        or provenance_status["missing_for_manifest_count"] > 0
-        or provenance_status["warnings"]
-    ):
+    elif manifest_status["state"] in {"invalid", "partial"} or provenance_status["missing_for_manifest_count"] > 0 or provenance_status["warnings"]:
         generation_state = "needs_attention"
     elif generated_inputs["total"] > 0:
         generation_state = "ready_for_validation"
@@ -492,9 +446,7 @@ def _schedule_inactivity_reminder(
 
     def _remind() -> None:
         console.print(
-            "\n[yellow]Still waiting on widened discussion.[/yellow] "
-            "Check Slack, type a local answer, or press d to defer.\n"
-            "Waiting > ",
+            "\n[yellow]Still waiting on widened discussion.[/yellow] Check Slack, type a local answer, or press d to defer.\nWaiting > ",
             end="",
         )
 
@@ -515,9 +467,7 @@ def _render_waiting_panel(
     thread_line = f"Slack thread: {slack_thread_url}" if slack_thread_url else "Slack thread: (pending)"
     console.print(
         Panel(
-            f"Question: {question_text}\n"
-            f"Participants: {participants_line}\n"
-            f"{thread_line}",
+            f"Question: {question_text}\nParticipants: {participants_line}\n{thread_line}",
             title="Waiting for widened discussion",
         )
     )
@@ -791,14 +741,16 @@ def _dispatch_widen_input(  # noqa: C901
         # Write WidenPendingEntry (T024 pattern — caller does persistence)
         if widen_store is not None:
             with contextlib.suppress(Exception):
-                widen_store.add_pending(WidenPendingEntry(
-                    decision_id=result.decision_id or current_decision_id,
-                    mission_slug=mission_slug,
-                    question_id=f"charter.{question_id}",
-                    question_text=prompt_text,
-                    entered_pending_at=datetime.now(tz=UTC),
-                    widen_endpoint_response={},
-                ))
+                widen_store.add_pending(
+                    WidenPendingEntry(
+                        decision_id=result.decision_id or current_decision_id,
+                        mission_slug=mission_slug,
+                        question_id=f"charter.{question_id}",
+                        question_text=prompt_text,
+                        entered_pending_at=datetime.now(tz=UTC),
+                        widen_endpoint_response={},
+                    )
+                )
         answers_override[question_id] = ""
         return "", True  # advance to next question
 
@@ -841,9 +793,7 @@ def _run_blocked_prompt_loop(
 
         if not cmd:
             # Blank line — re-show options summary
-            console.print(
-                "[dim][f]etch & review | <local answer> | [d]efer | [!cancel][/dim]"
-            )
+            console.print("[dim][f]etch & review | <local answer> | [d]efer | [!cancel][/dim]")
             continue
         elif cmd.lower() == "f":
             _inactivity_timer.cancel()
@@ -972,6 +922,7 @@ def interview(  # noqa: C901
                 _team_slug: str = ""
                 with contextlib.suppress(Exception):
                     from specify_cli.saas_client.auth import load_auth_context
+
                     _auth_ctx = load_auth_context(repo_root)
                     _team_slug = _auth_ctx.team_slug or ""
 
@@ -1011,17 +962,8 @@ def interview(  # noqa: C901
                         current_decision_id = dm_response.decision_id
 
                 # T045 — Already-widened question prompt (§1.3 contract)
-                _already_widened = (
-                    widen_store is not None
-                    and current_decision_id is not None
-                    and _is_already_widened(widen_store, current_decision_id)
-                )
-                if (
-                    _already_widened
-                    and _saas_client is not None
-                    and mission_slug is not None
-                    and current_decision_id is not None
-                ):
+                _already_widened = widen_store is not None and current_decision_id is not None and _is_already_widened(widen_store, current_decision_id)
+                if _already_widened and _saas_client is not None and mission_slug is not None and current_decision_id is not None:
                     from specify_cli.widen.interview_helpers import render_already_widened_prompt
 
                     render_already_widened_prompt(
@@ -1040,18 +982,9 @@ def interview(  # noqa: C901
 
                 # T027 — Build hint line; append [w]iden when prereqs met
                 widen_suffix = ""
-                if (
-                    prereq_state is not None
-                    and prereq_state.all_satisfied
-                    and widen_store is not None
-                    and current_decision_id is not None
-                    and not _already_widened
-                ):
+                if prereq_state is not None and prereq_state.all_satisfied and widen_store is not None and current_decision_id is not None and not _already_widened:
                     widen_suffix = " | [w]iden"
-                hint_line = (
-                    f"[enter]=accept default | [text]=type answer{widen_suffix}"
-                    " | [d]efer | [!cancel]"
-                )
+                hint_line = f"[enter]=accept default | [text]=type answer{widen_suffix} | [d]efer | [!cancel]"
 
                 # Prompt the question (handles widen dispatch internally)
                 actual_answer = _prompt_one_question(
@@ -1282,9 +1215,7 @@ def generate(
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(
-        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
-    ),
+    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
@@ -1378,17 +1309,11 @@ def generate(
         # auto-track contract never drifts from what bundle validate checks.
         from charter.bundle import CANONICAL_MANIFEST
 
-        _ensure_gitignore_entries(
-            repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries)
-        )
+        _ensure_gitignore_entries(repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries))
         _stage_charter_files(repo_root, list(CANONICAL_MANIFEST.tracked_files))
 
         if json_output:
-            local_support_files = [
-                reference.source_path
-                for reference in compiled.references
-                if reference.kind == "local_support"
-            ]
+            local_support_files = [reference.source_path for reference in compiled.references if reference.kind == "local_support"]
             print(
                 json.dumps(
                     {
@@ -1559,9 +1484,7 @@ def status(  # noqa: C901
         if sync_status["available"]:
             console.print(f"Charter: {sync_status['charter_path']}")
             if sync_status["status"] == "stale":
-                console.print(
-                    "Status: [yellow]STALE[/yellow] (modified since last sync)"
-                )
+                console.print("Status: [yellow]STALE[/yellow] (modified since last sync)")
                 if sync_status["stored_hash"]:
                     console.print(f"Expected hash: {sync_status['stored_hash']}")
                 console.print(f"Current hash:  {sync_status['current_hash']}")
@@ -1595,9 +1518,7 @@ def status(  # noqa: C901
 
             console.print(table)
         else:
-            console.print(
-                f"[yellow]Unavailable[/yellow]: {sync_status['error']}"
-            )
+            console.print(f"[yellow]Unavailable[/yellow]: {sync_status['error']}")
 
         synthesis = payload["synthesis"]
         manifest = synthesis["manifest"]
@@ -1615,9 +1536,7 @@ def status(  # noqa: C901
         state_style = state_styles.get(state, "white")
 
         console.print("\n[bold]Synthesis[/bold]")
-        console.print(
-            f"Generation state: [{state_style}]{state.upper()}[/{state_style}]"
-        )
+        console.print(f"Generation state: [{state_style}]{state.upper()}[/{state_style}]")
         console.print(
             "Generated inputs: "
             f"{generated_inputs['counts']['directive']} directive, "
@@ -1632,19 +1551,11 @@ def status(  # noqa: C901
             "partial": "yellow",
             "invalid": "red",
         }.get(manifest["state"], "white")
-        console.print(
-            f"Manifest: [{manifest_state_style}]{manifest['state'].upper()}[/{manifest_state_style}] "
-            f"({manifest['path']})"
-        )
+        console.print(f"Manifest: [{manifest_state_style}]{manifest['state'].upper()}[/{manifest_state_style}] ({manifest['path']})")
         if manifest["exists"]:
             if manifest["run_id"] and manifest["adapter_id"] and manifest["adapter_version"]:
-                console.print(
-                    f"  Run: {manifest['run_id']}  Adapter: {manifest['adapter_id']} v{manifest['adapter_version']}"
-                )
-            console.print(
-                f"  Artifacts: {manifest['artifact_count']} "
-                f"(live doctrine files: {manifest['live_artifact_count']})"
-            )
+                console.print(f"  Run: {manifest['run_id']}  Adapter: {manifest['adapter_id']} v{manifest['adapter_version']}")
+            console.print(f"  Artifacts: {manifest['artifact_count']} (live doctrine files: {manifest['live_artifact_count']})")
         if manifest["error"]:
             console.print(f"  [red]Error:[/red] {manifest['error']}")
         if manifest["missing_provenance_paths"]:
@@ -1663,18 +1574,12 @@ def status(  # noqa: C901
             )
         else:
             console.print("Evidence: code signals unavailable")
-        console.print(
-            f"  Configured URLs: {evidence['configured_url_count']}  "
-            f"Corpus snapshot: {evidence['corpus_snapshot_id'] or '(none)'}"
-        )
+        console.print(f"  Configured URLs: {evidence['configured_url_count']}  Corpus snapshot: {evidence['corpus_snapshot_id'] or '(none)'}")
         if evidence["warnings"]:
             for warning in evidence["warnings"]:
                 console.print(f"  [yellow]Warning:[/yellow] {warning}")
 
-        console.print(
-            "Provenance: "
-            f"{provenance_status['parsed_count']} visible sidecar(s)"
-        )
+        console.print(f"Provenance: {provenance_status['parsed_count']} visible sidecar(s)")
         if provenance_status["manifest_artifact_count"]:
             console.print(
                 "  Manifest coverage: "
@@ -1682,10 +1587,7 @@ def status(  # noqa: C901
                 f"{provenance_status['manifest_artifact_count']}"
             )
         if provenance_status["corpus_snapshot_ids"]:
-            console.print(
-                "  Corpus snapshots: "
-                + ", ".join(provenance_status["corpus_snapshot_ids"])
-            )
+            console.print("  Corpus snapshots: " + ", ".join(provenance_status["corpus_snapshot_ids"]))
         if provenance_status["warnings"]:
             for warning in provenance_status["warnings"]:
                 console.print(f"  [yellow]Warning:[/yellow] {warning}")
@@ -1746,10 +1648,7 @@ def _build_synthesis_request(
     answers_path = _interview_path(repo_root)
     interview_data = read_interview_answers(answers_path)
     if interview_data is None:
-        raise TaskCliError(
-            "No interview answers found. "
-            "Run 'spec-kitty charter interview' first."
-        )
+        raise TaskCliError("No interview answers found. Run 'spec-kitty charter interview' first.")
 
     # Build a minimal interview snapshot from the interview data
     interview_snapshot: dict[str, Any] = {
@@ -1769,11 +1668,13 @@ def _build_synthesis_request(
     # Build a minimal DRG snapshot with shipped directives as nodes
     drg_nodes = []
     for directive_id in interview_data.selected_directives:
-        drg_nodes.append({
-            "urn": f"directive:{directive_id}",
-            "kind": "directive",
-            "id": directive_id,
-        })
+        drg_nodes.append(
+            {
+                "urn": f"directive:{directive_id}",
+                "kind": "directive",
+                "id": directive_id,
+            }
+        )
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
@@ -2263,10 +2164,7 @@ def charter_synthesize(  # noqa: C901
     adapter: str = typer.Option(
         "generated",
         "--adapter",
-        help=(
-            "Adapter to use. 'generated' (default) validates agent-authored YAML under "
-            ".kittify/charter/generated/. 'fixture' is offline/testing only."
-        ),
+        help=("Adapter to use. 'generated' (default) validates agent-authored YAML under .kittify/charter/generated/. 'fixture' is offline/testing only."),
     ),
     dry_run: bool = typer.Option(
         False,
@@ -2364,12 +2262,7 @@ def charter_synthesize(  # noqa: C901
         # path AFTER `charter generate`, so charter.md is reliably present in
         # the realistic fresh-project flow.
         charter_md = repo_root / ".kittify" / "charter" / "charter.md"
-        is_fresh_project_synthesize = (
-            adapter == "generated"
-            and not _has_generated_artifacts(repo_root)
-            and not dry_run_evidence
-            and charter_md.is_file()
-        )
+        is_fresh_project_synthesize = adapter == "generated" and not _has_generated_artifacts(repo_root) and not dry_run_evidence and charter_md.is_file()
 
         if is_fresh_project_synthesize:
             # FR-002 / FR-003 / FR-005: fresh-project seed mode emits the
@@ -2381,6 +2274,7 @@ def charter_synthesize(  # noqa: C901
             # ``warnings`` is intentionally empty: evidence collection has
             # not been triggered on this branch.
             from importlib.metadata import version as _pkg_version
+
             try:
                 _seed_version = _pkg_version("spec-kitty-cli")
             except Exception:
@@ -2398,28 +2292,27 @@ def charter_synthesize(  # noqa: C901
                     for p in planned
                 ]
                 if json_output:
-                    print(json.dumps({
-                        # FR-002 contracted fields:
-                        "result": "dry_run",
-                        "adapter": {"id": "fresh-seed", "version": _seed_version},
-                        "written_artifacts": fresh_written_artifacts,
-                        "warnings": [],
-                        # Compatibility / fresh-seed identification fields:
-                        "success": True,
-                        "mode": "fresh_project_seed_dry_run",
-                        "files_planned": planned,
-                        "note": (
-                            "Fresh project + --dry-run: would materialize "
-                            "minimal .kittify/doctrine/ (no files written). "
-                            "See issue #839."
-                        ),
-                    }, indent=2, sort_keys=True))
+                    print(
+                        json.dumps(
+                            {
+                                # FR-002 contracted fields:
+                                "result": "dry_run",
+                                "adapter": {"id": "fresh-seed", "version": _seed_version},
+                                "written_artifacts": fresh_written_artifacts,
+                                "warnings": [],
+                                # Compatibility / fresh-seed identification fields:
+                                "success": True,
+                                "mode": "fresh_project_seed_dry_run",
+                                "files_planned": planned,
+                                "note": ("Fresh project + --dry-run: would materialize minimal .kittify/doctrine/ (no files written). See issue #839."),
+                            },
+                            indent=2,
+                            sort_keys=True,
+                        )
+                    )
                     mark_invocation_succeeded()
                     return
-                console.print(
-                    "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
-                    "would materialize minimal .kittify/doctrine/ (no files written)."
-                )
+                console.print("[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: would materialize minimal .kittify/doctrine/ (no files written).")
                 for f in planned:
                     console.print(f"  • {f}")
                 return
@@ -2436,30 +2329,33 @@ def charter_synthesize(  # noqa: C901
             ]
 
             if json_output:
-                print(json.dumps({
-                    # FR-002 contracted fields:
-                    "result": "success",
-                    "adapter": {"id": "fresh-seed", "version": _seed_version},
-                    "written_artifacts": fresh_written_artifacts,
-                    "warnings": [],
-                    # Compatibility / fresh-seed identification fields:
-                    "success": True,
-                    "mode": "fresh_project_seed",
-                    "files_written": written,
-                    "note": (
-                        "Fresh project: no agent-authored YAML under "
-                        ".kittify/charter/generated/. Materialized minimal "
-                        ".kittify/doctrine/ so the runtime can advance "
-                        "(see issue #839)."
-                    ),
-                }, indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        {
+                            # FR-002 contracted fields:
+                            "result": "success",
+                            "adapter": {"id": "fresh-seed", "version": _seed_version},
+                            "written_artifacts": fresh_written_artifacts,
+                            "warnings": [],
+                            # Compatibility / fresh-seed identification fields:
+                            "success": True,
+                            "mode": "fresh_project_seed",
+                            "files_written": written,
+                            "note": (
+                                "Fresh project: no agent-authored YAML under "
+                                ".kittify/charter/generated/. Materialized minimal "
+                                ".kittify/doctrine/ so the runtime can advance "
+                                "(see issue #839)."
+                            ),
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
                 mark_invocation_succeeded()
                 return
 
-            console.print(
-                "[green]Charter synthesis (fresh project)[/green]: minimal "
-                ".kittify/doctrine/ materialized."
-            )
+            console.print("[green]Charter synthesis (fresh project)[/green]: minimal .kittify/doctrine/ materialized.")
             for f in written:
                 console.print(f"  ✓ {f}")
             return
@@ -2485,37 +2381,41 @@ def charter_synthesize(  # noqa: C901
                 # FR-001 / FR-002: evidence dry-run also emits the strict
                 # envelope. ``written_artifacts`` is empty because no
                 # synthesis ran; warnings live in the ``warnings`` array.
-                print(json.dumps({
-                    # Contracted fields (FR-002):
-                    "result": "success",
-                    "adapter": {"id": adapter, "version": "evidence-dry-run"},
-                    "written_artifacts": [],
-                    "warnings": warnings_collected,
-                    # Compatibility / mode-identification fields:
-                    "mode": "evidence_dry_run",
-                    "evidence": {
-                        "code_signals": (
-                            {
-                                "stack_id": bundle.code_signals.stack_id,
-                                "primary_language": bundle.code_signals.primary_language,
-                                "representative_files_count": len(
-                                    bundle.code_signals.representative_files
+                print(
+                    json.dumps(
+                        {
+                            # Contracted fields (FR-002):
+                            "result": "success",
+                            "adapter": {"id": adapter, "version": "evidence-dry-run"},
+                            "written_artifacts": [],
+                            "warnings": warnings_collected,
+                            # Compatibility / mode-identification fields:
+                            "mode": "evidence_dry_run",
+                            "evidence": {
+                                "code_signals": (
+                                    {
+                                        "stack_id": bundle.code_signals.stack_id,
+                                        "primary_language": bundle.code_signals.primary_language,
+                                        "representative_files_count": len(bundle.code_signals.representative_files),
+                                    }
+                                    if bundle.code_signals
+                                    else None
                                 ),
-                            }
-                            if bundle.code_signals
-                            else None
-                        ),
-                        "url_list_count": len(bundle.url_list),
-                        "corpus": (
-                            {
-                                "snapshot_id": bundle.corpus_snapshot.snapshot_id,
-                                "entries_count": len(bundle.corpus_snapshot.entries),
-                            }
-                            if bundle.corpus_snapshot
-                            else None
-                        ),
-                    },
-                }, indent=2, sort_keys=True))
+                                "url_list_count": len(bundle.url_list),
+                                "corpus": (
+                                    {
+                                        "snapshot_id": bundle.corpus_snapshot.snapshot_id,
+                                        "entries_count": len(bundle.corpus_snapshot.entries),
+                                    }
+                                    if bundle.corpus_snapshot
+                                    else None
+                                ),
+                            },
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
                 mark_invocation_succeeded()
                 raise typer.Exit(0)
 
@@ -2528,10 +2428,7 @@ def charter_synthesize(  # noqa: C901
                 console.print("  Code signals: none (skipped or not detected)")
             console.print(f"  URL list: {len(bundle.url_list)} URL(s) configured")
             if bundle.corpus_snapshot:
-                console.print(
-                    f"  Corpus: {bundle.corpus_snapshot.snapshot_id} "
-                    f"({len(bundle.corpus_snapshot.entries)} entries)"
-                )
+                console.print(f"  Corpus: {bundle.corpus_snapshot.snapshot_id} ({len(bundle.corpus_snapshot.entries)} entries)")
             else:
                 console.print("  Corpus: none")
             for w in warnings_collected:
@@ -2547,25 +2444,29 @@ def charter_synthesize(  # noqa: C901
             # same SynthesisRequest would write (the parity guarantee that
             # tests/charter/synthesizer/test_synthesize_path_parity.py
             # locks in).
-            staged_files, written_artifacts_dr = _run_synthesis_dry_run_with_artifacts(
-                request, syn_adapter, repo_root
-            )
+            staged_files, written_artifacts_dr = _run_synthesis_dry_run_with_artifacts(request, syn_adapter, repo_root)
 
             if json_output:
-                print(json.dumps({
-                    # Contracted fields (FR-002):
-                    "result": "dry_run",
-                    "adapter": {
-                        "id": getattr(syn_adapter, "id", adapter),
-                        "version": getattr(syn_adapter, "version", "unknown"),
-                    },
-                    "written_artifacts": written_artifacts_dr,
-                    "warnings": warnings_collected,
-                    # Legacy compatibility fields (data-model.md \u00a7E-1):
-                    "staged_artifacts": staged_files,
-                    "artifact_count": len(staged_files),
-                    "validated": True,
-                }, indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        {
+                            # Contracted fields (FR-002):
+                            "result": "dry_run",
+                            "adapter": {
+                                "id": getattr(syn_adapter, "id", adapter),
+                                "version": getattr(syn_adapter, "version", "unknown"),
+                            },
+                            "written_artifacts": written_artifacts_dr,
+                            "warnings": warnings_collected,
+                            # Legacy compatibility fields (data-model.md \u00a7E-1):
+                            "staged_artifacts": staged_files,
+                            "artifact_count": len(staged_files),
+                            "validated": True,
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
                 mark_invocation_succeeded()
                 return
 
@@ -2588,22 +2489,28 @@ def charter_synthesize(  # noqa: C901
         written_artifacts_real = _load_written_artifacts_from_manifest(repo_root)
 
         if json_output:
-            print(json.dumps({
-                # Contracted fields (FR-002):
-                "result": "success",
-                "adapter": {
-                    "id": result.effective_adapter_id,
-                    "version": result.effective_adapter_version,
-                },
-                "written_artifacts": written_artifacts_real,
-                "warnings": warnings_collected,
-                # Legacy compatibility fields (data-model.md \u00a7E-1):
-                "target_kind": result.target_kind,
-                "target_slug": result.target_slug,
-                "inputs_hash": result.inputs_hash,
-                "adapter_id": result.effective_adapter_id,
-                "adapter_version": result.effective_adapter_version,
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        # Contracted fields (FR-002):
+                        "result": "success",
+                        "adapter": {
+                            "id": result.effective_adapter_id,
+                            "version": result.effective_adapter_version,
+                        },
+                        "written_artifacts": written_artifacts_real,
+                        "warnings": warnings_collected,
+                        # Legacy compatibility fields (data-model.md \u00a7E-1):
+                        "target_kind": result.target_kind,
+                        "target_slug": result.target_slug,
+                        "inputs_hash": result.inputs_hash,
+                        "adapter_id": result.effective_adapter_id,
+                        "adapter_version": result.effective_adapter_version,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
             mark_invocation_succeeded()
             return
 
@@ -2618,50 +2525,73 @@ def charter_synthesize(  # noqa: C901
         # stderr in --json mode. The error panel never reaches stdout.
         render_error_panel(e, err_console)
         err_console.print(
-            f"\n[yellow]Staging directory preserved at:[/yellow] {e.staging_dir}\n"
-            "Inspect the staged artifacts, adjust the synthesis prompt or scope, and retry."
+            f"\n[yellow]Staging directory preserved at:[/yellow] {e.staging_dir}\nInspect the staged artifacts, adjust the synthesis prompt or scope, and retry."
         )
         if json_output:
             # FR-001: even in failure mode, stdout MUST contain exactly one
             # JSON document. The error message is appended to whatever
             # warnings were already collected so callers reading only
             # stdout still see both.
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [f"NeutralityGateViolation: {e}"],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [f"NeutralityGateViolation: {e}"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         raise typer.Exit(code=1) from e
     except SynthesisError as e:
         render_error_panel(e, err_console)
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [f"SynthesisError: {e}"],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [f"SynthesisError: {e}"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         raise typer.Exit(code=1) from e
     except TaskCliError as e:
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [str(e)],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [str(e)],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
     except Exception as e:
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [f"Unexpected error: {e}"],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [f"Unexpected error: {e}"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
             console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(code=1) from e
@@ -2672,12 +2602,7 @@ def charter_resynthesize(  # noqa: C901
     topic: str | None = typer.Option(
         None,
         "--topic",
-        help=(
-            "Structured topic selector: "
-            "<kind>:<slug> (project-local), "
-            "<drg-urn> (shipped+project graph), "
-            "or <interview-section-label>."
-        ),
+        help=("Structured topic selector: <kind>:<slug> (project-local), <drg-urn> (shipped+project graph), or <interview-section-label>."),
     ),
     list_topics: bool = typer.Option(
         False,
@@ -2687,10 +2612,7 @@ def charter_resynthesize(  # noqa: C901
     adapter: str = typer.Option(
         "generated",
         "--adapter",
-        help=(
-            "Adapter to use. 'generated' (default) validates agent-authored YAML under "
-            ".kittify/charter/generated/. 'fixture' is offline/testing only."
-        ),
+        help=("Adapter to use. 'generated' (default) validates agent-authored YAML under .kittify/charter/generated/. 'fixture' is offline/testing only."),
     ),
     skip_code_evidence: bool = typer.Option(
         False,
@@ -2754,10 +2676,15 @@ def charter_resynthesize(  # noqa: C901
         if list_topics:
             topics = _list_resynthesis_topics(request, repo_root)
             if json_output:
-                print(json.dumps({
-                    "result": "success",
-                    "topics": topics,
-                }, indent=2))
+                print(
+                    json.dumps(
+                        {
+                            "result": "success",
+                            "topics": topics,
+                        },
+                        indent=2,
+                    )
+                )
                 return
 
             if not any(topics.values()):
@@ -2793,32 +2720,39 @@ def charter_resynthesize(  # noqa: C901
 
         if result.is_noop:
             if json_output:
-                print(json.dumps({
-                    "result": "noop",
-                    "topic": topic,
-                    "diagnostic": result.diagnostic,
-                    "matched_form": result.resolved_topic.matched_form,
-                    "targets_count": 0,
-                }, indent=2))
+                print(
+                    json.dumps(
+                        {
+                            "result": "noop",
+                            "topic": topic,
+                            "diagnostic": result.diagnostic,
+                            "matched_form": result.resolved_topic.matched_form,
+                            "targets_count": 0,
+                        },
+                        indent=2,
+                    )
+                )
                 return
             console.print(f"[yellow]No-op:[/yellow] {result.diagnostic}")
             return
 
-        regenerated = [
-            f"{t.kind}:{t.slug}"
-            for t in result.resolved_topic.targets
-        ]
+        regenerated = [f"{t.kind}:{t.slug}" for t in result.resolved_topic.targets]
 
         if json_output:
-            print(json.dumps({
-                "result": "success",
-                "topic": topic,
-                "matched_form": result.resolved_topic.matched_form,
-                "matched_value": result.resolved_topic.matched_value,
-                "regenerated": regenerated,
-                "run_id": result.manifest.run_id,
-                "manifest_artifacts": len(result.manifest.artifacts),
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "result": "success",
+                        "topic": topic,
+                        "matched_form": result.resolved_topic.matched_form,
+                        "matched_value": result.resolved_topic.matched_value,
+                        "regenerated": regenerated,
+                        "run_id": result.manifest.run_id,
+                        "manifest_artifacts": len(result.manifest.artifacts),
+                    },
+                    indent=2,
+                )
+            )
             return
 
         console.print(f"[green]Resynthesis complete[/green] (topic: {topic!r})")
@@ -2834,9 +2768,7 @@ def charter_resynthesize(  # noqa: C901
         if hasattr(e, "candidates") and e.candidates:
             cands = "\n".join(f"  * {c}" for c in e.candidates)
             panel_body += f"\n\nNearest candidates:\n{cands}"
-        panel_body += (
-            "\n\nRun 'spec-kitty charter resynthesize --list-topics' to see all valid selectors."
-        )
+        panel_body += "\n\nRun 'spec-kitty charter resynthesize --list-topics' to see all valid selectors."
         err_console.print(
             Panel(
                 Text(panel_body),
@@ -2907,15 +2839,10 @@ def charter_lint(
     # Human-readable output
     if not report.findings:
         console.print("[green]No decay detected[/green]")
-        console.print(
-            f"[dim]Scanned {report.drg_node_count} nodes in {report.duration_seconds:.2f}s[/dim]"
-        )
+        console.print(f"[dim]Scanned {report.drg_node_count} nodes in {report.duration_seconds:.2f}s[/dim]")
         return
 
-    console.print(
-        f"\n[bold]Charter Lint[/bold] — {len(report.findings)} finding(s)"
-        f" in {report.duration_seconds:.2f}s\n"
-    )
+    console.print(f"\n[bold]Charter Lint[/bold] — {len(report.findings)} finding(s) in {report.duration_seconds:.2f}s\n")
     for finding in report.findings:
         severity_color = {
             "low": "dim",
@@ -2923,10 +2850,7 @@ def charter_lint(
             "high": "red",
             "critical": "bold red",
         }.get(finding.severity, "white")
-        console.print(
-            f"  [{severity_color}][{finding.severity.upper()}][/{severity_color}]"
-            f" [{finding.category}] {finding.type}: {finding.id}"
-        )
+        console.print(f"  [{severity_color}][{finding.severity.upper()}][/{severity_color}] [{finding.category}] {finding.type}: {finding.id}")
         console.print(f"    {finding.message}")
         if finding.remediation_hint:
             console.print(f"    [dim]→ {finding.remediation_hint}[/dim]")

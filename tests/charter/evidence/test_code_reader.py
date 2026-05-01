@@ -113,9 +113,7 @@ def test_node_modules_excluded(tmp_path):
     signals = CodeReadingCollector(tmp_path).collect()
 
     for f in signals.representative_files:
-        assert "node_modules" not in f, (
-            f"Expected node_modules to be excluded but found: {f}"
-        )
+        assert "node_modules" not in f, f"Expected node_modules to be excluded but found: {f}"
 
 
 # ---------------------------------------------------------------------------
@@ -131,17 +129,13 @@ def test_depth_limit(tmp_path):
     # depth 3: level1/level2/level3/
     # depth 4: level1/level2/level3/level4/  <- beyond limit
     _make_file(tmp_path / "pyproject.toml", "")
-    deep_file = (
-        tmp_path / "level1" / "level2" / "level3" / "level4" / "deep.py"
-    )
+    deep_file = tmp_path / "level1" / "level2" / "level3" / "level4" / "deep.py"
     _make_file(deep_file, "# deep")
 
     signals = CodeReadingCollector(tmp_path, max_depth=3).collect()
 
     for f in signals.representative_files:
-        assert "deep.py" not in f, (
-            f"File beyond max_depth should not appear: {f}"
-        )
+        assert "deep.py" not in f, f"File beyond max_depth should not appear: {f}"
 
 
 # ---------------------------------------------------------------------------
@@ -173,12 +167,7 @@ def test_performance_1000_files(tmp_path):
     for level1 in range(10):
         for level2 in range(10):
             for level3 in range(10):
-                f = (
-                    tmp_path
-                    / f"pkg{level1}"
-                    / f"sub{level2}"
-                    / f"mod{level3}.py"
-                )
+                f = tmp_path / f"pkg{level1}" / f"sub{level2}" / f"mod{level3}.py"
                 _make_file(f, f"# {count}")
                 count += 1
 

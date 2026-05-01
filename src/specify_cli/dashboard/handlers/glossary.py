@@ -39,11 +39,7 @@ def _count_orphaned_terms(project_dir: Path) -> int:
         nodes = drg_data.get("nodes", [])
         edges = drg_data.get("edges", [])
         # Collect all glossary URNs
-        glossary_urns = {
-            n.get("urn") or n.get("id", "")
-            for n in nodes
-            if isinstance(n, dict) and str(n.get("urn") or n.get("id", "")).startswith("glossary:")
-        }
+        glossary_urns = {n.get("urn") or n.get("id", "") for n in nodes if isinstance(n, dict) and str(n.get("urn") or n.get("id", "")).startswith("glossary:")}
         if not glossary_urns:
             return 0  # WP5.1 not yet merged
         # Collect all URNs that have at least one incoming vocabulary edge
