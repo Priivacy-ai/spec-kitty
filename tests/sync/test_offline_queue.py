@@ -256,39 +256,48 @@ class TestOfflineQueueDefaultPath:
     """Test default path behavior"""
 
     @staticmethod
-    def _write_session(tmp_path: Path, *, team_id: str = "team-red") -> None:
+    def _write_session(tmp_path: Path, *, team_id: str = "team-red") -> StoredSession:
         storage = FileFallbackStorage(base_dir=tmp_path / ".spec-kitty" / "auth")
         issued_at = datetime.now(UTC)
-        storage.write(
-            StoredSession(
-                user_id="user-1",
-                email="test@example.com",
-                name="Test User",
-                teams=[
-                    Team(
-                        id=team_id,
-                        name="Private Teamspace",
-                        role="owner",
-                        is_private_teamspace=True,
-                    )
-                ],
-                default_team_id=team_id,
-                access_token="access-token",
-                refresh_token="refresh-token",
-                session_id="session-1",
-                issued_at=issued_at,
-                access_token_expires_at=issued_at + timedelta(hours=1),
-                refresh_token_expires_at=issued_at + timedelta(days=30),
-                scope="openid profile email offline_access",
-                storage_backend="file",
-                last_used_at=issued_at,
-                auth_method="authorization_code",
-            )
+        session = StoredSession(
+            user_id="user-1",
+            email="test@example.com",
+            name="Test User",
+            teams=[
+                Team(
+                    id=team_id,
+                    name="Private Teamspace",
+                    role="owner",
+                    is_private_teamspace=True,
+                )
+            ],
+            default_team_id=team_id,
+            access_token="access-token",
+            refresh_token="refresh-token",
+            session_id="session-1",
+            issued_at=issued_at,
+            access_token_expires_at=issued_at + timedelta(hours=1),
+            refresh_token_expires_at=issued_at + timedelta(days=30),
+            scope="openid profile email offline_access",
+            storage_backend="file",
+            last_used_at=issued_at,
+            auth_method="authorization_code",
         )
+        storage.write(session)
+        return session
+
+    @staticmethod
+    def _patch_token_manager(monkeypatch, session: StoredSession | None) -> None:
+        class FakeTokenManager:
+            def get_current_session(self) -> StoredSession | None:
+                return session
+
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: FakeTokenManager())
 
     def test_default_path_uses_home_directory(self, monkeypatch, tmp_path):
         """Test that default path is ~/.spec-kitty/queue.db"""
         monkeypatch.setenv("HOME", str(tmp_path))
+        self._patch_token_manager(monkeypatch, None)
 
         expected_path = tmp_path / ".spec-kitty" / "queue.db"
 
@@ -301,7 +310,8 @@ class TestOfflineQueueDefaultPath:
     def test_default_path_uses_scoped_queue_when_authenticated(self, monkeypatch, tmp_path):
         """Authenticated users should default to a scope-isolated queue file."""
         monkeypatch.setenv("HOME", str(tmp_path))
-        self._write_session(tmp_path)
+        session = self._write_session(tmp_path)
+        self._patch_token_manager(monkeypatch, session)
         spec_kitty_dir = tmp_path / ".spec-kitty"
         spec_kitty_dir.mkdir(parents=True, exist_ok=True)
         (spec_kitty_dir / "config.toml").write_text(
@@ -325,7 +335,8 @@ server_url = "https://test.example.com"
     def test_session_scope_wins_over_legacy_credentials(self, monkeypatch, tmp_path):
         """The encrypted auth session should override stale legacy credentials."""
         monkeypatch.setenv("HOME", str(tmp_path))
-        self._write_session(tmp_path, team_id="private-team")
+        session = self._write_session(tmp_path, team_id="private-team")
+        self._patch_token_manager(monkeypatch, session)
 
         spec_kitty_dir = tmp_path / ".spec-kitty"
         spec_kitty_dir.mkdir(parents=True, exist_ok=True)

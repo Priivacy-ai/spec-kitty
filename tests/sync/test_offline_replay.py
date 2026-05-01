@@ -32,6 +32,15 @@ def temp_queue():
         yield queue
 
 
+@pytest.fixture(autouse=True)
+def private_ingress_scope(monkeypatch):
+    """These replay tests exercise batching, not auth/team resolution."""
+    monkeypatch.setattr(
+        "specify_cli.sync.batch._current_team_slug",
+        lambda: "private-teamspace-id",
+    )
+
+
 def create_test_event(index: int, node_id: str = "test-node") -> dict:
     """Create a test event with all required fields"""
     return {
