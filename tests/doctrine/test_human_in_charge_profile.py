@@ -58,7 +58,9 @@ def test_kanban_shows_hic_marker(tmp_path: Path) -> None:
     # --- pre-built repo path ---
     pre_built = AgentProfileRepository(shipped_dir=_SHIPPED_DIR)
     marker_prebuilt = _get_hic_marker("human-in-charge", repo_root, repo=pre_built)
-    assert "👤" in marker_prebuilt, f"Expected '👤' marker for human-in-charge (pre-built), got: {repr(marker_prebuilt)}"
+    assert "👤" in marker_prebuilt, (
+        f"Expected '👤' marker for human-in-charge (pre-built), got: {repr(marker_prebuilt)}"
+    )
 
     # Non-sentinel profiles should return empty string (both paths)
     assert _get_hic_marker("generic-agent", repo_root) == ""

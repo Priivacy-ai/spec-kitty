@@ -1,5 +1,4 @@
 """Scanner-vs-writer root consistency tests (WP02 T012)."""
-
 from __future__ import annotations
 
 from pathlib import Path

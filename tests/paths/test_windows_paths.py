@@ -1,5 +1,4 @@
 """Tests for RuntimeRoot and get_runtime_root() platform dispatch."""
-
 from __future__ import annotations
 
 import dataclasses
@@ -9,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.paths import get_runtime_root
+from specify_cli.paths import RuntimeRoot, get_runtime_root
 
 
 def test_get_runtime_root_on_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

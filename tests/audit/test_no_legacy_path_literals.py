@@ -39,9 +39,9 @@ import sys
 from contextlib import redirect_stderr
 
 # Match the bare tilde-path anywhere on a line.
-LITERAL = re.compile(r"~/\.(kittify|spec-kitty)")
+LITERAL = re.compile(r'~/\.(kittify|spec-kitty)')
 # Comment detector: line starts with optional whitespace then '#'.
-COMMENT = re.compile(r"^\s*#")
+COMMENT = re.compile(r'^\s*#')
 
 
 def test_no_legacy_path_literals_in_cli_commands() -> None:
@@ -54,8 +54,13 @@ def test_no_legacy_path_literals_in_cli_commands() -> None:
             if COMMENT.match(line):
                 continue  # skip pure comments; they are not user-facing output
             if LITERAL.search(line):
-                violations.append(f"{py.relative_to(root.parents[2])}:{i}: {line.strip()}")
-    assert not violations, "Legacy Windows-unsafe path literals reintroduced in CLI command tree:\n  " + "\n  ".join(violations)
+                violations.append(
+                    f"{py.relative_to(root.parents[2])}:{i}: {line.strip()}"
+                )
+    assert not violations, (
+        "Legacy Windows-unsafe path literals reintroduced in CLI command tree:\n  "
+        + "\n  ".join(violations)
+    )
 
 
 def _capture_nudge(module_name: str, runtime_home: pathlib.Path) -> str:
@@ -96,13 +101,25 @@ def test_runtime_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Path
     """
     fake_home = tmp_path / "runtime-home"
     output = _capture_nudge("specify_cli.runtime.resolver", fake_home)
-    assert str(fake_home) in output, f"Resolver nudge did not render the real runtime path.\nExpected substring: {fake_home}\nGot: {output!r}"
-    assert "~/.kittify/" not in output, f"Resolver nudge still contains a legacy tilde literal:\n{output!r}"
+    assert str(fake_home) in output, (
+        f"Resolver nudge did not render the real runtime path.\n"
+        f"Expected substring: {fake_home}\n"
+        f"Got: {output!r}"
+    )
+    assert "~/.kittify/" not in output, (
+        f"Resolver nudge still contains a legacy tilde literal:\n{output!r}"
+    )
 
 
 def test_doctrine_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Path) -> None:
     """Mirror assertion for the doctrine package's resolver nudge."""
     fake_home = tmp_path / "doctrine-runtime-home"
     output = _capture_nudge("doctrine.resolver", fake_home)
-    assert str(fake_home) in output, f"Doctrine resolver nudge did not render the real runtime path.\nExpected substring: {fake_home}\nGot: {output!r}"
-    assert "~/.kittify/" not in output, f"Doctrine resolver nudge still contains a legacy tilde literal:\n{output!r}"
+    assert str(fake_home) in output, (
+        f"Doctrine resolver nudge did not render the real runtime path.\n"
+        f"Expected substring: {fake_home}\n"
+        f"Got: {output!r}"
+    )
+    assert "~/.kittify/" not in output, (
+        f"Doctrine resolver nudge still contains a legacy tilde literal:\n{output!r}"
+    )

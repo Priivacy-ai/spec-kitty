@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
 
 from specify_cli.charter_lint.checks.orphan import OrphanChecker
 

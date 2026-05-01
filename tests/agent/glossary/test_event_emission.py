@@ -356,7 +356,9 @@ class TestEventPayloadBuilders:
             lambda: build_clarification_requested("q", "t", [], "low", "m", "r", "s"),
             lambda: build_clarification_resolved("c", "t", {}, {}, "interactive", {}),
             lambda: build_sense_updated("t", "s", {}, {}, "create", {}),
-            lambda: build_step_checkpointed("m", "r", "s", "medium", [], "a" * 64, "pre_generation_gate", str(uuid.uuid4())),
+            lambda: build_step_checkpointed(
+                "m", "r", "s", "medium", [], "a" * 64, "pre_generation_gate", str(uuid.uuid4())
+            ),
         ]
         for builder in builders:
             event = builder()
@@ -440,7 +442,9 @@ class TestEventPersistence:
     def test_read_events_returns_all(self, tmp_path):
         """read_events returns all events without filter."""
         log_path = tmp_path / "test.events.jsonl"
-        log_path.write_text('{"event_type": "A", "val": 1}\n{"event_type": "B", "val": 2}\n{"event_type": "C", "val": 3}\n')
+        log_path.write_text(
+            '{"event_type": "A", "val": 1}\n{"event_type": "B", "val": 2}\n{"event_type": "C", "val": 3}\n'
+        )
         events = list(read_events(log_path))
         assert len(events) == 3
         assert [e["event_type"] for e in events] == ["A", "B", "C"]
@@ -836,7 +840,9 @@ class TestClarificationEmission:
 class TestEventOrdering:
     """Tests for event ordering across middleware pipeline."""
 
-    def test_pipeline_event_order_returns_correct_types(self, tmp_path, mock_context, sample_extracted_term, sample_conflict):
+    def test_pipeline_event_order_returns_correct_types(
+        self, tmp_path, mock_context, sample_extracted_term, sample_conflict
+    ):
         """Events are emitted in pipeline order: extraction -> check -> gate."""
         # 1. Extraction emits TermCandidateObserved
         e1 = emit_term_candidate_observed(
@@ -867,7 +873,9 @@ class TestEventOrdering:
         assert e2["event_type"] == "SemanticCheckEvaluated"
         assert e3["event_type"] == "GenerationBlockedBySemanticConflict"
 
-    def test_full_pipeline_with_clarification_types(self, tmp_path, mock_context, sample_extracted_term, sample_conflict):
+    def test_full_pipeline_with_clarification_types(
+        self, tmp_path, mock_context, sample_extracted_term, sample_conflict
+    ):
         """Full pipeline returns all 5 event types in correct order."""
         # 1. Scope activation
         e1 = emit_scope_activated(
@@ -1364,7 +1372,9 @@ class TestAll8EventTypes:
         assert callable(events.emit_sense_updated)
         assert callable(events.emit_step_checkpointed)
 
-    def test_all_8_event_types_return_correct_event_type(self, tmp_path, mock_context, sample_conflict, sample_extracted_term):
+    def test_all_8_event_types_return_correct_event_type(
+        self, tmp_path, mock_context, sample_conflict, sample_extracted_term
+    ):
         """Each emitter returns dict with correct event_type field."""
         from specify_cli.glossary.checkpoint import create_checkpoint
 
@@ -1445,7 +1455,9 @@ class TestAll8EventTypes:
 
         for key, expected_type in expected.items():
             assert events_returned[key] is not None, f"{key} emitter returned None"
-            assert events_returned[key]["event_type"] == expected_type, f"{key}: expected {expected_type}, got {events_returned[key].get('event_type')}"
+            assert events_returned[key]["event_type"] == expected_type, (
+                f"{key}: expected {expected_type}, got {events_returned[key].get('event_type')}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -1477,6 +1489,7 @@ class TestEventEmissionErrorHandling:
     def test_emission_error_when_available_falls_back_local(self, mock_context, sample_extracted_term, tmp_path):
         """When canonical persistence fails, local JSONL fallback still returns an event."""
         import specify_cli.glossary.events as events_mod
+
 
         mock_pkg_append = MagicMock(side_effect=OSError("disk full"))
         mock_canonical_cls = MagicMock()

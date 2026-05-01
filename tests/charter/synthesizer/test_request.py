@@ -12,6 +12,7 @@ T007 — detected_at is excluded from hash (timestamps do not affect hash).
 
 from __future__ import annotations
 
+import pytest
 
 from charter.synthesizer.evidence import (
     CodeSignals,
@@ -47,9 +48,9 @@ def _make_target() -> SynthesisTarget:
 
 def _make_base_request(**overrides: object) -> SynthesisRequest:
     """Create the canonical sample request (matches conftest.py fixture)."""
-    defaults: dict = {
-        "target": _make_target(),
-        "interview_snapshot": {
+    defaults: dict = dict(
+        target=_make_target(),
+        interview_snapshot={
             "mission_type": "software_dev",
             "language_scope": ["python"],
             "testing_philosophy": "test-driven development with high coverage",
@@ -57,7 +58,7 @@ def _make_base_request(**overrides: object) -> SynthesisRequest:
             "selected_directives": ["DIRECTIVE_003"],
             "risk_appetite": "moderate",
         },
-        "doctrine_snapshot": {
+        doctrine_snapshot={
             "directives": {
                 "DIRECTIVE_003": {
                     "id": "DIRECTIVE_003",
@@ -68,14 +69,16 @@ def _make_base_request(**overrides: object) -> SynthesisRequest:
             "tactics": {},
             "styleguides": {},
         },
-        "drg_snapshot": {
-            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+        drg_snapshot={
+            "nodes": [
+                {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            ],
             "edges": [],
             "schema_version": "1",
         },
-        "run_id": "01KPE222CD1MMCYEGB3ZCY51VR",
-        "adapter_hints": {"language": "python"},
-    }
+        run_id="01KPE222CD1MMCYEGB3ZCY51VR",
+        adapter_hints={"language": "python"},
+    )
     defaults.update(overrides)
     return SynthesisRequest(**defaults)  # type: ignore[arg-type]
 
@@ -109,7 +112,9 @@ def test_backward_compat_no_evidence_hash_unchanged() -> None:
     request = _make_base_request()
     h = compute_inputs_hash(request, _ADAPTER_ID, _ADAPTER_VERSION)
     assert h == _PRE_WP01_HASH, (
-        f"Hash changed! Got {h!r}, expected {_PRE_WP01_HASH!r}. This breaks backward compatibility with existing fixtures. See ADR-2026-04-17-1."
+        f"Hash changed! Got {h!r}, expected {_PRE_WP01_HASH!r}. "
+        "This breaks backward compatibility with existing fixtures. "
+        "See ADR-2026-04-17-1."
     )
 
 
@@ -123,7 +128,6 @@ def test_backward_compat_explicit_none_evidence_hash_unchanged() -> None:
 # ---------------------------------------------------------------------------
 # T002 — EvidenceBundle() empty produces same hash as evidence=None
 # ---------------------------------------------------------------------------
-
 
 def test_empty_evidence_bundle_same_hash_as_none() -> None:
     """An empty EvidenceBundle (is_empty=True) does not change the hash."""
@@ -141,11 +145,12 @@ def test_empty_evidence_bundle_same_hash_as_none() -> None:
 # T003 — Non-empty code signals produce a different hash
 # ---------------------------------------------------------------------------
 
-
 def test_non_empty_code_signals_change_hash() -> None:
     """Adding code signals to the evidence changes the fixture hash."""
     request_no_evidence = _make_base_request(evidence=None)
-    request_with_signals = _make_base_request(evidence=EvidenceBundle(code_signals=_make_code_signals()))
+    request_with_signals = _make_base_request(
+        evidence=EvidenceBundle(code_signals=_make_code_signals())
+    )
 
     h_base = compute_inputs_hash(request_no_evidence, _ADAPTER_ID, _ADAPTER_VERSION)
     h_signals = compute_inputs_hash(request_with_signals, _ADAPTER_ID, _ADAPTER_VERSION)
@@ -156,7 +161,9 @@ def test_non_empty_code_signals_change_hash() -> None:
 def test_url_list_changes_hash() -> None:
     """Adding URLs to the evidence changes the fixture hash."""
     request_no_evidence = _make_base_request(evidence=None)
-    request_with_urls = _make_base_request(evidence=EvidenceBundle(url_list=("https://example.com",)))
+    request_with_urls = _make_base_request(
+        evidence=EvidenceBundle(url_list=("https://example.com",))
+    )
 
     h_base = compute_inputs_hash(request_no_evidence, _ADAPTER_ID, _ADAPTER_VERSION)
     h_urls = compute_inputs_hash(request_with_urls, _ADAPTER_ID, _ADAPTER_VERSION)
@@ -173,7 +180,9 @@ def test_corpus_snapshot_changes_hash() -> None:
         entries=(CorpusEntry(topic="testing", tags=("quality",), guidance="Write tests."),),
         loaded_at="2026-04-19T10:00:00+00:00",
     )
-    request_with_corpus = _make_base_request(evidence=EvidenceBundle(corpus_snapshot=snap))
+    request_with_corpus = _make_base_request(
+        evidence=EvidenceBundle(corpus_snapshot=snap)
+    )
 
     h_base = compute_inputs_hash(request_no_evidence, _ADAPTER_ID, _ADAPTER_VERSION)
     h_corpus = compute_inputs_hash(request_with_corpus, _ADAPTER_ID, _ADAPTER_VERSION)
@@ -185,11 +194,14 @@ def test_corpus_snapshot_changes_hash() -> None:
 # T004 — URL list is order-insensitive
 # ---------------------------------------------------------------------------
 
-
 def test_url_list_order_insensitive() -> None:
     """("b", "a") and ("a", "b") produce the same hash."""
-    request_ab = _make_base_request(evidence=EvidenceBundle(url_list=("https://a.com", "https://b.com")))
-    request_ba = _make_base_request(evidence=EvidenceBundle(url_list=("https://b.com", "https://a.com")))
+    request_ab = _make_base_request(
+        evidence=EvidenceBundle(url_list=("https://a.com", "https://b.com"))
+    )
+    request_ba = _make_base_request(
+        evidence=EvidenceBundle(url_list=("https://b.com", "https://a.com"))
+    )
 
     h_ab = compute_inputs_hash(request_ab, _ADAPTER_ID, _ADAPTER_VERSION)
     h_ba = compute_inputs_hash(request_ba, _ADAPTER_ID, _ADAPTER_VERSION)
@@ -200,7 +212,6 @@ def test_url_list_order_insensitive() -> None:
 # ---------------------------------------------------------------------------
 # T005 — representative_files is order-insensitive
 # ---------------------------------------------------------------------------
-
 
 def test_representative_files_order_insensitive() -> None:
     """Different orderings of representative_files produce the same hash."""
@@ -236,7 +247,6 @@ def test_representative_files_order_insensitive() -> None:
 # T006 — run_id is excluded from hash
 # ---------------------------------------------------------------------------
 
-
 def test_run_id_excluded_from_hash() -> None:
     """Changing run_id does not change the fixture hash."""
     request_a = _make_base_request(run_id="01AAAAAAAAAAAAAAAAAAAAAAAAA")
@@ -251,7 +261,6 @@ def test_run_id_excluded_from_hash() -> None:
 # ---------------------------------------------------------------------------
 # T007 — detected_at (and other timestamps) excluded from hash
 # ---------------------------------------------------------------------------
-
 
 def test_detected_at_excluded_from_hash() -> None:
     """Same evidence with different detected_at timestamps produce the same hash."""

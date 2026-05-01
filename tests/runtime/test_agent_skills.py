@@ -44,3 +44,4 @@ def test_global_bootstrap_preserves_non_spec_kitty_user_skills(tmp_path: Path, m
 
     mode = managed_skill.stat().st_mode
     assert mode & 0o200 == 0
+

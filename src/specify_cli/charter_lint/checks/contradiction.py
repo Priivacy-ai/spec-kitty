@@ -50,7 +50,9 @@ class ContradictionChecker:
     # ADR topic contradictions
     # ------------------------------------------------------------------
 
-    def _check_adr_topic_clash(self, drg: Any, feature_scope: str | None) -> list[LintFinding]:
+    def _check_adr_topic_clash(
+        self, drg: Any, feature_scope: str | None
+    ) -> list[LintFinding]:
         """Find ADR nodes with the same topic but different decision hashes."""
         # topic -> list of (urn, decision_hash)
         by_topic: dict[str, list[tuple[str, str]]] = defaultdict(list)
@@ -64,9 +66,16 @@ class ContradictionChecker:
             urn: str = getattr(node, "urn", "") or ""
             # ``topic`` may live in a ``metadata`` dict or as a direct attribute
             metadata = getattr(node, "metadata", None) or {}
-            topic: str = getattr(node, "topic", None) or (metadata.get("topic") if isinstance(metadata, dict) else None) or ""
+            topic: str = (
+                getattr(node, "topic", None)
+                or (metadata.get("topic") if isinstance(metadata, dict) else None)
+                or ""
+            )
             decision: str = (
-                getattr(node, "decision", None) or (metadata.get("decision") if isinstance(metadata, dict) else None) or getattr(node, "label", None) or ""
+                getattr(node, "decision", None)
+                or (metadata.get("decision") if isinstance(metadata, dict) else None)
+                or getattr(node, "label", None)
+                or ""
             )
 
             if not topic:
@@ -85,9 +94,14 @@ class ContradictionChecker:
                         type="adr_topic_clash",
                         id=f"topic:{topic}",
                         severity="high",
-                        message=(f"ADR topic '{topic}' has {len(urns)} nodes with conflicting decision content: {', '.join(urns)}"),
+                        message=(
+                            f"ADR topic '{topic}' has {len(urns)} nodes with "
+                            f"conflicting decision content: {', '.join(urns)}"
+                        ),
                         feature_id=feature_scope,
-                        remediation_hint=("Review the conflicting ADRs and supersede the older ones."),
+                        remediation_hint=(
+                            "Review the conflicting ADRs and supersede the older ones."
+                        ),
                     )
                 )
 
@@ -97,7 +111,9 @@ class ContradictionChecker:
     # Duplicate glossary senses
     # ------------------------------------------------------------------
 
-    def _check_duplicate_glossary_senses(self, drg: Any, feature_scope: str | None) -> list[LintFinding]:
+    def _check_duplicate_glossary_senses(
+        self, drg: Any, feature_scope: str | None
+    ) -> list[LintFinding]:
         """Find glossary_scope nodes with duplicate labels within the same scope."""
         # normalised_label -> list of urn
         by_label: dict[str, list[str]] = defaultdict(list)
@@ -124,9 +140,14 @@ class ContradictionChecker:
                         type="duplicate_glossary_sense",
                         id=f"label:{normalised}",
                         severity="medium",
-                        message=(f"Glossary label '{normalised}' is defined by {len(urns)} nodes: {', '.join(urns)}"),
+                        message=(
+                            f"Glossary label '{normalised}' is defined by "
+                            f"{len(urns)} nodes: {', '.join(urns)}"
+                        ),
                         feature_id=feature_scope,
-                        remediation_hint=("Merge the duplicate definitions or make them distinct terms."),
+                        remediation_hint=(
+                            "Merge the duplicate definitions or make them distinct terms."
+                        ),
                     )
                 )
 

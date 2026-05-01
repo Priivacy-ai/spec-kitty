@@ -75,7 +75,9 @@ def _make_project_root_resolver(tmp_path: Path, *, create_kittify: bool = True, 
         metadata_path.write_text(metadata_content, encoding="utf-8")
     elif create_kittify:
         # Compatible project at schema version 3
-        metadata_path.write_text("spec_kitty:\n  schema_version: 3\n", encoding="utf-8")
+        metadata_path.write_text(
+            "spec_kitty:\n  schema_version: 3\n", encoding="utf-8"
+        )
 
     def resolver(_path: Path) -> Path | None:
         return tmp_path
@@ -346,7 +348,9 @@ class TestDecide:
 
 class TestPlan:
     def test_allow_compatible_no_nag(self, tmp_path: Path) -> None:
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
         result = plan(
             inv,
@@ -359,7 +363,9 @@ class TestPlan:
         assert result.exit_code == 0
 
     def test_allow_with_nag_outdated_cli(self, tmp_path: Path) -> None:
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
         result = plan(
             inv,
@@ -375,7 +381,9 @@ class TestPlan:
 
     def test_block_project_migration_stale(self, tmp_path: Path) -> None:
         # Write a stale schema_version (below MIN=3 if that's what's in the build)
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 1\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 1\n"
+        )
         # Use a UNSAFE command
         inv = Invocation(
             command_path=("spec-kitty-test-unknown-cmd",),
@@ -404,7 +412,9 @@ class TestPlan:
 
         monkeypatch.setattr(planner_mod, "_get_schema_bounds", lambda: (3, 3))
 
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 7\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 7\n"
+        )
         inv = Invocation(
             command_path=("spec-kitty-test-unknown-cmd",),
             raw_args=(),
@@ -428,8 +438,7 @@ class TestPlan:
     def test_block_project_corrupt_oversized_yaml(self, tmp_path: Path) -> None:
         # Write > 256 KiB file
         resolver = _make_project_root_resolver(
-            tmp_path,
-            metadata_size=262_145,  # just over the limit
+            tmp_path, metadata_size=262_145  # just over the limit
         )
         inv = _make_invocation(command_path=("status",))
         result = plan(
@@ -479,7 +488,9 @@ class TestPlan:
 
         monkeypatch.setattr(planner_mod, "decide", bad_decide)
 
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",))
         result = plan(
             inv,
@@ -517,7 +528,9 @@ class TestPlan:
         assert "no_network" in calls
 
     def test_rendered_json_has_required_keys(self, tmp_path: Path) -> None:
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",))
         result = plan(
             inv,
@@ -527,17 +540,9 @@ class TestPlan:
             project_root_resolver=resolver,
         )
         required = {
-            "schema_version",
-            "case",
-            "decision",
-            "exit_code",
-            "cli",
-            "project",
-            "safety",
-            "install_method",
-            "upgrade_hint",
-            "pending_migrations",
-            "rendered_human",
+            "schema_version", "case", "decision", "exit_code",
+            "cli", "project", "safety", "install_method",
+            "upgrade_hint", "pending_migrations", "rendered_human",
         }
         assert required.issubset(set(result.rendered_json.keys()))
         assert result.rendered_json["schema_version"] == 1
@@ -572,6 +577,7 @@ class TestDecideProjectNotInitialized:
 
     def test_no_project_unsafe_message_is_non_empty(self, tmp_path: Path) -> None:
         """PROJECT_NOT_INITIALIZED renders a non-empty human message."""
+        from specify_cli.compat import messages as _messages
 
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
         result = plan(
@@ -754,7 +760,9 @@ class TestFreshCacheFastPath:
         cache.write(record)
         return cache
 
-    def test_fresh_cache_does_not_call_provider(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_fresh_cache_does_not_call_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When the nag cache is fresh, provider.get_latest() must NOT be called."""
         import specify_cli.compat.planner as planner_mod
 
@@ -768,7 +776,9 @@ class TestFreshCacheFastPath:
         cache = self._make_fresh_cache(tmp_path, installed, latest_cached, _NOW)
         counting_provider = _CountingProvider(version="99.0.0")
 
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
 
         result = plan(
@@ -786,7 +796,9 @@ class TestFreshCacheFastPath:
         # cli_status.latest_version should come from the cache, not the provider
         assert result.cli_status.latest_version == latest_cached
 
-    def test_stale_cache_calls_provider(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_stale_cache_calls_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When the nag cache is stale (old last_shown_at), the provider IS called."""
         import specify_cli.compat.planner as planner_mod
 
@@ -812,7 +824,9 @@ class TestFreshCacheFastPath:
         cache.write(old_record)
 
         counting_provider = _CountingProvider(version=_INSTALLED)
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
 
         plan(
@@ -823,9 +837,13 @@ class TestFreshCacheFastPath:
             project_root_resolver=resolver,
         )
 
-        assert counting_provider.call_count >= 1, "Provider should be called when cache is stale."
+        assert counting_provider.call_count >= 1, (
+            "Provider should be called when cache is stale."
+        )
 
-    def test_fresh_fetch_updates_cache_preserves_last_shown_at(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_fresh_fetch_updates_cache_preserves_last_shown_at(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """After a stale-cache fetch, the written record preserves last_shown_at."""
         import specify_cli.compat.planner as planner_mod
 
@@ -853,7 +871,9 @@ class TestFreshCacheFastPath:
 
         new_latest = "2.0.15"
         counting_provider = _CountingProvider(version=new_latest)
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
 
         plan(
@@ -906,15 +926,17 @@ class TestNoUpdateFastPath:
         fetched = now - timedelta(seconds=fetched_offset_seconds)
         record = NagCacheRecord(
             cli_version_key=installed,
-            latest_version=installed,  # installed == latest → no update
+            latest_version=installed,   # installed == latest → no update
             latest_source="pypi",
             fetched_at=fetched,
-            last_shown_at=None,  # nag never shown (no update to show)
+            last_shown_at=None,          # nag never shown (no update to show)
         )
         cache.write(record)
         return cache
 
-    def test_no_update_fresh_data_skips_provider(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_no_update_fresh_data_skips_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """No-update cache with recent fetched_at must skip the provider.
 
         is_fresh() returns False (last_shown_at=None), but has_fresh_data()
@@ -928,7 +950,9 @@ class TestNoUpdateFastPath:
         cache = self._make_no_update_cache(tmp_path, _INSTALLED, _NOW)
         counting_provider = _CountingProvider(version="99.0.0")
 
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
 
         result = plan(
@@ -947,7 +971,9 @@ class TestNoUpdateFastPath:
         # Version must come from cache (installed == latest)
         assert result.cli_status.latest_version == _INSTALLED
 
-    def test_stale_fetched_at_calls_provider(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_stale_fetched_at_calls_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When fetched_at is outside the throttle window, the provider IS called."""
         import specify_cli.compat.planner as planner_mod
         from specify_cli.compat.config import UpgradeConfig
@@ -958,15 +984,15 @@ class TestNoUpdateFastPath:
         throttle = cfg.throttle_seconds
 
         cache = self._make_no_update_cache(
-            tmp_path,
-            _INSTALLED,
-            _NOW,
+            tmp_path, _INSTALLED, _NOW,
             throttle_seconds=throttle,
             fetched_offset_seconds=throttle + 3600,  # older than throttle
         )
         counting_provider = _CountingProvider(version=_INSTALLED)
 
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
 
         plan(
@@ -977,9 +1003,13 @@ class TestNoUpdateFastPath:
             project_root_resolver=resolver,
         )
 
-        assert counting_provider.call_count >= 1, "Provider should be called when fetched_at is outside the throttle window."
+        assert counting_provider.call_count >= 1, (
+            "Provider should be called when fetched_at is outside the throttle window."
+        )
 
-    def test_version_key_mismatch_calls_provider(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_version_key_mismatch_calls_provider(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When cli_version_key mismatches installed version (FR-025), provider IS called."""
         import specify_cli.compat.planner as planner_mod
         from specify_cli.compat.cache import NagCacheRecord
@@ -989,7 +1019,7 @@ class TestNoUpdateFastPath:
         # Write a cache record with a different CLI version key
         cache = NagCache(tmp_path / "upgrade-nag.json")
         old_record = NagCacheRecord(
-            cli_version_key="1.0.0",  # mismatch → FR-025 invalidation
+            cli_version_key="1.0.0",     # mismatch → FR-025 invalidation
             latest_version="1.0.0",
             latest_source="pypi",
             fetched_at=_NOW,
@@ -998,7 +1028,9 @@ class TestNoUpdateFastPath:
         cache.write(old_record)
 
         counting_provider = _CountingProvider(version=_INSTALLED)
-        resolver = _make_project_root_resolver(tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n")
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
         inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
 
         plan(
@@ -1009,4 +1041,6 @@ class TestNoUpdateFastPath:
             project_root_resolver=resolver,
         )
 
-        assert counting_provider.call_count >= 1, "Provider should be called when cli_version_key mismatches (FR-025)."
+        assert counting_provider.call_count >= 1, (
+            "Provider should be called when cli_version_key mismatches (FR-025)."
+        )

@@ -54,7 +54,14 @@ PLANNING_WORKFLOW_TEMPLATES: list[str] = [
 ]
 
 # Resolve the templates directory relative to the installed package source
-_TEMPLATES_DIR = Path(__file__).parent.parent.parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
+_TEMPLATES_DIR = (
+    Path(__file__).parent.parent.parent
+    / "src"
+    / "specify_cli"
+    / "missions"
+    / "software-dev"
+    / "command-templates"
+)
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
 _ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
@@ -86,7 +93,11 @@ def _active_codebase_files() -> list[Path]:
         if path.is_file():
             files.append(path)
             continue
-        files.extend(candidate for candidate in path.rglob("*") if candidate.is_file() and "__pycache__" not in candidate.parts and candidate.suffix != ".pyc")
+        files.extend(
+            candidate
+            for candidate in path.rglob("*")
+            if candidate.is_file() and "__pycache__" not in candidate.parts and candidate.suffix != ".pyc"
+        )
     return files
 
 
@@ -112,7 +123,8 @@ def test_template_minimum_length(command: str) -> None:
     content = _template_content(command)
     non_empty_lines = [ln for ln in content.splitlines() if ln.strip()]
     assert len(non_empty_lines) >= 40, (
-        f"{command}.md is too short: {len(non_empty_lines)} non-empty lines (minimum 40 required to qualify as a full prompt template)"
+        f"{command}.md is too short: {len(non_empty_lines)} non-empty lines "
+        f"(minimum 40 required to qualify as a full prompt template)"
     )
 
 
@@ -125,7 +137,9 @@ def test_template_minimum_length(command: str) -> None:
 def test_no_057_mission_slug(command: str) -> None:
     """Templates must not contain the 057- development slug."""
     content = _template_content(command)
-    assert "057-" not in content, f"{command}.md contains '057-' dev-time feature slug - strip before shipping"
+    assert "057-" not in content, (
+        f"{command}.md contains '057-' dev-time feature slug - strip before shipping"
+    )
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
@@ -139,7 +153,10 @@ def test_no_dev_specific_mission_slugs(command: str) -> None:
     content = _template_content(command)
     # Check specifically for the dev-time feature slugs
     for bad_slug in ("057-", "058-"):
-        assert bad_slug not in content, f"{command}.md contains dev-time feature slug '{bad_slug}' - strip before shipping to consumers"
+        assert bad_slug not in content, (
+            f"{command}.md contains dev-time feature slug '{bad_slug}' - "
+            f"strip before shipping to consumers"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -151,17 +168,28 @@ def test_no_dev_specific_mission_slugs(command: str) -> None:
 def test_no_absolute_user_paths(command: str) -> None:
     """Templates must not contain absolute paths tied to a specific machine."""
     content = _template_content(command)
-    assert _FORBIDDEN_HOME_LITERAL not in content, f"{command}.md contains a forbidden user-specific home path literal"
-    assert re.search(r"/Users/[^/]+/", content) is None, f"{command}.md contains macOS absolute user path '/Users/<user>/'"
-    assert re.search(r"/home/[^/]+/", content) is None, f"{command}.md contains Linux absolute user path '/home/<user>/'"
+    assert _FORBIDDEN_HOME_LITERAL not in content, (
+        f"{command}.md contains a forbidden user-specific home path literal"
+    )
+    assert re.search(r"/Users/[^/]+/", content) is None, (
+        f"{command}.md contains macOS absolute user path '/Users/<user>/'"
+    )
+    assert re.search(r"/home/[^/]+/", content) is None, (
+        f"{command}.md contains Linux absolute user path '/home/<user>/'"
+    )
 
 
 def test_no_user_specific_home_literal_in_active_codebase() -> None:
     """The active codebase must never ship a forbidden user-specific home path."""
     offenders = [
-        path.relative_to(_REPO_ROOT).as_posix() for path in _active_codebase_files() if _FORBIDDEN_HOME_LITERAL in path.read_text(encoding="utf-8", errors="ignore")
+        path.relative_to(_REPO_ROOT).as_posix()
+        for path in _active_codebase_files()
+        if _FORBIDDEN_HOME_LITERAL in path.read_text(encoding="utf-8", errors="ignore")
     ]
-    assert offenders == [], "Found forbidden user-specific home path literal in active codebase files: " + ", ".join(offenders)
+    assert offenders == [], (
+        "Found forbidden user-specific home path literal in active codebase files: "
+        + ", ".join(offenders)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +212,9 @@ def test_no_kittify_missions_read_instruction(command: str) -> None:
         # Split on the marker and check context
         for line in content.splitlines():
             if ".kittify/missions/" in line.lower():
-                assert "read" not in line.lower() and "cat " not in line.lower(), f"{command}.md contains .kittify/missions/ read instruction: {line.strip()!r}"
+                assert "read" not in line.lower() and "cat " not in line.lower(), (
+                    f"{command}.md contains .kittify/missions/ read instruction: {line.strip()!r}"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -200,12 +230,22 @@ def test_no_planning_repository_terminology(command: str) -> None:
     agents to confuse planning location with branch choice.
     """
     content = _template_content(command)
-    assert "planning repository" not in content.lower(), f"{command}.md uses deprecated 'planning repository' terminology - use 'repository root checkout' instead"
-    assert "planning repo" not in content.lower(), f"{command}.md uses deprecated 'planning repo' terminology - use 'repository root checkout' instead"
-    assert "project root checkout" not in content.lower(), (
-        f"{command}.md uses deprecated 'project root checkout' terminology - use 'repository root checkout' instead"
+    assert "planning repository" not in content.lower(), (
+        f"{command}.md uses deprecated 'planning repository' terminology - "
+        f"use 'repository root checkout' instead"
     )
-    assert "main repository root" not in content.lower(), f"{command}.md uses ambiguous 'main repository root' terminology - use 'repository root checkout' instead"
+    assert "planning repo" not in content.lower(), (
+        f"{command}.md uses deprecated 'planning repo' terminology - "
+        f"use 'repository root checkout' instead"
+    )
+    assert "project root checkout" not in content.lower(), (
+        f"{command}.md uses deprecated 'project root checkout' terminology - "
+        f"use 'repository root checkout' instead"
+    )
+    assert "main repository root" not in content.lower(), (
+        f"{command}.md uses ambiguous 'main repository root' terminology - "
+        f"use 'repository root checkout' instead"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +262,10 @@ def test_uses_repository_root_checkout_in_planning_templates(command: str) -> No
     correct location and do not create a worktree for planning.
     """
     content = _template_content(command)
-    assert "repository root checkout" in content.lower(), f"{command}.md missing 'repository root checkout' terminology - add explicit location guidance for agents"
+    assert "repository root checkout" in content.lower(), (
+        f"{command}.md missing 'repository root checkout' terminology - "
+        f"add explicit location guidance for agents"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -243,11 +286,14 @@ def test_has_yaml_frontmatter_with_description(command: str) -> None:
 
     content = _template_content(command)
     assert content.startswith("---\n"), (
-        f"{command}.md is missing YAML frontmatter — add a `---\\ndescription: ...\\n---` block so the slash-command picker has a real description"
+        f"{command}.md is missing YAML frontmatter — add a `---\\ndescription: "
+        f"...\\n---` block so the slash-command picker has a real description"
     )
     metadata, _body, _raw = parse_frontmatter(content)
     description = str(metadata.get("description", "")).strip()
-    assert description, f"{command}.md frontmatter is missing a non-empty `description` field"
+    assert description, (
+        f"{command}.md frontmatter is missing a non-empty `description` field"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +306,9 @@ def test_has_feature_flag_guidance(command: str) -> None:
     """Every template must include a note about passing --mission <slug>."""
     content = _template_content(command)
     assert "--mission" in content, (
-        f"{command}.md missing '--mission' guidance - add: 'In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.'"
+        f"{command}.md missing '--mission' guidance - add: "
+        f"'In repos with multiple missions, always pass `--mission <slug>` to "
+        f"every spec-kitty command.'"
     )
 
 
@@ -279,7 +327,8 @@ def test_tasks_template_context_resolve_has_mission() -> None:
     content = _template_content("tasks")
     # The context resolve command example must explicitly show --mission
     assert "context resolve --action tasks --mission" in content, (
-        "tasks.md context resolve example missing '--mission' - agents copy-paste this and immediately fail without it"
+        "tasks.md context resolve example missing '--mission' - "
+        "agents copy-paste this and immediately fail without it"
     )
 
 
@@ -289,14 +338,19 @@ def test_context_resolve_examples_have_mission(command: str) -> None:
     content = _template_content(command)
     # If a template has a context resolve call, it must have --mission
     if "context resolve" in content:
-        assert "--mission" in content, f"{command}.md has context resolve call without '--mission' - add --mission <mission-slug> to the context resolve example"
+        assert "--mission" in content, (
+            f"{command}.md has context resolve call without '--mission' - "
+            f"add --mission <mission-slug> to the context resolve example"
+        )
 
 
 def test_tasks_template_finalize_tasks_has_mission() -> None:
     """tasks.md finalize-tasks examples must include --mission (T030)."""
     content = _template_content("tasks")
     # The validate-only example must have --mission
-    assert "finalize-tasks --validate-only --mission" in content, "tasks.md finalize-tasks --validate-only example missing '--mission'"
+    assert "finalize-tasks --validate-only --mission" in content, (
+        "tasks.md finalize-tasks --validate-only example missing '--mission'"
+    )
 
 
 def test_tasks_template_map_requirements_has_mission() -> None:
@@ -307,7 +361,9 @@ def test_tasks_template_map_requirements_has_mission() -> None:
     lines_with_batch = [ln for ln in content.splitlines() if "map-requirements --batch" in ln]
     assert lines_with_batch, "tasks.md missing map-requirements --batch example"
     for line in lines_with_batch:
-        assert "--mission" in line, f"tasks.md map-requirements --batch line missing '--mission': {line.strip()!r}"
+        assert "--mission" in line, (
+            f"tasks.md map-requirements --batch line missing '--mission': {line.strip()!r}"
+        )
 
 
 def test_tasks_template_has_ownership_guidance() -> None:
@@ -319,6 +375,15 @@ def test_tasks_template_has_ownership_guidance() -> None:
     - execution_mode: 'code_change' or 'planning_artifact'
     """
     content = _template_content("tasks")
-    assert "owned_files" in content, "tasks.md missing 'owned_files' ownership guidance - agents need this to enforce file isolation between WPs"
-    assert "authoritative_surface" in content, "tasks.md missing 'authoritative_surface' guidance - identifies the canonical output location for each WP"
-    assert "execution_mode" in content, "tasks.md missing 'execution_mode' guidance - must distinguish 'code_change' from 'planning_artifact' WPs"
+    assert "owned_files" in content, (
+        "tasks.md missing 'owned_files' ownership guidance - "
+        "agents need this to enforce file isolation between WPs"
+    )
+    assert "authoritative_surface" in content, (
+        "tasks.md missing 'authoritative_surface' guidance - "
+        "identifies the canonical output location for each WP"
+    )
+    assert "execution_mode" in content, (
+        "tasks.md missing 'execution_mode' guidance - "
+        "must distinguish 'code_change' from 'planning_artifact' WPs"
+    )

@@ -66,7 +66,7 @@ class TestQueryModeDoesNotAdvance:
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision) as mock_query,
             patch("specify_cli.cli.commands.next_cmd.decide_next") as mock_decide,
         ):
-            runner.invoke(
+            result = runner.invoke(
                 cli_app,
                 ["next", "--agent", "claude", "--mission", "069-test", "--json"],
             )
@@ -528,9 +528,9 @@ class TestQueryCurrentStateErrorPaths:
                 "specify_cli.next._internal_runtime.planner.plan_next",
                 side_effect=QueryModeValidationError("planner contract violation"),
             ),
-            pytest.raises(QueryModeValidationError, match="planner contract violation"),
         ):
-            query_current_state(None, "069-test", tmp_path)
+            with pytest.raises(QueryModeValidationError, match="planner contract violation"):
+                query_current_state(None, "069-test", tmp_path)
 
     def test_terminal_runtime_decision_renders_done_mission_state(self, tmp_path: Path) -> None:
         from specify_cli.next.runtime_bridge import query_current_state
@@ -714,7 +714,7 @@ class TestResultSuccessStillAdvances:
             patch("specify_cli.next.runtime_bridge.query_current_state") as mock_query,
             patch("specify_cli.mission_v1.events.emit_event"),
         ):
-            runner.invoke(
+            result = runner.invoke(
                 cli_app,
                 ["next", "--agent", "claude", "--mission", "069-test", "--result", "success", "--json"],
             )

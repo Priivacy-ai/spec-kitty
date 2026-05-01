@@ -21,6 +21,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import get_token_manager
@@ -76,7 +77,9 @@ def _me_response() -> dict[str, Any]:
     }
 
 
-def _mock_httpx_response(status_code: int, json_body: dict[str, Any]) -> MagicMock:
+def _mock_httpx_response(
+    status_code: int, json_body: dict[str, Any]
+) -> MagicMock:
     response = MagicMock(spec=httpx.Response)
     response.status_code = status_code
     response.text = str(json_body)
@@ -130,7 +133,9 @@ class TestHeadlessLoginE2E:
                 return_value=fake_storage,
             ),
             patch("httpx.AsyncClient") as mock_client_cls,
-            patch("specify_cli.auth.loopback.browser_launcher.BrowserLauncher.launch") as mock_launch,
+            patch(
+                "specify_cli.auth.loopback.browser_launcher.BrowserLauncher.launch"
+            ) as mock_launch,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -142,7 +147,10 @@ class TestHeadlessLoginE2E:
             # FR-020: headless must NEVER call BrowserLauncher.launch.
             mock_launch.assert_not_called()
 
-        assert result.exit_code == 0, f"headless login failed: stdout={result.stdout!r} exception={result.exception!r}"
+        assert result.exit_code == 0, (
+            f"headless login failed: stdout={result.stdout!r} "
+            f"exception={result.exception!r}"
+        )
 
         # FR-019: the user code was formatted with a hyphen for humans.
         assert "ABCD-1234" in result.stdout
@@ -192,12 +200,16 @@ class TestHeadlessLoginE2E:
                     # SaaS returns HTTP 400 with error=authorization_pending,
                     # but our DeviceCodeFlow._poll_token_request treats both
                     # 200 and 400 as JSON carriers.
-                    return _mock_httpx_response(400, {"error": "authorization_pending"})
+                    return _mock_httpx_response(
+                        400, {"error": "authorization_pending"}
+                    )
                 # Second poll: approved.
                 return _mock_httpx_response(200, _token_response())
             raise AssertionError(f"unexpected POST: {url}")
 
-        async def _get(url: str, headers: dict[str, str] | None = None, **kwargs: Any) -> MagicMock:
+        async def _get(
+            url: str, headers: dict[str, str] | None = None, **kwargs: Any
+        ) -> MagicMock:
             return _mock_httpx_response(200, _me_response())
 
         with (

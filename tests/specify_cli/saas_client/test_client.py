@@ -119,18 +119,24 @@ def test_load_auth_context_default_url(monkeypatch: pytest.MonkeyPatch) -> None:
     assert ctx.saas_url == "https://api.spec-kitty.io"
 
 
-def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_auth_context_from_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": "https://file-url.example"}))
+    (auth_dir / "saas-auth.json").write_text(
+        json.dumps({"token": "file-token", "saas_url": "https://file-url.example"})
+    )
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "file-token"
     assert ctx.saas_url == "https://file-url.example"
 
 
-def test_load_auth_context_raises_when_no_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_auth_context_raises_when_no_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     with pytest.raises(SaasAuthError, match="SPEC_KITTY_SAAS_TOKEN"):
@@ -169,14 +175,12 @@ def test_get_audience_default_accepts_bare_list() -> None:
 
 
 def test_post_widen_returns_widen_response() -> None:
-    client = _make_client(
-        {
-            "decision_id": "dec-1",
-            "widened_at": "2026-04-23T10:00:00Z",
-            "slack_thread_url": "https://slack.com/x",
-            "invited_count": 2,
-        }
-    )
+    client = _make_client({
+        "decision_id": "dec-1",
+        "widened_at": "2026-04-23T10:00:00Z",
+        "slack_thread_url": "https://slack.com/x",
+        "invited_count": 2,
+    })
     result = client.post_widen("dec-1", [1, 2])
     assert result["decision_id"] == "dec-1"
     assert result["invited_count"] == 2
@@ -202,15 +206,13 @@ def test_health_probe_returns_false_on_error() -> None:
 
 
 def test_fetch_discussion_returns_discussion_data() -> None:
-    client = _make_client(
-        {
-            "decision_id": "dec-1",
-            "participants": ["Alice", "Bob"],
-            "messages": [{"author": "Alice", "text": "Hello", "timestamp": None}],
-            "thread_url": "https://slack.com/y",
-            "message_count": 1,
-        }
-    )
+    client = _make_client({
+        "decision_id": "dec-1",
+        "participants": ["Alice", "Bob"],
+        "messages": [{"author": "Alice", "text": "Hello", "timestamp": None}],
+        "thread_url": "https://slack.com/y",
+        "message_count": 1,
+    })
     result = client.fetch_discussion("dec-1")
     assert result["decision_id"] == "dec-1"
     assert result["participants"] == ["Alice", "Bob"]
@@ -274,7 +276,9 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M1/audience-default").respond(200, json={"members": [{"user_id": 1, "display_name": "Alice"}]})
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M1/audience-default").respond(
+                200, json={"members": [{"user_id": 1, "display_name": "Alice"}]}
+            )
             client = self._client(httpx.Client())
             result = client.get_audience_default("M1")
         assert result == [{"user_id": 1, "display_name": "Alice"}]
@@ -284,7 +288,9 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M2/audience-default").respond(200, json=["Carol", "Dana"])
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M2/audience-default").respond(
+                200, json=["Carol", "Dana"]
+            )
             client = self._client(httpx.Client())
             result = client.get_audience_default("M2")
         assert result == [{"display_name": "Carol"}, {"display_name": "Dana"}]
@@ -346,7 +352,9 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/health").mock(side_effect=httpx.TimeoutException("timed out"))
+            respx.get(f"{self.BASE}/api/v1/health").mock(
+                side_effect=httpx.TimeoutException("timed out")
+            )
             client = self._client(httpx.Client())
             assert client.health_probe() is False
 
@@ -355,7 +363,9 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/integrations/").respond(200, json={"integrations": ["slack", "github"]})
+            respx.get(f"{self.BASE}/a/my-team/collaboration/integrations/").respond(
+                200, json={"integrations": ["slack", "github"]}
+            )
             client = self._client(httpx.Client())
             result = client.get_team_integrations("my-team")
         assert "slack" in result
@@ -366,7 +376,9 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M3/audience-default").respond(401, text="Unauthorized")
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M3/audience-default").respond(
+                401, text="Unauthorized"
+            )
             client = self._client(httpx.Client())
             with pytest.raises(SaasAuthError) as exc_info:
                 client.get_audience_default("M3")

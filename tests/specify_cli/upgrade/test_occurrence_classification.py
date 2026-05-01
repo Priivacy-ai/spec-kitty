@@ -21,7 +21,15 @@ from specify_cli.upgrade.skill_update import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-IMPLEMENT_TEMPLATE_PATH = Path(__file__).resolve().parents[3] / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "implement.md"
+IMPLEMENT_TEMPLATE_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "src"
+    / "specify_cli"
+    / "missions"
+    / "software-dev"
+    / "command-templates"
+    / "implement.md"
+)
 
 
 @pytest.fixture()
@@ -51,12 +59,16 @@ class TestApplyTextReplacementsNoFilter:
     """Existing behaviour is preserved when context_filter is not provided."""
 
     def test_replaces_text(self, sample_file: Path) -> None:
-        result = apply_text_replacements(sample_file, [("hello", "goodbye")])
+        result = apply_text_replacements(
+            sample_file, [("hello", "goodbye")]
+        )
         assert result is True
         assert "goodbye world" in sample_file.read_text(encoding="utf-8")
 
     def test_returns_false_when_no_match(self, sample_file: Path) -> None:
-        result = apply_text_replacements(sample_file, [("nonexistent", "replacement")])
+        result = apply_text_replacements(
+            sample_file, [("nonexistent", "replacement")]
+        )
         assert result is False
 
     def test_multiple_replacements(self, sample_file: Path) -> None:
@@ -104,7 +116,9 @@ class TestApplyTextReplacementsWithFilter:
             captured.append(path)
             return True
 
-        apply_text_replacements(sample_file, [("hello", "goodbye")], context_filter=spy)
+        apply_text_replacements(
+            sample_file, [("hello", "goodbye")], context_filter=spy
+        )
         assert captured == [sample_file]
 
     def test_filter_skips_before_reading(self, tmp_path: Path) -> None:
@@ -154,17 +168,23 @@ class TestExcludePaths:
         filt = exclude_paths()
         assert filt(sample_file) is True
 
-    def test_integration_with_apply(self, sample_file: Path, kittify_file: Path) -> None:
+    def test_integration_with_apply(
+        self, sample_file: Path, kittify_file: Path
+    ) -> None:
         """End-to-end: exclude_paths + apply_text_replacements."""
         filt = exclude_paths("*.kittify*")
 
         # sample_file is NOT excluded => replacement happens
-        r1 = apply_text_replacements(sample_file, [("hello", "goodbye")], context_filter=filt)
+        r1 = apply_text_replacements(
+            sample_file, [("hello", "goodbye")], context_filter=filt
+        )
         assert r1 is True
 
         # kittify_file IS excluded => no replacement
         original = kittify_file.read_text(encoding="utf-8")
-        r2 = apply_text_replacements(kittify_file, [("old_term", "new_term")], context_filter=filt)
+        r2 = apply_text_replacements(
+            kittify_file, [("old_term", "new_term")], context_filter=filt
+        )
         assert r2 is False
         assert kittify_file.read_text(encoding="utf-8") == original
 
@@ -179,7 +199,9 @@ class TestImplementTemplateContent:
 
     @pytest.fixture(autouse=True)
     def _load_template(self) -> None:
-        assert IMPLEMENT_TEMPLATE_PATH.is_file(), f"implement.md template not found at {IMPLEMENT_TEMPLATE_PATH}"
+        assert IMPLEMENT_TEMPLATE_PATH.is_file(), (
+            f"implement.md template not found at {IMPLEMENT_TEMPLATE_PATH}"
+        )
         self.content = IMPLEMENT_TEMPLATE_PATH.read_text(encoding="utf-8")
 
     def test_has_bulk_edit_safety_section(self) -> None:
@@ -205,7 +227,9 @@ class TestImplementTemplateContent:
             "external_ref",
         ]
         for cat in categories:
-            assert f"`{cat}`" in self.content, f"Category '{cat}' missing from implement template"
+            assert f"`{cat}`" in self.content, (
+                f"Category '{cat}' missing from implement template"
+            )
 
     def test_has_post_edit_verification_subsection(self) -> None:
         assert "Post-Edit" in self.content and "Verification" in self.content

@@ -119,7 +119,9 @@ class TestGlossaryHookEnablement:
             patch("doctrine.missions.glossary_hook.get_runner", return_value=None),
             patch("doctrine.missions.glossary_hook.import_module", side_effect=ImportError),
         ):
-            result = execute_with_glossary(primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp"))
+            result = execute_with_glossary(
+                primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")
+            )
         assert result == "fallback-result"
         primitive_fn.assert_called_once_with(ctx)
 
@@ -130,7 +132,9 @@ class TestGlossaryHookEnablement:
             patch("doctrine.missions.glossary_hook.get_runner", return_value=None),
             patch("doctrine.missions.glossary_hook.import_module", side_effect=ImportError),
         ):
-            result = execute_with_glossary(primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp"))
+            result = execute_with_glossary(
+                primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")
+            )
         assert result == "ran"
 
 
@@ -140,12 +144,16 @@ class TestPrimitiveForwarding:
     def test_returns_primitive_result(self):
         primitive_fn = Mock(return_value={"status": "done", "output": [1, 2, 3]})
         ctx = _make_ctx({"glossary_check": False})
-        result = execute_with_glossary(primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp"))
+        result = execute_with_glossary(
+            primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")
+        )
         assert result == {"status": "done", "output": [1, 2, 3]}
 
     def test_disabled_path_returns_primitive_result_directly(self):
         expected = object()
         primitive_fn = Mock(return_value=expected)
         ctx = _make_ctx({"glossary_check": "disabled"})
-        result = execute_with_glossary(primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp"))
+        result = execute_with_glossary(
+            primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")
+        )
         assert result is expected

@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import specify_cli.cli.commands.agent.tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import (
     _behind_commits_touch_only_planning_artifacts,
     _check_unchecked_subtasks,
@@ -178,8 +179,9 @@ def test_resolve_git_common_dir_empty_output(tmp_path: Path) -> None:
     """Raises RuntimeError when git returns empty string."""
     mock_result = MagicMock()
     mock_result.stdout = "  \n"
-    with patch("subprocess.run", return_value=mock_result), pytest.raises(RuntimeError, match="Unable to resolve git common directory"):
-        _resolve_git_common_dir(tmp_path)
+    with patch("subprocess.run", return_value=mock_result):
+        with pytest.raises(RuntimeError, match="Unable to resolve git common directory"):
+            _resolve_git_common_dir(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +247,9 @@ _TASKS_MD = """\
 
 def test_check_unchecked_subtasks_no_tasks_md(tmp_path: Path) -> None:
     """Returns empty list when tasks.md doesn't exist."""
-    with patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path):
+    with patch(
+        "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
+    ):
         result = _check_unchecked_subtasks(tmp_path, "010-test", "WP01", False)
     assert result == []
 
@@ -256,7 +260,9 @@ def test_check_unchecked_subtasks_finds_unchecked(tmp_path: Path) -> None:
     feature_dir.mkdir(parents=True)
     (feature_dir / "tasks.md").write_text(_TASKS_MD, encoding="utf-8")
 
-    with patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path):
+    with patch(
+        "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
+    ):
         result = _check_unchecked_subtasks(tmp_path, "010-test", "WP01", False)
 
     assert "T002" in result
@@ -271,7 +277,9 @@ def test_check_unchecked_subtasks_all_checked(tmp_path: Path) -> None:
     feature_dir.mkdir(parents=True)
     (feature_dir / "tasks.md").write_text(content, encoding="utf-8")
 
-    with patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path):
+    with patch(
+        "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
+    ):
         result = _check_unchecked_subtasks(tmp_path, "010-test", "WP01", False)
     assert result == []
 
@@ -282,7 +290,9 @@ def test_check_unchecked_subtasks_only_target_wp(tmp_path: Path) -> None:
     feature_dir.mkdir(parents=True)
     (feature_dir / "tasks.md").write_text(_TASKS_MD, encoding="utf-8")
 
-    with patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path):
+    with patch(
+        "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
+    ):
         result = _check_unchecked_subtasks(tmp_path, "010-test", "WP02", False)
 
     # WP02 has T004 unchecked and T005 checked
@@ -322,7 +332,7 @@ def test_behind_commits_no_changed_files(tmp_path: Path) -> None:
     """Returns True when diff reports no changed files (fully up-to-date)."""
     responses = [
         _make_subproc(returncode=0, stdout="abc123\n"),  # merge-base
-        _make_subproc(returncode=0, stdout=""),  # diff --name-only
+        _make_subproc(returncode=0, stdout=""),          # diff --name-only
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", "010-test")

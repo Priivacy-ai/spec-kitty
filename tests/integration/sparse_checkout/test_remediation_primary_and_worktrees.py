@@ -120,7 +120,9 @@ def test_remediation_across_primary_and_two_worktrees(tmp_path: Path) -> None:
             text=True,
             check=True,
         )
-        assert porcelain.stdout.strip() == "", f"{target} still dirty after remediation: {porcelain.stdout!r}"
+        assert porcelain.stdout.strip() == "", (
+            f"{target} still dirty after remediation: {porcelain.stdout!r}"
+        )
 
     final_report = scan_repo(repo)
     assert final_report.any_active is False

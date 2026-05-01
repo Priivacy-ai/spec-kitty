@@ -50,7 +50,9 @@ def test_documentation_in_composed_actions() -> None:
     """FR-002 + FR-015: documentation entry present with the 6 expected verbs."""
     assert "documentation" in _COMPOSED_ACTIONS_BY_MISSION
     assert _COMPOSED_ACTIONS_BY_MISSION["documentation"] == frozenset(_DOC_ACTIONS)
-    assert "accept" not in _COMPOSED_ACTIONS_BY_MISSION["documentation"], "FR-005 / plan D5 — accept must not be in the composed set"
+    assert "accept" not in _COMPOSED_ACTIONS_BY_MISSION["documentation"], (
+        "FR-005 / plan D5 — accept must not be in the composed set"
+    )
 
 
 @pytest.mark.parametrize("action,profile", list(_PROFILE_DEFAULTS.items()))
@@ -60,10 +62,14 @@ def test_profile_defaults_per_action(action: str, profile: str) -> None:
 
 
 @pytest.mark.parametrize("action,artifact", list(_GATE_ARTIFACT.items()))
-def test_guard_fails_when_artifact_missing(tmp_path: Path, action: str, artifact: str) -> None:
+def test_guard_fails_when_artifact_missing(
+    tmp_path: Path, action: str, artifact: str
+) -> None:
     """FR-007 + FR-008: each documentation action's guard names the missing artifact."""
     failures = _check_composed_action_guard(action, tmp_path, mission="documentation")
-    assert any(artifact in msg for msg in failures), f"expected '{artifact}' in failures for action {action}; got {failures}"
+    assert any(artifact in msg for msg in failures), (
+        f"expected '{artifact}' in failures for action {action}; got {failures}"
+    )
 
 
 def test_generate_guard_fails_with_empty_docs_root(tmp_path: Path) -> None:
@@ -86,7 +92,9 @@ def test_unknown_documentation_action_fails_closed(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("action", _DOC_ACTIONS)
-def test_known_action_passes_when_artifact_present(tmp_path: Path, action: str) -> None:
+def test_known_action_passes_when_artifact_present(
+    tmp_path: Path, action: str
+) -> None:
     """FR-007 happy path: each guard returns no failures when its artifact exists."""
     # Author the artifact required by this action.
     if action == "generate":

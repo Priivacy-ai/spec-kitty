@@ -627,7 +627,11 @@ def _fully_ignored_top_dirs() -> set[str]:
         if len(parts) >= 3:  # noqa: PLR2004
             top_dir = "/".join(parts[:2])
             top_dir_git_classes.setdefault(top_dir, []).append(s.git_class)
-    return {d + "/" for d, classes in top_dir_git_classes.items() if all(gc == GitClass.IGNORED for gc in classes)}
+    return {
+        d + "/"
+        for d, classes in top_dir_git_classes.items()
+        if all(gc == GitClass.IGNORED for gc in classes)
+    }
 
 
 def _collapse_placeholder_pattern(pattern: str) -> str | None:
@@ -646,7 +650,14 @@ def _collapse_placeholder_pattern(pattern: str) -> str | None:
 
 def _remove_subsumed(entries: set[str]) -> set[str]:
     """Remove entries that are subsumed by a parent directory entry."""
-    return {entry for entry in entries if not any(other != entry and other.endswith("/") and entry.startswith(other) for other in entries)}
+    return {
+        entry
+        for entry in entries
+        if not any(
+            other != entry and other.endswith("/") and entry.startswith(other)
+            for other in entries
+        )
+    }
 
 
 def get_runtime_gitignore_entries() -> list[str]:

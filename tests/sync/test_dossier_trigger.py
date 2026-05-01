@@ -13,37 +13,27 @@ from specify_cli.sync.dossier_pipeline import (
 
 pytestmark = pytest.mark.fast
 
-
 class TestTriggerDisabled:
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=False)
     def test_returns_none_when_sync_disabled(
-        self,
-        mock_saas: MagicMock,
-        tmp_path: Path,
+        self, mock_saas: MagicMock, tmp_path: Path,
     ) -> None:
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path,
-            "047-feat",
-            tmp_path,
+            tmp_path, "047-feat", tmp_path,
         )
         assert result is None
 
     def test_returns_none_on_internal_error(self, tmp_path: Path) -> None:
         """Should never raise even on internal errors."""
-        with (
-            patch(
-                "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-                return_value=True,
-            ),
-            patch(
-                "specify_cli.sync.project_identity.ensure_identity",
-                side_effect=RuntimeError("boom"),
-            ),
+        with patch(
+            "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+            return_value=True,
+        ), patch(
+            "specify_cli.sync.project_identity.ensure_identity",
+            side_effect=RuntimeError("boom"),
         ):
             result = trigger_feature_dossier_sync_if_enabled(
-                tmp_path,
-                "047-feat",
-                tmp_path,
+                tmp_path, "047-feat", tmp_path,
             )
             assert result is None
 
@@ -81,15 +71,11 @@ class TestTriggerEnabled:
         mock_body_queue_cls.return_value = mock_body_queue
 
         mock_sync.return_value = DossierSyncResult(
-            dossier=None,
-            events_emitted=0,
-            body_outcomes=[],
+            dossier=None, events_emitted=0, body_outcomes=[],
         )
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path,
-            "047-feat",
-            tmp_path,
+            tmp_path, "047-feat", tmp_path,
         )
 
         mock_sync.assert_called_once()
@@ -113,9 +99,7 @@ class TestTriggerEnabled:
         )
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path,
-            "047-feat",
-            tmp_path,
+            tmp_path, "047-feat", tmp_path,
         )
         assert result is None
 
@@ -141,6 +125,7 @@ class TestTriggerEnabled:
 
         from specify_cli.sync.project_identity import ProjectIdentity
 
+
         mock_identity.return_value = ProjectIdentity(
             project_uuid=UUID("550e8400-e29b-41d4-a716-446655440000"),
             project_slug="test-proj",
@@ -150,9 +135,7 @@ class TestTriggerEnabled:
         mock_body_queue_cls.side_effect = RuntimeError("queue init failed")
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path,
-            "047-feat",
-            tmp_path,
+            tmp_path, "047-feat", tmp_path,
         )
         mock_sync.assert_not_called()
         assert result is None
@@ -166,8 +149,6 @@ class TestTriggerEnabled:
         tmp_path: Path,
     ) -> None:
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path,
-            "047-feat",
-            tmp_path,
+            tmp_path, "047-feat", tmp_path,
         )
         assert result is None

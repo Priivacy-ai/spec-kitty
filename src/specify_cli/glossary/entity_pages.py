@@ -155,7 +155,11 @@ class GlossaryEntityPageRenderer:
                 continue
             node_label = getattr(node, "label", None)
             # Definition lives in metadata when present; fall back to label or placeholder
-            definition = getattr(node, "definition", None) or node_label or "_No definition recorded._"
+            definition = (
+                getattr(node, "definition", None)
+                or node_label
+                or "_No definition recorded._"
+            )
             provenance = getattr(node, "provenance", None)
             records.append(
                 _TermRecord(

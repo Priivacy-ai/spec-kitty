@@ -23,14 +23,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Helper Functions
 # ============================================================================
 
-
 def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
     """Execute spec-kitty CLI using Python module invocation."""
     from tests.test_isolation_helpers import get_venv_python
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
+        os.pathsep
+    )
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -40,7 +41,6 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
         text=True,
         env=env,
     )
-
 
 def init_test_repo(tmp_path: Path) -> Path:
     """Initialize test git repository (minimal setup for testing)."""
@@ -68,17 +68,21 @@ def init_test_repo(tmp_path: Path) -> Path:
 
     # Create minimal config
     import yaml
-
     config = {
         "vcs": {"type": "git"},
         "agents": {
             "available": ["claude"],
-        },
+        }
     }
     (kittify / "config.yaml").write_text(yaml.dump(config))
 
     # Create minimal metadata
-    metadata = {"spec_kitty": {"version": "0.13.8", "initialized_at": "2026-01-29T00:00:00Z"}}
+    metadata = {
+        "spec_kitty": {
+            "version": "0.13.8",
+            "initialized_at": "2026-01-29T00:00:00Z"
+        }
+    }
     (kittify / "metadata.yaml").write_text(yaml.dump(metadata))
 
     # Create initial commit
@@ -93,11 +97,9 @@ def init_test_repo(tmp_path: Path) -> Path:
 
     return repo
 
-
 # ============================================================================
 # Tests for Explicit Metadata Fields
 # ============================================================================
-
 
 def test_specify_creates_explicit_target_branch(tmp_path):
     """Test that specify command creates meta.json with explicit target_branch field.
@@ -140,7 +142,6 @@ def test_specify_creates_explicit_target_branch(tmp_path):
     assert loaded_meta["target_branch"] == "main", "Default target_branch should be 'main'"
     assert loaded_meta["vcs"] == "git", "Default vcs should be 'git'"
 
-
 def test_specify_target_branch_not_null(tmp_path):
     """Test that target_branch is not null or empty string.
 
@@ -175,7 +176,6 @@ def test_specify_target_branch_not_null(tmp_path):
     assert isinstance(loaded_meta["target_branch"], str)
     assert len(loaded_meta["target_branch"]) > 0
 
-
 def test_specify_vcs_not_null(tmp_path):
     """Test that vcs is not null or empty string.
 
@@ -209,7 +209,6 @@ def test_specify_vcs_not_null(tmp_path):
     assert loaded_meta["vcs"] != ""
     assert isinstance(loaded_meta["vcs"], str)
     assert loaded_meta["vcs"] in ("git", "jj"), "vcs must be 'git' or 'jj'"
-
 
 def test_specify_all_required_fields_present(tmp_path):
     """Test that meta.json contains all required fields.
@@ -266,7 +265,6 @@ def test_specify_all_required_fields_present(tmp_path):
         assert loaded_meta[field] is not None, f"Field '{field}' must not be null"
         assert loaded_meta[field] != "", f"Field '{field}' must not be empty"
 
-
 def test_specify_dual_branch_feature_can_override(tmp_path):
     """Test that target_branch can be set to '2.x' for dual-branch features.
 
@@ -304,7 +302,6 @@ def test_specify_dual_branch_feature_can_override(tmp_path):
     assert loaded_meta["target_branch"] == "2.x"
     assert "target_branch" in loaded_meta  # Explicit, not implicit
 
-
 def test_get_feature_target_branch_reads_explicit_value(tmp_path):
     """Test that get_feature_target_branch reads the explicit value.
 
@@ -338,7 +335,6 @@ def test_get_feature_target_branch_reads_explicit_value(tmp_path):
     # Should return explicit value, not default
     assert target == "custom-branch", "Should read explicit target_branch value"
 
-
 def test_legacy_features_still_work_with_default(tmp_path):
     """Test backward compatibility for features created before this fix.
 
@@ -370,7 +366,6 @@ def test_legacy_features_still_work_with_default(tmp_path):
     target = get_feature_target_branch(repo, mission_slug)
 
     assert target == "main", "Legacy features should default to 'main'"
-
 
 def test_explicit_fields_prevent_ambiguity(tmp_path):
     """Test that explicit fields make behavior predictable.
@@ -415,7 +410,6 @@ def test_explicit_fields_prevent_ambiguity(tmp_path):
     assert meta_007["target_branch"] == "main", "Visible in metadata"
     assert meta_008["target_branch"] == "2.x", "Visible in metadata"
 
-
 def test_json_schema_validation(tmp_path):
     """Test that meta.json follows expected schema.
 
@@ -456,9 +450,10 @@ def test_json_schema_validation(tmp_path):
     assert isinstance(loaded_meta["vcs"], str)  # NEW
 
     # Value constraints
-    assert loaded_meta["target_branch"] in ("main", "2.x", "custom-branch"), "target_branch should be a valid branch name"
-    assert loaded_meta["vcs"] in ("git", "jj"), "vcs should be 'git' or 'jj'"
-
+    assert loaded_meta["target_branch"] in ("main", "2.x", "custom-branch"), \
+        "target_branch should be a valid branch name"
+    assert loaded_meta["vcs"] in ("git", "jj"), \
+        "vcs should be 'git' or 'jj'"
 
 def test_explicit_fields_in_git_history(tmp_path):
     """Test that meta.json with explicit fields is committed properly.
@@ -507,7 +502,6 @@ def test_explicit_fields_in_git_history(tmp_path):
     assert "target_branch" in committed_content, "Explicit field should be in git history"
     assert "vcs" in committed_content, "Explicit field should be in git history"
     assert '"main"' in committed_content or "'main'" in committed_content
-
 
 def test_comparison_implicit_vs_explicit(tmp_path):
     """Test demonstrating the difference between implicit and explicit defaults.
@@ -571,7 +565,6 @@ def test_comparison_implicit_vs_explicit(tmp_path):
     # Explicit is better for debugging and clarity
     # You can grep: grep -r '"target_branch": "2.x"' kitty-specs/
     # With implicit, you can't tell which features target which branch
-
 
 def test_explicit_fields_survive_roundtrip(tmp_path):
     """Test that explicit fields survive read-write-read cycles.

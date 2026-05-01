@@ -131,7 +131,9 @@ class TestBindDispatch:
             provider_context={},
             bound_at="2026-01-01T00:00:00Z",
         )
-        with patch.object(SaaSTrackerService, "resolve_and_bind", return_value=mock_return) as mock_rab:
+        with patch.object(
+            SaaSTrackerService, "resolve_and_bind", return_value=mock_return
+        ) as mock_rab:
             result = service.bind(provider="linear", project_identity={"slug": "my-proj"})
             mock_rab.assert_called_once_with(
                 provider="linear",
@@ -245,7 +247,9 @@ class TestDiscoverFacade:
             provider="linear",
             provider_context={"team": "eng"},
         )
-        with patch.object(SaaSTrackerService, "discover", return_value=[fake_resource]) as mock_discover:
+        with patch.object(
+            SaaSTrackerService, "discover", return_value=[fake_resource]
+        ) as mock_discover:
             result = service.discover(provider="linear")
             mock_discover.assert_called_once_with("linear")
             assert len(result) == 1
@@ -292,7 +296,9 @@ class TestBindSaaSDiscoveryFlow:
             provider_context={"team": "eng"},
             bound_at="2026-04-04T12:00:00Z",
         )
-        with patch.object(SaaSTrackerService, "resolve_and_bind", return_value=fake_result) as mock_rab:
+        with patch.object(
+            SaaSTrackerService, "resolve_and_bind", return_value=fake_result
+        ) as mock_rab:
             result = service.bind(
                 provider="linear",
                 project_identity={"repo": "my-repo"},
@@ -317,7 +323,9 @@ class TestBindSaaSDiscoveryFlow:
             provider_context={},
             bound_at="2026-04-04T12:00:00Z",
         )
-        with patch.object(SaaSTrackerService, "resolve_and_bind", return_value=fake_result) as mock_rab:
+        with patch.object(
+            SaaSTrackerService, "resolve_and_bind", return_value=fake_result
+        ) as mock_rab:
             result = service.bind(
                 provider="linear",
                 select_n=2,
@@ -339,7 +347,9 @@ class TestBindSaaSDiscoveryFlow:
             provider="linear",
             binding_ref="br-known",
         )
-        with patch.object(SaaSTrackerService, "validate_and_bind", return_value=fake_config) as mock_vab:
+        with patch.object(
+            SaaSTrackerService, "validate_and_bind", return_value=fake_config
+        ) as mock_vab:
             result = service.bind(
                 provider="linear",
                 bind_ref="br-known",
@@ -417,7 +427,9 @@ class TestStatusAll:
 
         _setup_config(tmp_path, provider="beads", workspace="ws")
         service = TrackerService(tmp_path)
-        with patch.object(LocalTrackerService, "status", return_value={"configured": True}) as mock_status:
+        with patch.object(
+            LocalTrackerService, "status", return_value={"configured": True}
+        ) as mock_status:
             result = service.status()
             mock_status.assert_called_once()
             assert result == {"configured": True}

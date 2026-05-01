@@ -106,6 +106,8 @@ def validate_audit_coverage(
             if covered:
                 break
         if not covered:
-            warnings.append(f"Audit target {target_str}/ not covered by any codebase-wide WP")
+            warnings.append(
+                f"Audit target {target_str}/ not covered by any codebase-wide WP"
+            )
 
     return warnings

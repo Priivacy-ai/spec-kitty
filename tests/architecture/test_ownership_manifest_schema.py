@@ -3,7 +3,6 @@
 Asserts structural completeness per data-model.md §4.
 Runs in <1 s (NFR-002).
 """
-
 import time
 import warnings
 from pathlib import Path
@@ -69,9 +68,15 @@ def test_each_slice_entry_has_required_fields(manifest: dict[str, Any]) -> None:
     for key, entry in manifest.items():
         for field in REQUIRED_ENTRY_FIELDS:
             assert field in entry, f"Slice '{key}' missing required field '{field}'"
-        assert isinstance(entry["canonical_package"], str) and entry["canonical_package"], f"Slice '{key}': canonical_package must be a non-empty string"
-        assert isinstance(entry["current_state"], list) and len(entry["current_state"]) > 0, f"Slice '{key}': current_state must be a non-empty list"
-        assert isinstance(entry["adapter_responsibilities"], list), f"Slice '{key}': adapter_responsibilities must be a list"
+        assert isinstance(entry["canonical_package"], str) and entry["canonical_package"], (
+            f"Slice '{key}': canonical_package must be a non-empty string"
+        )
+        assert isinstance(entry["current_state"], list) and len(entry["current_state"]) > 0, (
+            f"Slice '{key}': current_state must be a non-empty list"
+        )
+        assert isinstance(entry["adapter_responsibilities"], list), (
+            f"Slice '{key}': adapter_responsibilities must be a list"
+        )
         assert isinstance(entry["shims"], list), f"Slice '{key}': shims must be a list"
         assert isinstance(entry["seams"], list), f"Slice '{key}': seams must be a list"
         assert isinstance(entry["extraction_sequencing_notes"], str) and entry["extraction_sequencing_notes"], (
@@ -85,8 +90,12 @@ def test_runtime_slice_has_dependency_rules(manifest: dict[str, Any]) -> None:
     assert "dependency_rules" in runtime, "runtime_mission_execution must have dependency_rules"
     dr = runtime["dependency_rules"]
     assert isinstance(dr, dict), "dependency_rules must be a mapping"
-    assert "may_call" in dr and isinstance(dr["may_call"], list), "dependency_rules.may_call must be a list"
-    assert "may_be_called_by" in dr and isinstance(dr["may_be_called_by"], list), "dependency_rules.may_be_called_by must be a list"
+    assert "may_call" in dr and isinstance(dr["may_call"], list), (
+        "dependency_rules.may_call must be a list"
+    )
+    assert "may_be_called_by" in dr and isinstance(dr["may_be_called_by"], list), (
+        "dependency_rules.may_be_called_by must be a list"
+    )
 
 
 # Assertions 5+6 — dependency_rules on runtime only; no other slice has it
@@ -94,13 +103,17 @@ def test_only_runtime_slice_has_dependency_rules(manifest: dict[str, Any]) -> No
     for key, entry in manifest.items():
         if key == "runtime_mission_execution":
             continue
-        assert "dependency_rules" not in entry, f"Slice '{key}' must not have dependency_rules (runtime-only field)"
+        assert "dependency_rules" not in entry, (
+            f"Slice '{key}' must not have dependency_rules (runtime-only field)"
+        )
 
 
 # Assertion 7 — charter_governance.shims is an empty list
 def test_charter_governance_shims_is_empty(manifest: dict[str, Any]) -> None:
     charter = manifest["charter_governance"]
-    assert charter["shims"] == [], "charter_governance.shims must be [] (shim deleted by Mission functional-ownership-map-01KPDY72)"
+    assert charter["shims"] == [], (
+        "charter_governance.shims must be [] (shim deleted by Mission functional-ownership-map-01KPDY72)"
+    )
 
 
 # Assertion 8 — dependency_rules references only known slice keys
@@ -108,7 +121,9 @@ def test_dependency_rules_reference_known_slice_keys(manifest: dict[str, Any]) -
     dr = manifest["runtime_mission_execution"]["dependency_rules"]
     for direction in ("may_call", "may_be_called_by"):
         for ref in dr[direction]:
-            assert ref in REQUIRED_SLICE_KEYS, f"dependency_rules.{direction} contains unknown slice key '{ref}'"
+            assert ref in REQUIRED_SLICE_KEYS, (
+                f"dependency_rules.{direction} contains unknown slice key '{ref}'"
+            )
 
 
 # Assertion 6 — every shims[].path that is non-empty exists on disk

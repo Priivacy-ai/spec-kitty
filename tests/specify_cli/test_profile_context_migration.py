@@ -18,7 +18,10 @@ def _write_config(project_path: Path, agents: list[str]) -> None:
     """Write .kittify/config.yaml with the given agent list."""
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "config.yaml").write_text("agents:\n  available:\n" + "".join(f"    - {a}\n" for a in agents))
+    (kittify / "config.yaml").write_text(
+        "agents:\n  available:\n"
+        + "".join(f"    - {a}\n" for a in agents)
+    )
 
 
 def _make_agent_dir(project_path: Path, agent_root: str, subdir: str) -> Path:
@@ -63,7 +66,7 @@ def test_migration_deploys_to_configured_agents(tmp_path: Path, migration) -> No
 def test_migration_skips_unconfigured_agents(tmp_path: Path, migration) -> None:
     """Migration does NOT write to agent dirs that are not in config.yaml."""
     _write_config(tmp_path, ["opencode"])
-    _make_agent_dir(tmp_path, ".claude", "commands")  # exists but NOT configured
+    _make_agent_dir(tmp_path, ".claude", "commands")   # exists but NOT configured
     _make_agent_dir(tmp_path, ".opencode", "command")  # configured
 
     result = migration.apply(tmp_path)

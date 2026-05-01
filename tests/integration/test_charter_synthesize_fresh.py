@@ -34,27 +34,19 @@ def _git_init(repo: Path) -> None:
     """Initialize a minimal git repo with identity configured."""
     subprocess.run(
         ["git", "init", "--initial-branch=main"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
+        cwd=repo, check=True, capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
+        cwd=repo, check=True, capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
+        cwd=repo, check=True, capture_output=True,
     )
     subprocess.run(
         ["git", "config", "commit.gpgsign", "false"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
+        cwd=repo, check=True, capture_output=True,
     )
 
 
@@ -79,13 +71,14 @@ def _run_generate(project: Path) -> None:
     try:
         os.chdir(project)
         result = runner.invoke(
-            charter_app,
-            ["generate", "--from-interview"],
+            charter_app, ["generate", "--from-interview"],
             catch_exceptions=False,
         )
     finally:
         os.chdir(old_cwd)
-    assert result.exit_code == 0, f"charter generate failed: {result.stdout!r}"
+    assert result.exit_code == 0, (
+        f"charter generate failed: {result.stdout!r}"
+    )
 
 
 def _run_synthesize(project: Path, *args: str) -> object:
@@ -94,8 +87,7 @@ def _run_synthesize(project: Path, *args: str) -> object:
     try:
         os.chdir(project)
         return runner.invoke(
-            charter_app,
-            ["synthesize", *args],
+            charter_app, ["synthesize", *args],
             catch_exceptions=False,
         )
     finally:
@@ -119,7 +111,9 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
 
     # Pre-condition: doctrine tree does NOT exist yet (no hand seeding).
     doctrine_dir = tmp_path / ".kittify" / "doctrine"
-    assert not doctrine_dir.exists(), "Test pre-condition violated: .kittify/doctrine/ already exists"
+    assert not doctrine_dir.exists(), (
+        "Test pre-condition violated: .kittify/doctrine/ already exists"
+    )
 
     # Pre-condition: no agent-authored YAML under generated/.
     generated_dir = tmp_path / ".kittify" / "charter" / "generated"
@@ -128,18 +122,27 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
             sub_dir = generated_dir / sub
             if sub_dir.exists():
                 yaml_files = list(sub_dir.glob("*.yaml"))
-                assert not yaml_files, f"Test pre-condition violated: agent YAMLs in {sub_dir}"
+                assert not yaml_files, (
+                    f"Test pre-condition violated: agent YAMLs in {sub_dir}"
+                )
 
     # Public CLI: charter synthesize (default 'generated' adapter).
     result = _run_synthesize(tmp_path, "--json")
-    assert result.exit_code == 0, f"synthesize failed on fresh project: {result.stdout!r}"
+    assert result.exit_code == 0, (
+        f"synthesize failed on fresh project: {result.stdout!r}"
+    )
 
     # Minimal artifact set per T031:
     # 1. .kittify/doctrine/ directory exists.
-    assert doctrine_dir.is_dir(), "FR-015: .kittify/doctrine/ must exist after charter synthesize"
+    assert doctrine_dir.is_dir(), (
+        "FR-015: .kittify/doctrine/ must exist after charter synthesize"
+    )
     # 2. PROVENANCE.md is present (records the seed source).
     provenance = doctrine_dir / "PROVENANCE.md"
-    assert provenance.is_file(), f"FR-015: minimal artifact set must include PROVENANCE.md; got contents: {list(doctrine_dir.iterdir())}"
+    assert provenance.is_file(), (
+        f"FR-015: minimal artifact set must include PROVENANCE.md; "
+        f"got contents: {list(doctrine_dir.iterdir())}"
+    )
 
     # The JSON envelope advertises the fresh-project mode for tooling.
     # WP02 / FR-001: the FULL stdout parses as one JSON document — no
@@ -184,7 +187,10 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
         assert entry["artifact_id"] != "PROJECT_000"
         # Path resolves under the test project root.
         resolved = tmp_path / entry["path"]
-        assert resolved.is_file(), f"FR-003: written_artifacts entry path does not resolve to an actual file on disk: {entry['path']!r} -> {resolved}"
+        assert resolved.is_file(), (
+            f"FR-003: written_artifacts entry path does not resolve to "
+            f"an actual file on disk: {entry['path']!r} -> {resolved}"
+        )
 
     # FR-005: no PROJECT_000 anywhere in the JSON envelope.
     assert "PROJECT_000" not in json.dumps(payload)
@@ -212,7 +218,9 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
     assert not doctrine_dir.exists()
 
     result = _run_synthesize(tmp_path, "--dry-run", "--json")
-    assert result.exit_code == 0, f"dry-run synthesize failed on fresh project: {result.stdout!r}"
+    assert result.exit_code == 0, (
+        f"dry-run synthesize failed on fresh project: {result.stdout!r}"
+    )
 
     payload = json.loads(result.stdout)
     # WP02 / FR-002: dry-run carries ``result == "dry_run"`` per the
@@ -235,7 +243,9 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
     assert "PROJECT_000" not in json.dumps(payload)
 
     # Dry-run MUST NOT write anything to disk.
-    assert not doctrine_dir.exists(), "dry-run on fresh project must not materialize .kittify/doctrine/"
+    assert not doctrine_dir.exists(), (
+        "dry-run on fresh project must not materialize .kittify/doctrine/"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -256,18 +266,28 @@ def test_synthesize_is_idempotent(tmp_path: Path) -> None:
     assert r1.exit_code == 0, f"first synthesize failed: {r1.stdout!r}"
 
     listing_1 = sorted(p.relative_to(tmp_path).as_posix() for p in doctrine_dir.rglob("*") if p.is_file())
-    contents_1 = {rel: (doctrine_dir.parent.parent / rel).read_bytes() for rel in listing_1}
+    contents_1 = {
+        rel: (doctrine_dir.parent.parent / rel).read_bytes()
+        for rel in listing_1
+    }
 
     # Second run.
     r2 = _run_synthesize(tmp_path)
     assert r2.exit_code == 0, f"second synthesize failed: {r2.stdout!r}"
 
     listing_2 = sorted(p.relative_to(tmp_path).as_posix() for p in doctrine_dir.rglob("*") if p.is_file())
-    contents_2 = {rel: (doctrine_dir.parent.parent / rel).read_bytes() for rel in listing_2}
+    contents_2 = {
+        rel: (doctrine_dir.parent.parent / rel).read_bytes()
+        for rel in listing_2
+    }
 
-    assert listing_1 == listing_2, f"file listing changed across runs: {listing_1!r} -> {listing_2!r}"
+    assert listing_1 == listing_2, (
+        f"file listing changed across runs: {listing_1!r} -> {listing_2!r}"
+    )
     for rel in listing_1:
-        assert contents_1[rel] == contents_2[rel], f"file content changed across runs for {rel}"
+        assert contents_1[rel] == contents_2[rel], (
+            f"file content changed across runs for {rel}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -286,9 +306,19 @@ def test_synthesize_without_charter_md_fails_actionably(tmp_path: Path) -> None:
     assert not charter_md.exists(), "test pre-condition: charter.md must be absent"
 
     result = _run_synthesize(tmp_path)
-    assert result.exit_code != 0, f"synthesize must fail without charter.md; got exit 0. output={result.stdout!r}"
+    assert result.exit_code != 0, (
+        f"synthesize must fail without charter.md; got exit 0. "
+        f"output={result.stdout!r}"
+    )
     combined = (result.stdout or "") + (getattr(result, "output", "") or "")
     lowered = combined.lower()
     # Actionable error: names the remediation.
-    assert "charter" in lowered, f"error must mention 'charter'. output={combined!r}"
-    assert "generate" in lowered or "interview" in lowered, f"error must name a remediation step (generate or interview). output={combined!r}"
+    assert "charter" in lowered, (
+        f"error must mention 'charter'. output={combined!r}"
+    )
+    assert (
+        "generate" in lowered or "interview" in lowered
+    ), (
+        f"error must name a remediation step (generate or interview). "
+        f"output={combined!r}"
+    )

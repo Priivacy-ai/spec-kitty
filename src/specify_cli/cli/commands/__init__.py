@@ -94,7 +94,9 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
-        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
+        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(
+            tracker_module.issue_search_command
+        )
     app.command()(upgrade_module.upgrade)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
@@ -107,7 +109,6 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(invocations_cmd_module.app, name="invocations")
 
     from specify_cli.retrospective.cli import app as retrospect_app  # WP09
-
     app.add_typer(retrospect_app, name="retrospect", help="Cross-mission retrospective summary")
 
 

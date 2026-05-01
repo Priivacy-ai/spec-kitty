@@ -42,3 +42,4 @@ def tmp_paradigm_dir(tmp_path: Path, sample_paradigm_data: dict) -> Path:
         yaml.dump(sample_paradigm_data, f)
 
     return paradigm_dir
+

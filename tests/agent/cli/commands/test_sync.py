@@ -30,7 +30,6 @@ from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 pytestmark = pytest.mark.fast
 
-
 class TestDetectWorkspaceContext:
     """Tests for workspace context detection."""
 
@@ -97,6 +96,7 @@ class TestDisplayFunctions:
     def test_display_changes_integrated_truncates(self, capsys):
         """Test display truncates long lists."""
         from datetime import datetime
+
 
         changes = [
             ChangeInfo(

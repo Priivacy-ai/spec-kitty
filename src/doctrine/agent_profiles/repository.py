@@ -38,19 +38,26 @@ def _filter_candidates_by_role(candidates: list[AgentProfile], required_role: st
     if not required_role:
         return candidates
     normalized = str(required_role).lower()
-    return [p for p in candidates if normalized in p.roles or p.profile_id == normalized]
+    return [
+        p for p in candidates
+        if normalized in p.roles or p.profile_id == normalized
+    ]
 
 
 def _language_signal(context: TaskContext, profile: AgentProfile) -> float:
     """Return 1.0 if the context language matches the profile's specialization."""
-    if context.language and profile.specialization_context and context.language.lower() in [lang.lower() for lang in profile.specialization_context.languages]:
+    if context.language and profile.specialization_context and context.language.lower() in [
+        lang.lower() for lang in profile.specialization_context.languages
+    ]:
         return 1.0
     return 0.0
 
 
 def _framework_signal(context: TaskContext, profile: AgentProfile) -> float:
     """Return 1.0 if the context framework matches the profile's specialization."""
-    if context.framework and profile.specialization_context and context.framework.lower() in [fw.lower() for fw in profile.specialization_context.frameworks]:
+    if context.framework and profile.specialization_context and context.framework.lower() in [
+        fw.lower() for fw in profile.specialization_context.frameworks
+    ]:
         return 1.0
     return 0.0
 
@@ -124,15 +131,10 @@ def _score_profile(context: TaskContext, profile: AgentProfile) -> float:
 # ── Profile inheritance helpers ───────────────────────────────────────────────
 
 # List-type profile fields merged by union rather than child-replaces-parent.
-_LIST_FIELDS: frozenset[str] = frozenset(
-    {
-        "capabilities",
-        "directive-references",
-        "canonical-verbs",
-        "mode-defaults",
-        "tactic-references",
-    }
-)
+_LIST_FIELDS: frozenset[str] = frozenset({
+    "capabilities", "directive-references", "canonical-verbs", "mode-defaults",
+    "tactic-references",
+})
 
 
 def _item_key(item: Any) -> str:
@@ -179,7 +181,9 @@ def _apply_excluding(
         for field_name, values_to_remove in excluding.items():
             if field_name in merged and isinstance(merged[field_name], list):
                 remove_set = {str(v) for v in values_to_remove}
-                merged[field_name] = [item for item in merged[field_name] if _item_key(item) not in remove_set]
+                merged[field_name] = [
+                    item for item in merged[field_name] if _item_key(item) not in remove_set
+                ]
     return merged
 
 
@@ -227,7 +231,9 @@ class AgentProfileRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
-                    reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+                    reject_agent_profile_inline_refs(
+                        data, file_path=str(yaml_file)
+                    )
                     profile = AgentProfile.model_validate(data)
                     if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
                         continue
@@ -249,7 +255,9 @@ class AgentProfileRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
-                    reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+                    reject_agent_profile_inline_refs(
+                        data, file_path=str(yaml_file)
+                    )
 
                     profile_id = data.get("profile-id") or data.get("profile_id")
                     if not profile_id:
@@ -401,7 +409,11 @@ class AgentProfileRepository:
         self._build_hierarchy_index()
 
         # Find roots (profiles with no specializes_from)
-        roots = [p.profile_id for p in self._profiles.values() if not p.specializes_from]
+        roots = [
+            p.profile_id
+            for p in self._profiles.values()
+            if not p.specializes_from
+        ]
 
         def build_subtree(profile_id: str) -> dict[str, Any]:
             """Recursively build subtree for a profile."""
@@ -452,7 +464,10 @@ class AgentProfileRepository:
         # Check for orphaned references
         for profile in self._profiles.values():
             if profile.specializes_from and profile.specializes_from not in self._profiles:
-                errors.append(f"Orphaned reference: {profile.profile_id} specializes from nonexistent {profile.specializes_from}")
+                errors.append(
+                    f"Orphaned reference: {profile.profile_id} specializes from "
+                    f"nonexistent {profile.specializes_from}"
+                )
 
         return errors
 
@@ -512,7 +527,8 @@ class AgentProfileRepository:
             parent = self.get(parent_id)
             if parent is None:
                 raise KeyError(
-                    f"Profile '{profile_id}' references missing parent '{parent_id}'. Ensure the parent profile exists in shipped/ or _proposed/ before resolving."
+                    f"Profile '{profile_id}' references missing parent '{parent_id}'. "
+                    "Ensure the parent profile exists in shipped/ or _proposed/ before resolving."
                 )
 
             visited.add(parent.profile_id)
@@ -553,7 +569,7 @@ class AgentProfileRepository:
         yaml_file = self._project_dir / f"{profile.profile_id}.agent.yaml"
 
         # Convert profile to dict, excluding unset fields to keep YAML clean
-        profile_dict = profile.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        profile_dict = profile.model_dump(mode='json', by_alias=True, exclude_unset=True)
 
         with yaml_file.open("w") as f:
             yaml.dump(profile_dict, f)

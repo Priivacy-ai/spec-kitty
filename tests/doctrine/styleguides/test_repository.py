@@ -6,8 +6,8 @@ import pytest
 from ruamel.yaml import YAML
 
 from doctrine.styleguides.repository import StyleguideRepository
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestStyleguideRepository:
@@ -55,7 +55,9 @@ class TestStyleguideRepository:
         ids = [sg.id for sg in repo.list_all()]
         assert "sub-style" in ids
 
-    def test_load_from_custom_shipped_dir(self, tmp_styleguide_dir: Path) -> None:
+    def test_load_from_custom_shipped_dir(
+        self, tmp_styleguide_dir: Path
+    ) -> None:
         repo = StyleguideRepository(shipped_dir=tmp_styleguide_dir)
         styleguides = repo.list_all()
         assert len(styleguides) == 1
@@ -72,11 +74,15 @@ class TestStyleguideRepository:
 
         assert repo.list_all() == []
 
-    def test_save_writes_valid_yaml(self, tmp_path: Path, sample_styleguide_data: dict) -> None:
+    def test_save_writes_valid_yaml(
+        self, tmp_path: Path, sample_styleguide_data: dict
+    ) -> None:
         from doctrine.styleguides.models import Styleguide
 
         project_dir = tmp_path / "project"
-        repo = StyleguideRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo = StyleguideRepository(
+            shipped_dir=tmp_path / "empty", project_dir=project_dir
+        )
 
         sg = Styleguide.model_validate(sample_styleguide_data)
         path = repo.save(sg)
@@ -88,15 +94,20 @@ class TestStyleguideRepository:
         data = yaml.load(path)
         assert data["id"] == "test-style"
 
-    def test_save_raises_without_project_dir(self, tmp_path: Path, sample_styleguide_data: dict) -> None:
+    def test_save_raises_without_project_dir(
+        self, tmp_path: Path, sample_styleguide_data: dict
+    ) -> None:
         from doctrine.styleguides.models import Styleguide
+
 
         repo = StyleguideRepository(shipped_dir=tmp_path / "empty")
         sg = Styleguide.model_validate(sample_styleguide_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(sg)
 
-    def test_field_level_merge_with_project_override(self, tmp_path: Path) -> None:
+    def test_field_level_merge_with_project_override(
+        self, tmp_path: Path
+    ) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
         project = tmp_path / "project"
@@ -131,7 +142,9 @@ class TestStyleguideRepository:
         assert sg.title == "Overridden Title"
         assert sg.scope.value == "testing"
 
-    def test_filters_language_scoped_styleguides_when_active_languages_do_not_match(self, tmp_path: Path) -> None:
+    def test_filters_language_scoped_styleguides_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
 
@@ -168,7 +181,9 @@ class TestStyleguideRepository:
         assert "generic-style" in styleguide_ids
         assert "python-style" not in styleguide_ids
 
-    def test_skips_project_styleguides_when_language_scope_does_not_match(self, tmp_path: Path) -> None:
+    def test_skips_project_styleguides_when_language_scope_does_not_match(
+        self, tmp_path: Path
+    ) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
         project = tmp_path / "project"

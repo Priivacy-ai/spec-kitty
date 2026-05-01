@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -292,7 +292,7 @@ def test_claudeignore_written(
 
     assert result.exit_code == 0, result.output
     # .claudeignore will exist if the template was found
-    tmp_path / "claudeignore-proj" / ".claudeignore"
+    claudeignore = tmp_path / "claudeignore-proj" / ".claudeignore"
     # Accept either: claudeignore exists, OR init ran without error
     # (templates_root may not resolve in test env)
     assert result.exit_code == 0
@@ -410,7 +410,9 @@ def test_no_dashboard_started(
 
     assert result.exit_code == 0, result.output
     # Dashboard was removed in WP02; init should complete without invoking it.
-    assert not hasattr(init_module, "ensure_dashboard_running"), "ensure_dashboard_running should have been removed from init.py by WP02"
+    assert not hasattr(init_module, "ensure_dashboard_running"), (
+        "ensure_dashboard_running should have been removed from init.py by WP02"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -444,4 +446,6 @@ def test_reinit_is_idempotent(
     # Config should be equivalent between runs
     parsed1 = yaml.safe_load(config_after_first)
     parsed2 = yaml.safe_load(config_after_second)
-    assert parsed1.get("agents", parsed1.get("tools")) == parsed2.get("agents", parsed2.get("tools")), "Config changed between re-init runs"
+    assert parsed1.get("agents", parsed1.get("tools")) == parsed2.get(
+        "agents", parsed2.get("tools")
+    ), "Config changed between re-init runs"

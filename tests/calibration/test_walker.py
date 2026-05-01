@@ -43,11 +43,16 @@ def test_inequality_holds_for_all_steps(mission_key: str) -> None:
     assert findings, f"No findings returned for mission '{mission_key}'"
 
     failures = [
-        f"{f.step_id} (action={f.action_id}): missing={sorted(f.inequality.missing_urns)}, over_broad={sorted(f.inequality.over_broad_urns)}"
+        f"{f.step_id} (action={f.action_id}): "
+        f"missing={sorted(f.inequality.missing_urns)}, "
+        f"over_broad={sorted(f.inequality.over_broad_urns)}"
         for f in findings
         if not f.inequality.holds
     ]
-    assert not failures, f"Mission '{mission_key}' has {len(failures)} failing step(s):\n" + "\n".join(f"  {line}" for line in failures)
+    assert not failures, (
+        f"Mission '{mission_key}' has {len(failures)} failing step(s):\n"
+        + "\n".join(f"  {line}" for line in failures)
+    )
 
 
 @pytest.mark.parametrize(
@@ -90,7 +95,8 @@ def test_resolved_scope_is_superset_of_required() -> None:
         findings = walk_mission(mission_key=mission_key, repo_root=_REPO_ROOT)
         for f in findings:
             assert f.required_scope.issubset(f.resolved_scope), (
-                f"{mission_key}/{f.step_id}: required URNs not in resolved_scope: {f.required_scope - f.resolved_scope}"
+                f"{mission_key}/{f.step_id}: required URNs not in resolved_scope: "
+                f"{f.required_scope - f.resolved_scope}"
             )
 
 
@@ -100,7 +106,10 @@ def test_no_recommended_changes_when_all_pass() -> None:
         findings = walk_mission(mission_key=mission_key, repo_root=_REPO_ROOT)
         for f in findings:
             if f.inequality.holds:
-                assert f.recommended_edge_changes == [], f"{mission_key}/{f.step_id}: unexpected edge changes: {f.recommended_edge_changes}"
+                assert f.recommended_edge_changes == [], (
+                    f"{mission_key}/{f.step_id}: unexpected edge changes: "
+                    f"{f.recommended_edge_changes}"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +146,11 @@ def test_overlay_add_edge_extends_resolved_scope(tmp_path: Path) -> None:
     # Add a scope edge from software-dev/specify to a tactic that is not yet scoped
     overlay_yaml = overlays_dir / "calibration-software-dev.yaml"
     overlay_yaml.write_text(
-        "add_edge:\n  - source: action:software-dev/specify\n    target: tactic:adr-drafting-workflow\n    relation: scope\n    reason: test overlay\n",
+        "add_edge:\n"
+        "  - source: action:software-dev/specify\n"
+        "    target: tactic:adr-drafting-workflow\n"
+        "    relation: scope\n"
+        "    reason: test overlay\n",
         encoding="utf-8",
     )
 

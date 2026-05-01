@@ -40,15 +40,13 @@ class TestGenerateStatusView:
 
     def test_returns_snapshot_after_events(self, feature_dir: Path) -> None:
         """generate_status_view reflects emitted transitions."""
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
         result = generate_status_view(feature_dir)
         wps = result.get("work_packages", {})
         assert "WP01" in wps
@@ -56,15 +54,13 @@ class TestGenerateStatusView:
 
     def test_snapshot_matches_materialize(self, feature_dir: Path) -> None:
         """generate_status_view result matches materialize().to_dict()."""
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP02",
-                to_lane="claimed",
-                actor="agent-2",
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP02",
+            to_lane="claimed",
+            actor="agent-2",
+        ))
         view_result = generate_status_view(feature_dir)
         materialize_result = materialize(feature_dir).to_dict()
         assert view_result["work_packages"] == materialize_result["work_packages"]
@@ -74,15 +70,13 @@ class TestWriteDerivedViews:
     def test_writes_status_json(self, feature_dir: Path, tmp_path: Path) -> None:
         """write_derived_views produces status.json."""
         derived_dir = tmp_path / "derived"
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
         write_derived_views(feature_dir, derived_dir)
         status_file = derived_dir / "034-test-feature" / "status.json"
         assert status_file.exists()
@@ -92,15 +86,13 @@ class TestWriteDerivedViews:
     def test_writes_board_summary_json(self, feature_dir: Path, tmp_path: Path) -> None:
         """write_derived_views produces board-summary.json."""
         derived_dir = tmp_path / "derived"
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
         write_derived_views(feature_dir, derived_dir)
         board_file = derived_dir / "034-test-feature" / BOARD_SUMMARY_FILENAME
         assert board_file.exists()
@@ -111,24 +103,20 @@ class TestWriteDerivedViews:
     def test_board_summary_lanes_match_snapshot(self, feature_dir: Path, tmp_path: Path) -> None:
         """Board summary lanes match the event log snapshot."""
         derived_dir = tmp_path / "derived"
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        )
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP02",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP02",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
         write_derived_views(feature_dir, derived_dir)
         board_file = derived_dir / "034-test-feature" / BOARD_SUMMARY_FILENAME
         data = json.loads(board_file.read_text())
@@ -142,7 +130,9 @@ class TestWriteDerivedViews:
         write_derived_views(feature_dir, derived_dir)
         assert (derived_dir / "034-test-feature").exists()
 
-    def test_atomic_write_no_partial_files_on_success(self, feature_dir: Path, tmp_path: Path) -> None:
+    def test_atomic_write_no_partial_files_on_success(
+        self, feature_dir: Path, tmp_path: Path
+    ) -> None:
         """No .tmp files remain after successful write."""
         derived_dir = tmp_path / "derived"
         write_derived_views(feature_dir, derived_dir)
@@ -154,7 +144,9 @@ class TestWriteDerivedViews:
 class TestEmitHasNoLegacyBridge:
     """Verify emit.py pipeline has no dual-write after WP05."""
 
-    def test_emit_does_not_write_frontmatter(self, feature_dir: Path, tmp_path: Path) -> None:
+    def test_emit_does_not_write_frontmatter(
+        self, feature_dir: Path, tmp_path: Path
+    ) -> None:
         """emit_status_transition must not write lane to WP frontmatter.
 
         The event log is the sole authority. Frontmatter writes were
@@ -167,22 +159,24 @@ class TestEmitHasNoLegacyBridge:
             encoding="utf-8",
         )
 
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
 
         # WP file must NOT have lane field written
         content = wp_file.read_text(encoding="utf-8")
-        assert "lane:" not in content, "emit_status_transition must not write lane: to WP frontmatter"
+        assert "lane:" not in content, (
+            "emit_status_transition must not write lane: to WP frontmatter"
+        )
 
 
-def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from specify_cli.status import views as views_module
     from specify_cli.status import progress as progress_module
 

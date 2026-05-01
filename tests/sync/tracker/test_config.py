@@ -49,7 +49,9 @@ def test_project_slug_and_workspace_roundtrip(tmp_path: object) -> None:
     from pathlib import Path
 
     root = Path(str(tmp_path))
-    config = TrackerProjectConfig(provider="linear", project_slug="proj", workspace="ws")
+    config = TrackerProjectConfig(
+        provider="linear", project_slug="proj", workspace="ws"
+    )
     save_tracker_config(root, config)
     loaded = load_tracker_config(root)
     assert loaded.project_slug == "proj"
@@ -123,12 +125,16 @@ def test_is_configured_no_provider() -> None:
 
 def test_is_configured_removed_provider() -> None:
     """Removed provider (azure_devops) is NOT configured regardless of fields."""
-    assert not TrackerProjectConfig(provider="azure_devops", project_slug="p", workspace="w").is_configured
+    assert not TrackerProjectConfig(
+        provider="azure_devops", project_slug="p", workspace="w"
+    ).is_configured
 
 
 def test_is_configured_unknown_provider() -> None:
     """Unknown provider is NOT configured."""
-    assert not TrackerProjectConfig(provider="some_unknown", project_slug="p", workspace="w").is_configured
+    assert not TrackerProjectConfig(
+        provider="some_unknown", project_slug="p", workspace="w"
+    ).is_configured
 
 
 # ---------------------------------------------------------------------------
@@ -182,20 +188,26 @@ def test_to_dict_includes_project_slug() -> None:
 
 def test_from_dict_parses_project_slug() -> None:
     """from_dict reads project_slug from raw dict."""
-    config = TrackerProjectConfig.from_dict({"provider": "github", "project_slug": "my-repo"})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "github", "project_slug": "my-repo"}
+    )
     assert config.project_slug == "my-repo"
     assert config.provider == "github"
 
 
 def test_from_dict_strips_whitespace() -> None:
     """from_dict strips surrounding whitespace from project_slug."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "project_slug": "  padded  "})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "project_slug": "  padded  "}
+    )
     assert config.project_slug == "padded"
 
 
 def test_from_dict_empty_string_becomes_none() -> None:
     """from_dict treats empty/whitespace-only project_slug as None."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "project_slug": "   "})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "project_slug": "   "}
+    )
     assert config.project_slug is None
 
 
@@ -372,37 +384,49 @@ def test_provider_context_none_roundtrip(tmp_path: object) -> None:
 
 def test_from_dict_binding_ref_strips_whitespace() -> None:
     """from_dict strips whitespace from binding_ref."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "binding_ref": "  ref-123  "})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "binding_ref": "  ref-123  "}
+    )
     assert config.binding_ref == "ref-123"
 
 
 def test_from_dict_binding_ref_empty_becomes_none() -> None:
     """from_dict treats empty/whitespace binding_ref as None."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "binding_ref": "   "})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "binding_ref": "   "}
+    )
     assert config.binding_ref is None
 
 
 def test_from_dict_display_label_strips_whitespace() -> None:
     """from_dict strips whitespace from display_label."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "display_label": "  My Board  "})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "display_label": "  My Board  "}
+    )
     assert config.display_label == "My Board"
 
 
 def test_from_dict_display_label_empty_becomes_none() -> None:
     """from_dict treats empty/whitespace display_label as None."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "display_label": ""})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "display_label": ""}
+    )
     assert config.display_label is None
 
 
 def test_from_dict_provider_context_non_dict_ignored() -> None:
     """from_dict ignores provider_context if not a dict."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "provider_context": "not-a-dict"})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "provider_context": "not-a-dict"}
+    )
     assert config.provider_context is None
 
 
 def test_from_dict_provider_context_values_stringified() -> None:
     """from_dict converts provider_context values to strings."""
-    config = TrackerProjectConfig.from_dict({"provider": "linear", "provider_context": {"num": 42, "flag": True}})
+    config = TrackerProjectConfig.from_dict(
+        {"provider": "linear", "provider_context": {"num": 42, "flag": True}}
+    )
     assert config.provider_context == {"num": "42", "flag": "True"}
 
 
@@ -437,18 +461,19 @@ def test_to_dict_extra_does_not_override_known_fields() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "binding_ref,project_slug,expected",
-    [
-        ("ref", None, True),  # binding_ref only
-        (None, "slug", True),  # project_slug only (legacy)
-        ("ref", "slug", True),  # both
-        (None, None, False),  # neither
-    ],
-)
-def test_is_configured_saas_dual_read(binding_ref: str | None, project_slug: str | None, expected: bool) -> None:
+@pytest.mark.parametrize("binding_ref,project_slug,expected", [
+    ("ref", None, True),       # binding_ref only
+    (None, "slug", True),      # project_slug only (legacy)
+    ("ref", "slug", True),     # both
+    (None, None, False),       # neither
+])
+def test_is_configured_saas_dual_read(
+    binding_ref: str | None, project_slug: str | None, expected: bool
+) -> None:
     """SaaS provider is configured when binding_ref OR project_slug is set."""
-    config = TrackerProjectConfig(provider="linear", binding_ref=binding_ref, project_slug=project_slug)
+    config = TrackerProjectConfig(
+        provider="linear", binding_ref=binding_ref, project_slug=project_slug
+    )
     assert config.is_configured == expected
 
 

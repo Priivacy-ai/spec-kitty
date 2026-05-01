@@ -27,7 +27,7 @@ THIN_SHIM_TEMPLATE = (
     '`spec-kitty agent shim {cmd} --agent claude --raw-args "$ARGUMENTS"`\n'
 )
 
-FULL_PROMPT_CONTENT = "# Full workflow prompt\n\n" + "Details.\n" * 15
+FULL_PROMPT_CONTENT = ("# Full workflow prompt\n\n" + "Details.\n" * 15)
 
 ALL_COMMANDS = [
     "specify",
@@ -223,7 +223,9 @@ class TestCanApply:
 
 
 class TestApply:
-    def test_replaces_prompt_driven_shims_leaves_cli_driven_intact(self, tmp_path: Path) -> None:
+    def test_replaces_prompt_driven_shims_leaves_cli_driven_intact(
+        self, tmp_path: Path
+    ) -> None:
         """apply() replaces 9 prompt-driven thin shims, leaves 7 CLI-driven shims untouched."""
         from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
         from specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands import (
@@ -236,13 +238,10 @@ class TestApply:
 
         fake_tmpl_dir = _make_fake_template_dir(tmp_path, list(PROMPT_DRIVEN_COMMANDS))
 
-        with (
-            patch(
-                "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
-                return_value=fake_tmpl_dir,
-            ),
-            _patch_render(),
-        ):
+        with patch(
+            "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
+            return_value=fake_tmpl_dir,
+        ), _patch_render():
             result = RestorePromptCommandsMigration().apply(project)
 
         assert result.success is True
@@ -252,14 +251,18 @@ class TestApply:
             f = claude_dir / f"spec-kitty.{cmd}.md"
             assert f.exists(), f"spec-kitty.{cmd}.md should exist"
             content = f.read_text(encoding="utf-8")
-            assert "spec-kitty agent shim" not in content, f"{cmd} should be a full prompt, not a shim"
+            assert "spec-kitty agent shim" not in content, (
+                f"{cmd} should be a full prompt, not a shim"
+            )
 
         # CLI-driven commands must remain as thin shims (untouched)
         for cmd in CLI_DRIVEN_COMMANDS:
             f = claude_dir / f"spec-kitty.{cmd}.md"
             assert f.exists(), f"spec-kitty.{cmd}.md should exist"
             content = f.read_text(encoding="utf-8")
-            assert "spec-kitty agent shim" in content, f"{cmd} should remain a thin CLI shim"
+            assert "spec-kitty agent shim" in content, (
+                f"{cmd} should remain a thin CLI shim"
+            )
 
         # changes_made should list exactly the 9 prompt-driven commands
         assert len(result.changes_made) == len(PROMPT_DRIVEN_COMMANDS)
@@ -282,13 +285,10 @@ class TestApply:
         fake_tmpl_dir = _make_fake_template_dir(tmp_path, list(PROMPT_DRIVEN_COMMANDS))
         migration = RestorePromptCommandsMigration()
 
-        with (
-            patch(
-                "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
-                return_value=fake_tmpl_dir,
-            ),
-            _patch_render(),
-        ):
+        with patch(
+            "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
+            return_value=fake_tmpl_dir,
+        ), _patch_render():
             result1 = migration.apply(project)
             result2 = migration.apply(project)
 
@@ -297,7 +297,9 @@ class TestApply:
 
         # Second run: no thin shims remain for prompt-driven commands
         assert result2.success is True
-        assert any("nothing to do" in c.lower() for c in result2.changes_made), f"Second run should report 'nothing to do', got: {result2.changes_made}"
+        assert any("nothing to do" in c.lower() for c in result2.changes_made), (
+            f"Second run should report 'nothing to do', got: {result2.changes_made}"
+        )
 
     def test_dry_run_reports_changes_but_writes_nothing(self, tmp_path: Path) -> None:
         """apply(dry_run=True) lists planned changes but does not modify files."""
@@ -310,17 +312,17 @@ class TestApply:
         claude_dir = project / ".claude" / "commands"
         _create_thin_shims(claude_dir, ALL_COMMANDS)
 
-        original_contents = {cmd: (claude_dir / f"spec-kitty.{cmd}.md").read_text(encoding="utf-8") for cmd in ALL_COMMANDS}
+        original_contents = {
+            cmd: (claude_dir / f"spec-kitty.{cmd}.md").read_text(encoding="utf-8")
+            for cmd in ALL_COMMANDS
+        }
 
         fake_tmpl_dir = _make_fake_template_dir(tmp_path, list(PROMPT_DRIVEN_COMMANDS))
 
-        with (
-            patch(
-                "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
-                return_value=fake_tmpl_dir,
-            ),
-            _patch_render(),
-        ):
+        with patch(
+            "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
+            return_value=fake_tmpl_dir,
+        ), _patch_render():
             result = RestorePromptCommandsMigration().apply(project, dry_run=True)
 
         assert result.success is True
@@ -331,7 +333,9 @@ class TestApply:
         # No files were actually changed
         for cmd in ALL_COMMANDS:
             current = (claude_dir / f"spec-kitty.{cmd}.md").read_text(encoding="utf-8")
-            assert current == original_contents[cmd], f"{cmd}.md was modified during dry run — should be unchanged"
+            assert current == original_contents[cmd], (
+                f"{cmd}.md was modified during dry run — should be unchanged"
+            )
 
     def test_skips_nonexistent_agent_dirs(self, tmp_path: Path) -> None:
         """apply() does not create agent directories that don't exist."""
@@ -373,17 +377,17 @@ class TestApply:
         _create_thin_shims(codex_dir, ALL_COMMANDS)
 
         # Snapshot codex shims before migration
-        codex_shims_before = {cmd: (codex_dir / f"spec-kitty.{cmd}.md").read_text(encoding="utf-8") for cmd in ALL_COMMANDS}
+        codex_shims_before = {
+            cmd: (codex_dir / f"spec-kitty.{cmd}.md").read_text(encoding="utf-8")
+            for cmd in ALL_COMMANDS
+        }
 
         fake_tmpl_dir = _make_fake_template_dir(tmp_path, list(PROMPT_DRIVEN_COMMANDS))
 
-        with (
-            patch(
-                "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
-                return_value=fake_tmpl_dir,
-            ),
-            _patch_render(),
-        ):
+        with patch(
+            "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
+            return_value=fake_tmpl_dir,
+        ), _patch_render():
             result = RestorePromptCommandsMigration().apply(project)
 
         assert result.success is True
@@ -392,12 +396,16 @@ class TestApply:
         for cmd in PROMPT_DRIVEN_COMMANDS:
             f = claude_dir / f"spec-kitty.{cmd}.md"
             content = f.read_text(encoding="utf-8")
-            assert "spec-kitty agent shim" not in content, f"claude/{cmd} should be a full prompt"
+            assert "spec-kitty agent shim" not in content, (
+                f"claude/{cmd} should be a full prompt"
+            )
 
         # codex shims should be untouched (not in config)
         for cmd in ALL_COMMANDS:
             current = (codex_dir / f"spec-kitty.{cmd}.md").read_text(encoding="utf-8")
-            assert current == codex_shims_before[cmd], f"codex/{cmd} should be untouched (not in agent config)"
+            assert current == codex_shims_before[cmd], (
+                f"codex/{cmd} should be untouched (not in agent config)"
+            )
 
     def test_returns_error_when_no_templates_dir(self, tmp_path: Path) -> None:
         """apply() returns success=False when runtime templates are unavailable."""
@@ -436,18 +444,17 @@ class TestApply:
 
         fake_tmpl_dir = _make_fake_template_dir(tmp_path, list(PROMPT_DRIVEN_COMMANDS))
 
-        with (
-            patch(
-                "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
-                return_value=fake_tmpl_dir,
-            ),
-            _patch_render(),
-        ):
+        with patch(
+            "specify_cli.upgrade.migrations.m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir",
+            return_value=fake_tmpl_dir,
+        ), _patch_render():
             result = RestorePromptCommandsMigration().apply(project)
 
         assert result.success is True
         # Nothing changed — the "nothing to do" sentinel should be present
-        assert any("nothing to do" in c.lower() for c in result.changes_made), f"Expected 'nothing to do' sentinel, got: {result.changes_made}"
+        assert any("nothing to do" in c.lower() for c in result.changes_made), (
+            f"Expected 'nothing to do' sentinel, got: {result.changes_made}"
+        )
 
         # Custom content preserved
         for cmd in PROMPT_DRIVEN_COMMANDS:

@@ -358,7 +358,9 @@ class TestBackoffProgression:
             conn.close()
             assert row is not None
             actual_delay = row[0] - now
-            assert abs(actual_delay - expected) < 0.01, f"Retry {i}: expected delay {expected}s, got {actual_delay:.2f}s"
+            assert abs(actual_delay - expected) < 0.01, (
+                f"Retry {i}: expected delay {expected}s, got {actual_delay:.2f}s"
+            )
 
 
 class TestRemoveStale:
@@ -461,6 +463,7 @@ class TestStats:
 class TestProcessRestart:
     def test_data_persists_across_reopen(self, tmp_path: object) -> None:
         from pathlib import Path
+
 
         db = Path(str(tmp_path)) / "test.db"
         q1 = OfflineBodyUploadQueue(db_path=db)

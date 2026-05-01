@@ -128,7 +128,6 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
     # Lane is event-log-only; verify canonical state via event log
     from specify_cli.status.store import read_events
     from specify_cli.status.reducer import reduce
-
     events = read_events(feature_dir)
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get("WP01", {})
@@ -219,18 +218,16 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
 
-    emit_status_transition(
-        TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="system",
-            force=True,
-            reason="seed canonical lane",
-            repo_root=workflow_repo,
-        )
-    )
+    emit_status_transition(TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id="WP01",
+        to_lane="for_review",
+        actor="system",
+        force=True,
+        reason="seed canonical lane",
+        repo_root=workflow_repo,
+    ))
 
     result = CliRunner().invoke(
         workflow.app,
@@ -241,7 +238,6 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     # Lane is event-log-only; verify canonical state via event log
     from specify_cli.status.store import read_events
     from specify_cli.status.reducer import reduce
-
     events = read_events(feature_dir)
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get("WP01", {})

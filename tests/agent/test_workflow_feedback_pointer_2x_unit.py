@@ -331,7 +331,10 @@ def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"
     prompt_content = prompt_file.read_text(encoding="utf-8")
-    assert "move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer" in prompt_content
+    assert (
+        "move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer"
+        in prompt_content
+    )
     assert "📚 SHARED FEATURE ARTIFACTS:" in prompt_content
     assert f"Spec, plan, tasks, and status live in main repo: {repo}/kitty-specs/001-test-feature/" in prompt_content
     assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in prompt_content

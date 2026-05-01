@@ -6,8 +6,8 @@ import pytest
 from ruamel.yaml import YAML
 
 from doctrine.directives.repository import DirectiveRepository
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestDirectiveRepository:
@@ -62,7 +62,9 @@ class TestDirectiveRepository:
 
         assert repo.list_all() == []
 
-    def test_save_writes_valid_yaml(self, tmp_path: Path, sample_directive_data: dict) -> None:
+    def test_save_writes_valid_yaml(
+        self, tmp_path: Path, sample_directive_data: dict
+    ) -> None:
         from doctrine.directives.models import Directive
 
         project_dir = tmp_path / "project"
@@ -79,15 +81,20 @@ class TestDirectiveRepository:
         data = yaml.load(path)
         assert data["id"] == "DIRECTIVE_999"
 
-    def test_save_raises_without_project_dir(self, tmp_path: Path, sample_directive_data: dict) -> None:
+    def test_save_raises_without_project_dir(
+        self, tmp_path: Path, sample_directive_data: dict
+    ) -> None:
         from doctrine.directives.models import Directive
+
 
         repo = DirectiveRepository(shipped_dir=tmp_path / "empty")
         directive = Directive.model_validate(sample_directive_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(directive)
 
-    def test_field_level_merge_with_project_override(self, tmp_path: Path) -> None:
+    def test_field_level_merge_with_project_override(
+        self, tmp_path: Path
+    ) -> None:
         """Project directive overrides shipped fields at field level."""
         shipped = tmp_path / "shipped"
         shipped.mkdir()

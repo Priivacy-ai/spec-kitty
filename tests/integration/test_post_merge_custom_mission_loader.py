@@ -59,6 +59,7 @@ def _make_contract(contract_id: str) -> Any:
 def test_context_manager_restores_snapshot_on_clean_exit() -> None:
     """The contract-shadow must be empty after the with block exits."""
     from specify_cli.mission_loader.registry import (
+        RuntimeContractRegistry,
         get_runtime_contract_registry,
     )
 
@@ -100,7 +101,10 @@ def test_context_manager_restores_snapshot_on_exception() -> None:
     except RuntimeError:
         pass
 
-    assert registry.snapshot() == {}, "RuntimeContractRegistry leaked contracts past an exception path; issue #801 regression."
+    assert registry.snapshot() == {}, (
+        "RuntimeContractRegistry leaked contracts past an exception path; "
+        "issue #801 regression."
+    )
 
 
 def test_nested_blocks_compose_via_stack_of_snapshots() -> None:

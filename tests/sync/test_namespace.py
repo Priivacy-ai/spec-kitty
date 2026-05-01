@@ -216,6 +216,7 @@ class TestSupportedInlineFormat:
     def test_is_supported_format_with_path_object(self) -> None:
         from pathlib import Path
 
+
         assert is_supported_format(Path("docs/spec.md")) is True
         assert is_supported_format(Path("images/logo.png")) is False
 

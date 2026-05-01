@@ -169,11 +169,15 @@ def test_interleaved_reads_and_writes_never_see_corruption(tmp_path: Path) -> No
         for future in as_completed(futures):
             future.result()
 
-    assert not errors, f"concurrent reads/writes produced {len(errors)} exceptions: {errors[:3]}"
+    assert not errors, (
+        f"concurrent reads/writes produced {len(errors)} exceptions: {errors[:3]}"
+    )
     # Every observed read is a well-formed session from one of the writers.
     for session in read_results:
         assert session.email.startswith("writer")
-        winner = int(session.email.removeprefix("writer").removesuffix("@example.com"))
+        winner = int(
+            session.email.removeprefix("writer").removesuffix("@example.com")
+        )
         assert 0 <= winner < 10
         # Fields are consistent — no torn records.
         assert session.user_id == f"u_writer_{winner}"
@@ -193,7 +197,11 @@ def test_file_permissions_are_0600_after_concurrent_writes(tmp_path: Path) -> No
     storage.write(_make_session(-1))
 
     with ThreadPoolExecutor(max_workers=10) as pool:
-        list(as_completed([pool.submit(storage.write, _make_session(i)) for i in range(10)]))
+        list(
+            as_completed(
+                [pool.submit(storage.write, _make_session(i)) for i in range(10)]
+            )
+        )
 
     cred_file = tmp_path / "session.json"
     assert cred_file.exists()
@@ -205,7 +213,9 @@ def test_file_permissions_are_0600_after_concurrent_writes(tmp_path: Path) -> No
     # Salt file is also locked down.
     salt_file = tmp_path / "session.salt"
     salt_mode = salt_file.stat().st_mode & 0o777
-    assert salt_mode == 0o600, f"session.salt has mode {oct(salt_mode)}, expected 0o600"
+    assert salt_mode == 0o600, (
+        f"session.salt has mode {oct(salt_mode)}, expected 0o600"
+    )
 
 
 def test_sequential_login_logout_login_cycle_under_concurrent_writes(

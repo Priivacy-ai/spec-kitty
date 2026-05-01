@@ -12,6 +12,7 @@ Verifies that:
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -34,14 +35,17 @@ def test_recovery_transitions_dict_removed() -> None:
     """_RECOVERY_TRANSITIONS dict must not exist in the recovery module."""
     import specify_cli.lanes.recovery as _recovery_module
 
-    assert not hasattr(_recovery_module, "_RECOVERY_TRANSITIONS"), "_RECOVERY_TRANSITIONS must be removed; use _get_recovery_transitions() instead"
+    assert not hasattr(_recovery_module, "_RECOVERY_TRANSITIONS"), (
+        "_RECOVERY_TRANSITIONS must be removed; use _get_recovery_transitions() instead"
+    )
 
 
 def test_get_recovery_transitions_helper_exists() -> None:
     """_get_recovery_transitions() must exist as the replacement for _RECOVERY_TRANSITIONS."""
     import specify_cli.lanes.recovery as _recovery_module
 
-    assert hasattr(_recovery_module, "_get_recovery_transitions"), "_get_recovery_transitions() helper must exist"
+    assert hasattr(_recovery_module, "_get_recovery_transitions"), \
+        "_get_recovery_transitions() helper must exist"
     assert callable(_recovery_module._get_recovery_transitions)
 
 
@@ -53,13 +57,17 @@ def test_get_recovery_transitions_helper_exists() -> None:
 def test_planned_lane_has_two_recovery_transitions() -> None:
     """planned -> claimed, in_progress (same as old _RECOVERY_TRANSITIONS[planned])."""
     result = _get_recovery_transitions(Lane.PLANNED)
-    assert result == [Lane.CLAIMED, Lane.IN_PROGRESS], f"planned should transition to [claimed, in_progress], got {result}"
+    assert result == [Lane.CLAIMED, Lane.IN_PROGRESS], (
+        f"planned should transition to [claimed, in_progress], got {result}"
+    )
 
 
 def test_claimed_lane_has_one_recovery_transition() -> None:
     """claimed -> in_progress (same as old _RECOVERY_TRANSITIONS[claimed])."""
     result = _get_recovery_transitions(Lane.CLAIMED)
-    assert result == [Lane.IN_PROGRESS], f"claimed should transition to [in_progress], got {result}"
+    assert result == [Lane.IN_PROGRESS], (
+        f"claimed should transition to [in_progress], got {result}"
+    )
 
 
 def test_in_progress_lane_has_no_recovery_transitions() -> None:
@@ -113,16 +121,14 @@ def test_recovery_transitions_align_with_canonical_matrix() -> None:
     """Recovery transitions must be a subset of ALLOWED_TRANSITIONS."""
     # planned -> claimed must be in the canonical matrix
     ok_pc, _ = validate_transition(
-        Lane.PLANNED.value,
-        Lane.CLAIMED.value,
+        Lane.PLANNED.value, Lane.CLAIMED.value,
         GuardContext(actor=RECOVERY_ACTOR, workspace_context="recovery"),
     )
     assert ok_pc, "planned -> claimed must be in canonical transition matrix"
 
     # claimed -> in_progress must be in the canonical matrix
     ok_ci, _ = validate_transition(
-        Lane.CLAIMED.value,
-        Lane.IN_PROGRESS.value,
+        Lane.CLAIMED.value, Lane.IN_PROGRESS.value,
         GuardContext(actor=RECOVERY_ACTOR, workspace_context="recovery"),
     )
     assert ok_ci, "claimed -> in_progress must be in canonical transition matrix"
@@ -160,24 +166,18 @@ def test_scan_recovery_state_returns_list(tmp_path: Path) -> None:
     subprocess.run(["git", "init", str(repo_root)], capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=True,
+        cwd=str(repo_root), capture_output=True, check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=True,
+        cwd=str(repo_root), capture_output=True, check=True,
     )
     # Create initial commit
     (repo_root / "README.md").write_text("init")
     subprocess.run(["git", "add", "."], cwd=str(repo_root), capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=True,
+        cwd=str(repo_root), capture_output=True, check=True,
     )
 
     # Call scan_recovery_state (no mission branches → empty list)
@@ -196,23 +196,17 @@ def test_scan_recovery_state_with_status_events_false_returns_list(
     subprocess.run(["git", "init", str(repo_root)], capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=True,
+        cwd=str(repo_root), capture_output=True, check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=True,
+        cwd=str(repo_root), capture_output=True, check=True,
     )
     (repo_root / "README.md").write_text("init")
     subprocess.run(["git", "add", "."], cwd=str(repo_root), capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=True,
+        cwd=str(repo_root), capture_output=True, check=True,
     )
 
     states = scan_recovery_state(repo_root, "080-test-feature", consult_status_events=False)
@@ -224,7 +218,9 @@ def test_scan_recovery_state_with_status_events_false_returns_list(
 # ---------------------------------------------------------------------------
 
 
-def test_reconcile_status_returns_zero_for_non_recovery_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reconcile_status_returns_zero_for_non_recovery_lane(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """reconcile_status returns 0 when status_lane is not in recovery progression."""
     from specify_cli.lanes.recovery import RecoveryState
 

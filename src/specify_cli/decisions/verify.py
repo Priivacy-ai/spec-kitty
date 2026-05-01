@@ -36,7 +36,9 @@ __all__ = [
 # Sentinel regex
 # ---------------------------------------------------------------------------
 
-SENTINEL_RE = re.compile(r"\[NEEDS CLARIFICATION: [^\]]*\]\s*<!--\s*decision_id:\s*(?P<did>[0-9A-HJKMNP-TV-Z]{26})\s*-->")
+SENTINEL_RE = re.compile(
+    r"\[NEEDS CLARIFICATION: [^\]]*\]\s*<!--\s*decision_id:\s*(?P<did>[0-9A-HJKMNP-TV-Z]{26})\s*-->"
+)
 
 # ---------------------------------------------------------------------------
 # Data types

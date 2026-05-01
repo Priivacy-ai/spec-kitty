@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -20,8 +21,12 @@ from specify_cli.task_utils import TaskCliError, find_repo_root
 
 
 def validate_tasks(
-    mission: str | None = typer.Option(None, "--mission", help="Mission slug to validate"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="(deprecated) Use --mission"),
+    mission: str | None = typer.Option(
+        None, "--mission", help="Mission slug to validate"
+    ),
+    feature: str | None = typer.Option(
+        None, "--feature", hidden=True, help="(deprecated) Use --mission"
+    ),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
     agent: str | None = typer.Option(None, "--agent", help="Agent name for activity log"),
@@ -40,9 +45,9 @@ def validate_tasks(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
-    get_project_root_or_exit(repo_root)
+    project_root = get_project_root_or_exit(repo_root)
 
     # Get agent and shell_pid from environment if not provided
     if not agent:
@@ -67,7 +72,7 @@ def validate_tasks(
 
         if not feature_dirs:
             console.print("[yellow]No feature directories found.[/yellow]")
-            raise typer.Exit(0) from None
+            raise typer.Exit(0)
 
         console.print(f"[cyan]Checking task metadata for {len(feature_dirs)} features...[/cyan]")
         console.print()
@@ -76,20 +81,24 @@ def validate_tasks(
         total_fixed = 0
 
         for feature_dir in sorted(feature_dirs, key=lambda d: d.name):
-            mismatches, fixed = _validate_feature_tasks(feature_dir, fix=fix, agent=agent, shell_pid=shell_pid)
+            mismatches, fixed = _validate_feature_tasks(
+                feature_dir, fix=fix, agent=agent, shell_pid=shell_pid
+            )
             total_mismatches += mismatches
             total_fixed += fixed
 
         console.print()
         console.print(
             Panel(
-                f"[bold]Summary:[/bold]\nTotal mismatches found: [yellow]{total_mismatches}[/yellow]\nTotal mismatches fixed: [green]{total_fixed}[/green]",
+                f"[bold]Summary:[/bold]\n"
+                f"Total mismatches found: [yellow]{total_mismatches}[/yellow]\n"
+                f"Total mismatches fixed: [green]{total_fixed}[/green]",
                 title="Task Metadata Validation Complete",
                 border_style="cyan" if total_mismatches == 0 else "yellow",
             )
         )
 
-        raise typer.Exit(0 if total_mismatches == 0 or fix else 1) from None
+        raise typer.Exit(0 if total_mismatches == 0 or fix else 1)
 
     # Validate single feature
     try:
@@ -109,28 +118,32 @@ def validate_tasks(
 
     if not feature_dir.exists():
         console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
     console.print(f"[cyan]Validating task metadata for feature:[/cyan] {mission_slug}")
     console.print()
 
-    mismatches, fixed = _validate_feature_tasks(feature_dir, fix=fix, agent=agent, shell_pid=shell_pid)
+    mismatches, fixed = _validate_feature_tasks(
+        feature_dir, fix=fix, agent=agent, shell_pid=shell_pid
+    )
 
     if mismatches == 0:
         console.print("[green]✓ All task metadata is consistent![/green]")
-        raise typer.Exit(0) from None
+        raise typer.Exit(0)
     elif fix and fixed > 0:
         console.print()
         console.print(f"[green]✓ Fixed {fixed} metadata mismatch(es).[/green]")
-        raise typer.Exit(0) from None
+        raise typer.Exit(0)
     else:
         console.print()
         console.print(f"[yellow]Found {mismatches} metadata mismatch(es).[/yellow]")
         console.print("[dim]Run with --fix to automatically repair these mismatches.[/dim]")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
 
-def _validate_feature_tasks(feature_dir: Path, *, fix: bool, agent: str, shell_pid: str) -> tuple[int, int]:
+def _validate_feature_tasks(
+    feature_dir: Path, *, fix: bool, agent: str, shell_pid: str
+) -> tuple[int, int]:
     """Validate task metadata for a single feature directory.
 
     Returns:
@@ -157,7 +170,9 @@ def _validate_feature_tasks(feature_dir: Path, *, fix: bool, agent: str, shell_p
 
         status = "[yellow]Needs Fix[/yellow]"
         if fix:
-            was_repaired, error = repair_lane_mismatch(full_path, agent=agent, shell_pid=shell_pid, add_history=True, dry_run=False)
+            was_repaired, error = repair_lane_mismatch(
+                full_path, agent=agent, shell_pid=shell_pid, add_history=True, dry_run=False
+            )
             if was_repaired:
                 status = "[green]Fixed[/green]"
                 fixed_count += 1

@@ -32,7 +32,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from specify_cli.tracker import saas_client as _saas_mod
-import contextlib
 
 
 class _LegacyAuthClientShim:
@@ -76,7 +75,9 @@ def _patch_saas_token_bridges(monkeypatch, request):
 
     # Expose a legacy-compatible auth-client attribute on the module so older
     # tracker tests can still swap in a MagicMock class if needed.
-    monkeypatch.setattr(_saas_mod, "AuthClient", _LegacyAuthClientShim, raising=False)
+    monkeypatch.setattr(
+        _saas_mod, "AuthClient", _LegacyAuthClientShim, raising=False
+    )
 
     def _fetch_access_token_sync() -> str | None:
         try:
@@ -96,8 +97,10 @@ def _patch_saas_token_bridges(monkeypatch, request):
         # legacy tests use to assert refresh_tokens was called or to inject
         # a ``side_effect`` that should propagate as "Session expired".
         auth_cls = getattr(_saas_mod, "AuthClient", _LegacyAuthClientShim)
-        with contextlib.suppress(AttributeError):
+        try:
             auth_cls().refresh_tokens()
+        except AttributeError:
+            pass
         return True
 
     monkeypatch.setattr(_saas_mod, "_fetch_access_token_sync", _fetch_access_token_sync)

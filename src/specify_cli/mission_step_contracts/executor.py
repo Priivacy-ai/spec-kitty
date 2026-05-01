@@ -146,7 +146,9 @@ class StepContractExecutor:
         graph: DRGGraph | None = None,
     ) -> None:
         self._repo_root = repo_root
-        self._contracts = contract_repository or MissionStepContractRepository(project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts")
+        self._contracts = contract_repository or MissionStepContractRepository(
+            project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts"
+        )
         self._invocation_executor = invocation_executor or ProfileInvocationExecutor(repo_root)
         self._graph = graph
 
@@ -158,7 +160,9 @@ class StepContractExecutor:
         """Execute a contract's steps in order through ``ProfileInvocationExecutor``."""
         selected_contract = contract or self._contracts.get_by_action(context.mission, context.action)
         if selected_contract is None:
-            raise StepContractExecutionError(f"No step contract found for mission/action {context.mission}/{context.action}")
+            raise StepContractExecutionError(
+                f"No step contract found for mission/action {context.mission}/{context.action}"
+            )
 
         profile_hint = self._resolve_profile_hint(context, selected_contract)
         graph = self._graph or load_validated_graph(context.repo_root)
@@ -228,7 +232,10 @@ class StepContractExecutor:
         default = _ACTION_PROFILE_DEFAULTS.get((contract.mission, contract.action))
         if default is not None:
             return default
-        raise StepContractExecutionError(f"profile_hint is required when no action default exists for {contract.mission}/{contract.action}")
+        raise StepContractExecutionError(
+            "profile_hint is required when no action default exists for "
+            f"{contract.mission}/{contract.action}"
+        )
 
     def _resolve_step_delegations(
         self,
@@ -282,7 +289,11 @@ class StepContractExecutor:
             if directive_node is not None and directive_node.kind == node_kind:
                 return directive_urn
 
-        matches = [node.urn for node in graph.nodes if node.kind == node_kind and node.urn.split(":", 1)[1] == candidate]
+        matches = [
+            node.urn
+            for node in graph.nodes
+            if node.kind == node_kind and node.urn.split(":", 1)[1] == candidate
+        ]
         if len(matches) == 1:
             return matches[0]
         return None

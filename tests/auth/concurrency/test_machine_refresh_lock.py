@@ -122,7 +122,9 @@ def install_counting_refresh_flow(
     refresh_module.TokenRefreshFlow = _CountingRefreshFlow  # type: ignore[attr-defined]
 
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
+    monkeypatch.setitem(
+        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
+    )
     return _CountingRefreshFlow
 
 
@@ -167,7 +169,10 @@ async def test_concurrent_refresh_one_network_call(
 
     # Exactly one network call: only one TokenManager hit
     # the refresh flow; the other adopted the persisted material.
-    assert install_counting_refresh_flow.call_count == 1, f"Expected single network refresh; got {install_counting_refresh_flow.call_count}"
+    assert install_counting_refresh_flow.call_count == 1, (
+        f"Expected single network refresh; got "
+        f"{install_counting_refresh_flow.call_count}"
+    )
 
     # Each ``refresh_if_needed`` returns True iff IT performed the
     # network refresh. Exactly one of the two callers should report True.
@@ -211,7 +216,10 @@ async def test_concurrent_refresh_serializes_through_machine_lock(
     )
 
     outcomes = [
-        record.message for record in caplog.records if record.name == "specify_cli.auth.token_manager" and record.message.startswith("refresh_transaction outcome=")
+        record.message
+        for record in caplog.records
+        if record.name == "specify_cli.auth.token_manager"
+        and record.message.startswith("refresh_transaction outcome=")
     ]
     assert len(outcomes) == 2, f"Expected 2 outcome records, got {outcomes!r}"
 

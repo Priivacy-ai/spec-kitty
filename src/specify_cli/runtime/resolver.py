@@ -74,7 +74,10 @@ def _warn_legacy_asset(path: Path) -> None:
         _emit_migrate_nudge()
         return
 
-    msg = f"Legacy asset resolved: {path} — run 'spec-kitty migrate' to clean up. Legacy resolution will be removed in the next major version."
+    msg = (
+        f"Legacy asset resolved: {path} — run 'spec-kitty migrate' to clean up. "
+        f"Legacy resolution will be removed in the next major version."
+    )
     logger.warning(msg)
     warnings.warn(msg, DeprecationWarning, stacklevel=3)
 
@@ -97,10 +100,10 @@ def _emit_migrate_nudge() -> None:
     _migrate_nudge_shown = True
     from specify_cli.paths import render_runtime_path  # noqa: PLC0415
     from specify_cli.runtime.home import get_kittify_home  # noqa: PLC0415
-
     runtime_display = render_runtime_path(get_kittify_home())
     print(
-        f"Note: Run `spec-kitty migrate` to clean up legacy project files and use the global runtime ({runtime_display}).",
+        "Note: Run `spec-kitty migrate` to clean up legacy project files and use the "
+        f"global runtime ({runtime_display}).",
         file=sys.stderr,
     )
 
@@ -178,7 +181,10 @@ def _resolve_asset(
     except FileNotFoundError:
         pass
 
-    raise FileNotFoundError(f"Asset '{name}' not found in any resolution tier (subdir={subdir!r}, mission={mission!r}, project={project_dir})")
+    raise FileNotFoundError(
+        f"Asset '{name}' not found in any resolution tier "
+        f"(subdir={subdir!r}, mission={mission!r}, project={project_dir})"
+    )
 
 
 # ---------------------------------------------------------------------------

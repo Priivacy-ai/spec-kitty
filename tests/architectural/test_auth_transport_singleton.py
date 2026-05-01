@@ -72,7 +72,11 @@ _FORBIDDEN_HTTPX_CTORS: frozenset[str] = frozenset({"Client", "AsyncClient"})
 
 def _collect_python_sources(root: Path) -> list[Path]:
     """Return every ``.py`` file under *root* (excluding ``__pycache__``)."""
-    return [path for path in root.rglob("*.py") if "__pycache__" not in path.parts]
+    return [
+        path
+        for path in root.rglob("*.py")
+        if "__pycache__" not in path.parts
+    ]
 
 
 def _is_httpx_constructor_call(node: ast.AST) -> bool:
@@ -90,7 +94,9 @@ def _is_httpx_constructor_call(node: ast.AST) -> bool:
     if func.attr not in _FORBIDDEN_HTTPX_CTORS:
         return False
     target = func.value
-    return bool(isinstance(target, ast.Name) and target.id == "httpx")
+    if isinstance(target, ast.Name) and target.id == "httpx":
+        return True
+    return False
 
 
 def _find_violations(path: Path) -> list[tuple[int, str]]:
@@ -135,10 +141,14 @@ class TestAuthTransportSingleton:
                 if source_file in _TRANSPORT_ALLOWLIST:
                     continue
                 for lineno, snippet in _find_violations(source_file):
-                    offenders.append((source_file.relative_to(_REPO_ROOT), lineno, snippet))
+                    offenders.append(
+                        (source_file.relative_to(_REPO_ROOT), lineno, snippet)
+                    )
 
         if offenders:
-            formatted = "\n".join(f"  {path}:{lineno}: {snippet}" for path, lineno, snippet in offenders)
+            formatted = "\n".join(
+                f"  {path}:{lineno}: {snippet}" for path, lineno, snippet in offenders
+            )
             pytest.fail(
                 "FR-030 violation: direct httpx.Client / httpx.AsyncClient "
                 "instantiation outside the auth transport boundary "
@@ -151,7 +161,10 @@ class TestAuthTransportSingleton:
     def test_transport_module_exists(self) -> None:
         """The centralized transport module must exist (T032)."""
         transport = _SRC / "auth" / "transport.py"
-        assert transport.exists(), f"Expected centralized auth transport at {transport.relative_to(_REPO_ROOT)} (FR-030, T032)."
+        assert transport.exists(), (
+            "Expected centralized auth transport at "
+            f"{transport.relative_to(_REPO_ROOT)} (FR-030, T032)."
+        )
 
     def test_transport_exports_authenticated_client(self) -> None:
         """``AuthenticatedClient`` must be importable from the transport module."""
@@ -172,7 +185,9 @@ class TestAuthTransportSingleton:
         a typo that would otherwise let a violation slip through.
         """
         for allowed in _TRANSPORT_ALLOWLIST:
-            assert allowed.exists(), f"Allowlisted file does not exist: {allowed.relative_to(_REPO_ROOT)}"
+            assert allowed.exists(), (
+                f"Allowlisted file does not exist: {allowed.relative_to(_REPO_ROOT)}"
+            )
 
     def test_negative_control_detects_violation(self, tmp_path: Path) -> None:
         """Reintroducing a direct ``httpx.Client(...)`` call is detected.
@@ -183,7 +198,9 @@ class TestAuthTransportSingleton:
         """
         bad_source = tmp_path / "bad.py"
         bad_source.write_text(
-            "import httpx\ndef go():\n    return httpx.Client(timeout=1.0)\n",
+            "import httpx\n"
+            "def go():\n"
+            "    return httpx.Client(timeout=1.0)\n",
             encoding="utf-8",
         )
         violations = _find_violations(bad_source)

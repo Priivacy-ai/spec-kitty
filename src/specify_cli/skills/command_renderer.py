@@ -224,9 +224,11 @@ def _extract_frontmatter_description(text: str) -> str | None:
     for line in fm_body.splitlines():
         line = line.strip()
         if line.startswith("description:"):
-            value = line[len("description:") :].strip()
+            value = line[len("description:"):].strip()
             # Strip surrounding quotes if present.
-            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            if (value.startswith('"') and value.endswith('"')) or (
+                value.startswith("'") and value.endswith("'")
+            ):
                 value = value[1:-1]
             return value[:_DESC_MAX_LEN] if value else None
     return None
@@ -253,7 +255,11 @@ def _extract_purpose_description(body: str) -> str | None:
 
     # Take the first sentence (up to the first period, "?", "!", or newline).
     sentence_end = re.search(r"[.?!\n]", section_text)
-    sentence = section_text[: sentence_end.end()].strip().rstrip(".") if sentence_end else section_text.strip()
+    sentence = (
+        section_text[: sentence_end.end()].strip().rstrip(".")
+        if sentence_end
+        else section_text.strip()
+    )
 
     sentence = sentence.strip()
     if not sentence:

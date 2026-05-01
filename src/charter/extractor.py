@@ -168,7 +168,9 @@ class Extractor:
         if "convention" in keywords:
             commits.convention = keywords["convention"]
 
-    def _apply_performance_section(self, performance: PerformanceConfig, structured_data: dict[str, Any]) -> None:
+    def _apply_performance_section(
+        self, performance: PerformanceConfig, structured_data: dict[str, Any]
+    ) -> None:
         """Apply performance section data (keywords + tables) to the performance config."""
         keywords = structured_data.get("keywords", {})
         if "timeout_seconds" in keywords:
@@ -179,7 +181,9 @@ class Extractor:
                     performance.dashboard_max_wps = int(val)
                     break
 
-    def _apply_branch_strategy_section(self, branch_strategy: BranchStrategyConfig, structured_data: dict[str, Any]) -> None:
+    def _apply_branch_strategy_section(
+        self, branch_strategy: BranchStrategyConfig, structured_data: dict[str, Any]
+    ) -> None:
         """Apply branch strategy section data (tables + numbered items) to the branch config."""
         for table_row in structured_data.get("tables", []):
             branch_val = table_row.get("branch", table_row.get("name", ""))

@@ -69,7 +69,10 @@ def append_spdd_reasons_guidance(lines: list[str], mission: str, action: str) ->
     lines.append("")
     lines.append(f"  SPDD/REASONS Guidance (action: {normalized}):")
     if bullets is None:
-        lines.append(f"    - SPDD/REASONS pack active. No action-scoped bullets registered for action '{normalized}'.")
+        lines.append(
+            "    - SPDD/REASONS pack active. No action-scoped bullets registered "
+            f"for action '{normalized}'."
+        )
     else:
         for bullet in bullets:
             lines.append(f"    - {bullet}")

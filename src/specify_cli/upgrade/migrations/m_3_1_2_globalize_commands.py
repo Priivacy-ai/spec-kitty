@@ -83,7 +83,10 @@ class _SafeGlobalizeCommandsBase(BaseMigration):
             content = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return False
-        return any(line.strip().startswith(_VERSION_MARKER_PREFIX) for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES])
+        for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES]:
+            if line.strip().startswith(_VERSION_MARKER_PREFIX):
+                return True
+        return False
 
     @staticmethod
     def _rel(path: Path, project_path: Path) -> str:

@@ -163,8 +163,15 @@ def _validate_source_urns(
     dangling = [u for u in source_urns if u not in known_urns]
     if dangling:
         raise ProjectDRGValidationError(
-            errors=tuple(f"Source URN '{u}' referenced by target '{target_label}' does not exist in the shipped DRG snapshot." for u in dangling),
-            merged_graph_summary=(f"{len(known_urns)} known URNs; {len(dangling)} dangling reference(s): {', '.join(dangling)}"),
+            errors=tuple(
+                f"Source URN '{u}' referenced by target '{target_label}' "
+                f"does not exist in the shipped DRG snapshot."
+                for u in dangling
+            ),
+            merged_graph_summary=(
+                f"{len(known_urns)} known URNs; "
+                f"{len(dangling)} dangling reference(s): {', '.join(dangling)}"
+            ),
         )
 
 
@@ -210,7 +217,9 @@ def build_targets(
     for section_label, answer_context in mappings:
         kinds: list[str] = answer_context.get("kinds", [])
         source_section: str | None = answer_context.get("source_section") or None
-        explicit_source_urns: tuple[str, ...] = tuple(answer_context.get("source_urns", ()))
+        explicit_source_urns: tuple[str, ...] = tuple(
+            answer_context.get("source_urns", ())
+        )
 
         # Validate any explicitly declared source URNs against the DRG.
         if explicit_source_urns:

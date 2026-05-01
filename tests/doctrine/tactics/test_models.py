@@ -9,7 +9,6 @@ from doctrine.tactics.models import (
     TacticReference,
     TacticStep,
 )
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -41,7 +40,9 @@ class TestTacticReference:
         assert ref.when == "Before starting"
 
     def test_frozen(self) -> None:
-        ref = TacticReference(name="Test", type=ReferenceType.TACTIC, id="x", when="always")
+        ref = TacticReference(
+            name="Test", type=ReferenceType.TACTIC, id="x", when="always"
+        )
         with pytest.raises(ValidationError):
             ref.name = "changed"  # type: ignore[misc]
 
@@ -55,7 +56,9 @@ class TestTacticStep:
         assert step.references == []
 
     def test_full_construction(self) -> None:
-        ref = TacticReference(name="Ref", type=ReferenceType.DIRECTIVE, id="D001", when="now")
+        ref = TacticReference(
+            name="Ref", type=ReferenceType.DIRECTIVE, id="D001", when="now"
+        )
         step = TacticStep(
             title="Step",
             description="A description",
@@ -91,11 +94,15 @@ class TestTactic:
 
     def test_missing_steps_raises(self) -> None:
         with pytest.raises(ValidationError):
-            Tactic.model_validate({"schema_version": "1.0", "id": "bad", "name": "Bad"})
+            Tactic.model_validate(
+                {"schema_version": "1.0", "id": "bad", "name": "Bad"}
+            )
 
     def test_empty_steps_raises(self) -> None:
         with pytest.raises(ValidationError):
-            Tactic.model_validate({"schema_version": "1.0", "id": "bad", "name": "Bad", "steps": []})
+            Tactic.model_validate(
+                {"schema_version": "1.0", "id": "bad", "name": "Bad", "steps": []}
+            )
 
     def test_schema_version_alias(self) -> None:
         tactic = Tactic.model_validate(

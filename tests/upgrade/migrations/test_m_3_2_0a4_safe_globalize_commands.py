@@ -38,12 +38,9 @@ def test_no_global_runtime_preserves_files_for_review(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
-    project = _make_project(
-        tmp_path,
-        {
-            ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
-        },
-    )
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
+    })
     with patch.object(migration, "_global_runtime_present", return_value=False):
         result = migration.apply(project)
     assert result.success
@@ -57,21 +54,16 @@ def test_per_agent_skip_records_manual_review(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
-    project = _make_project(
-        tmp_path,
-        {
-            ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
-            ".codex/prompts/spec-kitty.implement.md": f"{_MARKER}# content",
-        },
-    )
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
+        ".codex/prompts/spec-kitty.implement.md": f"{_MARKER}# content",
+    })
 
     def mock_global_commands(agent_root: str, subdir: str, filename: str) -> bool:
         return agent_root == ".codex"
 
-    with (
-        patch.object(migration, "_global_runtime_present", return_value=True),
-        patch.object(migration, "_global_command_file_present", side_effect=mock_global_commands),
-    ):
+    with patch.object(migration, "_global_runtime_present", return_value=True), \
+         patch.object(migration, "_global_command_file_present", side_effect=mock_global_commands):
         result = migration.apply(project)
 
     assert result.success
@@ -85,14 +77,12 @@ def test_no_version_header_skips_file_and_flags_review(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
-    project = _make_project(
-        tmp_path,
-        {
-            ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# generated",
-            ".claude/commands/spec-kitty.custom.md": "# no marker here\n# user-authored",
-        },
-    )
-    with patch.object(migration, "_global_runtime_present", return_value=True), patch.object(migration, "_global_command_file_present", return_value=True):
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# generated",
+        ".claude/commands/spec-kitty.custom.md": "# no marker here\n# user-authored",
+    })
+    with patch.object(migration, "_global_runtime_present", return_value=True), \
+         patch.object(migration, "_global_command_file_present", return_value=True):
         result = migration.apply(project)
 
     assert not (project / ".claude/commands/spec-kitty.implement.md").exists()
@@ -105,13 +95,11 @@ def test_dry_run_no_deletions(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
-    project = _make_project(
-        tmp_path,
-        {
-            ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
-        },
-    )
-    with patch.object(migration, "_global_runtime_present", return_value=True), patch.object(migration, "_global_command_file_present", return_value=True):
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
+    })
+    with patch.object(migration, "_global_runtime_present", return_value=True), \
+         patch.object(migration, "_global_command_file_present", return_value=True):
         result = migration.apply(project, dry_run=True)
 
     assert result.success
@@ -124,19 +112,17 @@ def test_mixed_agents(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
-    project = _make_project(
-        tmp_path,
-        {
-            ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
-            ".codex/prompts/spec-kitty.implement.md": f"{_MARKER}# content",
-            ".opencode/command/spec-kitty.implement.md": f"{_MARKER}# content",
-        },
-    )
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
+        ".codex/prompts/spec-kitty.implement.md": f"{_MARKER}# content",
+        ".opencode/command/spec-kitty.implement.md": f"{_MARKER}# content",
+    })
 
     def mock_global(agent_root: str, subdir: str, filename: str) -> bool:
         return agent_root in (".claude", ".opencode")
 
-    with patch.object(migration, "_global_runtime_present", return_value=True), patch.object(migration, "_global_command_file_present", side_effect=mock_global):
+    with patch.object(migration, "_global_runtime_present", return_value=True), \
+         patch.object(migration, "_global_command_file_present", side_effect=mock_global):
         result = migration.apply(project)
 
     assert not (project / ".claude/commands/spec-kitty.implement.md").exists()
@@ -182,7 +168,10 @@ def test_is_generated_file_recognizes_old_format(tmp_path: Path) -> None:
 def test_is_generated_file_rejects_user_authored(tmp_path: Path) -> None:
     target = tmp_path / "spec-kitty.custom.md"
     target.write_text(
-        "---\ndescription: My personal command\n---\nDo something useful.\n",
+        "---\n"
+        "description: My personal command\n"
+        "---\n"
+        "Do something useful.\n",
         encoding="utf-8",
     )
     assert GlobalizeCommandsMigration._is_generated_file(target) is False
@@ -204,13 +193,11 @@ def test_apply_removes_new_format_files(
     tmp_path: Path,
     migration: GlobalizeCommandsMigration | SafeGlobalizeCommandsMigration,
 ) -> None:
-    project = _make_project(
-        tmp_path,
-        {
-            ".claude/commands/spec-kitty.implement.md": _NEW_FORMAT_BODY,
-        },
-    )
-    with patch.object(migration, "_global_runtime_present", return_value=True), patch.object(migration, "_global_command_file_present", return_value=True):
+    project = _make_project(tmp_path, {
+        ".claude/commands/spec-kitty.implement.md": _NEW_FORMAT_BODY,
+    })
+    with patch.object(migration, "_global_runtime_present", return_value=True), \
+         patch.object(migration, "_global_command_file_present", return_value=True):
         result = migration.apply(project)
 
     assert result.success

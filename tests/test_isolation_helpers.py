@@ -85,7 +85,9 @@ def assert_test_isolation() -> None:
         return
 
     if installed != source:
-        pytest.fail(f"Test isolation broken! Source: {source}, Installed: {installed}. Run: pip uninstall spec-kitty-cli -y")
+        pytest.fail(
+            f"Test isolation broken! Source: {source}, Installed: {installed}. Run: pip uninstall spec-kitty-cli -y"
+        )
 
 
 def run_cli_subprocess(project_path: Path, *args: str, check: bool = False) -> subprocess.CompletedProcess[str]:

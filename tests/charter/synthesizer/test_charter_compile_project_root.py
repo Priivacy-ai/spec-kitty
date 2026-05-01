@@ -25,7 +25,6 @@ from charter.compiler import _default_doctrine_service
 # Direct tests for resolve_project_root()
 # ---------------------------------------------------------------------------
 
-
 class TestResolveProjectRoot:
     """Tests for the shared _doctrine_paths.resolve_project_root() helper."""
 
@@ -41,7 +40,9 @@ class TestResolveProjectRoot:
         result = resolve_project_root(tmp_path)
         assert result == kittify_doctrine
 
-    def test_kittify_doctrine_takes_priority_over_src_doctrine(self, tmp_path: Path) -> None:
+    def test_kittify_doctrine_takes_priority_over_src_doctrine(
+        self, tmp_path: Path
+    ) -> None:
         """Phase 3 candidate outranks legacy src/doctrine/ candidate."""
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
@@ -50,14 +51,18 @@ class TestResolveProjectRoot:
         result = resolve_project_root(tmp_path)
         assert result == kittify_doctrine
 
-    def test_falls_back_to_src_doctrine_when_kittify_absent(self, tmp_path: Path) -> None:
+    def test_falls_back_to_src_doctrine_when_kittify_absent(
+        self, tmp_path: Path
+    ) -> None:
         """When .kittify/doctrine/ absent, legacy src/doctrine/ wins."""
         src_doctrine = tmp_path / "src" / "doctrine"
         src_doctrine.mkdir(parents=True)
         result = resolve_project_root(tmp_path)
         assert result == src_doctrine
 
-    def test_falls_back_to_flat_doctrine_when_both_absent(self, tmp_path: Path) -> None:
+    def test_falls_back_to_flat_doctrine_when_both_absent(
+        self, tmp_path: Path
+    ) -> None:
         """When .kittify/doctrine/ and src/doctrine/ absent, flat doctrine/ wins."""
         flat_doctrine = tmp_path / "doctrine"
         flat_doctrine.mkdir()
@@ -83,7 +88,6 @@ class TestResolveProjectRoot:
 # Tests for compiler._default_doctrine_service via resolve_project_root
 # ---------------------------------------------------------------------------
 
-
 class TestDefaultDoctrineService:
     """Tests for compiler._default_doctrine_service project-root wiring (T024)."""
 
@@ -93,19 +97,25 @@ class TestDefaultDoctrineService:
         # DoctrineService stores project_root as _project_root
         return getattr(svc, "_project_root", None)
 
-    def test_case_r2_1_no_candidate_dirs_project_root_is_none(self, tmp_path: Path) -> None:
+    def test_case_r2_1_no_candidate_dirs_project_root_is_none(
+        self, tmp_path: Path
+    ) -> None:
         """Case R-2.1: No candidate directories → project_root is None (legacy)."""
         project_root = self._project_root_from_service(tmp_path)
         assert project_root is None
 
-    def test_case_r2_2_kittify_doctrine_present_points_there(self, tmp_path: Path) -> None:
+    def test_case_r2_2_kittify_doctrine_present_points_there(
+        self, tmp_path: Path
+    ) -> None:
         """Case R-2.2: .kittify/doctrine/ present → project_root points there."""
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
         project_root = self._project_root_from_service(tmp_path)
         assert project_root == kittify_doctrine
 
-    def test_case_r2_3_kittify_doctrine_empty_points_there(self, tmp_path: Path) -> None:
+    def test_case_r2_3_kittify_doctrine_empty_points_there(
+        self, tmp_path: Path
+    ) -> None:
         """Case R-2.3: .kittify/doctrine/ present but empty → points there, no impact."""
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
@@ -120,7 +130,9 @@ class TestDefaultDoctrineService:
         project_root = getattr(svc, "project_root", None)
         assert project_root is None
 
-    def test_legacy_src_doctrine_candidate_still_resolves_when_kittify_absent(self, tmp_path: Path) -> None:
+    def test_legacy_src_doctrine_candidate_still_resolves_when_kittify_absent(
+        self, tmp_path: Path
+    ) -> None:
         """Legacy src/doctrine/ candidate resolves when .kittify/doctrine/ absent."""
         src_doctrine = tmp_path / "src" / "doctrine"
         src_doctrine.mkdir(parents=True)
@@ -141,13 +153,11 @@ class TestDefaultDoctrineService:
 # Tests for context._build_doctrine_service (T025 mirror)
 # ---------------------------------------------------------------------------
 
-
 class TestContextDoctrineService:
     """The context module's _build_doctrine_service uses the same candidate list."""
 
     def _project_root_from_context_service(self, repo_root: Path) -> Path | None:
         from charter.context import _build_doctrine_service
-
         svc = _build_doctrine_service(repo_root)
         return getattr(svc, "_project_root", None)
 
@@ -166,7 +176,9 @@ class TestContextDoctrineService:
         result = self._project_root_from_context_service(tmp_path)
         assert result == kittify_doctrine
 
-    def test_compiler_and_context_agree_on_same_candidate(self, tmp_path: Path) -> None:
+    def test_compiler_and_context_agree_on_same_candidate(
+        self, tmp_path: Path
+    ) -> None:
         """Both compiler and context resolve the same project_root for the same repo."""
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)

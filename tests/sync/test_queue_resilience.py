@@ -10,6 +10,7 @@ Covers:
 
 import json
 import sqlite3
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ import pytest
 pytestmark = pytest.mark.fast
 
 from specify_cli.sync.queue import (
+    COALESCEABLE_EVENT_TYPES,
     DEFAULT_MAX_QUEUE_SIZE,
     OfflineQueue,
     QueueStats,
@@ -148,57 +150,47 @@ class TestEventCoalescing:
     def test_non_coalesceable_events_never_coalesced(self, temp_queue: OfflineQueue):
         """WPStatusChanged events should never coalesce."""
         for i in range(5):
-            temp_queue.queue_event(
-                {
-                    "event_id": f"evt-{i}",
-                    "event_type": "WPStatusChanged",
-                    "payload": {"wp_id": "WP01"},
-                }
-            )
+            temp_queue.queue_event({
+                "event_id": f"evt-{i}",
+                "event_type": "WPStatusChanged",
+                "payload": {"wp_id": "WP01"},
+            })
         assert temp_queue.size() == 5
 
     def test_coalescing_works_even_when_queue_full(self, small_queue: OfflineQueue):
         """Coalescing updates in-place before the size check, so it succeeds even at capacity."""
         # Fill with 4 non-coalesceable + 1 coalesceable
         for i in range(4):
-            small_queue.queue_event(
-                {
-                    "event_id": f"nc-{i}",
-                    "event_type": "WPStatusChanged",
-                    "payload": {},
-                }
-            )
-        small_queue.queue_event(
-            {
-                "event_id": "coal-1",
-                "event_type": "MissionDossierArtifactIndexed",
-                "payload": {"mission_slug": "f", "artifact_key": "k"},
-            }
-        )
+            small_queue.queue_event({
+                "event_id": f"nc-{i}",
+                "event_type": "WPStatusChanged",
+                "payload": {},
+            })
+        small_queue.queue_event({
+            "event_id": "coal-1",
+            "event_type": "MissionDossierArtifactIndexed",
+            "payload": {"mission_slug": "f", "artifact_key": "k"},
+        })
         assert small_queue.size() == 5  # at capacity
 
         # This should coalesce in-place (update the existing coalesceable row)
-        result = small_queue.queue_event(
-            {
-                "event_id": "coal-2",
-                "event_type": "MissionDossierArtifactIndexed",
-                "payload": {"mission_slug": "f", "artifact_key": "k"},
-            }
-        )
+        result = small_queue.queue_event({
+            "event_id": "coal-2",
+            "event_type": "MissionDossierArtifactIndexed",
+            "payload": {"mission_slug": "f", "artifact_key": "k"},
+        })
         assert result is True
         assert small_queue.size() == 5  # still at capacity, not 6
 
     def test_snapshot_computed_coalesces(self, temp_queue: OfflineQueue):
         """MissionDossierSnapshotComputed should keep only the latest snapshot per feature."""
         for i in range(10):
-            temp_queue.queue_event(
-                {
-                    "event_id": f"snap-{i}",
-                    "event_type": "MissionDossierSnapshotComputed",
-                    "project_uuid": "proj-1",
-                    "payload": {"mission_slug": "010-feat", "snapshot_id": f"snap-{i}"},
-                }
-            )
+            temp_queue.queue_event({
+                "event_id": f"snap-{i}",
+                "event_type": "MissionDossierSnapshotComputed",
+                "project_uuid": "proj-1",
+                "payload": {"mission_slug": "010-feat", "snapshot_id": f"snap-{i}"},
+            })
         assert temp_queue.size() == 1
         events = temp_queue.drain_queue()
         assert events[0]["event_id"] == "snap-9"
@@ -221,25 +213,18 @@ class TestConfigurableQueueCap:
 
     def test_queue_evicts_oldest_at_custom_cap(self, small_queue: OfflineQueue):
         for i in range(5):
-            assert (
-                small_queue.queue_event(
-                    {
-                        "event_id": f"evt-{i}",
-                        "event_type": "WPStatusChanged",
-                        "payload": {},
-                    }
-                )
-                is True
-            )
-
-        # 6th event should succeed, evicting the oldest
-        result = small_queue.queue_event(
-            {
-                "event_id": "overflow",
+            assert small_queue.queue_event({
+                "event_id": f"evt-{i}",
                 "event_type": "WPStatusChanged",
                 "payload": {},
-            }
-        )
+            }) is True
+
+        # 6th event should succeed, evicting the oldest
+        result = small_queue.queue_event({
+            "event_id": "overflow",
+            "event_type": "WPStatusChanged",
+            "payload": {},
+        })
         assert result is True
         assert small_queue.size() == 5  # still at cap, oldest evicted
 
@@ -335,11 +320,9 @@ class TestCoalesceKeyMigration:
         assert queue.size() == 1
 
         # Verify the column exists by inserting with coalesce_key
-        queue.queue_event(
-            {
-                "event_id": "new-1",
-                "event_type": "MissionDossierArtifactIndexed",
-                "payload": {"mission_slug": "f", "artifact_key": "k"},
-            }
-        )
+        queue.queue_event({
+            "event_id": "new-1",
+            "event_type": "MissionDossierArtifactIndexed",
+            "payload": {"mission_slug": "f", "artifact_key": "k"},
+        })
         assert queue.size() == 2

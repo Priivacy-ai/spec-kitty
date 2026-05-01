@@ -6,7 +6,7 @@ Contract:       kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contrac
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Union
 
 from pydantic import (
     AfterValidator,
@@ -196,9 +196,13 @@ _SLUG_REGEX = r"^[A-Za-z0-9._-]{1,128}$"
 
 def _validate_safe_slug(value: str) -> str:
     if value.startswith("."):
-        raise ValueError("identifier must not start with '.': leading-dot names are reserved")
+        raise ValueError(
+            "identifier must not start with '.': leading-dot names are reserved"
+        )
     if ".." in value:
-        raise ValueError("identifier must not contain '..': path-traversal sequences are forbidden")
+        raise ValueError(
+            "identifier must not contain '..': path-traversal sequences are forbidden"
+        )
     return value
 
 
@@ -301,15 +305,17 @@ class FlagNotHelpfulPayload(BaseModel):
 
 # Discriminated union for all proposal payloads
 ProposalPayload = Annotated[
-    SynthesizeDirectivePayload
-    | SynthesizeTacticPayload
-    | SynthesizeProcedurePayload
-    | RewireEdgePayload
-    | AddEdgePayload
-    | RemoveEdgePayload
-    | AddGlossaryTermPayload
-    | UpdateGlossaryTermPayload
-    | FlagNotHelpfulPayload,
+    Union[
+        SynthesizeDirectivePayload,
+        SynthesizeTacticPayload,
+        SynthesizeProcedurePayload,
+        RewireEdgePayload,
+        AddEdgePayload,
+        RemoveEdgePayload,
+        AddGlossaryTermPayload,
+        UpdateGlossaryTermPayload,
+        FlagNotHelpfulPayload,
+    ],
     Field(discriminator="kind"),
 ]
 
@@ -385,26 +391,29 @@ class RetrospectiveRecord(BaseModel):
     successor_mission_id: MissionId | None = None
 
     @model_validator(mode="after")
-    def validate_status_conditionals(self) -> RetrospectiveRecord:
+    def validate_status_conditionals(self) -> "RetrospectiveRecord":
         """Enforce status-conditional field requirements."""
         status = self.status
 
         if status == "completed" and self.completed_at is None:
             raise ValueError("status='completed' requires completed_at to be set")
 
-        if status == "skipped" and (self.skip_reason is None or len(self.skip_reason) == 0):
-            raise ValueError("status='skipped' requires a non-empty skip_reason")
+        if status == "skipped":
+            if self.skip_reason is None or len(self.skip_reason) == 0:
+                raise ValueError("status='skipped' requires a non-empty skip_reason")
 
         if status == "failed" and self.failure is None:
             raise ValueError("status='failed' requires failure to be set")
 
         if status == "pending":
-            raise ValueError("status='pending' is not persistable; the writer refuses to materialize a pending record")
+            raise ValueError(
+                "status='pending' is not persistable; the writer refuses to materialize a pending record"
+            )
 
         return self
 
     @model_validator(mode="after")
-    def validate_unique_finding_ids(self) -> RetrospectiveRecord:
+    def validate_unique_finding_ids(self) -> "RetrospectiveRecord":
         """Ensure all Finding.id values are unique within the record."""
         all_findings = list(self.helped) + list(self.not_helpful) + list(self.gaps)
         ids = [f.id for f in all_findings]
@@ -416,7 +425,7 @@ class RetrospectiveRecord(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_unique_proposal_ids(self) -> RetrospectiveRecord:
+    def validate_unique_proposal_ids(self) -> "RetrospectiveRecord":
         """Ensure all Proposal.id values are unique within the record."""
         ids = [p.id for p in self.proposals]
         seen: set[str] = set()

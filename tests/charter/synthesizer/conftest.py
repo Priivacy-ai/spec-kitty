@@ -33,7 +33,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 # Snapshots
 # ---------------------------------------------------------------------------
 
-
 @pytest.fixture
 def minimal_interview_snapshot() -> dict:
     """Minimal frozen interview answers for deterministic testing."""
@@ -67,7 +66,9 @@ def minimal_doctrine_snapshot() -> dict:
 def minimal_drg_snapshot() -> dict:
     """Minimal DRG graph snapshot for deterministic testing."""
     return {
-        "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+        "nodes": [
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+        ],
         "edges": [],
         "schema_version": "1",
     }
@@ -76,7 +77,6 @@ def minimal_drg_snapshot() -> dict:
 # ---------------------------------------------------------------------------
 # SynthesisTarget and SynthesisRequest
 # ---------------------------------------------------------------------------
-
 
 @pytest.fixture
 def sample_synthesis_target() -> SynthesisTarget:
@@ -112,7 +112,6 @@ def sample_synthesis_request(
 # ---------------------------------------------------------------------------
 # Fixture adapter
 # ---------------------------------------------------------------------------
-
 
 @pytest.fixture
 def fixture_root() -> Path:

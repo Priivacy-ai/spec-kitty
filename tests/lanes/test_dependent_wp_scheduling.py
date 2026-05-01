@@ -61,11 +61,16 @@ class TestDependentWpScheduler:
 
         wp_to_lane = _wp_to_lane(result)
         assert wp_to_lane["WPa"] == wp_to_lane["WPb"], (
-            f"WPb depends on WPa but landed in a different lane ({wp_to_lane['WPa']!r} vs {wp_to_lane['WPb']!r}). This regresses FR-005."
+            f"WPb depends on WPa but landed in a different lane "
+            f"({wp_to_lane['WPa']!r} vs {wp_to_lane['WPb']!r}). "
+            "This regresses FR-005."
         )
 
         same_lane = next(ln for ln in result.lanes if ln.lane_id == wp_to_lane["WPa"])
-        assert same_lane.wp_ids.index("WPa") < same_lane.wp_ids.index("WPb"), f"Dependency order must be preserved within the lane (got: {same_lane.wp_ids})."
+        assert same_lane.wp_ids.index("WPa") < same_lane.wp_ids.index("WPb"), (
+            "Dependency order must be preserved within the lane "
+            f"(got: {same_lane.wp_ids})."
+        )
 
     def test_dependency_chain_lands_in_one_lane(self):
         """WPa -> WPb -> WPc: a transitive chain stays in a single lane."""
@@ -129,7 +134,9 @@ class TestDependentWpScheduler:
                 )
 
         # And the two independent chains should still fan out.
-        assert wp_to_lane["WPa"] != wp_to_lane["WPc"], "Two independent chains should land in different lanes."
+        assert wp_to_lane["WPa"] != wp_to_lane["WPc"], (
+            "Two independent chains should land in different lanes."
+        )
 
     def test_planner_rejects_orphan_executable_wp(self):
         """A code WP with no ownership manifest must hard-fail rather than land

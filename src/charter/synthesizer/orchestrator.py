@@ -121,7 +121,6 @@ def synthesize(
     try:
         from doctrine.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
         from importlib.metadata import version as _pkg_version  # noqa: PLC0415
-
         _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
         from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
         from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
@@ -135,7 +134,8 @@ def synthesize(
         from . import write_pipeline as _write_pipeline  # noqa: PLC0415
     except ImportError as exc:
         raise NotImplementedError(
-            "synthesize() is not yet fully implemented — WP02 must deliver synthesize_pipeline.py and WP03 must deliver write_pipeline.py."
+            "synthesize() is not yet fully implemented — WP02 must deliver "
+            "synthesize_pipeline.py and WP03 must deliver write_pipeline.py."
         ) from exc
 
     # --- In-memory pipeline (WP02) ---
@@ -178,13 +178,18 @@ def synthesize(
 
     primary_target = request.target
     for body, prov in results:
-        if prov.artifact_kind == primary_target.kind and prov.artifact_slug == primary_target.slug:
+        if (
+            prov.artifact_kind == primary_target.kind
+            and prov.artifact_slug == primary_target.slug
+        ):
             return SynthesisResult(
                 target_kind=prov.artifact_kind,
                 target_slug=prov.artifact_slug,
                 adapter_output=_AdapterOutput(
                     body=body,
-                    generated_at=datetime.fromisoformat(prov.generated_at) if not isinstance(prov.generated_at, datetime) else prov.generated_at,
+                    generated_at=datetime.fromisoformat(prov.generated_at)
+                    if not isinstance(prov.generated_at, datetime)
+                    else prov.generated_at,
                 ),
                 inputs_hash=prov.inputs_hash,
                 effective_adapter_id=prov.adapter_id,
@@ -198,7 +203,9 @@ def synthesize(
         target_slug=first_prov.artifact_slug,
         adapter_output=_AdapterOutput(
             body=first_body,
-            generated_at=datetime.fromisoformat(first_prov.generated_at) if not isinstance(first_prov.generated_at, datetime) else first_prov.generated_at,
+            generated_at=datetime.fromisoformat(first_prov.generated_at)
+            if not isinstance(first_prov.generated_at, datetime)
+            else first_prov.generated_at,
         ),
         inputs_hash=first_prov.inputs_hash,
         effective_adapter_id=first_prov.adapter_id,
@@ -236,7 +243,9 @@ def resynthesize(
     """
     try:
         from .resynthesize_pipeline import run as _run  # noqa: PLC0415
-
         return _run(request, topic=topic, adapter=adapter)
     except ImportError as exc:
-        raise NotImplementedError("resynthesize() is not yet implemented — WP05 will deliver src/charter/synthesizer/resynthesize_pipeline.py.") from exc
+        raise NotImplementedError(
+            "resynthesize() is not yet implemented — WP05 will deliver "
+            "src/charter/synthesizer/resynthesize_pipeline.py."
+        ) from exc

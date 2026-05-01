@@ -93,7 +93,9 @@ def _make_pre_schema_project(root: Path) -> None:
 
 
 @pytest.mark.e2e
-def test_upgrade_then_branch_context_does_not_gate(tmp_path: Path, run_cli) -> None:
+def test_upgrade_then_branch_context_does_not_gate(
+    tmp_path: Path, run_cli
+) -> None:
     """Regression: after ``spec-kitty upgrade --yes``, schema_version is stamped
     AND the next gated command (``agent mission branch-context``) is allowed
     through. Reproduces the FR-002 / #705 trap.
@@ -104,15 +106,23 @@ def test_upgrade_then_branch_context_does_not_gate(tmp_path: Path, run_cli) -> N
 
     # Sanity: starting state has no schema_version (otherwise the test is a no-op).
     pre = yaml.safe_load((project / ".kittify" / "metadata.yaml").read_text(encoding="utf-8"))
-    assert "schema_version" not in pre.get("spec_kitty", {}), "Test setup invariant violated: schema_version should be absent before upgrade"
+    assert "schema_version" not in pre.get("spec_kitty", {}), (
+        "Test setup invariant violated: schema_version should be absent before upgrade"
+    )
 
     # Act 1: spec-kitty upgrade --yes
     upgrade_result = run_cli(project, "upgrade", "--yes")
-    assert upgrade_result.returncode == 0, f"upgrade failed (rc={upgrade_result.returncode}):\nstdout: {upgrade_result.stdout}\nstderr: {upgrade_result.stderr}"
+    assert upgrade_result.returncode == 0, (
+        f"upgrade failed (rc={upgrade_result.returncode}):\n"
+        f"stdout: {upgrade_result.stdout}\nstderr: {upgrade_result.stderr}"
+    )
 
     # Assert intermediate: schema_version landed in metadata.yaml.
     post = yaml.safe_load((project / ".kittify" / "metadata.yaml").read_text(encoding="utf-8"))
-    assert REQUIRED_SCHEMA_VERSION is not None, "REQUIRED_SCHEMA_VERSION is None; this test is meaningful only when the schema-version gate is active."
+    assert REQUIRED_SCHEMA_VERSION is not None, (
+        "REQUIRED_SCHEMA_VERSION is None; this test is meaningful only when the "
+        "schema-version gate is active."
+    )
     assert post.get("spec_kitty", {}).get("schema_version") == REQUIRED_SCHEMA_VERSION, (
         "schema_version was not stamped after upgrade -- FR-002 regression. "
         f"Expected {REQUIRED_SCHEMA_VERSION}, got "
@@ -129,4 +139,6 @@ def test_upgrade_then_branch_context_does_not_gate(tmp_path: Path, run_cli) -> N
         f"stdout: {bc_result.stdout}\nstderr: {bc_result.stderr}"
     )
     payload = json.loads(bc_result.stdout)
-    assert payload["result"] == "success", f"branch-context returned non-success payload: {payload!r}"
+    assert payload["result"] == "success", (
+        f"branch-context returned non-success payload: {payload!r}"
+    )

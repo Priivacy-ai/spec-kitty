@@ -174,7 +174,11 @@ def feature_with_planning_artifact_wp_no_owned_files(feature_dir: Path) -> Path:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP02-planning.md").write_text(
-        "---\nwork_package_id: WP02\nexecution_mode: planning_artifact\n---\n# WP02 Planning\nDocs work.\n",
+        "---\n"
+        "work_package_id: WP02\n"
+        "execution_mode: planning_artifact\n"
+        "---\n"
+        "# WP02 Planning\nDocs work.\n",
         encoding="utf-8",
     )
     return feature_dir
@@ -184,7 +188,9 @@ class TestBuildPromptWPPlanningArtifact:
     """Coverage for the repo-root planning-artifact branch in _build_wp_prompt."""
 
     @pytest.mark.fast
-    def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(self, feature_with_planning_artifact_wp: Path) -> None:
+    def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(
+        self, feature_with_planning_artifact_wp: Path
+    ) -> None:
         # planning_artifact WPs now use lane-planning (FR-103/FR-105).
         # The workspace label reflects the unified lane contract.
         repo_root = feature_with_planning_artifact_wp.parent.parent
@@ -201,7 +207,9 @@ class TestBuildPromptWPPlanningArtifact:
         path.unlink()
 
     @pytest.mark.fast
-    def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(self, feature_with_planning_artifact_wp: Path) -> None:
+    def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(
+        self, feature_with_planning_artifact_wp: Path
+    ) -> None:
         """planning_artifact WPs now use lane-planning (FR-103/FR-105).
         Review commands use the target branch as the diff base."""
         repo_root = feature_with_planning_artifact_wp.parent.parent
@@ -220,7 +228,9 @@ class TestBuildPromptWPPlanningArtifact:
         path.unlink()
 
     @pytest.mark.git_repo
-    def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(self, feature_with_planning_artifact_wp: Path) -> None:
+    def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(
+        self, feature_with_planning_artifact_wp: Path
+    ) -> None:
         """planning_artifact WPs now use lane-planning (FR-103/FR-105).
         Review commands use the target branch as the diff base (no pathspec scoping)."""
         import subprocess
@@ -250,7 +260,9 @@ class TestBuildPromptWPPlanningArtifact:
         path.unlink()
 
     @pytest.mark.git_repo
-    def test_review_prompt_with_claim_commit_no_owned_files_has_empty_pathspec(self, feature_with_planning_artifact_wp_no_owned_files: Path) -> None:
+    def test_review_prompt_with_claim_commit_no_owned_files_has_empty_pathspec(
+        self, feature_with_planning_artifact_wp_no_owned_files: Path
+    ) -> None:
         import subprocess
 
         repo_root = feature_with_planning_artifact_wp_no_owned_files.parent.parent
@@ -320,7 +332,9 @@ class TestBuildPromptWP:
         assert path.exists()
         path.unlink()
 
-    def test_implement_prompt_for_non_python_charter_contains_no_python_default_bias(self, feature_with_wp: Path) -> None:
+    def test_implement_prompt_for_non_python_charter_contains_no_python_default_bias(
+        self, feature_with_wp: Path
+    ) -> None:
         repo_root = feature_with_wp.parent.parent
         charter_dir = repo_root / ".kittify" / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)

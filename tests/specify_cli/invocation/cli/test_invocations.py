@@ -22,6 +22,7 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.invocations_cmd import (
     EVENTS_DIR,
+    INDEX_PATH,
     _iter_records,
     _read_first_line,
     _read_last_line,
@@ -54,7 +55,7 @@ def _write_started(
     started_at: str | None = None,
 ) -> Path:
     if started_at is None:
-        started_at = datetime.datetime.now(datetime.UTC).isoformat()
+        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     record = {
         "event": "started",
         "invocation_id": invocation_id,
@@ -71,7 +72,7 @@ def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done") -
     record = {
         "event": "completed",
         "invocation_id": invocation_id,
-        "completed_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "outcome": outcome,
     }
     with path.open("a", encoding="utf-8") as f:
@@ -102,7 +103,7 @@ def create_fixture_invocations(
     repo_root = events_dir.parent.parent.parent
     for _ in range(count):
         inv_id = _new_ulid()
-        started_at = datetime.datetime.now(datetime.UTC).isoformat()
+        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         record = {
             "event": "started",
             "invocation_id": inv_id,
@@ -316,4 +317,7 @@ def test_list_performance_10k(tmp_path: Path) -> None:
     elapsed = time.monotonic() - start
 
     assert len(records) == 100, f"Expected 100 records, got {len(records)}"
-    assert elapsed < 0.200, f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). The index-based path should meet this threshold — check index I/O."
+    assert elapsed < 0.200, (
+        f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). "
+        "The index-based path should meet this threshold — check index I/O."
+    )

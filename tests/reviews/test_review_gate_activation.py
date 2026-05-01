@@ -20,7 +20,15 @@ from doctrine.spdd_reasons.template_renderer import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-REVIEW_TEMPLATE_PATH = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "review.md"
+REVIEW_TEMPLATE_PATH = (
+    REPO_ROOT
+    / "src"
+    / "specify_cli"
+    / "missions"
+    / "software-dev"
+    / "command-templates"
+    / "review.md"
+)
 
 EIGHT_DRIFT_OUTCOMES = (
     "approved",
@@ -89,7 +97,9 @@ class TestReviewGateActivation:
         rendered = process_spdd_blocks(text, active=False)
 
         assert rendered == baseline, (
-            f"Inactive rendering of review.md drifted from synthesized pre-feature baseline. rendered_len={len(rendered)}, baseline_len={len(baseline)}."
+            "Inactive rendering of review.md drifted from synthesized "
+            f"pre-feature baseline. rendered_len={len(rendered)}, "
+            f"baseline_len={len(baseline)}."
         )
         # Defence in depth: no SPDD residue, no REASONS prose.
         assert "spdd:reasons-block" not in rendered
@@ -109,7 +119,9 @@ class TestReviewGateActivation:
         text = _read_review_template()
         rendered = process_spdd_blocks(text, active=True)
         for outcome in EIGHT_DRIFT_OUTCOMES:
-            assert outcome in rendered, f"Active review.md missing drift outcome: {outcome}"
+            assert outcome in rendered, (
+                f"Active review.md missing drift outcome: {outcome}"
+            )
 
     def test_active_review_mentions_charter_precedence(self) -> None:
         """FR-016: charter directives take precedence over canvas content."""
@@ -117,9 +129,10 @@ class TestReviewGateActivation:
         rendered = process_spdd_blocks(text, active=True)
         # Either form satisfies the contract; the block uses the section
         # heading "Charter precedence" plus a directive sentence.
-        assert "Charter precedence" in rendered or "charter directives take precedence" in rendered.lower(), (
-            "Active review.md does not mention charter precedence over canvas"
-        )
+        assert (
+            "Charter precedence" in rendered
+            or "charter directives take precedence" in rendered.lower()
+        ), "Active review.md does not mention charter precedence over canvas"
 
     def test_active_review_instructs_load_canvas(self) -> None:
         """FR-015: reviewer is instructed to load the REASONS canvas."""

@@ -193,7 +193,10 @@ class RestorePromptCommandsMigration(BaseMigration):
     """
 
     migration_id = "2.1.3_restore_prompt_commands"
-    description = "Replace thin shims for prompt-driven commands (specify, plan, tasks, …) with full prompt template files from the global runtime"
+    description = (
+        "Replace thin shims for prompt-driven commands (specify, plan, tasks, …) "
+        "with full prompt template files from the global runtime"
+    )
     target_version = "2.1.3"
 
     def detect(self, project_path: Path) -> bool:
@@ -218,7 +221,8 @@ class RestorePromptCommandsMigration(BaseMigration):
         if templates_dir is None:
             return (
                 False,
-                "Runtime command templates not found. Run 'spec-kitty upgrade' again after reinstalling spec-kitty-cli.",
+                "Runtime command templates not found. "
+                "Run 'spec-kitty upgrade' again after reinstalling spec-kitty-cli.",
             )
         return True, ""
 
@@ -267,7 +271,9 @@ class RestorePromptCommandsMigration(BaseMigration):
             for command in sorted(PROMPT_DRIVEN_COMMANDS):
                 template_path = templates_dir / f"{command}.md"
                 if not template_path.is_file():
-                    warnings.append(f"Template not found for command '{command}' in {templates_dir} — skipping")
+                    warnings.append(
+                        f"Template not found for command '{command}' in {templates_dir} — skipping"
+                    )
                     continue
 
                 # Determine which existing file(s) might be a thin shim for this command.
@@ -295,7 +301,9 @@ class RestorePromptCommandsMigration(BaseMigration):
                     continue
 
                 # Render the full prompt
-                rendered = _render_full_prompt(template_path, agent_key, script_type, repo_root=project_path)
+                rendered = _render_full_prompt(
+                    template_path, agent_key, script_type, repo_root=project_path
+                )
                 if rendered is None:
                     errors.append(f"Failed to render {command} for {agent_key}")
                     continue

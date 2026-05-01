@@ -65,7 +65,9 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 @pytest.fixture
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
-        "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+        "nodes": [
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+        ],
         "edges": [],
         "schema_version": "1",
     }
@@ -145,7 +147,10 @@ class TestRunAllTupleCount:
         = 7 targets total.
         """
         results = run_all(full_request, adapter=adapter)
-        assert len(results) == 7, f"Expected 7 targets; got {len(results)}. Targets: {[(p.artifact_kind, p.artifact_slug) for _, p in results]}"
+        assert len(results) == 7, (
+            f"Expected 7 targets; got {len(results)}. "
+            f"Targets: {[(p.artifact_kind, p.artifact_slug) for _, p in results]}"
+        )
 
     def test_run_all_tuples_are_body_provenance_pairs(
         self,
@@ -166,8 +171,14 @@ class TestRunAllTupleCount:
         """ProvenanceEntry.artifact_urn uses artifact_id for directives, slug otherwise."""
         results = run_all(full_request, adapter=adapter)
         for body, prov in results:
-            expected_urn = f"{prov.artifact_kind}:{body['id']}" if prov.artifact_kind == "directive" else f"{prov.artifact_kind}:{prov.artifact_slug}"
-            assert prov.artifact_urn == expected_urn, f"Expected urn '{expected_urn}', got '{prov.artifact_urn}'"
+            expected_urn = (
+                f"{prov.artifact_kind}:{body['id']}"
+                if prov.artifact_kind == "directive"
+                else f"{prov.artifact_kind}:{prov.artifact_slug}"
+            )
+            assert prov.artifact_urn == expected_urn, (
+                f"Expected urn '{expected_urn}', got '{prov.artifact_urn}'"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +196,6 @@ class TestSynthesizeEntryPoint:
     ) -> None:
         """synthesize() returns a SynthesisResult object."""
         from charter.synthesizer.orchestrator import SynthesisResult
-
         result = synthesize(full_request, adapter=adapter)
         assert isinstance(result, SynthesisResult)
 
@@ -236,7 +246,10 @@ class TestIdempotency:
 
         assert len(results_a) == len(results_b)
         for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
-            assert prov_a.inputs_hash == prov_b.inputs_hash, f"inputs_hash diverged for {prov_a.artifact_urn}: {prov_a.inputs_hash!r} != {prov_b.inputs_hash!r}"
+            assert prov_a.inputs_hash == prov_b.inputs_hash, (
+                f"inputs_hash diverged for {prov_a.artifact_urn}: "
+                f"{prov_a.inputs_hash!r} != {prov_b.inputs_hash!r}"
+            )
 
     def test_run_all_same_artifact_content_hash_twice(
         self,
@@ -249,7 +262,8 @@ class TestIdempotency:
 
         for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
             assert prov_a.artifact_content_hash == prov_b.artifact_content_hash, (
-                f"artifact_content_hash diverged for {prov_a.artifact_urn}: {prov_a.artifact_content_hash!r} != {prov_b.artifact_content_hash!r}"
+                f"artifact_content_hash diverged for {prov_a.artifact_urn}: "
+                f"{prov_a.artifact_content_hash!r} != {prov_b.artifact_content_hash!r}"
             )
 
     def test_different_run_id_produces_same_hashes(
@@ -460,9 +474,13 @@ class TestTargetOrdering:
         styleguide_indices = [i for i, k in enumerate(kinds) if k == "styleguide"]
 
         if directive_indices and tactic_indices:
-            assert max(directive_indices) < min(tactic_indices), "Directives must all appear before tactics"
+            assert max(directive_indices) < min(tactic_indices), (
+                "Directives must all appear before tactics"
+            )
         if tactic_indices and styleguide_indices:
-            assert max(tactic_indices) < min(styleguide_indices), "Tactics must all appear before styleguides"
+            assert max(tactic_indices) < min(styleguide_indices), (
+                "Tactics must all appear before styleguides"
+            )
 
     def test_slugs_within_kind_are_lexicographic(
         self,
@@ -473,8 +491,12 @@ class TestTargetOrdering:
         results = run_all(full_request, adapter=adapter)
 
         for kind in ("directive", "tactic", "styleguide"):
-            slugs = [prov.artifact_slug for _, prov in results if prov.artifact_kind == kind]
-            assert slugs == sorted(slugs), f"{kind} slugs are not in lexicographic order: {slugs}"
+            slugs = [
+                prov.artifact_slug for _, prov in results if prov.artifact_kind == kind
+            ]
+            assert slugs == sorted(slugs), (
+                f"{kind} slugs are not in lexicographic order: {slugs}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -497,10 +519,12 @@ class TestSynthesizeWritesToDisk:
         result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
         manifest_file = tmp_path / MANIFEST_PATH
-        assert manifest_file.exists(), f"synthesis-manifest.yaml not found at {manifest_file}; write_pipeline.promote was not called from synthesize()"
+        assert manifest_file.exists(), (
+            f"synthesis-manifest.yaml not found at {manifest_file}; "
+            "write_pipeline.promote was not called from synthesize()"
+        )
         # The result is still a SynthesisResult
         from charter.synthesizer.orchestrator import SynthesisResult
-
         assert isinstance(result, SynthesisResult)
 
     def test_synthesize_writes_artifacts_to_doctrine(
@@ -514,7 +538,10 @@ class TestSynthesizeWritesToDisk:
 
         doctrine_root = tmp_path / ".kittify" / "doctrine"
         all_artifacts = list(doctrine_root.rglob("*.yaml"))
-        assert len(all_artifacts) >= 1, f"No artifact files found under {doctrine_root}; expected at least one directive/tactic/styleguide YAML"
+        assert len(all_artifacts) >= 1, (
+            f"No artifact files found under {doctrine_root}; "
+            "expected at least one directive/tactic/styleguide YAML"
+        )
 
     def test_synthesize_writes_project_graph(
         self,
@@ -526,7 +553,10 @@ class TestSynthesizeWritesToDisk:
         synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
         graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
-        assert graph_path.exists(), f"Expected project DRG overlay at {graph_path}; synthesize() did not wire project_drg.persist into promote()"
+        assert graph_path.exists(), (
+            f"Expected project DRG overlay at {graph_path}; "
+            "synthesize() did not wire project_drg.persist into promote()"
+        )
 
     def test_synthesize_writes_provenance_sidecars(
         self,
@@ -539,7 +569,10 @@ class TestSynthesizeWritesToDisk:
 
         prov_dir = tmp_path / ".kittify" / "charter" / "provenance"
         prov_files = list(prov_dir.glob("*.yaml"))
-        assert len(prov_files) >= 1, f"No provenance files found under {prov_dir}; write_pipeline.promote did not write provenance sidecars"
+        assert len(prov_files) >= 1, (
+            f"No provenance files found under {prov_dir}; "
+            "write_pipeline.promote did not write provenance sidecars"
+        )
 
     def test_synthesize_staging_wiped_after_success(
         self,
@@ -551,8 +584,13 @@ class TestSynthesizeWritesToDisk:
         synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
         staging_root = tmp_path / ".kittify" / "charter" / ".staging"
-        active_staging = [d for d in staging_root.iterdir() if d.is_dir() and not d.name.endswith(".failed")] if staging_root.exists() else []
-        assert active_staging == [], f"Staging dir not wiped after promote: {active_staging}"
+        active_staging = [
+            d for d in staging_root.iterdir()
+            if d.is_dir() and not d.name.endswith(".failed")
+        ] if staging_root.exists() else []
+        assert active_staging == [], (
+            f"Staging dir not wiped after promote: {active_staging}"
+        )
 
     def test_synthesize_validation_failure_stays_in_failed_staging(
         self,
@@ -580,6 +618,10 @@ class TestSynthesizeWritesToDisk:
         assert not (tmp_path / ".kittify" / "doctrine" / "graph.yaml").exists()
 
         staging_root = tmp_path / ".kittify" / "charter" / ".staging"
-        failed_dirs = sorted(d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed"))
+        failed_dirs = sorted(
+            d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed")
+        )
         assert failed_dirs, "Expected validation failure to preserve a .failed staging directory"
-        assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists(), "Expected staged project graph to be preserved for debugging when validation fails"
+        assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists(), (
+            "Expected staged project graph to be preserved for debugging when validation fails"
+        )

@@ -44,7 +44,11 @@ class MigrationRegistry:
         # Check for duplicate registration
         if migration_id in cls._migrations:
             existing = cls._migrations[migration_id]
-            raise ValueError(f"Duplicate migration ID '{migration_id}'. Already registered by {existing.__name__}, cannot register {migration_class.__name__}")
+            raise ValueError(
+                f"Duplicate migration ID '{migration_id}'. "
+                f"Already registered by {existing.__name__}, "
+                f"cannot register {migration_class.__name__}"
+            )
 
         cls._migrations[migration_id] = migration_class
         return migration_class
@@ -60,7 +64,9 @@ class MigrationRegistry:
         return sorted(instances, key=lambda m: Version(m.target_version))
 
     @classmethod
-    def get_applicable(cls, from_version: str, to_version: str, project_path: Path | None = None) -> list[BaseMigration]:
+    def get_applicable(
+        cls, from_version: str, to_version: str, project_path: Path | None = None
+    ) -> list[BaseMigration]:
         """Get migrations needed to go from one version to another.
 
         Args:

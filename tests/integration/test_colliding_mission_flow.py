@@ -141,7 +141,9 @@ def test_doctor_identity_audit_sees_three_080_missions(colliding_080_repo: Path)
     assert slugs == ["080-bar", "080-baz", "080-foo"]
     # All three should be classified as 'assigned' since mission_id is present
     # and mission_number is an int.
-    assert all(s.state == "assigned" for s in states), f"Expected all assigned, got {[(s.slug, s.state) for s in states]}"
+    assert all(s.state == "assigned" for s in states), (
+        f"Expected all assigned, got {[(s.slug, s.state) for s in states]}"
+    )
 
     duplicates = find_duplicate_prefixes(colliding_080_repo)
     assert "080" in duplicates
@@ -155,7 +157,9 @@ def test_doctor_identity_audit_reports_ambiguous_selectors(
     states = audit_repo(colliding_080_repo)
     ambiguous = find_ambiguous_selectors(states)
     # "080" is ambiguous (3-way tie)
-    assert "080" in ambiguous, f"Expected '080' in ambiguous handles, got {sorted(ambiguous.keys())}"
+    assert "080" in ambiguous, (
+        f"Expected '080' in ambiguous handles, got {sorted(ambiguous.keys())}"
+    )
     assert len(ambiguous["080"]) == 3
 
 
@@ -175,13 +179,19 @@ def test_doctor_identity_cli_json_reports_three_duplicates(
 
     runner = CliRunner()
     result = runner.invoke(doctor_app, ["identity", "--json"])
-    assert result.exit_code == 0, f"doctor identity --json failed: {result.exit_code}\n{result.stdout}"
+    assert result.exit_code == 0, (
+        f"doctor identity --json failed: {result.exit_code}\n{result.stdout}"
+    )
 
     report = json.loads(result.stdout)
     assert "duplicate_prefixes" in report
-    assert "080" in report["duplicate_prefixes"], f"Expected '080' in duplicate_prefixes, got {sorted(report['duplicate_prefixes'].keys())}"
+    assert "080" in report["duplicate_prefixes"], (
+        f"Expected '080' in duplicate_prefixes, got {sorted(report['duplicate_prefixes'].keys())}"
+    )
     dup_080 = report["duplicate_prefixes"]["080"]
-    assert len(dup_080) == 3, f"Expected 3 duplicates under '080', got {len(dup_080)}: {dup_080}"
+    assert len(dup_080) == 3, (
+        f"Expected 3 duplicates under '080', got {len(dup_080)}: {dup_080}"
+    )
 
     # Summary counts match the four-state classifier output.
     assert report["summary"]["assigned"] == 3, report["summary"]
@@ -316,11 +326,17 @@ def test_lane_branches_are_distinct_per_mission(colliding_080_repo: Path) -> Non
         # that the derived path differs for each mission.
         worktree_paths.add(f"{resolved.mission_slug}-{mid8(ulid)}-lane-a")
 
-    assert len(branch_names) == 3, f"Expected 3 distinct branch names, got {sorted(branch_names)}"
-    assert len(worktree_paths) == 3, f"Expected 3 distinct worktree paths, got {sorted(worktree_paths)}"
+    assert len(branch_names) == 3, (
+        f"Expected 3 distinct branch names, got {sorted(branch_names)}"
+    )
+    assert len(worktree_paths) == 3, (
+        f"Expected 3 distinct worktree paths, got {sorted(worktree_paths)}"
+    )
     # Every branch must include its own mid8 as disambiguator.
     for ulid in (ULID_FOO, ULID_BAR, ULID_BAZ):
-        assert any(mid8(ulid) in name for name in branch_names), f"mid8 {mid8(ulid)} missing from any lane branch name: {branch_names}"
+        assert any(mid8(ulid) in name for name in branch_names), (
+            f"mid8 {mid8(ulid)} missing from any lane branch name: {branch_names}"
+        )
 
 
 def test_mission_branches_are_distinct_per_mission(colliding_080_repo: Path) -> None:

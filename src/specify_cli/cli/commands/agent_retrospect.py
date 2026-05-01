@@ -12,13 +12,15 @@ Source-of-truth contract:
 from __future__ import annotations
 
 import json
-from datetime import datetime, UTC
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from typing import Annotated
+from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
@@ -48,7 +50,7 @@ def _retro_path(repo_root: Path, mission_id: str) -> Path:
     return repo_root / ".kittify" / "missions" / mission_id / "retrospective.yaml"
 
 
-def _build_actor(actor_id: str | None) -> ActorRef:
+def _build_actor(actor_id: Optional[str]) -> ActorRef:
     """Build an :class:`ActorRef` from the supplied actor-id or environment."""
     resolved_id = actor_id or "agent"
     return ActorRef(kind="agent", id=resolved_id)
@@ -129,7 +131,7 @@ def _build_json_envelope(result: SynthesisResult, *, dry_run: bool) -> dict[str,
     return {
         "schema_version": "1",
         "command": "agent.retrospect.synthesize",
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "dry_run": dry_run,
         "result": result.model_dump(),
     }
@@ -152,10 +154,10 @@ def _build_json_envelope(result: SynthesisResult, *, dry_run: bool) -> dict[str,
 def synthesize_cmd(
     mission: Annotated[str, typer.Option("--mission", help="Mission handle (mission_id / mid8 / mission_slug)")],
     apply: Annotated[bool, typer.Option("--apply", help="Execute application after checks pass (default is dry-run)")] = False,
-    proposal_id: Annotated[list[str] | None, typer.Option("--proposal-id", help="Restrict batch to specific proposal ids (repeatable)")] = None,
-    json_out: Annotated[Path | None, typer.Option("--json-out", help="Write JSON envelope to PATH in addition to other output")] = None,
+    proposal_id: Annotated[Optional[list[str]], typer.Option("--proposal-id", help="Restrict batch to specific proposal ids (repeatable)")] = None,
+    json_out: Annotated[Optional[Path], typer.Option("--json-out", help="Write JSON envelope to PATH in addition to other output")] = None,
     json_only: Annotated[bool, typer.Option("--json", help="Emit JSON to stdout (suppresses Rich rendering)")] = False,
-    actor_id: Annotated[str | None, typer.Option("--actor-id", help="Override provenance actor id (default: inferred from environment)")] = None,
+    actor_id: Annotated[Optional[str], typer.Option("--actor-id", help="Override provenance actor id (default: inferred from environment)")] = None,
 ) -> None:
     """Apply staged proposals from a mission's retrospective record.
 
@@ -168,8 +170,11 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     repo_root = locate_project_root()
     if repo_root is None:
-        _err_console.print("[red]Error:[/red] Could not locate project root. Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/).")
-        raise typer.Exit(1) from None
+        _err_console.print(
+            "[red]Error:[/red] Could not locate project root. "
+            "Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/)."
+        )
+        raise typer.Exit(1)
 
     # ------------------------------------------------------------------
     # Step 2: Resolve mission handle → mission_id
@@ -181,7 +186,7 @@ def synthesize_cmd(
         resolved = resolve_mission_handle(mission, repo_root, json_mode=json_only)
     except SystemExit:
         # resolve_mission_handle already printed the error; exit 1 per contract
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
     mission_id = resolved.mission_id
 
@@ -198,21 +203,21 @@ def synthesize_cmd(
             _err_console.print_json(json.dumps({"error": "record_not_found", "path": str(retro_file)}))
         else:
             _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(3) from None
+        raise typer.Exit(3)
     except (YAMLParseError, SchemaError) as exc:
         msg = f"Retrospective record malformed: {exc}"
         if json_only:
             _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
         else:
             _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(3) from None
+        raise typer.Exit(3)
     except OSError as exc:
         msg = f"I/O error reading retrospective: {exc}"
         if json_only:
             _err_console.print_json(json.dumps({"error": "io_error", "detail": str(exc)}))
         else:
             _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(2) from None
+        raise typer.Exit(2)
 
     # ------------------------------------------------------------------
     # Step 4: Build the proposal batch
@@ -227,7 +232,9 @@ def synthesize_cmd(
         approved_ids: set[str] = set(proposal_id)
     else:
         # Default: all accepted proposals
-        approved_ids = {p.id for p in all_proposals if p.state.status == "accepted"}
+        approved_ids = {
+            p.id for p in all_proposals if p.state.status == "accepted"
+        }
 
     actor = _build_actor(actor_id)
     dry_run = not apply
@@ -268,9 +275,12 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     if apply:
         if result.conflicts:
-            raise typer.Exit(4) from None
-        has_rejections = any(r.reason in ("stale_evidence", "invalid_payload") for r in result.rejected)
+            raise typer.Exit(4)
+        has_rejections = any(
+            r.reason in ("stale_evidence", "invalid_payload")
+            for r in result.rejected
+        )
         if has_rejections:
-            raise typer.Exit(5) from None
+            raise typer.Exit(5)
 
-    raise typer.Exit(0) from None
+    raise typer.Exit(0)

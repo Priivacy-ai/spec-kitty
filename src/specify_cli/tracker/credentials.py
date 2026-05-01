@@ -35,7 +35,6 @@ def _tracker_root() -> Path:
     """
     if sys.platform == "win32":
         from specify_cli.paths import get_runtime_root  # noqa: PLC0415
-
         return get_runtime_root().tracker_dir
     return Path.home() / ".spec-kitty"
 
@@ -152,7 +151,11 @@ class TrackerCredentialStore:
             providers = {}
             tracker["providers"] = providers
 
-        providers[provider] = {str(key): value for key, value in values.items() if str(key).strip() and value is not None and str(value).strip()}
+        providers[provider] = {
+            str(key): value
+            for key, value in values.items()
+            if str(key).strip() and value is not None and str(value).strip()
+        }
         self.save(payload)
 
     def clear_provider(self, provider: str) -> None:

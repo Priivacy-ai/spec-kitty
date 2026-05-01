@@ -85,11 +85,16 @@ def test_ensure_spec_kitty_exclude_writes_entry_in_worktree(tmp_path: Path) -> N
     exclude_path = _resolve_exclude_path(worktree)
     assert exclude_path.exists(), "exclude file must be created"
     content = exclude_path.read_text(encoding="utf-8")
-    assert ".spec-kitty/" in content.splitlines(), f"exclude file must contain .spec-kitty/ entry; got: {content!r}"
+    assert ".spec-kitty/" in content.splitlines(), (
+        f"exclude file must contain .spec-kitty/ entry; got: {content!r}"
+    )
     # The exclude path is per-worktree, NOT under <worktree>/.git (which is a
     # file for worktrees). This sanity check guards against the common
     # mistake of writing to the wrong location.
-    assert "worktrees" in exclude_path.parts, f"exclude must live under <git-common-dir>/worktrees/.../info/exclude, got: {exclude_path}"
+    assert "worktrees" in exclude_path.parts, (
+        f"exclude must live under <git-common-dir>/worktrees/.../info/exclude, "
+        f"got: {exclude_path}"
+    )
 
 
 def test_ensure_spec_kitty_exclude_is_idempotent(tmp_path: Path) -> None:
@@ -117,7 +122,10 @@ def test_ensure_spec_kitty_exclude_is_idempotent(tmp_path: Path) -> None:
     exclude_path = _resolve_exclude_path(worktree)
     content = exclude_path.read_text(encoding="utf-8")
     matches = [line for line in content.splitlines() if line.strip() == ".spec-kitty/"]
-    assert len(matches) == 1, f"Expected exactly one '.spec-kitty/' entry after 5 invocations; found {len(matches)}: {content!r}"
+    assert len(matches) == 1, (
+        f"Expected exactly one '.spec-kitty/' entry after 5 invocations; "
+        f"found {len(matches)}: {content!r}"
+    )
 
 
 def test_ensure_spec_kitty_exclude_preserves_existing_lines(tmp_path: Path) -> None:
@@ -160,7 +168,9 @@ def test_ensure_spec_kitty_exclude_swallows_non_git_path(tmp_path: Path) -> None
     _ensure_spec_kitty_exclude(non_git)
 
 
-def test_create_feature_worktree_invokes_exclude_writer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_create_feature_worktree_invokes_exclude_writer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Live verification: ``create_feature_worktree`` must write the entry.
 
     This is the integration-level contract: operators get the FR-016
@@ -186,6 +196,11 @@ def test_create_feature_worktree_invokes_exclude_writer(tmp_path: Path, monkeypa
     )
 
     exclude_path = _resolve_exclude_path(worktree_path)
-    assert exclude_path.exists(), "create_feature_worktree must produce a per-worktree exclude file"
+    assert exclude_path.exists(), (
+        "create_feature_worktree must produce a per-worktree exclude file"
+    )
     lines = exclude_path.read_text(encoding="utf-8").splitlines()
-    assert ".spec-kitty/" in lines, f"create_feature_worktree must invoke _ensure_spec_kitty_exclude; exclude content: {lines!r}"
+    assert ".spec-kitty/" in lines, (
+        f"create_feature_worktree must invoke _ensure_spec_kitty_exclude; "
+        f"exclude content: {lines!r}"
+    )

@@ -88,6 +88,8 @@ def test_first_write_crash_leaves_no_canonical(tmp_path: Path, monkeypatch: pyte
 
     import os as _os
 
+    original_replace = _os.replace
+
     def crashing_replace(src: str, dst: str) -> None:  # type: ignore[misc]
         raise OSError("Simulated crash mid-replace")
 
@@ -114,6 +116,7 @@ def test_second_write_crash_leaves_prior_version(tmp_path: Path, monkeypatch: py
     assert len(prior_content) > 0
 
     # Now simulate a crash during the second write.
+    original_replace = _os.replace
 
     def crashing_replace(src: str, dst: str) -> None:  # type: ignore[misc]
         raise OSError("Simulated crash mid-replace on second write")
@@ -194,6 +197,8 @@ def test_tempfile_in_same_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_mkdir_failure_raises_writer_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """OSError from mkdir raises WriterError with informative message."""
     from pathlib import Path as _Path
+
+    original_mkdir = _Path.mkdir
 
     def failing_mkdir(self: _Path, **kwargs: object) -> None:
         raise OSError("Simulated permission denied")

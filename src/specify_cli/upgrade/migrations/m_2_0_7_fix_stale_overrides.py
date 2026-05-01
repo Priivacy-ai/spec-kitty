@@ -45,7 +45,9 @@ class FixStaleOverridesMigration(BaseMigration):
             if not override_file.is_file():
                 continue
             rel = override_file.relative_to(overrides_dir)
-            if _is_shared_asset(rel) and _matches_package_default(override_file, rel, package_root):
+            if _is_shared_asset(rel) and _matches_package_default(
+                override_file, rel, package_root
+            ):
                 return True
 
         return False

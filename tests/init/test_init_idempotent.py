@@ -24,7 +24,6 @@ from specify_cli.cli.commands.init import register_init_command
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _make_app_with_buf() -> tuple[Typer, io.StringIO]:
     """Return app and the buffer backing the injected console."""
     buf = io.StringIO()
@@ -56,7 +55,6 @@ def _fake_copy_package(project_path: Path) -> Path:
 # T1.5: Idempotency check
 # ---------------------------------------------------------------------------
 
-
 def test_init_is_idempotent_on_rerun(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -85,14 +83,19 @@ def test_init_is_idempotent_on_rerun(
     result2 = _run(app2, ["init", "--ai", "codex", "--non-interactive"])
 
     # Must exit 0 (idempotent path, not fail-fast)
-    assert result2.exit_code == 0, f"Second init should exit 0 (idempotent), got {result2.exit_code}."
+    assert result2.exit_code == 0, (
+        f"Second init should exit 0 (idempotent), got {result2.exit_code}."
+    )
 
     # Must emit a clear "already initialized" message in console output (not silent)
     console_out = buf2.getvalue().lower()
     assert "already" in console_out or "initialized" in console_out, (
-        f"Second init console output should mention 'already initialized', but got:\n{buf2.getvalue()!r}"
+        "Second init console output should mention 'already initialized', but got:\n"
+        f"{buf2.getvalue()!r}"
     )
 
     # Config must be unchanged (no silent merge/overwrite)
     config_content_after_second = config_path.read_text(encoding="utf-8")
-    assert config_content_after_first == config_content_after_second, "config.yaml was modified by the second init run — silent merge/overwrite detected."
+    assert config_content_after_first == config_content_after_second, (
+        "config.yaml was modified by the second init run — silent merge/overwrite detected."
+    )

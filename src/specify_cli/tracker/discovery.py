@@ -146,7 +146,9 @@ class ResolutionResult:
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> ResolutionResult:
-        candidates = [BindCandidate.from_api(c) for c in data.get("candidates", [])]
+        candidates = [
+            BindCandidate.from_api(c) for c in data.get("candidates", [])
+        ]
         return cls(
             match_type=data["match_type"],
             candidate_token=data.get("candidate_token"),
@@ -162,7 +164,9 @@ class ResolutionResult:
 # ---------------------------------------------------------------------------
 
 
-def find_candidate_by_position(candidates: list[BindCandidate], select_n: int) -> BindCandidate | None:
+def find_candidate_by_position(
+    candidates: list[BindCandidate], select_n: int
+) -> BindCandidate | None:
     """Find candidate by 1-based selection number (maps to sort_position = N-1).
 
     Returns ``None`` if out of range or *candidates* is empty.

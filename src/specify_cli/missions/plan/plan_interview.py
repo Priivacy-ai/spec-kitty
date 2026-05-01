@@ -159,7 +159,11 @@ def run_plan_interview(  # noqa: C901
             current_decision_id = dm_response.decision_id
 
         # T045 — Already-widened question prompt
-        _already_widened = widen_store is not None and current_decision_id is not None and _is_already_widened(widen_store, current_decision_id)
+        _already_widened = (
+            widen_store is not None
+            and current_decision_id is not None
+            and _is_already_widened(widen_store, current_decision_id)
+        )
         if _already_widened and saas_client is not None:
             render_already_widened_prompt(
                 question_text=question_text,
@@ -186,7 +190,10 @@ def run_plan_interview(  # noqa: C901
             and not _already_widened
         ):
             widen_suffix = " | [w]iden"
-        hint_line = f"[enter]=accept default | [text]=type answer{widen_suffix} | [d]efer | [!cancel]"
+        hint_line = (
+            f"[enter]=accept default | [text]=type answer{widen_suffix}"
+            " | [d]efer | [!cancel]"
+        )
         console.print(f"[dim]{hint_line}[/dim]")
 
         # Prompt
@@ -197,7 +204,12 @@ def run_plan_interview(  # noqa: C901
             except (KeyboardInterrupt, EOFError):
                 raise typer.Exit() from None
 
-            if raw.strip().lower() == "w" and widen_flow is not None and current_decision_id is not None and mission_id is not None:
+            if (
+                raw.strip().lower() == "w"
+                and widen_flow is not None
+                and current_decision_id is not None
+                and mission_id is not None
+            ):
                 from datetime import UTC, datetime
 
                 from specify_cli.widen.models import WidenAction, WidenPendingEntry

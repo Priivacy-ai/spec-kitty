@@ -21,7 +21,7 @@ import httpx
 import pytest
 import respx
 
-from specify_cli.auth import reset_token_manager
+from specify_cli.auth import get_token_manager, reset_token_manager
 from specify_cli.auth.errors import (
     NetworkError,
     NotAuthenticatedError,
@@ -135,7 +135,9 @@ def install_fake_refresh_flow(monkeypatch):
     refresh_module.TokenRefreshFlow = FakeRefreshFlow
 
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
+    monkeypatch.setitem(
+        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
+    )
     yield FakeRefreshFlow
 
 
@@ -170,7 +172,9 @@ def seeded_token_manager(monkeypatch, install_fake_refresh_flow):
 async def test_bearer_token_is_injected(seeded_token_manager):
     """Happy-path: the injected Authorization header matches the current access token."""
     with respx.mock(base_url="https://api.example.com") as mock:
-        route = mock.get("/v1/resource").mock(return_value=httpx.Response(200, json={"ok": True}))
+        route = mock.get("/v1/resource").mock(
+            return_value=httpx.Response(200, json={"ok": True})
+        )
 
         async with OAuthHttpClient() as client:
             resp = await client.get("https://api.example.com/v1/resource")
@@ -220,7 +224,9 @@ async def test_401_with_refresh_failure_propagates(seeded_token_manager, install
     install_fake_refresh_flow.raise_session_invalid = True
 
     with respx.mock(base_url="https://api.example.com") as mock:
-        route = mock.get("/v1/resource").mock(return_value=httpx.Response(401, json={"error": "expired"}))
+        route = mock.get("/v1/resource").mock(
+            return_value=httpx.Response(401, json={"error": "expired"})
+        )
 
         async with OAuthHttpClient() as client:
             with pytest.raises(SessionInvalidError):
@@ -237,7 +243,9 @@ async def test_401_with_refresh_failure_propagates(seeded_token_manager, install
 async def test_500_passes_through_without_retry(seeded_token_manager, install_fake_refresh_flow):
     """Non-auth failures (5xx) must not trigger refresh or retry."""
     with respx.mock(base_url="https://api.example.com") as mock:
-        route = mock.get("/v1/resource").mock(return_value=httpx.Response(500, json={"error": "boom"}))
+        route = mock.get("/v1/resource").mock(
+            return_value=httpx.Response(500, json={"error": "boom"})
+        )
 
         async with OAuthHttpClient() as client:
             resp = await client.get("https://api.example.com/v1/resource")
@@ -262,8 +270,12 @@ async def test_not_authenticated_when_no_session(install_fake_refresh_flow, monk
     monkeypatch.setattr(auth_manager, "_tm", tm, raising=True)
 
     try:
-        with respx.mock(base_url="https://api.example.com", assert_all_called=False) as mock:
-            route = mock.get("/v1/resource").mock(return_value=httpx.Response(200, json={"ok": True}))
+        with respx.mock(
+            base_url="https://api.example.com", assert_all_called=False
+        ) as mock:
+            route = mock.get("/v1/resource").mock(
+                return_value=httpx.Response(200, json={"ok": True})
+            )
 
             async with OAuthHttpClient() as client:
                 with pytest.raises(NotAuthenticatedError):
@@ -279,7 +291,9 @@ async def test_not_authenticated_when_no_session(install_fake_refresh_flow, monk
 async def test_second_401_raises_not_authenticated(seeded_token_manager, install_fake_refresh_flow):
     """If BOTH requests return 401 (refresh succeeds but server still rejects), caller sees NotAuthenticatedError."""
     with respx.mock(base_url="https://api.example.com") as mock:
-        route = mock.get("/v1/resource").mock(return_value=httpx.Response(401, json={"error": "still bad"}))
+        route = mock.get("/v1/resource").mock(
+            return_value=httpx.Response(401, json={"error": "still bad"})
+        )
 
         async with OAuthHttpClient() as client:
             with pytest.raises(NotAuthenticatedError):
@@ -306,7 +320,9 @@ async def test_transport_error_becomes_network_error(seeded_token_manager):
 async def test_caller_headers_are_preserved(seeded_token_manager):
     """Caller-supplied headers are preserved; Authorization is overwritten with the bearer token."""
     with respx.mock(base_url="https://api.example.com") as mock:
-        route = mock.post("/v1/resource").mock(return_value=httpx.Response(201, json={"ok": True}))
+        route = mock.post("/v1/resource").mock(
+            return_value=httpx.Response(201, json={"ok": True})
+        )
 
         async with OAuthHttpClient() as client:
             resp = await client.post(

@@ -22,7 +22,9 @@ def run(cmd: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subp
     return result
 
 
-def run_python_script(script: Path, args: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def run_python_script(
+    script: Path, args: list[str], *, cwd: Path, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     process_env = os.environ.copy()
     if env:
         process_env.update(env)

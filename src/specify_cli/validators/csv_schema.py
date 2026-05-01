@@ -91,7 +91,9 @@ def validate_csv_schema(csv_path: Path, expected_columns: list[str]) -> CSVSchem
 
             # Strip whitespace and filter out comments
             if actual_columns:
-                actual_columns = [col.strip() for col in actual_columns if col.strip() and not col.strip().startswith("#")]
+                actual_columns = [
+                    col.strip() for col in actual_columns if col.strip() and not col.strip().startswith("#")
+                ]
 
             # Validate exact match (names and order)
             schema_valid = actual_columns is not None and actual_columns == expected_columns

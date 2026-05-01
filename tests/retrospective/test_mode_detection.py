@@ -19,7 +19,7 @@ from specify_cli.retrospective.mode import (
     NON_INTERACTIVE_PARENTS,
     detect,
 )
-from specify_cli.retrospective.schema import Mode
+from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +291,9 @@ class TestEnvironment:
 
 class TestParentProcess:
     @pytest.mark.parametrize("parent_name", sorted(NON_INTERACTIVE_PARENTS))
-    def test_known_non_interactive_parent_resolves_autonomous(self, tmp_path: Path, parent_name: str) -> None:
+    def test_known_non_interactive_parent_resolves_autonomous(
+        self, tmp_path: Path, parent_name: str
+    ) -> None:
         """Every name in NON_INTERACTIVE_PARENTS resolves to autonomous."""
         result = detect(
             repo_root=tmp_path,
@@ -330,7 +332,9 @@ class TestParentProcess:
 
 
 class TestAllSignalsAbsent:
-    def test_no_charter_no_flag_no_env_unknown_parent_gives_hic(self, tmp_path: Path) -> None:
+    def test_no_charter_no_flag_no_env_unknown_parent_gives_hic(
+        self, tmp_path: Path
+    ) -> None:
         """When all signals are absent or inconclusive, HiC is the safe default."""
         result = detect(
             repo_root=tmp_path,
@@ -342,7 +346,9 @@ class TestAllSignalsAbsent:
         assert result.source_signal.kind == "parent_process"
         assert result.source_signal.evidence == "some-unknown-shell"
 
-    def test_no_signals_at_all_gives_hic_with_default_evidence(self, tmp_path: Path) -> None:
+    def test_no_signals_at_all_gives_hic_with_default_evidence(
+        self, tmp_path: Path
+    ) -> None:
         """When parent_process_name is None and cannot be detected, use default-no-signal."""
         # We inject parent_process_name=None; the function will call _detect_parent_name().
         # To avoid real psutil calls in tests we pass a sentinel name that is not in

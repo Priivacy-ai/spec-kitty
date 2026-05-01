@@ -39,7 +39,6 @@ pytestmark = pytest.mark.fast
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _setup_project(
     tmp_path: Path,
     *,
@@ -104,7 +103,6 @@ def _setup_project(
 # ---------------------------------------------------------------------------
 # T070: Context resolution — explicit args only, no heuristics
 # ---------------------------------------------------------------------------
-
 
 class TestContextResolutionNoHeuristics:
     """resolve_context requires explicit wp_code + mission_slug; never scans."""
@@ -189,7 +187,6 @@ class TestContextResolutionNoHeuristics:
 # T070: Token round-trip (persist + load)
 # ---------------------------------------------------------------------------
 
-
 class TestContextTokenRoundTrip:
     """A resolved context can be persisted and reloaded by token."""
 
@@ -219,7 +216,6 @@ class TestContextTokenRoundTrip:
 # ---------------------------------------------------------------------------
 # T070: resolve_or_load — token path vs. fresh resolve
 # ---------------------------------------------------------------------------
-
 
 class TestResolveOrLoad:
     """resolve_or_load dispatches to load or resolve depending on inputs."""
@@ -301,7 +297,6 @@ class TestResolveOrLoad:
 # ---------------------------------------------------------------------------
 # T070: Context field correctness
 # ---------------------------------------------------------------------------
-
 
 class TestContextFieldCorrectness:
     """Context fields are correctly populated from metadata."""

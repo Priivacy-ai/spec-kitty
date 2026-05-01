@@ -55,7 +55,10 @@ def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
         return GateResult(
             passed=False,
             change_mode="bulk_edit",
-            errors=[f"Occurrence map required for bulk_edit missions. Create {feature_dir}/occurrence_map.yaml with target, categories, and actions."],
+            errors=[
+                "Occurrence map required for bulk_edit missions. "
+                f"Create {feature_dir}/occurrence_map.yaml with target, categories, and actions."
+            ],
         )
 
     validation = validate_occurrence_map(omap)
@@ -155,7 +158,10 @@ def check_review_diff_compliance(
         # surface the error.
         return DiffCheckResult(
             passed=False,
-            errors=["Review diff check cannot run: occurrence_map.yaml is missing despite change_mode: bulk_edit."],
+            errors=[
+                "Review diff check cannot run: occurrence_map.yaml is missing "
+                "despite change_mode: bulk_edit."
+            ],
         )
 
     changed_files = _git_diff_files(repo_root, base_ref, head_ref)
@@ -173,7 +179,9 @@ def render_diff_check_failure(
     table.add_column("Action", no_wrap=True)
     table.add_column("Verdict", no_wrap=True)
     for a in result.assessments:
-        verdict = "[bold red]BLOCK[/]" if a.violation else ("[yellow]review[/]" if a.action == "manual_review" else "[green]ok[/]")
+        verdict = "[bold red]BLOCK[/]" if a.violation else (
+            "[yellow]review[/]" if a.action == "manual_review" else "[green]ok[/]"
+        )
         table.add_row(
             a.path,
             a.category or "(unclassified)",

@@ -71,7 +71,8 @@ class InstallDocumentationMission(BaseMigration):
         if source_mission is None:
             return (
                 False,
-                "Could not locate documentation mission source in spec-kitty installation. This may indicate an incomplete installation.",
+                "Could not locate documentation mission source in spec-kitty installation. "
+                "This may indicate an incomplete installation.",
             )
 
         return True, ""

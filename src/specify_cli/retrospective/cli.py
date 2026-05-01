@@ -13,23 +13,31 @@ Source-of-truth:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, UTC
+import sys
+from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from typing import Annotated
+from typing_extensions import Annotated
 
 from specify_cli.retrospective.summary import (
+    MalformedSummaryEntry,
     SummarySnapshot,
     build_summary,
 )
 
 app = typer.Typer(
     name="retrospect",
-    help=("Retrospective operator surface.\n\nReads .kittify/missions/*/retrospective.yaml and kitty-specs/*/status.events.jsonl. No mutation is performed."),
+    help=(
+        "Retrospective operator surface.\n\n"
+        "Reads .kittify/missions/*/retrospective.yaml and "
+        "kitty-specs/*/status.events.jsonl. "
+        "No mutation is performed."
+    ),
     no_args_is_help=True,
 )
 
@@ -47,7 +55,7 @@ def _build_json_envelope(snapshot: SummarySnapshot) -> dict[str, object]:
     return {
         "schema_version": "1",
         "command": "retrospect.summary",
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "result": snapshot.model_dump(),
     }
 
@@ -184,7 +192,7 @@ def _render_rich(
 )
 def summary_cmd(
     project: Annotated[
-        Path | None,
+        Optional[Path],
         typer.Option("--project", help="Project root (default: current working directory)"),
     ] = None,
     json_only: Annotated[
@@ -192,7 +200,7 @@ def summary_cmd(
         typer.Option("--json", help="Emit JSON to stdout instead of Rich rendering"),
     ] = False,
     json_out: Annotated[
-        Path | None,
+        Optional[Path],
         typer.Option(
             "--json-out",
             help="Emit JSON to a file in addition to whatever rendering is selected",
@@ -203,7 +211,7 @@ def summary_cmd(
         typer.Option("--limit", min=1, max=100, help="Top-N for ranked sections (default: 20)"),
     ] = 20,
     since: Annotated[
-        str | None,
+        Optional[str],
         typer.Option("--since", help="ISO-8601 date; only include missions started on or after DATE"),
     ] = None,
     include_malformed: Annotated[
@@ -222,14 +230,20 @@ def summary_cmd(
     """
     # Resolve project root
     resolved_project: Path
-    resolved_project = project.resolve() if project is not None else Path.cwd()
+    if project is not None:
+        resolved_project = project.resolve()
+    else:
+        resolved_project = Path.cwd()
 
     # Validate project root: exit 1 if neither .kittify/ nor kitty-specs/ exists
     has_kittify = (resolved_project / ".kittify").exists()
     has_kitty_specs = (resolved_project / "kitty-specs").exists()
     if not has_kittify and not has_kitty_specs:
-        _err_console.print(f"[red]Error:[/red] Project root invalid: neither .kittify/ nor kitty-specs/ found in {resolved_project}")
-        raise typer.Exit(1) from None
+        _err_console.print(
+            "[red]Error:[/red] Project root invalid: "
+            f"neither .kittify/ nor kitty-specs/ found in {resolved_project}"
+        )
+        raise typer.Exit(1)
 
     # Parse --since
     since_date: date | None = None
@@ -237,8 +251,11 @@ def summary_cmd(
         try:
             since_date = date.fromisoformat(since)
         except ValueError:
-            _err_console.print(f"[red]Error:[/red] Invalid --since date {since!r}. Expected ISO-8601 format (YYYY-MM-DD).")
-            raise typer.Exit(1) from None
+            _err_console.print(
+                f"[red]Error:[/red] Invalid --since date {since!r}. "
+                "Expected ISO-8601 format (YYYY-MM-DD)."
+            )
+            raise typer.Exit(1)
 
     # Run the reducer
     try:
@@ -249,7 +266,7 @@ def summary_cmd(
         )
     except OSError as exc:
         _err_console.print(f"[red]Error:[/red] I/O error reading corpus: {exc}")
-        raise typer.Exit(2) from None
+        raise typer.Exit(2)
 
     # Build JSON envelope
     envelope = _build_json_envelope(snapshot)
@@ -268,6 +285,6 @@ def summary_cmd(
                 _console.print(f"\n[dim]JSON written to {json_out}[/dim]")
         except OSError as exc:
             _err_console.print(f"[red]Error:[/red] Could not write JSON to {json_out}: {exc}")
-            raise typer.Exit(2) from None
+            raise typer.Exit(2)
 
-    raise typer.Exit(0) from None
+    raise typer.Exit(0)

@@ -1,5 +1,4 @@
 """Verify doctrine can be imported without specify_cli at module load time."""
-
 from __future__ import annotations
 import os
 import subprocess
@@ -24,5 +23,8 @@ def test_doctrine_primitives_do_not_import_specify_cli():
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, f"doctrine.missions.primitives pulled in specify_cli at import time.\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    assert result.returncode == 0, (
+        f"doctrine.missions.primitives pulled in specify_cli at import time.\n"
+        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+    )
     assert "OK" in result.stdout

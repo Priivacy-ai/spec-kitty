@@ -112,7 +112,9 @@ class APIHandler(DashboardHandler):
 
         try:
             # Explicit "sync now" endpoint — remote sync is the caller's intent.
-            outcome: DaemonStartOutcome = ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED)
+            outcome: DaemonStartOutcome = ensure_sync_daemon_running(
+                intent=DaemonIntent.REMOTE_REQUIRED
+            )
             if not outcome.started:
                 reason = outcome.skipped_reason or "unknown"
                 if reason in {"rollout_disabled", "policy_manual"}:

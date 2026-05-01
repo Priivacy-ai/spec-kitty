@@ -30,7 +30,12 @@ def _write_config(tmp_path: Path, content: str) -> Path:
 def test_removes_agents_selection(tmp_path: Path, migration: StripSelectionConfigMigration) -> None:
     config_file = _write_config(
         tmp_path,
-        ("agents:\n  available:\n    - claude\n  selection:\n    preferred_implementer: claude\n    preferred_reviewer: opencode\n  auto_commit: true\n"),
+        (
+            "agents:\n"
+            "  available:\n    - claude\n"
+            "  selection:\n    preferred_implementer: claude\n    preferred_reviewer: opencode\n"
+            "  auto_commit: true\n"
+        ),
     )
     assert migration.detect(tmp_path) is True
     result = migration.apply(tmp_path)
@@ -46,7 +51,11 @@ def test_removes_agents_selection(tmp_path: Path, migration: StripSelectionConfi
 def test_removes_tools_selection(tmp_path: Path, migration: StripSelectionConfigMigration) -> None:
     _write_config(
         tmp_path,
-        ("tools:\n  available:\n    - opencode\n  selection:\n    preferred_implementer: opencode\n"),
+        (
+            "tools:\n"
+            "  available:\n    - opencode\n"
+            "  selection:\n    preferred_implementer: opencode\n"
+        ),
     )
     assert migration.detect(tmp_path) is True
     result = migration.apply(tmp_path)
@@ -70,7 +79,10 @@ def test_empty_selection(tmp_path: Path, migration: StripSelectionConfigMigratio
 
 # Test 5: Dry-run — no file write
 def test_dry_run_no_write(tmp_path: Path, migration: StripSelectionConfigMigration) -> None:
-    original = "agents:\n  available:\n    - claude\n  selection:\n    preferred_implementer: claude\n"
+    original = (
+        "agents:\n  available:\n    - claude\n"
+        "  selection:\n    preferred_implementer: claude\n"
+    )
     config_file = _write_config(tmp_path, original)
     result = migration.apply(tmp_path, dry_run=True)
     assert result.success

@@ -60,7 +60,11 @@ def load_context(token: str, repo_root: Path) -> MissionContext:
     context_path = _contexts_dir(repo_root) / f"{token}.json"
 
     if not context_path.exists():
-        msg = f"Context token '{token}' not found at {context_path}. Run `spec-kitty agent context resolve --wp <WP> --mission <slug>` to create a new context."
+        msg = (
+            f"Context token '{token}' not found at {context_path}. "
+            "Run `spec-kitty agent context resolve --wp <WP> --mission <slug>` "
+            "to create a new context."
+        )
         raise ContextNotFoundError(msg)
 
     try:

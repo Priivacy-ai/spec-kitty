@@ -77,7 +77,10 @@ def classify_conflict(file_path: str) -> ConflictType:
     """
     # Derived / runtime files should be gitignored — flag as error if seen
     normalized = file_path.replace("\\", "/")
-    if normalized.startswith(".kittify/derived/") or normalized.startswith(".kittify/runtime/"):
+    if (
+        normalized.startswith(".kittify/derived/")
+        or normalized.startswith(".kittify/runtime/")
+    ):
         return ConflictType.UNEXPECTED_DERIVED
 
     # Canonical event log — append-merge
@@ -90,12 +93,19 @@ def classify_conflict(file_path: str) -> ConflictType:
         or normalized == "meta.json"
         or normalized.endswith("/status.json")
         or normalized == "status.json"
-        or (normalized.startswith(".kittify/") and normalized.endswith(".json"))
+        or (
+            normalized.startswith(".kittify/")
+            and normalized.endswith(".json")
+        )
     ):
         return ConflictType.OWNED_METADATA
 
     # WP prompt files (frontmatter markdown under kitty-specs/*/tasks/)
-    if "kitty-specs/" in normalized and "/tasks/" in normalized and normalized.endswith(".md"):
+    if (
+        "kitty-specs/" in normalized
+        and "/tasks/" in normalized
+        and normalized.endswith(".md")
+    ):
         return ConflictType.OWNED_METADATA
 
     # Everything else requires manual resolution
@@ -208,7 +218,10 @@ def resolve_owned_conflicts(
         conflict_type = classify_conflict(file_path)
 
         if conflict_type == ConflictType.UNEXPECTED_DERIVED:
-            result.errors.append(f"UNEXPECTED_DERIVED: {file_path!r} appeared as a merge conflict but should be gitignored. Check .gitignore configuration.")
+            result.errors.append(
+                f"UNEXPECTED_DERIVED: {file_path!r} appeared as a merge conflict "
+                "but should be gitignored. Check .gitignore configuration."
+            )
             continue
 
         if conflict_type == ConflictType.HUMAN_AUTHORED:
@@ -219,12 +232,18 @@ def resolve_owned_conflicts(
         try:
             ours, theirs = _read_conflict_sides(workspace_path, file_path)
 
-            resolved_content = _merge_event_logs(ours, theirs) if conflict_type == ConflictType.OWNED_EVENT_LOG else theirs if theirs else ours
+            if conflict_type == ConflictType.OWNED_EVENT_LOG:
+                resolved_content = _merge_event_logs(ours, theirs)
+            else:
+                # OWNED_METADATA: take-theirs
+                resolved_content = theirs if theirs else ours
 
             _stage_resolved_file(workspace_path, file_path, resolved_content)
             result.resolved.append(file_path)
 
         except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
-            result.errors.append(f"Failed to auto-resolve {file_path!r}: {exc}")
+            result.errors.append(
+                f"Failed to auto-resolve {file_path!r}: {exc}"
+            )
 
     return result

@@ -303,7 +303,10 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
             raise RuntimeError("project root not found")
         kitty_specs = root / "kitty-specs"
         if kitty_specs.is_dir():
-            slugs = sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
+            slugs = sorted(
+                d.name for d in kitty_specs.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
             if slugs:
                 listing = "\n".join(f"  - {s}" for s in slugs[:15])
                 if len(slugs) > 15:
@@ -319,7 +322,10 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
             root = locate_project_root()
             if root is None:
                 raise RuntimeError("project root not found")
-            first = sorted(d.name for d in (root / "kitty-specs").iterdir() if d.is_dir() and not d.name.startswith("."))[0]
+            first = sorted(
+                d.name for d in (root / "kitty-specs").iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )[0]
             example_slug = first
         except Exception:
             pass

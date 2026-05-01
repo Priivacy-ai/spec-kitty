@@ -77,12 +77,20 @@ def _init_git_repo(tmp_path: Path) -> None:
 
 
 def test_changelog_has_entry_returns_true_when_present() -> None:
-    changelog = "# Changelog\n\n## [3.1.1] - 2026-04-09\n\n### Fixed\n- The fix\n"
+    changelog = (
+        "# Changelog\n\n"
+        "## [3.1.1] - 2026-04-09\n\n"
+        "### Fixed\n- The fix\n"
+    )
     assert changelog_has_entry(changelog, "3.1.1") is True
 
 
 def test_changelog_has_entry_returns_false_when_absent() -> None:
-    changelog = "# Changelog\n\n## [3.0.0] - 2025-01-01\n\n### Fixed\n- Old fix\n"
+    changelog = (
+        "# Changelog\n\n"
+        "## [3.0.0] - 2025-01-01\n\n"
+        "### Fixed\n- Old fix\n"
+    )
     assert changelog_has_entry(changelog, "3.1.1") is False
 
 
@@ -92,7 +100,11 @@ def test_changelog_has_entry_returns_false_for_empty_section() -> None:
 
 
 def test_changelog_has_entry_prerelease_version() -> None:
-    changelog = "# Changelog\n\n## [3.1.1a3] - 2026-04-07\n\n### Changed\n- Alpha release\n"
+    changelog = (
+        "# Changelog\n\n"
+        "## [3.1.1a3] - 2026-04-07\n\n"
+        "### Changed\n- Alpha release\n"
+    )
     assert changelog_has_entry(changelog, "3.1.1a3") is True
     assert changelog_has_entry(changelog, "3.1.1") is False
 
@@ -133,7 +145,12 @@ def test_missing_changelog_entry_fails_in_branch_mode(tmp_path: Path) -> None:
 @pytest.mark.git_repo
 def test_present_changelog_entry_passes_in_branch_mode(tmp_path: Path) -> None:
     """Validator exits 0 in branch mode when CHANGELOG entry exists."""
-    changelog = "# Changelog\n\n## [3.1.1] - 2026-04-09\n\n### Fixed\n- The fix\n\n## [3.0.0] - 2025-01-01\n\n### Fixed\n- Old fix\n"
+    changelog = (
+        "# Changelog\n\n"
+        "## [3.1.1] - 2026-04-09\n\n"
+        "### Fixed\n- The fix\n"
+        "\n## [3.0.0] - 2025-01-01\n\n### Fixed\n- Old fix\n"
+    )
     _write_release_files(tmp_path, "3.1.1", changelog)
     _init_git_repo(tmp_path)
 

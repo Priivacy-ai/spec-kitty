@@ -180,7 +180,8 @@ def resolve_sections(
     # The _use_shipped_only_drg sentinel documents and enforces this invariant.
     if not _use_shipped_only_drg:
         raise ValueError(
-            "resolve_sections() requires _use_shipped_only_drg=True (R-9 invariant). Do not merge the project-layer DRG during interview-time resolution."
+            "resolve_sections() requires _use_shipped_only_drg=True (R-9 invariant). "
+            "Do not merge the project-layer DRG during interview-time resolution."
         )
 
     results: list[tuple[str, dict[str, Any]]] = []

@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 from specify_cli.invocation.propagator import _propagate_one
 from specify_cli.invocation.record import InvocationRecord
@@ -55,18 +56,16 @@ def test_local_sync_disabled_suppresses_saas_emit(tmp_path: Path) -> None:
     routing = _make_routing(effective_sync_enabled=False)
     record = _make_started_record()
 
-    with (
-        patch(
-            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-            return_value=routing,
-        ) as mock_routing,
-        patch(
+    with patch(
+        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+        return_value=routing,
+    ) as mock_routing:
+        with patch(
             "specify_cli.invocation.propagator._get_saas_client",
-        ) as mock_client,
-    ):
-        _propagate_one(record, tmp_path)
-        mock_routing.assert_called_once_with(tmp_path)
-        mock_client.assert_not_called()  # key assertion
+        ) as mock_client:
+            _propagate_one(record, tmp_path)
+            mock_routing.assert_called_once_with(tmp_path)
+            mock_client.assert_not_called()  # key assertion
 
 
 # ---------------------------------------------------------------------------
@@ -79,18 +78,16 @@ def test_local_sync_enabled_proceeds_to_auth_gate(tmp_path: Path) -> None:
     routing = _make_routing(effective_sync_enabled=True)
     record = _make_started_record()
 
-    with (
-        patch(
-            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-            return_value=routing,
-        ),
-        patch(
+    with patch(
+        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+        return_value=routing,
+    ):
+        with patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=None,  # auth not connected → returns None, no emit, but gate was reached
-        ) as mock_client,
-    ):
-        _propagate_one(record, tmp_path)
-        mock_client.assert_called_once_with(tmp_path)  # key: gate was NOT hit
+        ) as mock_client:
+            _propagate_one(record, tmp_path)
+            mock_client.assert_called_once_with(tmp_path)  # key: gate was NOT hit
 
 
 # ---------------------------------------------------------------------------
@@ -105,15 +102,13 @@ def test_saas_exception_does_not_raise(tmp_path: Path) -> None:
     mock_client = MagicMock()
     mock_client.send_event = MagicMock(side_effect=RuntimeError("network timeout"))
 
-    with (
-        patch(
-            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-            return_value=routing,
-        ),
-        patch(
+    with patch(
+        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
+        return_value=routing,
+    ):
+        with patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=mock_client,
-        ),
-    ):
-        # Must not raise
-        _propagate_one(record, tmp_path)
+        ):
+            # Must not raise
+            _propagate_one(record, tmp_path)

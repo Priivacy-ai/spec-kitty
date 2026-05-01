@@ -12,7 +12,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-import contextlib
 
 
 @pytest.fixture(autouse=True)
@@ -20,12 +19,14 @@ def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
     if "tmp_path" in request.fixturenames:
         tmp_path: Path = request.getfixturevalue("tmp_path")
         if not (tmp_path / ".git").exists():
-            with contextlib.suppress(FileNotFoundError, OSError):
+            try:
                 subprocess.run(
                     ["git", "init", "--quiet", str(tmp_path)],
                     check=False,
                     capture_output=True,
                 )
+            except (FileNotFoundError, OSError):
+                pass
     yield
     try:
         from charter.resolution import resolve_canonical_repo_root

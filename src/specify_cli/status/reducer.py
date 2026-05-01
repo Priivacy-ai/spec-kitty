@@ -209,7 +209,6 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
         if mode_data is not None:
             try:
                 from specify_cli.retrospective.schema import Mode
-
                 mode = Mode.model_validate(mode_data)
             except Exception:
                 mode = None
@@ -237,9 +236,15 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
         record_path = None
 
     # Proposal counts
-    proposals_total = sum(1 for e in retro_events if e.get("event_name") == "retrospective.proposal.generated")
-    proposals_applied = sum(1 for e in retro_events if e.get("event_name") == "retrospective.proposal.applied")
-    proposals_rejected = sum(1 for e in retro_events if e.get("event_name") == "retrospective.proposal.rejected")
+    proposals_total = sum(
+        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.generated"
+    )
+    proposals_applied = sum(
+        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.applied"
+    )
+    proposals_rejected = sum(
+        1 for e in retro_events if e.get("event_name") == "retrospective.proposal.rejected"
+    )
     proposals_pending = max(0, proposals_total - proposals_applied - proposals_rejected)
 
     return RetrospectiveSnapshot(

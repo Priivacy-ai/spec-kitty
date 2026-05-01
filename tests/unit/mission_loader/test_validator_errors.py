@@ -24,7 +24,9 @@ from specify_cli.mission_loader import (
 from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 
 
-def _isolated_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> DiscoveryContext:
+def _isolated_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> DiscoveryContext:
     """Build a DiscoveryContext that ONLY sees ``tmp_path`` as the project.
 
     - empty ``builtin_roots`` -> no built-in tier
@@ -55,7 +57,9 @@ def _write_mission(tmp_path: Path, key: str, body: str, *, layer: str = "mission
 # ---------------------------------------------------------------------------
 
 
-def test_unknown_mission_key_yields_MISSION_KEY_UNKNOWN(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unknown_mission_key_yields_MISSION_KEY_UNKNOWN(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ctx = _isolated_context(tmp_path, monkeypatch)
     report = validate_custom_mission("does-not-exist", ctx)
     assert report.template is None
@@ -70,7 +74,9 @@ def test_unknown_mission_key_yields_MISSION_KEY_UNKNOWN(tmp_path: Path, monkeypa
 # ---------------------------------------------------------------------------
 
 
-def test_malformed_yaml_yields_MISSION_YAML_MALFORMED(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_malformed_yaml_yields_MISSION_YAML_MALFORMED(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Real YAML parse error: bare ``<<<`` is invalid YAML.
     _write_mission(tmp_path, "broken", "<<<: not yaml\n  - this: [is broken\n")
     ctx = _isolated_context(tmp_path, monkeypatch)
@@ -83,7 +89,9 @@ def test_malformed_yaml_yields_MISSION_YAML_MALFORMED(tmp_path: Path, monkeypatc
     assert "parse_error" in details
 
 
-def test_yaml_not_a_mapping_yields_MISSION_YAML_MALFORMED(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_yaml_not_a_mapping_yields_MISSION_YAML_MALFORMED(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # A YAML list at the root parses fine but fails the "must be a mapping"
     # rule inside ``load_mission_template_file`` -> MissionRuntimeError ->
     # MISSION_YAML_MALFORMED.
@@ -98,7 +106,9 @@ def test_yaml_not_a_mapping_yields_MISSION_YAML_MALFORMED(tmp_path: Path, monkey
 # ---------------------------------------------------------------------------
 
 
-def test_missing_required_field_yields_MISSION_REQUIRED_FIELD_MISSING(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_required_field_yields_MISSION_REQUIRED_FIELD_MISSING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Top-level ``mission:`` block missing required ``name``. The shorthand
     # path takes ``key`` from raw['key'] OR raw['name'] OR parent dir name.
     # We provide an explicit ``mission`` block missing required ``name`` so
@@ -125,7 +135,9 @@ def test_missing_required_field_yields_MISSION_REQUIRED_FIELD_MISSING(tmp_path: 
     assert details["mission_key"] == "incomplete"
 
 
-def test_missing_steps_yields_MISSION_REQUIRED_FIELD_MISSING(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_steps_yields_MISSION_REQUIRED_FIELD_MISSING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = """
     mission:
       key: no-steps
@@ -146,7 +158,9 @@ def test_missing_steps_yields_MISSION_REQUIRED_FIELD_MISSING(tmp_path: Path, mon
 # ---------------------------------------------------------------------------
 
 
-def test_reserved_key_under_project_legacy_yields_MISSION_KEY_RESERVED(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reserved_key_under_project_legacy_yields_MISSION_KEY_RESERVED(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = """
     mission:
       key: software-dev
@@ -178,7 +192,9 @@ def test_reserved_key_under_project_legacy_yields_MISSION_KEY_RESERVED(tmp_path:
 # ---------------------------------------------------------------------------
 
 
-def test_missing_retrospective_yields_MISSION_RETROSPECTIVE_MISSING(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_retrospective_yields_MISSION_RETROSPECTIVE_MISSING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = """
     mission:
       key: noretro
@@ -208,7 +224,9 @@ def test_missing_retrospective_yields_MISSION_RETROSPECTIVE_MISSING(tmp_path: Pa
 # ---------------------------------------------------------------------------
 
 
-def test_step_without_binding_yields_MISSION_STEP_NO_PROFILE_BINDING(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_step_without_binding_yields_MISSION_STEP_NO_PROFILE_BINDING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = """
     mission:
       key: nobind
@@ -227,12 +245,16 @@ def test_step_without_binding_yields_MISSION_STEP_NO_PROFILE_BINDING(tmp_path: P
     report = validate_custom_mission("nobind", ctx)
     codes = [e.code for e in report.errors]
     assert LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING in codes
-    err = next(e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING)
+    err = next(
+        e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING
+    )
     assert err.details["step_id"] == "orphan"
     assert err.details["mission_key"] == "nobind"
 
 
-def test_step_with_blank_agent_profile_yields_MISSION_STEP_NO_PROFILE_BINDING(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_step_with_blank_agent_profile_yields_MISSION_STEP_NO_PROFILE_BINDING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = """
     mission:
       key: blank-profile
@@ -252,7 +274,9 @@ def test_step_with_blank_agent_profile_yields_MISSION_STEP_NO_PROFILE_BINDING(tm
 
     codes = [e.code for e in report.errors]
     assert LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING in codes
-    err = next(e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING)
+    err = next(
+        e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_NO_PROFILE_BINDING
+    )
     assert err.details["step_id"] == "blank"
 
 
@@ -261,7 +285,9 @@ def test_step_with_blank_agent_profile_yields_MISSION_STEP_NO_PROFILE_BINDING(tm
 # ---------------------------------------------------------------------------
 
 
-def test_step_with_both_bindings_yields_MISSION_STEP_AMBIGUOUS_BINDING(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_step_with_both_bindings_yields_MISSION_STEP_AMBIGUOUS_BINDING(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     body = """
     mission:
       key: ambig
@@ -281,7 +307,9 @@ def test_step_with_both_bindings_yields_MISSION_STEP_AMBIGUOUS_BINDING(tmp_path:
     report = validate_custom_mission("ambig", ctx)
     codes = [e.code for e in report.errors]
     assert LoaderErrorCode.MISSION_STEP_AMBIGUOUS_BINDING in codes
-    err = next(e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_AMBIGUOUS_BINDING)
+    err = next(
+        e for e in report.errors if e.code is LoaderErrorCode.MISSION_STEP_AMBIGUOUS_BINDING
+    )
     assert err.details["step_id"] == "do-it"
     assert err.details["mission_key"] == "ambig"
 
@@ -317,4 +345,7 @@ def test_ambiguous_code_string_is_stable() -> None:
 
 
 def test_contract_ref_unresolved_code_string_is_stable() -> None:
-    assert LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED.value == "MISSION_CONTRACT_REF_UNRESOLVED"
+    assert (
+        LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED.value
+        == "MISSION_CONTRACT_REF_UNRESOLVED"
+    )

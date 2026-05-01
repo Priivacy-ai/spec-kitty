@@ -117,7 +117,9 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
     assert "python-pedro" not in catalog.agent_profiles
 
 
-def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     doctrine_root = tmp_path / "doctrine"
     yaml = YAML()
     yaml.default_flow_style = False

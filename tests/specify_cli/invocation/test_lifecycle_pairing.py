@@ -41,7 +41,7 @@ from specify_cli.invocation.record import ProfileInvocationRecord
 
 def _at(seconds: int = 0) -> _dt.datetime:
     """Build a deterministic UTC timestamp offset by ``seconds``."""
-    base = _dt.datetime(2026, 4, 28, 12, 0, 0, tzinfo=_dt.UTC)
+    base = _dt.datetime(2026, 4, 28, 12, 0, 0, tzinfo=_dt.timezone.utc)
     return base + _dt.timedelta(seconds=seconds)
 
 
@@ -139,7 +139,9 @@ class TestCanonicalActionId:
 
 
 class TestStartedThenCompletedPairs:
-    def test_started_then_completed_produces_one_paired_group(self, tmp_path: Path) -> None:
+    def test_started_then_completed_produces_one_paired_group(
+        self, tmp_path: Path
+    ) -> None:
         started = write_started(
             tmp_path,
             canonical_action_id="implement::do",
@@ -192,7 +194,9 @@ class TestStartedThenFailedPairs:
         assert completion.canonical_action_id == "review::do"
         assert not groups[0].is_orphan
 
-    def test_write_paired_completion_rejects_started_phase(self, tmp_path: Path) -> None:
+    def test_write_paired_completion_rejects_started_phase(
+        self, tmp_path: Path
+    ) -> None:
         started = write_started(
             tmp_path,
             canonical_action_id="x::y",
@@ -262,7 +266,9 @@ class TestOrphanStartedListed:
 
 
 class TestStartedNotOverwrittenBySecondStarted:
-    def test_two_starteds_for_same_id_both_persist_and_orphan_visible(self, tmp_path: Path) -> None:
+    def test_two_starteds_for_same_id_both_persist_and_orphan_visible(
+        self, tmp_path: Path
+    ) -> None:
         write_started(
             tmp_path,
             canonical_action_id="implement::do",
@@ -290,7 +296,9 @@ class TestStartedNotOverwrittenBySecondStarted:
         report = doctor_orphan_report(tmp_path)
         assert report["orphan_count"] == 2
 
-    def test_pair_only_consumes_one_started_per_partner(self, tmp_path: Path) -> None:
+    def test_pair_only_consumes_one_started_per_partner(
+        self, tmp_path: Path
+    ) -> None:
         # Two starteds, one completed: still one orphan.
         s1 = write_started(
             tmp_path,
@@ -328,7 +336,9 @@ class TestCanonicalActionIdMatchesIssued:
             wp_id=None,
             at=_at(0),
         )
-        completion = write_paired_completion(tmp_path, started=started, phase="completed", at=_at(1))
+        completion = write_paired_completion(
+            tmp_path, started=started, phase="completed", at=_at(1)
+        )
         # The partner record copies the SAME canonical id verbatim — no
         # rewriting at completion time.
         assert completion.canonical_action_id == started.canonical_action_id == canonical
@@ -344,7 +354,9 @@ class TestCanonicalActionIdMatchesIssued:
 
 
 class TestFindLatestUnpairedStarted:
-    def test_returns_latest_orphan_filtered_by_agent_and_mission(self, tmp_path: Path) -> None:
+    def test_returns_latest_orphan_filtered_by_agent_and_mission(
+        self, tmp_path: Path
+    ) -> None:
         # An older orphan for a different mission and a newer orphan for
         # the same agent+mission.
         write_started(
@@ -483,7 +495,9 @@ class TestCrossMissionIsolation:
     started/completion counts would balance and hide the orphan.
     """
 
-    def test_same_canonical_id_in_two_missions_does_not_cross_pair(self, tmp_path: Path) -> None:
+    def test_same_canonical_id_in_two_missions_does_not_cross_pair(
+        self, tmp_path: Path
+    ) -> None:
         # Mission m1 issues a started, agent crashes (no completion).
         m1_started = ProfileInvocationRecord(
             canonical_action_id="implement::do",
@@ -536,7 +550,9 @@ class TestCrossMissionIsolation:
         assert isinstance(orphan_list, list)
         assert orphan_list[0]["mission_id"] == "m1"
 
-    def test_find_latest_unpaired_started_filters_by_mission(self, tmp_path: Path) -> None:
+    def test_find_latest_unpaired_started_filters_by_mission(
+        self, tmp_path: Path
+    ) -> None:
         for r in (
             ProfileInvocationRecord(
                 canonical_action_id="implement::do",

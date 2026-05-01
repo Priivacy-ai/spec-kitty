@@ -22,7 +22,9 @@ from specify_cli.policy.hook_installer import install
 def _init_git(repo: Path) -> None:
     """Initialize a bare git repo with user config for committing."""
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
 
 
@@ -42,7 +44,10 @@ def test_hook_executes_on_posix(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert proc.returncode not in (126, 127), f"Hook invocation failed on POSIX. rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+    assert proc.returncode not in (126, 127), (
+        f"Hook invocation failed on POSIX. rc={proc.returncode}\n"
+        f"stdout={proc.stdout}\nstderr={proc.stderr}"
+    )
 
 
 @pytest.mark.windows_ci
@@ -66,11 +71,16 @@ def test_hook_executes_on_windows(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert proc.returncode not in (126, 127), f"Hook invocation failed at shell level. rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+    assert proc.returncode not in (126, 127), (
+        f"Hook invocation failed at shell level. rc={proc.returncode}\n"
+        f"stdout={proc.stdout}\nstderr={proc.stderr}"
+    )
 
 
 @pytest.mark.windows_ci
-def test_hook_executes_with_spaces_in_interpreter_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_hook_executes_with_spaces_in_interpreter_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Hook works when the interpreter path contains a space (T037).
 
     This is the most common real-world Windows failure mode: paths like
@@ -98,5 +108,6 @@ def test_hook_executes_with_spaces_in_interpreter_path(tmp_path: Path, monkeypat
         text=True,
     )
     assert proc.returncode not in (126, 127), (
-        f"Hook invocation failed with interpreter at a path containing a space. rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+        f"Hook invocation failed with interpreter at a path containing a space. "
+        f"rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
     )

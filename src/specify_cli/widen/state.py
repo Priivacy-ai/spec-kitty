@@ -34,7 +34,13 @@ logger = logging.getLogger(__name__)
 
 # Path to the bundled JSON Schema for schema-validation helpers (T014).
 # Four parents up from state.py → repo root, then into kitty-specs.
-_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent / "kitty-specs" / "cli-widen-mode-and-write-back-01KPXFGJ" / "contracts" / "widen-state.schema.json"
+_SCHEMA_PATH = (
+    Path(__file__).parent.parent.parent.parent
+    / "kitty-specs"
+    / "cli-widen-mode-and-write-back-01KPXFGJ"
+    / "contracts"
+    / "widen-state.schema.json"
+)
 
 
 class WidenPendingStore:
@@ -95,7 +101,10 @@ class WidenPendingStore:
         """
         existing = self.list_pending()
         if any(e.decision_id == entry.decision_id for e in existing):
-            raise ValueError(f"Decision {entry.decision_id!r} already pending (duplicate widen disallowed per C-010)")
+            raise ValueError(
+                f"Decision {entry.decision_id!r} already pending "
+                "(duplicate widen disallowed per C-010)"
+            )
         existing.append(entry)
         self._write_all(existing)
 
@@ -132,8 +141,12 @@ class WidenPendingStore:
         Creates parent directories as needed.
         """
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        content = "\n".join(e.model_dump_json() for e in entries) + "\n" if entries else ""
-        fd, tmp_path_str = tempfile.mkstemp(dir=self._path.parent, prefix=".widen-pending-", suffix=".tmp")
+        content = (
+            "\n".join(e.model_dump_json() for e in entries) + "\n" if entries else ""
+        )
+        fd, tmp_path_str = tempfile.mkstemp(
+            dir=self._path.parent, prefix=".widen-pending-", suffix=".tmp"
+        )
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(content)

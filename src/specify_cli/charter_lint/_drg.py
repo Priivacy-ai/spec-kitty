@@ -81,7 +81,9 @@ def get_incoming_edges(drg: Any, node_urn: str, relation_strs: set[str]) -> list
         if target != node_urn:
             continue
         relation = getattr(edge, "relation", None)
-        relation_val = relation.value if hasattr(relation, "value") else str(relation) if relation else ""
+        relation_val = (
+            relation.value if hasattr(relation, "value") else str(relation) if relation else ""
+        )
         if relation_val in relation_strs:
             result.append(edge)
     return result

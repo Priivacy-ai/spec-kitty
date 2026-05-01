@@ -35,7 +35,7 @@ def validate_encoding(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    get_project_root_or_exit(repo_root)
+    project_root = get_project_root_or_exit(repo_root)
 
     if check_all:
         # Validate all features
@@ -63,7 +63,9 @@ def validate_encoding(
         console.print()
         console.print(
             Panel(
-                f"[bold]Summary:[/bold]\nTotal files with issues: [yellow]{total_issues}[/yellow]\nTotal files fixed: [green]{total_fixed}[/green]",
+                f"[bold]Summary:[/bold]\n"
+                f"Total files with issues: [yellow]{total_issues}[/yellow]\n"
+                f"Total files fixed: [green]{total_fixed}[/green]",
                 title="Encoding Validation Complete",
                 border_style="cyan" if total_issues == 0 else "yellow",
             )

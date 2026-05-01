@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -134,7 +134,7 @@ class _JSONErrorGroup(TyperGroup):
             raise SystemExit(2) from exc
         except click.Abort:
             self._emit_error("Command aborted")
-            raise SystemExit(2) from None
+            raise SystemExit(2)
         except SystemExit:
             raise
 
@@ -559,7 +559,10 @@ def list_ready(
 
         # Check all dependencies are done (completed, not merely terminal —
         # canceled deps do NOT satisfy the dependency requirement).
-        all_deps_done = all(wp_state_for(wp_states.get(dep, {}).get("lane", Lane.PLANNED)).lane == Lane.DONE for dep in deps)
+        all_deps_done = all(
+            wp_state_for(wp_states.get(dep, {}).get("lane", Lane.PLANNED)).lane == Lane.DONE
+            for dep in deps
+        )
 
         ready_wps.append(
             {
@@ -638,28 +641,24 @@ def start_implementation(
     try:
         if state.lane == Lane.PLANNED:
             # Composite: planned -> claimed -> in_progress
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=mission_dir,
-                    mission_slug=mission,
-                    wp_id=wp,
-                    to_lane=Lane.CLAIMED,
-                    actor=actor,
-                    policy_metadata=policy_dict,
-                )
-            )
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=mission_dir,
-                    mission_slug=mission,
-                    wp_id=wp,
-                    to_lane=Lane.IN_PROGRESS,
-                    actor=actor,
-                    workspace_context=workspace_path,
-                    execution_mode="worktree",
-                    policy_metadata=policy_dict,
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=Lane.CLAIMED,
+                actor=actor,
+                policy_metadata=policy_dict,
+            ))
+            emit_status_transition(TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=Lane.IN_PROGRESS,
+                actor=actor,
+                workspace_context=workspace_path,
+                execution_mode="worktree",
+                policy_metadata=policy_dict,
+            ))
             from_lane_reported = Lane.PLANNED
             no_op = False
 
@@ -676,18 +675,16 @@ def start_implementation(
                     },
                 )
                 return
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=mission_dir,
-                    mission_slug=mission,
-                    wp_id=wp,
-                    to_lane=Lane.IN_PROGRESS,
-                    actor=actor,
-                    workspace_context=workspace_path,
-                    execution_mode="worktree",
-                    policy_metadata=policy_dict,
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=Lane.IN_PROGRESS,
+                actor=actor,
+                workspace_context=workspace_path,
+                execution_mode="worktree",
+                policy_metadata=policy_dict,
+            ))
             from_lane_reported = Lane.CLAIMED
             no_op = False
 
@@ -787,18 +784,16 @@ def start_review(
     prompt_path = str(wp_path)
 
     try:
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=mission_dir,
-                mission_slug=mission,
-                wp_id=wp,
-                to_lane=Lane.IN_REVIEW,
-                actor=actor,
-                review_ref=review_ref,
-                execution_mode="worktree",
-                policy_metadata=policy_dict,
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission,
+            wp_id=wp,
+            to_lane=Lane.IN_REVIEW,
+            actor=actor,
+            review_ref=review_ref,
+            execution_mode="worktree",
+            policy_metadata=policy_dict,
+        ))
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
@@ -903,23 +898,21 @@ def transition(
     from_lane = wp_snapshot.get("lane", Lane.PLANNED)
 
     try:
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=mission_dir,
-                mission_slug=mission,
-                wp_id=wp,
-                to_lane=to_lane,
-                actor=actor,
-                reason=note,
-                force=force,
-                evidence=evidence,
-                review_ref=review_ref,
-                subtasks_complete=subtasks_complete,
-                implementation_evidence_present=implementation_evidence_present,
-                execution_mode="worktree",
-                policy_metadata=policy_dict,
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission,
+            wp_id=wp,
+            to_lane=to_lane,
+            actor=actor,
+            reason=note,
+            force=force,
+            evidence=evidence,
+            review_ref=review_ref,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
+            execution_mode="worktree",
+            policy_metadata=policy_dict,
+        ))
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return

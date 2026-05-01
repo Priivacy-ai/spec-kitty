@@ -65,13 +65,21 @@ def validate(
         project_overlay = load_graph(overlay_path)
     except DRGLoadError as exc:
         raise ProjectDRGValidationError(
-            errors=(f"Could not load staged project overlay from {overlay_path}: {exc}",),
-            merged_graph_summary=(f"staging_dir={staging_dir}, shipped_nodes={len(shipped_drg.nodes)}"),
+            errors=(
+                f"Could not load staged project overlay from "
+                f"{overlay_path}: {exc}",
+            ),
+            merged_graph_summary=(
+                f"staging_dir={staging_dir}, "
+                f"shipped_nodes={len(shipped_drg.nodes)}"
+            ),
         ) from exc
     except Exception as exc:  # noqa: BLE001
         raise ProjectDRGValidationError(
             errors=(f"Unexpected error loading overlay {overlay_path}: {exc}",),
-            merged_graph_summary=(f"staging_dir={staging_dir}"),
+            merged_graph_summary=(
+                f"staging_dir={staging_dir}"
+            ),
         ) from exc
 
     # --- Step 2: Merge layers (additive) -----------------------------------

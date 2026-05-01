@@ -16,7 +16,6 @@ from specify_cli.core.git_preflight import (
 
 pytestmark = pytest.mark.git_repo
 
-
 def _init_git_repo(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)

@@ -15,13 +15,12 @@ from specify_cli.shims.generator import (
     generate_shim_content_for_agent,
     generate_all_shims,
 )
-from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
+from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, CONSUMER_SKILLS, PROMPT_DRIVEN_COMMANDS
 
 
 # ---------------------------------------------------------------------------
 # _canonical_command
 # ---------------------------------------------------------------------------
-
 
 class TestCanonicalCommand:
     def test_implement(self) -> None:
@@ -66,7 +65,6 @@ class TestCanonicalCommand:
 # ---------------------------------------------------------------------------
 # generate_shim_content
 # ---------------------------------------------------------------------------
-
 
 class TestGenerateShimContent:
     def test_total_line_count(self) -> None:
@@ -119,7 +117,9 @@ class TestGenerateShimContent:
     def test_prohibition_line_position(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        assert lines[5] == ("Do not rediscover context from branches, files, prompt contents, or separate charter loads.")
+        assert lines[5] == (
+            "Do not rediscover context from branches, files, prompt contents, or separate charter loads."
+        )
 
     def test_direct_implement_command(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -165,7 +165,9 @@ class TestGenerateShimContent:
         lines = content.splitlines()
         # Frontmatter occupies lines 0..2, version marker line 3, invariant
         # line 4, prohibition line 5, mission hint line 6.
-        assert lines[6] == ("When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).")
+        assert lines[6] == (
+            "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug)."
+        )
 
     def test_shim_content_version_marker_present_in_head(self) -> None:
         """Marker must appear in the file head (no longer line 0 — line 3)."""
@@ -175,13 +177,14 @@ class TestGenerateShimContent:
 
     def test_every_cli_driven_command_has_description(self) -> None:
         for command in CLI_DRIVEN_COMMANDS:
-            assert command in SHIM_DESCRIPTIONS, f"CLI-driven command '{command}' missing entry in SHIM_DESCRIPTIONS"
+            assert command in SHIM_DESCRIPTIONS, (
+                f"CLI-driven command '{command}' missing entry in SHIM_DESCRIPTIONS"
+            )
 
 
 # ---------------------------------------------------------------------------
 # Agent-specific placeholder mapping
 # ---------------------------------------------------------------------------
-
 
 class TestAgentArgPlaceholders:
     def test_claude_uses_arguments(self) -> None:
@@ -202,7 +205,6 @@ class TestAgentArgPlaceholders:
 # ---------------------------------------------------------------------------
 # generate_all_shims (filesystem)
 # ---------------------------------------------------------------------------
-
 
 def _setup_kittify_config(tmp_path: Path, agents: list[str]) -> None:
     """Write a minimal .kittify/config.yaml selecting specific agents."""
@@ -243,7 +245,9 @@ class TestGenerateAllShims:
 
         cmd_dir = tmp_path / ".claude" / "commands"
         for skill in PROMPT_DRIVEN_COMMANDS:
-            assert not (cmd_dir / f"spec-kitty.{skill}.md").exists(), f"Prompt-driven skill '{skill}' should not get a command file"
+            assert not (cmd_dir / f"spec-kitty.{skill}.md").exists(), (
+                f"Prompt-driven skill '{skill}' should not get a command file"
+            )
 
     def test_generates_exactly_seven_files_per_agent(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])
@@ -285,11 +289,16 @@ class TestGenerateAllShims:
         install(tmp_path, "codex")
 
         claude_file = tmp_path / ".claude" / "commands" / "spec-kitty.implement.md"
-        codex_file = tmp_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        codex_file = (
+            tmp_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        )
 
         assert "$ARGUMENTS" in claude_file.read_text()
         codex_text = codex_file.read_text()
-        assert "$ARGUMENTS" not in codex_text, "command_renderer contract violated: SKILL.md must not contain stray $ARGUMENTS tokens."
+        assert "$ARGUMENTS" not in codex_text, (
+            "command_renderer contract violated: SKILL.md must not contain "
+            "stray $ARGUMENTS tokens."
+        )
         # The canonical user-input section must still be present.
         assert "User Input" in codex_text
 
@@ -506,7 +515,9 @@ class TestGenerateAllShimsTomlAgents:
         written = generate_all_shims(tmp_path)
         names = {p.name for p in written}
         for skill in CLI_DRIVEN_COMMANDS:
-            assert f"spec-kitty.{skill}.toml" in names, f"Expected spec-kitty.{skill}.toml for gemini, got: {names}"
+            assert f"spec-kitty.{skill}.toml" in names, (
+                f"Expected spec-kitty.{skill}.toml for gemini, got: {names}"
+            )
 
     def test_gemini_shims_are_valid_toml(self, tmp_path: Path) -> None:
         import tomllib
@@ -528,7 +539,9 @@ class TestGenerateAllShimsTomlAgents:
         written = generate_all_shims(tmp_path)
         names = {p.name for p in written}
         for skill in CLI_DRIVEN_COMMANDS:
-            assert f"spec-kitty.{skill}.toml" in names, f"Expected spec-kitty.{skill}.toml for qwen, got: {names}"
+            assert f"spec-kitty.{skill}.toml" in names, (
+                f"Expected spec-kitty.{skill}.toml for qwen, got: {names}"
+            )
 
     def test_claude_shims_still_have_md_extension(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])

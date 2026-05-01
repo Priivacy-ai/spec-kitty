@@ -150,7 +150,10 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
         return DoctorCheck(
             "governance_resolution",
             True,
-            (f"Resolved governance with template fallback '{resolution.template_set}'. Set doctrine.template_set in charter to make this explicit."),
+            (
+                f"Resolved governance with template fallback '{resolution.template_set}'. "
+                "Set doctrine.template_set in charter to make this explicit."
+            ),
             "warning",
         )
 
@@ -201,7 +204,6 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
 
     try:
         from importlib.metadata import version as pkg_version
-
         current_version = pkg_version("spec-kitty-cli")
     except Exception:
         current_version = __version__
@@ -237,29 +239,25 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
             is_prompt_driven = command in PROMPT_DRIVEN_COMMANDS
 
             if not file_path.exists():
-                issues.append(
-                    {
-                        "agent": agent_key,
-                        "command": command,
-                        "file": rel_path,
-                        "issue": "missing",
-                        "severity": "error",
-                    }
-                )
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": "missing",
+                    "severity": "error",
+                })
                 continue
 
             try:
                 content = file_path.read_text(encoding="utf-8")
             except OSError as exc:
-                issues.append(
-                    {
-                        "agent": agent_key,
-                        "command": command,
-                        "file": rel_path,
-                        "issue": f"unreadable: {exc}",
-                        "severity": "error",
-                    }
-                )
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"unreadable: {exc}",
+                    "severity": "error",
+                })
                 continue
 
             # Version marker check — scan the file head, not just line 1, so
@@ -268,40 +266,34 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
             head_lines = content.splitlines()[:_VERSION_MARKER_HEAD_LINES]
             marker_present = any(line.strip() == expected_marker for line in head_lines)
             if not marker_present:
-                issues.append(
-                    {
-                        "agent": agent_key,
-                        "command": command,
-                        "file": rel_path,
-                        "issue": f"stale or missing version marker (expected: {expected_marker})",
-                        "severity": "warning",
-                    }
-                )
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"stale or missing version marker (expected: {expected_marker})",
+                    "severity": "warning",
+                })
 
             # Type check: prompt-driven should be long, CLI-driven should be short.
             # Threshold accounts for the new YAML frontmatter (~3 extra lines).
             non_empty_lines = [line for line in content.splitlines() if line.strip()]
             line_count = len(non_empty_lines)
             if is_prompt_driven and line_count < 50:
-                issues.append(
-                    {
-                        "agent": agent_key,
-                        "command": command,
-                        "file": rel_path,
-                        "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
-                        "severity": "warning",
-                    }
-                )
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
+                    "severity": "warning",
+                })
             elif not is_prompt_driven and line_count >= 15:
-                issues.append(
-                    {
-                        "agent": agent_key,
-                        "command": command,
-                        "file": rel_path,
-                        "issue": f"CLI-driven command has {line_count} non-empty lines (expected <15 for thin shim)",
-                        "severity": "warning",
-                    }
-                )
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"CLI-driven command has {line_count} non-empty lines (expected <15 for thin shim)",
+                    "severity": "warning",
+                })
 
     return issues
 

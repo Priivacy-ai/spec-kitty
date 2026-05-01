@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from doctrine.artifact_kinds import ArtifactKind
 from doctrine.directives.models import Directive, Enforcement
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 

@@ -201,8 +201,13 @@ class TestSourceHintRendersWithoutUnavailable:
         """After FIX 4 the SOURCE note must not contain ( or ) characters."""
         hint = build_upgrade_hint(InstallMethod.SOURCE)
         assert hint.note is not None
-        assert "(" not in hint.note, f"SOURCE note still contains '(': {hint.note!r}. Parentheses cause render_human to substitute <unavailable>."
-        assert ")" not in hint.note, f"SOURCE note still contains ')': {hint.note!r}."
+        assert "(" not in hint.note, (
+            f"SOURCE note still contains '(': {hint.note!r}. "
+            "Parentheses cause render_human to substitute <unavailable>."
+        )
+        assert ")" not in hint.note, (
+            f"SOURCE note still contains ')': {hint.note!r}."
+        )
 
     def test_source_hint_renders_without_unavailable(self) -> None:
         """render_human for PROJECT_TOO_NEW_FOR_CLI + SOURCE install must not produce <unavailable>."""
@@ -252,6 +257,7 @@ class TestSourceHintRendersWithoutUnavailable:
         )
         rendered = render_human(plan)
         assert "<unavailable>" not in rendered, (
-            f"render_human produced '<unavailable>' for SOURCE hint: {rendered!r}. The SOURCE note must not contain characters excluded by the _safe() regex."
+            f"render_human produced '<unavailable>' for SOURCE hint: {rendered!r}. "
+            "The SOURCE note must not contain characters excluded by the _safe() regex."
         )
         assert rendered.strip() != "", "render_human returned empty string for SOURCE hint."

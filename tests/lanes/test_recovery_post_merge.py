@@ -20,6 +20,7 @@ import pytest
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.recovery import (
+    RecoveryState,
     get_ready_to_start_from_target,
     scan_recovery_state,
 )
@@ -39,33 +40,26 @@ def _make_git_repo(path: Path) -> None:
     subprocess.run(["git", "init", str(path)], capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
     subprocess.run(
         ["git", "branch", "-M", "main"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
     (path / "README.md").write_text("init\n")
     subprocess.run(["git", "add", "."], cwd=str(path), capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
 
 
-def _write_event(feature_dir: Path, wp_id: str, from_lane: str, to_lane: str, mission_slug: str, event_id_suffix: str) -> None:
+def _write_event(feature_dir: Path, wp_id: str, from_lane: str, to_lane: str,
+                 mission_slug: str, event_id_suffix: str) -> None:
     """Append a minimal status event to the event log."""
     event = StatusEvent(
         event_id=f"01AAAAAAAAAAAAAAAAAAAAAAA{event_id_suffix}",
@@ -185,7 +179,9 @@ class TestScanRecoveryStateMergedDeleted:
 
         ready = get_ready_to_start_from_target(states)
 
-        assert "WP06" in ready, "WP06 should be in ready_to_start_from_target because all its deps (WP05) are done"
+        assert "WP06" in ready, (
+            "WP06 should be in ready_to_start_from_target because all its deps (WP05) are done"
+        )
 
     def test_merged_deleted_wps_have_resolution_note(self, tmp_path: Path) -> None:
         """WPs whose branch is absent but event-log says 'done' get resolution_note='merged_and_deleted'."""
@@ -201,9 +197,9 @@ class TestScanRecoveryStateMergedDeleted:
 
         merged_states = [s for s in states if s.wp_id == "WP01"]
         assert merged_states, "WP01 should appear in states with resolution_note"
-        assert any(s.resolution_note == "merged_and_deleted" for s in merged_states), (
-            f"Expected resolution_note='merged_and_deleted', got {[s.resolution_note for s in merged_states]}"
-        )
+        assert any(
+            s.resolution_note == "merged_and_deleted" for s in merged_states
+        ), f"Expected resolution_note='merged_and_deleted', got {[s.resolution_note for s in merged_states]}"
 
     def test_scan_recovery_state_legacy_live_branch_path_unchanged(self, tmp_path: Path) -> None:
         """consult_status_events=False returns the same shape as before FR-021.
@@ -220,7 +216,9 @@ class TestScanRecoveryStateMergedDeleted:
 
         # No live branches, no event log.
         states_old = scan_recovery_state(repo, mission_slug, consult_status_events=False)
-        assert states_old == [], "Legacy path (consult_status_events=False) should return [] when no live branches exist"
+        assert states_old == [], (
+            "Legacy path (consult_status_events=False) should return [] when no live branches exist"
+        )
 
     def test_legacy_path_finds_orphaned_branch_unchanged(self, tmp_path: Path) -> None:
         """consult_status_events=False still detects orphaned branches (existing behaviour)."""
@@ -229,44 +227,34 @@ class TestScanRecoveryStateMergedDeleted:
         _make_git_repo(repo)
 
         mission_slug = "syn-six-wp"
-        _setup_six_wp_feature(repo, mission_slug)
+        feature_dir = _setup_six_wp_feature(repo, mission_slug)
 
         # Create a mission branch + lane-01 branch with a commit (no worktree).
         mission_branch = f"kitty/mission-{mission_slug}"
         subprocess.run(
             ["git", "branch", mission_branch, "main"],
-            cwd=str(repo),
-            capture_output=True,
-            check=False,
+            cwd=str(repo), capture_output=True, check=False,
         )
         lane_branch = f"kitty/mission-{mission_slug}-lane-a"
         subprocess.run(
             ["git", "branch", lane_branch, mission_branch],
-            cwd=str(repo),
-            capture_output=True,
-            check=True,
+            cwd=str(repo), capture_output=True, check=True,
         )
         tmp_wt = repo / ".worktrees" / "_tmp_lane_a"
         tmp_wt.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
             ["git", "worktree", "add", str(tmp_wt), lane_branch],
-            cwd=str(repo),
-            capture_output=True,
-            check=True,
+            cwd=str(repo), capture_output=True, check=True,
         )
         (tmp_wt / "feat.py").write_text("x = 1\n")
         subprocess.run(["git", "add", "."], cwd=str(tmp_wt), capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "-m", "feat: wp01"],
-            cwd=str(tmp_wt),
-            capture_output=True,
-            check=True,
+            cwd=str(tmp_wt), capture_output=True, check=True,
         )
         subprocess.run(
             ["git", "worktree", "remove", str(tmp_wt), "--force"],
-            cwd=str(repo),
-            capture_output=True,
-            check=True,
+            cwd=str(repo), capture_output=True, check=True,
         )
 
         states_legacy = scan_recovery_state(repo, mission_slug, consult_status_events=False)
@@ -303,11 +291,16 @@ class TestScenario7EndToEnd:
         states = scan_recovery_state(repo, mission_slug, consult_status_events=True)
         ready = get_ready_to_start_from_target(states)
 
-        assert "WP06" in ready, "WP06 should be ready_to_start_from_target after all its deps are done"
+        assert "WP06" in ready, (
+            "WP06 should be ready_to_start_from_target after all its deps are done"
+        )
 
         # Step 4: verify no manual .kittify/ edits were needed.
         # The scan itself does not modify any files.
         kittify_contents = list((repo / ".kittify").rglob("*"))
         # Only the workspaces dir created by setup; no extra state files.
-        modified_paths = [p for p in kittify_contents if p.is_file() and p.suffix not in (".md", ".yaml", ".json")]
+        modified_paths = [
+            p for p in kittify_contents
+            if p.is_file() and p.suffix not in (".md", ".yaml", ".json")
+        ]
         assert not modified_paths, f"No extra .kittify state files should have been created: {modified_paths}"

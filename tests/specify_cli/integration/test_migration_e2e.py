@@ -30,7 +30,6 @@ pytestmark = pytest.mark.fast
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _write_wp(
     tasks_dir: Path,
     wp_id: str,
@@ -92,11 +91,23 @@ def _write_wp(
 
     history_yaml_lines = []
     for entry in history_entries:
-        history_yaml_lines.append(f"- {{lane: {entry.get('lane', lane)}, agent: {entry.get('agent', 'system')}, action: {entry.get('action', 'transition')}}}")
+        history_yaml_lines.append(
+            f"- {{lane: {entry.get('lane', lane)}, "
+            f"agent: {entry.get('agent', 'system')}, "
+            f"action: {entry.get('action', 'transition')}}}"
+        )
     history_yaml = "\n".join(history_yaml_lines)
 
     content = (
-        f"---\nwork_package_id: {wp_id}\ntitle: {wp_title}\nlane: {lane}\ndependencies: []\nhistory:\n{history_yaml}\n---\n\n# Work Package: {wp_id}\n\nContent.\n"
+        f"---\n"
+        f"work_package_id: {wp_id}\n"
+        f"title: {wp_title}\n"
+        f"lane: {lane}\n"
+        f"dependencies: []\n"
+        f"history:\n"
+        f"{history_yaml}\n"
+        f"---\n\n"
+        f"# Work Package: {wp_id}\n\nContent.\n"
     )
     path = tasks_dir / f"{wp_id}-test.md"
     path.write_text(content, encoding="utf-8")
@@ -140,7 +151,6 @@ def _result_status(result: RebuildResult) -> str:
 # T071: Basic migration of a single feature
 # ---------------------------------------------------------------------------
 
-
 class TestMigrateFeatureBasic:
     """rebuild_event_log() produces a consistent event log for a single feature."""
 
@@ -158,7 +168,9 @@ class TestMigrateFeatureBasic:
 
         # WP01 and WP03 have transitions, so migration should succeed
         status = _result_status(result)
-        assert status == "migrated", f"Expected migrated, got {status}: {result.errors}"
+        assert status == "migrated", (
+            f"Expected migrated, got {status}: {result.errors}"
+        )
         event_log = feature_dir / EVENTS_FILENAME
         assert event_log.exists(), "Event log must be created after migration"
 
@@ -200,7 +212,6 @@ class TestMigrateFeatureBasic:
 # T071: Lane canonicalization
 # ---------------------------------------------------------------------------
 
-
 class TestLaneCanonicalization:
     """Lane aliases are resolved to canonical names in the event log."""
 
@@ -221,11 +232,12 @@ class TestLaneCanonicalization:
         if events:
             # All events should use canonical lane names (not aliases)
             from specify_cli.status.models import Lane
-
             for event in events:
                 if event.wp_id == "WP01":
                     # Lane values must be canonical enum values
-                    assert isinstance(event.to_lane, Lane), f"to_lane {event.to_lane!r} is not a Lane enum"
+                    assert isinstance(event.to_lane, Lane), (
+                        f"to_lane {event.to_lane!r} is not a Lane enum"
+                    )
 
     def test_claimed_alias_resolved(self, tmp_path: Path) -> None:
         feature_dir = _create_legacy_feature(
@@ -243,7 +255,6 @@ class TestLaneCanonicalization:
 # ---------------------------------------------------------------------------
 # T071: Idempotency
 # ---------------------------------------------------------------------------
-
 
 class TestMigrationIdempotency:
     """Migration is idempotent: running twice doesn't change result."""
@@ -275,7 +286,9 @@ class TestMigrationIdempotency:
         # Second rebuild with existing event log: events are enriched/kept,
         # not duplicated. The result should not report errors.
         result = rebuild_event_log(feature_dir, feature_dir.name, {})
-        assert not result.errors, f"Expected no errors on re-run with existing events, got {result.errors}"
+        assert not result.errors, (
+            f"Expected no errors on re-run with existing events, got {result.errors}"
+        )
         # Events should not be lost
         events_after = read_events(feature_dir)
         assert len(events_after) >= 1, "Existing events must be preserved"
@@ -317,7 +330,6 @@ class TestMigrationIdempotency:
 # T071: Multi-feature project migration
 # ---------------------------------------------------------------------------
 
-
 class TestMultiFeatureMigration:
     """Migrating a project with many features in mixed states."""
 
@@ -340,7 +352,9 @@ class TestMultiFeatureMigration:
         # All should have migrated or skipped (none failed without reason)
         for r in results:
             status = _result_status(r)
-            assert status in ("migrated", "skipped"), f"Feature {r.mission_slug} has unexpected status: {status}"
+            assert status in ("migrated", "skipped"), (
+                f"Feature {r.mission_slug} has unexpected status: {status}"
+            )
 
     def test_done_wps_are_in_done_lane_post_migration(self, tmp_path: Path) -> None:
         """WPs that were 'done' before migration should have events after."""
@@ -356,7 +370,9 @@ class TestMultiFeatureMigration:
 
         result = rebuild_event_log(feature_dir, feature_dir.name, {})
         status = _result_status(result)
-        assert status == "migrated", f"Expected migrated, got {status}: {result.errors}"
+        assert status == "migrated", (
+            f"Expected migrated, got {status}: {result.errors}"
+        )
 
         # Events were created and WP01/WP02 are included
         events = read_events(feature_dir)
@@ -377,13 +393,14 @@ class TestMultiFeatureMigration:
         result = rebuild_event_log(feature_dir, feature_dir.name, {})
         # Should not raise; status migrated or skipped
         status = _result_status(result)
-        assert status in ("migrated", "skipped", "failed"), "Migration should complete without exception"
+        assert status in ("migrated", "skipped", "failed"), (
+            "Migration should complete without exception"
+        )
 
 
 # ---------------------------------------------------------------------------
 # T071: Error paths
 # ---------------------------------------------------------------------------
-
 
 class TestMigrationErrorPaths:
     """Migration handles error conditions gracefully."""
@@ -400,7 +417,9 @@ class TestMigrationErrorPaths:
 
         result = rebuild_event_log(feature_dir, feature_dir.name, {})
         # Without a tasks dir there are no WPs and no events, so it is skipped
-        assert result.skipped or result.errors, "Expected skipped or errors when tasks/ is missing"
+        assert result.skipped or result.errors, (
+            "Expected skipped or errors when tasks/ is missing"
+        )
 
     def test_feature_without_wp_files_reports_skipped(self, tmp_path: Path) -> None:
         """If tasks/ exists but has no WP*.md files, rebuild skips gracefully."""
@@ -416,7 +435,9 @@ class TestMigrationErrorPaths:
 
         result = rebuild_event_log(feature_dir, feature_dir.name, {})
         # No WPs and no existing events → skipped
-        assert result.skipped or result.errors, "Expected skipped or errors when no WP files exist"
+        assert result.skipped or result.errors, (
+            "Expected skipped or errors when no WP files exist"
+        )
 
     def test_migration_writes_event_log_when_transitions_exist(self, tmp_path: Path) -> None:
         """rebuild_event_log writes events to disk when transitions are found."""

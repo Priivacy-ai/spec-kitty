@@ -154,7 +154,9 @@ class TestGetLatestReviewCycleVerdict:
 class TestUnknownVerdictWarning:
     """Unknown verdict values produce a warning, not a block."""
 
-    def test_unknown_verdict_emits_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_unknown_verdict_emits_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """A verdict not in _VALID_VERDICTS produces a logger.warning."""
         wp_dir = tmp_path / "WP01-test"
         _write_review_cycle(wp_dir, 1, "super_approved")  # not in _VALID_VERDICTS
@@ -231,7 +233,6 @@ class TestVerdictGuardInMoveTask:
         mock_locate_wp.return_value = mock_wp
 
         from specify_cli.status.store import read_events as _real_re
-
         mock_read_events.return_value = _real_re(feature_dir)
         mock_emit.return_value = MagicMock()
 
@@ -302,7 +303,6 @@ class TestVerdictGuardInMoveTask:
         mock_locate_wp.return_value = mock_wp
 
         from specify_cli.status.store import read_events as _real_re
-
         mock_read_events.return_value = _real_re(feature_dir)
         mock_emit.return_value = MagicMock()
 
@@ -376,7 +376,6 @@ class TestSkipReviewArtifactCheck:
         mock_locate_wp.return_value = mock_wp
 
         from specify_cli.status.store import read_events as _real_re
-
         mock_read_events.return_value = _real_re(feature_dir)
         mock_emit.return_value = MagicMock()
 
@@ -398,7 +397,9 @@ class TestSkipReviewArtifactCheck:
         # Must NOT exit with the rejected-verdict guard (exit 1 with artifact name)
         # The guard message is: "Error: WP01 review-cycle-1.md has verdict: rejected."
         guard_triggered = result.exit_code == 1 and "review-cycle-1.md" in result.output and "rejected" in result.output
-        assert not guard_triggered, f"Verdict guard fired despite --skip-review-artifact-check.\nOutput:\n{result.output}"
+        assert not guard_triggered, (
+            f"Verdict guard fired despite --skip-review-artifact-check.\nOutput:\n{result.output}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +426,9 @@ class TestTasksStatusReviewWarnings:
         ):
             return runner.invoke(app, ["status", "--mission", mission_slug])
 
-    def test_status_warns_for_done_wp_with_rejected_review_artifact(self, tmp_path: Path) -> None:
+    def test_status_warns_for_done_wp_with_rejected_review_artifact(
+        self, tmp_path: Path
+    ) -> None:
         """The CLI status command checks tasks/<WP-slug>/review-cycle-N.md."""
         mission_slug = "test-status-stale-verdict"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
@@ -504,7 +507,9 @@ class TestLaneGuardErrorMessage:
             elif "rev-list" in cmd_str and "..HEAD" in cmd_str:
                 # commits ahead of base: 1 (so we reach the contamination guard)
                 result_mock.stdout = "1\n"
-            elif "rev-parse" in cmd_str and any(ref in cmd_str for ref in ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD")):
+            elif "rev-parse" in cmd_str and any(
+                ref in cmd_str for ref in ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD")
+            ):
                 # No in-progress git operation
                 result_mock.returncode = 1
                 result_mock.stdout = ""
@@ -559,8 +564,12 @@ class TestLaneGuardErrorMessage:
 
         assert not is_valid, "Expected validation to fail (lane contamination)"
         guidance_text = "\n".join(guidance)
-        assert "my-planning-branch" in guidance_text, f"Expected planning branch name in guidance; got:\n{guidance_text}"
-        assert "git show" in guidance_text, f"Expected git show example in guidance; got:\n{guidance_text}"
+        assert "my-planning-branch" in guidance_text, (
+            f"Expected planning branch name in guidance; got:\n{guidance_text}"
+        )
+        assert "git show" in guidance_text, (
+            f"Expected git show example in guidance; got:\n{guidance_text}"
+        )
         assert "git show my-planning-branch:kitty-specs/test-lane-guard-001/extra-plan.md" in guidance_text
 
     def test_lane_guard_fallback_no_meta(self, tmp_path: Path) -> None:
@@ -576,4 +585,6 @@ class TestLaneGuardErrorMessage:
 
         assert not is_valid, "Expected validation to fail (lane contamination)"
         guidance_text = "\n".join(guidance)
-        assert "planning branch unknown" in guidance_text, f"Expected fallback message; got:\n{guidance_text}"
+        assert "planning branch unknown" in guidance_text, (
+            f"Expected fallback message; got:\n{guidance_text}"
+        )

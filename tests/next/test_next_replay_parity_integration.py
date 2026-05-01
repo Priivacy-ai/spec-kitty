@@ -10,7 +10,6 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-
 def test_mission_next_replay_fixture_reduces_to_expected_state() -> None:
     """spec-kitty must remain compatible with the canonical mission-next replay stream."""
     envelopes = load_replay_stream("mission-next-replay-full-lifecycle")

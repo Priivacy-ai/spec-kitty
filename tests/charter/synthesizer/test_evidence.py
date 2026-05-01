@@ -28,38 +28,37 @@ from charter.synthesizer.evidence import (
 # Helpers — minimal valid instances
 # ---------------------------------------------------------------------------
 
-
 def _make_code_signals(**overrides: object) -> CodeSignals:
-    defaults = {
-        "stack_id": "python",
-        "primary_language": "python",
-        "frameworks": ("django",),
-        "test_frameworks": ("pytest",),
-        "scope_tag": "python",
-        "representative_files": ("src/main.py",),
-        "detected_at": "2026-04-19T10:00:00+00:00",
-    }
+    defaults = dict(
+        stack_id="python",
+        primary_language="python",
+        frameworks=("django",),
+        test_frameworks=("pytest",),
+        scope_tag="python",
+        representative_files=("src/main.py",),
+        detected_at="2026-04-19T10:00:00+00:00",
+    )
     defaults.update(overrides)  # type: ignore[arg-type]
     return CodeSignals(**defaults)  # type: ignore[arg-type]
 
 
 def _make_corpus_entry(**overrides: object) -> CorpusEntry:
-    defaults = {
-        "topic": "testing",
-        "tags": ("quality", "coverage"),
-        "guidance": "Write tests for all public APIs.",
-    }
+    defaults = dict(
+        topic="testing",
+        tags=("quality", "coverage"),
+        guidance="Write tests for all public APIs.",
+    )
     defaults.update(overrides)  # type: ignore[arg-type]
     return CorpusEntry(**defaults)  # type: ignore[arg-type]
 
 
 def _make_corpus_snapshot(**overrides: object) -> CorpusSnapshot:
-    defaults = {
-        "snapshot_id": "python-v1.0.0",
-        "profile_key": "python",
-        "entries": (_make_corpus_entry(),),
-        "loaded_at": "2026-04-19T10:00:00+00:00",
-    }
+    defaults = dict(
+        snapshot_id="python-v1.0.0",
+        profile_key="python",
+        entries=(_make_corpus_entry(),),
+        loaded_at="2026-04-19T10:00:00+00:00",
+    )
     defaults.update(overrides)  # type: ignore[arg-type]
     return CorpusSnapshot(**defaults)  # type: ignore[arg-type]
 
@@ -72,7 +71,6 @@ def _make_bundle(**overrides: object) -> EvidenceBundle:
 # Case 1: is_empty True when all defaults
 # ---------------------------------------------------------------------------
 
-
 def test_evidence_bundle_default_is_empty() -> None:
     """EvidenceBundle() with all defaults reports is_empty=True."""
     bundle = EvidenceBundle()
@@ -82,7 +80,6 @@ def test_evidence_bundle_default_is_empty() -> None:
 # ---------------------------------------------------------------------------
 # Case 2: is_empty False when any field is non-empty
 # ---------------------------------------------------------------------------
-
 
 def test_evidence_bundle_not_empty_with_code_signals() -> None:
     bundle = EvidenceBundle(code_signals=_make_code_signals())
@@ -103,7 +100,6 @@ def test_evidence_bundle_not_empty_with_corpus_snapshot() -> None:
 # Case 3: scope_tag != primary_language raises ValueError
 # ---------------------------------------------------------------------------
 
-
 def test_code_signals_scope_tag_mismatch_raises() -> None:
     with pytest.raises(ValueError, match="scope_tag must equal primary_language"):
         _make_code_signals(scope_tag="javascript")
@@ -113,17 +109,13 @@ def test_code_signals_scope_tag_mismatch_raises() -> None:
 # Case 4: Invalid stack_id format raises ValueError
 # ---------------------------------------------------------------------------
 
-
-@pytest.mark.parametrize(
-    "bad_stack_id",
-    [
-        "Python",  # uppercase
-        "123python",  # starts with digit
-        "",  # empty string
-        "py thon",  # space
-        "_python",  # leading underscore
-    ],
-)
+@pytest.mark.parametrize("bad_stack_id", [
+    "Python",       # uppercase
+    "123python",    # starts with digit
+    "",             # empty string
+    "py thon",      # space
+    "_python",      # leading underscore
+])
 def test_code_signals_invalid_stack_id_raises(bad_stack_id: str) -> None:
     with pytest.raises(ValueError, match="Invalid stack_id format"):
         _make_code_signals(stack_id=bad_stack_id)
@@ -139,7 +131,6 @@ def test_code_signals_valid_stack_id_with_plus() -> None:
 # Case 5: representative_files with leading slash raises ValueError
 # ---------------------------------------------------------------------------
 
-
 def test_code_signals_leading_slash_in_files_raises() -> None:
     with pytest.raises(ValueError, match="repo-relative paths without leading slash"):
         _make_code_signals(representative_files=("/absolute/path.py",))
@@ -154,18 +145,14 @@ def test_code_signals_empty_string_in_files_raises() -> None:
 # Case 6: Invalid snapshot_id format raises ValueError
 # ---------------------------------------------------------------------------
 
-
-@pytest.mark.parametrize(
-    "bad_snapshot_id",
-    [
-        "Python-v1.0.0",  # uppercase
-        "python-1.0.0",  # missing 'v' prefix
-        "python-v1",  # incomplete semver
-        "python-v1.0",  # incomplete semver (two parts only)
-        "",  # empty string
-        "python_v1.0.0",  # underscore instead of hyphen before v
-    ],
-)
+@pytest.mark.parametrize("bad_snapshot_id", [
+    "Python-v1.0.0",    # uppercase
+    "python-1.0.0",     # missing 'v' prefix
+    "python-v1",        # incomplete semver
+    "python-v1.0",      # incomplete semver (two parts only)
+    "",                 # empty string
+    "python_v1.0.0",    # underscore instead of hyphen before v
+])
 def test_corpus_snapshot_invalid_id_raises(bad_snapshot_id: str) -> None:
     with pytest.raises(ValueError, match="Invalid snapshot_id format"):
         _make_corpus_snapshot(snapshot_id=bad_snapshot_id)
@@ -180,7 +167,6 @@ def test_corpus_snapshot_valid_id() -> None:
 # Case 7: url_list with empty string raises ValueError
 # ---------------------------------------------------------------------------
 
-
 def test_evidence_bundle_empty_url_raises() -> None:
     with pytest.raises(ValueError, match="url_list must not contain empty strings"):
         EvidenceBundle(url_list=("https://example.com", ""))
@@ -189,7 +175,6 @@ def test_evidence_bundle_empty_url_raises() -> None:
 # ---------------------------------------------------------------------------
 # Case 8: Frozen dataclasses raise FrozenInstanceError on mutation
 # ---------------------------------------------------------------------------
-
 
 def test_code_signals_is_frozen() -> None:
     cs = _make_code_signals()
@@ -218,7 +203,6 @@ def test_evidence_bundle_is_frozen() -> None:
 # ---------------------------------------------------------------------------
 # Case 9: All dataclasses are hashable
 # ---------------------------------------------------------------------------
-
 
 def test_all_dataclasses_are_hashable() -> None:
     cs = _make_code_signals()

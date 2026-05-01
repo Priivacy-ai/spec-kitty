@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.runtime.migrate import (
+
     AssetDisposition,
     MigrationReport,
     classify_asset,
@@ -27,7 +28,6 @@ pytestmark = pytest.mark.git_repo
 # Helpers: package asset setup
 # ---------------------------------------------------------------------------
 
-
 def _setup_package_assets(package_root: Path, mission: str = "software-dev") -> None:
     """Create a minimal package asset tree (immutable comparison target)."""
     mission_dir = package_root / mission
@@ -40,11 +40,9 @@ def _setup_package_assets(package_root: Path, mission: str = "software-dev") -> 
     (mission_dir / "scripts").mkdir(parents=True, exist_ok=True)
     (mission_dir / "scripts" / "deploy.sh").write_text("package deploy script v2")
 
-
 # ---------------------------------------------------------------------------
 # Helpers: set up project and global directory structures
 # ---------------------------------------------------------------------------
-
 
 def _setup_global(global_home: Path, mission: str = "software-dev") -> None:
     """Create a minimal global runtime directory with sample shared assets."""
@@ -56,7 +54,9 @@ def _setup_global(global_home: Path, mission: str = "software-dev") -> None:
     (mission_dir / "templates" / "plan.md").write_text("global plan content")
     # command-templates/implement.md
     (mission_dir / "command-templates").mkdir(parents=True, exist_ok=True)
-    (mission_dir / "command-templates" / "implement.md").write_text("global implement content")
+    (mission_dir / "command-templates" / "implement.md").write_text(
+        "global implement content"
+    )
     # AGENTS.md at global root and under missions/ (for package_root compatibility)
     (global_home / "AGENTS.md").write_text("global agents content")
     missions_dir = global_home / "missions"
@@ -64,7 +64,6 @@ def _setup_global(global_home: Path, mission: str = "software-dev") -> None:
     # scripts/deploy.sh
     (mission_dir / "scripts").mkdir(parents=True, exist_ok=True)
     (mission_dir / "scripts" / "deploy.sh").write_text("global deploy script")
-
 
 def _setup_project_kittify(
     project_dir: Path,
@@ -99,11 +98,9 @@ def _setup_project_kittify(
                 p.write_text(content)
     return kittify
 
-
 # ---------------------------------------------------------------------------
 # T020: classify_asset() tests
 # ---------------------------------------------------------------------------
-
 
 class TestClassifyAsset:
     """Test the classify_asset() function for all disposition types."""
@@ -309,11 +306,9 @@ class TestClassifyAsset:
         assert len(calls) == 1
         assert calls[0]["shallow"] is False
 
-
 # ---------------------------------------------------------------------------
 # T021: execute_migration() tests
 # ---------------------------------------------------------------------------
-
 
 class TestExecuteMigration:
     """Test the execute_migration() function."""
@@ -366,7 +361,9 @@ class TestExecuteMigration:
         assert len(report.kept) == 2  # config.yaml + memory/notes.md
         assert len(report.unknown) == 1  # random/stuff.txt
 
-    def test_actual_execution_removes_identical(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_actual_execution_removes_identical(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Non-dry-run removes identical files from filesystem."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -388,7 +385,9 @@ class TestExecuteMigration:
         # Project-specific file should still exist
         assert (kittify / "config.yaml").exists()
 
-    def test_actual_execution_moves_customized_to_overrides(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_actual_execution_moves_customized_to_overrides(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Non-dry-run moves customized files to overrides/.
 
         Uses a file with no package counterpart (user-created template)
@@ -415,7 +414,9 @@ class TestExecuteMigration:
         assert override.exists()
         assert override.read_text() == "customized content"
 
-    def test_cleanup_empty_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_cleanup_empty_dirs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """After removing all files, empty shared asset dirs are cleaned up."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -433,7 +434,9 @@ class TestExecuteMigration:
         # templates/ dir should be cleaned up (it's empty now)
         assert not (kittify / "templates").exists()
 
-    def test_cleanup_does_not_remove_project_specific_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_cleanup_does_not_remove_project_specific_dirs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Cleanup does NOT remove project-specific directories even if empty."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -453,16 +456,16 @@ class TestExecuteMigration:
         # memory/ should still exist even though it's empty
         assert (kittify / "memory").exists()
 
-
 # ---------------------------------------------------------------------------
 # T023: Dry-run and idempotency tests (G3, 1A-03, 1A-04)
 # ---------------------------------------------------------------------------
 
-
 class TestMigrateDryRun:
     """Dry-run reports correct dispositions without modifying FS (G3, 1A-03)."""
 
-    def test_dry_run_no_filesystem_changes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_dry_run_no_filesystem_changes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Dry-run must not modify any files on the filesystem."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -497,11 +500,12 @@ class TestMigrateDryRun:
         assert (kittify / "templates" / "tasks.md").read_text() == "my custom tasks"
         assert (kittify / "config.yaml").read_text() == "keep me"
 
-
 class TestMigrateIdempotent:
     """Running migrate twice produces identical outcome (G3, 1A-04)."""
 
-    def test_migrate_idempotent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_migrate_idempotent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Second run on already-migrated project is a no-op."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -530,7 +534,11 @@ class TestMigrateIdempotent:
 
         # Capture state after first migration
         kittify = project / ".kittify"
-        state_after_first = {str(p.relative_to(kittify)): p.read_text() for p in kittify.rglob("*") if p.is_file()}
+        state_after_first = {
+            str(p.relative_to(kittify)): p.read_text()
+            for p in kittify.rglob("*")
+            if p.is_file()
+        }
 
         # Second migration: should be a no-op
         report2 = execute_migration(project, dry_run=False)
@@ -543,10 +551,16 @@ class TestMigrateIdempotent:
         assert len(report2.kept) >= 1
 
         # Filesystem state should be identical
-        state_after_second = {str(p.relative_to(kittify)): p.read_text() for p in kittify.rglob("*") if p.is_file()}
+        state_after_second = {
+            str(p.relative_to(kittify)): p.read_text()
+            for p in kittify.rglob("*")
+            if p.is_file()
+        }
         assert state_after_first == state_after_second
 
-    def test_no_errors_on_empty_kittify(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_no_errors_on_empty_kittify(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Migration on an empty .kittify/ dir produces no errors."""
         global_home = tmp_path / "global"
         global_home.mkdir()
@@ -562,16 +576,16 @@ class TestMigrateIdempotent:
         assert len(report.kept) == 0
         assert len(report.unknown) == 0
 
-
 # ---------------------------------------------------------------------------
 # T024: Customized files moved to overrides (F-Legacy-003, 1A-05)
 # ---------------------------------------------------------------------------
 
-
 class TestCustomizedFilesMovedToOverrides:
     """Customized files moved to .kittify/overrides/ (F-Legacy-003, 1A-05)."""
 
-    def test_customized_files_moved_to_overrides(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_customized_files_moved_to_overrides(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """User-created files (no package counterpart) end up in .kittify/overrides/."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -594,11 +608,16 @@ class TestCustomizedFilesMovedToOverrides:
 
         # Verify on filesystem
         assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
-        assert (kittify / "overrides" / "templates" / "my-custom.md").read_text() == "customized content"
+        assert (
+            (kittify / "overrides" / "templates" / "my-custom.md").read_text()
+            == "customized content"
+        )
         # Verify: original location removed
         assert not (kittify / "templates" / "my-custom.md").exists()
 
-    def test_multiple_customized_files_preserve_hierarchy(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_multiple_customized_files_preserve_hierarchy(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Multiple user-created files maintain their directory hierarchy under overrides/."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -625,11 +644,22 @@ class TestCustomizedFilesMovedToOverrides:
         assert (kittify / "overrides" / "scripts" / "custom-script.sh").exists()
 
         # Content preserved
-        assert (kittify / "overrides" / "templates" / "my-custom.md").read_text() == "custom template"
-        assert (kittify / "overrides" / "command-templates" / "my-workflow.md").read_text() == "custom workflow"
-        assert (kittify / "overrides" / "scripts" / "custom-script.sh").read_text() == "custom script"
+        assert (
+            (kittify / "overrides" / "templates" / "my-custom.md").read_text()
+            == "custom template"
+        )
+        assert (
+            (kittify / "overrides" / "command-templates" / "my-workflow.md").read_text()
+            == "custom workflow"
+        )
+        assert (
+            (kittify / "overrides" / "scripts" / "custom-script.sh").read_text()
+            == "custom script"
+        )
 
-    def test_outdated_agents_md_superseded(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_outdated_agents_md_superseded(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """AGENTS.md with package counterpart but different content is SUPERSEDED (removed)."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -650,7 +680,9 @@ class TestCustomizedFilesMovedToOverrides:
         assert not (kittify / "AGENTS.md").exists()
         assert not (kittify / "overrides" / "AGENTS.md").exists()
 
-    def test_mix_of_identical_customized_and_superseded(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_mix_of_identical_customized_and_superseded(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Identical removed, superseded removed, customized moved; project-specific untouched."""
         global_home = tmp_path / "global"
         _setup_global(global_home)
@@ -688,11 +720,9 @@ class TestCustomizedFilesMovedToOverrides:
         assert (kittify / "config.yaml").exists()
         assert (kittify / "config.yaml").read_text() == "my config"
 
-
 # ---------------------------------------------------------------------------
 # T020 extended: classify_asset with global fallback path
 # ---------------------------------------------------------------------------
-
 
 class TestClassifyAssetGlobalFallback:
     """Test classify_asset falls back to direct global path when mission path missing."""
@@ -730,11 +760,9 @@ class TestClassifyAssetGlobalFallback:
         result = classify_asset(f, global_home, kittify)
         assert result == AssetDisposition.IDENTICAL
 
-
 # ---------------------------------------------------------------------------
 # MigrationReport dataclass tests
 # ---------------------------------------------------------------------------
-
 
 class TestMigrationReport:
     """Test MigrationReport dataclass defaults and behavior."""
@@ -758,11 +786,9 @@ class TestMigrationReport:
         report = MigrationReport()
         assert report.superseded == []
 
-
 # ---------------------------------------------------------------------------
 # T025: SUPERSEDED disposition tests
 # ---------------------------------------------------------------------------
-
 
 class TestClassifyAssetSuperseded:
     """Test SUPERSEDED disposition when package_root is provided."""
@@ -831,11 +857,12 @@ class TestClassifyAssetSuperseded:
         result = classify_asset(f, global_home, kittify, package_root=package_root)
         assert result == AssetDisposition.PROJECT_SPECIFIC
 
-
 class TestExecuteMigrationSuperseded:
     """Test that execute_migration() removes superseded files."""
 
-    def test_superseded_files_removed_not_moved_to_overrides(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_superseded_files_removed_not_moved_to_overrides(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Superseded files are removed, NOT moved to overrides/."""
         package_root = tmp_path / "pkg"
         _setup_package_assets(package_root)
@@ -869,7 +896,9 @@ class TestExecuteMigrationSuperseded:
         # No overrides created
         assert not (kittify / "overrides").exists()
 
-    def test_genuine_customization_still_moved_to_overrides(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_genuine_customization_still_moved_to_overrides(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Files with no package counterpart are still moved to overrides/."""
         package_root = tmp_path / "pkg"
         _setup_package_assets(package_root)
@@ -892,7 +921,9 @@ class TestExecuteMigrationSuperseded:
         assert len(report.moved) == 1
         assert (kittify / "overrides" / "templates" / "my-custom-template.md").exists()
 
-    def test_version_skew_scenario_end_to_end(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_version_skew_scenario_end_to_end(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Simulate upgrade where global is newer than project files.
 
         This is the exact scenario from issue #285: ensure_runtime() has
@@ -938,7 +969,9 @@ class TestExecuteMigrationSuperseded:
         # Project-specific files untouched
         assert (kittify / "config.yaml").exists()
 
-    def test_superseded_count_in_report(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_superseded_count_in_report(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """MigrationReport.superseded tracks superseded files separately from removed."""
         package_root = tmp_path / "pkg"
         _setup_package_assets(package_root)

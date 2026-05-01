@@ -86,7 +86,10 @@ def test_extra_deletion_raises(git_repo: Path) -> None:
         assert_staging_area_matches_expected(git_repo, ["alpha.txt"])
 
     err = exc_info.value
-    assert any(p.path == "beta.txt" and p.status_code.startswith("D") for p in err.unexpected), f"expected phantom deletion of beta.txt, got {err.unexpected!r}"
+    assert any(
+        p.path == "beta.txt" and p.status_code.startswith("D")
+        for p in err.unexpected
+    ), f"expected phantom deletion of beta.txt, got {err.unexpected!r}"
     # The requested list should be preserved.
     assert "alpha.txt" in err.requested
     # Error message is human-readable and includes the unexpected path.
@@ -108,7 +111,10 @@ def test_extra_modification_raises(git_repo: Path) -> None:
         assert_staging_area_matches_expected(git_repo, ["alpha.txt"])
 
     err = exc_info.value
-    assert any(p.path == "beta.txt" and p.status_code.startswith("M") for p in err.unexpected), f"expected modification of beta.txt, got {err.unexpected!r}"
+    assert any(
+        p.path == "beta.txt" and p.status_code.startswith("M")
+        for p in err.unexpected
+    ), f"expected modification of beta.txt, got {err.unexpected!r}"
 
 
 def test_extra_addition_raises(git_repo: Path) -> None:
@@ -124,7 +130,10 @@ def test_extra_addition_raises(git_repo: Path) -> None:
         assert_staging_area_matches_expected(git_repo, ["alpha.txt"])
 
     err = exc_info.value
-    assert any(p.path == "gamma.txt" and p.status_code.startswith("A") for p in err.unexpected), f"expected addition of gamma.txt, got {err.unexpected!r}"
+    assert any(
+        p.path == "gamma.txt" and p.status_code.startswith("A")
+        for p in err.unexpected
+    ), f"expected addition of gamma.txt, got {err.unexpected!r}"
 
 
 def test_windows_separator_in_expected_is_normalized(git_repo: Path) -> None:

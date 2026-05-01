@@ -3,11 +3,10 @@
 Single source of truth for per-(mode, event) projection behaviour.
 See ADR-003-projection-policy.md and docs/trail-model.md (SaaS Read-Model Policy).
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from specify_cli.invocation.modes import ModeOfWork
 
@@ -20,7 +19,7 @@ __all__ = [
 ]
 
 
-class EventKind(StrEnum):
+class EventKind(str, Enum):
     STARTED = "started"
     COMPLETED = "completed"
     ARTIFACT_LINK = "artifact_link"
@@ -36,25 +35,28 @@ class ProjectionRule:
 
 POLICY_TABLE: dict[tuple[ModeOfWork, EventKind], ProjectionRule] = {
     # Advisory — timeline entries with no body.
-    (ModeOfWork.ADVISORY, EventKind.STARTED): ProjectionRule(True, False, False),
-    (ModeOfWork.ADVISORY, EventKind.COMPLETED): ProjectionRule(True, False, False),
+    (ModeOfWork.ADVISORY, EventKind.STARTED):       ProjectionRule(True,  False, False),
+    (ModeOfWork.ADVISORY, EventKind.COMPLETED):     ProjectionRule(True,  False, False),
     (ModeOfWork.ADVISORY, EventKind.ARTIFACT_LINK): ProjectionRule(False, False, False),
-    (ModeOfWork.ADVISORY, EventKind.COMMIT_LINK): ProjectionRule(False, False, False),
+    (ModeOfWork.ADVISORY, EventKind.COMMIT_LINK):   ProjectionRule(False, False, False),
+
     # Task execution — full bodies projected; correlation events projected without bodies.
-    (ModeOfWork.TASK_EXECUTION, EventKind.STARTED): ProjectionRule(True, True, False),
-    (ModeOfWork.TASK_EXECUTION, EventKind.COMPLETED): ProjectionRule(True, True, True),
+    (ModeOfWork.TASK_EXECUTION, EventKind.STARTED):       ProjectionRule(True, True,  False),
+    (ModeOfWork.TASK_EXECUTION, EventKind.COMPLETED):     ProjectionRule(True, True,  True),
     (ModeOfWork.TASK_EXECUTION, EventKind.ARTIFACT_LINK): ProjectionRule(True, False, False),
-    (ModeOfWork.TASK_EXECUTION, EventKind.COMMIT_LINK): ProjectionRule(True, False, False),
+    (ModeOfWork.TASK_EXECUTION, EventKind.COMMIT_LINK):   ProjectionRule(True, False, False),
+
     # Mission step — same projection behaviour as task_execution.
-    (ModeOfWork.MISSION_STEP, EventKind.STARTED): ProjectionRule(True, True, False),
-    (ModeOfWork.MISSION_STEP, EventKind.COMPLETED): ProjectionRule(True, True, True),
+    (ModeOfWork.MISSION_STEP, EventKind.STARTED):       ProjectionRule(True, True,  False),
+    (ModeOfWork.MISSION_STEP, EventKind.COMPLETED):     ProjectionRule(True, True,  True),
     (ModeOfWork.MISSION_STEP, EventKind.ARTIFACT_LINK): ProjectionRule(True, False, False),
-    (ModeOfWork.MISSION_STEP, EventKind.COMMIT_LINK): ProjectionRule(True, False, False),
+    (ModeOfWork.MISSION_STEP, EventKind.COMMIT_LINK):   ProjectionRule(True, False, False),
+
     # Query — no projection; all events silently dropped.
-    (ModeOfWork.QUERY, EventKind.STARTED): ProjectionRule(False, False, False),
-    (ModeOfWork.QUERY, EventKind.COMPLETED): ProjectionRule(False, False, False),
+    (ModeOfWork.QUERY, EventKind.STARTED):       ProjectionRule(False, False, False),
+    (ModeOfWork.QUERY, EventKind.COMPLETED):     ProjectionRule(False, False, False),
     (ModeOfWork.QUERY, EventKind.ARTIFACT_LINK): ProjectionRule(False, False, False),
-    (ModeOfWork.QUERY, EventKind.COMMIT_LINK): ProjectionRule(False, False, False),
+    (ModeOfWork.QUERY, EventKind.COMMIT_LINK):   ProjectionRule(False, False, False),
 }
 
 

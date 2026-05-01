@@ -438,9 +438,7 @@ def _persist_in_artifact(artifact_path: Path, decision: ArbiterDecision) -> Path
     from ruamel.yaml import YAML
     from io import StringIO
 
-    content = artifact_path.read_text(
-        encoding="utf-8"
-    )  # NOSONAR(pythonsecurity:S2083) - path is resolved from trusted project structure, not user-controlled input
+    content = artifact_path.read_text(encoding="utf-8")  # NOSONAR(pythonsecurity:S2083) - path is resolved from trusted project structure, not user-controlled input
 
     # Split frontmatter from body
     fm_match = re.match(r"^---\n(.*?)\n---\n?(.*)", content, re.DOTALL)

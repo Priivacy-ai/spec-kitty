@@ -125,7 +125,6 @@ class TestDoctorCommand:
         mock_check.return_value = ("[green]Connected[/green]", "Server reachable.")
 
         from specify_cli.cli.commands.sync import doctor
-
         doctor()
 
         captured = capsys.readouterr()
@@ -195,7 +194,6 @@ class TestDoctorCommand:
         mock_check.return_value = ("[red]Unreachable[/red]", "Connection refused.")
 
         from specify_cli.cli.commands.sync import doctor
-
         doctor()
 
         captured = capsys.readouterr()

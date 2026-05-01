@@ -111,39 +111,55 @@ def interview_sections() -> list[str]:
 
 
 class TestTier1KindSlug:
-    def test_directive_hit_by_artifact_id(self, all_artifacts, merged_drg, interview_sections, directive_artifact) -> None:
+    def test_directive_hit_by_artifact_id(
+        self, all_artifacts, merged_drg, interview_sections, directive_artifact
+    ) -> None:
         """directive:PROJECT_001 → tier-1 hit (matched by artifact_id)."""
         result = resolve("directive:PROJECT_001", all_artifacts, merged_drg, interview_sections)
         assert result.matched_form == "kind_slug"
         assert result.targets == [directive_artifact]
         assert result.matched_value == "directive:PROJECT_001"
 
-    def test_tactic_hit_by_slug(self, all_artifacts, merged_drg, interview_sections, tactic_artifact) -> None:
+    def test_tactic_hit_by_slug(
+        self, all_artifacts, merged_drg, interview_sections, tactic_artifact
+    ) -> None:
         """tactic:how-we-apply-directive-003 → tier-1 hit (matched by slug)."""
-        result = resolve("tactic:how-we-apply-directive-003", all_artifacts, merged_drg, interview_sections)
+        result = resolve(
+            "tactic:how-we-apply-directive-003", all_artifacts, merged_drg, interview_sections
+        )
         assert result.matched_form == "kind_slug"
         assert result.targets == [tactic_artifact]
 
-    def test_styleguide_hit(self, all_artifacts, merged_drg, interview_sections, styleguide_artifact) -> None:
+    def test_styleguide_hit(
+        self, all_artifacts, merged_drg, interview_sections, styleguide_artifact
+    ) -> None:
         """styleguide:python-testing-style → tier-1 hit."""
-        result = resolve("styleguide:python-testing-style", all_artifacts, merged_drg, interview_sections)
+        result = resolve(
+            "styleguide:python-testing-style", all_artifacts, merged_drg, interview_sections
+        )
         assert result.matched_form == "kind_slug"
         assert result.targets == [styleguide_artifact]
 
-    def test_us3_local_first_over_drg_urn(self, all_artifacts, merged_drg, interview_sections, tactic_artifact) -> None:
+    def test_us3_local_first_over_drg_urn(
+        self, all_artifacts, merged_drg, interview_sections, tactic_artifact
+    ) -> None:
         """US-3: tactic:how-we-apply-directive-003 routes to project artifact (tier-1),
         NOT to a DRG URN lookup (tier-2), even though DIRECTIVE_003 is in the DRG.
 
         This is the critical local-first correctness property.
         """
-        result = resolve("tactic:how-we-apply-directive-003", all_artifacts, merged_drg, interview_sections)
+        result = resolve(
+            "tactic:how-we-apply-directive-003", all_artifacts, merged_drg, interview_sections
+        )
         # Must be tier-1, not tier-2
         assert result.matched_form == "kind_slug"
         assert len(result.targets) == 1
         assert result.targets[0].kind == "tactic"
         assert result.targets[0].slug == "how-we-apply-directive-003"
 
-    def test_tier1_miss_falls_through_to_tier2(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_tier1_miss_falls_through_to_tier2(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """directive:DIRECTIVE_003 — LHS is synthesizable but NO project-local
         artifact has artifact_id=DIRECTIVE_003, so tier-1 misses and falls to tier-2.
         """
@@ -157,7 +173,9 @@ class TestTier1KindSlug:
         assert "how-we-apply-directive-003" in slugs
         assert "python-testing-style" in slugs
 
-    def test_unsynthesizable_kind_skips_tier1(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_unsynthesizable_kind_skips_tier1(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """paradigm:evidence-first — LHS not synthesizable → skips tier-1 entirely."""
         result = resolve("paradigm:evidence-first", all_artifacts, merged_drg, interview_sections)
         # Goes straight to tier-2 (DRG URN), finds it, zero project-local refs → EC-4
@@ -171,13 +189,17 @@ class TestTier1KindSlug:
 
 
 class TestTier2DrgUrn:
-    def test_drg_urn_with_project_local_refs(self, all_artifacts, merged_drg, interview_sections, tactic_artifact, styleguide_artifact) -> None:
+    def test_drg_urn_with_project_local_refs(
+        self, all_artifacts, merged_drg, interview_sections, tactic_artifact, styleguide_artifact
+    ) -> None:
         """directive:DIRECTIVE_003 → DRG URN hit; 2 project artifacts reference it."""
         result = resolve("directive:DIRECTIVE_003", all_artifacts, merged_drg, interview_sections)
         assert result.matched_form == "drg_urn"
         assert len(result.targets) == 2
 
-    def test_drg_urn_zero_match_ec4(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_drg_urn_zero_match_ec4(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """directive:DIRECTIVE_001 → DRG URN exists; directive_artifact refs it.
 
         If we strip source_urns from artifacts → zero project refs = EC-4.
@@ -197,7 +219,9 @@ class TestTier2DrgUrn:
         assert result.matched_form == "drg_urn"
         assert result.targets == []  # EC-4 zero-match
 
-    def test_shipped_directive_003_via_drg_urn(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_shipped_directive_003_via_drg_urn(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """directive:DIRECTIVE_003 → tier-2 (shipped URN, no local PROJECT_ artifact)."""
         # Remove tactic and styleguide that reference DIRECTIVE_003
         directive_only = [
@@ -214,7 +238,9 @@ class TestTier2DrgUrn:
         assert result.matched_form == "drg_urn"
         assert result.targets == []  # Zero local refs → EC-4
 
-    def test_unknown_drg_kind_falls_through_to_unresolved(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_unknown_drg_kind_falls_through_to_unresolved(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """foo:bar — LHS not a known DRG kind → misses tier-2, eventually raises."""
         with pytest.raises(TopicSelectorUnresolvedError) as exc_info:
             resolve("foo:bar", all_artifacts, merged_drg, interview_sections)
@@ -228,7 +254,9 @@ class TestTier2DrgUrn:
 
 
 class TestTier3InterviewSection:
-    def test_section_hit_with_matching_artifacts(self, all_artifacts, merged_drg, interview_sections, tactic_artifact, styleguide_artifact) -> None:
+    def test_section_hit_with_matching_artifacts(
+        self, all_artifacts, merged_drg, interview_sections, tactic_artifact, styleguide_artifact
+    ) -> None:
         """testing_philosophy → tier-3 hit; returns tactic + styleguide artifacts."""
         result = resolve("testing_philosophy", all_artifacts, merged_drg, interview_sections)
         assert result.matched_form == "interview_section"
@@ -237,7 +265,9 @@ class TestTier3InterviewSection:
         assert "python-testing-style" in slugs
         assert "mission-scope" not in slugs  # mission_type section, not testing_philosophy
 
-    def test_hyphenated_section_alias_resolves_to_canonical_section(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_hyphenated_section_alias_resolves_to_canonical_section(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """testing-philosophy is normalized to testing_philosophy for operator UX."""
         result = resolve("testing-philosophy", all_artifacts, merged_drg, interview_sections)
         assert result.matched_form == "interview_section"
@@ -246,20 +276,26 @@ class TestTier3InterviewSection:
         assert "how-we-apply-directive-003" in slugs
         assert "python-testing-style" in slugs
 
-    def test_section_hit_with_no_artifacts(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_section_hit_with_no_artifacts(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """language_scope → tier-3 hit but no artifacts reference that section."""
         result = resolve("language_scope", all_artifacts, merged_drg, interview_sections)
         assert result.matched_form == "interview_section"
         assert result.targets == []
 
-    def test_section_hit_single_artifact(self, all_artifacts, merged_drg, interview_sections, directive_artifact) -> None:
+    def test_section_hit_single_artifact(
+        self, all_artifacts, merged_drg, interview_sections, directive_artifact
+    ) -> None:
         """mission_type → tier-3 hit; only the directive artifact."""
         result = resolve("mission_type", all_artifacts, merged_drg, interview_sections)
         assert result.matched_form == "interview_section"
         assert len(result.targets) == 1
         assert result.targets[0].slug == "mission-scope"
 
-    def test_unknown_section_raises(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_unknown_section_raises(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """no_colon_but_not_a_section → unresolved."""
         with pytest.raises(TopicSelectorUnresolvedError) as exc_info:
             resolve("totally_unknown_section", all_artifacts, merged_drg, interview_sections)
@@ -272,7 +308,9 @@ class TestTier3InterviewSection:
 
 
 class TestUnresolved:
-    def test_unresolved_structured_error_fields(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_unresolved_structured_error_fields(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Unresolved topic → TopicSelectorUnresolvedError with required fields."""
         with pytest.raises(TopicSelectorUnresolvedError) as exc_info:
             resolve("zzz:nonexistent", all_artifacts, merged_drg, interview_sections)
@@ -281,14 +319,18 @@ class TestUnresolved:
         assert isinstance(err.candidates, tuple)
         assert isinstance(err.attempted_forms, tuple)
 
-    def test_candidates_are_bounded_to_5(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_candidates_are_bounded_to_5(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Candidate list is capped at 5 entries."""
         with pytest.raises(TopicSelectorUnresolvedError) as exc_info:
             resolve("xyzzy:bogus", all_artifacts, merged_drg, interview_sections)
         err = exc_info.value
         assert len(err.candidates) <= 5
 
-    def test_candidates_are_deterministic(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_candidates_are_deterministic(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Same inputs → same candidate ordering across calls."""
         results = []
         for _ in range(3):
@@ -297,7 +339,9 @@ class TestUnresolved:
             results.append(exc_info.value.candidates)
         assert results[0] == results[1] == results[2]
 
-    def test_attempted_forms_colon_synthesizable(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_attempted_forms_colon_synthesizable(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Selector with ':' and synthesizable LHS records both kind_slug + drg_urn."""
         with pytest.raises(TopicSelectorUnresolvedError) as exc_info:
             resolve("directive:PROJECT_ZZZ", all_artifacts, merged_drg, interview_sections)
@@ -306,7 +350,9 @@ class TestUnresolved:
         assert "kind_slug" in err.attempted_forms
         assert "drg_urn" in err.attempted_forms
 
-    def test_attempted_forms_no_colon(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_attempted_forms_no_colon(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Selector without ':' records interview_section form."""
         with pytest.raises(TopicSelectorUnresolvedError) as exc_info:
             resolve("no_colon_at_all", all_artifacts, merged_drg, interview_sections)
@@ -314,12 +360,16 @@ class TestUnresolved:
         assert "interview_section" in err.attempted_forms
         assert "kind_slug" not in err.attempted_forms
 
-    def test_empty_selector_raises_value_error(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_empty_selector_raises_value_error(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Empty string raises ValueError (C-004 rejection)."""
         with pytest.raises(ValueError, match="non-empty"):
             resolve("", all_artifacts, merged_drg, interview_sections)
 
-    def test_whitespace_only_selector_raises_value_error(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_whitespace_only_selector_raises_value_error(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Whitespace-only string raises ValueError."""
         with pytest.raises(ValueError):
             resolve("   ", all_artifacts, merged_drg, interview_sections)
@@ -331,7 +381,9 @@ class TestUnresolved:
 
 
 class TestPerformanceSc008:
-    def test_unresolved_under_2_seconds(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_unresolved_under_2_seconds(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """SC-008: TopicSelectorUnresolvedError return < 2 s."""
         start = time.monotonic()
         with pytest.raises(TopicSelectorUnresolvedError):
@@ -339,7 +391,9 @@ class TestPerformanceSc008:
         elapsed = time.monotonic() - start
         assert elapsed < 2.0, f"SC-008 violated: took {elapsed:.3f}s (limit: 2.0s)"
 
-    def test_resolved_tier1_fast(self, all_artifacts, merged_drg, interview_sections) -> None:
+    def test_resolved_tier1_fast(
+        self, all_artifacts, merged_drg, interview_sections
+    ) -> None:
         """Tier-1 resolution is always fast (in-memory dict scan)."""
         start = time.monotonic()
         resolve("directive:PROJECT_001", all_artifacts, merged_drg, interview_sections)

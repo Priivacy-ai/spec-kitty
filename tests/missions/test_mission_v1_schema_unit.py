@@ -176,7 +176,9 @@ class TestValidConfigs:
     def test_transition_with_array_source(self) -> None:
         """source can be a list of state names (multi-source transition)."""
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        config["transitions"].append({"trigger": "reset", "source": ["plan", "implement"], "dest": "specify"})
+        config["transitions"].append(
+            {"trigger": "reset", "source": ["plan", "implement"], "dest": "specify"}
+        )
         validate_mission_v1(config)
 
 
@@ -248,7 +250,9 @@ class TestInvalidNestedStructures:
 
     def test_invalid_input_type_enum(self) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        config["inputs"] = [{"name": "bad_input", "type": "float", "required": True}]
+        config["inputs"] = [
+            {"name": "bad_input", "type": "float", "required": True}
+        ]
         with pytest.raises(MissionValidationError) as exc_info:
             validate_mission_v1(config)
         assert any("float" in e or "type" in e for e in exc_info.value.errors)
@@ -405,14 +409,18 @@ class TestGuardsSchema:
 
     def test_guard_missing_description(self) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        config["guards"] = {"my_guard": {"check": "check_something"}}
+        config["guards"] = {
+            "my_guard": {"check": "check_something"}
+        }
         with pytest.raises(MissionValidationError) as exc_info:
             validate_mission_v1(config)
         assert any("description" in e for e in exc_info.value.errors)
 
     def test_guard_missing_check(self) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        config["guards"] = {"my_guard": {"description": "A guard without check"}}
+        config["guards"] = {
+            "my_guard": {"description": "A guard without check"}
+        }
         with pytest.raises(MissionValidationError) as exc_info:
             validate_mission_v1(config)
         assert any("check" in e for e in exc_info.value.errors)
@@ -441,12 +449,16 @@ class TestOutputsSchema:
     def test_valid_output_types(self) -> None:
         for output_type in ("artifact", "report", "data"):
             config = copy.deepcopy(MINIMAL_V1_CONFIG)
-            config["outputs"] = [{"name": "out", "type": output_type}]
+            config["outputs"] = [
+                {"name": "out", "type": output_type}
+            ]
             validate_mission_v1(config)
 
     def test_invalid_output_type(self) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        config["outputs"] = [{"name": "out", "type": "binary"}]
+        config["outputs"] = [
+            {"name": "out", "type": "binary"}
+        ]
         with pytest.raises(MissionValidationError):
             validate_mission_v1(config)
 
@@ -462,12 +474,16 @@ class TestInputsSchema:
     def test_all_valid_input_types(self) -> None:
         for input_type in ("string", "path", "url", "boolean", "integer"):
             config = copy.deepcopy(MINIMAL_V1_CONFIG)
-            config["inputs"] = [{"name": "in", "type": input_type}]
+            config["inputs"] = [
+                {"name": "in", "type": input_type}
+            ]
             validate_mission_v1(config)
 
     def test_input_missing_name(self) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        config["inputs"] = [{"type": "string", "required": True}]
+        config["inputs"] = [
+            {"type": "string", "required": True}
+        ]
         with pytest.raises(MissionValidationError) as exc_info:
             validate_mission_v1(config)
         assert any("name" in e for e in exc_info.value.errors)

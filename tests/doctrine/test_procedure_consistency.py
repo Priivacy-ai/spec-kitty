@@ -127,10 +127,13 @@ def test_no_procedure_step_carries_inline_tactic_refs() -> None:
         for step in payload.get("steps", []) or []:
             step_title = str(step.get("title", "?")).strip()
             if "tactic_refs" in step:
-                offenders.append(f"{procedure_id} step '{step_title}': still declares inline `tactic_refs`")
+                offenders.append(
+                    f"{procedure_id} step '{step_title}': still declares inline `tactic_refs`"
+                )
 
     assert not offenders, (
         "Inline step-level `tactic_refs` reintroduced on shipped procedures — "
         "all relationships must live in src/doctrine/graph.yaml (see WP02 of "
-        "excise-doctrine-curation-and-inline-references-01KP54J6):\n" + "\n".join(offenders)
+        "excise-doctrine-curation-and-inline-references-01KP54J6):\n"
+        + "\n".join(offenders)
     )

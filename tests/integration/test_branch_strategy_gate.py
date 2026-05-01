@@ -16,6 +16,7 @@ and don't require a live git repo or Typer prompt loop.
 
 from __future__ import annotations
 
+from typing import Iterator
 
 import pytest
 

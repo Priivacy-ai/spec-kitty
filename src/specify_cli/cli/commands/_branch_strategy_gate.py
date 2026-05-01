@@ -21,7 +21,7 @@ outcome (typer.Exit on abort, etc.).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from collections.abc import Callable
+from typing import Callable, Optional
 
 __all__ = [
     "ALREADY_CONFIRMED",
@@ -65,9 +65,9 @@ class GateOutcome:
 def evaluate_branch_strategy(
     *,
     pr_bound: bool,
-    current_branch: str | None,
-    merge_target_branch: str | None,
-    branch_strategy: str | None = None,
+    current_branch: Optional[str],
+    merge_target_branch: Optional[str],
+    branch_strategy: Optional[str] = None,
     prompt: Callable[[str], bool] | None = None,
 ) -> GateOutcome:
     """Decide whether mission creation may proceed given the branch context.
@@ -113,9 +113,15 @@ def evaluate_branch_strategy(
         )
 
     if prompt is None:
-        raise BranchStrategyGateError("Branch-strategy gate must prompt but no prompt callable was supplied. Pass `--branch-strategy already-confirmed` to bypass.")
+        raise BranchStrategyGateError(
+            "Branch-strategy gate must prompt but no prompt callable was supplied. "
+            "Pass `--branch-strategy already-confirmed` to bypass."
+        )
 
-    message = f"You are on '{current_branch}', which is the mission's merge target. PR-bound missions usually live on a feature branch. Proceed anyway?"
+    message = (
+        f"You are on '{current_branch}', which is the mission's merge target. "
+        "PR-bound missions usually live on a feature branch. Proceed anyway?"
+    )
     answer = prompt(message)
     decision_reason = "operator-confirmed" if answer else "operator-aborted"
     return GateOutcome(

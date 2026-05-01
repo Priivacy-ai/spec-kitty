@@ -56,7 +56,6 @@ def is_reserved_key(key: str) -> bool:
 # Shadowing diagnostics models
 # ---------------------------------------------------------------------------
 
-
 class DiscoveryWarning(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -88,7 +87,6 @@ class ShadowingDiagnostics(BaseModel):
 # Discovery context
 # ---------------------------------------------------------------------------
 
-
 class DiscoveryContext(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -102,7 +100,6 @@ class DiscoveryContext(BaseModel):
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
 
 def _split_env_paths(value: str) -> list[Path]:
     if not value.strip():
@@ -127,7 +124,9 @@ def _collect_from_manifest(pack_root: Path) -> list[Path]:
 
     # Validate against MissionPackManifest schema.
     if "pack" not in raw:
-        raise MissionRuntimeError(f"Mission pack manifest missing required 'pack' section: {pack_file}")
+        raise MissionRuntimeError(
+            f"Mission pack manifest missing required 'pack' section: {pack_file}"
+        )
 
     manifest = MissionPackManifest.model_validate(raw)
 
@@ -191,7 +190,6 @@ def _project_config_pack_paths(project_dir: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 # Discovery
 # ---------------------------------------------------------------------------
-
 
 class DiscoveryResult(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -318,13 +316,14 @@ def load_mission_template(path_or_key: str, context: DiscoveryContext | None = N
         if item.key == path_or_key and item.selected:
             return load_mission_template_file(Path(item.path))
 
-    raise MissionRuntimeError(f"Mission '{path_or_key}' not found. Checked discovery tiers via context={context.model_dump()}")
+    raise MissionRuntimeError(
+        f"Mission '{path_or_key}' not found. Checked discovery tiers via context={context.model_dump()}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Shadowing diagnostics
 # ---------------------------------------------------------------------------
-
 
 def diagnose_shadowing(context: DiscoveryContext) -> ShadowingDiagnostics:
     """Run discover_missions() and structure results as a shadowing report."""

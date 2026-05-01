@@ -2,8 +2,8 @@
 
 from doctrine.tactics.validation import validate_tactic
 import pytest
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestValidateTactic:

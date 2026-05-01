@@ -109,7 +109,9 @@ class BatchCapableSynthesisAdapter(SynthesisAdapter, Protocol):
     exists purely as documentation / static analysis aid.
     """
 
-    def generate_batch(self, requests: Sequence[SynthesisRequest]) -> Sequence[AdapterOutput]:
+    def generate_batch(
+        self, requests: Sequence[SynthesisRequest]
+    ) -> Sequence[AdapterOutput]:
         """Produce outputs for a batch of requests.
 
         Returned sequence MUST be the same length as the input sequence and

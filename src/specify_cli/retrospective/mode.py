@@ -120,7 +120,9 @@ def _read_charter_mode(repo_root: Path) -> str | None:
 
     if close_idx is None:
         # Opened ``---`` but never closed — treat as malformed.
-        raise ModeResolutionError(f"Charter at {charter_path} has an unclosed YAML frontmatter block.")
+        raise ModeResolutionError(
+            f"Charter at {charter_path} has an unclosed YAML frontmatter block."
+        )
 
     frontmatter_text = "\n".join(lines[1:close_idx])
 
@@ -129,14 +131,18 @@ def _read_charter_mode(repo_root: Path) -> str | None:
         yaml = _YAML(typ="safe")
         data = yaml.load(frontmatter_text)
     except (_YAMLError, Exception) as exc:  # noqa: BLE001
-        raise ModeResolutionError(f"Charter at {charter_path} has a malformed YAML frontmatter: {exc}") from exc
+        raise ModeResolutionError(
+            f"Charter at {charter_path} has a malformed YAML frontmatter: {exc}"
+        ) from exc
 
     if data is None:
         # Empty frontmatter — no mode declaration.
         return None
 
     if not isinstance(data, dict):
-        raise ModeResolutionError(f"Charter at {charter_path} has a frontmatter that is not a YAML mapping.")
+        raise ModeResolutionError(
+            f"Charter at {charter_path} has a frontmatter that is not a YAML mapping."
+        )
 
     raw_mode = data.get("mode")
     if raw_mode is None:
@@ -144,7 +150,10 @@ def _read_charter_mode(repo_root: Path) -> str | None:
 
     mode_str = str(raw_mode).strip()
     if mode_str not in _ALLOWED_ENV_VALUES:
-        raise ModeResolutionError(f"Charter at {charter_path} declares an invalid mode value: {mode_str!r}. Allowed: {sorted(_ALLOWED_ENV_VALUES)}")
+        raise ModeResolutionError(
+            f"Charter at {charter_path} declares an invalid mode value: {mode_str!r}. "
+            f"Allowed: {sorted(_ALLOWED_ENV_VALUES)}"
+        )
 
     return mode_str
 
@@ -245,7 +254,9 @@ def detect(
     # ------------------------------------------------------------------
     # Layer 4 — Parent process (conservative default: HiC when in doubt)
     # ------------------------------------------------------------------
-    name: str | None = parent_process_name if parent_process_name is not None else _detect_parent_name()
+    name: str | None = (
+        parent_process_name if parent_process_name is not None else _detect_parent_name()
+    )
     if name is not None and name in NON_INTERACTIVE_PARENTS:
         return Mode(
             value="autonomous",

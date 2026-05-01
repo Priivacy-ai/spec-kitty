@@ -72,8 +72,12 @@ def test_worktree_materializes_kittify_memory_and_agents_on_windows(tmp_path: py
     assert memory_file.exists(), f".kittify/memory/memory.md missing in worktree: {memory_file}"
     assert agents_file.exists(), f".kittify/AGENTS.md missing in worktree: {agents_file}"
 
-    assert memory_file.read_text(encoding="utf-8") == "memory content", f"memory.md content mismatch: {memory_file.read_text(encoding='utf-8')!r}"
-    assert agents_file.read_text(encoding="utf-8") == "agents content", f"AGENTS.md content mismatch: {agents_file.read_text(encoding='utf-8')!r}"
+    assert memory_file.read_text(encoding="utf-8") == "memory content", (
+        f"memory.md content mismatch: {memory_file.read_text(encoding='utf-8')!r}"
+    )
+    assert agents_file.read_text(encoding="utf-8") == "agents content", (
+        f"AGENTS.md content mismatch: {agents_file.read_text(encoding='utf-8')!r}"
+    )
 
 
 @pytest.mark.windows_ci

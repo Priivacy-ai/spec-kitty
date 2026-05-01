@@ -15,7 +15,6 @@ The test enforces two invariants:
    documented public-surface allow-list (a superset of the contracts'
    required minimum, kept in sync as CLI usage grows).
 """
-
 from __future__ import annotations
 
 import ast
@@ -33,8 +32,16 @@ _SRC_ROOT = _REPO_ROOT / "src" / "specify_cli"
 # The contract markdown files referenced by this test. If they move, this
 # pointer set must move with them so reviewers can cross-check.
 _CONTRACT_DOCS = (
-    _REPO_ROOT / "kitty-specs" / "stability-and-hygiene-hardening-2026-04-01KQ4ARB" / "contracts" / "events-envelope.md",
-    _REPO_ROOT / "kitty-specs" / "stability-and-hygiene-hardening-2026-04-01KQ4ARB" / "contracts" / "tracker-public-imports.md",
+    _REPO_ROOT
+    / "kitty-specs"
+    / "stability-and-hygiene-hardening-2026-04-01KQ4ARB"
+    / "contracts"
+    / "events-envelope.md",
+    _REPO_ROOT
+    / "kitty-specs"
+    / "stability-and-hygiene-hardening-2026-04-01KQ4ARB"
+    / "contracts"
+    / "tracker-public-imports.md",
 )
 
 # Public surface CLI is allowed to import from. Sub-modules (``module.subname``)
@@ -60,7 +67,9 @@ _TRACKER_PUBLIC_PREFIXES = frozenset(
     )
 )
 
-_FORBIDDEN_INTERNAL_RE = re.compile(r"^spec_kitty_(events|tracker)(\._internal\b|\._internal\.)")
+_FORBIDDEN_INTERNAL_RE = re.compile(
+    r"^spec_kitty_(events|tracker)(\._internal\b|\._internal\.)"
+)
 
 
 def _python_files() -> list[Path]:
@@ -89,7 +98,10 @@ def test_contract_docs_present() -> None:
     lose the second half of the cross-check.
     """
     missing = [str(p) for p in _CONTRACT_DOCS if not p.is_file()]
-    assert not missing, f"Contract markdown files referenced by this test are missing: {missing}. Update _CONTRACT_DOCS or restore the docs."
+    assert not missing, (
+        "Contract markdown files referenced by this test are missing: "
+        f"{missing}. Update _CONTRACT_DOCS or restore the docs."
+    )
 
 
 def test_no_cli_source_imports_internal_events_or_tracker_paths() -> None:
@@ -121,8 +133,11 @@ def test_cli_events_imports_are_subset_of_public_surface() -> None:
         except SyntaxError:  # pragma: no cover
             continue
         for module, lineno in _iter_imports(tree):
-            if (module == "spec_kitty_events" or module.startswith("spec_kitty_events.")) and not _module_is_public(module, _EVENTS_PUBLIC_PREFIXES):
-                offenders.append(f"{path.relative_to(_REPO_ROOT)}:{lineno} -> {module}")
+            if module == "spec_kitty_events" or module.startswith("spec_kitty_events."):
+                if not _module_is_public(module, _EVENTS_PUBLIC_PREFIXES):
+                    offenders.append(
+                        f"{path.relative_to(_REPO_ROOT)}:{lineno} -> {module}"
+                    )
     assert not offenders, (
         "CLI imports a spec_kitty_events sub-module that is not in the "
         "public-surface allow-list. Either use a public alternative or "
@@ -140,8 +155,11 @@ def test_cli_tracker_imports_are_subset_of_public_surface() -> None:
         except SyntaxError:  # pragma: no cover
             continue
         for module, lineno in _iter_imports(tree):
-            if (module == "spec_kitty_tracker" or module.startswith("spec_kitty_tracker.")) and not _module_is_public(module, _TRACKER_PUBLIC_PREFIXES):
-                offenders.append(f"{path.relative_to(_REPO_ROOT)}:{lineno} -> {module}")
+            if module == "spec_kitty_tracker" or module.startswith("spec_kitty_tracker."):
+                if not _module_is_public(module, _TRACKER_PUBLIC_PREFIXES):
+                    offenders.append(
+                        f"{path.relative_to(_REPO_ROOT)}:{lineno} -> {module}"
+                    )
     assert not offenders, (
         "CLI imports a spec_kitty_tracker sub-module that is not in the "
         "public-surface allow-list. Either use a public alternative or "

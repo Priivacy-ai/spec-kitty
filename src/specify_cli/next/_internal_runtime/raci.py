@@ -93,11 +93,18 @@ def validate_raci_assignment(
 
     # P0: accountable must always be human
     if assignment.accountable.actor_type != "human":
-        errors.append(f"P0 invariant violation: accountable must be human, got '{assignment.accountable.actor_type}'")
+        errors.append(
+            f"P0 invariant violation: accountable must be human, "
+            f"got '{assignment.accountable.actor_type}'"
+        )
 
     # For blocking audit: responsible must be human
-    if isinstance(step, AuditStep) and step.audit.enforcement == "blocking" and assignment.responsible.actor_type != "human":
-        errors.append(f"Blocking audit step '{step.id}': responsible must be human, got '{assignment.responsible.actor_type}'")
+    if isinstance(step, AuditStep) and step.audit.enforcement == "blocking":
+        if assignment.responsible.actor_type != "human":
+            errors.append(
+                f"Blocking audit step '{step.id}': responsible must be human, "
+                f"got '{assignment.responsible.actor_type}'"
+            )
 
     return (len(errors) == 0, errors)
 
@@ -140,10 +147,16 @@ def resolve_raci(
         # Validate the explicit assignment
         is_valid, errors = validate_raci_assignment(assignment, step)
         if not is_valid:
-            raise MissionRuntimeError(f"Invalid explicit RACI for step '{step.id}': {'; '.join(errors)}")
+            raise MissionRuntimeError(
+                f"Invalid explicit RACI for step '{step.id}': {'; '.join(errors)}"
+            )
 
-        responsible = _resolve_actor(assignment.responsible, "responsible", step.id, inputs)
-        accountable = _resolve_actor(assignment.accountable, "accountable", step.id, inputs)
+        responsible = _resolve_actor(
+            assignment.responsible, "responsible", step.id, inputs
+        )
+        accountable = _resolve_actor(
+            assignment.accountable, "accountable", step.id, inputs
+        )
         consulted = [_resolve_actor_optional(c, inputs) for c in assignment.consulted]
         informed = [_resolve_actor_optional(i, inputs) for i in assignment.informed]
 
@@ -160,8 +173,12 @@ def resolve_raci(
         # Inferred path
         inferred = infer_raci(step, mission_policy)
 
-        responsible = _resolve_actor(inferred.responsible, "responsible", step.id, inputs)
-        accountable = _resolve_actor(inferred.accountable, "accountable", step.id, inputs)
+        responsible = _resolve_actor(
+            inferred.responsible, "responsible", step.id, inputs
+        )
+        accountable = _resolve_actor(
+            inferred.accountable, "accountable", step.id, inputs
+        )
         consulted = [_resolve_actor_optional(c, inputs) for c in inferred.consulted]
         informed = [_resolve_actor_optional(i, inputs) for i in inferred.informed]
 
@@ -203,7 +220,9 @@ def _resolve_actor(
             reason=f"Cannot resolve {role_name} actor: '{input_key}' not found in inputs",
             resolution_hint=f"Provide '{input_key}' in mission inputs",
         )
-        raise MissionRuntimeError(f"RACI escalation for step '{step_id}': {escalation.reason}")
+        raise MissionRuntimeError(
+            f"RACI escalation for step '{step_id}': {escalation.reason}"
+        )
 
     return RACIRoleBinding(actor_type=binding.actor_type, actor_id=resolved_id)
 

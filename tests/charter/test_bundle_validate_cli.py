@@ -4,7 +4,6 @@ Invokes the Typer sub-app directly via ``typer.testing.CliRunner``. The
 sub-app is not yet registered into the main ``charter`` CLI — WP03 does
 that — so these tests target ``charter_bundle.app`` via import.
 """
-
 from __future__ import annotations
 
 import hashlib
@@ -186,11 +185,15 @@ def _write_compliant_bundle(repo_root: Path) -> None:
     (charter_dir / "charter.md").write_text("# charter\n", encoding="utf-8")
     for rel in _DERIVED:
         if rel == ".kittify/charter/metadata.yaml":
-            (repo_root / rel).write_text("bundle_schema_version: 2\n", encoding="utf-8")
+            (repo_root / rel).write_text(
+                "bundle_schema_version: 2\n", encoding="utf-8"
+            )
         else:
             (repo_root / rel).write_text("# derived\n", encoding="utf-8")
     gitignore = repo_root / ".gitignore"
-    gitignore.write_text("\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8")
+    gitignore.write_text(
+        "\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8"
+    )
     # Track charter.md.
     subprocess.run(
         ["git", "add", _TRACKED, ".gitignore"],
@@ -243,8 +246,12 @@ def test_validate_reports_out_of_scope_files_as_warnings(
     compliant_repo: Path,
 ) -> None:
     # Drop a references.yaml and a context-state.json; both are out of scope.
-    (compliant_repo / ".kittify" / "charter" / "references.yaml").write_text("# references\n", encoding="utf-8")
-    (compliant_repo / ".kittify" / "charter" / "context-state.json").write_text("{}\n", encoding="utf-8")
+    (compliant_repo / ".kittify" / "charter" / "references.yaml").write_text(
+        "# references\n", encoding="utf-8"
+    )
+    (compliant_repo / ".kittify" / "charter" / "context-state.json").write_text(
+        "{}\n", encoding="utf-8"
+    )
     result = _invoke_validate_json()
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -275,7 +282,9 @@ def test_validate_fails_on_missing_gitignore_entry(compliant_repo: Path) -> None
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
     assert payload["bundle_compliant"] is False
-    assert ".kittify/charter/metadata.yaml" in payload["gitignore"]["missing_entries"]
+    assert ".kittify/charter/metadata.yaml" in payload["gitignore"][
+        "missing_entries"
+    ]
 
 
 def test_validate_exits_2_on_non_repo_path(non_repo_path: Path) -> None:
@@ -283,7 +292,9 @@ def test_validate_exits_2_on_non_repo_path(non_repo_path: Path) -> None:
     assert result.exit_code == 2
 
 
-def test_validate_fails_when_charter_md_is_untracked(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_fails_when_charter_md_is_untracked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Reproduces cycle-1 Finding 1: charter.md exists but is not git-tracked.
 
     The contract treats ``tracked_files`` as a git-tracking assertion; a
@@ -297,21 +308,31 @@ def test_validate_fails_when_charter_md_is_untracked(tmp_path: Path, monkeypatch
     (charter_dir / "charter.md").write_text("# charter\n", encoding="utf-8")
     for rel in _DERIVED:
         if rel == ".kittify/charter/metadata.yaml":
-            (tmp_path / rel).write_text("bundle_schema_version: 2\n", encoding="utf-8")
+            (tmp_path / rel).write_text(
+                "bundle_schema_version: 2\n", encoding="utf-8"
+            )
         else:
             (tmp_path / rel).write_text("# derived\n", encoding="utf-8")
     gitignore = tmp_path / ".gitignore"
-    gitignore.write_text("\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8")
+    gitignore.write_text(
+        "\n".join(_GITIGNORE_REQUIRED) + "\n", encoding="utf-8"
+    )
     # Commit .gitignore only, so charter.md is present but untracked.
-    subprocess.run(["git", "add", ".gitignore"], cwd=str(tmp_path), check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "seed"], cwd=str(tmp_path), check=True)
+    subprocess.run(
+        ["git", "add", ".gitignore"], cwd=str(tmp_path), check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "seed"], cwd=str(tmp_path), check=True
+    )
     monkeypatch.chdir(tmp_path)
 
     result = _invoke_validate_json()
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
     assert payload["bundle_compliant"] is False
-    assert _TRACKED in payload["tracked_files"]["missing"], "untracked charter.md must be surfaced as missing, not present"
+    assert _TRACKED in payload["tracked_files"]["missing"], (
+        "untracked charter.md must be surfaced as missing, not present"
+    )
     assert _TRACKED not in payload["tracked_files"]["present"]
 
 
@@ -334,9 +355,14 @@ def test_validate_reports_arbitrary_undeclared_file_as_warning(
     # not failures.
     assert payload["bundle_compliant"] is True
     rel = ".kittify/charter/custom-notes.txt"
-    assert rel in payload["out_of_scope_files"], f"arbitrary undeclared file must appear in out_of_scope_files; got {payload['out_of_scope_files']!r}"
+    assert rel in payload["out_of_scope_files"], (
+        f"arbitrary undeclared file must appear in out_of_scope_files; "
+        f"got {payload['out_of_scope_files']!r}"
+    )
     # And a matching warning must have been emitted.
-    assert any(rel in w for w in payload["warnings"]), f"no warning message references {rel!r}; warnings={payload['warnings']!r}"
+    assert any(rel in w for w in payload["warnings"]), (
+        f"no warning message references {rel!r}; warnings={payload['warnings']!r}"
+    )
 
 
 def test_validate_json_shape_matches_contract(compliant_repo: Path) -> None:
@@ -362,7 +388,9 @@ def test_validate_json_shape_matches_contract(compliant_repo: Path) -> None:
     assert required_keys <= set(payload.keys())
     for section in ("tracked_files", "derived_files"):
         assert {"expected", "present", "missing"} <= set(payload[section].keys())
-    assert {"expected_entries", "present_entries", "missing_entries"} <= set(payload["gitignore"].keys())
+    assert {"expected_entries", "present_entries", "missing_entries"} <= set(
+        payload["gitignore"].keys()
+    )
     ss = payload["synthesis_state"]
     assert {"present", "passed", "errors", "warnings"} <= set(ss.keys())
     assert isinstance(ss["present"], bool)
@@ -527,7 +555,9 @@ def test_validate_json_is_strict_on_manifest_mismatch(compliant_repo: Path) -> N
 
 def test_validate_json_is_strict_on_incompatible_bundle(compliant_repo: Path) -> None:
     """FR-005/FR-006: incompatible bundle failures still emit JSON to stdout."""
-    (compliant_repo / ".kittify" / "charter" / "metadata.yaml").write_text("bundle_schema_version: 999\n", encoding="utf-8")
+    (compliant_repo / ".kittify" / "charter" / "metadata.yaml").write_text(
+        "bundle_schema_version: 999\n", encoding="utf-8"
+    )
 
     result = runner.invoke(charter_bundle.app, ["validate", "--json"])
     assert result.exit_code == 1
@@ -565,7 +595,9 @@ def test_validate_passes_legacy_bundle_without_synthesis_state(
 def test_validate_passes_complete_v2_bundle(compliant_repo: Path) -> None:
     """FR-009 regression: a complete v2 bundle with synthesis state must still pass."""
     artifact_content = "# complete directive\n"
-    _add_doctrine_artifact(compliant_repo, "directives/005-complete.directive.yaml", artifact_content)
+    _add_doctrine_artifact(
+        compliant_repo, "directives/005-complete.directive.yaml", artifact_content
+    )
     # Sidecar: directive-complete.yaml (kind=directive, slug=complete).
     _add_provenance_sidecar(compliant_repo, kind="directive", slug="complete")
     _add_synthesis_manifest(
@@ -599,7 +631,9 @@ def test_validate_fails_on_manifest_self_hash_mismatch(compliant_repo: Path) -> 
     but a tampered manifest_hash field must produce a synthesis_state error.
     """
     content = "# self-hash test directive\n"
-    _add_doctrine_artifact(compliant_repo, "directives/006-selfhash.directive.yaml", content)
+    _add_doctrine_artifact(
+        compliant_repo, "directives/006-selfhash.directive.yaml", content
+    )
     _add_provenance_sidecar(compliant_repo, kind="directive", slug="selfhash")
     _add_synthesis_manifest(
         compliant_repo,

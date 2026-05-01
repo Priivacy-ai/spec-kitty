@@ -112,7 +112,9 @@ def sample_directive_provenance() -> ProvenanceEntry:
 # ---------------------------------------------------------------------------
 
 
-def test_round_trip_with_source_urns(tmp_path: Path, guard: PathGuard, sample_provenance: ProvenanceEntry) -> None:
+def test_round_trip_with_source_urns(
+    tmp_path: Path, guard: PathGuard, sample_provenance: ProvenanceEntry
+) -> None:
     """dump_yaml → load_yaml reproduces all fields exactly."""
     out_path = tmp_path / "tactic-how-we-apply-directive-003.yaml"
     dump_yaml(sample_provenance, out_path, guard)
@@ -139,7 +141,9 @@ def test_round_trip_with_source_urns(tmp_path: Path, guard: PathGuard, sample_pr
     assert loaded.adapter_notes == sample_provenance.adapter_notes
 
 
-def test_round_trip_with_source_section(tmp_path: Path, guard: PathGuard, sample_directive_provenance: ProvenanceEntry) -> None:
+def test_round_trip_with_source_section(
+    tmp_path: Path, guard: PathGuard, sample_directive_provenance: ProvenanceEntry
+) -> None:
     """Provenance with source_section (no source_urns) round-trips correctly."""
     out_path = tmp_path / "directive-project-decision-doc.yaml"
     dump_yaml(sample_directive_provenance, out_path, guard)
@@ -161,14 +165,18 @@ def test_round_trip_with_source_section(tmp_path: Path, guard: PathGuard, sample
 def test_allof_validator_rejects_neither() -> None:
     """ProvenanceEntry with both source_section=None and source_urns=[] is invalid."""
     with pytest.raises(ValidationError) as exc_info:
-        ProvenanceEntry(**{**VALID_V2_FIELDS, "source_section": None, "source_urns": [], "source_input_ids": []})
+        ProvenanceEntry(
+            **{**VALID_V2_FIELDS, "source_section": None, "source_urns": [], "source_input_ids": []}
+        )
     # Should mention the allOf / source constraint
     assert exc_info.value is not None
 
 
 def test_allof_validator_accepts_source_section_only() -> None:
     """ProvenanceEntry with source_section set (empty source_urns) is valid."""
-    entry = ProvenanceEntry(**{**VALID_V2_FIELDS, "source_section": "testing_philosophy", "source_urns": [], "source_input_ids": []})
+    entry = ProvenanceEntry(
+        **{**VALID_V2_FIELDS, "source_section": "testing_philosophy", "source_urns": [], "source_input_ids": []}
+    )
     assert entry.source_section == "testing_philosophy"
 
 
@@ -225,7 +233,9 @@ def test_provenance_entry_v2_all_fields_present() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_dump_yaml_byte_reproducibility(tmp_path: Path, guard: PathGuard, sample_provenance: ProvenanceEntry) -> None:
+def test_dump_yaml_byte_reproducibility(
+    tmp_path: Path, guard: PathGuard, sample_provenance: ProvenanceEntry
+) -> None:
     """Two dump_yaml calls with identical input produce byte-identical files."""
     path1 = tmp_path / "prov1.yaml"
     path2 = tmp_path / "prov2.yaml"
@@ -234,7 +244,9 @@ def test_dump_yaml_byte_reproducibility(tmp_path: Path, guard: PathGuard, sample
     assert path1.read_bytes() == path2.read_bytes()
 
 
-def test_dump_yaml_hash_matches_canonical_yaml(tmp_path: Path, guard: PathGuard, sample_provenance: ProvenanceEntry) -> None:
+def test_dump_yaml_hash_matches_canonical_yaml(
+    tmp_path: Path, guard: PathGuard, sample_provenance: ProvenanceEntry
+) -> None:
     """artifact_content_hash computed via canonical_yaml matches dump_yaml bytes.
 
     This test validates that WP02's content hash (canonical_yaml → sha256) is

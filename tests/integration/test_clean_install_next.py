@@ -15,7 +15,6 @@ demand locally::
 
     pytest tests/integration/test_clean_install_next.py -m distribution -v
 """
-
 from __future__ import annotations
 
 import json
@@ -118,7 +117,9 @@ def test_clean_install_next_runs_without_runtime(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert check.returncode == 0, f"importing specify_cli pulled in spec_kitty_runtime: {check.stderr}"
+    assert check.returncode == 0, (
+        f"importing specify_cli pulled in spec_kitty_runtime: {check.stderr}"
+    )
 
     # ---- Assertion 2: spec-kitty next runs against the fixture mission.
     fixture_copy = tmp_path / "mission"
@@ -138,14 +139,9 @@ def test_clean_install_next_runs_without_runtime(tmp_path: Path) -> None:
     subprocess.run(
         [
             "git",
-            "-c",
-            "user.email=t@t",
-            "-c",
-            "user.name=t",
-            "commit",
-            "-q",
-            "-m",
-            "fixture",
+            "-c", "user.email=t@t",
+            "-c", "user.name=t",
+            "commit", "-q", "-m", "fixture",
         ],
         cwd=fixture_copy,
         check=True,
@@ -156,10 +152,8 @@ def test_clean_install_next_runs_without_runtime(tmp_path: Path) -> None:
         [
             str(sk),
             "next",
-            "--agent",
-            "claude",
-            "--mission",
-            "clean-install-fixture-01KQ22XX",
+            "--agent", "claude",
+            "--mission", "clean-install-fixture-01KQ22XX",
             "--json",
         ],
         cwd=fixture_copy,
@@ -172,7 +166,10 @@ def test_clean_install_next_runs_without_runtime(tmp_path: Path) -> None:
     # an ImportError or a hard crash from a missing spec-kitty-runtime
     # dependency.
     assert result.returncode == 0, (
-        f"`spec-kitty next` failed in the clean venv. This usually means a runtime dependency is missing.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        f"`spec-kitty next` failed in the clean venv. This usually means "
+        f"a runtime dependency is missing.\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
     )
     # Sanity check the payload parses as JSON.
     payload = json.loads(result.stdout)

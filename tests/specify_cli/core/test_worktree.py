@@ -16,7 +16,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.core.worktree import create_wp_workspace
-from specify_cli.status.wp_metadata import WPMetadata
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +29,8 @@ def _make_frontmatter(
     mission_slug: str = "test-feature",
     owned_files: list[str] | None = None,
 ) -> WPMetadata:
+    from specify_cli.status.wp_metadata import WPMetadata
+
     return WPMetadata(
         work_package_id=wp_id,
         execution_mode=execution_mode,

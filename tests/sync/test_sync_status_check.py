@@ -129,7 +129,9 @@ class TestCheckServerConnectionTokenProbeErrors:
 
     def test_unexpected_token_probe_error(self):
         """Unexpected token probe errors should not be reported as session expiry."""
-        fake_tm = _fake_token_manager(token_error=RuntimeError("credentials file lock timeout"))
+        fake_tm = _fake_token_manager(
+            token_error=RuntimeError("credentials file lock timeout")
+        )
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
             status, note = _check_server_connection(SERVER_URL)
@@ -202,7 +204,9 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.auth.http.request_with_fallback_sync")
     def test_connection_timeout(self, mock_request):
         """When server times out, report unreachable."""
-        mock_request.side_effect = _mock_response_for_probe(get_side_effect=NetworkError("Connection timed out"))
+        mock_request.side_effect = _mock_response_for_probe(
+            get_side_effect=NetworkError("Connection timed out")
+        )
         fake_tm = _fake_token_manager(access_token="valid-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
@@ -214,7 +218,9 @@ class TestCheckServerConnectionUnreachable:
     @patch("specify_cli.auth.http.request_with_fallback_sync")
     def test_connection_refused(self, mock_request):
         """When connection is refused, report unreachable."""
-        mock_request.side_effect = _mock_response_for_probe(get_side_effect=NetworkError("Connection refused"))
+        mock_request.side_effect = _mock_response_for_probe(
+            get_side_effect=NetworkError("Connection refused")
+        )
         fake_tm = _fake_token_manager(access_token="valid-token")
 
         with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):

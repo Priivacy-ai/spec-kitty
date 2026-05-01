@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, UTC
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth.session import StoredSession, Team

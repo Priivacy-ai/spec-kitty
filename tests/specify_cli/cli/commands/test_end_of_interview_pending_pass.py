@@ -49,7 +49,7 @@ def _make_entry(decision_id: str = "dec-001", question: str = "What DB?") -> Wid
 
 def _make_store(tmp_path: Path, entries: list[WidenPendingEntry] | None = None) -> WidenPendingStore:
     store = WidenPendingStore(tmp_path, MISSION_SLUG)
-    for entry in entries or []:
+    for entry in (entries or []):
         store.add_pending(entry)
     return store
 
@@ -129,11 +129,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
 
         mock_saas = MagicMock()
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=[],
-            message_count=0,
-            thread_url=None,
-            messages=[],
-            truncated=False,
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
         with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
             run_end_of_interview_pending_pass(
@@ -157,36 +153,26 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         console = _capture_console()
 
         # Mock run_candidate_review to return immediately (no stdin interaction)
-        mock_fetch = MagicMock(
-            return_value=MagicMock(
-                participants=[],
-                message_count=0,
-                thread_url=None,
-                messages=[],
-                truncated=False,
-            )
-        )
+        mock_fetch = MagicMock(return_value=MagicMock(
+            participants=[], message_count=0, thread_url=None,
+            messages=[], truncated=False,
+        ))
         mock_review = MagicMock(return_value=None)
 
-        with (
-            patch("specify_cli.widen.review.run_candidate_review", mock_review),
-            patch.object(
-                type(store._internal if hasattr(store, "_internal") else store),
-                "fetch_discussion",
-                mock_fetch,
-                create=True,
-            ),
-        ):
+        with patch("specify_cli.widen.review.run_candidate_review", mock_review), \
+             patch.object(
+                 type(store._internal if hasattr(store, "_internal") else store),
+                 "fetch_discussion",
+                 mock_fetch,
+                 create=True,
+             ):
             # Patch saas_client.fetch_discussion directly
             mock_saas = MagicMock()
             from specify_cli.widen.models import DiscussionFetch
 
             mock_saas.fetch_discussion.return_value = DiscussionFetch(
-                participants=[],
-                message_count=0,
-                thread_url=None,
-                messages=[],
-                truncated=False,
+                participants=[], message_count=0, thread_url=None,
+                messages=[], truncated=False,
             )
 
             run_end_of_interview_pending_pass(
@@ -211,11 +197,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         from specify_cli.widen.models import DiscussionFetch
 
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=[],
-            message_count=0,
-            thread_url=None,
-            messages=[],
-            truncated=False,
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
 
         with patch(
@@ -260,7 +242,10 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         # run_candidate_review should still have been called with fallback discussion
         mock_review.assert_called_once()
         call_kwargs = mock_review.call_args
-        discussion = call_kwargs.kwargs.get("discussion_data") or (call_kwargs.args[0] if call_kwargs.args else None)
+        discussion = (
+            call_kwargs.kwargs.get("discussion_data")
+            or (call_kwargs.args[0] if call_kwargs.args else None)
+        )
         assert discussion is not None
         assert discussion.message_count == 0
         assert store.list_pending() == []
@@ -276,11 +261,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         from specify_cli.widen.models import DiscussionFetch
 
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=[],
-            message_count=0,
-            thread_url=None,
-            messages=[],
-            truncated=False,
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
 
         with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
@@ -308,11 +289,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         from specify_cli.widen.models import DiscussionFetch
 
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=[],
-            message_count=0,
-            thread_url=None,
-            messages=[],
-            truncated=False,
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
 
         with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
@@ -347,11 +324,7 @@ class TestResolvePendingEntry:
 
         mock_saas = MagicMock()
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=["Alice"],
-            message_count=3,
-            thread_url=None,
-            messages=["Hi"],
-            truncated=False,
+            participants=["Alice"], message_count=3, thread_url=None, messages=["Hi"], truncated=False,
         )
 
         with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
@@ -378,11 +351,7 @@ class TestResolvePendingEntry:
 
         mock_saas = MagicMock()
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=[],
-            message_count=0,
-            thread_url=None,
-            messages=[],
-            truncated=False,
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
 
         with patch(
@@ -424,7 +393,8 @@ class TestRenderAlreadyWidenedPrompt:
         mock_dm = MagicMock()
         mock_saas = MagicMock()
 
-        with patch.object(console, "input", return_value="PostgreSQL"), patch.object(console, "print"):
+        with patch.object(console, "input", return_value="PostgreSQL"), \
+             patch.object(console, "print"):
             render_already_widened_prompt(
                 question_text="Which database?",
                 decision_id="dec-001",
@@ -449,7 +419,8 @@ class TestRenderAlreadyWidenedPrompt:
         # First input: "d"; second input (rationale prompt): ""
         inputs_iter = iter(["d", ""])
 
-        with patch.object(console, "input", side_effect=inputs_iter), patch.object(console, "print"):
+        with patch.object(console, "input", side_effect=inputs_iter), \
+             patch.object(console, "print"):
             render_already_widened_prompt(
                 question_text="Tech stack?",
                 decision_id="dec-001",
@@ -475,15 +446,14 @@ class TestRenderAlreadyWidenedPrompt:
 
         mock_saas = MagicMock()
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
-            participants=["Alice"],
-            message_count=1,
-            thread_url="https://slack.com/abc",
-            messages=["Use PG"],
-            truncated=False,
+            participants=["Alice"], message_count=1,
+            thread_url="https://slack.com/abc", messages=["Use PG"], truncated=False,
         )
 
         mock_review = MagicMock(return_value=None)
-        with patch.object(console, "input", return_value="f"), patch.object(console, "print"), patch("specify_cli.widen.review.run_candidate_review", mock_review):
+        with patch.object(console, "input", return_value="f"), \
+             patch.object(console, "print"), \
+             patch("specify_cli.widen.review.run_candidate_review", mock_review):
             render_already_widened_prompt(
                 question_text="DB choice?",
                 decision_id="dec-001",
@@ -506,18 +476,20 @@ class TestRenderAlreadyWidenedPrompt:
         store, entry = self._make_store_with_entry(tmp_path)
         console = Console(highlight=False, markup=False)
 
-        with patch.object(console, "input", return_value="!cancel"), patch.object(console, "print"), pytest.raises(typer.Exit):
+        with patch.object(console, "input", return_value="!cancel"), \
+             patch.object(console, "print"), \
+             pytest.raises(typer.Exit):
             render_already_widened_prompt(
-                question_text="Any question?",
-                decision_id="dec-001",
-                mission_slug=MISSION_SLUG,
-                repo_root=tmp_path,
-                saas_client=MagicMock(),
-                widen_store=store,
-                dm_service=MagicMock(),
-                actor="test",
-                console=console,
-            )
+                    question_text="Any question?",
+                    decision_id="dec-001",
+                    mission_slug=MISSION_SLUG,
+                    repo_root=tmp_path,
+                    saas_client=MagicMock(),
+                    widen_store=store,
+                    dm_service=MagicMock(),
+                    actor="test",
+                    console=console,
+                )
 
     def test_empty_input_reshows_hint(self, tmp_path: Path) -> None:
         """Empty input → hint re-shown; second input resolves."""
@@ -529,7 +501,8 @@ class TestRenderAlreadyWidenedPrompt:
         inputs_iter = iter(["", "my answer"])
         print_calls: list[Any] = []
 
-        with patch.object(console, "input", side_effect=inputs_iter), patch.object(console, "print", side_effect=lambda *a, **kw: print_calls.append(a)):
+        with patch.object(console, "input", side_effect=inputs_iter), \
+             patch.object(console, "print", side_effect=lambda *a, **kw: print_calls.append(a)):
             render_already_widened_prompt(
                 question_text="Q?",
                 decision_id="dec-001",
@@ -557,7 +530,9 @@ class TestRenderAlreadyWidenedPrompt:
         mock_saas.fetch_discussion.side_effect = SaasClientError("net error")
 
         mock_review = MagicMock(return_value=None)
-        with patch.object(console, "input", return_value="f"), patch.object(console, "print"), patch("specify_cli.widen.review.run_candidate_review", mock_review):
+        with patch.object(console, "input", return_value="f"), \
+             patch.object(console, "print"), \
+             patch("specify_cli.widen.review.run_candidate_review", mock_review):
             render_already_widened_prompt(
                 question_text="DB?",
                 decision_id="dec-001",

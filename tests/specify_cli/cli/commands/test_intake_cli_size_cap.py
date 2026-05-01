@@ -13,7 +13,6 @@ This module pins the CLI invariant: ``spec-kitty intake`` MUST surface a
 non-zero exit and a structured "too large" message when the input exceeds
 the configured cap, both for stdin and for explicit file paths.
 """
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -52,7 +51,9 @@ def _stub_repo_root_to(tmp_path: Path):
 # ---------------------------------------------------------------------------
 
 
-def test_cli_rejects_oversized_file_via_production_path(intake_app: typer.Typer, tmp_path: Path) -> None:
+def test_cli_rejects_oversized_file_via_production_path(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
     """A file larger than the configured cap MUST be rejected by the CLI.
 
     Regression: the CLI previously had its own ``stat() + read_text()``
@@ -71,14 +72,21 @@ def test_cli_rejects_oversized_file_via_production_path(intake_app: typer.Typer,
     ):
         result = _runner.invoke(intake_app, [str(over)])
 
-    assert result.exit_code == 1, f"CLI must reject oversized file with non-zero exit. stdout={result.stdout!r} stderr={result.stderr!r}"
-    assert "too large" in result.output.lower(), f"Structured 'too large' message missing from CLI output: {result.output!r}"
+    assert result.exit_code == 1, (
+        f"CLI must reject oversized file with non-zero exit. "
+        f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    assert "too large" in result.output.lower(), (
+        f"Structured 'too large' message missing from CLI output: {result.output!r}"
+    )
     # And no brief / source artifact may have been written.
     assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
     assert not (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).exists()
 
 
-def test_cli_accepts_file_at_cap_via_production_path(intake_app: typer.Typer, tmp_path: Path) -> None:
+def test_cli_accepts_file_at_cap_via_production_path(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
     """A file exactly at the cap is accepted (cap is ``> cap``, not ``>=``)."""
     cap = 1024
     exact = tmp_path / "exact.md"
@@ -93,11 +101,15 @@ def test_cli_accepts_file_at_cap_via_production_path(intake_app: typer.Typer, tm
     ):
         result = _runner.invoke(intake_app, [str(exact)])
 
-    assert result.exit_code == 0, f"At-cap file must succeed. stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert result.exit_code == 0, (
+        f"At-cap file must succeed. stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
     assert (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
 
 
-def test_cli_distinguishes_missing_from_unreadable_via_production_path(intake_app: typer.Typer, tmp_path: Path) -> None:
+def test_cli_distinguishes_missing_from_unreadable_via_production_path(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
     """Missing-file path must produce a 'not found' message, not a generic one."""
     missing = tmp_path / "nope.md"
 
@@ -119,7 +131,9 @@ def test_cli_distinguishes_missing_from_unreadable_via_production_path(intake_ap
 # ---------------------------------------------------------------------------
 
 
-def test_cli_rejects_oversized_stdin_via_production_path(intake_app: typer.Typer, tmp_path: Path) -> None:
+def test_cli_rejects_oversized_stdin_via_production_path(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
     """Stdin payloads larger than the cap MUST be rejected via the CLI.
 
     Regression: the CLI used to call ``sys.stdin.read()`` directly,
@@ -139,12 +153,19 @@ def test_cli_rejects_oversized_stdin_via_production_path(intake_app: typer.Typer
     ):
         result = _runner.invoke(intake_app, ["-"], input=payload)
 
-    assert result.exit_code == 1, f"CLI must reject oversized stdin payload with non-zero exit. stdout={result.stdout!r} stderr={result.stderr!r}"
-    assert "too large" in result.output.lower(), f"Structured 'too large' message missing from CLI output: {result.output!r}"
+    assert result.exit_code == 1, (
+        f"CLI must reject oversized stdin payload with non-zero exit. "
+        f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    assert "too large" in result.output.lower(), (
+        f"Structured 'too large' message missing from CLI output: {result.output!r}"
+    )
     assert not (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).exists()
 
 
-def test_cli_accepts_stdin_under_cap_via_production_path(intake_app: typer.Typer, tmp_path: Path) -> None:
+def test_cli_accepts_stdin_under_cap_via_production_path(
+    intake_app: typer.Typer, tmp_path: Path
+) -> None:
     cap = 1024
     payload = "# small brief from stdin"
 
@@ -157,7 +178,9 @@ def test_cli_accepts_stdin_under_cap_via_production_path(intake_app: typer.Typer
     ):
         result = _runner.invoke(intake_app, ["-"], input=payload)
 
-    assert result.exit_code == 0, f"Under-cap stdin must succeed. stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert result.exit_code == 0, (
+        f"Under-cap stdin must succeed. stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
     brief = tmp_path / ".kittify" / MISSION_BRIEF_FILENAME
     assert brief.exists()
     # The writer prepends provenance comments; the user payload must appear

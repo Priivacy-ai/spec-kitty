@@ -25,7 +25,6 @@ See ADR ``architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md``
 for the rationale and ``kitty-specs/shared-package-boundary-cutover-01KQ22DS/spec.md``
 for the constraint definitions.
 """
-
 from __future__ import annotations
 
 import subprocess
@@ -95,7 +94,11 @@ def test_wheel_does_not_contain_vendored_spec_kitty_events(
     catches that case directly.
     """
     with zipfile.ZipFile(built_wheel) as z:
-        offending = [name for name in z.namelist() if "specify_cli/spec_kitty_events/" in name]
+        offending = [
+            name
+            for name in z.namelist()
+            if "specify_cli/spec_kitty_events/" in name
+        ]
     assert not offending, (
         f"Wheel {built_wheel.name} contains vendored events paths: "
         f"{offending[:5]}{'...' if len(offending) > 5 else ''}. "

@@ -1,5 +1,4 @@
 """WP08 — docs/trail-model.md subsection presence regression tests."""
-
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]

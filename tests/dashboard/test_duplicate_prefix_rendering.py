@@ -122,13 +122,17 @@ def test_registry_has_three_distinct_mission_id_keys(
 ) -> None:
     """Three ``080-*`` missions must produce three distinct registry rows."""
     registry = build_mission_registry(colliding_080_repo)
-    assert len(registry) == 3, f"Expected 3 distinct records, got {len(registry)}: {list(registry)}"
+    assert len(registry) == 3, (
+        f"Expected 3 distinct records, got {len(registry)}: {list(registry)}"
+    )
     assert ULID_FOO in registry
     assert ULID_BAR in registry
     assert ULID_BAZ in registry
     # Directory slugs must NEVER be used as registry keys.
     for slug in ("080-foo", "080-bar", "080-baz"):
-        assert slug not in registry, f"Registry must key by mission_id (ULID), not slug {slug!r}"
+        assert slug not in registry, (
+            f"Registry must key by mission_id (ULID), not slug {slug!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +173,9 @@ def test_mid8_is_distinct_across_missions(colliding_080_repo: Path) -> None:
     """The mid8 prefix must be unique across all 3 collision candidates."""
     registry = build_mission_registry(colliding_080_repo)
     mid8s = {record["mid8"] for record in registry.values()}
-    assert len(mid8s) == 3, f"Expected 3 distinct mid8 values, got {mid8s}"
+    assert len(mid8s) == 3, (
+        f"Expected 3 distinct mid8 values, got {mid8s}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +219,9 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
 
     runner = CliRunner()
     result = runner.invoke(app, ["--json"])
-    assert result.exit_code == 0, f"dashboard --json failed: exit={result.exit_code}\n{result.stdout}"
+    assert result.exit_code == 0, (
+        f"dashboard --json failed: exit={result.exit_code}\n{result.stdout}"
+    )
 
     # With the wide no-wrap Console monkeypatched in, the JSON payload
     # comes out as a single clean block.
@@ -222,7 +230,9 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
     assert "display_order" in payload
 
     missions = payload["missions"]
-    assert len(missions) == 3, f"Expected 3 missions in --json output, got {len(missions)}: {sorted(missions)}"
+    assert len(missions) == 3, (
+        f"Expected 3 missions in --json output, got {len(missions)}: {sorted(missions)}"
+    )
     # All three ULIDs appear as keys.
     assert set(missions.keys()) == {ULID_FOO, ULID_BAR, ULID_BAZ}
 
@@ -256,7 +266,9 @@ def test_sort_missions_is_stable_and_keeps_all_three(
     assert set(order1) == {ULID_FOO, ULID_BAR, ULID_BAZ}
     # Secondary sort is by mission_slug: bar < baz < foo
     slugs = [registry[mid]["mission_slug"] for mid in order1]
-    assert slugs == ["080-bar", "080-baz", "080-foo"], f"Unexpected display order: {slugs}"
+    assert slugs == ["080-bar", "080-baz", "080-foo"], (
+        f"Unexpected display order: {slugs}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -296,4 +308,6 @@ def test_rendered_json_contains_every_mid8(
     rendered = result.stdout
     for ulid in (ULID_FOO, ULID_BAR, ULID_BAZ):
         mid8_value = ulid[:8]
-        assert mid8_value in rendered, f"Rendered JSON missing mid8 {mid8_value!r}:\n{rendered}"
+        assert mid8_value in rendered, (
+            f"Rendered JSON missing mid8 {mid8_value!r}:\n{rendered}"
+        )

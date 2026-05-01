@@ -38,7 +38,6 @@ def _event_data(model: MissionModel):
     """Minimal EventData stand-in with the required ``model`` attribute."""
     return SimpleNamespace(model=model)
 
-
 class TestArtifactExistsGuard:
     def test_file_present_returns_true(self, tmp_path: Path):
         feature_dir = tmp_path / "feature"
@@ -57,7 +56,6 @@ class TestArtifactExistsGuard:
     def test_missing_feature_dir_returns_false(self, tmp_path: Path):
         guard = GUARD_REGISTRY["artifact_exists"](["spec.md"])
         assert guard(_event_data(MissionModel(feature_dir=None))) is False
-
 
 class TestGatePassedGuard:
     def test_gate_event_present_returns_true(self, tmp_path: Path):
@@ -84,7 +82,6 @@ class TestGatePassedGuard:
         feature_dir.mkdir()
         guard = GUARD_REGISTRY["gate_passed"](["G1"])
         assert guard(_event_data(MissionModel(feature_dir=feature_dir))) is False
-
 
 class TestAllWpStatusGuard:
     def test_all_done_returns_true(self, tmp_path: Path):
@@ -115,7 +112,6 @@ class TestAllWpStatusGuard:
         guard = GUARD_REGISTRY["all_wp_status"](["done"])
         assert guard(_event_data(MissionModel(feature_dir=feature_dir))) is False
 
-
 class TestAnyWpStatusGuard:
     def test_any_done_returns_true(self, tmp_path: Path):
         feature_dir = tmp_path / "feature"
@@ -144,7 +140,6 @@ class TestAnyWpStatusGuard:
         guard = GUARD_REGISTRY["any_wp_status"](["done"])
         assert guard(_event_data(MissionModel(feature_dir=feature_dir))) is False
 
-
 class TestInputProvidedGuard:
     def test_input_present_returns_true(self, tmp_path: Path):
         model = MissionModel(feature_dir=tmp_path, inputs={"foo": "bar"})
@@ -156,14 +151,16 @@ class TestInputProvidedGuard:
         guard = GUARD_REGISTRY["input_provided"](["foo"])
         assert guard(_event_data(model)) is False
 
-
 class TestEventCountGuard:
     def test_minimum_met_returns_true(self, tmp_path: Path):
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
         log = feature_dir / "mission-events.jsonl"
         log.write_text(
-            "\n".join(json.dumps({"type": "checkpoint"}) for _ in range(3)) + "\n",
+            "\n".join(
+                json.dumps({"type": "checkpoint"}) for _ in range(3)
+            )
+            + "\n",
             encoding="utf-8",
         )
         guard = GUARD_REGISTRY["event_count"](["checkpoint", 3])
@@ -174,7 +171,10 @@ class TestEventCountGuard:
         feature_dir.mkdir()
         log = feature_dir / "mission-events.jsonl"
         log.write_text(
-            "\n".join(json.dumps({"type": "checkpoint"}) for _ in range(2)) + "\n",
+            "\n".join(
+                json.dumps({"type": "checkpoint"}) for _ in range(2)
+            )
+            + "\n",
             encoding="utf-8",
         )
         guard = GUARD_REGISTRY["event_count"](["checkpoint", 3])

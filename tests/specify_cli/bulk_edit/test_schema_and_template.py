@@ -25,7 +25,9 @@ from specify_cli.bulk_edit.occurrence_map import (
 class TestSchemaResource:
     def test_schema_loads_and_has_metadata(self) -> None:
         schema = load_schema()
-        assert schema.get("$schema", "").startswith("https://json-schema.org/draft/2020-12/")
+        assert schema.get("$schema", "").startswith(
+            "https://json-schema.org/draft/2020-12/"
+        )
         assert schema["title"] == "OccurrenceMap"
         assert schema["type"] == "object"
 

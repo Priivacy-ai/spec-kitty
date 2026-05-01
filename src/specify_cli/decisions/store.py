@@ -87,7 +87,10 @@ def save_index(mission_dir: Path, index: DecisionIndex) -> None:
         entries=tuple(sorted_entries),
     )
 
-    payload = json.dumps(sorted_index.model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
+    payload = (
+        json.dumps(sorted_index.model_dump(mode="json"), sort_keys=True, indent=2)
+        + "\n"
+    )
     _atomic_write(d_dir, index_path(mission_dir), payload.encode("utf-8"))
 
 
@@ -110,12 +113,17 @@ def update_entry(mission_dir: Path, decision_id: str, **updates: object) -> Deci
     Raises ``KeyError`` if *decision_id* is not found.
     """
     current = load_index(mission_dir)
-    matched = next((e for e in current.entries if e.decision_id == decision_id), None)
+    matched = next(
+        (e for e in current.entries if e.decision_id == decision_id), None
+    )
     if matched is None:
         raise KeyError(f"decision_id {decision_id!r} not found in index")
 
     replacement = matched.model_copy(update=updates)
-    new_entries = tuple(replacement if e.decision_id == decision_id else e for e in current.entries)
+    new_entries = tuple(
+        replacement if e.decision_id == decision_id else e
+        for e in current.entries
+    )
     new_index = DecisionIndex(
         version=current.version,
         mission_id=current.mission_id,
@@ -195,7 +203,9 @@ def _render_artifact(entry: IndexEntry) -> str:
     lines.append(f"- `{entry.created_at.isoformat()}` — opened")
     if entry.resolved_at is not None and entry.status.value in ("resolved", "deferred", "canceled"):
         if entry.final_answer is not None:
-            lines.append(f'- `{entry.resolved_at.isoformat()}` — {entry.status.value} (final_answer="{entry.final_answer}")')
+            lines.append(
+                f'- `{entry.resolved_at.isoformat()}` — {entry.status.value} (final_answer="{entry.final_answer}")'
+            )
         else:
             lines.append(f"- `{entry.resolved_at.isoformat()}` — {entry.status.value}")
 

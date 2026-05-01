@@ -6,7 +6,6 @@ requiring a real Windows environment or the msvcrt module.
 The sixth test (test_concurrent_lock_contention) is marked windows_ci and
 must run on a real windows-latest CI job.
 """
-
 from __future__ import annotations
 
 import json
@@ -65,7 +64,6 @@ def _setup_win32_env(
 
     return home, localappdata
 
-
 @contextmanager
 def _noop_ctx() -> object:  # type: ignore[return]
     yield
@@ -76,7 +74,9 @@ def _noop_ctx() -> object:  # type: ignore[return]
 # ---------------------------------------------------------------------------
 
 
-def test_absent_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_absent_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """All legacy roots absent → status='absent' for each; no writes under LocalAppData.
 
     Four legacy roots are checked after the DRIFT-3 second-pass fix:
@@ -100,9 +100,9 @@ def test_absent_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Nothing written under LocalAppData (beyond any lock file that might exist,
     # but the lock is mocked so nothing should be there at all).
     localappdata_spec_kitty = localappdata / "spec-kitty"
-    assert not localappdata_spec_kitty.exists() or not any(f for f in localappdata_spec_kitty.rglob("*") if f.is_file()), (
-        "No files should have been written under LocalAppData"
-    )
+    assert not localappdata_spec_kitty.exists() or not any(
+        f for f in localappdata_spec_kitty.rglob("*") if f.is_file()
+    ), "No files should have been written under LocalAppData"
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,9 @@ def test_absent_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_move_to_empty_destination(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_move_to_empty_destination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Legacy ~/.spec-kitty exists, destination is empty → status='moved'; source gone, dest populated."""
     home, localappdata = _setup_win32_env(monkeypatch, tmp_path)
 
@@ -148,7 +150,9 @@ def test_move_to_empty_destination(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 # ---------------------------------------------------------------------------
 
 
-def test_quarantine_on_conflict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_quarantine_on_conflict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Legacy exists + non-empty destination → legacy quarantined; dest untouched."""
     home, localappdata = _setup_win32_env(monkeypatch, tmp_path)
 
@@ -181,7 +185,9 @@ def test_quarantine_on_conflict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert not legacy.exists(), "Legacy should have been renamed to quarantine"
 
     # Destination should be untouched.
-    assert (dest / "existing.txt").read_text() == "existing canonical state", "Existing destination content must not be modified"
+    assert (dest / "existing.txt").read_text() == "existing canonical state", (
+        "Existing destination content must not be modified"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +195,9 @@ def test_quarantine_on_conflict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 # ---------------------------------------------------------------------------
 
 
-def test_idempotent_second_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_idempotent_second_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Second invocation returns all status='absent' (idempotent no-op)."""
     home, localappdata = _setup_win32_env(monkeypatch, tmp_path)
 
@@ -207,7 +215,9 @@ def test_idempotent_second_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     second = migrate_windows_state()
     assert len(second) == 4
     for outcome in second:
-        assert outcome.status == "absent", f"Second run: expected 'absent' for {outcome.legacy_id}, got {outcome.status!r}"
+        assert outcome.status == "absent", (
+            f"Second run: expected 'absent' for {outcome.legacy_id}, got {outcome.status!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +225,9 @@ def test_idempotent_second_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 # ---------------------------------------------------------------------------
 
 
-def test_dry_run_no_side_effects(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dry_run_no_side_effects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """dry_run=True returns outcomes reflecting intent without touching the filesystem."""
     home, localappdata = _setup_win32_env(monkeypatch, tmp_path)
 
@@ -232,12 +244,16 @@ def test_dry_run_no_side_effects(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     sk = by_id["spec_kitty_home"]
 
     # Outcome should reflect what *would* happen.
-    assert sk.status == "moved", f"dry_run: expected status 'moved', got {sk.status!r}: {sk.error}"
+    assert sk.status == "moved", (
+        f"dry_run: expected status 'moved', got {sk.status!r}: {sk.error}"
+    )
 
     # Filesystem must be unchanged.
     assert legacy.exists(), "dry_run must not move the legacy directory"
     assert (legacy / "important.txt").exists(), "dry_run must not touch legacy files"
-    assert not dest.exists() or not any(dest.iterdir()), "dry_run must not write to destination"
+    assert not dest.exists() or not any(dest.iterdir()), (
+        "dry_run must not write to destination"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +350,9 @@ def test_concurrent_lock_contention(tmp_path: Path) -> None:
     legacy = user_home / ".spec-kitty"
 
     # The canonical destination must be populated (one process completed).
-    assert dest.exists() and any(dest.rglob("*")), "Destination must be populated after one process completes the migration"
+    assert dest.exists() and any(dest.rglob("*")), (
+        "Destination must be populated after one process completes the migration"
+    )
 
     # The original legacy location must not remain as-is when destination is
     # populated — it is either moved or quarantined.
@@ -347,4 +365,6 @@ def test_concurrent_lock_contention(tmp_path: Path) -> None:
     assert s1 in ("moved", "quarantined", "absent", "error"), f"Unexpected status P1: {s1}"
     assert s2 in ("moved", "quarantined", "absent", "error"), f"Unexpected status P2: {s2}"
     moved_count = sum(1 for s in (s1, s2) if s == "moved")
-    assert moved_count >= 1 or (s1 == "quarantined" or s2 == "quarantined"), f"Expected at least one 'moved' or 'quarantined' outcome; got {s1!r} and {s2!r}"
+    assert moved_count >= 1 or (s1 == "quarantined" or s2 == "quarantined"), (
+        f"Expected at least one 'moved' or 'quarantined' outcome; got {s1!r} and {s2!r}"
+    )

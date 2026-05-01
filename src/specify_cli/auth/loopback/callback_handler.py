@@ -56,23 +56,34 @@ class CallbackHandler:
             error = params["error"]
             desc = params.get("error_description", "")
             if desc:
-                raise CallbackError(f"OAuth provider returned error: {error} ({desc})")
+                raise CallbackError(
+                    f"OAuth provider returned error: {error} ({desc})"
+                )
             raise CallbackError(f"OAuth provider returned error: {error}")
 
         if "code" not in params:
-            raise CallbackValidationError("Missing 'code' in callback parameters")
+            raise CallbackValidationError(
+                "Missing 'code' in callback parameters"
+            )
         if "state" not in params:
-            raise CallbackValidationError("Missing 'state' in callback parameters")
+            raise CallbackValidationError(
+                "Missing 'state' in callback parameters"
+            )
 
         if params["state"] != self._expected_state:
             # Show only the first 8 chars of each state value in the
             # message so we don't leak the full CSRF nonce to logs.
-            raise CallbackValidationError(f"State mismatch (possible CSRF attack): expected {self._expected_state[:8]}..., got {params['state'][:8]}...")
+            raise CallbackValidationError(
+                "State mismatch (possible CSRF attack): expected "
+                f"{self._expected_state[:8]}..., got {params['state'][:8]}..."
+            )
 
         return params["code"], params["state"]
 
 
-def validate_callback_params(params: dict[str, str], expected_state: str) -> tuple[str, str]:
+def validate_callback_params(
+    params: dict[str, str], expected_state: str
+) -> tuple[str, str]:
     """Functional wrapper around :meth:`CallbackHandler.validate`.
 
     Convenience for call sites that don't need to keep a handler around;

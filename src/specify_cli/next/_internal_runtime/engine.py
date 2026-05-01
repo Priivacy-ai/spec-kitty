@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, cast
 from uuid import uuid4
@@ -74,7 +74,9 @@ from specify_cli.next._internal_runtime.significance import (
 ResultType = Literal["success", "failed", "blocked"]
 
 
-def _find_step_by_id(template: MissionTemplate, step_id: str) -> PromptStep | AuditStep | None:
+def _find_step_by_id(
+    template: MissionTemplate, step_id: str
+) -> PromptStep | AuditStep | None:
     """Look up a step by ID across both steps and audit_steps."""
     prompt_step: PromptStep
     for prompt_step in template.steps:
@@ -105,7 +107,7 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
     event_file = run_dir / "run.events.jsonl"
     event = {
         "event_type": event_type,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "payload": payload,
     }
     with open(event_file, "a", encoding="utf-8") as handle:
@@ -113,7 +115,7 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
 
 
 def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
-    with open(run_dir / "state.json", encoding="utf-8") as handle:
+    with open(run_dir / "state.json", "r", encoding="utf-8") as handle:
         raw = json.load(handle)
     return MissionRunSnapshot.model_validate(raw)
 
@@ -133,7 +135,9 @@ def _freeze_template(run_dir: Path, template: MissionTemplate, template_path: st
     if source_path.exists() and source_path.is_file():
         yaml_bytes = source_path.read_bytes()
     else:
-        yaml_bytes = yaml.dump(template.model_dump(), default_flow_style=False, sort_keys=True).encode("utf-8")
+        yaml_bytes = yaml.dump(
+            template.model_dump(), default_flow_style=False, sort_keys=True
+        ).encode("utf-8")
 
     frozen_path = run_dir / "mission_template_frozen.yaml"
     frozen_path.write_bytes(yaml_bytes)
@@ -210,7 +214,9 @@ def start_mission_run(
         blocked_reason=None,
     )
     _write_snapshot(run_dir, snapshot)
-    actor = RuntimeActorIdentity(actor_id="system", actor_type="service", provider=None, model=None, tool=None)
+    actor = RuntimeActorIdentity(
+        actor_id="system", actor_type="service", provider=None, model=None, tool=None
+    )
     payload = MissionRunStartedPayload(run_id=run_id, mission_type=template.mission.key, actor=actor)
     _append_event(run_dir, MISSION_RUN_STARTED, payload.model_dump(mode="json"))
     emitter.emit_mission_run_started(payload)
@@ -282,13 +288,12 @@ def next_step(
             pending_decisions=snapshot.pending_decisions,
             blocked_reason=blocked_reason,
         )
-        ac_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None)
+        ac_actor = RuntimeActorIdentity(
+            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+        )
         ac_payload = NextStepAutoCompletedPayload(
-            run_id=snapshot.run_id,
-            step_id=completed_step_id,
-            agent_id=agent_id,
-            result=result,
-            actor=ac_actor,
+            run_id=snapshot.run_id, step_id=completed_step_id,
+            agent_id=agent_id, result=result, actor=ac_actor,
         )
         _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, ac_payload.model_dump(mode="json"))
         emitter.emit_next_step_auto_completed(ac_payload)
@@ -309,8 +314,12 @@ def next_step(
     # ====================================================================
     # WP05: Significance evaluation for audit decisions
     # ====================================================================
-    if decision.kind == "decision_required" and decision.decision_id and decision.decision_id.startswith("audit:"):
-        _sig_step_id = decision.decision_id[len("audit:") :]
+    if (
+        decision.kind == "decision_required"
+        and decision.decision_id
+        and decision.decision_id.startswith("audit:")
+    ):
+        _sig_step_id = decision.decision_id[len("audit:"):]
         _sig_step = _find_step_by_id(template, _sig_step_id)
         if isinstance(_sig_step, AuditStep) and _sig_step.significance is not None:
             _sig_score = evaluate_significance(
@@ -335,11 +344,15 @@ def next_step(
                 decision_id=decision.decision_id,
                 step_id=_sig_step_id,
                 significance_score=_sig_score.model_dump(mode="json"),
-                hard_trigger_classes=tuple(ht.class_id for ht in _sig_score.hard_trigger_classes),
+                hard_trigger_classes=tuple(
+                    ht.class_id for ht in _sig_score.hard_trigger_classes
+                ),
                 effective_band=_sig_score.effective_band.name,
                 actor=RACIRoleBinding(actor_type="service", actor_id="runtime"),
             )
-            _append_event(run_dir, "SignificanceEvaluated", _sig_payload.model_dump(mode="json"))
+            _append_event(
+                run_dir, "SignificanceEvaluated", _sig_payload.model_dump(mode="json")
+            )
             emitter.emit_significance_evaluated(_sig_payload)
 
             # Adjust decision based on effective band
@@ -386,12 +399,12 @@ def next_step(
 
     if decision.kind == "step" and decision.step_id:
         issued_step_id = decision.step_id
-        si_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None)
+        si_actor = RuntimeActorIdentity(
+            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+        )
         si_payload = NextStepIssuedPayload(
-            run_id=snapshot.run_id,
-            step_id=decision.step_id,
-            agent_id=agent_id,
-            actor=si_actor,
+            run_id=snapshot.run_id, step_id=decision.step_id,
+            agent_id=agent_id, actor=si_actor,
         )
         _append_event(run_dir, NEXT_STEP_ISSUED, si_payload.model_dump(mode="json"))
         emitter.emit_next_step_issued(si_payload)
@@ -415,14 +428,16 @@ def next_step(
         # Persist input-keyed decisions in pending_decisions so they're answerable.
         # Only emit event + persist on first occurrence to avoid duplicates on re-poll.
         if decision.decision_id not in pending_decisions:
-            dr_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None)
+            dr_actor = RuntimeActorIdentity(
+                actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+            )
             req = DecisionRequest(
                 decision_id=decision.decision_id,
                 step_id=decision.step_id or "",
                 question=decision.question or "",
                 options=decision.options or [],
                 requested_by=dr_actor,
-                requested_at=datetime.now(UTC),
+                requested_at=datetime.now(timezone.utc),
             )
             pending_decisions[decision.decision_id] = req.model_dump(mode="json")
 
@@ -440,11 +455,11 @@ def next_step(
     elif decision.kind == "terminal" and did_complete_step:
         # Only emit on the transition into terminal (last step just completed),
         # not on re-polls of an already-terminal run.
-        mc_actor = RuntimeActorIdentity(actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None)
+        mc_actor = RuntimeActorIdentity(
+            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
+        )
         mc_payload = MissionRunCompletedPayload(
-            run_id=snapshot.run_id,
-            mission_type=snapshot.mission_key,
-            actor=mc_actor,
+            run_id=snapshot.run_id, mission_type=snapshot.mission_key, actor=mc_actor,
         )
         _append_event(run_dir, MISSION_RUN_COMPLETED, mc_payload.model_dump(mode="json"))
         emitter.emit_mission_run_completed(mc_payload)
@@ -487,7 +502,9 @@ def provide_decision_answer(
 
     pending = dict(snapshot.pending_decisions)
     if decision_id not in pending:
-        raise MissionRuntimeError(f"Decision '{decision_id}' not found in pending_decisions for run '{snapshot.run_id}'")
+        raise MissionRuntimeError(
+            f"Decision '{decision_id}' not found in pending_decisions for run '{snapshot.run_id}'"
+        )
 
     decisions = dict(snapshot.decisions)
     inputs = dict(snapshot.inputs)
@@ -501,7 +518,7 @@ def provide_decision_answer(
     # WP06: Look up persisted RACI binding for the step associated with this decision.
     _raci_step_id: str | None = None
     if decision_id.startswith("audit:"):
-        _raci_step_id = decision_id[len("audit:") :]
+        _raci_step_id = decision_id[len("audit:"):]
     elif decision_id.startswith("input:"):
         # For input decisions, check if there's an issued step with RACI
         _raci_step_id = snapshot.issued_step_id
@@ -514,7 +531,7 @@ def provide_decision_answer(
 
     # T014: Detect audit: prefix and validate answer before creating DecisionAnswer.
     if decision_id.startswith("audit:"):
-        audit_step_id = decision_id[len("audit:") :]
+        audit_step_id = decision_id[len("audit:"):]
         mission_owner_id = _resolve_mission_owner_id(inputs)
         authority_role = "mission_owner"
 
@@ -556,18 +573,26 @@ def provide_decision_answer(
         if _effective_band_name == "medium":
             _valid_medium = {"decide_solo", "open_stand_up", "defer"}
             if answer not in _valid_medium:
-                raise MissionRuntimeError(f"Medium-band decision requires one of {sorted(_valid_medium)}, got: {answer!r}")
+                raise MissionRuntimeError(
+                    f"Medium-band decision requires one of {sorted(_valid_medium)}, got: {answer!r}"
+                )
         elif _effective_band_name == "high":
             if answer not in ("approve", "reject"):
-                raise MissionRuntimeError(f"High-band decision requires one of {{'approve', 'reject'}}, got: {answer!r}")
+                raise MissionRuntimeError(
+                    f"High-band decision requires one of {{'approve', 'reject'}}, got: {answer!r}"
+                )
         else:
             # No significance evaluation — existing validation (T015).
             if answer not in ("approve", "reject"):
-                raise MissionRuntimeError(f"Invalid audit answer '{answer}': must be 'approve' or 'reject'")
+                raise MissionRuntimeError(
+                    f"Invalid audit answer '{answer}': must be 'approve' or 'reject'"
+                )
     elif actor.actor_type == "llm":
         delegation = _resolve_delegation_record(inputs, decision_id)
         if delegation is None:
-            raise MissionRuntimeError(f"LLM actor '{actor.actor_id}' is not delegated for decision '{decision_id}'")
+            raise MissionRuntimeError(
+                f"LLM actor '{actor.actor_id}' is not delegated for decision '{decision_id}'"
+            )
 
         authority_role = delegation.get("authority_role") or "delegated_llm"
         if not isinstance(authority_role, str):
@@ -577,24 +602,22 @@ def provide_decision_answer(
         if isinstance(rationale_raw, str):
             rationale_linkage = rationale_raw.strip() or None
         if rationale_linkage is None:
-            raise MissionRuntimeError(f"LLM delegation for decision '{decision_id}' must include non-empty rationale_linkage")
+            raise MissionRuntimeError(
+                f"LLM delegation for decision '{decision_id}' must include non-empty rationale_linkage"
+            )
 
     answer_data = DecisionAnswer(
         decision_id=decision_id,
         answer=answer,
         answered_by=actor,
-        answered_at=datetime.now(UTC),
+        answered_at=datetime.now(timezone.utc),
     )
     decision_record = answer_data.model_dump(mode="json")
-    decision_record.update(
-        _authority_metadata(
-            actor,
-            authority_role,
-            rationale_linkage,
-            raci_source=raci_source,
-            override_reason=raci_override_reason,
-        )
-    )
+    decision_record.update(_authority_metadata(
+        actor, authority_role, rationale_linkage,
+        raci_source=raci_source,
+        override_reason=raci_override_reason,
+    ))
     decisions[decision_id] = decision_record
     del pending[decision_id]
 
@@ -614,13 +637,17 @@ def provide_decision_answer(
             # (`decide_solo` / `open_stand_up` / `defer`); pydantic re-validates
             # at SoftGateDecision construction so the cast is a typing assist
             # rather than a trust boundary widening.
-            _soft_gate_action = cast(Literal["decide_solo", "open_stand_up", "defer"], answer)
-            _actor_type_lit = cast(Literal["human", "llm", "service"], actor.actor_type)
+            _soft_gate_action = cast(
+                Literal["decide_solo", "open_stand_up", "defer"], answer
+            )
+            _actor_type_lit = cast(
+                Literal["human", "llm", "service"], actor.actor_type
+            )
             _soft_gate = SoftGateDecision(
                 decision_id=decision_id,
                 action=_soft_gate_action,
                 actor=RACIRoleBinding(actor_type=_actor_type_lit, actor_id=actor.actor_id),
-                timestamp=datetime.now(UTC),
+                timestamp=datetime.now(timezone.utc),
                 significance_score=_sig_score_obj,
                 outcome=_soft_gate_action if answer == "decide_solo" else None,
             )
@@ -645,7 +672,7 @@ def provide_decision_answer(
 
     elif decision_id.startswith("input:"):
         # For input-keyed decisions, write the answer into inputs so requires_inputs is satisfied.
-        input_key = decision_id[len("input:") :]
+        input_key = decision_id[len("input:"):]
         inputs[input_key] = answer
 
     snapshot = MissionRunSnapshot(
@@ -665,10 +692,7 @@ def provide_decision_answer(
 
     # T018: Emit DECISION_INPUT_ANSWERED event for both approve and reject paths.
     da_payload = DecisionInputAnsweredPayload(
-        run_id=snapshot.run_id,
-        decision_id=decision_id,
-        answer=answer,
-        actor=actor,
+        run_id=snapshot.run_id, decision_id=decision_id, answer=answer, actor=actor,
     )
     _append_event(run_dir, DECISION_INPUT_ANSWERED, da_payload.model_dump(mode="json"))
     emitter.emit_decision_input_answered(da_payload)
@@ -748,7 +772,10 @@ def notify_decision_timeout(
     snapshot = _read_snapshot(run_dir)
 
     # Extract step_id from decision_id (strip "audit:" prefix)
-    step_id = decision_id[len("audit:") :] if decision_id.startswith("audit:") else decision_id
+    if decision_id.startswith("audit:"):
+        step_id = decision_id[len("audit:"):]
+    else:
+        step_id = decision_id
 
     # Load RACI binding from decisions
     raci_key = f"raci:{step_id}"
@@ -765,10 +792,16 @@ def notify_decision_timeout(
 
     # Determine effective_band from stored significance score
     effective_band_data = sig_data.get("effective_band")
-    effective_band = effective_band_data.get("name") if isinstance(effective_band_data, dict) else effective_band_data
+    if isinstance(effective_band_data, dict):
+        effective_band = effective_band_data.get("name")
+    else:
+        effective_band = effective_band_data
 
     if effective_band not in ("medium", "high"):
-        raise MissionRuntimeError(f"Unexpected effective_band '{effective_band}' for decision '{decision_id}'. Only 'medium' and 'high' bands can timeout.")
+        raise MissionRuntimeError(
+            f"Unexpected effective_band '{effective_band}' for decision '{decision_id}'. "
+            f"Only 'medium' and 'high' bands can timeout."
+        )
 
     # Compute escalation targets
     escalation_targets = compute_escalation_targets(raci_binding, effective_band)
@@ -875,7 +908,11 @@ class TransitionGate:
 
         return "ready"
 
-    def _evaluate_context(self, context_type: ContextType, required: bool = True) -> str | RemediationPayload:
+    def _evaluate_context(
+        self,
+        context_type: ContextType,
+        required: bool = True
+    ) -> str | RemediationPayload:
         """Evaluate a single context.
 
         Args:
@@ -887,7 +924,13 @@ class TransitionGate:
             RemediationPayload if context failed resolution or validation
         """
         # Attempt context resolution using precedence chain
-        resolution_result = resolve_context(context_type.type, context_type, self.available_bindings, self.registry, self.local_discovery_root)
+        resolution_result = resolve_context(
+            context_type.type,
+            context_type,
+            self.available_bindings,
+            self.registry,
+            self.local_discovery_root
+        )
 
         if isinstance(resolution_result, RemediationPayload):
             # Resolution failed
@@ -906,7 +949,10 @@ class TransitionGate:
                 context_name=context_type.type,
                 candidates=[{"value": resolved_value}],
                 validation_failures=[validation_error] if validation_error else None,
-                resolver_metadata={"context_type": context_type.type, "validation_rule_failed": True},
+                resolver_metadata={
+                    "context_type": context_type.type,
+                    "validation_rule_failed": True
+                }
             )
             return payload
 
@@ -914,7 +960,11 @@ class TransitionGate:
 
 
 def resolve_context(
-    context_name: str, context_type: ContextType, available_bindings: dict[str, Any], registry: ContextTypeRegistry, local_discovery_root: Path | None = None
+    context_name: str,
+    context_type: ContextType,
+    available_bindings: dict[str, Any],
+    registry: ContextTypeRegistry,
+    local_discovery_root: Path | None = None
 ) -> Any | RemediationPayload:
     """Resolve a context using the 5-point precedence chain.
 
@@ -955,7 +1005,12 @@ def resolve_context(
             return RemediationPayload.ambiguous(
                 context_name=context_name,
                 candidates=candidates,
-                resolver_metadata={**resolver_metadata, "resolver": "explicit_inputs", "precedence": 1, "ambiguous_count": len(candidates)},
+                resolver_metadata={
+                    **resolver_metadata,
+                    "resolver": "explicit_inputs",
+                    "precedence": 1,
+                    "ambiguous_count": len(candidates)
+                }
             )
         return candidates[0]["value"]
 
@@ -966,7 +1021,12 @@ def resolve_context(
             return RemediationPayload.ambiguous(
                 context_name=context_name,
                 candidates=candidates,
-                resolver_metadata={**resolver_metadata, "resolver": "context_ledger", "precedence": 2, "ambiguous_count": len(candidates)},
+                resolver_metadata={
+                    **resolver_metadata,
+                    "resolver": "context_ledger",
+                    "precedence": 2,
+                    "ambiguous_count": len(candidates)
+                }
             )
         return candidates[0]["value"]
 
@@ -977,18 +1037,33 @@ def resolve_context(
             return RemediationPayload.ambiguous(
                 context_name=context_name,
                 candidates=candidates,
-                resolver_metadata={**resolver_metadata, "resolver": "mission_metadata", "precedence": 3, "ambiguous_count": len(candidates)},
+                resolver_metadata={
+                    **resolver_metadata,
+                    "resolver": "mission_metadata",
+                    "precedence": 3,
+                    "ambiguous_count": len(candidates)
+                }
             )
         return candidates[0]["value"]
 
     # 4. Deterministic local discovery
-    candidates = _resolve_local_discovery(context_name, context_type, available_bindings, local_discovery_root)
+    candidates = _resolve_local_discovery(
+        context_name,
+        context_type,
+        available_bindings,
+        local_discovery_root
+    )
     if candidates:
         if len(candidates) > 1:
             return RemediationPayload.ambiguous(
                 context_name=context_name,
                 candidates=candidates,
-                resolver_metadata={**resolver_metadata, "resolver": "local_discovery", "precedence": 4, "ambiguous_count": len(candidates)},
+                resolver_metadata={
+                    **resolver_metadata,
+                    "resolver": "local_discovery",
+                    "precedence": 4,
+                    "ambiguous_count": len(candidates)
+                }
             )
         return candidates[0]["value"]
 
@@ -1015,16 +1090,25 @@ def resolve_context(
                         "resolver": "fallback_local",
                         "precedence": 5,
                         "ambiguous_count": len(candidates),
-                        "policy_enabled": True,
-                    },
+                        "policy_enabled": True
+                    }
                 )
             return candidates[0]["value"]
 
     # No candidates found in any resolver
-    return RemediationPayload.missing(context_name=context_name, resolver_metadata={**resolver_metadata, "resolver_chain_exhausted": True})
+    return RemediationPayload.missing(
+        context_name=context_name,
+        resolver_metadata={
+            **resolver_metadata,
+            "resolver_chain_exhausted": True
+        }
+    )
 
 
-def _resolve_explicit_inputs(context_name: str, available_bindings: dict[str, Any]) -> list[dict[str, Any]]:
+def _resolve_explicit_inputs(
+    context_name: str,
+    available_bindings: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Resolver 1: Check for explicit operator overrides.
 
     Sources:
@@ -1054,21 +1138,31 @@ def _resolve_explicit_inputs(context_name: str, available_bindings: dict[str, An
         # If explicit input is a list or tuple, treat as multiple candidates (ambiguous)
         if isinstance(value, (list, tuple)):
             for i, item in enumerate(value):
-                candidates.append(
-                    {
-                        "value": item,
-                        "source": f"explicit_input:{context_name}[{i}]",
-                        "metadata": {"resolver": "explicit_inputs", "precedence": 1, "is_list": True, "index": i},
+                candidates.append({
+                    "value": item,
+                    "source": f"explicit_input:{context_name}[{i}]",
+                    "metadata": {
+                        "resolver": "explicit_inputs",
+                        "precedence": 1,
+                        "is_list": True,
+                        "index": i
                     }
-                )
+                })
         else:
             # Single value - normal candidate
-            candidates.append({"value": value, "source": f"explicit_input:{context_name}", "metadata": {"resolver": "explicit_inputs", "precedence": 1}})
+            candidates.append({
+                "value": value,
+                "source": f"explicit_input:{context_name}",
+                "metadata": {"resolver": "explicit_inputs", "precedence": 1}
+            })
 
     return candidates
 
 
-def _resolve_ledger_bindings(context_name: str, available_bindings: dict[str, Any]) -> list[dict[str, Any]]:
+def _resolve_ledger_bindings(
+    context_name: str,
+    available_bindings: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Resolver 2: Check prior ContextLedger bindings.
 
     Sources:
@@ -1097,18 +1191,23 @@ def _resolve_ledger_bindings(context_name: str, available_bindings: dict[str, An
             value = binding
             validation_status = "unknown"
 
-        candidates.append(
-            {
-                "value": value,
-                "source": f"ledger:{context_name}",
-                "metadata": {"resolver": "context_ledger", "precedence": 2, "validation_status": validation_status},
+        candidates.append({
+            "value": value,
+            "source": f"ledger:{context_name}",
+            "metadata": {
+                "resolver": "context_ledger",
+                "precedence": 2,
+                "validation_status": validation_status
             }
-        )
+        })
 
     return candidates
 
 
-def _resolve_mission_metadata(context_name: str, available_bindings: dict[str, Any]) -> list[dict[str, Any]]:
+def _resolve_mission_metadata(
+    context_name: str,
+    available_bindings: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Resolver 3: Check mission run metadata.
 
     Sources:
@@ -1141,14 +1240,25 @@ def _resolve_mission_metadata(context_name: str, available_bindings: dict[str, A
     if context_name in mapping:
         field = mapping[context_name]
         if field in metadata:
-            candidates.append(
-                {"value": metadata[field], "source": f"mission_metadata:{field}", "metadata": {"resolver": "mission_metadata", "precedence": 3, "field": field}}
-            )
+            candidates.append({
+                "value": metadata[field],
+                "source": f"mission_metadata:{field}",
+                "metadata": {
+                    "resolver": "mission_metadata",
+                    "precedence": 3,
+                    "field": field
+                }
+            })
 
     return candidates
 
 
-def _resolve_local_discovery(context_name: str, context_type: ContextType, available_bindings: dict[str, Any], local_discovery_root: Path) -> list[dict[str, Any]]:
+def _resolve_local_discovery(
+    context_name: str,
+    context_type: ContextType,
+    available_bindings: dict[str, Any],
+    local_discovery_root: Path
+) -> list[dict[str, Any]]:
     """Resolver 4: Deterministic local filesystem discovery.
 
     Sources:
@@ -1174,9 +1284,15 @@ def _resolve_local_discovery(context_name: str, context_type: ContextType, avail
     discovery_hints = available_bindings.get("discovery_hints", {})
     if context_name in discovery_hints:
         hint_value = discovery_hints[context_name]
-        candidates.append(
-            {"value": hint_value, "source": f"discovery_hint:{context_name}", "metadata": {"resolver": "local_discovery", "precedence": 4, "type": "hint"}}
-        )
+        candidates.append({
+            "value": hint_value,
+            "source": f"discovery_hint:{context_name}",
+            "metadata": {
+                "resolver": "local_discovery",
+                "precedence": 4,
+                "type": "hint"
+            }
+        })
 
     # Check for artifact files that match context name pattern
     # E.g., "spec_artifact" -> look for spec.md, spec.yaml
@@ -1191,26 +1307,37 @@ def _resolve_local_discovery(context_name: str, context_type: ContextType, avail
         for pattern in artifact_patterns[context_name]:
             potential_path = local_discovery_root / pattern
             if potential_path.exists():
-                candidates.append(
-                    {
-                        "value": str(potential_path),
-                        "source": f"local_discovery:{pattern}",
-                        "metadata": {"resolver": "local_discovery", "precedence": 4, "type": "artifact_file"},
+                candidates.append({
+                    "value": str(potential_path),
+                    "source": f"local_discovery:{pattern}",
+                    "metadata": {
+                        "resolver": "local_discovery",
+                        "precedence": 4,
+                        "type": "artifact_file"
                     }
-                )
+                })
 
     # Check for branch context (requires git state in available_bindings)
     if context_name == "target_branch":
         git_state = available_bindings.get("git_state", {})
         if "branch" in git_state:
-            candidates.append(
-                {"value": git_state["branch"], "source": "git_state:branch", "metadata": {"resolver": "local_discovery", "precedence": 4, "type": "git_state"}}
-            )
+            candidates.append({
+                "value": git_state["branch"],
+                "source": "git_state:branch",
+                "metadata": {
+                    "resolver": "local_discovery",
+                    "precedence": 4,
+                    "type": "git_state"
+                }
+            })
 
     return candidates
 
 
-def _resolve_fallback_local(context_name: str, available_bindings: dict[str, Any]) -> list[dict[str, Any]]:
+def _resolve_fallback_local(
+    context_name: str,
+    available_bindings: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Resolver 5: Step-specific LOCAL fallback resolvers.
 
     Fallback resolvers are optional and must be:
@@ -1233,15 +1360,21 @@ def _resolve_fallback_local(context_name: str, available_bindings: dict[str, Any
     if context_name in fallback_resolvers:
         resolver_data = fallback_resolvers[context_name]
         # Handle both dict and non-dict values
-        value = resolver_data.get("value", resolver_data) if isinstance(resolver_data, dict) else resolver_data
+        if isinstance(resolver_data, dict):
+            value = resolver_data.get("value", resolver_data)
+        else:
+            value = resolver_data
 
-        candidates.append(
-            {
-                "value": value,
-                "source": f"fallback_local:{context_name}",
-                "metadata": {"resolver": "fallback_local", "precedence": 5, "policy_required": True, "local_only": True},
+        candidates.append({
+            "value": value,
+            "source": f"fallback_local:{context_name}",
+            "metadata": {
+                "resolver": "fallback_local",
+                "precedence": 5,
+                "policy_required": True,
+                "local_only": True
             }
-        )
+        })
 
     return candidates
 
@@ -1271,7 +1404,11 @@ def validate_binding(value: Any, context_type: ContextType) -> tuple[bool, str |
     return (True, None)
 
 
-def _validate_rule(value: Any, rule_name: str, rule_value: Any) -> tuple[bool, str | None]:
+def _validate_rule(
+    value: Any,
+    rule_name: str,
+    rule_value: Any
+) -> tuple[bool, str | None]:
     """Validate a single rule.
 
     Args:
@@ -1334,4 +1471,5 @@ def _validate_rule(value: Any, rule_name: str, rule_value: Any) -> tuple[bool, s
         return (True, None)
 
     else:
-        return (False, f"Unknown validation rule '{rule_name}': supported rules are artifact_exists, path_exists, slug_format")
+        return (False, f"Unknown validation rule '{rule_name}': "
+                f"supported rules are artifact_exists, path_exists, slug_format")

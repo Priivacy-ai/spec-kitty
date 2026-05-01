@@ -31,19 +31,16 @@ def test_resolve_mission_identity_includes_mission_id(tmp_path: Path) -> None:
     """resolve_mission_identity() returns MissionIdentity with mission_id populated from meta.json."""
     ulid_val = str(ULID())
     feature_dir = tmp_path / "001-test-feature"
-    _write_meta(
-        feature_dir,
-        {
-            "mission_slug": "001-test-feature",
-            "mission_number": "001",
-            "mission_type": "software-dev",
-            "slug": "001-test-feature",
-            "friendly_name": "test feature",
-            "target_branch": "main",
-            "created_at": "2026-04-09T00:00:00+00:00",
-            "mission_id": ulid_val,
-        },
-    )
+    _write_meta(feature_dir, {
+        "mission_slug": "001-test-feature",
+        "mission_number": "001",
+        "mission_type": "software-dev",
+        "slug": "001-test-feature",
+        "friendly_name": "test feature",
+        "target_branch": "main",
+        "created_at": "2026-04-09T00:00:00+00:00",
+        "mission_id": ulid_val,
+    })
 
     identity = resolve_mission_identity(feature_dir)
 
@@ -62,19 +59,16 @@ def test_resolve_mission_identity_includes_mission_id(tmp_path: Path) -> None:
 def test_resolve_mission_identity_tolerates_legacy_mission(tmp_path: Path) -> None:
     """resolve_mission_identity() with no mission_id in meta.json returns mission_id=None (no exception)."""
     feature_dir = tmp_path / "001-legacy-feature"
-    _write_meta(
-        feature_dir,
-        {
-            "mission_slug": "001-legacy-feature",
-            "mission_number": "001",
-            "mission_type": "software-dev",
-            "slug": "001-legacy-feature",
-            "friendly_name": "legacy feature",
-            "target_branch": "main",
-            "created_at": "2025-01-01T00:00:00+00:00",
-            # mission_id intentionally absent
-        },
-    )
+    _write_meta(feature_dir, {
+        "mission_slug": "001-legacy-feature",
+        "mission_number": "001",
+        "mission_type": "software-dev",
+        "slug": "001-legacy-feature",
+        "friendly_name": "legacy feature",
+        "target_branch": "main",
+        "created_at": "2025-01-01T00:00:00+00:00",
+        # mission_id intentionally absent
+    })
 
     identity = resolve_mission_identity(feature_dir)
 

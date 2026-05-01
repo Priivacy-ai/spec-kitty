@@ -6,8 +6,8 @@ Asserts:
 2. Backend identifiers (CSS classes, HTML IDs, API route segments, cookie keys,
    JS function names, Python diagnostic keys) stay unchanged — FR-004 / C-007.
 """
-
 from pathlib import Path
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DASHBOARD = REPO_ROOT / "src/specify_cli/dashboard"

@@ -39,7 +39,9 @@ def _make_sparse_repo(path: Path) -> None:
     _run(["git", "-C", str(path), "config", "core.sparseCheckout", "true"])
 
 
-def test_warn_fires_exactly_once_across_many_calls(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_warn_fires_exactly_once_across_many_calls(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     repo = tmp_path / "repo"
     _make_sparse_repo(repo)
 
@@ -57,12 +59,23 @@ def test_warn_fires_exactly_once_across_many_calls(tmp_path: Path, caplog: pytes
     ]:
         warn_if_sparse_once(repo, command=cmd)
 
-    hits = [r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()]
-    assert len(hits) == 1, f"Expected exactly one session warning across N call sites, got {len(hits)}: {[r.getMessage() for r in hits]}"
-    assert "command=merge" in hits[0].getMessage(), "The first caller wins — subsequent CLI surfaces must not overwrite the command label."
+    hits = [
+        r
+        for r in caplog.records
+        if "spec_kitty.sparse_checkout.detected" in r.getMessage()
+    ]
+    assert len(hits) == 1, (
+        f"Expected exactly one session warning across N call sites, got "
+        f"{len(hits)}: {[r.getMessage() for r in hits]}"
+    )
+    assert "command=merge" in hits[0].getMessage(), (
+        "The first caller wins — subsequent CLI surfaces must not overwrite the command label."
+    )
 
 
-def test_warn_records_first_command_label_not_last(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_warn_records_first_command_label_not_last(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     repo = tmp_path / "repo"
     _make_sparse_repo(repo)
 
@@ -72,12 +85,18 @@ def test_warn_records_first_command_label_not_last(tmp_path: Path, caplog: pytes
     warn_if_sparse_once(repo, command="merge")
     warn_if_sparse_once(repo, command="doctor")
 
-    hits = [r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()]
+    hits = [
+        r
+        for r in caplog.records
+        if "spec_kitty.sparse_checkout.detected" in r.getMessage()
+    ]
     assert len(hits) == 1
     assert "command=implement" in hits[0].getMessage()
 
 
-def test_warn_does_not_fire_on_clean_repo_even_after_many_calls(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_warn_does_not_fire_on_clean_repo_even_after_many_calls(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     _run(["git", "init", "-q", str(repo)])
@@ -89,11 +108,16 @@ def test_warn_does_not_fire_on_clean_repo_even_after_many_calls(tmp_path: Path, 
     for _ in range(10):
         warn_if_sparse_once(repo, command="merge")
 
-    assert not any("spec_kitty.sparse_checkout.detected" in r.getMessage() for r in caplog.records)
+    assert not any(
+        "spec_kitty.sparse_checkout.detected" in r.getMessage()
+        for r in caplog.records
+    )
 
 
 def test_module_level_flag_is_real_cache_not_decorator_sugar() -> None:
     """Sanity check: the once-per-process mechanism must be a module global."""
-    assert hasattr(sc_mod, "_SPARSE_WARNING_EMITTED"), "warn_if_sparse_once must be backed by a module-level flag per R5."
+    assert hasattr(sc_mod, "_SPARSE_WARNING_EMITTED"), (
+        "warn_if_sparse_once must be backed by a module-level flag per R5."
+    )
     # Starts False after the fixture reset above.
     assert sc_mod._SPARSE_WARNING_EMITTED is False

@@ -4,8 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from doctrine.paradigms.models import Paradigm
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestParadigm:
@@ -28,3 +28,4 @@ class TestParadigm:
     def test_missing_required_field_raises(self) -> None:
         with pytest.raises(ValidationError):
             Paradigm.model_validate({"schema_version": "1.0", "id": "bad"})
+

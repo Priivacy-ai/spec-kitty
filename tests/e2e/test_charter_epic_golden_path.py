@@ -140,9 +140,7 @@ def _expect_success(
     if completed.returncode != 0:
         raise AssertionError(
             format_subprocess_failure(
-                command=command,
-                cwd=cwd,
-                completed=completed,
+                command=command, cwd=cwd, completed=completed,
             )
         )
     if not parse_json:
@@ -151,7 +149,9 @@ def _expect_success(
         payload = _parse_first_json_object(completed.stdout)
     except json.JSONDecodeError as err:
         raise AssertionError(
-            f"--json output not parseable:\n{format_subprocess_failure(command=command, cwd=cwd, completed=completed)}\n  parse error: {err}"
+            "--json output not parseable:\n"
+            f"{format_subprocess_failure(command=command, cwd=cwd, completed=completed)}\n"
+            f"  parse error: {err}"
         ) from err
     return payload
 
@@ -186,7 +186,10 @@ def _assert_signals_success(payload: dict[str, Any], *, fr_id: str) -> None:
         errors = payload.get("errors")
         if isinstance(errors, list) and len(errors) == 0:
             return
-        raise AssertionError(f"{fr_id}: payload did not signal success.\n  payload: {json.dumps(payload, indent=2, default=str)}")
+        raise AssertionError(
+            f"{fr_id}: payload did not signal success.\n"
+            f"  payload: {json.dumps(payload, indent=2, default=str)}"
+        )
 
 
 def _assert_no_error_state(payload: dict[str, Any], *, fr_id: str) -> None:
@@ -194,12 +197,21 @@ def _assert_no_error_state(payload: dict[str, Any], *, fr_id: str) -> None:
     for key in ("error", "errors"):
         value = payload.get(key)
         if isinstance(value, list) and value:
-            raise AssertionError(f"{fr_id}: payload reports {key}: {value!r}\n  full payload: {json.dumps(payload, indent=2, default=str)}")
+            raise AssertionError(
+                f"{fr_id}: payload reports {key}: {value!r}\n"
+                f"  full payload: {json.dumps(payload, indent=2, default=str)}"
+            )
         if isinstance(value, str) and value.strip():
-            raise AssertionError(f"{fr_id}: payload reports {key}: {value!r}\n  full payload: {json.dumps(payload, indent=2, default=str)}")
+            raise AssertionError(
+                f"{fr_id}: payload reports {key}: {value!r}\n"
+                f"  full payload: {json.dumps(payload, indent=2, default=str)}"
+            )
     state = payload.get("state") or payload.get("status")
     if isinstance(state, str) and state.lower() in {"error", "failed", "broken"}:
-        raise AssertionError(f"{fr_id}: payload state is {state!r}\n  full payload: {json.dumps(payload, indent=2, default=str)}")
+        raise AssertionError(
+            f"{fr_id}: payload state is {state!r}\n"
+            f"  full payload: {json.dumps(payload, indent=2, default=str)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +225,10 @@ def _extract_step_id(payload: dict[str, Any]) -> str:
         value = payload.get(key)
         if isinstance(value, str) and value:
             return value
-    raise AssertionError(f"FR-014/FR-016: could not extract step/action id from `next --json` envelope.\n  payload: {json.dumps(payload, indent=2, default=str)}")
+    raise AssertionError(
+        "FR-014/FR-016: could not extract step/action id from `next --json` envelope.\n"
+        f"  payload: {json.dumps(payload, indent=2, default=str)}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +293,10 @@ def _assert_issued_action_prompt_resolvable(
         relative_resolution = test_project_root / candidate_path
         if relative_resolution.is_file():
             return
-        last_error = f"{key}={value!r} (neither absolute nor test-project-relative resolves: tried {relative_resolution})"
+        last_error = (
+            f"{key}={value!r} (neither absolute nor "
+            f"test-project-relative resolves: tried {relative_resolution})"
+        )
 
     raise AssertionError(
         f"{fr_id}: issued-action envelope {identifier} has unresolvable "
@@ -288,7 +306,9 @@ def _assert_issued_action_prompt_resolvable(
     )
 
 
-def _assert_blocked_decision_reason_present(payload: dict[str, Any], *, fr_id: str) -> None:
+def _assert_blocked_decision_reason_present(
+    payload: dict[str, Any], *, fr_id: str
+) -> None:
     """FR-007: a blocked-decision envelope MUST carry a non-empty ``reason``.
 
     Blocked decisions are EXEMPT from the prompt-file resolvability rule
@@ -299,7 +319,9 @@ def _assert_blocked_decision_reason_present(payload: dict[str, Any], *, fr_id: s
     reason = payload.get("reason")
     if reason is None or not isinstance(reason, str) or reason.strip() == "":
         raise AssertionError(
-            f"{fr_id}: blocked decision {identifier} has missing/empty `reason` (got {reason!r}).\n  payload: {json.dumps(payload, indent=2, default=str)}"
+            f"{fr_id}: blocked decision {identifier} has missing/empty "
+            f"`reason` (got {reason!r}).\n"
+            f"  payload: {json.dumps(payload, indent=2, default=str)}"
         )
 
 
@@ -320,12 +342,16 @@ def _assert_envelope_per_kind_invariants(
     """
     kind = payload.get("kind")
     if kind == "step":
-        _assert_issued_action_prompt_resolvable(payload, test_project_root=test_project_root, fr_id=fr_id)
+        _assert_issued_action_prompt_resolvable(
+            payload, test_project_root=test_project_root, fr_id=fr_id
+        )
     elif kind == "blocked":
         _assert_blocked_decision_reason_present(payload, fr_id=fr_id)
 
 
-def _assert_advanced_or_documented_block(payload: dict[str, Any], *, fr_id: str) -> None:
+def _assert_advanced_or_documented_block(
+    payload: dict[str, Any], *, fr_id: str
+) -> None:
     """Assert `next --result success` either advanced OR returned a structured block."""
     # Advancement: step_id or action populated.
     for key in ("step_id", "action", "action_id"):
@@ -339,21 +365,16 @@ def _assert_advanced_or_documented_block(payload: dict[str, Any], *, fr_id: str)
     # Terminal / blocked / decision-pending mission_state.
     mission_state = payload.get("mission_state")
     if isinstance(mission_state, str) and mission_state.lower() in {
-        "blocked",
-        "complete",
-        "completed",
-        "done",
-        "terminal",
-        "finished",
-        "decision_pending",
-        "needs_input",
-        "input_required",
+        "blocked", "complete", "completed", "done", "terminal", "finished",
+        "decision_pending", "needs_input", "input_required",
     }:
         return
     if payload.get("decision_id") or payload.get("question"):
         return
     raise AssertionError(
-        f"{fr_id}: `next --result success` produced no advancement and no documented blocked envelope.\n  payload: {json.dumps(payload, indent=2, default=str)}"
+        f"{fr_id}: `next --result success` produced no advancement and no documented "
+        f"blocked envelope.\n"
+        f"  payload: {json.dumps(payload, indent=2, default=str)}"
     )
 
 
@@ -451,15 +472,21 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
     # via --profile minimal --defaults). No public `charter setup`
     # subcommand exists today; `interview` IS the setup surface.
     cmd = ["charter", "interview", "--profile", "minimal", "--defaults", "--json"]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("charter interview", payload)
 
     # FR-013 / #841: charter generate. WP06 made this auto-track the
     # produced charter.md.
     cmd = ["charter", "generate", "--from-interview", "--json"]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("charter generate", payload)
-    assert (project / ".kittify" / "charter" / "charter.md").is_file(), "FR-009: .kittify/charter/charter.md missing after charter generate"
+    assert (project / ".kittify" / "charter" / "charter.md").is_file(), (
+        "FR-009: .kittify/charter/charter.md missing after charter generate"
+    )
 
     # IMPORTANT (#841 / WP06 / FR-014): we do NOT run `git add` here.
     # `charter generate` is required to auto-track `charter.md`; the
@@ -470,7 +497,9 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
 
     # FR-013 / #841: bundle validate succeeds without intervening git.
     cmd = ["charter", "bundle", "validate", "--json"]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("charter bundle validate", payload)
     assert payload is not None
     _assert_signals_success(payload, fr_id="FR-013")
@@ -482,7 +511,10 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
     # minimal `.kittify/doctrine/` tree (T031). We do NOT hand-seed
     # `.kittify/doctrine/` anywhere in this test.
     doctrine_path = project / ".kittify" / "doctrine"
-    assert not doctrine_path.exists(), "Test pre-condition: .kittify/doctrine/ must not exist before `charter synthesize` runs (we do not hand-seed it)."
+    assert not doctrine_path.exists(), (
+        "Test pre-condition: .kittify/doctrine/ must not exist before "
+        "`charter synthesize` runs (we do not hand-seed it)."
+    )
 
     cmd = ["charter", "synthesize", "--json"]
     completed = run_cli(project, *cmd)
@@ -499,44 +531,44 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
 
     # FR-013: status reports non-error state.
     cmd = ["charter", "status", "--json"]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("charter status", payload)
     assert payload is not None
     _assert_no_error_state(payload, fr_id="FR-013 status")
 
 
-def _scaffold_minimal_mission(project: Path, run_cli: RunCli) -> tuple[str, Path]:
+def _scaffold_minimal_mission(
+    project: Path, run_cli: RunCli
+) -> tuple[str, Path]:
     """Create + setup-plan + seed + finalize-tasks. Returns (mission_handle, feature_dir)."""
     mission_slug_human = "golden-path-demo"
 
     cmd = [
-        "agent",
-        "mission",
-        "create",
-        mission_slug_human,
-        "--mission-type",
-        "software-dev",
-        "--friendly-name",
-        "Golden Path Demo",
-        "--purpose-tldr",
-        "Minimal demo mission for the golden-path E2E.",
-        "--purpose-context",
-        (
+        "agent", "mission", "create", mission_slug_human,
+        "--mission-type", "software-dev",
+        "--friendly-name", "Golden Path Demo",
+        "--purpose-tldr", "Minimal demo mission for the golden-path E2E.",
+        "--purpose-context", (
             "This mission exists solely to give the golden-path E2E test a "
             "concrete software-dev mission to advance through `spec-kitty next`. "
             "It is created and discarded inside the test's temp project."
         ),
-        "--branch-strategy",
-        "already-confirmed",
+        "--branch-strategy", "already-confirmed",
         "--json",
     ]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("mission create", payload)
     assert payload is not None
     assert payload.get("result") == "success", payload
     mission_handle = payload["mission_slug"]
     feature_dir = Path(payload["feature_dir"])
-    assert feature_dir.is_dir(), f"feature_dir not created: {feature_dir}\n  payload: {payload!r}"
+    assert feature_dir.is_dir(), (
+        f"feature_dir not created: {feature_dir}\n  payload: {payload!r}"
+    )
 
     # WP04 setup-plan entry gate requires `is_committed(spec) AND
     # is_substantive(spec, "spec")`. The scaffolded spec.md is neither
@@ -557,29 +589,26 @@ def _scaffold_minimal_mission(project: Path, run_cli: RunCli) -> tuple[str, Path
     )
     subprocess.run(
         ["git", "add", str(spec_path.relative_to(project))],
-        cwd=project,
-        check=True,
-        capture_output=True,
+        cwd=project, check=True, capture_output=True,
     )
     subprocess.run(
         ["git", "commit", "-m", "Populate golden-path demo spec.md (substantive FR row)"],
-        cwd=project,
-        check=True,
-        capture_output=True,
+        cwd=project, check=True, capture_output=True,
     )
 
     # setup-plan
     cmd = [
-        "agent",
-        "mission",
-        "setup-plan",
-        "--mission",
-        mission_handle,
+        "agent", "mission", "setup-plan",
+        "--mission", mission_handle,
         "--json",
     ]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("mission setup-plan", payload)
-    assert (feature_dir / "plan.md").is_file(), "setup-plan did not produce plan.md"
+    assert (feature_dir / "plan.md").is_file(), (
+        "setup-plan did not produce plan.md"
+    )
 
     # WP02 / #842 spot-check: `mission branch-context --json` MUST emit a
     # strict-JSON envelope on stdout (json.loads succeeds). This is the
@@ -588,7 +617,10 @@ def _scaffold_minimal_mission(project: Path, run_cli: RunCli) -> tuple[str, Path
     cmd = ["agent", "mission", "branch-context", "--json"]
     completed = run_cli(project, *cmd)
     if completed.returncode != 0:
-        raise AssertionError(f"WP02 / #842: `mission branch-context --json` failed.\n{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}")
+        raise AssertionError(
+            "WP02 / #842: `mission branch-context --json` failed.\n"
+            f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
+        )
     # Direct json.loads (no allow-list, no preprocessing) — this is the
     # exact contract external tools rely on.
     try:
@@ -599,7 +631,10 @@ def _scaffold_minimal_mission(project: Path, run_cli: RunCli) -> tuple[str, Path
             f"parseable by json.loads. parse error: {err}\n"
             f"{format_subprocess_failure(command=cmd, cwd=project, completed=completed)}"
         ) from err
-    assert isinstance(bc_payload, dict), f"WP02 / #842: branch-context envelope must be a JSON object, got {type(bc_payload).__name__}"
+    assert isinstance(bc_payload, dict), (
+        "WP02 / #842: branch-context envelope must be a JSON object, "
+        f"got {type(bc_payload).__name__}"
+    )
     _maybe_dump_envelope("mission branch-context", bc_payload)
 
     # Seed minimal mission content (mirrors smoke recipe, kept inline by design).
@@ -626,36 +661,34 @@ def _scaffold_minimal_mission(project: Path, run_cli: RunCli) -> tuple[str, Path
 
     # Commit the seed (clean working tree is required by finalize-tasks).
     subprocess.run(
-        ["git", "add", "."],
-        cwd=project,
-        check=True,
-        capture_output=True,
+        ["git", "add", "."], cwd=project, check=True, capture_output=True,
     )
     subprocess.run(
         ["git", "commit", "-m", "Seed minimal golden-path demo mission"],
-        cwd=project,
-        check=True,
-        capture_output=True,
+        cwd=project, check=True, capture_output=True,
     )
 
     # finalize-tasks
     cmd = [
-        "agent",
-        "mission",
-        "finalize-tasks",
-        "--mission",
-        mission_handle,
+        "agent", "mission", "finalize-tasks",
+        "--mission", mission_handle,
         "--json",
     ]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("mission finalize-tasks", payload)
     wp01_text = (tasks_dir / "WP01-hello-world.md").read_text(encoding="utf-8")
-    assert "dependencies" in wp01_text.lower(), "finalize-tasks did not write the dependencies field into WP01 frontmatter"
+    assert "dependencies" in wp01_text.lower(), (
+        "finalize-tasks did not write the dependencies field into WP01 frontmatter"
+    )
 
     return mission_handle, feature_dir
 
 
-def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handle: str) -> None:
+def _run_next_and_assert_lifecycle(
+    project: Path, run_cli: RunCli, mission_handle: str
+) -> None:
     """Issue + advance via `next` and assert paired lifecycle records (WP05 / #843).
 
     Tranche-2 invariant exercised here:
@@ -670,7 +703,9 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     # `--agent claude` for the consolidated golden-path. The `--mission`
     # selector resolves against the post-083 ULID identity (mid8).
     cmd = ["next", "--agent", "claude", "--mission", mission_handle, "--json"]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("next (query)", payload)
     assert payload is not None
     issued_step_id = _extract_step_id(payload)
@@ -689,20 +724,20 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     # prompt_file; blocked decisions (kind="blocked") MUST carry a
     # non-empty reason. Other kinds (notably the query-mode envelope this
     # call returns) are unaffected by these invariants.
-    _assert_envelope_per_kind_invariants(payload, test_project_root=project, fr_id="FR-006/FR-007 (next query)")
+    _assert_envelope_per_kind_invariants(
+        payload, test_project_root=project, fr_id="FR-006/FR-007 (next query)"
+    )
 
     # Advance mode.
     cmd = [
-        "next",
-        "--agent",
-        "claude",
-        "--mission",
-        mission_handle,
-        "--result",
-        "success",
+        "next", "--agent", "claude",
+        "--mission", mission_handle,
+        "--result", "success",
         "--json",
     ]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("next (advance)", payload)
     assert payload is not None
     _assert_advanced_or_documented_block(payload, fr_id="FR-015")
@@ -711,7 +746,9 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     # invariants on the advance envelope. The advance envelope is the one
     # that, in the golden path, carries kind="step" with a real
     # prompt_file pointing at the issued action's prompt artifact.
-    _assert_envelope_per_kind_invariants(payload, test_project_root=project, fr_id="FR-006/FR-007 (next advance)")
+    _assert_envelope_per_kind_invariants(
+        payload, test_project_root=project, fr_id="FR-006/FR-007 (next advance)"
+    )
 
     # FR-011/FR-012 / #843: lifecycle records at
     # `.kittify/events/profile-invocation-lifecycle.jsonl` (single
@@ -719,7 +756,9 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     # `specify_cli.invocation.lifecycle.LIFECYCLE_LOG_RELATIVE_PATH`).
     # WP05 makes a `started` record a HARD requirement for any issued
     # public action.
-    lifecycle_path = project / ".kittify" / "events" / "profile-invocation-lifecycle.jsonl"
+    lifecycle_path = (
+        project / ".kittify" / "events" / "profile-invocation-lifecycle.jsonl"
+    )
     if not lifecycle_path.is_file():
         raise AssertionError(
             "WP05 / #843 / FR-011: "
@@ -735,7 +774,12 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
         if not line.strip():
             continue
         record: dict[str, Any] = json.loads(line)
-        phase_value = record.get("phase") or record.get("kind") or record.get("event") or record.get("status")
+        phase_value = (
+            record.get("phase")
+            or record.get("kind")
+            or record.get("event")
+            or record.get("status")
+        )
         if isinstance(phase_value, str):
             lowered = phase_value.lower()
             if lowered in {"started", "start", "pre", "begin"}:
@@ -757,18 +801,31 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     # carry `canonical_action_id = "<mission_step>::<action>"`, so we
     # match via substring against the live envelope's step id.
     for record in (*started, *completed_records):
-        action = record.get("canonical_action_id") or record.get("action") or record.get("step_id") or record.get("action_id")
-        assert isinstance(action, str) and (action == issued_step_id or issued_step_id in action), (
-            f"FR-012 / #843: lifecycle record action {action!r} does not match issued step id {issued_step_id!r}."
+        action = (
+            record.get("canonical_action_id")
+            or record.get("action")
+            or record.get("step_id")
+            or record.get("action_id")
+        )
+        assert isinstance(action, str) and (
+            action == issued_step_id or issued_step_id in action
+        ), (
+            f"FR-012 / #843: lifecycle record action {action!r} does not "
+            f"match issued step id {issued_step_id!r}."
         )
 
 
 def _run_retrospect(project: Path, run_cli: RunCli) -> None:
     """Retrospect summary."""
     cmd = ["retrospect", "summary", "--project", str(project), "--json"]
-    payload = _expect_success(command=cmd, cwd=project, completed=run_cli(project, *cmd))
+    payload = _expect_success(
+        command=cmd, cwd=project, completed=run_cli(project, *cmd)
+    )
     _maybe_dump_envelope("retrospect summary", payload)
-    assert isinstance(payload, dict), f"FR-007: retrospect summary --json did not return a dict envelope:\n  got: {payload!r}"
+    assert isinstance(payload, dict), (
+        f"FR-007: retrospect summary --json did not return a dict envelope:\n"
+        f"  got: {payload!r}"
+    )
 
 
 # ---------------------------------------------------------------------------

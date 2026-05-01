@@ -56,10 +56,13 @@ class TestLanePlannerSkipsPlanningArtifactWPs:
 class TestPlanningArtifactWorkspaceResolution:
     """For planning_artifact WPs, the resolved workspace is the repo root."""
 
-    def test_planning_artifact_resolution_kind_is_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_planning_artifact_resolution_kind_is_repo_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """resolve_workspace_for_wp -> resolution_kind='repo_root'."""
         from specify_cli.workspace.context import (
             ResolvedWorkspace,
+            resolve_workspace_for_wp,
         )
         from specify_cli.ownership.models import ExecutionMode
 
@@ -89,7 +92,9 @@ class TestPlanningArtifactRuntimeDecisionShape:
     """The runtime decision JSON for a planning_artifact WP must indicate
     a non-worktree execution path (no ``.worktrees/`` allocation)."""
 
-    def test_decision_for_planning_artifact_has_repo_root_workspace(self, tmp_path: Path) -> None:
+    def test_decision_for_planning_artifact_has_repo_root_workspace(
+        self, tmp_path: Path
+    ) -> None:
         """A planning_artifact WP's decision points workspace_path at the
         repo root (resolved via the canonical resolver), and the decision
         kind is `step` (i.e. NOT blocked)."""

@@ -89,16 +89,25 @@ class DeviceFlowPoller:
     def _raise_if_expired(self) -> None:
         """Stop polling once the local device-flow state has expired."""
         if self._state.is_expired():
-            raise DeviceFlowExpired(f"Device authorization expired after {self._state.expires_in} seconds. Run `spec-kitty auth login --headless` again.")
+            raise DeviceFlowExpired(
+                f"Device authorization expired after {self._state.expires_in} seconds. "
+                "Run `spec-kitty auth login --headless` again."
+            )
 
     @staticmethod
     def _raise_terminal_error(error: str, response: dict[str, Any]) -> NoReturn:
         """Raise the terminal exception for a non-retriable OAuth error."""
         if error == "access_denied":
-            raise DeviceFlowDenied("User denied the authorization request. Run `spec-kitty auth login --headless` to try again.")
+            raise DeviceFlowDenied(
+                "User denied the authorization request. "
+                "Run `spec-kitty auth login --headless` to try again."
+            )
 
         if error == "expired_token":
-            raise DeviceFlowExpired("Device code expired before approval. Run `spec-kitty auth login --headless` to try again.")
+            raise DeviceFlowExpired(
+                "Device code expired before approval. "
+                "Run `spec-kitty auth login --headless` to try again."
+            )
 
         desc = response.get("error_description", error)
         raise DeviceFlowDenied(f"Unexpected device flow error: {desc}")

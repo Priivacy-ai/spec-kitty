@@ -50,9 +50,14 @@ app.add_typer(sync_app, name="sync")
 # Stable wording constants (asserted byte-for-byte by tests)
 # ---------------------------------------------------------------------------
 
-_MANUAL_MODE_MESSAGE = 'Background sync is in manual mode (`[sync].background_daemon = "manual"`).\nRun `spec-kitty sync run` to perform a one-shot remote sync.'
+_MANUAL_MODE_MESSAGE = (
+    'Background sync is in manual mode (`[sync].background_daemon = "manual"`).\n'
+    "Run `spec-kitty sync run` to perform a one-shot remote sync."
+)
 
-_MANUAL_MODE_SYNC_RUN_MESSAGE = "Background sync is in manual mode. Running a one-shot remote sync now."
+_MANUAL_MODE_SYNC_RUN_MESSAGE = (
+    "Background sync is in manual mode. Running a one-shot remote sync now."
+)
 
 
 def _print_json(payload: Any) -> None:
@@ -489,7 +494,10 @@ def bind_command(
 
             mode = doctrine_mode.strip().lower()
             if mode not in set(_doctrine_modes()):
-                raise TrackerServiceError(f"Invalid doctrine mode '{doctrine_mode}'. Expected one of: {', '.join(_doctrine_modes())}")
+                raise TrackerServiceError(
+                    f"Invalid doctrine mode '{doctrine_mode}'. "
+                    f"Expected one of: {', '.join(_doctrine_modes())}"
+                )
 
             parsed_field_owners = parse_kv_pairs(field_owners)
             parsed_credentials = parse_kv_pairs(credentials)
@@ -511,7 +519,10 @@ def bind_command(
             return
 
         # Unknown provider
-        raise TrackerServiceError(f"Unknown provider '{provider_normalized}'. Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}")
+        raise TrackerServiceError(
+            f"Unknown provider '{provider_normalized}'. "
+            f"Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}"
+        )
 
     _run_or_exit(_run)
 
@@ -574,7 +585,9 @@ def _bind_saas(
         return False
 
     # No candidates (should not reach here -- service raises on no-match)
-    raise TrackerServiceError(f"No bindable resources found for provider '{provider}'.")
+    raise TrackerServiceError(
+        f"No bindable resources found for provider '{provider}'."
+    )
 
 
 def _display_bind_success(
@@ -632,7 +645,9 @@ def _handle_candidate_selection(
 
 @app.command("status")
 def status_command(
-    all_installations: bool = typer.Option(False, "--all", help="Show installation-wide status (SaaS providers only)"),
+    all_installations: bool = typer.Option(
+        False, "--all", help="Show installation-wide status (SaaS providers only)"
+    ),
     as_json: bool = typer.Option(False, "--json", help="Render status as JSON"),
 ) -> None:
     """Show tracker binding and sync status.
@@ -717,7 +732,9 @@ def _print_installation_wide_status(payload: dict) -> None:
             table.add_row("No bindings", str(provider), str(connected), "-")
 
         if "resource_count" in payload:
-            table.caption = f"Connected: {connected} | Resources: {payload['resource_count']}"
+            table.caption = (
+                f"Connected: {connected} | Resources: {payload['resource_count']}"
+            )
 
         panel = Panel(table, title="Installation-wide tracker status", border_style="green")
         console.print(panel)
@@ -762,7 +779,11 @@ def _binding_project_label(binding: dict[str, Any]) -> str:
 
 def _binding_status_label(binding: dict[str, Any]) -> str:
     """Return a normalized status label for installation-wide bindings."""
-    return str(binding.get("status") or binding.get("sync_state") or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown"))
+    return str(
+        binding.get("status")
+        or binding.get("sync_state")
+        or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown")
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -922,8 +943,7 @@ def sync_pull_command(
 def sync_push_command(
     limit: int = typer.Option(100, "--limit", min=1, max=10000, help="Max items (local providers only)"),
     items_json: str | None = typer.Option(
-        None,
-        "--items-json",
+        None, "--items-json",
         help="Path to JSON file with PushItem[] array (SaaS providers). Use '-' for stdin.",
     ),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
@@ -966,7 +986,8 @@ def sync_push_command(
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
                 typer.secho(
-                    "Error: --items-json must contain a JSON array of PushItem objects.",
+                    "Error: --items-json must contain a JSON array of "
+                    "PushItem objects.",
                     fg=typer.colors.RED,
                     err=True,
                 )

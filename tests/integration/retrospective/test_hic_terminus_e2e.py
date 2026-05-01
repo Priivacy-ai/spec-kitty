@@ -107,7 +107,9 @@ def test_hic_run_emits_correct_event_sequence(
     # requested event must carry actor.kind=human.
     events = read_events(feature_dir)
     requested = next(e for e in events if e["event_name"] == "retrospective.requested")
-    assert requested["actor"]["kind"] == "human", f"Expected actor.kind='human' on requested event, got: {requested['actor']}"
+    assert requested["actor"]["kind"] == "human", (
+        f"Expected actor.kind='human' on requested event, got: {requested['actor']}"
+    )
     assert requested["actor"]["id"] == HUMAN_ACTOR.id
 
     # retrospective.yaml must exist with status=completed.

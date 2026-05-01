@@ -41,7 +41,10 @@ class InlineReferenceRejectedError(ValueError):
         self.artifact_kind = artifact_kind
         self.migration_hint = migration_hint
         super().__init__(
-            f"Inline reference rejected in {file_path}:\n  artifact_kind: {artifact_kind}\n  forbidden_field: {forbidden_field}\n  migration: {migration_hint}"
+            f"Inline reference rejected in {file_path}:\n"
+            f"  artifact_kind: {artifact_kind}\n"
+            f"  forbidden_field: {forbidden_field}\n"
+            f"  migration: {migration_hint}"
         )
 
 

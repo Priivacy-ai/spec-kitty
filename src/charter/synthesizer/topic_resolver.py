@@ -33,19 +33,17 @@ from .request import SynthesisTarget
 _SYNTHESIZABLE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguide"})
 
 # DRG node kinds (superset, from doctrine.drg.models.NodeKind)
-_DRG_NODE_KINDS: frozenset[str] = frozenset(
-    {
-        "directive",
-        "tactic",
-        "paradigm",
-        "styleguide",
-        "toolguide",
-        "procedure",
-        "agent_profile",
-        "action",
-        "glossary_scope",
-    }
-)
+_DRG_NODE_KINDS: frozenset[str] = frozenset({
+    "directive",
+    "tactic",
+    "paradigm",
+    "styleguide",
+    "toolguide",
+    "procedure",
+    "agent_profile",
+    "action",
+    "glossary_scope",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -138,36 +136,30 @@ def _nearest_candidates(
     # Tier-1 candidates: kind:slug for project-local synthesizable artifacts
     for artifact in project_artifacts:
         value = f"{artifact.kind}:{artifact.artifact_id}"
-        scored.append(
-            {
-                "kind": "kind_slug",
-                "value": value,
-                "distance": _levenshtein(raw, value),
-            }
-        )
+        scored.append({
+            "kind": "kind_slug",
+            "value": value,
+            "distance": _levenshtein(raw, value),
+        })
 
     # Tier-2 candidates: DRG URN nodes
     nodes = merged_drg.get("nodes", []) if isinstance(merged_drg, dict) else []
     for node in nodes:
         urn = node.get("urn", "") if isinstance(node, dict) else getattr(node, "urn", "")
         if urn:
-            scored.append(
-                {
-                    "kind": "drg_urn",
-                    "value": str(urn),
-                    "distance": _levenshtein(raw, str(urn)),
-                }
-            )
+            scored.append({
+                "kind": "drg_urn",
+                "value": str(urn),
+                "distance": _levenshtein(raw, str(urn)),
+            })
 
     # Tier-3 candidates: interview section labels
     for section in interview_sections:
-        scored.append(
-            {
-                "kind": "interview_section",
-                "value": section,
-                "distance": _levenshtein(raw, section),
-            }
-        )
+        scored.append({
+            "kind": "interview_section",
+            "value": section,
+            "distance": _levenshtein(raw, section),
+        })
 
     # Sort by distance, then by value for determinism
     scored.sort(key=lambda c: (c["distance"], c["value"]))
@@ -204,7 +196,7 @@ def _resolve_kind_slug(
     """
     colon_idx = raw.index(":")
     lhs = raw[:colon_idx].strip()
-    rhs = raw[colon_idx + 1 :].strip()
+    rhs = raw[colon_idx + 1:].strip()
 
     if lhs not in _SYNTHESIZABLE_KINDS:
         return None
@@ -273,13 +265,19 @@ def _resolve_interview_section(
     raw (exact, case-sensitive match).  Returns None if raw is not in the
     known interview section set.
     """
-    normalized_sections = {_normalize_interview_section_label(section): section for section in interview_sections}
+    normalized_sections = {
+        _normalize_interview_section_label(section): section for section in interview_sections
+    }
     normalized_raw = _normalize_interview_section_label(raw)
     canonical_section = normalized_sections.get(normalized_raw)
     if canonical_section is None:
         return None
 
-    matched: list[SynthesisTarget] = [artifact for artifact in project_artifacts if artifact.source_section == canonical_section]
+    matched: list[SynthesisTarget] = [
+        artifact
+        for artifact in project_artifacts
+        if artifact.source_section == canonical_section
+    ]
     return matched
 
 
@@ -372,7 +370,9 @@ def resolve(
         attempted_forms.append("interview_section")
         section_results = _resolve_interview_section(raw, project_artifacts, interview_sections)
         if section_results is not None:
-            normalized_sections = {_normalize_interview_section_label(section): section for section in interview_sections}
+            normalized_sections = {
+                _normalize_interview_section_label(section): section for section in interview_sections
+            }
             matched_value = normalized_sections[_normalize_interview_section_label(raw)]
             return ResolvedTopic(
                 targets=section_results,
@@ -382,7 +382,10 @@ def resolve(
 
     # No hit — collect candidates and raise structured error
     candidates = _nearest_candidates(raw, project_artifacts, merged_drg, interview_sections)
-    candidate_tuples = tuple(f"{c['kind']}:{c['value']} (distance={c['distance']})" for c in candidates)
+    candidate_tuples = tuple(
+        f"{c['kind']}:{c['value']} (distance={c['distance']})"
+        for c in candidates
+    )
     raise TopicSelectorUnresolvedError(
         raw=raw,
         attempted_forms=tuple(attempted_forms),

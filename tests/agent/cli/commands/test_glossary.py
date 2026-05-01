@@ -50,7 +50,13 @@ def mock_glossary_store(tmp_path):
     )
 
     mission_local = glossaries_dir / "mission_local.yaml"
-    mission_local.write_text("terms:\n  - surface: primitive\n    definition: Atomic unit of work in a mission step\n    confidence: 0.85\n    status: draft\n")
+    mission_local.write_text(
+        "terms:\n"
+        "  - surface: primitive\n"
+        "    definition: Atomic unit of work in a mission step\n"
+        "    confidence: 0.85\n"
+        "    status: draft\n"
+    )
 
     return tmp_path
 
@@ -466,7 +472,9 @@ class TestGlossaryList:
 
         long_def = "A" * 100
         seed = glossaries_dir / "team_domain.yaml"
-        seed.write_text(f"terms:\n  - surface: longterm\n    definition: {long_def}\n    confidence: 0.8\n    status: active\n")
+        seed.write_text(
+            f"terms:\n  - surface: longterm\n    definition: {long_def}\n    confidence: 0.8\n    status: active\n"
+        )
 
         result = runner.invoke(glossary_app, ["list"])
         assert result.exit_code == 0
@@ -482,7 +490,9 @@ class TestGlossaryList:
 
         long_def = "A" * 100
         seed = glossaries_dir / "team_domain.yaml"
-        seed.write_text(f"terms:\n  - surface: longterm\n    definition: {long_def}\n    confidence: 0.8\n    status: active\n")
+        seed.write_text(
+            f"terms:\n  - surface: longterm\n    definition: {long_def}\n    confidence: 0.8\n    status: active\n"
+        )
 
         result = runner.invoke(glossary_app, ["list", "--json"])
         assert result.exit_code == 0
@@ -1237,6 +1247,7 @@ class TestStoreHelpers:
     def test_empty_store(self, tmp_path):
         """Verify empty store returns no terms."""
         from specify_cli.cli.commands.glossary import (
+
             _get_all_terms_from_store,
             _load_store_from_seeds,
         )
@@ -1341,7 +1352,13 @@ class TestRegressionEventLogReplay:
         glossaries_dir = tmp_path / ".kittify" / "glossaries"
         glossaries_dir.mkdir(parents=True)
         seed = glossaries_dir / "team_domain.yaml"
-        seed.write_text("terms:\n  - surface: workspace\n    definition: Git worktree directory\n    confidence: 0.9\n    status: active\n")
+        seed.write_text(
+            "terms:\n"
+            "  - surface: workspace\n"
+            "    definition: Git worktree directory\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+        )
 
         # Event log with a different term
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
@@ -1529,7 +1546,13 @@ class TestRegressionDeprecatedStatus:
         glossaries_dir.mkdir(parents=True)
 
         seed = glossaries_dir / "team_domain.yaml"
-        seed.write_text("terms:\n  - surface: old-tool\n    definition: Superseded by new-tool\n    confidence: 0.8\n    status: deprecated\n")
+        seed.write_text(
+            "terms:\n"
+            "  - surface: old-tool\n"
+            "    definition: Superseded by new-tool\n"
+            "    confidence: 0.8\n"
+            "    status: deprecated\n"
+        )
 
         result = runner.invoke(glossary_app, ["list", "--json"])
         assert result.exit_code == 0

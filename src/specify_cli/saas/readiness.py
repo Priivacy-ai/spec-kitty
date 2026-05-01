@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import urllib.request
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
-from collections.abc import Mapping
+from typing import Mapping
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ from collections.abc import Mapping
 # ---------------------------------------------------------------------------
 
 
-class ReadinessState(StrEnum):
+class ReadinessState(str, Enum):
     """Discrete readiness states in check order.
 
     The evaluator checks states in *declaration order* — cheapest and most

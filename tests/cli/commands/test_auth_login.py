@@ -103,21 +103,20 @@ class TestAuthLoginHelp:
 
 
 class TestAuthLoginDispatch:
+
     def test_default_dispatches_to_browser_flow(self):
         async def _noop(*args, **kwargs):
             return None
 
-        with (
-            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_browser_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_browser,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_device_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_device,
-        ):
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser, patch(
+            "specify_cli.cli.commands._auth_login._run_device_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_device:
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
@@ -129,17 +128,15 @@ class TestAuthLoginDispatch:
         async def _noop(*args, **kwargs):
             return None
 
-        with (
-            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_browser_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_browser,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_device_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_device,
-        ):
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser, patch(
+            "specify_cli.cli.commands._auth_login._run_device_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_device:
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login", "--headless"])
 
@@ -154,6 +151,7 @@ class TestAuthLoginDispatch:
 
 
 class TestAuthLoginConfigErrors:
+
     def test_missing_saas_url_exits_nonzero(self, monkeypatch):
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         result = runner.invoke(app, ["login"])
@@ -168,19 +166,19 @@ class TestAuthLoginConfigErrors:
 
 
 class TestAuthLoginAlreadyAuthenticated:
+
     def test_shows_friendly_message_when_already_logged_in(self):
         existing = _make_session()
 
         async def _noop(*args, **kwargs):
             return None
 
-        with (
-            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_browser_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_browser,
-        ):
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser:
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -198,13 +196,12 @@ class TestAuthLoginAlreadyAuthenticated:
         async def _noop(*args, **kwargs):
             return None
 
-        with (
-            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_browser_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_browser,
-        ):
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser:
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -219,13 +216,12 @@ class TestAuthLoginAlreadyAuthenticated:
         async def _noop(*args, **kwargs):
             return None
 
-        with (
-            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
-            patch(
-                "specify_cli.cli.commands._auth_login._run_browser_flow",
-                new=AsyncMock(side_effect=_noop),
-            ) as mock_browser,
-        ):
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop),
+        ) as mock_browser:
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = False
             mock_tm.get_current_session.return_value = None

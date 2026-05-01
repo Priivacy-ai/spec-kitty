@@ -91,7 +91,9 @@ class TestToolsKeyFallback:
         """load_agent_config() reads from 'tools' key (post-m_2_0_1 migration)."""
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
-        (config_dir / "config.yaml").write_text("tools:\n  available:\n    - opencode\n  auto_commit: false\n")
+        (config_dir / "config.yaml").write_text(
+            "tools:\n  available:\n    - opencode\n  auto_commit: false\n"
+        )
         config = load_agent_config(tmp_path)
         assert config.available == ["opencode"]
         assert config.auto_commit is False

@@ -170,7 +170,8 @@ class WidenFlow:
 
         self._console.print(
             Panel(
-                f'Slack thread created. {invited_str} have been invited to discuss:\n  "{q_short}"{thread_line}',
+                f"Slack thread created. {invited_str} have been invited to discuss:\n"
+                f'  "{q_short}"{thread_line}',
                 title="Widened ✓",
             )
         )
@@ -203,14 +204,18 @@ class WidenFlow:
             :attr:`~specify_cli.widen.models.WidenAction.CONTINUE`.
         """
         try:
-            raw = self._console.input("Block here or continue with other questions? [bold][b/c][/bold] (default: b): ")
+            raw = self._console.input(
+                "Block here or continue with other questions? [bold][b/c][/bold] (default: b): "
+            )
         except EOFError:
             # Non-interactive environment — default to BLOCK (FR-007).
             return WidenAction.BLOCK
 
         choice = raw.strip().lower()
         if choice == "c":
-            self._console.print("Question parked as pending. You'll be prompted to resolve it at end of interview.")
+            self._console.print(
+                "Question parked as pending. You'll be prompted to resolve it at end of interview."
+            )
             return WidenAction.CONTINUE
 
         # Any other input (Enter, "b", anything else) → BLOCK (FR-007).

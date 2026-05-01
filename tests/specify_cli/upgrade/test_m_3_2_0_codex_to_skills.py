@@ -208,7 +208,9 @@ class TestApplyOwnedUnedited:
         for cmd in CANONICAL_COMMANDS:
             assert _skill_path(project, cmd).exists(), f"Missing SKILL.md for {cmd}"
 
-    def test_no_preservation_notice_on_stdout(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    def test_no_preservation_notice_on_stdout(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
         project = _copy_fixture("owned_unedited_only", tmp_path)
         CodexToSkillsMigration().apply(project)
 
@@ -255,7 +257,9 @@ class TestApplyMixed:
         for cmd in CANONICAL_COMMANDS:
             assert _skill_path(project, cmd).exists()
 
-    def test_preservation_notice_in_stderr(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    def test_preservation_notice_in_stderr(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
         project = _copy_fixture("mixed", tmp_path)
         CodexToSkillsMigration().apply(project)
 
@@ -309,8 +313,13 @@ class TestIdempotency:
         assert result1.success
 
         # Snapshot state after first run
-        skills_files_1 = sorted(str(p.relative_to(project)) for p in (project / ".agents" / "skills").rglob("SKILL.md"))
-        custom_present_1 = (project / ".codex" / "prompts" / "my-own-prompt.md").exists()
+        skills_files_1 = sorted(
+            str(p.relative_to(project))
+            for p in (project / ".agents" / "skills").rglob("SKILL.md")
+        )
+        custom_present_1 = (
+            project / ".codex" / "prompts" / "my-own-prompt.md"
+        ).exists()
         manifest_bytes_1 = _manifest_path(project).read_bytes()
 
         # Second run
@@ -318,8 +327,13 @@ class TestIdempotency:
         assert result2.success
 
         # State must be identical
-        skills_files_2 = sorted(str(p.relative_to(project)) for p in (project / ".agents" / "skills").rglob("SKILL.md"))
-        custom_present_2 = (project / ".codex" / "prompts" / "my-own-prompt.md").exists()
+        skills_files_2 = sorted(
+            str(p.relative_to(project))
+            for p in (project / ".agents" / "skills").rglob("SKILL.md")
+        )
+        custom_present_2 = (
+            project / ".codex" / "prompts" / "my-own-prompt.md"
+        ).exists()
         manifest_bytes_2 = _manifest_path(project).read_bytes()
 
         assert skills_files_1 == skills_files_2

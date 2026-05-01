@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
-from datetime import datetime, UTC
-from enum import StrEnum
+from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
-from collections.abc import Callable
+from typing import Callable
 
 from ruamel.yaml import YAML
 
@@ -36,7 +36,7 @@ MAX_READABLE_BUNDLE_SCHEMA: int = 2
 # --- Enums ---
 
 
-class BundleCompatibilityStatus(StrEnum):
+class BundleCompatibilityStatus(str, Enum):
     """Compatibility status of a bundle with the current CLI."""
 
     COMPATIBLE = "COMPATIBLE"
@@ -105,7 +105,10 @@ def check_bundle_compatibility(bundle_version: int | None) -> BundleCompatibilit
             bundle_version=None,
             supported_min=MIN_READABLE_BUNDLE_SCHEMA,
             supported_max=MAX_READABLE_BUNDLE_SCHEMA,
-            message=("Bundle schema version not found; treating as v1. Run `spec-kitty upgrade`."),
+            message=(
+                "Bundle schema version not found; treating as v1. "
+                "Run `spec-kitty upgrade`."
+            ),
             exit_code=1,
         )
 
@@ -125,7 +128,10 @@ def check_bundle_compatibility(bundle_version: int | None) -> BundleCompatibilit
             bundle_version=bundle_version,
             supported_min=MIN_READABLE_BUNDLE_SCHEMA,
             supported_max=MAX_READABLE_BUNDLE_SCHEMA,
-            message=(f"Bundle schema version {bundle_version} requires migration. Run `spec-kitty upgrade`."),
+            message=(
+                f"Bundle schema version {bundle_version} requires migration. "
+                "Run `spec-kitty upgrade`."
+            ),
             exit_code=1,
         )
 
@@ -135,7 +141,10 @@ def check_bundle_compatibility(bundle_version: int | None) -> BundleCompatibilit
             bundle_version=bundle_version,
             supported_min=MIN_READABLE_BUNDLE_SCHEMA,
             supported_max=MAX_READABLE_BUNDLE_SCHEMA,
-            message=(f"Bundle schema version {bundle_version} predates the earliest supported version ({MIN_READABLE_BUNDLE_SCHEMA}). Contact support."),
+            message=(
+                f"Bundle schema version {bundle_version} predates the earliest "
+                f"supported version ({MIN_READABLE_BUNDLE_SCHEMA}). Contact support."
+            ),
             exit_code=1,
         )
 
@@ -145,7 +154,10 @@ def check_bundle_compatibility(bundle_version: int | None) -> BundleCompatibilit
         bundle_version=bundle_version,
         supported_min=MIN_READABLE_BUNDLE_SCHEMA,
         supported_max=MAX_READABLE_BUNDLE_SCHEMA,
-        message=(f"Bundle schema version {bundle_version} is newer than this CLI supports ({MAX_READABLE_BUNDLE_SCHEMA}). Upgrade your CLI."),
+        message=(
+            f"Bundle schema version {bundle_version} is newer than this CLI "
+            f"supports ({MAX_READABLE_BUNDLE_SCHEMA}). Upgrade your CLI."
+        ),
         exit_code=1,
     )
 
@@ -236,7 +248,9 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
                 continue
 
             if not isinstance(data, dict):
-                errors.append(f"Sidecar {sidecar_path.name} is not a YAML mapping; skipping.")
+                errors.append(
+                    f"Sidecar {sidecar_path.name} is not a YAML mapping; skipping."
+                )
                 continue
 
             if data.get("schema_version") == "2":
@@ -249,7 +263,9 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
             if "produced_at" not in data:
                 try:
                     mtime = sidecar_path.stat().st_mtime
-                    data["produced_at"] = datetime.fromtimestamp(mtime, tz=UTC).isoformat()
+                    data["produced_at"] = datetime.fromtimestamp(
+                        mtime, tz=timezone.utc
+                    ).isoformat()
                 except OSError:
                     data["produced_at"] = "(pre-phase7-migration)"
 
@@ -270,7 +286,9 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
                     _yaml.dump(data, buf)
                     sidecar_path.write_bytes(buf.getvalue())
                 except Exception as exc:  # noqa: BLE001
-                    errors.append(f"Failed to write sidecar {sidecar_path.name}: {exc}")
+                    errors.append(
+                        f"Failed to write sidecar {sidecar_path.name}: {exc}"
+                    )
 
     # -------------------------------------------------------------------------
     # 2. Migrate synthesis-manifest.yaml
@@ -287,7 +305,9 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
             manifest_data.setdefault("synthesizer_version", "(pre-phase7-migration)")
 
             # Compute manifest_hash over all fields except manifest_hash itself.
-            fields_for_hash = {k: v for k, v in manifest_data.items() if k != "manifest_hash"}
+            fields_for_hash = {
+                k: v for k, v in manifest_data.items() if k != "manifest_hash"
+            }
             # Set schema_version to "2" in the hash-input fields too, so the
             # hash covers the post-migration state.
             fields_for_hash["schema_version"] = "2"
@@ -343,7 +363,9 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
 _register_migration(1, migrate_v1_to_v2)
 
 
-def run_migration(from_version: int, bundle_root: Path, dry_run: bool = False) -> MigrationResult:
+def run_migration(
+    from_version: int, bundle_root: Path, dry_run: bool = False
+) -> MigrationResult:
     """Run the registered migration for the given from-version.
 
     Args:

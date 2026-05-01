@@ -44,7 +44,6 @@ def _write_meta(path, extra=None):
     meta_file.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     return meta_file
 
-
 # Test state initialization
 def test_initialize_documentation_state(tmp_path):
     """Test initialization creates valid state."""
@@ -55,7 +54,7 @@ def test_initialize_documentation_state(tmp_path):
         iteration_mode="initial",
         divio_types=["tutorial", "reference"],
         generators=[{"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}],
-        target_audience="developers",
+        target_audience="developers"
     )
 
     assert state["iteration_mode"] == "initial"
@@ -74,19 +73,16 @@ def test_initialize_documentation_state(tmp_path):
 # Test state reading
 def test_read_documentation_state(tmp_path):
     """Test reading state from meta.json."""
-    meta_file = _write_meta(
-        tmp_path,
-        extra={
-            "documentation_state": {
-                "iteration_mode": "gap_filling",
-                "divio_types_selected": ["tutorial"],
-                "generators_configured": [],
-                "target_audience": "end-users",
-                "last_audit_date": "2026-01-12T00:00:00Z",
-                "coverage_percentage": 0.5,
-            }
-        },
-    )
+    meta_file = _write_meta(tmp_path, extra={
+        "documentation_state": {
+            "iteration_mode": "gap_filling",
+            "divio_types_selected": ["tutorial"],
+            "generators_configured": [],
+            "target_audience": "end-users",
+            "last_audit_date": "2026-01-12T00:00:00Z",
+            "coverage_percentage": 0.5,
+        }
+    })
 
     state = read_documentation_state(meta_file)
     assert state is not None
@@ -100,10 +96,20 @@ def test_update_documentation_state(tmp_path):
     meta_file = _write_meta(tmp_path)
 
     # Initialize
-    initialize_documentation_state(meta_file, iteration_mode="initial", divio_types=[], generators=[], target_audience="developers")
+    initialize_documentation_state(
+        meta_file,
+        iteration_mode="initial",
+        divio_types=[],
+        generators=[],
+        target_audience="developers"
+    )
 
     # Update
-    updated = update_documentation_state(meta_file, iteration_mode="gap_filling", coverage_percentage=0.75)
+    updated = update_documentation_state(
+        meta_file,
+        iteration_mode="gap_filling",
+        coverage_percentage=0.75
+    )
 
     assert updated["iteration_mode"] == "gap_filling"
     assert updated["coverage_percentage"] == 0.75
@@ -221,7 +227,9 @@ def test_invalid_generator_config_rejected(tmp_path):
 
     # Invalid generator name
     with pytest.raises(ValueError, match="Invalid generator name"):
-        set_generators_configured(meta_file, [{"name": "invalid", "language": "python", "config_path": "docs/conf.py"}])
+        set_generators_configured(meta_file, [
+            {"name": "invalid", "language": "python", "config_path": "docs/conf.py"}
+        ])
 
 
 def test_invalid_coverage_percentage_rejected(tmp_path):
@@ -248,7 +256,7 @@ def test_empty_divio_types_allowed(tmp_path):
         iteration_mode="initial",
         divio_types=[],  # Empty
         generators=[],
-        target_audience="developers",
+        target_audience="developers"
     )
 
     state = read_documentation_state(meta_file)
@@ -265,7 +273,7 @@ def test_empty_generators_allowed(tmp_path):
         iteration_mode="initial",
         divio_types=[],
         generators=[],  # Empty
-        target_audience="developers",
+        target_audience="developers"
     )
 
     state = read_documentation_state(meta_file)
@@ -290,7 +298,7 @@ def test_get_state_version():
         "generators_configured": [],
         "target_audience": "developers",
         "last_audit_date": None,
-        "coverage_percentage": 0.0,
+        "coverage_percentage": 0.0
     }
 
     version = get_state_version(state)
@@ -307,7 +315,7 @@ def test_state_persists_with_proper_json_formatting(tmp_path):
         iteration_mode="initial",
         divio_types=["tutorial"],
         generators=[{"name": "sphinx", "language": "python", "config_path": "docs/conf.py"}],
-        target_audience="developers",
+        target_audience="developers"
     )
 
     # Read raw JSON to verify formatting
@@ -324,15 +332,18 @@ def test_state_persists_with_proper_json_formatting(tmp_path):
 # Test original fields preserved
 def test_original_fields_preserved_after_state_update(tmp_path):
     """Test original meta.json fields are preserved."""
-    meta_file = _write_meta(
-        tmp_path,
-        extra={
-            "feature_number": "012",
-            "custom_field": "custom_value",
-        },
-    )
+    meta_file = _write_meta(tmp_path, extra={
+        "feature_number": "012",
+        "custom_field": "custom_value",
+    })
 
-    initialize_documentation_state(meta_file, iteration_mode="initial", divio_types=[], generators=[], target_audience="developers")
+    initialize_documentation_state(
+        meta_file,
+        iteration_mode="initial",
+        divio_types=[],
+        generators=[],
+        target_audience="developers"
+    )
 
     with open(meta_file) as f:
         meta = json.load(f)

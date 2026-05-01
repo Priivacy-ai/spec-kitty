@@ -28,7 +28,12 @@ def git_repo_with_2x_feature(tmp_path):
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
-    (feature_dir / "meta.json").write_text(json.dumps({"feature_number": "025", "slug": "025-test-feature", "target_branch": "2.x", "mission": "software-dev"}))
+    (feature_dir / "meta.json").write_text(json.dumps({
+        "feature_number": "025",
+        "slug": "025-test-feature",
+        "target_branch": "2.x",
+        "mission": "software-dev"
+    }))
 
     # Create WP01 task
     (tasks_dir / "WP01-test.md").write_text("""---
@@ -69,16 +74,12 @@ def test_target_branch_defaults_to_main_for_legacy(git_repo_with_2x_feature):
     # Create legacy feature without target_branch
     feature_dir = repo / "kitty-specs" / "024-legacy"
     feature_dir.mkdir()
-    (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "feature_number": "024",
-                "slug": "024-legacy",
-                "mission": "software-dev",
-                # No target_branch field
-            }
-        )
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({
+        "feature_number": "024",
+        "slug": "024-legacy",
+        "mission": "software-dev"
+        # No target_branch field
+    }))
 
     target = get_feature_target_branch(repo, "024-legacy")
 

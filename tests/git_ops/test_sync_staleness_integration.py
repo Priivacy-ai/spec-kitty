@@ -16,7 +16,6 @@ import pytest
 
 pytestmark = pytest.mark.git_repo
 
-
 class TestSyncStaleness:
     """Tests for workspace staleness detection."""
 

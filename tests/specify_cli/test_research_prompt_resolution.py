@@ -14,7 +14,6 @@ raised ``FileNotFoundError`` for every research step, so the live runtime
 returned ``prompt_file=None`` for any research mission that reached the
 prompt-builder fast path.
 """
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,4 +38,6 @@ def test_resolve_command_returns_nonempty_template(step_id: str) -> None:
 def test_resolve_command_lands_in_command_templates_tier(step_id: str) -> None:
     """The shipped templates live under command-templates/, not templates/."""
     result = resolve_command(f"{step_id}.md", Path("."), mission="research")
-    assert "command-templates" in result.path.parts, f"expected command-templates/ tier, got {result.path}"
+    assert "command-templates" in result.path.parts, (
+        f"expected command-templates/ tier, got {result.path}"
+    )

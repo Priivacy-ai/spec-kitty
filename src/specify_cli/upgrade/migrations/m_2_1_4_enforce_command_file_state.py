@@ -81,7 +81,10 @@ def _file_has_current_version_marker(file_path: Path) -> bool:
     except OSError:
         return False
     expected = _expected_version_marker()
-    return any(line.strip() == expected for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES])
+    for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES]:
+        if line.strip() == expected:
+            return True
+    return False
 
 
 def _get_runtime_command_templates_dir() -> Path | None:
@@ -190,7 +193,10 @@ class EnforceCommandFileStateMigration(BaseMigration):
     """
 
     migration_id = "2.1.4_enforce_command_file_state"
-    description = "Enforce correct command file state: full prompts for prompt-driven commands, thin shims for CLI-driven commands, with version markers"
+    description = (
+        "Enforce correct command file state: full prompts for prompt-driven commands, "
+        "thin shims for CLI-driven commands, with version markers"
+    )
     target_version = "2.1.4"
 
     def detect(self, project_path: Path) -> bool:
@@ -221,7 +227,8 @@ class EnforceCommandFileStateMigration(BaseMigration):
         if templates_dir is None:
             return (
                 False,
-                "Runtime command templates not found. Run 'spec-kitty upgrade' again after reinstalling spec-kitty-cli.",
+                "Runtime command templates not found. "
+                "Run 'spec-kitty upgrade' again after reinstalling spec-kitty-cli.",
             )
         return True, ""
 
@@ -272,7 +279,9 @@ class EnforceCommandFileStateMigration(BaseMigration):
             for command in sorted(PROMPT_DRIVEN_COMMANDS):
                 template_path = templates_dir / f"{command}.md"
                 if not template_path.is_file():
-                    warnings.append(f"Template not found for command '{command}' in {templates_dir} — skipping")
+                    warnings.append(
+                        f"Template not found for command '{command}' in {templates_dir} — skipping"
+                    )
                     continue
 
                 filename = _compute_output_filename(command, agent_key)
@@ -283,7 +292,9 @@ class EnforceCommandFileStateMigration(BaseMigration):
                     changes.append(f"Would write prompt: {rel_path}")
                     continue
 
-                rendered = _render_full_prompt(template_path, agent_key, script_type, repo_root=project_path)
+                rendered = _render_full_prompt(
+                    template_path, agent_key, script_type, repo_root=project_path
+                )
                 if rendered is None:
                     errors.append(f"Failed to render {command} for {agent_key}")
                     continue

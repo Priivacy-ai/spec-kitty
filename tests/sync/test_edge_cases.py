@@ -205,7 +205,9 @@ class TestConcurrentEmission:
         # All events should be queued (4 threads x 50 events)
         assert queue.size() == 4 * count
 
-    def test_clock_values_unique_under_concurrency(self, tmp_path: Path, mock_auth: MagicMock):
+    def test_clock_values_unique_under_concurrency(
+        self, tmp_path: Path, mock_auth: MagicMock
+    ):
         """Lamport clock values are unique even with concurrent access."""
         queue = OfflineQueue(db_path=tmp_path / "concurrent2.db")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
@@ -268,7 +270,9 @@ class TestNonBlockingEmission:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
 
-    def test_auth_exception_uses_local_team_slug(self, tmp_path: Path, monkeypatch):
+    def test_auth_exception_uses_local_team_slug(
+        self, tmp_path: Path, monkeypatch
+    ):
         """Auth exception during team-slug resolution falls back to 'local'."""
         queue = OfflineQueue(db_path=tmp_path / "q.db")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")

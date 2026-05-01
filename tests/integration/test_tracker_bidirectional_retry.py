@@ -14,6 +14,7 @@ Drives :func:`run_bidirectional_sync_with_retry` against a synthetic
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest

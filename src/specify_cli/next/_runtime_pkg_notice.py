@@ -19,7 +19,6 @@ written (read-only home, permissions, disk full), the operator still
 gets the notice every invocation, which is non-fatal noise. The CLI
 continues normally regardless.
 """
-
 from __future__ import annotations
 
 import os
@@ -50,7 +49,10 @@ def _marker_path() -> Path:
     survives across CLI invocations but never lands in the repo tree.
     """
     state_home = os.environ.get("XDG_STATE_HOME")
-    base = Path(state_home) if state_home else Path.home() / ".cache"
+    if state_home:
+        base = Path(state_home)
+    else:
+        base = Path.home() / ".cache"
     return base / "spec-kitty" / _MARKER_FILENAME
 
 

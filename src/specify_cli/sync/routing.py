@@ -52,7 +52,11 @@ def resolve_checkout_sync_routing(start: Path | None = None) -> CheckoutSyncRout
     repo_slug = git_metadata.repo_slug or identity.repo_slug
 
     local_sync_enabled = read_local_sync_enabled(repo_root)
-    repo_default_sync_enabled = SyncConfig().get_repository_sync_enabled(repo_slug) if repo_slug else None
+    repo_default_sync_enabled = (
+        SyncConfig().get_repository_sync_enabled(repo_slug)
+        if repo_slug
+        else None
+    )
 
     if local_sync_enabled is not None:
         effective_sync_enabled = local_sync_enabled
@@ -124,9 +128,17 @@ def disable_checkout_sync(
         SyncConfig().set_repository_sync_enabled(routing.repo_slug, False)
 
     queue = OfflineQueue()
-    removed_events = queue.remove_project_events(routing.project_uuid) if routing.project_uuid else 0
+    removed_events = (
+        queue.remove_project_events(routing.project_uuid)
+        if routing.project_uuid
+        else 0
+    )
     body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
-    removed_body_uploads = body_queue.remove_project_tasks(routing.project_uuid) if routing.project_uuid else 0
+    removed_body_uploads = (
+        body_queue.remove_project_tasks(routing.project_uuid)
+        if routing.project_uuid
+        else 0
+    )
 
     refreshed = resolve_checkout_sync_routing(repo_root)
     assert refreshed is not None

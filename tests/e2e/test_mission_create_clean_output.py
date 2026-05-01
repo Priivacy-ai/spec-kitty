@@ -65,7 +65,10 @@ def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> No
 
     # Exactly one call site in the mission command surface.
     matches = list(re.finditer(r"mark_invocation_succeeded\(\s*\)", source))
-    assert len(matches) == 1, f"Expected exactly one mark_invocation_succeeded() call site in {source_path}; found {len(matches)}."
+    assert len(matches) == 1, (
+        f"Expected exactly one mark_invocation_succeeded() call site in "
+        f"{source_path}; found {len(matches)}."
+    )
 
     # It must appear after the final JSON write of the create payload —
     # i.e. after ``_emit_json(_inject_branch_contract(create_payload, ...``
@@ -74,9 +77,13 @@ def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> No
     )
     emit_match = create_payload_emit_re.search(source)
     assert emit_match is not None, (
-        "Could not locate the create_payload _emit_json(...) call in mission.py; either the call moved or the JSON success path was renamed."
+        "Could not locate the create_payload _emit_json(...) call in mission.py; "
+        "either the call moved or the JSON success path was renamed."
     )
-    assert matches[0].start() > emit_match.start(), "mark_invocation_succeeded() must appear AFTER the JSON write, not before."
+    assert matches[0].start() > emit_match.start(), (
+        "mark_invocation_succeeded() must appear AFTER the JSON write, "
+        "not before."
+    )
 
 
 def test_not_authenticated_warning_is_deduplicated_in_process(
@@ -98,8 +105,12 @@ def test_not_authenticated_warning_is_deduplicated_in_process(
         if report_once("sync.unauthenticated"):
             sync_logger.warning("Not authenticated, skipping sync")
 
-    not_auth_messages = [rec for rec in caplog.records if NOT_AUTH_RE.search(rec.message)]
-    assert len(not_auth_messages) <= 1, f"Expected ≤1 'Not authenticated' diagnostic; got {len(not_auth_messages)}."
+    not_auth_messages = [
+        rec for rec in caplog.records if NOT_AUTH_RE.search(rec.message)
+    ]
+    assert len(not_auth_messages) <= 1, (
+        f"Expected ≤1 'Not authenticated' diagnostic; got {len(not_auth_messages)}."
+    )
 
 
 def test_atexit_handlers_consult_invocation_succeeded() -> None:
@@ -116,8 +127,14 @@ def test_atexit_handlers_consult_invocation_succeeded() -> None:
     bg_source = Path(background_module.__file__).read_text(encoding="utf-8")
     rt_source = Path(runtime_module.__file__).read_text(encoding="utf-8")
 
-    assert "invocation_succeeded" in bg_source, "src/specify_cli/sync/background.py must consult invocation_succeeded() in its shutdown path (FR-008)."
-    assert "invocation_succeeded" in rt_source, "src/specify_cli/sync/runtime.py must consult invocation_succeeded() in its shutdown path (FR-008)."
+    assert "invocation_succeeded" in bg_source, (
+        "src/specify_cli/sync/background.py must consult invocation_succeeded() "
+        "in its shutdown path (FR-008)."
+    )
+    assert "invocation_succeeded" in rt_source, (
+        "src/specify_cli/sync/runtime.py must consult invocation_succeeded() "
+        "in its shutdown path (FR-008)."
+    )
 
 
 def test_invocation_success_flag_round_trips() -> None:
@@ -150,4 +167,7 @@ def test_no_red_ansi_after_success_marker(capsys: pytest.CaptureFixture[str]) ->
         print("[red]Shutdown error[/red]", file=sys.stderr)
 
     captured = capsys.readouterr()
-    assert not ANSI_RED_RE.search(captured.err), f"Found red styling on stderr after mark_invocation_succeeded():\n{captured.err}"
+    assert not ANSI_RED_RE.search(captured.err), (
+        f"Found red styling on stderr after mark_invocation_succeeded():\n"
+        f"{captured.err}"
+    )

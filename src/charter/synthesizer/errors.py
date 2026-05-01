@@ -91,7 +91,10 @@ class SynthesisSchemaError(SynthesisError):
 
     def __str__(self) -> str:
         errs = "; ".join(self.validation_errors)
-        return f"Adapter output for {self.artifact_kind}:{self.artifact_slug} failed schema validation: {errs}"
+        return (
+            f"Adapter output for {self.artifact_kind}:{self.artifact_slug} "
+            f"failed schema validation: {errs}"
+        )
 
 
 @dataclass(frozen=True)
@@ -106,7 +109,10 @@ class ProjectDRGValidationError(SynthesisError):
 
     def __str__(self) -> str:
         errs = "; ".join(self.errors)
-        return f"Project DRG validation failed ({len(self.errors)} error(s)): {errs}. Graph summary: {self.merged_graph_summary}"
+        return (
+            f"Project DRG validation failed ({len(self.errors)} error(s)): {errs}. "
+            f"Graph summary: {self.merged_graph_summary}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +166,11 @@ class TopicSelectorUnresolvedError(SynthesisError):
         forms = ", ".join(self.attempted_forms) if self.attempted_forms else "all"
         if self.candidates:
             cands = ", ".join(self.candidates)
-            return f"Topic selector '{self.raw}' could not be resolved (tried: {forms}). Did you mean one of: {cands}?"
+            return (
+                f"Topic selector '{self.raw}' could not be resolved "
+                f"(tried: {forms}). "
+                f"Did you mean one of: {cands}?"
+            )
         return (
             f"Topic selector '{self.raw}' could not be resolved "
             f"(tried: {forms}). "
@@ -178,7 +188,10 @@ class TopicSelectorAmbiguousError(SynthesisError):
 
     def __str__(self) -> str:
         cands = ", ".join(self.candidates)
-        return f"Topic selector '{self.raw}' is ambiguous — matched: {cands}. Use a more specific selector (e.g. include the artifact kind prefix)."
+        return (
+            f"Topic selector '{self.raw}' is ambiguous — matched: {cands}. "
+            f"Use a more specific selector (e.g. include the artifact kind prefix)."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +212,11 @@ class FixtureAdapterMissingError(SynthesisError):
     inputs_hash: str
 
     def __str__(self) -> str:
-        return f"No fixture found for {self.kind}:{self.slug} (inputs_hash={self.inputs_hash[:12]}...); expected at {self.expected_path}"
+        return (
+            f"No fixture found for {self.kind}:{self.slug} "
+            f"(inputs_hash={self.inputs_hash[:12]}...); "
+            f"expected at {self.expected_path}"
+        )
 
 
 @dataclass(frozen=True)

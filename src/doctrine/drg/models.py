@@ -40,7 +40,7 @@ class NodeKind(StrEnum):
     TEMPLATE = "template"
     ACTION = "action"
     GLOSSARY_SCOPE = "glossary_scope"
-    GLOSSARY = "glossary"  # URN prefix: "glossary:<id>"
+    GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"
 
 
 class Relation(StrEnum):
@@ -71,10 +71,15 @@ class DRGNode(BaseModel):
     @model_validator(mode="after")
     def _validate_urn(self) -> Self:
         if not _URN_RE.match(self.urn):
-            raise ValueError(f"URN {self.urn!r} does not match pattern {_URN_RE.pattern}")
+            raise ValueError(
+                f"URN {self.urn!r} does not match pattern "
+                f"{_URN_RE.pattern}"
+            )
         prefix = self.urn.split(":", 1)[0]
         if prefix != self.kind.value:
-            raise ValueError(f"URN prefix {prefix!r} does not match kind {self.kind.value!r}")
+            raise ValueError(
+                f"URN prefix {prefix!r} does not match kind {self.kind.value!r}"
+            )
         return self
 
 
@@ -92,7 +97,10 @@ class DRGEdge(BaseModel):
         for field_name in ("source", "target"):
             value = getattr(self, field_name)
             if not _URN_RE.match(value):
-                raise ValueError(f"Edge {field_name} {value!r} does not match URN pattern {_URN_RE.pattern}")
+                raise ValueError(
+                    f"Edge {field_name} {value!r} does not match URN pattern "
+                    f"{_URN_RE.pattern}"
+                )
         return self
 
 
@@ -117,7 +125,11 @@ class DRGGraph(BaseModel):
         relation: Relation | None = None,
     ) -> list[DRGEdge]:
         """Return outgoing edges from *urn*, optionally filtered by *relation*."""
-        return [e for e in self.edges if e.source == urn and (relation is None or e.relation == relation)]
+        return [
+            e
+            for e in self.edges
+            if e.source == urn and (relation is None or e.relation == relation)
+        ]
 
     def get_node(self, urn: str) -> DRGNode | None:
         """Look up a node by URN, or ``None`` if not found."""

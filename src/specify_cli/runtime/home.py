@@ -70,7 +70,10 @@ def _resolve_env_package_asset_root(root: Path) -> Path:
     for candidate in candidates:
         if candidate.is_dir() and _looks_like_missions_root(candidate):
             return candidate
-    raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: {root}. Expected a missions directory or a Spec Kitty checkout root.")
+    raise FileNotFoundError(
+        "SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: "
+        f"{root}. Expected a missions directory or a Spec Kitty checkout root."
+    )
 
 
 def get_package_asset_root() -> Path:
@@ -93,7 +96,9 @@ def get_package_asset_root() -> Path:
     if dev_root.is_dir():
         return dev_root
 
-    raise FileNotFoundError("Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli.")
+    raise FileNotFoundError(
+        "Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
+    )
 
 
 __all__ = ["_is_windows", "get_kittify_home", "get_package_asset_root"]

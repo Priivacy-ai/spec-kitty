@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,7 +58,11 @@ class NamespaceRef:
 
     def dedupe_key(self, artifact_path: str, content_hash: str) -> str:
         """Return deterministic 7-field string for body queue deduplication."""
-        return f"{self.project_uuid}|{self.mission_slug}|{self.target_branch}|{self.mission_type}|{self.manifest_version}|{artifact_path}|{content_hash}"
+        return (
+            f"{self.project_uuid}|{self.mission_slug}|{self.target_branch}"
+            f"|{self.mission_type}|{self.manifest_version}"
+            f"|{artifact_path}|{content_hash}"
+        )
 
     @classmethod
     def from_context(
@@ -71,7 +75,9 @@ class NamespaceRef:
     ) -> NamespaceRef:
         """Construct a NamespaceRef from ProjectIdentity and mission metadata."""
         if identity.project_uuid is None:
-            raise ValueError("ProjectIdentity.project_uuid is required for body sync")
+            raise ValueError(
+                "ProjectIdentity.project_uuid is required for body sync"
+            )
         return cls(
             project_uuid=str(identity.project_uuid),
             mission_slug=mission_slug,
@@ -95,7 +101,7 @@ def resolve_manifest_version(mission_type: str) -> str:
     return "1"
 
 
-class SupportedInlineFormat(StrEnum):
+class SupportedInlineFormat(str, Enum):
     """File extensions eligible for inline body upload in v1."""
 
     MARKDOWN = ".md"
@@ -105,7 +111,9 @@ class SupportedInlineFormat(StrEnum):
     CSV = ".csv"
 
 
-SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(f.value for f in SupportedInlineFormat)
+SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(
+    f.value for f in SupportedInlineFormat
+)
 
 
 def is_supported_format(path: str | Path) -> bool:
@@ -113,7 +121,7 @@ def is_supported_format(path: str | Path) -> bool:
     return Path(path).suffix.lower() in SUPPORTED_EXTENSIONS
 
 
-class UploadStatus(StrEnum):
+class UploadStatus(str, Enum):
     """Classification of an upload attempt result."""
 
     UPLOADED = "uploaded"

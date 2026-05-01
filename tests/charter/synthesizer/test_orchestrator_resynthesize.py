@@ -79,7 +79,9 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 @pytest.fixture
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
-        "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+        "nodes": [
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+        ],
         "edges": [],
         "schema_version": "1",
     }
@@ -133,9 +135,14 @@ def _content_hash(yaml_bytes: bytes) -> str:
     return hashlib.sha256(yaml_bytes).hexdigest()
 
 
-def _artifact_hashes_from_manifest(repo_root: Path, manifest: SynthesisManifest) -> dict[str, str]:
+def _artifact_hashes_from_manifest(
+    repo_root: Path, manifest: SynthesisManifest
+) -> dict[str, str]:
     """Return {kind:slug → content_hash} for all manifest entries."""
-    return {f"{e.kind}:{e.slug}": e.content_hash for e in manifest.artifacts}
+    return {
+        f"{e.kind}:{e.slug}": e.content_hash
+        for e in manifest.artifacts
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +256,8 @@ class TestUs3KindSlug:
         for key, prior_hash in prior_hashes.items():
             if key != regenerated_key:
                 assert new_hashes.get(key) == prior_hash, (
-                    f"FR-017 violation: artifact '{key}' hash changed unexpectedly. prior={prior_hash[:12]}... new={new_hashes.get(key, 'MISSING')[:12]}..."
+                    f"FR-017 violation: artifact '{key}' hash changed unexpectedly. "
+                    f"prior={prior_hash[:12]}... new={new_hashes.get(key, 'MISSING')[:12]}..."
                 )
 
     def test_resynthesize_kind_slug_preserves_full_project_graph(
@@ -263,7 +271,9 @@ class TestUs3KindSlug:
         graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
         before_graph = load_graph(graph_path)
         before_nodes = {node.urn for node in before_graph.nodes}
-        before_edges = {(edge.source, edge.target, edge.relation.value) for edge in before_graph.edges}
+        before_edges = {
+            (edge.source, edge.target, edge.relation.value) for edge in before_graph.edges
+        }
 
         resynthesize_run(
             request=base_request,
@@ -274,7 +284,9 @@ class TestUs3KindSlug:
 
         after_graph = load_graph(graph_path)
         after_nodes = {node.urn for node in after_graph.nodes}
-        after_edges = {(edge.source, edge.target, edge.relation.value) for edge in after_graph.edges}
+        after_edges = {
+            (edge.source, edge.target, edge.relation.value) for edge in after_graph.edges
+        }
 
         assert after_nodes == before_nodes
         assert after_edges == before_edges
@@ -335,7 +347,9 @@ class TestUs2DrgUrn:
         for key, prior_hash in prior_hashes.items():
             _, slug = key.split(":", 1)
             if slug not in regenerated_slugs:
-                assert new_hashes.get(key) == prior_hash, f"FR-017 violation: '{key}' hash changed but was not in resynthesis targets"
+                assert new_hashes.get(key) == prior_hash, (
+                    f"FR-017 violation: '{key}' hash changed but was not in resynthesis targets"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +404,9 @@ class TestUs4InterviewSection:
         for key, prior_hash in prior_hashes.items():
             _, slug = key.split(":", 1)
             if slug not in regenerated_slugs:
-                assert new_hashes.get(key) == prior_hash, f"FR-017 violation: unrelated artifact '{key}' hash changed"
+                assert new_hashes.get(key) == prior_hash, (
+                    f"FR-017 violation: unrelated artifact '{key}' hash changed"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -410,7 +426,9 @@ class TestEc4ZeroMatch:
 
         # Build a DRG with a paradigm URN that no artifact references
         extended_drg = dict(base_request.drg_snapshot)
-        extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [{"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}]
+        extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
+            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}
+        ]
         ec4_request = SynthesisRequest(
             target=base_request.target,
             interview_snapshot=base_request.interview_snapshot,
@@ -444,7 +462,9 @@ class TestEc4ZeroMatch:
         prior_mtime = manifest_path.stat().st_mtime
 
         extended_drg = dict(base_request.drg_snapshot)
-        extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [{"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}]
+        extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
+            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}
+        ]
         ec4_request = SynthesisRequest(
             target=base_request.target,
             interview_snapshot=base_request.interview_snapshot,
@@ -523,7 +543,9 @@ class TestResynthesizeValidationWiring:
         assert graph_path.read_text(encoding="utf-8") == graph_before
 
         staging_root = repo / ".kittify" / "charter" / ".staging"
-        failed_dirs = sorted(d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed"))
+        failed_dirs = sorted(
+            d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed")
+        )
         assert failed_dirs, "Expected a .failed staging directory when validation rejects resynthesis"
         assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists()
 
@@ -559,7 +581,8 @@ class TestManifestContentHashPreservation:
         for key, prior_hash in prior_by_key.items():
             if regenerated_slug not in key:
                 assert new_by_key.get(key) == prior_hash, (
-                    f"FR-017: '{key}' content_hash changed from {prior_hash[:16]}... to {new_by_key.get(key, 'MISSING')[:16]}..."
+                    f"FR-017: '{key}' content_hash changed from "
+                    f"{prior_hash[:16]}... to {new_by_key.get(key, 'MISSING')[:16]}..."
                 )
                 preserved_count += 1
 
@@ -569,4 +592,7 @@ class TestManifestContentHashPreservation:
         expected_preserved = total - regenerated
         if expected_preserved > 0:
             ratio = preserved_count / expected_preserved
-            assert ratio >= 0.95, f"SC-006: only {ratio:.1%} of unmodified artifacts preserved (need ≥ 95%)"
+            assert ratio >= 0.95, (
+                f"SC-006: only {ratio:.1%} of unmodified artifacts preserved "
+                f"(need ≥ 95%)"
+            )

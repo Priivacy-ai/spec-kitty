@@ -123,7 +123,9 @@ class SparseCheckoutRemediationReport:
     @property
     def overall_success(self) -> bool:
         """True iff every remediated path completed all five steps cleanly."""
-        return self.primary_result.success and all(w.success for w in self.worktree_results)
+        return self.primary_result.success and all(
+            w.success for w in self.worktree_results
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -166,12 +168,17 @@ def _dirty_refusal_result(path: Path) -> SparseCheckoutRemediationResult:
         success=False,
         steps_completed=(),
         error_step=None,
-        error_detail=("dirty working tree detected; remediation refused to avoid clobbering uncommitted work. Commit or stash and retry."),
+        error_detail=(
+            "dirty working tree detected; remediation refused to avoid "
+            "clobbering uncommitted work. Commit or stash and retry."
+        ),
         dirty_before_remediation=True,
     )
 
 
-def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+def _run_git(
+    args: list[str], cwd: Path
+) -> subprocess.CompletedProcess[str]:
     """Run ``git <args>`` at ``cwd`` returning the completed process.
 
     Does not raise on non-zero exit; callers inspect ``returncode`` / ``stderr``
@@ -186,7 +193,9 @@ def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _resolve_pattern_file_for_state(state: SparseCheckoutState | None, path: Path, is_worktree: bool) -> Path | None:
+def _resolve_pattern_file_for_state(
+    state: SparseCheckoutState | None, path: Path, is_worktree: bool
+) -> Path | None:
     """Return the sparse-checkout pattern file location for ``path``.
 
     Prefers the path already resolved by the scan report (which used the
@@ -346,7 +355,9 @@ def remediate(
     # state, even when inactive. Remediation on an inactive primary is a
     # harmless no-op: the five steps succeed against a repo that already has
     # sparse-checkout disabled.
-    targets: list[tuple[Path, SparseCheckoutState | None, bool]] = [(report.primary.path, report.primary, False)]
+    targets: list[tuple[Path, SparseCheckoutState | None, bool]] = [
+        (report.primary.path, report.primary, False)
+    ]
     for wt_state in report.worktrees:
         targets.append((wt_state.path, wt_state, True))
 
@@ -363,7 +374,9 @@ def remediate(
         # FR-005: refuse on EVERY path, not just the dirty one, so operators
         # see the full scope that would have been touched.
         primary_refusal = _dirty_refusal_result(targets[0][0])
-        worktree_refusals = tuple(_dirty_refusal_result(p) for p, _s, _w in targets[1:])
+        worktree_refusals = tuple(
+            _dirty_refusal_result(p) for p, _s, _w in targets[1:]
+        )
         return SparseCheckoutRemediationReport(
             primary_result=primary_refusal,
             worktree_results=worktree_refusals,

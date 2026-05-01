@@ -83,7 +83,9 @@ def test_four_segments_preserves_role() -> None:
     ``profile_id`` and ``role`` slots were silently discarded — only ``tool``
     survived.
     """
-    result = _make_wp("claude:opus-4-7:reviewer-default:reviewer").resolved_agent()
+    result = _make_wp(
+        "claude:opus-4-7:reviewer-default:reviewer"
+    ).resolved_agent()
     assert result.tool == "claude"
     assert result.model == "opus-4-7"
     assert result.profile_id == "reviewer-default"

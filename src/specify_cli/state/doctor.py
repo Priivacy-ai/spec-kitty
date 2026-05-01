@@ -200,7 +200,9 @@ def _check_gitignore(repo_root: Path, surface: StateSurface) -> bool:
     return result
 
 
-def _generate_warning(surface: StateSurface, present: bool, gitignore_covered: bool) -> str | None:
+def _generate_warning(
+    surface: StateSurface, present: bool, gitignore_covered: bool
+) -> str | None:
     """Generate a warning if a runtime surface is present but not ignored."""
     if surface.root != StateRoot.PROJECT:
         return None
@@ -217,7 +219,10 @@ def _generate_warning(surface: StateSurface, present: bool, gitignore_covered: b
     if gitignore_covered:
         return None
 
-    return f"{surface.name} ({surface.path_pattern}) is present but not gitignored. Authority: {surface.authority.value}. Risk: accidental commit."
+    return (
+        f"{surface.name} ({surface.path_pattern}) is present but not gitignored. "
+        f"Authority: {surface.authority.value}. Risk: accidental commit."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -248,14 +253,18 @@ def check_state_roots(repo_root: Path) -> StateRootsReport:
     global_sync = Path.home() / ".spec-kitty"
 
     report.roots = [
-        StateRootInfo("project", "Project-local state", project_root, project_root.is_dir()),
+        StateRootInfo(
+            "project", "Project-local state", project_root, project_root.is_dir()
+        ),
         StateRootInfo(
             "global_runtime",
             "Global runtime home",
             global_runtime,
             global_runtime.is_dir(),
         ),
-        StateRootInfo("global_sync", "Global sync/auth home", global_sync, global_sync.is_dir()),
+        StateRootInfo(
+            "global_sync", "Global sync/auth home", global_sync, global_sync.is_dir()
+        ),
     ]
 
     # Check each surface

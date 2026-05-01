@@ -1,5 +1,4 @@
 """Evidence orchestration for charter synthesis."""
-
 from __future__ import annotations
 
 import datetime
@@ -57,7 +56,10 @@ class EvidenceOrchestrator:
                 loader = CorpusLoader(corpus_root=self._corpus_root)
                 corpus_snapshot = loader.load(profile_key)
                 if corpus_snapshot is None:
-                    warnings.append(f"No corpus found for profile '{profile_key}' or 'generic'; synthesis proceeds without corpus evidence.")
+                    warnings.append(
+                        f"No corpus found for profile '{profile_key}' or 'generic'; "
+                        "synthesis proceeds without corpus evidence."
+                    )
             except Exception as exc:  # noqa: BLE001
                 warnings.append(f"Corpus loading failed: {exc}")
 

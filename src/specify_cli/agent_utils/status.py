@@ -45,7 +45,6 @@ def _get_wp_review_verdict(wp_dir: Path) -> str | None:
         if not match:
             return None
         import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
-
         fm = yaml.safe_load(match.group(1)) or {}
         return fm.get("verdict")
     except Exception:  # noqa: BLE001 — review artifact may be absent or malformed; fail-open
@@ -94,7 +93,10 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
 
         # mission_slug is required; no auto-detection
         if not mission_slug:
-            msg = "mission_slug is required. Pass it explicitly: show_kanban_status('057-my-feature')"
+            msg = (
+                "mission_slug is required. "
+                "Pass it explicitly: show_kanban_status('057-my-feature')"
+            )
             console.print(f"[red]Error:[/red] {msg}")
             return {"error": msg}
 
@@ -122,24 +124,28 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         if config_file.exists():
             try:
                 import yaml as _yaml  # noqa: PLC0415
-
                 config = _yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
             except Exception:  # noqa: BLE001
                 config = {}
-        threshold_minutes: int = int(config.get("review", {}).get("stall_threshold_minutes", 30)) if isinstance(config, dict) else 30
+        threshold_minutes: int = (
+            int(config.get("review", {}).get("stall_threshold_minutes", 30))
+            if isinstance(config, dict)
+            else 30
+        )
 
         # Build lane map from event log (canonical source of truth)
         from specify_cli.status.reducer import reduce
         from specify_cli.status.store import read_events
-
         events = read_events(feature_dir)
         snapshot = reduce(events)
         # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
-        event_log_lanes: dict[str, Lane] = {wp_id: Lane(state.get("lane", Lane.PLANNED)) for wp_id, state in snapshot.work_packages.items()}
+        event_log_lanes: dict[str, Lane] = {
+            wp_id: Lane(state.get("lane", Lane.PLANNED))
+            for wp_id, state in snapshot.work_packages.items()
+        }
 
         # Collect all work packages with dependencies (static metadata from frontmatter)
         import re
-
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
             front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
@@ -159,9 +165,15 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
                     dep_text = dep_match.group(1)
                     dependencies = re.findall(r'"([^"]+)"', dep_text)
 
-            work_packages.append(
-                {"id": wp_id, "title": title, "lane": lane, "phase": phase, "file": wp_file.name, "artifact_dir": wp_file.stem, "dependencies": dependencies}
-            )
+            work_packages.append({
+                "id": wp_id,
+                "title": title,
+                "lane": lane,
+                "phase": phase,
+                "file": wp_file.name,
+                "artifact_dir": wp_file.stem,
+                "dependencies": dependencies
+            })
 
         if not work_packages:
             console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
@@ -169,15 +181,8 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
 
         # Group by lane using Lane enum keys (avoids raw lane-string comparisons)
         by_lane: dict[Lane, list] = {
-            Lane.PLANNED: [],
-            Lane.CLAIMED: [],
-            Lane.IN_PROGRESS: [],
-            Lane.IN_REVIEW: [],
-            Lane.FOR_REVIEW: [],
-            Lane.APPROVED: [],
-            Lane.DONE: [],
-            Lane.BLOCKED: [],
-            Lane.CANCELED: [],
+            Lane.PLANNED: [], Lane.CLAIMED: [], Lane.IN_PROGRESS: [], Lane.IN_REVIEW: [],
+            Lane.FOR_REVIEW: [], Lane.APPROVED: [], Lane.DONE: [], Lane.BLOCKED: [], Lane.CANCELED: [],
         }
         for wp in work_packages:
             lane = wp["lane"]
@@ -195,11 +200,27 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
 
         # Calculate metrics using progress_bucket() — no raw lane-string comparisons
         total = len(work_packages)
-        done_count = sum(1 for wp in work_packages if wp_state_for(wp["lane"]).progress_bucket() == "terminal" and wp["lane"] == Lane.DONE)
-        in_progress = sum(1 for wp in work_packages if wp_state_for(wp["lane"]).progress_bucket() in ("in_flight", "review"))
-        planned_count = sum(1 for wp in work_packages if wp_state_for(wp["lane"]).progress_bucket() == "not_started")
-        sum(1 for wp in work_packages if wp_state_for(wp["lane"]).is_blocked)
-        sum(1 for wp in work_packages if wp_state_for(wp["lane"]).is_terminal and wp["lane"] == Lane.CANCELED)
+        done_count = sum(
+            1 for wp in work_packages
+            if wp_state_for(wp["lane"]).progress_bucket() == "terminal"
+            and wp["lane"] == Lane.DONE
+        )
+        in_progress = sum(
+            1 for wp in work_packages
+            if wp_state_for(wp["lane"]).progress_bucket() in ("in_flight", "review")
+        )
+        planned_count = sum(
+            1 for wp in work_packages
+            if wp_state_for(wp["lane"]).progress_bucket() == "not_started"
+        )
+        sum(
+            1 for wp in work_packages
+            if wp_state_for(wp["lane"]).is_blocked
+        )
+        sum(
+            1 for wp in work_packages
+            if wp_state_for(wp["lane"]).is_terminal and wp["lane"] == Lane.CANCELED
+        )
         progress_result = compute_weighted_progress(snapshot)
         progress_pct = round(progress_result.percentage, 1)
 
@@ -236,16 +257,15 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
                 if age_minutes > threshold_minutes:
                     stall_label = f"STALLED — no move-task in {int(age_minutes)}m"
                     wp["_stall_label"] = stall_label
-                    stalled_wps.append(
-                        {
-                            "wp_id": wp_id,
-                            "age_minutes": int(age_minutes),
-                            "mission_slug": mission_slug,
-                        }
-                    )
+                    stalled_wps.append({
+                        "wp_id": wp_id,
+                        "age_minutes": int(age_minutes),
+                        "mission_slug": mission_slug,
+                    })
 
         # Display the status board
-        _display_status_board(mission_slug, work_packages, by_lane, total, done_count, in_progress, planned_count, progress_pct, parallel_info)
+        _display_status_board(mission_slug, work_packages, by_lane, total, done_count,
+                            in_progress, planned_count, progress_pct, parallel_info)
 
         # Return structured data (by_lane uses Lane.value to produce string keys)
         lane_counts = Counter(wp["lane"].value for wp in work_packages)
@@ -314,31 +334,35 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
 
         if independent:
             if len(independent) > 1:
-                parallel_groups.append({"type": "parallel", "wps": independent, "note": f"These {len(independent)} WPs can run in parallel"})
+                parallel_groups.append({
+                    "type": "parallel",
+                    "wps": independent,
+                    "note": f"These {len(independent)} WPs can run in parallel"
+                })
             else:
-                parallel_groups.append({"type": "single", "wps": independent, "note": "Ready to start"})
+                parallel_groups.append({
+                    "type": "single",
+                    "wps": independent,
+                    "note": "Ready to start"
+                })
 
         if dependent:
-            parallel_groups.append({"type": "sequential", "wps": dependent, "note": "Must wait for other ready WPs to complete first"})
+            parallel_groups.append({
+                "type": "sequential",
+                "wps": dependent,
+                "note": "Must wait for other ready WPs to complete first"
+            })
 
     return {
         "ready_wps": ready_wps,
         "parallel_groups": parallel_groups,
-        "can_parallelize": len(ready_wps) > 1 and any(g["type"] == "parallel" for g in parallel_groups),
+        "can_parallelize": len(ready_wps) > 1 and any(g["type"] == "parallel" for g in parallel_groups)
     }
 
 
-def _display_status_board(
-    mission_slug: str,
-    work_packages: list,
-    by_lane: dict[Lane, list],
-    total: int,
-    done_count: int,
-    in_progress: int,
-    planned_count: int,
-    progress_pct: float,
-    parallel_info: dict,
-) -> None:
+def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[Lane, list],
+                         total: int, done_count: int, in_progress: int,
+                         planned_count: int, progress_pct: float, parallel_info: dict) -> None:
     """Display the rich-formatted status board."""
     # Create title panel
     title_text = Text()
@@ -390,7 +414,10 @@ def _display_status_board(
         table.add_column(label, style=style, no_wrap=False, width=16)
 
     # Find max length for rows
-    max_rows = max((len(display_in_progress) if lk == Lane.IN_PROGRESS else len(by_lane[lk])) for lk, _, _ in kanban_lanes) if work_packages else 0
+    max_rows = max(
+        (len(display_in_progress) if lk == Lane.IN_PROGRESS else len(by_lane[lk]))
+        for lk, _, _ in kanban_lanes
+    ) if work_packages else 0
 
     # Add rows
     for i in range(max_rows):
@@ -399,9 +426,12 @@ def _display_status_board(
             lane_data = display_in_progress if lane_key == Lane.IN_PROGRESS else by_lane[lane_key]
             if i < len(lane_data):
                 wp = lane_data[i]
-                title_part = f"{wp['title'][:14]}..." if len(wp["title"]) > 14 else wp["title"]
+                title_part = f"{wp['title'][:14]}..." if len(wp['title']) > 14 else wp['title']
                 # in_review WPs folded into "In Progress" get bright_cyan colour
-                cell = f"[bright_cyan]{wp['id']} (review)[/bright_cyan]\n{title_part}" if wp.get("_display_in_review") else f"{wp['id']}\n{title_part}"
+                if wp.get("_display_in_review"):
+                    cell = f"[bright_cyan]{wp['id']} (review)[/bright_cyan]\n{title_part}"
+                else:
+                    cell = f"{wp['id']}\n{title_part}"
                 row.append(cell)
             else:
                 row.append("")
@@ -435,7 +465,10 @@ def _display_status_board(
     if done_stale:
         console.print("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
         for wp in done_stale:
-            console.print(f"  • {wp['id']} - {wp['title']}  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]")
+            console.print(
+                f"  • {wp['id']} - {wp['title']}"
+                f"  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            )
         console.print()
 
     if by_lane[Lane.IN_PROGRESS]:
@@ -499,19 +532,13 @@ def _display_status_board(
             elif group["type"] == "sequential":
                 console.print("\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
                 for wp in group["wps"]:
-                    deps_in_ready = [d for d in wp.get("dependencies", []) if d in {w["id"] for w in parallel_info["ready_wps"]}]
+                    deps_in_ready = [d for d in wp.get("dependencies", [])
+                                    if d in {w["id"] for w in parallel_info["ready_wps"]}]
                     console.print(f"     • {wp['id']} - {wp['title']}")
                     console.print(f"       [dim]Waiting for: {', '.join(deps_in_ready)}[/dim]")
 
         console.print()
-    elif (
-        by_lane[Lane.PLANNED]
-        and not by_lane[Lane.IN_PROGRESS]
-        and not by_lane[Lane.CLAIMED]
-        and not by_lane[Lane.FOR_REVIEW]
-        and not by_lane.get(Lane.IN_REVIEW)
-        and not by_lane[Lane.APPROVED]
-    ):
+    elif by_lane[Lane.PLANNED] and not by_lane[Lane.IN_PROGRESS] and not by_lane[Lane.CLAIMED] and not by_lane[Lane.FOR_REVIEW] and not by_lane.get(Lane.IN_REVIEW) and not by_lane[Lane.APPROVED]:
         # All planned WPs are blocked
         console.print("[bold red]⚠️  All remaining WPs are blocked[/bold red]")
         console.print("  Check dependency status above\n")

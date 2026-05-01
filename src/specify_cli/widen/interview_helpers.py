@@ -52,7 +52,7 @@ def render_widen_hint_if_present(question_context: str, console: Console) -> Non
     """
     for line in question_context.splitlines():
         if line.startswith(_WIDEN_HINT_PREFIX):
-            hint_text = line[len(_WIDEN_HINT_PREFIX) :]
+            hint_text = line[len(_WIDEN_HINT_PREFIX):]
             console.print(f"[dim]{hint_text}[/dim]")
 
 
@@ -90,7 +90,9 @@ def _resolve_pending_entry(
     from specify_cli.widen.models import DiscussionFetch
     from specify_cli.widen.review import run_candidate_review
 
-    console.print(f"      Widened at: {entry.entered_pending_at.strftime('%Y-%m-%d %H:%M UTC')}")
+    console.print(
+        f"      Widened at: {entry.entered_pending_at.strftime('%Y-%m-%d %H:%M UTC')}"
+    )
 
     # T042 — always remove from store even on unexpected failure.
     # Wrap the entire body so any exception (fetch failure, validation error,
@@ -101,9 +103,14 @@ def _resolve_pending_entry(
         try:
             raw = saas_client.fetch_discussion(entry.decision_id)
             # raw may be a DiscussionFetch already (from mocks) or a raw dict
-            discussion = raw if isinstance(raw, DiscussionFetch) else DiscussionFetch.model_validate(raw)
+            discussion = (
+                raw if isinstance(raw, DiscussionFetch) else DiscussionFetch.model_validate(raw)
+            )
         except SaasClientError as exc:
-            console.print(f"      [yellow]Fetch failed:[/yellow] {exc}. You can still type an answer manually.")
+            console.print(
+                f"      [yellow]Fetch failed:[/yellow] {exc}. "
+                "You can still type an answer manually."
+            )
             discussion = DiscussionFetch(
                 participants=[],
                 message_count=0,
@@ -181,7 +188,8 @@ def run_end_of_interview_pending_pass(
     noun = "questions are" if n != 1 else "question is"
     console.print(
         Panel(
-            f"{n} widened {noun} still pending. Resolve them before finalizing the interview.",
+            f"{n} widened {noun} still pending. "
+            "Resolve them before finalizing the interview.",
             title="Pending Widened Questions",
         )
     )
@@ -268,7 +276,10 @@ def render_already_widened_prompt(
                 fetched = saas_client.fetch_discussion(decision_id)
                 discussion = fetched if isinstance(fetched, DiscussionFetch) else DiscussionFetch.model_validate(fetched)
             except (SaasClientError, Exception) as exc:  # noqa: BLE001
-                console.print(f"[yellow]Fetch failed:[/yellow] {exc}. Type a local answer or press d to defer.")
+                console.print(
+                    f"[yellow]Fetch failed:[/yellow] {exc}. "
+                    "Type a local answer or press d to defer."
+                )
                 discussion = DiscussionFetch(
                     participants=[],
                     message_count=0,
@@ -295,7 +306,11 @@ def render_already_widened_prompt(
         elif raw.lower() in ("d", "defer", "[d]efer"):
             # Defer path — also removes from store
             try:
-                rationale = console.input("Rationale for deferral (press Enter to skip): ").strip()
+                rationale = (
+                    console.input(
+                        "Rationale for deferral (press Enter to skip): "
+                    ).strip()
+                )
             except (KeyboardInterrupt, EOFError):
                 rationale = ""
 
@@ -325,7 +340,10 @@ def render_already_widened_prompt(
                     final_answer=raw,
                     actor=actor,
                 )
-            console.print("[green]Resolved locally.[/green] SaaS will close the Slack thread shortly.")
+            console.print(
+                "[green]Resolved locally.[/green] "
+                "SaaS will close the Slack thread shortly."
+            )
             with contextlib.suppress(Exception):
                 widen_store.remove_pending(decision_id)
             return

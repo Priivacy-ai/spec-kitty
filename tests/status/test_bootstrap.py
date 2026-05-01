@@ -21,7 +21,6 @@ from specify_cli.status.store import EVENTS_FILENAME, read_events
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _write_wp_file(tasks_dir: Path, wp_id: str, title: str = "Test WP") -> Path:
     """Create a minimal WP markdown file with valid frontmatter."""
     wp_file = tasks_dir / f"{wp_id}.md"
@@ -58,7 +57,6 @@ def _write_event(feature_dir: Path, wp_id: str, mission_slug: str = "test-featur
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
 
 class TestBootstrapSeedsUninitialized:
     """T002-a: Seeds planned events for uninitialized WPs."""
@@ -299,7 +297,7 @@ class TestBootstrapMalformedFrontmatter:
         # WP with empty work_package_id
         bad_wp = tasks_dir / "WP02.md"
         bad_wp.write_text(
-            '---\nwork_package_id: ""\ntitle: Empty ID\n---\n\n# Bad\n',
+            "---\nwork_package_id: \"\"\ntitle: Empty ID\n---\n\n# Bad\n",
             encoding="utf-8",
         )
 

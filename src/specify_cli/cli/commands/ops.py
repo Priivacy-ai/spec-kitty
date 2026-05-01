@@ -95,7 +95,7 @@ def log(
         get_vcs(workspace_path)
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
     console.print("\n[cyan]Backend:[/cyan] git")
     console.print()
@@ -135,4 +135,4 @@ def undo() -> None:
     console.print("  git revert <commit>      (create reverting commit)")
     console.print("  git reflog               (find previous states)")
     console.print()
-    raise typer.Exit(1) from None
+    raise typer.Exit(1)

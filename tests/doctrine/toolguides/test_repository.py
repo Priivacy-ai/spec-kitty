@@ -6,8 +6,8 @@ import pytest
 from ruamel.yaml import YAML
 
 from doctrine.toolguides.repository import ToolguideRepository
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestToolguideRepository:
@@ -64,6 +64,7 @@ class TestToolguideRepository:
     def test_save_raises_without_project_dir(self, tmp_path: Path, sample_toolguide_data: dict) -> None:
         from doctrine.toolguides.models import Toolguide
 
+
         repo = ToolguideRepository(shipped_dir=tmp_path / "empty")
         toolguide = Toolguide.model_validate(sample_toolguide_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
@@ -108,7 +109,9 @@ class TestToolguideRepository:
         assert toolguide.title == "Overridden Title"
         assert toolguide.commands == ["spec-kitty"]
 
-    def test_filters_language_scoped_toolguides_when_active_languages_do_not_match(self, tmp_path: Path) -> None:
+    def test_filters_language_scoped_toolguides_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
 
@@ -147,7 +150,9 @@ class TestToolguideRepository:
         assert "generic-toolguide" in toolguide_ids
         assert "python-toolguide" not in toolguide_ids
 
-    def test_skips_project_toolguides_when_language_scope_does_not_match(self, tmp_path: Path) -> None:
+    def test_skips_project_toolguides_when_language_scope_does_not_match(
+        self, tmp_path: Path
+    ) -> None:
         shipped = tmp_path / "shipped"
         shipped.mkdir()
         project = tmp_path / "project"

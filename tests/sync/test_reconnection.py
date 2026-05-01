@@ -356,13 +356,17 @@ class TestClientLifecycle:
                 "expires_in": 60,
             }
 
-        monkeypatch.setattr("specify_cli.sync.client.provision_ws_token", fake_provision)
+        monkeypatch.setattr(
+            "specify_cli.sync.client.provision_ws_token", fake_provision
+        )
 
         async def fake_connect(*_args, **_kwargs):
             return _FakeWebSocket()
 
         # Pretend the SaaS feature flag is on for this test.
-        monkeypatch.setattr("specify_cli.sync.client.is_saas_sync_enabled", lambda: True)
+        monkeypatch.setattr(
+            "specify_cli.sync.client.is_saas_sync_enabled", lambda: True
+        )
 
         with patch("specify_cli.sync.client.websockets.connect", side_effect=fake_connect):
             await client.connect()
@@ -376,7 +380,9 @@ class TestClientLifecycle:
             leaked_listeners = [
                 t
                 for t in asyncio.all_tasks()
-                if t is not asyncio.current_task() and not t.done() and getattr(t.get_coro(), "__qualname__", "") == "WebSocketClient._listen"
+                if t is not asyncio.current_task()
+                and not t.done()
+                and getattr(t.get_coro(), "__qualname__", "") == "WebSocketClient._listen"
             ]
             assert leaked_listeners == []
 

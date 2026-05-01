@@ -47,7 +47,6 @@ def _write_mission(tmp_path: Path, config: dict[str, Any]) -> Path:
     (mission_dir / "mission.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
     return mission_dir
 
-
 def test_missing_required_field_raises_error(tmp_path: Path) -> None:
     """Missing required fields should raise MissionError with helpful message."""
     config = build_valid_config()

@@ -55,10 +55,10 @@ class RebuildResult:
     """Outcome of rebuilding the event log for a single feature."""
 
     feature_slug: str
-    events_generated: int = 0  # Brand-new synthetic events created
-    events_kept: int = 0  # Existing events preserved unchanged
-    events_corrected: int = 0  # Existing events that were enriched / fixed
-    conflicts_found: int = 0  # Source-level lane disagreements
+    events_generated: int = 0        # Brand-new synthetic events created
+    events_kept: int = 0             # Existing events preserved unchanged
+    events_corrected: int = 0        # Existing events that were enriched / fixed
+    conflicts_found: int = 0         # Source-level lane disagreements
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     skipped: bool = False
@@ -80,7 +80,9 @@ _LANE_ORDER: list[str] = [
 
 _TERMINAL_LANES: frozenset[str] = frozenset({"done", "canceled", "approved"})
 
-_VALID_LANES: frozenset[str] = frozenset({"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled", "approved"})
+_VALID_LANES: frozenset[str] = frozenset(
+    {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled", "approved"}
+)
 
 
 def _resolve_alias(lane: str) -> str:
@@ -102,7 +104,6 @@ def _make_migration_timestamp(base_ts: str, offset_seconds: int = 0) -> str:
         dt = datetime.now(UTC)
     if offset_seconds:
         from datetime import timedelta
-
         dt = dt - timedelta(seconds=offset_seconds)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
@@ -161,7 +162,6 @@ def _read_frontmatter_lanes(feature_dir: Path) -> dict[str, str]:
     except ImportError:
         return {}
     import re
-
     _WP_RE = re.compile(r"^(WP\d{2,})")
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         m = _WP_RE.match(wp_file.stem)
@@ -188,7 +188,6 @@ def _read_wp_frontmatter_full(feature_dir: Path) -> dict[str, dict[str, Any]]:
     except ImportError:
         return {}
     import re
-
     _WP_RE = re.compile(r"^(WP\d{2,})")
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         m = _WP_RE.match(wp_file.stem)
@@ -279,15 +278,10 @@ def _build_chain(
     # Build path through canonical lanes
     path: list[str] = ["planned"]
     if target_lane in _TERMINAL_LANES and target_lane in _LANE_ORDER:
-        path = _LANE_ORDER[
-            : _LANE_ORDER.index(
-                min(
-                    (lane for lane in _LANE_ORDER if lane == target_lane or target_lane in ("done", "approved")),
-                    default=target_lane,
-                )
-            )
-            + 1
-        ]
+        path = _LANE_ORDER[: _LANE_ORDER.index(min(
+            (lane for lane in _LANE_ORDER if lane == target_lane or target_lane in ("done", "approved")),
+            default=target_lane,
+        )) + 1]
     else:
         # Walk through _LANE_ORDER up to target
         for lane in _LANE_ORDER:
@@ -404,7 +398,11 @@ def rebuild_event_log(  # noqa: C901
         event_log_ts[wp_code] = terminal_event.get("at", "")
 
     # Gather all known WPs
-    all_wp_codes: set[str] = set(frontmatter_lanes.keys()) | set(status_json_lanes.keys()) | set(event_log_lanes.keys())
+    all_wp_codes: set[str] = (
+        set(frontmatter_lanes.keys())
+        | set(status_json_lanes.keys())
+        | set(event_log_lanes.keys())
+    )
 
     # ------------------------------------------------------------------
     # Step 3: Resolve authoritative lane per WP, detect conflicts
@@ -434,7 +432,9 @@ def rebuild_event_log(  # noqa: C901
             # Conflict: pick the most-recently-timestamped source
             result.conflicts_found += 1
             # Sort by timestamp descending (None sorts last)
-            candidates_with_ts = [(src, lane, ts) for src, lane, ts in candidates if ts]
+            candidates_with_ts = [
+                (src, lane, ts) for src, lane, ts in candidates if ts
+            ]
             if candidates_with_ts:
                 candidates_with_ts.sort(key=lambda x: x[2], reverse=True)
                 winner_src, winner_lane, winner_ts = candidates_with_ts[0]
@@ -449,7 +449,11 @@ def rebuild_event_log(  # noqa: C901
                             break
 
             loser_sources = [f"{src}={ln}" for src, ln, _ in candidates if src != winner_src]
-            msg = f"{feature_slug}/{wp_code}: lane conflict ({', '.join(loser_sources)} vs {winner_src}={winner_lane}). Using {winner_src}."
+            msg = (
+                f"{feature_slug}/{wp_code}: lane conflict "
+                f"({', '.join(loser_sources)} vs {winner_src}={winner_lane}). "
+                f"Using {winner_src}."
+            )
             logger.warning(msg)
             result.warnings.append(msg)
             authoritative_lanes[wp_code] = winner_lane
@@ -486,7 +490,11 @@ def rebuild_event_log(  # noqa: C901
 
         if log_lane is not None and log_lane != auth_lane:
             # Contradiction: emit a corrective synthetic event
-            msg = f"{feature_slug}/{wp_code}: event log says '{log_lane}' but authoritative source says '{auth_lane}'. Emitting corrective synthetic event."
+            msg = (
+                f"{feature_slug}/{wp_code}: event log says '{log_lane}' "
+                f"but authoritative source says '{auth_lane}'. "
+                "Emitting corrective synthetic event."
+            )
             logger.warning(msg)
             result.warnings.append(msg)
 

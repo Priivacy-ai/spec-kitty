@@ -30,14 +30,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from collections.abc import Iterator
+from typing import Iterator
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from specify_cli.task_utils import find_repo_root
-import contextlib
 
 app = typer.Typer(name="invocations", help="Query local invocation records.")
 console = Console()
@@ -161,8 +160,10 @@ def _iter_index_reverse(index_path: Path) -> Iterator[dict]:  # type: ignore[typ
 
             # Flush whatever remained at the very beginning of the file.
             if remainder.strip():
-                with contextlib.suppress(json.JSONDecodeError):
+                try:
                     yield json.loads(remainder.strip().decode("utf-8", errors="replace"))
+                except json.JSONDecodeError:
+                    pass
 
     except OSError:
         return
@@ -200,7 +201,11 @@ def _iter_records_from_index(
         inv_file = events_dir / f"{inv_id}.jsonl"
         last = _read_last_line(inv_file)
         record: dict = dict(entry)  # type: ignore[type-arg]
-        if last is not None and last.get("event") == "completed" and last.get("invocation_id") == inv_id:
+        if (
+            last is not None
+            and last.get("event") == "completed"
+            and last.get("invocation_id") == inv_id
+        ):
             record["completed_at"] = last.get("completed_at")
             record["outcome"] = last.get("outcome")
             record["evidence_ref"] = last.get("evidence_ref")
@@ -246,7 +251,11 @@ def _iter_records_from_dir(
         last = _read_last_line(path)
         record: dict = dict(started)  # type: ignore[type-arg]
         inv_id = record.get("invocation_id")
-        if last is not None and last.get("event") == "completed" and last.get("invocation_id") == inv_id:
+        if (
+            last is not None
+            and last.get("event") == "completed"
+            and last.get("invocation_id") == inv_id
+        ):
             record["completed_at"] = last.get("completed_at")
             record["outcome"] = last.get("outcome")
             record["evidence_ref"] = last.get("evidence_ref")
@@ -257,10 +266,12 @@ def _iter_records_from_dir(
 
     raw_records.sort(key=lambda r: r.get("started_at", ""), reverse=True)
 
-    for count, record in enumerate(raw_records):
+    count = 0
+    for record in raw_records:
         if count >= limit:
             break
         yield record
+        count += 1
 
 
 def _iter_records(
@@ -282,12 +293,11 @@ def _iter_records(
         repo_root: Optional repo root for index path resolution.  When
             omitted the index path is computed relative to ``events_dir``.
     """
-    index_path = (
-        repo_root / INDEX_PATH
-        if repo_root is not None
+    if repo_root is not None:
+        index_path = repo_root / INDEX_PATH
+    else:
         # Derive from events_dir: .kittify/events/profile-invocations → .kittify/events
-        else events_dir.parent / "invocation-index.jsonl"
-    )
+        index_path = events_dir.parent / "invocation-index.jsonl"
 
     if index_path.exists():
         yield from _iter_records_from_index(events_dir, index_path, profile_filter, limit)
@@ -297,8 +307,12 @@ def _iter_records(
 
 @app.command("list")
 def list_invocations(
-    profile: str | None = typer.Option(None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"),
-    limit: int = typer.Option(20, "--limit", "-n", help="Maximum number of records to return (default: 20)"),
+    profile: str | None = typer.Option(
+        None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"
+    ),
+    limit: int = typer.Option(
+        20, "--limit", "-n", help="Maximum number of records to return (default: 20)"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Emit a JSON array instead of a table"),
 ) -> None:
     """List recent invocation records from the local audit log.

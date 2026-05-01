@@ -11,7 +11,6 @@ from specify_cli.upgrade.migrations.m_0_13_8_target_branch import TargetBranchMi
 
 pytestmark = pytest.mark.fast
 
-
 @pytest.fixture
 def repo_with_features(tmp_path: Path) -> Path:
     """Create a test repository with multiple features."""
@@ -152,8 +151,12 @@ def test_apply_uses_primary_branch_as_default(
 
     assert result.success is True
 
-    meta_020 = json.loads((repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text())
-    meta_024 = json.loads((repo_with_features / "kitty-specs" / "024-another-feature" / "meta.json").read_text())
+    meta_020 = json.loads(
+        (repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text()
+    )
+    meta_024 = json.loads(
+        (repo_with_features / "kitty-specs" / "024-another-feature" / "meta.json").read_text()
+    )
 
     assert meta_020["target_branch"] == "2.x"
     assert meta_024["target_branch"] == "2.x"

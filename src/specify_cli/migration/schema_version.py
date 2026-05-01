@@ -52,7 +52,9 @@ CURRENT_SCHEMA_VERSION: int = MAX_SUPPORTED_SCHEMA
 #: a ``dict[str, bool]`` (rather than a list) so operators may extend the
 #: map with their own keys without colliding on list ordering. ``init``
 #: never overwrites or removes keys an operator has authored.
-CURRENT_SCHEMA_CAPABILITIES: dict[str, bool] = dict.fromkeys(SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA], True)
+CURRENT_SCHEMA_CAPABILITIES: dict[str, bool] = {
+    name: True for name in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
+}
 
 __all__ = [
     "MIN_SUPPORTED_SCHEMA",
@@ -72,8 +74,8 @@ class CompatibilityStatus(StrEnum):
     """Outcome of a schema-version compatibility check."""
 
     COMPATIBLE = "compatible"
-    UNMIGRATED = "unmigrated"  # schema_version field absent (legacy project)
-    OUTDATED = "outdated"  # project < CLI (must upgrade project)
+    UNMIGRATED = "unmigrated"      # schema_version field absent (legacy project)
+    OUTDATED = "outdated"          # project < CLI (must upgrade project)
     CLI_OUTDATED = "cli_outdated"  # project > CLI (must upgrade CLI)
 
 
@@ -150,7 +152,10 @@ def check_compatibility(
             status=CompatibilityStatus.UNMIGRATED,
             project_version=None,
             cli_version=cli_version,
-            message=("Project requires migration. Run `spec-kitty upgrade` to continue."),
+            message=(
+                "Project requires migration. "
+                "Run `spec-kitty upgrade` to continue."
+            ),
             exit_code=1,
         )
 
@@ -159,7 +164,10 @@ def check_compatibility(
             status=CompatibilityStatus.OUTDATED,
             project_version=project_version,
             cli_version=cli_version,
-            message=(f"Project schema version {project_version} is outdated. Run `spec-kitty upgrade` to update to version {cli_version}."),
+            message=(
+                f"Project schema version {project_version} is outdated. "
+                f"Run `spec-kitty upgrade` to update to version {cli_version}."
+            ),
             exit_code=1,
         )
 

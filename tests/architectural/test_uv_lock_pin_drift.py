@@ -37,7 +37,6 @@ boundary mission).
 See ``docs/development/review-gates.md`` for the operator-facing
 explanation of the sync command.
 """
-
 from __future__ import annotations
 
 import re
@@ -193,7 +192,8 @@ def test_uv_lock_matches_installed_versions() -> None:
 
     if mismatches:
         rows = "\n".join(
-            f"  - {pkg}: locked={locked}, installed={installed if installed is not None else '<not installed>'}" for pkg, locked, installed in mismatches
+            f"  - {pkg}: locked={locked}, installed={installed if installed is not None else '<not installed>'}"
+            for pkg, locked, installed in mismatches
         )
         pytest.fail(
             "uv.lock vs installed-package drift detected for governed "

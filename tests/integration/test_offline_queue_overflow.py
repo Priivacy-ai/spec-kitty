@@ -92,12 +92,14 @@ class TestOfflineQueueOverflow:
         # strict-cap append surface.
         replay_db = tmp_path / "replay.db"
         replay_queue = OfflineQueue(db_path=replay_db)
-        with open(overflow, encoding="utf-8") as fh:
+        with open(overflow, "r", encoding="utf-8") as fh:
             for line in fh:
                 replay_queue.append(json.loads(line), cap=CAP)
         assert replay_queue.size() == CAP
         events = replay_queue.drain_queue(limit=CAP * 2)
-        assert {e["event_id"] for e in events} == {f"evt-{i:04d}" for i in range(CAP)}
+        assert {e["event_id"] for e in events} == {
+            f"evt-{i:04d}" for i in range(CAP)
+        }
 
     def test_zero_events_dropped_under_load(
         self,
@@ -117,7 +119,7 @@ class TestOfflineQueueOverflow:
         We replay that pattern here and assert all events end up either
         in the queue or in the overflow file.
         """
-        tmp_path / "sync" / "overflow.jsonl"
+        overflow = tmp_path / "sync" / "overflow.jsonl"
         total = CAP * 3
         attempts = 0
         for i in range(total):
@@ -138,4 +140,7 @@ class TestOfflineQueueOverflow:
         for path in (tmp_path / "sync").glob("overflow-*.jsonl"):
             overflow_total += sum(1 for _ in path.read_text().splitlines() if _.strip())
 
-        assert retained + overflow_total == total, f"Expected {total} events accounted for, got retained={retained} + overflow={overflow_total}"
+        assert retained + overflow_total == total, (
+            f"Expected {total} events accounted for, "
+            f"got retained={retained} + overflow={overflow_total}"
+        )

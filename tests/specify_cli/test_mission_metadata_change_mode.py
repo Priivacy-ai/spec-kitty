@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 
 import pytest
 
 from specify_cli.mission_metadata import (
+    VALID_CHANGE_MODES,
     get_change_mode,
     load_meta,
     set_change_mode,

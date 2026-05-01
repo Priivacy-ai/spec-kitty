@@ -44,7 +44,6 @@ pytestmark = pytest.mark.fast
 # Helpers (patterned after tests/specify_cli/mission_step_contracts/test_executor.py)
 # ---------------------------------------------------------------------------
 
-
 def _setup_fixture_profiles(repo_root: Path) -> None:
     """Copy the implementer + reviewer fixture profiles into the repo root.
 
@@ -70,7 +69,6 @@ def _setup_fixture_profiles(repo_root: Path) -> None:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
 
 def test_tasks_contract_loads_from_repository() -> None:
     """T003 #1 — the new shipped YAML loads through the canonical repository."""
@@ -104,7 +102,8 @@ def test_all_five_software_dev_actions_have_shipped_contracts() -> None:
     for action in ("specify", "plan", "tasks", "implement", "review"):
         contract = repo.get_by_action("software-dev", action)
         assert contract is not None, (
-            f"Missing shipped contract for software-dev/{action}; expected a file at src/doctrine/mission_step_contracts/shipped/{action}.step-contract.yaml"
+            f"Missing shipped contract for software-dev/{action}; expected a "
+            f"file at src/doctrine/mission_step_contracts/shipped/{action}.step-contract.yaml"
         )
         assert contract.action == action
         assert contract.mission == "software-dev"
@@ -196,7 +195,8 @@ def test_tasks_step_delegations_resolve_against_action_index(tmp_path: Path) -> 
     for step_id in ("outline", "packages", "finalize"):
         step = steps_by_id[step_id]
         assert len(step.resolved_delegations) >= 1, (
-            f"Step {step_id} resolved no delegation candidates; expected at least one to exist in action:software-dev/tasks scope."
+            f"Step {step_id} resolved no delegation candidates; expected at "
+            f"least one to exist in action:software-dev/tasks scope."
         )
         # Spot-check: each resolved delegation URN is present in the action context.
         for delegation in step.resolved_delegations:
@@ -277,7 +277,9 @@ def test_step_contract_executor_passes_action_hint(tmp_path: Path) -> None:
 
     # Every invoke call from the executor must pass action_hint="specify".
     for kwargs in captured_kwargs:
-        assert kwargs.get("action_hint") == "specify", f"Expected action_hint='specify' on every invoke call; got {kwargs!r}"
+        assert kwargs.get("action_hint") == "specify", (
+            f"Expected action_hint='specify' on every invoke call; got {kwargs!r}"
+        )
 
 
 def test_governance_context_uses_contract_action_when_hint_supplied(tmp_path: Path) -> None:
@@ -295,7 +297,9 @@ def test_governance_context_uses_contract_action_when_hint_supplied(tmp_path: Pa
         records = _read_jsonl_records(path)
         started = [r for r in records if r.get("event") == "started"]
         assert len(started) == 1
-        assert started[0].get("action") == "specify", f"Expected action='specify' on started record; got {started[0]!r}"
+        assert started[0].get("action") == "specify", (
+            f"Expected action='specify' on started record; got {started[0]!r}"
+        )
 
 
 def test_composed_action_pairs_started_with_completed(tmp_path: Path) -> None:
@@ -318,7 +322,9 @@ def test_composed_action_pairs_started_with_completed(tmp_path: Path) -> None:
         completed = [r for r in lifecycle if r.get("event") == "completed"]
         assert len(started) == 1, f"Expected exactly one started in {path}: {records!r}"
         assert len(completed) == 1, f"Expected exactly one completed in {path}: {records!r}"
-        assert completed[0].get("outcome") == "done", f"Expected outcome='done' for clean run; got {completed[0]!r}"
+        assert completed[0].get("outcome") == "done", (
+            f"Expected outcome='done' for clean run; got {completed[0]!r}"
+        )
 
 
 def test_composed_step_failure_writes_failed_completion(tmp_path: Path) -> None:
@@ -470,30 +476,34 @@ def test_executor_uses_complete_invocation_api_only(tmp_path: Path) -> None:
             direct_writer_completed.append(None)
         return real_write_completed(self, *args, **kwargs)
 
-    with (
-        patch.object(
-            inv_executor_mod.ProfileInvocationExecutor,
-            "complete_invocation",
-            new=recording_complete,
-        ),
-        patch.object(
-            inv_executor_mod.ProfileInvocationExecutor,
-            "invoke",
-            new=counting_invoke,
-        ),
-        patch.object(writer_mod.InvocationWriter, "write_started", new=write_started_spy),
-        patch.object(writer_mod.InvocationWriter, "write_completed", new=write_completed_spy),
+    with patch.object(
+        inv_executor_mod.ProfileInvocationExecutor,
+        "complete_invocation",
+        new=recording_complete,
+    ), patch.object(
+        inv_executor_mod.ProfileInvocationExecutor,
+        "invoke",
+        new=counting_invoke,
+    ), patch.object(
+        writer_mod.InvocationWriter, "write_started", new=write_started_spy
+    ), patch.object(
+        writer_mod.InvocationWriter, "write_completed", new=write_completed_spy
     ):
         _run_software_dev_specify(repo_root)
 
     # complete_invocation reached once per invoke call from the executor.
     assert len(complete_calls) == len(invoke_calls), (
-        f"Expected one complete_invocation per invoke; got {len(complete_calls)} completes vs {len(invoke_calls)} invokes"
+        f"Expected one complete_invocation per invoke; "
+        f"got {len(complete_calls)} completes vs {len(invoke_calls)} invokes"
     )
 
     # No direct InvocationWriter.write_* calls originating from the executor module.
-    assert direct_writer_started == [], "mission_step_contracts/executor.py must not call InvocationWriter.write_started directly"
-    assert direct_writer_completed == [], "mission_step_contracts/executor.py must not call InvocationWriter.write_completed directly"
+    assert direct_writer_started == [], (
+        "mission_step_contracts/executor.py must not call InvocationWriter.write_started directly"
+    )
+    assert direct_writer_completed == [], (
+        "mission_step_contracts/executor.py must not call InvocationWriter.write_completed directly"
+    )
 
 
 def test_composed_action_outcome_is_done_even_though_composition_does_not_run_llm(

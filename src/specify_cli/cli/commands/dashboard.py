@@ -30,7 +30,10 @@ def dashboard(
     emit_json: bool = typer.Option(
         False,
         "--json",
-        help=("Print the mission registry as JSON (keyed by mission_id) and exit. Does not start the dashboard server."),
+        help=(
+            "Print the mission registry as JSON (keyed by mission_id) and exit. "
+            "Does not start the dashboard server."
+        ),
     ),
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""

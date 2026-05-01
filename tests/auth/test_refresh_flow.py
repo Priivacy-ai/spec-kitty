@@ -105,6 +105,7 @@ def _refresh_body(
 
 
 class TestRefreshHappyPath:
+
     @pytest.mark.asyncio
     async def test_refresh_returns_updated_session(self):
         flow = TokenRefreshFlow()
@@ -170,6 +171,7 @@ class TestRefreshHappyPath:
 
 
 class TestRefreshTTLAmendment:
+
     @pytest.mark.asyncio
     async def test_absolute_expires_at_is_preferred(self):
         """When both absolute and relative forms are present, absolute wins."""
@@ -255,6 +257,7 @@ class TestRefreshTTLAmendment:
 
 
 class TestRefreshErrors:
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("status_code", [400, 401])
     async def test_invalid_grant_raises_expired(self, status_code):
@@ -264,7 +267,9 @@ class TestRefreshErrors:
         with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.return_value = _mock_httpx_response(status_code, {"error": "invalid_grant"})
+            mock_client.post.return_value = _mock_httpx_response(
+                status_code, {"error": "invalid_grant"}
+            )
 
             with pytest.raises(RefreshTokenExpiredError):
                 await flow.refresh(session)
@@ -278,7 +283,9 @@ class TestRefreshErrors:
         with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.return_value = _mock_httpx_response(status_code, {"error": "session_invalid"})
+            mock_client.post.return_value = _mock_httpx_response(
+                status_code, {"error": "session_invalid"}
+            )
 
             with pytest.raises(SessionInvalidError):
                 await flow.refresh(session)
@@ -292,7 +299,9 @@ class TestRefreshErrors:
         with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.return_value = _mock_httpx_response(status_code, {"error": "mystery"}, text="mystery error")
+            mock_client.post.return_value = _mock_httpx_response(
+                status_code, {"error": "mystery"}, text="mystery error"
+            )
 
             with pytest.raises(TokenRefreshError):
                 await flow.refresh(session)
@@ -305,7 +314,9 @@ class TestRefreshErrors:
         with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
-            mock_client.post.return_value = _mock_httpx_response(500, {}, text="internal")
+            mock_client.post.return_value = _mock_httpx_response(
+                500, {}, text="internal"
+            )
 
             with pytest.raises(TokenRefreshError, match="HTTP 500"):
                 await flow.refresh(session)
@@ -332,6 +343,7 @@ class TestRefreshErrors:
 
 
 class TestRefresh409AndGeneration:
+
     @pytest.mark.asyncio
     async def test_refresh_409_benign_replay_raises(self):
         """409 + {"error": "refresh_replay_benign_retry", "retry_after": 2} → RefreshReplayError(retry_after=2)."""

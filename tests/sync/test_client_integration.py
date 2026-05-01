@@ -143,10 +143,22 @@ async def test_send_event_when_not_connected():
 
 def test_normalize_ws_url_converts_https_and_loopback_http():
     """Provisioned HTTPS URLs become WSS; loopback HTTP remains allowed for local dev."""
-    assert WebSocketClient._normalize_ws_url("https://spec-kitty-dev.fly.dev/ws") == "wss://spec-kitty-dev.fly.dev/ws"
-    assert WebSocketClient._normalize_ws_url("http://127.0.0.1:9400/ws") == "ws://127.0.0.1:9400/ws"
-    assert WebSocketClient._normalize_ws_url("ws://localhost:9400/ws") == "ws://localhost:9400/ws"
-    assert WebSocketClient._normalize_ws_url("http://localhost:9400/ws?token=abc") == "ws://localhost:9400/ws?token=abc"
+    assert (
+        WebSocketClient._normalize_ws_url("https://spec-kitty-dev.fly.dev/ws")
+        == "wss://spec-kitty-dev.fly.dev/ws"
+    )
+    assert (
+        WebSocketClient._normalize_ws_url("http://127.0.0.1:9400/ws")
+        == "ws://127.0.0.1:9400/ws"
+    )
+    assert (
+        WebSocketClient._normalize_ws_url("ws://localhost:9400/ws")
+        == "ws://localhost:9400/ws"
+    )
+    assert (
+        WebSocketClient._normalize_ws_url("http://localhost:9400/ws?token=abc")
+        == "ws://localhost:9400/ws?token=abc"
+    )
 
 
 def test_normalize_ws_url_rejects_insecure_remote_plaintext():

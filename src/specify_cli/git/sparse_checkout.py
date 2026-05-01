@@ -178,8 +178,14 @@ def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
     """
     config_enabled = _read_sparse_config_flag(path)
     pattern_file_path = _resolve_sparse_pattern_file(path, is_worktree=is_worktree)
-    pattern_file_present = pattern_file_path is not None and pattern_file_path.exists()
-    pattern_line_count = _count_nonempty_noncomment_lines(pattern_file_path) if pattern_file_present and pattern_file_path is not None else 0
+    pattern_file_present = (
+        pattern_file_path is not None and pattern_file_path.exists()
+    )
+    pattern_line_count = (
+        _count_nonempty_noncomment_lines(pattern_file_path)
+        if pattern_file_present and pattern_file_path is not None
+        else 0
+    )
     return SparseCheckoutState(
         path=path,
         config_enabled=config_enabled,
@@ -240,7 +246,8 @@ def warn_if_sparse_once(repo_root: Path, *, command: str) -> None:
         return
     affected = ", ".join(str(p) for p in report.affected_paths)
     logger.warning(
-        "spec_kitty.sparse_checkout.detected command=%s repo=%s affected=%s fix='spec-kitty doctor sparse-checkout --fix'",
+        "spec_kitty.sparse_checkout.detected command=%s repo=%s affected=%s "
+        "fix='spec-kitty doctor sparse-checkout --fix'",
         command,
         repo_root,
         affected,
@@ -305,7 +312,8 @@ def require_no_sparse_checkout(
         return
     if override_flag:
         logger.warning(
-            "spec_kitty.override.sparse_checkout command=%s mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
+            "spec_kitty.override.sparse_checkout command=%s "
+            "mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
             command,
             mission_slug or "<none>",
             mission_id or "<none>",

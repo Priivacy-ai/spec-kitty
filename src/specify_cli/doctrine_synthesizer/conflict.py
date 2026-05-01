@@ -112,7 +112,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
     # ------------------------------------------------------------------
     # Predicate 1: add_edge(E) vs remove_edge(E) — same (from, to, kind)
     # ------------------------------------------------------------------
-    add_edge_keys: dict[tuple[str, str, str], str] = {_edge_key(pay.edge.from_node, pay.edge.to_node, pay.edge.kind): pid for pid, pay in add_edges}
+    add_edge_keys: dict[tuple[str, str, str], str] = {
+        _edge_key(pay.edge.from_node, pay.edge.to_node, pay.edge.kind): pid
+        for pid, pay in add_edges
+    }
     for rem_pid, rem_pay in remove_edges:
         k = _edge_key(rem_pay.edge.from_node, rem_pay.edge.to_node, rem_pay.edge.kind)
         if k in add_edge_keys:
@@ -120,7 +123,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
             groups.append(
                 ConflictGroup(
                     proposal_ids=[add_pid, rem_pid],
-                    reason=(f"add_edge and remove_edge target the same edge ({k[0]!r} → {k[1]!r} [{k[2]!r}])"),
+                    reason=(
+                        f"add_edge and remove_edge target the same edge "
+                        f"({k[0]!r} → {k[1]!r} [{k[2]!r}])"
+                    ),
                 )
             )
 
@@ -139,7 +145,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
             groups.append(
                 ConflictGroup(
                     proposal_ids=[add_pid, rew_pid],
-                    reason=(f"add_edge and rewire_edge both target the same destination edge ({dest_key[0]!r} → {dest_key[1]!r} [{dest_key[2]!r}])"),
+                    reason=(
+                        f"add_edge and rewire_edge both target the same destination edge "
+                        f"({dest_key[0]!r} → {dest_key[1]!r} [{dest_key[2]!r}])"
+                    ),
                 )
             )
 
@@ -147,7 +156,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
     # Predicate 3: remove_edge(E) vs rewire_edge(E → E_new)
     #   conflict when B's source (edge_old) equals A
     # ------------------------------------------------------------------
-    remove_edge_keys: dict[tuple[str, str, str], str] = {_edge_key(pay.edge.from_node, pay.edge.to_node, pay.edge.kind): pid for pid, pay in remove_edges}
+    remove_edge_keys: dict[tuple[str, str, str], str] = {
+        _edge_key(pay.edge.from_node, pay.edge.to_node, pay.edge.kind): pid
+        for pid, pay in remove_edges
+    }
     for rew_pid, rew_pay in rewire_edges:
         src_key = _edge_key(
             rew_pay.edge_old.from_node,
@@ -159,7 +171,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
             groups.append(
                 ConflictGroup(
                     proposal_ids=[rem_pid, rew_pid],
-                    reason=(f"remove_edge and rewire_edge both target the same source edge ({src_key[0]!r} → {src_key[1]!r} [{src_key[2]!r}])"),
+                    reason=(
+                        f"remove_edge and rewire_edge both target the same source edge "
+                        f"({src_key[0]!r} → {src_key[1]!r} [{src_key[2]!r}])"
+                    ),
                 )
             )
 
@@ -179,7 +194,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
                 groups.append(
                     ConflictGroup(
                         proposal_ids=[pid for pid, _ in entries],
-                        reason=(f"Multiple add_glossary_term proposals for key {term_key!r} with diverging definition hashes: {sorted(hashes)}"),
+                        reason=(
+                            f"Multiple add_glossary_term proposals for key {term_key!r} "
+                            f"with diverging definition hashes: {sorted(hashes)}"
+                        ),
                     )
                 )
 
@@ -198,7 +216,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
                 groups.append(
                     ConflictGroup(
                         proposal_ids=[pid for pid, _ in entries],
-                        reason=(f"Multiple update_glossary_term proposals for key {term_key!r} with diverging definition hashes: {sorted(hashes)}"),
+                        reason=(
+                            f"Multiple update_glossary_term proposals for key {term_key!r} "
+                            f"with diverging definition hashes: {sorted(hashes)}"
+                        ),
                     )
                 )
 
@@ -213,7 +234,10 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
                 groups.append(
                     ConflictGroup(
                         proposal_ids=[pid for pid, _ in entries],
-                        reason=(f"Multiple {s_kind!r} proposals for artifact {artifact_id!r} with diverging body hashes: {sorted(hashes)}"),
+                        reason=(
+                            f"Multiple {s_kind!r} proposals for artifact {artifact_id!r} "
+                            f"with diverging body hashes: {sorted(hashes)}"
+                        ),
                     )
                 )
 

@@ -9,7 +9,6 @@ from specify_cli.tracker.store import TrackerSqliteStore, default_tracker_db_pat
 
 pytestmark = pytest.mark.fast
 
-
 async def _upsert(store: TrackerSqliteStore, issue: dict) -> None:
     await store.upsert_issue(issue)
 

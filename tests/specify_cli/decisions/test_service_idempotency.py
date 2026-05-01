@@ -106,7 +106,9 @@ def test_second_open_same_logical_key_is_idempotent(tmp_path: Path) -> None:
 
 def test_second_open_no_new_event_emitted(tmp_path: Path) -> None:
     _setup_meta(tmp_path)
-    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1) as mock_emit:
+    with patch(
+        "specify_cli.decisions.emit.emit_decision_opened", return_value=1
+    ) as mock_emit:
         open_decision(
             tmp_path,
             MISSION_SLUG,
@@ -200,7 +202,9 @@ def test_dry_run_creates_no_index(tmp_path: Path) -> None:
 
 
 def test_dry_run_emits_no_event(tmp_path: Path) -> None:
-    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1) as mock_emit:
+    with patch(
+        "specify_cli.decisions.emit.emit_decision_opened", return_value=1
+    ) as mock_emit:
         _open(tmp_path, dry_run=True)
     mock_emit.assert_not_called()
 

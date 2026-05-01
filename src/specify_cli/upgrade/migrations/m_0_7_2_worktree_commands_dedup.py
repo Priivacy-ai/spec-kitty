@@ -67,7 +67,9 @@ class WorktreeCommandsDedupMigration(BaseMigration):
                         else:
                             try:
                                 shutil.rmtree(wt_commands)
-                                changes.append(f"Removed .claude/commands/ from worktree {worktree.name} (inherits from main repo)")
+                                changes.append(
+                                    f"Removed .claude/commands/ from worktree {worktree.name} (inherits from main repo)"
+                                )
                             except OSError as e:
                                 errors.append(f"Failed to remove .claude/commands/ from {worktree.name}: {e}")
 

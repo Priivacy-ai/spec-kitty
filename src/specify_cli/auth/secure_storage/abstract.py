@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 
 from ..session import StoredSession
 
-
 class SecureStorage(ABC):
     """Abstract storage backend for :class:`StoredSession`.
 

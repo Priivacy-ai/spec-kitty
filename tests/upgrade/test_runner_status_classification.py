@@ -12,7 +12,6 @@ from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = pytest.mark.fast
 
-
 class _NotNeededMigration(BaseMigration):
     migration_id = "9.9.9_not_needed"
     description = "No-op migration for status classification tests"

@@ -158,7 +158,9 @@ class ProfileInvocationExecutor:
             # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
             # use it verbatim; otherwise fall back to the legacy role-default-verb
             # derivation. Truthiness (not `is not None`) means empty-string falls back.
-            action = action_hint or self._derive_action_from_request(request_text, profile.role)
+            action = action_hint or self._derive_action_from_request(
+                request_text, profile.role
+            )
             router_confidence = None  # caller supplied explicit hint
         elif self._router is not None:
             # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
@@ -167,7 +169,10 @@ class ProfileInvocationExecutor:
             action = result.action
             router_confidence = result.confidence
         else:
-            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty ask <profile>' or supply a router.")
+            raise RuntimeError(
+                "No profile_hint and no router configured. "
+                "Use 'spec-kitty ask <profile>' or supply a router."
+            )
 
         # 2. Assemble governance context (mark_loaded=False — critical)
         # NEVER pass mark_loaded=True here — would corrupt context-state.json
@@ -186,7 +191,6 @@ class ProfileInvocationExecutor:
         # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
         # Exception guard: any failure returns an error-bundle; the invocation always continues.
         from specify_cli.glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
-
         try:
             if self._chokepoint is None:
                 self._chokepoint = GlossaryChokepoint(self._repo_root)
@@ -197,9 +201,11 @@ class ProfileInvocationExecutor:
             )
         except Exception as _exc:  # noqa: BLE001
             import logging as _logging
-
-            _logging.getLogger(__name__).warning("glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
-            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
+            _logging.getLogger(__name__).warning(
+                "glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
+            bundle = GlossaryObservationBundle(
+                matched_urns=(), high_severity=(), all_conflicts=(),
+                tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = datetime.datetime.now(datetime.UTC).isoformat()
@@ -312,7 +318,11 @@ class ProfileInvocationExecutor:
     def _resolve_evidence_content(self, evidence_ref: str) -> str:
         candidate_path = self._resolve_evidence_path(evidence_ref)
         try:
-            return candidate_path.read_text(encoding="utf-8") if candidate_path is not None else evidence_ref
+            return (
+                candidate_path.read_text(encoding="utf-8")
+                if candidate_path is not None
+                else evidence_ref
+            )
         except OSError:
             return evidence_ref
 

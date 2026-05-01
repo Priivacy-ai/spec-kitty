@@ -38,9 +38,22 @@ class NormalizeMissionLifecycleMigration(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         results = normalize_repo(project_path, dry_run=dry_run)
-        changes = [f"{result.slug}: {action}" for result in results if result.status == "normalized" for action in result.actions]
-        warnings = [f"{result.slug}: {warning}" for result in results for warning in result.warnings]
-        errors = [f"{result.slug}: {result.error}" for result in results if result.status == "error" and result.error]
+        changes = [
+            f"{result.slug}: {action}"
+            for result in results
+            if result.status == "normalized"
+            for action in result.actions
+        ]
+        warnings = [
+            f"{result.slug}: {warning}"
+            for result in results
+            for warning in result.warnings
+        ]
+        errors = [
+            f"{result.slug}: {result.error}"
+            for result in results
+            if result.status == "error" and result.error
+        ]
         return MigrationResult(
             success=not errors,
             changes_made=changes,

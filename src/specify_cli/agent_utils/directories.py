@@ -8,6 +8,7 @@ rather than from migration files.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import List, Tuple
 
 
 # Canonical list of all supported agent directories and their subdirectories

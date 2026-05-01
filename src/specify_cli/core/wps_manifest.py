@@ -3,7 +3,6 @@
 Provides the canonical data model, YAML loader, and tasks.md generator
 for spec-kitty missions that use wps.yaml as their primary WP source.
 """
-
 from __future__ import annotations
 
 import re
@@ -74,7 +73,7 @@ def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
     manifest = WpsManifest.model_validate(raw)
 
     # Back-fill _dependencies_explicit on each entry using PrivateAttr mechanism
-    for entry, raw_wp in zip(manifest.work_packages, wps_raw, strict=False):
+    for entry, raw_wp in zip(manifest.work_packages, wps_raw):
         object.__setattr__(entry, "_dependencies_explicit", "dependencies" in raw_wp)
 
     return manifest

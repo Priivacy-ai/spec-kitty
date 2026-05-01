@@ -56,4 +56,7 @@ def test_shipped_directives_have_non_placeholder_intent_and_scope() -> None:
             placeholder_intent.append(path.name)
 
     assert not missing_scope, "Directives missing scope:\n" + "\n".join(missing_scope)
-    assert not placeholder_intent, "Directives with placeholder one-sentence intent:\n" + "\n".join(placeholder_intent)
+    assert not placeholder_intent, (
+        "Directives with placeholder one-sentence intent:\n"
+        + "\n".join(placeholder_intent)
+    )

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -63,7 +64,9 @@ def _write_raw(repo_root: Path, data: dict) -> None:
     """Write arbitrary JSON to the manifest file without going through save()."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "command-skills-manifest.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    (kittify / "command-skills-manifest.json").write_text(
+        json.dumps(data, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def _read_raw(repo_root: Path) -> dict:
@@ -187,7 +190,9 @@ def test_round_trip_identity(tmp_path: Path) -> None:
     loaded = load(tmp_path)
 
     # Entries must be sorted by path
-    assert [e.path for e in loaded.entries] == sorted([_VALID_PATH_1, _VALID_PATH_2, _VALID_PATH_3])
+    assert [e.path for e in loaded.entries] == sorted(
+        [_VALID_PATH_1, _VALID_PATH_2, _VALID_PATH_3]
+    )
 
     # Content equality (compare as sets to ignore order differences from in-memory state)
     original_by_path = {e.path: e for e in m.entries}
@@ -470,8 +475,9 @@ def test_atomic_save_failure_leaves_original_intact(tmp_path: Path) -> None:
     m_new = SkillsManifest()
     m_new.upsert(_make_entry(_VALID_PATH_2, agents=("vibe",)))
 
-    with patch("os.replace", side_effect=OSError("simulated failure")), pytest.raises(OSError, match="simulated failure"):
-        save(tmp_path, m_new)
+    with patch("os.replace", side_effect=OSError("simulated failure")):
+        with pytest.raises(OSError, match="simulated failure"):
+            save(tmp_path, m_new)
 
     # The original file must be unmodified
     assert (tmp_path / ".kittify" / "command-skills-manifest.json").read_text() == original_content

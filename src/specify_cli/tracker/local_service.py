@@ -167,7 +167,9 @@ class LocalTrackerService:
         try:
             from spec_kitty_tracker.models import ExternalRef
         except Exception as exc:  # pragma: no cover - dependency boundary
-            raise LocalTrackerServiceError("spec-kitty-tracker is not installed. Install it to use tracker commands.") from exc
+            raise LocalTrackerServiceError(
+                "spec-kitty-tracker is not installed. Install it to use tracker commands."
+            ) from exc
 
         config, credentials, store = self._load_runtime()
         ref = ExternalRef(
@@ -216,7 +218,9 @@ class LocalTrackerService:
         try:
             from spec_kitty_tracker import FieldOwner, OwnershipMode, OwnershipPolicy, SyncEngine
         except Exception as exc:  # pragma: no cover - dependency boundary
-            raise LocalTrackerServiceError("spec-kitty-tracker is not installed. Install it to use tracker commands.") from exc
+            raise LocalTrackerServiceError(
+                "spec-kitty-tracker is not installed. Install it to use tracker commands."
+            ) from exc
 
         connector = build_connector(
             provider=str(config.provider),
@@ -230,7 +234,11 @@ class LocalTrackerService:
         elif mode_name == OwnershipMode.SPEC_KITTY_AUTHORITATIVE.value:
             policy = OwnershipPolicy.local_authoritative()
         else:
-            field_owners = {field: FieldOwner(owner) for field, owner in config.doctrine_field_owners.items() if owner in {item.value for item in FieldOwner}}
+            field_owners = {
+                field: FieldOwner(owner)
+                for field, owner in config.doctrine_field_owners.items()
+                if owner in {item.value for item in FieldOwner}
+            }
             policy = OwnershipPolicy.split(field_owners=field_owners, default_owner=FieldOwner.SHARED)
 
         engine = SyncEngine(connector=connector, store=store, policy=policy)

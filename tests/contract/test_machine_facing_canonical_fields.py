@@ -40,7 +40,10 @@ def _make_mission(
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            (f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n"),
+            (
+                f"---\nwork_package_id: {wp_id}\n"
+                f"title: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n"
+            ),
             encoding="utf-8",
         )
 
@@ -418,8 +421,15 @@ def test_orchestrator_error_payloads_emit_canonical_mission_fields(tmp_path: Pat
 def test_no_mission_run_slug_in_first_party_payloads() -> None:
     """No first-party machine-facing payload may introduce mission_run_slug."""
     repo_root = Path(__file__).resolve().parents[2]
-    offending = [str(path.relative_to(repo_root)) for path in repo_root.glob("src/specify_cli/**/*.py") if "mission_run_slug" in path.read_text(encoding="utf-8")]
-    assert not offending, f"mission_run_slug introduced in: {offending}. Forbidden by C-009/FR-019."
+    offending = [
+        str(path.relative_to(repo_root))
+        for path in repo_root.glob("src/specify_cli/**/*.py")
+        if "mission_run_slug" in path.read_text(encoding="utf-8")
+    ]
+    assert not offending, (
+        "mission_run_slug introduced in: "
+        f"{offending}. Forbidden by C-009/FR-019."
+    )
 
 
 def test_mission_created_and_closed_event_names_unchanged() -> None:
@@ -428,9 +438,13 @@ def test_mission_created_and_closed_event_names_unchanged() -> None:
     offending = [
         str(path.relative_to(repo_root))
         for path in repo_root.glob("src/specify_cli/**/*.py")
-        if "MissionRunCreated" in path.read_text(encoding="utf-8") or "MissionRunClosed" in path.read_text(encoding="utf-8")
+        if "MissionRunCreated" in path.read_text(encoding="utf-8")
+        or "MissionRunClosed" in path.read_text(encoding="utf-8")
     ]
-    assert not offending, f"MissionRun* catalog event rename detected in: {offending}. Forbidden by FR-017/§3.3."
+    assert not offending, (
+        "MissionRun* catalog event rename detected in: "
+        f"{offending}. Forbidden by FR-017/§3.3."
+    )
 
 
 def test_aggregate_type_mission_unchanged() -> None:
@@ -439,6 +453,10 @@ def test_aggregate_type_mission_unchanged() -> None:
     offending = [
         str(path.relative_to(repo_root))
         for path in repo_root.glob("src/specify_cli/**/*.py")
-        if 'aggregate_type="MissionRun"' in path.read_text(encoding="utf-8") or "aggregate_type='MissionRun'" in path.read_text(encoding="utf-8")
+        if 'aggregate_type="MissionRun"' in path.read_text(encoding="utf-8")
+        or "aggregate_type='MissionRun'" in path.read_text(encoding="utf-8")
     ]
-    assert not offending, f"aggregate_type renamed to MissionRun in: {offending}. Forbidden by §3.3."
+    assert not offending, (
+        "aggregate_type renamed to MissionRun in: "
+        f"{offending}. Forbidden by §3.3."
+    )

@@ -98,7 +98,10 @@ def _emit_deprecation_warning(
         return False
 
     _warned.add(pair)
-    _err_console.print(f"[yellow]Warning:[/yellow] {alias_flag} is deprecated; use {canonical_flag}. See: {_doc_path_for(alias_flag)}")
+    _err_console.print(
+        f"[yellow]Warning:[/yellow] {alias_flag} is deprecated; "
+        f"use {canonical_flag}. See: {_doc_path_for(alias_flag)}"
+    )
     return True
 
 
@@ -226,7 +229,8 @@ def resolve_mission_handle(
             _err_console.print_json(_json.dumps(payload))
         else:
             _err_console.print(
-                f'[red]Error:[/red] No mission found for handle "{exc.handle}". Check that the handle is correct and that the mission exists in kitty-specs/.'
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
+                f"Check that the handle is correct and that the mission exists in kitty-specs/."
             )
         sys.exit(2)
     except MissingIdentityError as exc:
@@ -238,5 +242,8 @@ def resolve_mission_handle(
             }
             _err_console.print_json(_json.dumps(payload))
         else:
-            _err_console.print(f"[red]Error:[/red] {exc}\n[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix.")
+            _err_console.print(
+                f"[red]Error:[/red] {exc}\n"
+                f"[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix."
+            )
         sys.exit(2)

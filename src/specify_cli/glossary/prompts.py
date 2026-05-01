@@ -149,7 +149,9 @@ def prompt_conflict_resolution(
                     return (PromptChoice.SELECT_CANDIDATE, choice_num - 1)
                 else:
                     if num_candidates > 0:
-                        typer.echo(f"Error: Please enter a number between 1 and {num_candidates}, C for custom, or D to defer.")
+                        typer.echo(
+                            f"Error: Please enter a number between 1 and {num_candidates}, C for custom, or D to defer."
+                        )
                     else:
                         typer.echo("Error: No candidates available. Enter C for custom or D to defer.")
                     continue
@@ -196,7 +198,11 @@ def prompt_context_change_confirmation(
     Returns:
         True if user confirms, False otherwise
     """
-    typer.echo(f"\nWarning: Step inputs have changed since checkpoint.\n  Original hash: {old_hash[:16]}...\n  Current hash:  {new_hash[:16]}...\n")
+    typer.echo(
+        f"\nWarning: Step inputs have changed since checkpoint.\n"
+        f"  Original hash: {old_hash[:16]}...\n"
+        f"  Current hash:  {new_hash[:16]}...\n"
+    )
 
     return typer.confirm(
         "Context may have changed. Proceed with resolution?",

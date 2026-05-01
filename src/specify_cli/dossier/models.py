@@ -111,7 +111,9 @@ class ArtifactRef(BaseModel):
         import re
 
         if not re.match(r"^[a-zA-Z0-9._-]+$", v):
-            raise ValueError(f"artifact_key must contain only alphanumeric characters, dots, underscores, and hyphens; got '{v}'")
+            raise ValueError(
+                f"artifact_key must contain only alphanumeric characters, dots, underscores, and hyphens; got '{v}'"
+            )
         return v
 
     @field_validator("artifact_class")
@@ -400,7 +402,10 @@ class MissionDossierSnapshot(BaseModel):
         """
         if not isinstance(other, MissionDossierSnapshot):
             return False
-        return self.parity_hash_sha256 == other.parity_hash_sha256 and self.completeness_status == other.completeness_status
+        return (
+            self.parity_hash_sha256 == other.parity_hash_sha256
+            and self.completeness_status == other.completeness_status
+        )
 
     def __hash__(self) -> int:
         """Hash based on parity hash (for set/dict usage).

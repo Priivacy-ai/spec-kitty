@@ -28,7 +28,14 @@ def test_documentation_runtime_template_declares_correct_mission_key() -> None:
     """The runtime sidecar's mission.key must be 'documentation' for loader gate."""
     from specify_cli.next._internal_runtime.schema import load_mission_template_file
 
-    path = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions" / "documentation" / "mission-runtime.yaml"
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "specify_cli"
+        / "missions"
+        / "documentation"
+        / "mission-runtime.yaml"
+    )
     template = load_mission_template_file(path)
     assert template.mission.key == "documentation"
     assert len(template.steps) == 7  # 6 composed + accept

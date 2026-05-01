@@ -826,7 +826,13 @@ class TestScopeHierarchyIntegration:
         _create_seed_file(
             tmp_path,
             "team_domain",
-            ("terms:\n  - surface: artifact\n    definition: Build output file\n    confidence: 1.0\n    status: active\n"),
+            (
+                "terms:\n"
+                "  - surface: artifact\n"
+                "    definition: Build output file\n"
+                "    confidence: 1.0\n"
+                "    status: active\n"
+            ),
         )
 
         ctx = PrimitiveExecutionContext(
@@ -1174,6 +1180,7 @@ class TestProductionCodePath:
     def test_production_path_disabled_skips_pipeline_runs_primitive(self, tmp_path):
         """When glossary is disabled, the primitive still runs."""
         from specify_cli.missions import execute_with_glossary
+
 
         _setup_multi_scope_repo(tmp_path)
 

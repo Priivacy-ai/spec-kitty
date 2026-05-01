@@ -230,7 +230,9 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
             # Preserve prompt files that weren't regenerated — they may
             # still be working templates from a prior successful run.
             if stale_file in expected_prompt_files:
-                logger.info("Preserving %s (not regenerated this run)", stale_file)
+                logger.info(
+                    "Preserving %s (not regenerated this run)", stale_file
+                )
                 continue
 
             try:

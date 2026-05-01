@@ -122,69 +122,59 @@ class TestInvalidLaneHandling:
     def test_invalid_to_lane_raises_transition_error(self, feature_dir: Path) -> None:
         """Completely unknown lane value raises TransitionError."""
         with pytest.raises(TransitionError):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="039-test-feature",
-                    wp_id="WP01",
-                    to_lane="NONEXISTENT",
-                    actor="tester",
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="039-test-feature",
+                wp_id="WP01",
+                to_lane="NONEXISTENT",
+                actor="tester",
+            ))
 
     def test_empty_to_lane_raises_transition_error(self, feature_dir: Path) -> None:
         """Empty string lane value raises TransitionError."""
         with pytest.raises(TransitionError):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="039-test-feature",
-                    wp_id="WP01",
-                    to_lane="",
-                    actor="tester",
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="039-test-feature",
+                wp_id="WP01",
+                to_lane="",
+                actor="tester",
+            ))
 
     def test_numeric_lane_raises_transition_error(self, feature_dir: Path) -> None:
         """Numeric lane value raises TransitionError."""
         with pytest.raises(TransitionError):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="039-test-feature",
-                    wp_id="WP01",
-                    to_lane="42",
-                    actor="tester",
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="039-test-feature",
+                wp_id="WP01",
+                to_lane="42",
+                actor="tester",
+            ))
 
     def test_case_sensitive_rejection(self, feature_dir: Path) -> None:
         """Uppercase lane values that are not aliases are rejected."""
         with pytest.raises(TransitionError):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="039-test-feature",
-                    wp_id="WP01",
-                    to_lane="Doing_stuff",
-                    actor="tester",
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="039-test-feature",
+                wp_id="WP01",
+                to_lane="Doing_stuff",
+                actor="tester",
+            ))
 
     def test_invalid_lane_does_not_persist(self, feature_dir: Path) -> None:
         """Invalid lane rejection happens before any event persistence."""
         from specify_cli.status.store import EVENTS_FILENAME
 
         with pytest.raises(TransitionError):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="039-test-feature",
-                    wp_id="WP01",
-                    to_lane="bogus",
-                    actor="tester",
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="039-test-feature",
+                wp_id="WP01",
+                to_lane="bogus",
+                actor="tester",
+            ))
 
         events_path = feature_dir / EVENTS_FILENAME
         assert not events_path.exists()

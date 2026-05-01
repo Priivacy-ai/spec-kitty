@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.charter_lint.findings import DecayReport, LintFinding
@@ -124,18 +126,18 @@ class TestCharterlintSeverityFilter:
         assert result.exit_code == 0
         parsed = json.loads(result.output)
         for f in parsed["findings"]:
-            assert f["severity"] not in {"low", "medium"}, f"Found low/medium severity in --severity high output: {f}"
+            assert f["severity"] not in {"low", "medium"}, (
+                f"Found low/medium severity in --severity high output: {f}"
+            )
 
 
 class TestCharterlintFeatureScope:
     """T037-S3: --feature scopes findings."""
 
     def test_feature_flag_passed_to_engine(self, tmp_path: Path) -> None:
-        mock_report = _make_report(
-            [
-                _make_finding(feature_id="042-my-feature"),
-            ]
-        )
+        mock_report = _make_report([
+            _make_finding(feature_id="042-my-feature"),
+        ])
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
@@ -182,11 +184,9 @@ class TestCharterlintOrphansOnly:
         assert call_kwargs.kwargs.get("checks") == {"orphans"}
 
     def test_human_readable_orphans_output(self, tmp_path: Path) -> None:
-        mock_report = _make_report(
-            [
-                _make_finding(category="orphan", type_="orphaned_directive"),
-            ]
-        )
+        mock_report = _make_report([
+            _make_finding(category="orphan", type_="orphaned_directive"),
+        ])
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),

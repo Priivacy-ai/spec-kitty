@@ -23,5 +23,6 @@ def test_command_templates_do_not_teach_bare_implement() -> None:
     for template in TEMPLATE_DIR.glob("*.md"):
         content = template.read_text()
         assert "spec-kitty implement WP" not in content, (
-            f"{template.name} still teaches bare 'spec-kitty implement WP##'. Replace with 'spec-kitty agent action implement <WP> --agent <name>'."
+            f"{template.name} still teaches bare 'spec-kitty implement WP##'. "
+            f"Replace with 'spec-kitty agent action implement <WP> --agent <name>'."
         )

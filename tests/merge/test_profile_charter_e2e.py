@@ -25,8 +25,6 @@ from charter.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
-
-
 def _write_yaml(path: Path, data: dict[object, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
@@ -110,7 +108,9 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
                 "avoidance-boundary": "implementation",
                 "success-definition": "find issues before merge",
             },
-            "directive-references": [{"code": "REVIEW_FIRST", "name": "Review First", "rationale": "Review every change."}],
+            "directive-references": [
+                {"code": "REVIEW_FIRST", "name": "Review First", "rationale": "Review every change."}
+            ],
         },
     )
     _write_yaml(
@@ -343,4 +343,6 @@ def test_local_support_additive_warning_when_overlapping_shipped_concept(tmp_pat
     # Write to disk and confirm no library/ directory is created
     result = write_compiled_charter(output_dir, compiled, force=True)
     assert "charter.md" in result.files_written
-    assert not (output_dir / "library").exists(), "library/ directory must NOT be created even when local support files are declared"
+    assert not (output_dir / "library").exists(), (
+        "library/ directory must NOT be created even when local support files are declared"
+    )

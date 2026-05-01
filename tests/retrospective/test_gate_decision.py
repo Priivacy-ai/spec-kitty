@@ -264,13 +264,10 @@ class TestAutonomousMode:
     def test_only_requested_started_blocks(self, tmp_path: Path) -> None:
         """autonomous + only requested/started → block, missing_completion_autonomous."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                _started_envelope(_EID_2, "2026-04-27T09:01:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            _started_envelope(_EID_2, "2026-04-27T09:01:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -285,13 +282,10 @@ class TestAutonomousMode:
     def test_completed_event_allows(self, tmp_path: Path) -> None:
         """autonomous + retrospective.completed → allow, completed_present."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -307,12 +301,9 @@ class TestAutonomousMode:
     def test_skipped_blocks_silent_skip(self, tmp_path: Path) -> None:
         """autonomous + retrospective.skipped (no charter) → block, silent_skip_attempted."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -328,12 +319,9 @@ class TestAutonomousMode:
     def test_skipped_with_charter_allows(self, tmp_path: Path) -> None:
         """autonomous + retrospective.skipped + charter clause → allow, skipped_permitted."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
         _write_charter(
             tmp_path,
             mode_value="autonomous",
@@ -354,12 +342,9 @@ class TestAutonomousMode:
     def test_failed_blocks_facilitator_failure(self, tmp_path: Path) -> None:
         """autonomous + retrospective.failed → block, facilitator_failure."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -399,13 +384,10 @@ class TestHumanInCommandMode:
     def test_completed_human_requested_allows(self, tmp_path: Path) -> None:
         """HiC + completed (operator-driven requested) → allow, completed_present_hic."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00", actor_kind="human"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00", actor_kind="human"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00", actor_kind="human"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00", actor_kind="human"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -424,13 +406,10 @@ class TestHumanInCommandMode:
         'agent' is not 'runtime', so it is treated as operator-driven.
         """
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00", actor_kind="agent"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00", actor_kind="agent"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00", actor_kind="agent"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00", actor_kind="agent"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -445,13 +424,10 @@ class TestHumanInCommandMode:
     def test_completed_runtime_requested_blocks(self, tmp_path: Path) -> None:
         """HiC + completed (runtime-driven requested) → block, silent_auto_run_attempted."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00", actor_kind="runtime"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00", actor_kind="runtime"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00", actor_kind="runtime"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00", actor_kind="runtime"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -467,12 +443,9 @@ class TestHumanInCommandMode:
     def test_skipped_allows_skipped_permitted(self, tmp_path: Path) -> None:
         """HiC + retrospective.skipped → allow, skipped_permitted."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -487,12 +460,9 @@ class TestHumanInCommandMode:
     def test_failed_blocks_facilitator_failure(self, tmp_path: Path) -> None:
         """HiC + retrospective.failed → block, facilitator_failure."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -517,13 +487,10 @@ class TestDeterminism:
     def test_determinism_autonomous_completed(self, tmp_path: Path) -> None:
         """Same event log in autonomous mode → identical GateDecision twice."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
+        ])
 
         d1 = is_completion_allowed(
             _MISSION_ID,
@@ -543,12 +510,9 @@ class TestDeterminism:
     def test_determinism_hic_skipped(self, tmp_path: Path) -> None:
         """Same event log in HiC mode → identical GateDecision twice."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         d1 = is_completion_allowed(
             _MISSION_ID,
@@ -568,12 +532,9 @@ class TestDeterminism:
     def test_determinism_blocking_event_ids_order(self, tmp_path: Path) -> None:
         """blocking_event_ids must be in stable order across two calls."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         d1 = is_completion_allowed(
             _MISSION_ID,
@@ -602,13 +563,10 @@ class TestPerformance:
     def test_perf_autonomous_completed(self, tmp_path: Path) -> None:
         """Gate with completed event returns fast (target < 500 ms; CI slack 1500 ms)."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _requested_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
+        ])
 
         start = time.perf_counter()
         decision = is_completion_allowed(
@@ -713,12 +671,9 @@ class TestBeforeMarkDone:
     def test_allow_completion_returns_none(self, tmp_path: Path) -> None:
         """before_mark_done returns None when gate allows."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
         # Write charter so mode resolves to autonomous via charter override.
         _write_charter(tmp_path, mode_value="autonomous")
 
@@ -750,12 +705,9 @@ class TestBeforeMarkDone:
     def test_decision_attached_to_exception(self, tmp_path: Path) -> None:
         """MissionCompletionBlocked carries a GateDecision on .decision."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
         _write_charter(tmp_path, mode_value="autonomous")
 
         with pytest.raises(MissionCompletionBlocked) as exc_info:
@@ -780,12 +732,9 @@ class TestCharterAuthorizeAutonomousSkip:
     def test_charter_without_clause_blocks(self, tmp_path: Path) -> None:
         """Charter present but no autonomous_allow_skip → block."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
         _write_charter(tmp_path, mode_value="autonomous")  # No autonomous_allow_skip
 
         decision = is_completion_allowed(
@@ -802,12 +751,9 @@ class TestCharterAuthorizeAutonomousSkip:
     def test_charter_custom_clause_id_set(self, tmp_path: Path) -> None:
         """Custom clause id is reflected in charter_clause_ref."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
         _write_charter(
             tmp_path,
             mode_value="autonomous",
@@ -828,12 +774,9 @@ class TestCharterAuthorizeAutonomousSkip:
     def test_charter_clause_does_not_affect_hic_skipped(self, tmp_path: Path) -> None:
         """HiC skipped is always allowed regardless of charter clause."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
         _write_charter(
             tmp_path,
             mode_value="human_in_command",
@@ -863,15 +806,12 @@ class TestLatestEventTiebreak:
         """When two terminal events share the same timestamp, higher ULID wins."""
         feature_dir = tmp_path / "feature"
         # Same timestamp, different event_ids.  _EID_2 > _EID_1 lexicographically.
-        _write_events(
-            feature_dir,
-            [
-                # completed event with lower ULID
-                _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                # failed event with higher ULID (same ts) — should win
-                _failed_envelope(_EID_2, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            # completed event with lower ULID
+            _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            # failed event with higher ULID (same ts) — should win
+            _failed_envelope(_EID_2, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -886,13 +826,10 @@ class TestLatestEventTiebreak:
     def test_latest_by_at_timestamp(self, tmp_path: Path) -> None:
         """Later timestamp wins regardless of event_id order."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),  # later
-            ],
-        )
+        _write_events(feature_dir, [
+            _failed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),  # later
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -916,21 +853,18 @@ class TestNonRetroEventsIgnored:
     def test_non_retro_events_ignored(self, tmp_path: Path) -> None:
         """Gate ignores events not in RETROSPECTIVE_EVENT_NAMES."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                {
-                    "actor": {"id": "x", "kind": "human", "profile_id": None},
-                    "at": "2026-04-27T09:00:00+00:00",
-                    "event_id": _EID_1,
-                    "event_name": "mission.status.changed",
-                    "mid8": "01KQ6YEG",
-                    "mission_id": _MISSION_ID,
-                    "mission_slug": "test-mission",
-                    "payload": {"from_lane": "planned", "to_lane": "done"},
-                },
-            ],
-        )
+        _write_events(feature_dir, [
+            {
+                "actor": {"id": "x", "kind": "human", "profile_id": None},
+                "at": "2026-04-27T09:00:00+00:00",
+                "event_id": _EID_1,
+                "event_name": "mission.status.changed",
+                "mid8": "01KQ6YEG",
+                "mission_id": _MISSION_ID,
+                "mission_slug": "test-mission",
+                "payload": {"from_lane": "planned", "to_lane": "done"},
+            },
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -959,12 +893,9 @@ class TestCharterEdgeCases:
         (charter_dir / "charter.md").write_text("# Charter\nNo frontmatter.\n", encoding="utf-8")
 
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -986,12 +917,9 @@ class TestCharterEdgeCases:
         )
 
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -1006,12 +934,9 @@ class TestCharterEdgeCases:
     def test_charter_missing_does_not_authorize(self, tmp_path: Path) -> None:
         """No charter at all does not authorize autonomous-skip."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -1040,12 +965,9 @@ class TestSilentAutoRunEdgeCases:
         """
         feature_dir = tmp_path / "feature"
         # completed event with NO preceding requested event
-        _write_events(
-            feature_dir,
-            [
-                _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -1060,14 +982,11 @@ class TestSilentAutoRunEdgeCases:
     def test_completed_with_only_later_requested_blocks(self, tmp_path: Path) -> None:
         """HiC: requested event AFTER completed event is not preceding (fail closed)."""
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-                # requested comes AFTER completed — should not count, fail closed
-                _requested_envelope(_EID_2, "2026-04-27T09:10:00+00:00", actor_kind="runtime"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _completed_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+            # requested comes AFTER completed — should not count, fail closed
+            _requested_envelope(_EID_2, "2026-04-27T09:10:00+00:00", actor_kind="runtime"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -1093,13 +1012,10 @@ class TestSilentAutoRunEdgeCases:
             "mission_slug": "test-mission",
             "payload": {},
         }
-        _write_events(
-            feature_dir,
-            [
-                bad_requested,
-                _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            bad_requested,
+            _completed_envelope(_EID_2, "2026-04-27T09:05:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -1132,12 +1048,9 @@ class TestCharterYamlEdgeCases:
         )
 
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,
@@ -1161,12 +1074,9 @@ class TestCharterYamlEdgeCases:
         )
 
         feature_dir = tmp_path / "feature"
-        _write_events(
-            feature_dir,
-            [
-                _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
-            ],
-        )
+        _write_events(feature_dir, [
+            _skipped_envelope(_EID_1, "2026-04-27T09:00:00+00:00"),
+        ])
 
         decision = is_completion_allowed(
             _MISSION_ID,

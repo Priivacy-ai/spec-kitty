@@ -389,9 +389,10 @@ def test_move_task_done_sets_review_metadata_with_detected_reviewer(
 
     # reviewed_by and review_status are tracked in the event log (not frontmatter) post-refactor
     # Verify the emit was called with evidence including the detected reviewer
-    assert any((call.kwargs.get("evidence") or {}).get("review", {}).get("reviewer") == "Git Reviewer" for call in emit_mock.call_args_list), (
-        f"Expected reviewer 'Git Reviewer' in emit evidence, calls: {emit_mock.call_args_list}"
-    )
+    assert any(
+        (call.kwargs.get("evidence") or {}).get("review", {}).get("reviewer") == "Git Reviewer"
+        for call in emit_mock.call_args_list
+    ), f"Expected reviewer 'Git Reviewer' in emit evidence, calls: {emit_mock.call_args_list}"
 
 
 def test_move_task_warns_when_auto_commit_raises(
@@ -409,6 +410,7 @@ def test_move_task_warns_when_auto_commit_raises(
 
     # lane is tracked in the event log (not frontmatter) post-refactor
     # Verify the emit was called targeting in_progress (doing alias)
-    assert any(str(call.kwargs.get("to_lane", "")) in ("in_progress", "doing") for call in emit_mock.call_args_list), (
-        f"Expected in_progress transition in emit calls, got: {emit_mock.call_args_list}"
-    )
+    assert any(
+        str(call.kwargs.get("to_lane", "")) in ("in_progress", "doing")
+        for call in emit_mock.call_args_list
+    ), f"Expected in_progress transition in emit calls, got: {emit_mock.call_args_list}"

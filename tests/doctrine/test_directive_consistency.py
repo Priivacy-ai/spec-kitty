@@ -14,7 +14,7 @@ import pytest
 import jsonschema
 from ruamel.yaml import YAML
 
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -79,7 +79,10 @@ def test_all_referenced_directives_have_matching_files_and_titles() -> None:
 
         directive = _load_yaml(matches[0])
         actual_title = str(directive.get("title", "")).strip()
-        assert actual_title == expected_title, f"Directive title mismatch for code {code}: expected '{expected_title}', got '{actual_title}'"
+        assert actual_title == expected_title, (
+            f"Directive title mismatch for code {code}: "
+            f"expected '{expected_title}', got '{actual_title}'"
+        )
 
 
 def test_directive_files_validate_against_schema() -> None:
@@ -141,7 +144,8 @@ def test_no_directive_carries_inline_tactic_refs() -> None:
     assert not offenders, (
         "Inline `tactic_refs` reintroduced on shipped directives — all "
         "cross-artifact relationships must live in src/doctrine/graph.yaml "
-        "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n" + "\n".join(offenders)
+        "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
+        + "\n".join(offenders)
     )
 
 
@@ -225,7 +229,6 @@ def test_directive_references_resolve_to_known_artifacts() -> None:
 # Tactic cross-reference graph: loop detection
 # ---------------------------------------------------------------------------
 
-
 def _build_tactic_ref_graph() -> dict[str, list[str]]:
     """Return adjacency list: tactic_id -> [referenced tactic_ids].
 
@@ -283,7 +286,10 @@ def test_tactic_reference_graph_has_no_cycles() -> None:
     graph = _build_tactic_ref_graph()
     assert graph, "No tactics found to build reference graph"
     cycles = _detect_cycles(graph)
-    assert not cycles, "Cyclic tactic references detected (would cause infinite resolution loops):\n" + "\n".join(" -> ".join(cycle) for cycle in cycles)
+    assert not cycles, (
+        "Cyclic tactic references detected (would cause infinite resolution loops):\n"
+        + "\n".join(" -> ".join(cycle) for cycle in cycles)
+    )
 
 
 def test_tactic_references_resolve_to_known_tactics() -> None:
@@ -307,14 +313,15 @@ def test_tactic_references_resolve_to_known_tactics() -> None:
                     ref_id = str(ref.get("id", "")).strip()
                     if ref_id and ref_id not in tactic_ids:
                         step_title = step.get("title", "?")
-                        unresolved.append(f"{tactic_id} step '{step_title}': reference '{ref_id}' not found")
+                        unresolved.append(
+                            f"{tactic_id} step '{step_title}': reference '{ref_id}' not found"
+                        )
     assert not unresolved, "Unresolved tactic-to-tactic references:\n" + "\n".join(unresolved)
 
 
 # ---------------------------------------------------------------------------
 # opposed_by resolution checks
 # ---------------------------------------------------------------------------
-
 
 def _shipped_directive_ids() -> set[str]:
     ids: set[str] = set()
@@ -357,7 +364,9 @@ def test_directive_opposed_by_refs_resolve() -> None:
                 unresolved.append(f"{source_id}: unknown opposed_by type '{ref_type}'")
                 continue
             if ref_id and ref_id not in id_map[ref_type]:
-                unresolved.append(f"{source_id}: opposed_by {ref_type} '{ref_id}' not found")
+                unresolved.append(
+                    f"{source_id}: opposed_by {ref_type} '{ref_id}' not found"
+                )
     assert not unresolved, "Unresolved directive opposed_by references:\n" + "\n".join(unresolved)
 
 
@@ -382,7 +391,9 @@ def test_tactic_opposed_by_refs_resolve() -> None:
                 unresolved.append(f"{source_id}: unknown opposed_by type '{ref_type}'")
                 continue
             if ref_id and ref_id not in id_map[ref_type]:
-                unresolved.append(f"{source_id}: opposed_by {ref_type} '{ref_id}' not found")
+                unresolved.append(
+                    f"{source_id}: opposed_by {ref_type} '{ref_id}' not found"
+                )
     assert not unresolved, "Unresolved tactic opposed_by references:\n" + "\n".join(unresolved)
 
 
@@ -401,5 +412,6 @@ def test_no_paradigm_carries_inline_tactic_refs() -> None:
     assert not offenders, (
         "Inline `tactic_refs` reintroduced on shipped paradigms — all "
         "relationships must live in src/doctrine/graph.yaml "
-        "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n" + "\n".join(offenders)
+        "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
+        + "\n".join(offenders)
     )

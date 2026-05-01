@@ -75,7 +75,10 @@ def check_lane_staleness(
     return StaleCheckResult(
         is_stale=True,
         stale_files=overlap,
-        remediation=(f"Lane {lane.lane_id} must incorporate mission changes before merging. Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"),
+        remediation=(
+            f"Lane {lane.lane_id} must incorporate mission changes before merging. "
+            f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
+        ),
     )
 
 

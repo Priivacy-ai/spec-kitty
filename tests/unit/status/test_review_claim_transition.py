@@ -77,9 +77,19 @@ class TestReviewClaimDoesNotEmitInProgress:
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[3]
-        workflow_path = repo_root / "src" / "specify_cli" / "cli" / "commands" / "agent" / "workflow.py"
+        workflow_path = (
+            repo_root
+            / "src"
+            / "specify_cli"
+            / "cli"
+            / "commands"
+            / "agent"
+            / "workflow.py"
+        )
         text = workflow_path.read_text(encoding="utf-8")
 
         # The review-claim transition emits to_lane=Lane.IN_REVIEW. There
         # must be no `to_lane=Lane.IN_PROGRESS` inside the review claim.
-        assert "to_lane=Lane.IN_REVIEW" in text, "workflow.review must emit Lane.IN_REVIEW for the review claim"
+        assert "to_lane=Lane.IN_REVIEW" in text, (
+            "workflow.review must emit Lane.IN_REVIEW for the review claim"
+        )

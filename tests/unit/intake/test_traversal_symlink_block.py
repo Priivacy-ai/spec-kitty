@@ -5,7 +5,6 @@ These tests pin the contract from
 outside the intake root must raise :class:`IntakePathEscapeError` and
 must do so *before* the file is opened.
 """
-
 from __future__ import annotations
 
 import os

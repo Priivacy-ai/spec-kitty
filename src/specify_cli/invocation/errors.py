@@ -51,7 +51,7 @@ class InvalidModeForEvidenceError(InvocationError):
     """--evidence supplied on an invocation whose mode_of_work disallows
     Tier 2 promotion (advisory or query). See FR-009 / ADR-001."""
 
-    def __init__(self, invocation_id: str, mode: ModeOfWork) -> None:
+    def __init__(self, invocation_id: str, mode: "ModeOfWork") -> None:
         self.invocation_id = invocation_id
         self.mode = mode
         super().__init__(

@@ -801,7 +801,9 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
             from_version="1.0.0a1",
             to_version="3.2.0a4",
             migrations_applied=["3.2.0a4_safe_globalize_commands"],
-            migration_results={"3.2.0a4_safe_globalize_commands": MigrationResult(success=True)},
+            migration_results={
+                "3.2.0a4_safe_globalize_commands": MigrationResult(success=True)
+            },
         ),
     )
     monkeypatch.setattr(

@@ -166,7 +166,7 @@ def get_merge_workspace(mission_id: str, repo_root: Path) -> Path | None:
     workspace_str = str(workspace_path.resolve())
     for line in result.stdout.splitlines():
         if line.startswith("worktree "):
-            listed_path = line[len("worktree ") :].strip()
+            listed_path = line[len("worktree "):].strip()
             if listed_path == workspace_str:
                 return workspace_path
 

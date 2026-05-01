@@ -29,52 +29,46 @@ def test_service_loads_all_repositories_from_shipped_defaults(tmp_path: Path) ->
 
     _write_yaml(
         shipped_root / "directives" / "shipped" / "001-test.directive.yaml",
-        {"schema_version": "1.0", "id": "DIRECTIVE_001", "title": "Test", "intent": "Test intent.", "enforcement": "required"},
+        {"schema_version": "1.0", "id": "DIRECTIVE_001", "title": "Test",
+         "intent": "Test intent.", "enforcement": "required"},
     )
     _write_yaml(
         shipped_root / "tactics" / "shipped" / "test-tactic.tactic.yaml",
-        {"schema_version": "1.0", "id": "test-tactic", "name": "Test Tactic", "steps": [{"title": "Step 1"}]},
+        {"schema_version": "1.0", "id": "test-tactic", "name": "Test Tactic",
+         "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
         shipped_root / "styleguides" / "shipped" / "test-style.styleguide.yaml",
-        {"schema_version": "1.0", "id": "test-style", "title": "Test Style", "scope": "code", "principles": ["Be clear"]},
+        {"schema_version": "1.0", "id": "test-style", "title": "Test Style",
+         "scope": "code", "principles": ["Be clear"]},
     )
     _write_yaml(
         shipped_root / "toolguides" / "shipped" / "test-tool.toolguide.yaml",
-        {"schema_version": "1.0", "id": "test-tool", "tool": "bash", "title": "Test Tool", "guide_path": "src/doctrine/test-tool.md", "summary": "Test."},
+        {"schema_version": "1.0", "id": "test-tool", "tool": "bash",
+         "title": "Test Tool", "guide_path": "src/doctrine/test-tool.md", "summary": "Test."},
     )
     _write_yaml(
         shipped_root / "paradigms" / "shipped" / "test-paradigm.paradigm.yaml",
-        {"schema_version": "1.0", "id": "test-paradigm", "name": "Test Paradigm", "summary": "Test."},
+        {"schema_version": "1.0", "id": "test-paradigm", "name": "Test Paradigm",
+         "summary": "Test."},
     )
     _write_yaml(
         shipped_root / "procedures" / "shipped" / "test-proc.procedure.yaml",
-        {
-            "schema_version": "1.0",
-            "id": "test-proc",
-            "name": "Test Procedure",
-            "purpose": "Test.",
-            "entry_condition": "Always.",
-            "exit_condition": "Done.",
-            "steps": [{"title": "Step 1"}],
-        },
+        {"schema_version": "1.0", "id": "test-proc", "name": "Test Procedure",
+         "purpose": "Test.", "entry_condition": "Always.",
+         "exit_condition": "Done.", "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
         shipped_root / "agent_profiles" / "shipped" / "test.agent.yaml",
-        {
-            "profile-id": "test-agent",
-            "name": "Test Agent",
-            "roles": ["implementer"],
-            "personality-traits": ["diligent"],
-            "directive-references": [],
-            "purpose": "Test agent for unit tests.",
-            "specialization": {
-                "primary-focus": "testing",
-                "secondary-awareness": "testing",
-                "avoidance-boundary": "none",
-                "success-definition": "tests pass",
-            },
-        },
+        {"profile-id": "test-agent", "name": "Test Agent", "roles": ["implementer"],
+         "personality-traits": ["diligent"], "directive-references": [],
+         "purpose": "Test agent for unit tests.",
+         "specialization": {
+             "primary-focus": "testing",
+             "secondary-awareness": "testing",
+             "avoidance-boundary": "none",
+             "success-definition": "tests pass",
+         }},
     )
 
     service = DoctrineService(shipped_root=shipped_root)

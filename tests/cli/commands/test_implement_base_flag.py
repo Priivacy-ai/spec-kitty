@@ -32,29 +32,21 @@ def _make_git_repo(path: Path) -> None:
     subprocess.run(["git", "init", str(path)], capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
     subprocess.run(
         ["git", "branch", "-M", "main"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
     (path / "README.md").write_text("init\n")
     subprocess.run(["git", "add", "."], cwd=str(path), capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "init"],
-        cwd=str(path),
-        capture_output=True,
-        check=True,
+        cwd=str(path), capture_output=True, check=True,
     )
 
 
@@ -94,7 +86,9 @@ def _setup_feature(repo: Path, mission_slug: str = "068-test") -> Path:
 
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
-    (tasks_dir / "WP06-task.md").write_text("---\nwork_package_id: WP06\ndependencies: []\n---\n# WP06\n")
+    (tasks_dir / "WP06-task.md").write_text(
+        "---\nwork_package_id: WP06\ndependencies: []\n---\n# WP06\n"
+    )
 
     (repo / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)
 
@@ -130,8 +124,11 @@ class TestValidateBaseRef:
 
         assert exc_info.value.exit_code == 1
 
-    def test_invalid_ref_error_message_contains_remediation(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    def test_invalid_ref_error_message_contains_remediation(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
         """The error message for an invalid ref must mention the ref and remediation."""
+        from rich.console import Console
         import specify_cli.cli.commands.implement as impl_mod
 
         repo = tmp_path / "repo"
@@ -146,8 +143,9 @@ class TestValidateBaseRef:
             captured_messages.append(str(args[0]) if args else "")
             original_print(*args, **kwargs)
 
-        with patch.object(impl_mod.console, "print", side_effect=capturing_print), pytest.raises(typer.Exit):
-            _validate_base_ref(repo, "bogus-ref")
+        with patch.object(impl_mod.console, "print", side_effect=capturing_print):
+            with pytest.raises(typer.Exit):
+                _validate_base_ref(repo, "bogus-ref")
 
         all_output = " ".join(captured_messages)
         assert "bogus-ref" in all_output, f"Expected ref name in error: {all_output!r}"
@@ -165,12 +163,9 @@ class TestImplementBaseFlagIntegration:
         feature_dir = _setup_feature(repo, "068-test")
 
         # Get the SHA of main
-        subprocess.run(
+        main_sha = subprocess.run(
             ["git", "rev-parse", "main"],
-            cwd=str(repo),
-            capture_output=True,
-            text=True,
-            check=True,
+            cwd=str(repo), capture_output=True, text=True, check=True,
         ).stdout.strip()
 
         # Run implement --base main via direct function call with mocked deps.
@@ -191,37 +186,39 @@ class TestImplementBaseFlagIntegration:
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=repo),
-            patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("068", "068-test")),
-            patch("specify_cli.cli.commands.implement.find_wp_file", return_value=feature_dir / "tasks" / "WP06-task.md"),
+            patch("specify_cli.cli.commands.implement.detect_feature_context",
+                  return_value=("068", "068-test")),
+            patch("specify_cli.cli.commands.implement.find_wp_file",
+                  return_value=feature_dir / "tasks" / "WP06-task.md"),
             patch("specify_cli.core.dependency_graph.parse_wp_dependencies", return_value=[]),
-            patch("specify_cli.cli.commands.implement.resolve_feature_target_branch", return_value="main"),
+            patch("specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                  return_value="main"),
             patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
             patch("specify_cli.cli.commands.implement.require_lanes_json") as mock_lanes,
             patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta"),
-            patch("specify_cli.cli.commands.implement.create_lane_workspace", return_value=fake_result) as mock_create,
-            patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log", return_value="in_progress"),
+            patch("specify_cli.cli.commands.implement.create_lane_workspace",
+                  return_value=fake_result) as mock_create,
+            patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log",
+                  return_value="in_progress"),
             patch("specify_cli.sync.events.emit_wp_status_changed"),
             patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
             patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
         ):
             from specify_cli.lanes.models import LanesManifest as _LM, ExecutionLane as _EL
-
             mock_manifest = _LM(
                 version=1,
                 mission_slug="068-test",
                 mission_id="068-test",
                 mission_branch="kitty/mission-068-test",
                 target_branch="main",
-                lanes=[
-                    _EL(
-                        lane_id="lane-a",
-                        wp_ids=("WP06",),
-                        write_scope=("src/**",),
-                        predicted_surfaces=(),
-                        depends_on_lanes=(),
-                        parallel_group=0,
-                    )
-                ],
+                lanes=[_EL(
+                    lane_id="lane-a",
+                    wp_ids=("WP06",),
+                    write_scope=("src/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )],
                 computed_at="2026-04-07T10:00:00+00:00",
                 computed_from="test",
             )
@@ -245,7 +242,9 @@ class TestImplementBaseFlagIntegration:
         call_kwargs = mock_create.call_args.kwargs
         used_manifest = call_kwargs.get("lanes_manifest") or mock_create.call_args[1].get("lanes_manifest")
         if used_manifest is not None:
-            assert used_manifest.mission_branch == "main", f"Expected mission_branch='main' (explicit base), got '{used_manifest.mission_branch}'"
+            assert used_manifest.mission_branch == "main", (
+                f"Expected mission_branch='main' (explicit base), got '{used_manifest.mission_branch}'"
+            )
 
     def test_implement_base_flag_invalid_ref_fails_clearly(self, tmp_path: Path) -> None:
         """--base bogus-ref should fail with the documented error message."""
@@ -255,23 +254,20 @@ class TestImplementBaseFlagIntegration:
         _setup_feature(repo, "068-test")
 
         from specify_cli.lanes.models import LanesManifest as _LM, ExecutionLane as _EL
-
         mock_manifest = _LM(
             version=1,
             mission_slug="068-test",
             mission_id="068-test",
             mission_branch="kitty/mission-068-test",
             target_branch="main",
-            lanes=[
-                _EL(
-                    lane_id="lane-a",
-                    wp_ids=("WP06",),
-                    write_scope=("src/**",),
-                    predicted_surfaces=(),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )
-            ],
+            lanes=[_EL(
+                lane_id="lane-a",
+                wp_ids=("WP06",),
+                write_scope=("src/**",),
+                predicted_surfaces=(),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )],
             computed_at="2026-04-07T10:00:00+00:00",
             computed_from="test",
         )
@@ -280,12 +276,16 @@ class TestImplementBaseFlagIntegration:
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=repo),
-            patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("068", "068-test")),
-            patch("specify_cli.cli.commands.implement.find_wp_file", return_value=repo / "kitty-specs" / "068-test" / "tasks" / "WP06-task.md"),
+            patch("specify_cli.cli.commands.implement.detect_feature_context",
+                  return_value=("068", "068-test")),
+            patch("specify_cli.cli.commands.implement.find_wp_file",
+                  return_value=repo / "kitty-specs" / "068-test" / "tasks" / "WP06-task.md"),
             patch("specify_cli.core.dependency_graph.parse_wp_dependencies", return_value=[]),
-            patch("specify_cli.cli.commands.implement.resolve_feature_target_branch", return_value="main"),
+            patch("specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                  return_value="main"),
             patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
-            patch("specify_cli.cli.commands.implement.require_lanes_json", return_value=mock_manifest),
+            patch("specify_cli.cli.commands.implement.require_lanes_json",
+                  return_value=mock_manifest),
             patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta"),
             patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
             patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),

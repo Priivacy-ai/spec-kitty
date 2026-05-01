@@ -303,12 +303,9 @@ class TestProfileInvocationComplete:
             result2 = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation",
-                    "complete",
-                    "--invocation-id",
-                    invocation_id,
-                    "--outcome",
-                    "done",
+                    "profile-invocation", "complete",
+                    "--invocation-id", invocation_id,
+                    "--outcome", "done",
                     "--json",
                 ],
             )
@@ -326,10 +323,8 @@ class TestProfileInvocationComplete:
             result = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation",
-                    "complete",
-                    "--invocation-id",
-                    invocation_id,
+                    "profile-invocation", "complete",
+                    "--invocation-id", invocation_id,
                     "--json",
                 ],
             )
@@ -347,10 +342,8 @@ class TestProfileInvocationComplete:
             runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation",
-                    "complete",
-                    "--invocation-id",
-                    invocation_id,
+                    "profile-invocation", "complete",
+                    "--invocation-id", invocation_id,
                     "--json",
                 ],
             )
@@ -360,10 +353,8 @@ class TestProfileInvocationComplete:
             result3 = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation",
-                    "complete",
-                    "--invocation-id",
-                    invocation_id,
+                    "profile-invocation", "complete",
+                    "--invocation-id", invocation_id,
                     "--json",
                 ],
             )
@@ -381,10 +372,8 @@ class TestProfileInvocationComplete:
             result = runner.invoke(
                 cli_app,
                 [
-                    "profile-invocation",
-                    "complete",
-                    "--invocation-id",
-                    "01AAAAAAAAAAAAAAAAAAAAAAA0",
+                    "profile-invocation", "complete",
+                    "--invocation-id", "01AAAAAAAAAAAAAAAAAAAAAAA0",
                     "--json",
                 ],
             )

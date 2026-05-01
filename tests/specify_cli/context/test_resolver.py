@@ -15,6 +15,7 @@ from specify_cli.context.errors import (
 )
 from specify_cli.context.models import MissionContext
 from specify_cli.context.resolver import resolve_context, resolve_or_load
+from specify_cli.context.store import save_context
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 

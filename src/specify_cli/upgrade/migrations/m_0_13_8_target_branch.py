@@ -91,7 +91,9 @@ class TargetBranchMigration(BaseMigration):
 
                 target_branch = infer_target_branch(feature_dir, project_path)
                 if target_branch != "main":
-                    warnings.append(f"{feature_dir.name} auto-detected target_branch={target_branch}")
+                    warnings.append(
+                        f"{feature_dir.name} auto-detected target_branch={target_branch}"
+                    )
 
                 # Add target_branch field
                 meta["target_branch"] = target_branch

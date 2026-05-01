@@ -371,7 +371,9 @@ server_url = "https://test.example.com"
         )
 
         legacy_queue = OfflineQueue(spec_kitty_dir / "queue.db")
-        legacy_queue.queue_event({"event_id": "evt-legacy", "event_type": "TestEvent", "payload": {"migrated": True}})
+        legacy_queue.queue_event(
+            {"event_id": "evt-legacy", "event_type": "TestEvent", "payload": {"migrated": True}}
+        )
 
         scoped_queue = OfflineQueue()
 

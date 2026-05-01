@@ -88,7 +88,10 @@ class ReviewCycleArtifact:
     @classmethod
     def from_dict(cls, data: dict[str, Any], body: str = "") -> ReviewCycleArtifact:
         """Deserialize from frontmatter dict and optional body string."""
-        affected_files = [AffectedFile.from_dict(af) for af in data.get("affected_files", [])]
+        affected_files = [
+            AffectedFile.from_dict(af)
+            for af in data.get("affected_files", [])
+        ]
         return cls(
             cycle_number=int(data["cycle_number"]),
             wp_id=data["wp_id"],
@@ -132,7 +135,9 @@ class ReviewCycleArtifact:
 
         # Split on --- delimiters.  The file must start with "---\n".
         if not text.startswith("---"):
-            raise ValueError(f"Review artifact file has no YAML frontmatter: {path}")
+            raise ValueError(
+                f"Review artifact file has no YAML frontmatter: {path}"
+            )
 
         # Find the closing --- delimiter
         # text[3:] skips the opening ---
@@ -142,10 +147,12 @@ class ReviewCycleArtifact:
             rest = rest[1:]
         closing = rest.find("\n---")
         if closing == -1:
-            raise ValueError(f"Review artifact file has no closing '---' delimiter: {path}")
+            raise ValueError(
+                f"Review artifact file has no closing '---' delimiter: {path}"
+            )
 
         frontmatter_str = rest[:closing]
-        body_raw = rest[closing + 4 :]  # skip \n---
+        body_raw = rest[closing + 4:]  # skip \n---
         # Strip leading newline from body
         body = body_raw.lstrip("\n")
 
@@ -153,15 +160,21 @@ class ReviewCycleArtifact:
         try:
             data = yaml.load(frontmatter_str)
         except Exception as exc:
-            raise ValueError(f"Failed to parse YAML frontmatter in {path}: {exc}") from exc
+            raise ValueError(
+                f"Failed to parse YAML frontmatter in {path}: {exc}"
+            ) from exc
 
         if not isinstance(data, dict):
-            raise ValueError(f"YAML frontmatter in {path} is not a mapping")
+            raise ValueError(
+                f"YAML frontmatter in {path} is not a mapping"
+            )
 
         try:
             return cls.from_dict(data, body=body)
         except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError(f"Missing or invalid field in review artifact {path}: {exc}") from exc
+            raise ValueError(
+                f"Missing or invalid field in review artifact {path}: {exc}"
+            ) from exc
 
     @staticmethod
     def latest(sub_artifact_dir: Path) -> ReviewCycleArtifact | None:

@@ -18,7 +18,6 @@ from specify_cli.glossary.extraction import (
 
 pytestmark = pytest.mark.fast
 
-
 class TestMetadataExtraction:
     """Tests for T010: Metadata hints extraction."""
 

@@ -1,5 +1,4 @@
 """Tests for render_runtime_path() rendering behavior per platform."""
-
 from __future__ import annotations
 
 import sys
@@ -21,14 +20,18 @@ def test_windows_returns_absolute(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "spec-kitty" in rendered
 
 
-def test_posix_tilde_compression_under_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_posix_tilde_compression_under_home(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     p = tmp_path / ".spec-kitty" / "auth"
     assert render_runtime_path(p) == "~/.spec-kitty/auth"
 
 
-def test_posix_absolute_outside_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_posix_absolute_outside_home(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     p = Path("/var/lib/spec-kitty")
@@ -37,7 +40,9 @@ def test_posix_absolute_outside_home(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert "spec-kitty" in rendered
 
 
-def test_for_user_false_always_absolute(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_for_user_false_always_absolute(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     p = tmp_path / ".spec-kitty" / "auth"

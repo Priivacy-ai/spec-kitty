@@ -177,7 +177,10 @@ def _discover_features(repo_root: Path) -> list[Path]:
     kitty_specs = repo_root / "kitty-specs"
     if not kitty_specs.is_dir():
         return []
-    features = [d for d in sorted(kitty_specs.iterdir()) if d.is_dir() and (d / "meta.json").exists()]
+    features = [
+        d for d in sorted(kitty_specs.iterdir())
+        if d.is_dir() and (d / "meta.json").exists()
+    ]
     return features
 
 
@@ -434,7 +437,9 @@ def run_migration(repo_root: Path, dry_run: bool = False) -> MigrationReport:  #
         features = _discover_features(repo_root)
         report.features_migrated = len(features)
         report.success = True
-        report.warnings.append(f"DRY RUN: would migrate {len(features)} feature(s) to schema v3")
+        report.warnings.append(
+            f"DRY RUN: would migrate {len(features)} feature(s) to schema v3"
+        )
         return report
 
     # ------------------------------------------------------------------

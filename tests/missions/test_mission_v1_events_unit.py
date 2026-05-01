@@ -111,7 +111,9 @@ class TestEmitEvent:
         events_file = tmp_path / MISSION_EVENTS_FILE
         assert not events_file.exists()
 
-    def test_readonly_dir_logs_warning_no_exception(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_readonly_dir_logs_warning_no_exception(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """emit_event on a read-only directory logs a warning but does not raise."""
         readonly_dir = tmp_path / "readonly"
         readonly_dir.mkdir()
@@ -154,7 +156,9 @@ class TestReadEvents:
         (tmp_path / MISSION_EVENTS_FILE).write_text("")
         assert read_events(tmp_path) == []
 
-    def test_corrupt_line_skipped(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_corrupt_line_skipped(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Corrupt JSONL lines are skipped with a warning, valid lines returned."""
         events_file = tmp_path / MISSION_EVENTS_FILE
         events_file.write_text(
@@ -221,7 +225,9 @@ class TestMissionModelCallbackWiring:
         """Transitioning to a new state emits a phase_entered event."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
-        mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path)
+        mission = StateMachineMission(
+            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+        )
 
         mission.trigger("advance")  # alpha -> beta
         assert mission.state == "beta"
@@ -235,7 +241,9 @@ class TestMissionModelCallbackWiring:
         """Leaving a state emits a phase_exited event."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
-        mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path)
+        mission = StateMachineMission(
+            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+        )
 
         mission.trigger("advance")  # alpha -> beta
 
@@ -248,7 +256,9 @@ class TestMissionModelCallbackWiring:
         """Events contain the mission name from the config."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
-        mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path)
+        mission = StateMachineMission(
+            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+        )
 
         mission.trigger("advance")  # alpha -> beta
 
@@ -269,13 +279,18 @@ class TestMissionModelCallbackWiring:
         """A single transition produces phase_exited then phase_entered in order."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
-        mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path)
+        mission = StateMachineMission(
+            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+        )
 
         mission.trigger("advance")  # alpha -> beta
 
         events = read_events(tmp_path)
         # Filter to only transition events (exit alpha + enter beta)
-        transition_events = [e for e in events if e["type"] in ("phase_exited", "phase_entered")]
+        transition_events = [
+            e for e in events
+            if e["type"] in ("phase_exited", "phase_entered")
+        ]
         assert len(transition_events) == 2
         assert transition_events[0]["type"] == "phase_exited"
         assert transition_events[0]["payload"]["state"] == "alpha"
@@ -286,7 +301,9 @@ class TestMissionModelCallbackWiring:
         """Two transitions produce 4 events (2 exits + 2 enters)."""
         from specify_cli.mission_v1.runner import StateMachineMission
 
-        mission = StateMachineMission(copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path)
+        mission = StateMachineMission(
+            copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path
+        )
 
         mission.trigger("advance")  # alpha -> beta
         mission.trigger("advance")  # beta -> done
@@ -296,8 +313,8 @@ class TestMissionModelCallbackWiring:
         assert len(events) == 4
         types = [e["type"] for e in events]
         assert types == [
-            "phase_exited",  # exit alpha
+            "phase_exited",   # exit alpha
             "phase_entered",  # enter beta
-            "phase_exited",  # exit beta
+            "phase_exited",   # exit beta
             "phase_entered",  # enter done
         ]

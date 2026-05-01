@@ -134,7 +134,9 @@ def test_resolve_transitions_to_resolved(tmp_path: Path) -> None:
     assert not resp.idempotent
 
     # Check index
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.status == DecisionStatus.RESOLVED
     assert entry.final_answer == "1-5"
 
@@ -164,7 +166,9 @@ def test_resolve_twice_same_answer_is_idempotent(tmp_path: Path) -> None:
 def test_resolve_idempotent_emits_no_second_event(tmp_path: Path) -> None:
     _setup_meta(tmp_path)
     did = _open_decision(tmp_path)
-    with patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=2) as mock_emit:
+    with patch(
+        "specify_cli.decisions.emit.emit_decision_resolved", return_value=2
+    ) as mock_emit:
         resolve_decision(
             tmp_path,
             MISSION_SLUG,
@@ -227,7 +231,9 @@ def test_defer_transitions_to_deferred(tmp_path: Path) -> None:
     assert resp.terminal_outcome == "deferred"
     assert not resp.idempotent
 
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.status == DecisionStatus.DEFERRED
     assert entry.rationale == "need more info"
 
@@ -245,7 +251,9 @@ def test_cancel_transitions_to_canceled(tmp_path: Path) -> None:
     assert resp.terminal_outcome == "canceled"
     assert not resp.idempotent
 
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.status == DecisionStatus.CANCELED
     assert entry.rationale == "no longer applicable"
 
@@ -293,7 +301,9 @@ def test_resolve_dry_run_returns_response(tmp_path: Path) -> None:
     assert not resp.idempotent
 
     # Index entry should still be OPEN
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.status == DecisionStatus.OPEN
 
 
@@ -301,7 +311,9 @@ def test_defer_dry_run_no_side_effects(tmp_path: Path) -> None:
     did = _open_decision(tmp_path)
     _defer(tmp_path, did, dry_run=True)
 
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.status == DecisionStatus.OPEN
 
 
@@ -309,7 +321,9 @@ def test_cancel_dry_run_no_side_effects(tmp_path: Path) -> None:
     did = _open_decision(tmp_path)
     _cancel(tmp_path, did, dry_run=True)
 
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.status == DecisionStatus.OPEN
 
 
@@ -330,7 +344,9 @@ def test_resolve_other_answer_recorded(tmp_path: Path) -> None:
             actor="alice",
         )
 
-    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
     assert entry.other_answer is True
     assert entry.final_answer == "something custom"
 

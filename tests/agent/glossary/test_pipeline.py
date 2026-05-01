@@ -23,7 +23,6 @@ from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
 
-
 def _make_context(**overrides):
     """Helper to create a PrimitiveExecutionContext with defaults."""
     defaults = {
@@ -348,7 +347,9 @@ class TestCreateStandardPipeline:
         (tmp_path / ".kittify").mkdir()
         glossaries = tmp_path / ".kittify" / "glossaries"
         glossaries.mkdir()
-        (glossaries / "team_domain.yaml").write_text("terms:\n  - surface: workspace\n    definition: A git worktree\n    confidence: 1.0\n    status: active\n")
+        (glossaries / "team_domain.yaml").write_text(
+            "terms:\n  - surface: workspace\n    definition: A git worktree\n    confidence: 1.0\n    status: active\n"
+        )
 
         pipeline = create_standard_pipeline(tmp_path)
 
@@ -372,6 +373,7 @@ class TestCreateStandardPipeline:
     def test_non_interactive_mode_uses_none_prompt_fn(self, tmp_path):
         """Regression: non-interactive mode must use None prompt_fn."""
         from specify_cli.glossary.clarification import ClarificationMiddleware
+
 
         (tmp_path / ".kittify").mkdir()
         pipeline = create_standard_pipeline(tmp_path, interaction_mode="non-interactive")

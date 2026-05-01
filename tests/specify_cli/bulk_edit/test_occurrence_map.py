@@ -9,6 +9,8 @@ import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.bulk_edit.occurrence_map import (
+    VALID_ACTIONS,
+    VALID_OPERATIONS,
     OccurrenceMap,
     check_admissibility,
     load_occurrence_map,
@@ -177,7 +179,9 @@ class TestValidateOccurrenceMap:
         result = validate_occurrence_map(omap)
 
         assert result.valid is False
-        assert any("code_symbols" in e and "action" in e for e in result.errors)
+        assert any(
+            "code_symbols" in e and "action" in e for e in result.errors
+        )
 
     def test_category_invalid_action_fails(self, tmp_path: Path) -> None:
         data = _valid_map_data()
@@ -189,7 +193,9 @@ class TestValidateOccurrenceMap:
         result = validate_occurrence_map(omap)
 
         assert result.valid is False
-        assert any("code_symbols" in e and "nuke" in e for e in result.errors)
+        assert any(
+            "code_symbols" in e and "nuke" in e for e in result.errors
+        )
 
     def test_unknown_top_level_keys_warn(self, tmp_path: Path) -> None:
         data = _valid_map_data()
@@ -222,7 +228,9 @@ class TestCheckAdmissibility:
         assert result.errors == []
 
     @pytest.mark.parametrize("placeholder", ["TODO", "TBD"])
-    def test_placeholder_term_fails(self, tmp_path: Path, placeholder: str) -> None:
+    def test_placeholder_term_fails(
+        self, tmp_path: Path, placeholder: str
+    ) -> None:
         data = _valid_map_data()
         data["target"]["term"] = placeholder
         write_occurrence_map(tmp_path, data)
@@ -249,7 +257,9 @@ class TestCheckAdmissibility:
         assert result.valid is False
         assert any("3" in e for e in result.errors)
 
-    def test_exactly_3_categories_fails_missing_standards(self, tmp_path: Path) -> None:
+    def test_exactly_3_categories_fails_missing_standards(
+        self, tmp_path: Path
+    ) -> None:
         """With only 3 categories, admissibility fails because the other 5
         standard categories (FR-004) are missing."""
         data = _valid_map_data()
@@ -293,4 +303,7 @@ class TestCheckAdmissibility:
         result = check_admissibility(omap)
 
         assert result.valid is False
-        assert any("logs_telemetry" in e and "standard" in e.lower() for e in result.errors)
+        assert any(
+            "logs_telemetry" in e and "standard" in e.lower()
+            for e in result.errors
+        )

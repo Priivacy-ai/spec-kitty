@@ -28,14 +28,18 @@ def test_no_extra_agents_in_skill_config() -> None:
 def test_installation_classes_are_valid() -> None:
     """Every 'class' value must be one of the three constants."""
     for agent, cfg in AGENT_SKILL_CONFIG.items():
-        assert cfg["class"] in VALID_CLASSES, f"Agent '{agent}' has invalid class '{cfg['class']}'"
+        assert cfg["class"] in VALID_CLASSES, (
+            f"Agent '{agent}' has invalid class '{cfg['class']}'"
+        )
 
 
 def test_wrapper_only_has_no_roots() -> None:
     """Agents with wrapper-only class must have skill_roots=None."""
     for agent, cfg in AGENT_SKILL_CONFIG.items():
         if cfg["class"] == SKILL_CLASS_WRAPPER:
-            assert cfg["skill_roots"] is None, f"Wrapper-only agent '{agent}' should have skill_roots=None"
+            assert cfg["skill_roots"] is None, (
+                f"Wrapper-only agent '{agent}' should have skill_roots=None"
+            )
 
 
 def test_non_wrapper_has_roots() -> None:
@@ -43,7 +47,9 @@ def test_non_wrapper_has_roots() -> None:
     for agent, cfg in AGENT_SKILL_CONFIG.items():
         if cfg["class"] != SKILL_CLASS_WRAPPER:
             roots = cfg["skill_roots"]
-            assert isinstance(roots, list) and len(roots) > 0, f"Agent '{agent}' (class={cfg['class']}) must have non-empty skill_roots list"
+            assert isinstance(roots, list) and len(roots) > 0, (
+                f"Agent '{agent}' (class={cfg['class']}) must have non-empty skill_roots list"
+            )
 
 
 def test_shared_root_includes_agents_skills() -> None:
@@ -52,7 +58,9 @@ def test_shared_root_includes_agents_skills() -> None:
         if cfg["class"] == SKILL_CLASS_SHARED:
             roots = cfg["skill_roots"]
             assert isinstance(roots, list), f"Agent '{agent}' should have list roots"
-            assert roots[0] == ".agents/skills/", f"Agent '{agent}' first root should be '.agents/skills/', got '{roots[0]}'"
+            assert roots[0] == ".agents/skills/", (
+                f"Agent '{agent}' first root should be '.agents/skills/', got '{roots[0]}'"
+            )
 
 
 def test_native_root_is_vendor_specific() -> None:
@@ -62,4 +70,6 @@ def test_native_root_is_vendor_specific() -> None:
             roots = cfg["skill_roots"]
             assert isinstance(roots, list), f"Agent '{agent}' should have list roots"
             for root in roots:
-                assert not root.startswith(".agents/"), f"Native agent '{agent}' should not have .agents/ prefix, got '{root}'"
+                assert not root.startswith(".agents/"), (
+                    f"Native agent '{agent}' should not have .agents/ prefix, got '{root}'"
+                )

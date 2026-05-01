@@ -36,8 +36,12 @@ def test_sync_client_imports_get_token_manager() -> None:
     import specify_cli.sync.client as client_mod
 
     source = inspect.getsource(client_mod)
-    assert "get_token_manager" in source, "sync/client.py must import get_token_manager (FR-017)"
-    assert "from specify_cli.auth" in source, "sync/client.py must import from specify_cli.auth"
+    assert (
+        "get_token_manager" in source
+    ), "sync/client.py must import get_token_manager (FR-017)"
+    assert (
+        "from specify_cli.auth" in source
+    ), "sync/client.py must import from specify_cli.auth"
 
 
 def test_sync_client_does_not_reference_legacy_classes() -> None:
@@ -115,7 +119,10 @@ def test_get_token_manager_has_at_least_five_production_callers() -> None:
     all_files = [line for line in result.stdout.splitlines() if line]
     auth_pkg_prefix = str(src_root / "auth")
     downstream = [line for line in all_files if not line.startswith(auth_pkg_prefix)]
-    assert len(downstream) >= 5, f"FR-017 expects at least 5 downstream callers of get_token_manager; found {len(downstream)}: {downstream}"
+    assert len(downstream) >= 5, (
+        f"FR-017 expects at least 5 downstream callers of get_token_manager; "
+        f"found {len(downstream)}: {downstream}"
+    )
 
 
 def test_websocket_provisioning_uses_factory() -> None:

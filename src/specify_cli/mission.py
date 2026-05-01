@@ -9,7 +9,7 @@ import json
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -223,7 +223,7 @@ class Mission:
             try:
                 raw_config = yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
-                raise MissionError(f"Invalid mission.yaml: {e}") from e
+                raise MissionError(f"Invalid mission.yaml: {e}")
 
         if not isinstance(raw_config, dict):
             raise MissionError(f"Mission config must be a mapping/dictionary in {config_file}, got {type(raw_config).__name__} instead.")

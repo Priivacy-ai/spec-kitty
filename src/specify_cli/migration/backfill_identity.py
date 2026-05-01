@@ -165,7 +165,9 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
             coerced = _coerce_mission_number(raw_number)
         except (TypeError, ValueError) as exc:
             # Sentinel strings like "pending" — raise loudly, do not guess.
-            raise ValueError(f"Cannot coerce mission_number {raw_number!r} in {slug}: {exc}") from exc
+            raise ValueError(
+                f"Cannot coerce mission_number {raw_number!r} in {slug}: {exc}"
+            ) from exc
         if coerced != raw_number:
             meta["mission_number"] = coerced
             number_coerced = True
@@ -246,7 +248,9 @@ def backfill_repo(
             logger.warning("No mission directory found for slug %r", mission_slug)
             return results
     else:
-        candidates = sorted(entry for entry in kitty_specs.iterdir() if entry.is_dir())
+        candidates = sorted(
+            entry for entry in kitty_specs.iterdir() if entry.is_dir()
+        )
 
     for feature_dir in candidates:
         result = backfill_mission(feature_dir, dry_run=dry_run)
@@ -268,7 +272,6 @@ def trigger_feature_dossier_sync_if_enabled(
     from specify_cli.sync.dossier_pipeline import (
         trigger_feature_dossier_sync_if_enabled as _real_fn,
     )
-
     _real_fn(
         feature_dir=feature_dir,
         mission_slug=mission_slug,

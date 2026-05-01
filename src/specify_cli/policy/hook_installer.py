@@ -66,7 +66,10 @@ def install(repo_root: Path) -> HookInstallRecord:
     """
     interpreter = Path(os.path.abspath(sys.executable))
     if not interpreter.is_file():
-        raise RuntimeError(f"Cannot install pre-commit hook: sys.executable={sys.executable!r} (absolute: {interpreter}) does not exist.")
+        raise RuntimeError(
+            f"Cannot install pre-commit hook: sys.executable={sys.executable!r} "
+            f"(absolute: {interpreter}) does not exist."
+        )
 
     installed_at = datetime.now(UTC).isoformat(timespec="seconds")
     rendered = HOOK_TEMPLATE.format(

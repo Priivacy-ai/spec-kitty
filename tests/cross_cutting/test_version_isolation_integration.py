@@ -19,7 +19,6 @@ import pytest
 
 pytestmark = pytest.mark.git_repo
 
-
 def test_source_version_is_readable():
     """Verify we can read version from pyproject.toml."""
     version = get_source_version()
@@ -30,7 +29,6 @@ def test_source_version_is_readable():
     assert len(parts) >= 2, f"Version {version} doesn't look like semantic versioning"
     # First part should be a number
     assert parts[0].isdigit(), f"Major version {parts[0]} is not a number"
-
 
 def test_installed_version_matches_or_absent():
     """Verify installed version matches source or is absent.
@@ -43,21 +41,24 @@ def test_installed_version_matches_or_absent():
 
     if installed is not None:
         assert installed == source, (
-            f"Installed version {installed} doesn't match source {source}. This will cause test failures. Run: pip uninstall spec-kitty-cli -y"
+            f"Installed version {installed} doesn't match source {source}. "
+            f"This will cause test failures. Run: pip uninstall spec-kitty-cli -y"
         )
-
 
 def test_cli_uses_source_version(run_cli, test_project):
     """Verify CLI reports source version, not installed version."""
     result = run_cli(test_project, "--version")
 
-    assert result.returncode == 0, f"--version command failed: {result.stderr}"
+    assert result.returncode == 0, (
+        f"--version command failed: {result.stderr}"
+    )
 
     output = result.stdout.strip()
     source_version = get_source_version()
 
-    assert source_version in output, f"CLI reported '{output}' but source version is {source_version}"
-
+    assert source_version in output, (
+        f"CLI reported '{output}' but source version is {source_version}"
+    )
 
 def test_version_checker_respects_test_mode(test_project, isolated_env):
     """Verify version checker respects SPEC_KITTY_TEST_MODE.
@@ -88,13 +89,17 @@ print(version)
         env=isolated_env,
     )
 
-    assert result.returncode == 0, f"Version checker failed in test mode: {result.stderr}"
+    assert result.returncode == 0, (
+        f"Version checker failed in test mode: {result.stderr}"
+    )
 
     reported_version = result.stdout.strip()
     expected_version = isolated_env["SPEC_KITTY_CLI_VERSION"]
 
-    assert reported_version == expected_version, f"Version checker returned {reported_version} but expected {expected_version} from environment"
-
+    assert reported_version == expected_version, (
+        f"Version checker returned {reported_version} "
+        f"but expected {expected_version} from environment"
+    )
 
 def test_test_mode_requires_version_override(test_project):
     """Verify test mode fails if SPEC_KITTY_CLI_VERSION is not set.
@@ -134,9 +139,11 @@ except RuntimeError as e:
     )
 
     # Should have an error message about missing SPEC_KITTY_CLI_VERSION
-    assert "EXPECTED_ERROR" in result.stdout, f"Test mode should fail without SPEC_KITTY_CLI_VERSION, but got: {result.stdout}"
+    assert "EXPECTED_ERROR" in result.stdout, (
+        f"Test mode should fail without SPEC_KITTY_CLI_VERSION, "
+        f"but got: {result.stdout}"
+    )
     assert "SPEC_KITTY_CLI_VERSION" in result.stdout
-
 
 def test_subprocess_inherits_isolation(run_cli, test_project):
     """Verify subprocesses spawned by CLI inherit isolation.
@@ -153,8 +160,9 @@ def test_subprocess_inherits_isolation(run_cli, test_project):
     assert "Version Mismatch" not in result.stderr
 
     # Should succeed (missions should be available in test_project)
-    assert result.returncode == 0, f"mission list failed: {result.stderr}"
-
+    assert result.returncode == 0, (
+        f"mission list failed: {result.stderr}"
+    )
 
 def test_isolated_env_has_required_variables(isolated_env):
     """Verify isolated_env fixture sets all required environment variables."""
@@ -166,8 +174,12 @@ def test_isolated_env_has_required_variables(isolated_env):
     }
 
     for var in required_vars:
-        assert var in isolated_env, f"isolated_env fixture missing required variable: {var}"
-        assert isolated_env[var], f"isolated_env fixture has empty value for: {var}"
+        assert var in isolated_env, (
+            f"isolated_env fixture missing required variable: {var}"
+        )
+        assert isolated_env[var], (
+            f"isolated_env fixture has empty value for: {var}"
+        )
 
     # Verify TEST_MODE is set to "1"
     assert isolated_env["SPEC_KITTY_TEST_MODE"] == "1"
@@ -176,16 +188,12 @@ def test_isolated_env_has_required_variables(isolated_env):
     source_version = get_source_version()
     assert isolated_env["SPEC_KITTY_CLI_VERSION"] == source_version
 
-
-@pytest.mark.parametrize(
-    "command",
-    [
-        ["init", "--help"],
-        ["upgrade", "--help"],
-        ["specify", "--help"],
-        ["mission", "list"],
-    ],
-)
+@pytest.mark.parametrize("command", [
+    ["init", "--help"],
+    ["upgrade", "--help"],
+    ["specify", "--help"],
+    ["mission", "list"],
+])
 def test_commands_work_with_isolation(run_cli, test_project, command):
     """Verify various commands work with isolated environment.
 
@@ -199,7 +207,6 @@ def test_commands_work_with_isolation(run_cli, test_project, command):
     assert "Version Mismatch" not in result.stderr
     assert "SPEC_KITTY_TEST_MODE" not in result.stdout  # Internal detail
     assert "SPEC_KITTY_TEST_MODE" not in result.stderr
-
 
 def test_parallel_test_execution_isolated(tmp_path):
     """Verify multiple concurrent test runs don't interfere.
@@ -246,9 +253,12 @@ print("PASS")
     # Wait for all to complete
     for i, p in processes:
         stdout, stderr = p.communicate()
-        assert p.returncode == 0, f"Process {i} failed with: {stderr}"
-        assert "PASS" in stdout, f"Process {i} didn't output PASS: {stdout}"
-
+        assert p.returncode == 0, (
+            f"Process {i} failed with: {stderr}"
+        )
+        assert "PASS" in stdout, (
+            f"Process {i} didn't output PASS: {stdout}"
+        )
 
 def test_version_mismatch_detection_in_regular_mode():
     """Verify version mismatch is properly detected outside test mode.
@@ -271,7 +281,6 @@ def test_version_mismatch_detection_in_regular_mode():
     assert result == 0  # Match
     assert mismatch_type == "match"
 
-
 def test_test_isolation_helper_function():
     """Verify assert_test_isolation() helper works correctly."""
     # This should pass if isolation is correct
@@ -280,4 +289,8 @@ def test_test_isolation_helper_function():
         assert_test_isolation()
     except pytest.fail.Exception as e:
         # If this fails, it means developer has mismatched installation
-        pytest.fail(f"Test isolation check failed: {e}\nThis indicates a problem with your local environment. Run: pip uninstall spec-kitty-cli -y")
+        pytest.fail(
+            f"Test isolation check failed: {e}\n"
+            f"This indicates a problem with your local environment. "
+            f"Run: pip uninstall spec-kitty-cli -y"
+        )

@@ -14,6 +14,7 @@ import pytest
 from specify_cli.invocation.errors import RouterAmbiguityError
 from specify_cli.invocation.router import (
     CANONICAL_VERB_MAP,
+    STOP_WORDS,
     ActionRouter,
     ActionRouterPlugin,
     RouterDecision,
@@ -40,7 +41,10 @@ def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
     profiles_dir = tmp_path / ".kittify" / "profiles"
     profiles_dir.mkdir(parents=True)
 
-    files = list(FIXTURES_DIR.glob("*.agent.yaml")) if profiles is None else [FIXTURES_DIR / f"{name}.agent.yaml" for name in profiles]
+    if profiles is None:
+        files = list(FIXTURES_DIR.glob("*.agent.yaml"))
+    else:
+        files = [FIXTURES_DIR / f"{name}.agent.yaml" for name in profiles]
 
     for f in files:
         if f.exists():
@@ -115,7 +119,10 @@ def test_adr3_document_exists() -> None:
             break
         search = search.parent
     else:
-        pytest.fail("ADR-3 document not found under kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/ — searched from repo root upward")
+        pytest.fail(
+            "ADR-3 document not found under kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/"
+            " — searched from repo root upward"
+        )
 
     content = adr_path.read_text(encoding="utf-8")
     assert "Option A" in content, "ADR-3 must document Option A as the accepted decision"
@@ -224,22 +231,20 @@ def test_router_success(
 ) -> None:
     """Router returns correct RouterDecision for unambiguous inputs."""
     # Use a mock registry with only two profiles to avoid ambiguity
-    registry = _make_mock_registry(
-        [
-            {
-                "profile_id": "implementer-fixture",
-                "role_value": "implementer",
-                "routing_priority": 50,
-                "domain_keywords": ["implement", "build", "code"],
-            },
-            {
-                "profile_id": "reviewer-fixture",
-                "role_value": "reviewer",
-                "routing_priority": 50,
-                "domain_keywords": ["review", "audit", "assess"],
-            },
-        ]
-    )
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-fixture",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "domain_keywords": ["implement", "build", "code"],
+        },
+        {
+            "profile_id": "reviewer-fixture",
+            "role_value": "reviewer",
+            "routing_priority": 50,
+            "domain_keywords": ["review", "audit", "assess"],
+        },
+    ])
 
     router = ActionRouter(registry)
     decision = router.route(request_text, profile_hint=profile_hint)
@@ -257,22 +262,20 @@ def test_router_success(
 
 def test_router_ambiguity_two_profiles_same_score() -> None:
     """Two profiles with equal routing_priority and overlapping verbs → ROUTER_AMBIGUOUS."""
-    registry = _make_mock_registry(
-        [
-            {
-                "profile_id": "implementer-a",
-                "role_value": "implementer",
-                "routing_priority": 50,  # same priority
-                "domain_keywords": [],
-            },
-            {
-                "profile_id": "implementer-b",
-                "role_value": "implementer",
-                "routing_priority": 50,  # same priority
-                "domain_keywords": [],
-            },
-        ]
-    )
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-a",
+            "role_value": "implementer",
+            "routing_priority": 50,  # same priority
+            "domain_keywords": [],
+        },
+        {
+            "profile_id": "implementer-b",
+            "role_value": "implementer",
+            "routing_priority": 50,  # same priority
+            "domain_keywords": [],
+        },
+    ])
 
     router = ActionRouter(registry)
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -292,16 +295,14 @@ def test_router_ambiguity_two_profiles_same_score() -> None:
 
 def test_router_no_match_vague_request() -> None:
     """'help me' → ROUTER_NO_MATCH (no canonical verb, no keyword)."""
-    registry = _make_mock_registry(
-        [
-            {
-                "profile_id": "implementer-fixture",
-                "role_value": "implementer",
-                "routing_priority": 50,
-                "domain_keywords": [],
-            },
-        ]
-    )
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-fixture",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "domain_keywords": [],
+        },
+    ])
 
     router = ActionRouter(registry)
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -317,16 +318,14 @@ def test_router_no_match_vague_request() -> None:
 
 def test_router_missing_profile_hint() -> None:
     """profile_hint='nonexistent' → RouterAmbiguityError(PROFILE_NOT_FOUND)."""
-    registry = _make_mock_registry(
-        [
-            {
-                "profile_id": "implementer-fixture",
-                "role_value": "implementer",
-                "routing_priority": 50,
-                "domain_keywords": [],
-            },
-        ]
-    )
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-fixture",
+            "role_value": "implementer",
+            "routing_priority": 50,
+            "domain_keywords": [],
+        },
+    ])
 
     router = ActionRouter(registry)
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -342,22 +341,20 @@ def test_router_missing_profile_hint() -> None:
 
 def test_router_priority_tiebreaker_selects_higher_priority() -> None:
     """When two profiles match the same verb, the one with higher routing_priority wins."""
-    registry = _make_mock_registry(
-        [
-            {
-                "profile_id": "implementer-low",
-                "role_value": "implementer",
-                "routing_priority": 10,
-                "domain_keywords": [],
-            },
-            {
-                "profile_id": "implementer-high",
-                "role_value": "implementer",
-                "routing_priority": 80,
-                "domain_keywords": [],
-            },
-        ]
-    )
+    registry = _make_mock_registry([
+        {
+            "profile_id": "implementer-low",
+            "role_value": "implementer",
+            "routing_priority": 10,
+            "domain_keywords": [],
+        },
+        {
+            "profile_id": "implementer-high",
+            "role_value": "implementer",
+            "routing_priority": 80,
+            "domain_keywords": [],
+        },
+    ])
 
     router = ActionRouter(registry)
     decision = router.route("implement the feature")
@@ -376,7 +373,10 @@ def test_action_router_plugin_is_noop() -> None:
     """ActionRouterPlugin has no methods in v1 — it is a pure no-op stub."""
     plugin = ActionRouterPlugin()
     # Verify no public methods beyond dunder
-    public_methods = [m for m in dir(plugin) if not m.startswith("_")]
+    public_methods = [
+        m for m in dir(plugin)
+        if not m.startswith("_")
+    ]
     assert public_methods == [], f"ActionRouterPlugin should have no public methods; got {public_methods}"
 
 

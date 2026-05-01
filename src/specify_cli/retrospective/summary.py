@@ -14,9 +14,9 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
-from datetime import date, datetime, UTC
+from datetime import date, datetime, timezone
 from pathlib import Path
-from collections.abc import Generator
+from typing import Generator
 
 from pydantic import BaseModel, ConfigDict
 
@@ -147,7 +147,7 @@ class SummarySnapshot(BaseModel):
 #: Heuristic release timestamp — missions started before this are considered
 #: "legacy" (no retrospective expected).  Filled in at the time this tranche
 #: was merged; adjust if you are backfilling history.
-_TRANCHE_RELEASE_CUTOFF: datetime = datetime(2026, 4, 27, 0, 0, 0, tzinfo=UTC)
+_TRANCHE_RELEASE_CUTOFF: datetime = datetime(2026, 4, 27, 0, 0, 0, tzinfo=timezone.utc)
 
 
 def _is_legacy(mission_started_at: str) -> bool:
@@ -155,7 +155,7 @@ def _is_legacy(mission_started_at: str) -> bool:
     try:
         started = datetime.fromisoformat(mission_started_at)
         if started.tzinfo is None:
-            started = started.replace(tzinfo=UTC)
+            started = started.replace(tzinfo=timezone.utc)
         return started < _TRANCHE_RELEASE_CUTOFF
     except ValueError:
         return False
@@ -198,13 +198,11 @@ def _read_slug_from_meta(mission_dir: Path) -> str | None:
 # Internal: proposal-lifecycle event reader
 # ---------------------------------------------------------------------------
 
-_PROPOSAL_EVENTS = frozenset(
-    {
-        "retrospective.proposal.generated",
-        "retrospective.proposal.applied",
-        "retrospective.proposal.rejected",
-    }
-)
+_PROPOSAL_EVENTS = frozenset({
+    "retrospective.proposal.generated",
+    "retrospective.proposal.applied",
+    "retrospective.proposal.rejected",
+})
 
 
 def _read_proposal_events(
@@ -269,7 +267,6 @@ def _classify_gaps_finding(target_kind: str, target_urn: str) -> str:
 # Internal: top-N sort helper
 # ---------------------------------------------------------------------------
 
-
 def _top_n_target_counts(counter: dict[str, int], limit: int) -> list[TargetCount]:
     items = sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))
     return [TargetCount(urn=k, count=v) for k, v in items[:limit]]
@@ -328,7 +325,7 @@ def build_summary(
         A :class:`SummarySnapshot` (always — never raises on malformed
         records; they appear in ``snapshot.malformed``).
     """
-    generated_at = datetime.now(UTC).isoformat()
+    generated_at = datetime.now(timezone.utc).isoformat()
 
     # Mutable accumulator state
     mission_count = 0
@@ -364,7 +361,11 @@ def build_summary(
                 meta_path = mission_dir / "meta.json"
                 if meta_path.exists():
                     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-                    mission_started_at = meta.get("mission_started_at") or meta.get("created_at") or meta.get("started_at")
+                    mission_started_at = (
+                        meta.get("mission_started_at")
+                        or meta.get("created_at")
+                        or meta.get("started_at")
+                    )
             except Exception:
                 pass
 
@@ -386,7 +387,6 @@ def build_summary(
             # Try to extract mission_id from raw YAML for the error entry
             try:
                 from ruamel.yaml import YAML as _YAML
-
                 _yaml = _YAML(typ="safe")
                 raw = _yaml.load(retro_path.read_text(encoding="utf-8"))
                 if isinstance(raw, dict):

@@ -15,12 +15,22 @@ from doctrine.drg.models import DRGEdge, DRGNode, Relation
 
 def measure_surface(action_urn: str, edges: list[DRGEdge]) -> int:
     """Count distinct targets of ``scope`` edges originating from *action_urn*."""
-    return len({e.target for e in edges if e.source == action_urn and e.relation == Relation.SCOPE})
+    return len(
+        {
+            e.target
+            for e in edges
+            if e.source == action_urn and e.relation == Relation.SCOPE
+        }
+    )
 
 
 def _scope_targets(action_urn: str, edges: list[DRGEdge]) -> set[str]:
     """Return the set of target URNs for scope edges from *action_urn*."""
-    return {e.target for e in edges if e.source == action_urn and e.relation == Relation.SCOPE}
+    return {
+        e.target
+        for e in edges
+        if e.source == action_urn and e.relation == Relation.SCOPE
+    }
 
 
 def calibrate_surfaces(

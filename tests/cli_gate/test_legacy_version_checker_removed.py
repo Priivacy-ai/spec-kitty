@@ -51,11 +51,14 @@ def test_dashboard_not_blocked_by_old_semver_field(
 
 def test_check_version_compatibility_not_imported_in_dashboard() -> None:
     """dashboard.py must not import check_version_compatibility (FIX 1 contract)."""
+    import importlib
+    import ast
     import inspect
 
     import specify_cli.cli.commands.dashboard as dashboard_mod
 
     source = inspect.getsource(dashboard_mod)
     assert "check_version_compatibility" not in source, (
-        "dashboard.py still references check_version_compatibility — the legacy semver checker must be removed (C-008 single authority)."
+        "dashboard.py still references check_version_compatibility — "
+        "the legacy semver checker must be removed (C-008 single authority)."
     )

@@ -66,7 +66,9 @@ def service(
 
 
 class TestDiscover:
-    def test_discover_parses_resources(self, service: SaaSTrackerService, mock_client: MagicMock) -> None:
+    def test_discover_parses_resources(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
         """discover() delegates to client.resources() and parses into BindableResource."""
         mock_client.resources.return_value = {
             "resources": [
@@ -99,7 +101,9 @@ class TestDiscover:
         assert result[1].candidate_token == "tok-2"
         assert result[1].is_bound is False
 
-    def test_discover_empty(self, service: SaaSTrackerService, mock_client: MagicMock) -> None:
+    def test_discover_empty(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
         """discover() with empty resources returns empty list."""
         mock_client.resources.return_value = {"resources": []}
 
@@ -107,7 +111,9 @@ class TestDiscover:
 
         assert result == []
 
-    def test_discover_missing_resources_key(self, service: SaaSTrackerService, mock_client: MagicMock) -> None:
+    def test_discover_missing_resources_key(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
         """discover() with missing 'resources' key returns empty list."""
         mock_client.resources.return_value = {}
 
@@ -122,7 +128,9 @@ class TestDiscover:
 
 
 class TestResolveAndBindExactWithRef:
-    def test_exact_with_binding_ref_auto_binds(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_exact_with_binding_ref_auto_binds(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """Exact match with binding_ref skips confirm, persists directly."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -162,7 +170,9 @@ class TestResolveAndBindExactWithRef:
 
 
 class TestResolveAndBindExactWithoutRef:
-    def test_exact_without_ref_calls_confirm(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_exact_without_ref_calls_confirm(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """Exact match without binding_ref calls bind_confirm."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -191,9 +201,7 @@ class TestResolveAndBindExactWithoutRef:
         assert isinstance(result, BindResult)
         assert result.binding_ref == "ref-confirmed"
         mock_client.bind_confirm.assert_called_once_with(
-            "linear",
-            "tok-exact",
-            identity,
+            "linear", "tok-exact", identity,
         )
 
         # Verify config persisted
@@ -209,7 +217,9 @@ class TestResolveAndBindExactWithoutRef:
 
 
 class TestResolveAndBindCandidates:
-    def test_candidates_returns_resolution_result(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_candidates_returns_resolution_result(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """Candidates without select_n returns ResolutionResult for CLI."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -248,7 +258,9 @@ class TestResolveAndBindCandidates:
         # No config change, no confirm call
         mock_client.bind_confirm.assert_not_called()
 
-    def test_candidates_select_n_auto_selects(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_candidates_select_n_auto_selects(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """Candidates with select_n=2 auto-selects the second candidate."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -290,16 +302,16 @@ class TestResolveAndBindCandidates:
         assert isinstance(result, BindResult)
         assert result.binding_ref == "ref-beta"
         mock_client.bind_confirm.assert_called_once_with(
-            "linear",
-            "tok-b",
-            identity,
+            "linear", "tok-b", identity,
         )
 
         # Config persisted
         loaded = load_tracker_config(repo_root)
         assert loaded.binding_ref == "ref-beta"
 
-    def test_candidates_select_out_of_range(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_candidates_select_out_of_range(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """select_n out of range raises TrackerServiceError."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -332,7 +344,9 @@ class TestResolveAndBindCandidates:
 
 
 class TestResolveAndBindNone:
-    def test_none_match_raises(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_none_match_raises(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """match_type=none raises TrackerServiceError."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -356,7 +370,9 @@ class TestResolveAndBindNone:
 
 
 class TestCandidateTokenRetry:
-    def test_confirm_token_rejected_retries_resolution_once(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_confirm_token_rejected_retries_resolution_once(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """invalid_candidate_token retries bind-resolve once and then confirms."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -406,7 +422,9 @@ class TestCandidateTokenRetry:
         assert loaded.binding_ref == "ref-fresh"
         assert loaded.provider_context == {"org": "acme"}
 
-    def test_candidate_selection_retry_reuses_requested_position(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_candidate_selection_retry_reuses_requested_position(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """Retry after token expiry re-resolves and reuses the same select_n value."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -477,17 +495,15 @@ class TestCandidateTokenRetry:
         assert result.binding_ref == "ref-beta"
         assert mock_client.bind_resolve.call_count == 2
         assert mock_client.bind_confirm.call_args_list[0].args == (
-            "linear",
-            "tok-b1",
-            identity,
+            "linear", "tok-b1", identity,
         )
         assert mock_client.bind_confirm.call_args_list[1].args == (
-            "linear",
-            "tok-b2",
-            identity,
+            "linear", "tok-b2", identity,
         )
 
-    def test_confirm_token_rejected_twice_raises_clear_error(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_confirm_token_rejected_twice_raises_clear_error(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """A second invalid_candidate_token after retry surfaces a clear error."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -531,7 +547,9 @@ class TestCandidateTokenRetry:
         assert mock_client.bind_resolve.call_count == 2
         assert mock_client.bind_confirm.call_count == 2
 
-    def test_confirm_other_error_propagates(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_confirm_other_error_propagates(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """Non-token-rejection errors from bind_confirm propagate as SaaSTrackerClientError."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -563,7 +581,9 @@ class TestCandidateTokenRetry:
 
 
 class TestPersistBinding:
-    def test_persist_binding_preserves_project_slug(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_persist_binding_preserves_project_slug(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """_persist_binding keeps existing project_slug for backward compat."""
         cfg = TrackerProjectConfig(
             provider="linear",
@@ -586,7 +606,9 @@ class TestPersistBinding:
         assert loaded.binding_ref == "ref-new"
         assert loaded.project_slug == "legacy-slug"  # Preserved!
 
-    def test_persist_binding_with_provider_context(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_persist_binding_with_provider_context(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """_persist_binding stores provider_context from confirm result."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
@@ -613,7 +635,9 @@ class TestPersistBinding:
         loaded = load_tracker_config(repo_root)
         assert loaded.provider_context == {"workspace_id": "ws-123", "org_slug": "acme"}
 
-    def test_persist_binding_preserves_extra_fields(self, repo_root: Path, mock_client: MagicMock) -> None:
+    def test_persist_binding_preserves_extra_fields(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
         """_persist_binding preserves forward-compatible unknown tracker fields."""
         cfg = TrackerProjectConfig(
             provider="linear",

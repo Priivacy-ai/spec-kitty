@@ -36,6 +36,7 @@ grandfathered sites.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -45,47 +46,41 @@ from pathlib import Path
 _SRC_ROOT = Path(__file__).parent.parent.parent / "src" / "specify_cli"
 
 # Patterns that indicate prompt-builder context filtering (C-011 violations)
-_PROMPT_FILTER_FUNCNAMES: frozenset[str] = frozenset(
-    {
-        "filter_urns",
-        "redact_urns",
-        "exclude_urns",
-        "hide_artifacts",
-        "filter_context",
-        "redact_context",
-        "exclude_context",
-        "filter_prompt",
-        "redact_prompt",
-        "hide_prompt",
-        "filter_scope",
-        "redact_scope",
-        "exclude_scope",
-    }
-)
+_PROMPT_FILTER_FUNCNAMES: frozenset[str] = frozenset({
+    "filter_urns",
+    "redact_urns",
+    "exclude_urns",
+    "hide_artifacts",
+    "filter_context",
+    "redact_context",
+    "exclude_context",
+    "filter_prompt",
+    "redact_prompt",
+    "hide_prompt",
+    "filter_scope",
+    "redact_scope",
+    "exclude_scope",
+})
 
 # Argument names that indicate prompt-builder filtering
-_PROMPT_FILTER_ARGNAMES: frozenset[str] = frozenset(
-    {
-        "exclude_urns",
-        "hide_artifacts",
-        "filter_context",
-        "redact_urns",
-        "filter_scope",
-    }
-)
+_PROMPT_FILTER_ARGNAMES: frozenset[str] = frozenset({
+    "exclude_urns",
+    "hide_artifacts",
+    "filter_context",
+    "redact_urns",
+    "filter_scope",
+})
 
 # ---------------------------------------------------------------------------
 # Grandfathered sites (pre-existing, NOT prompt-builder violations)
 # Key: (relative_path_from_src_specify_cli, function_or_variable_name)
 # ---------------------------------------------------------------------------
-_GRANDFATHERED: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("charter_lint/findings.py", "filter_by_severity"),
-        ("charter_lint/engine.py", "filter_by_severity"),
-        ("template/asset_generator.py", "_filter_frontmatter"),
-        ("cli/commands/agent/tasks.py", "_filter_runtime_state_paths"),
-    }
-)
+_GRANDFATHERED: frozenset[tuple[str, str]] = frozenset({
+    ("charter_lint/findings.py", "filter_by_severity"),
+    ("charter_lint/engine.py", "filter_by_severity"),
+    ("template/asset_generator.py", "_filter_frontmatter"),
+    ("cli/commands/agent/tasks.py", "_filter_runtime_state_paths"),
+})
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +124,9 @@ def _find_prompt_filter_sites(root: Path) -> list[tuple[str, int, str]]:
                     if arg in _PROMPT_FILTER_ARGNAMES:
                         key = (rel_path, arg)
                         if key not in _GRANDFATHERED:
-                            violations.append((rel_path, node.lineno, f"argument '{arg}' in {name}"))
+                            violations.append(
+                                (rel_path, node.lineno, f"argument '{arg}' in {name}")
+                            )
 
     return violations
 
@@ -151,7 +148,10 @@ def test_no_new_prompt_filter_call_sites() -> None:
     violations = _find_prompt_filter_sites(_SRC_ROOT)
 
     if violations:
-        lines = "\n".join(f"  {path}:{lineno}: {desc}" for path, lineno, desc in violations)
+        lines = "\n".join(
+            f"  {path}:{lineno}: {desc}"
+            for path, lineno, desc in violations
+        )
         raise AssertionError(
             f"Found {len(violations)} new prompt-builder filtering call site(s) "
             f"(C-011 violation):\n{lines}\n\n"

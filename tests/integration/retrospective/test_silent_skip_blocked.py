@@ -81,10 +81,16 @@ def test_silent_skip_blocked_in_autonomous_mode(
     )
 
     # Gate must block.
-    assert not decision.allow_completion, f"Expected gate to block silent skip, but it allowed: {decision}"
-    assert decision.reason.code == "silent_skip_attempted", f"Expected reason.code='silent_skip_attempted', got: {decision.reason.code}"
+    assert not decision.allow_completion, (
+        f"Expected gate to block silent skip, but it allowed: {decision}"
+    )
+    assert decision.reason.code == "silent_skip_attempted", (
+        f"Expected reason.code='silent_skip_attempted', got: {decision.reason.code}"
+    )
     # The blocking event id must reference the skipped event.
-    assert skipped_event_id in decision.reason.blocking_event_ids, f"Expected skipped_event_id in blocking_event_ids, got: {decision.reason.blocking_event_ids}"
+    assert skipped_event_id in decision.reason.blocking_event_ids, (
+        f"Expected skipped_event_id in blocking_event_ids, got: {decision.reason.blocking_event_ids}"
+    )
 
 
 @pytest.mark.integration
@@ -141,6 +147,8 @@ def test_silent_skip_allowed_with_charter_clause(
     )
 
     # Charter clause must allow the skip.
-    assert decision.allow_completion, f"Expected charter clause to allow skip, but gate blocked: {decision.reason}"
+    assert decision.allow_completion, (
+        f"Expected charter clause to allow skip, but gate blocked: {decision.reason}"
+    )
     assert decision.reason.code == "skipped_permitted"
     assert decision.reason.charter_clause_ref == "mode-policy:autonomous-allow-skip"

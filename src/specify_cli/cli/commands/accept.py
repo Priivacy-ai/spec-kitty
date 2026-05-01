@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import List, Optional
 
 import typer
 from rich.table import Table
@@ -54,13 +55,19 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
 
     if summary.optional_missing:
-        console.print("\n[yellow]Optional artifacts missing:[/yellow] " + ", ".join(summary.optional_missing))
+        console.print(
+            "\n[yellow]Optional artifacts missing:[/yellow] "
+            + ", ".join(summary.optional_missing)
+        )
         console.print()
 
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(
-        f"\n[bold]Acceptance metadata[/bold]\n• Mission: {result.summary.feature}\n• Accepted at: {result.accepted_at}\n• Accepted by: {result.accepted_by}"
+        "\n[bold]Acceptance metadata[/bold]\n"
+        f"• Mission: {result.summary.feature}\n"
+        f"• Accepted at: {result.accepted_at}\n"
+        f"• Accepted by: {result.accepted_by}"
     )
     if result.accept_commit:
         console.print(f"• Acceptance commit: {result.accept_commit}")
@@ -103,7 +110,9 @@ def _emit_acceptance_events(mission_slug: str, wp_ids: list[str]) -> None:
                 mission_slug=mission_slug,
             )
         except Exception as exc:
-            console.print(f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}")
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
+            )
 
 
 def accept(
@@ -138,7 +147,7 @@ def accept(
             print(json.dumps({"error": str(exc)}))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
     tracker = StepTracker("Mission Acceptance")
     if not json_output:
@@ -159,7 +168,7 @@ def accept(
             tracker.error("detect", "--mission <slug> is required")
             console.print(tracker.render())
             console.print("[red]Error:[/red] --mission <slug> is required")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
     resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
     mission_slug = resolved.mission_slug
@@ -191,7 +200,7 @@ def accept(
             tracker.error("verify", str(exc))
             console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
     if not json_output:
         tracker.complete("verify", "ready" if summary.ok else "issues found")
 
@@ -200,7 +209,7 @@ def accept(
             print(json.dumps(summary.to_dict(), indent=2))
         else:
             _print_acceptance_summary(summary)
-        raise typer.Exit(0 if summary.ok else 1) from None
+        raise typer.Exit(0 if summary.ok else 1)
 
     if not summary.ok:
         if json_output:
@@ -213,8 +222,8 @@ def accept(
                 console.print(
                     "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
                 )
-            raise typer.Exit(1) from None
-        raise typer.Exit(1) from None
+            raise typer.Exit(1)
+        raise typer.Exit(1)
 
     acceptance_tests = list(test)
 
@@ -240,7 +249,7 @@ def accept(
                 tracker.error("commit", str(exc))
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
     # Move approved WPs to done. Acceptance transitions approved → done.
     _emit_acceptance_events(mission_slug, result.summary.lanes.get("approved", []))

@@ -23,7 +23,12 @@ pytestmark = pytest.mark.fast
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_BASELINE_DIR = _REPO_ROOT / "kitty-specs" / "unified-charter-bundle-chokepoint-01KP5Q2G" / "baseline"
+_BASELINE_DIR = (
+    _REPO_ROOT
+    / "kitty-specs"
+    / "unified-charter-bundle-chokepoint-01KP5Q2G"
+    / "baseline"
+)
 _BASELINE_SCRIPT = _BASELINE_DIR / "capture.py"
 _BASELINE_JSON = _BASELINE_DIR / "pre-wp23-dashboard-typed.json"
 

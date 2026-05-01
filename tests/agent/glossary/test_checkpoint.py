@@ -395,7 +395,9 @@ class TestParseCheckpointEvent:
         payload = checkpoint_to_dict(sample_checkpoint)
         parsed = parse_checkpoint_event(payload)
         assert len(parsed.scope_refs) == len(sample_checkpoint.scope_refs)
-        for orig, parsed_ref in zip(sample_checkpoint.scope_refs, parsed.scope_refs, strict=False):
+        for orig, parsed_ref in zip(
+            sample_checkpoint.scope_refs, parsed.scope_refs, strict=False
+        ):
             assert parsed_ref.scope == orig.scope
             assert parsed_ref.version_id == orig.version_id
 
@@ -437,7 +439,9 @@ class TestLoadCheckpoint:
         events_dir.mkdir(parents=True)
         payload = checkpoint_to_dict(sample_checkpoint)
         payload["event_type"] = "StepCheckpointed"
-        (events_dir / "041-mission.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
+        (events_dir / "041-mission.events.jsonl").write_text(
+            json.dumps(payload, sort_keys=True) + "\n"
+        )
 
         result = load_checkpoint(tmp_path, sample_checkpoint.step_id)
         assert result is not None
@@ -450,7 +454,9 @@ class TestLoadCheckpoint:
         events_dir.mkdir(parents=True)
         payload = checkpoint_to_dict(sample_checkpoint)
         payload["event_type"] = "StepCheckpointed"
-        (events_dir / "041-mission.events.jsonl").write_text(json.dumps(payload, sort_keys=True) + "\n")
+        (events_dir / "041-mission.events.jsonl").write_text(
+            json.dumps(payload, sort_keys=True) + "\n"
+        )
 
         result = load_checkpoint(tmp_path, "different-step")
         assert result is None
@@ -525,8 +531,12 @@ class TestLoadCheckpoint:
             "retry_token": str(uuid.uuid4()),
             "timestamp": "2026-02-16T12:00:00+00:00",
         }
-        (events_dir / "mission-a.events.jsonl").write_text(json.dumps(mission_a, sort_keys=True) + "\n")
-        (events_dir / "mission-b.events.jsonl").write_text(json.dumps(mission_b, sort_keys=True) + "\n")
+        (events_dir / "mission-a.events.jsonl").write_text(
+            json.dumps(mission_a, sort_keys=True) + "\n"
+        )
+        (events_dir / "mission-b.events.jsonl").write_text(
+            json.dumps(mission_b, sort_keys=True) + "\n"
+        )
 
         result = load_checkpoint(tmp_path, "step-001", mission_id="mission-a")
         assert result is not None
@@ -756,28 +766,32 @@ class TestHandleContextChange:
             call_count[0] += 1
             return True
 
-        result = handle_context_change(sample_checkpoint, sample_inputs, confirm_fn=mock_confirm)
+        result = handle_context_change(
+            sample_checkpoint, sample_inputs, confirm_fn=mock_confirm
+        )
         assert result is True
         assert call_count[0] == 0  # Never called
 
     def test_change_prompts_user_confirm(self, sample_checkpoint):
         """When context changed and user confirms, returns True."""
-
         def mock_confirm(old_h, new_h):
             return True
 
         changed = {"description": "Changed", "requirements": []}
-        result = handle_context_change(sample_checkpoint, changed, confirm_fn=mock_confirm)
+        result = handle_context_change(
+            sample_checkpoint, changed, confirm_fn=mock_confirm
+        )
         assert result is True
 
     def test_change_prompts_user_decline(self, sample_checkpoint):
         """When context changed and user declines, returns False."""
-
         def mock_confirm(old_h, new_h):
             return False
 
         changed = {"description": "Changed", "requirements": []}
-        result = handle_context_change(sample_checkpoint, changed, confirm_fn=mock_confirm)
+        result = handle_context_change(
+            sample_checkpoint, changed, confirm_fn=mock_confirm
+        )
         assert result is False
 
     def test_confirm_receives_truncated_hashes(self, sample_checkpoint):
@@ -790,6 +804,8 @@ class TestHandleContextChange:
             return True
 
         changed = {"description": "Different"}
-        handle_context_change(sample_checkpoint, changed, confirm_fn=mock_confirm)
+        handle_context_change(
+            sample_checkpoint, changed, confirm_fn=mock_confirm
+        )
         assert len(received["old"]) == 16
         assert len(received["new"]) == 16

@@ -1,8 +1,8 @@
 """Tests for specify_cli.review.baseline — WP04: Baseline Test Capture."""
-
 from __future__ import annotations
 
 import json
+import subprocess
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -74,7 +74,6 @@ def _make_failure(test: str, error: str = "AssertionError", file: str = "tests/f
 # T017 - Dataclass round-trip
 # ---------------------------------------------------------------------------
 
-
 class TestBaselineTestResultRoundTrip:
     """test_baseline_test_result_round_trip — save and load JSON, compare fields."""
 
@@ -130,7 +129,6 @@ class TestBaselineTestResultRoundTrip:
 # T018 - capture_baseline()
 # ---------------------------------------------------------------------------
 
-
 class TestCaptureBaseline:
     """Tests for the capture_baseline() function."""
 
@@ -156,7 +154,6 @@ class TestCaptureBaseline:
             if isinstance(cmd, str) and "--junitxml=" in cmd:
                 # Extract output file path from the command string
                 import re
-
                 m = re.search(r"--junitxml=(\S+)", cmd)
                 if m:
                     Path(m.group(1)).write_text(SAMPLE_JUNIT_XML, encoding="utf-8")
@@ -248,7 +245,6 @@ class TestCaptureBaseline:
 # T017 + T018 - JUnit XML parsing
 # ---------------------------------------------------------------------------
 
-
 class TestJunitXmlParsing:
     """test_junit_xml_parsing — parse a sample JUnit XML file."""
 
@@ -309,7 +305,6 @@ class TestJunitXmlParsing:
 # ---------------------------------------------------------------------------
 # T019 - diff_baseline()
 # ---------------------------------------------------------------------------
-
 
 class TestDiffBaseline:
     """Tests for diff_baseline()."""
@@ -372,7 +367,6 @@ class TestDiffBaseline:
 # T021 - Review prompt includes baseline section
 # ---------------------------------------------------------------------------
 
-
 class TestReviewPromptIncludesBaselineSection:
     """test_review_prompt_includes_baseline_section."""
 
@@ -400,7 +394,10 @@ class TestReviewPromptIncludesBaselineSection:
         # Simulate prompt rendering logic
         lines = []
         if loaded.failed > 0:
-            lines.append(f"**{loaded.failed} test failure(s) existed BEFORE this WP** (base: {loaded.base_branch} @ {loaded.base_commit[:7]}):")
+            lines.append(
+                f"**{loaded.failed} test failure(s) existed BEFORE this WP** "
+                f"(base: {loaded.base_branch} @ {loaded.base_commit[:7]}):"
+            )
             for f in loaded.failures:
                 lines.append(f"| {f.test} | {f.error[:80]} | {f.file} |")
             lines.append("**These failures are NOT regressions introduced by this WP.**")
@@ -435,7 +432,6 @@ class TestReviewPromptIncludesBaselineSection:
 # ---------------------------------------------------------------------------
 # T022 - Config custom test command
 # ---------------------------------------------------------------------------
-
 
 class TestConfigCustomTestCommand:
     """test_config_custom_test_command — config overrides default pytest command."""
@@ -491,7 +487,6 @@ class TestConfigCustomTestCommand:
 # ---------------------------------------------------------------------------
 # Additional coverage for error paths
 # ---------------------------------------------------------------------------
-
 
 class TestCoverageEdgeCases:
     """Additional tests to cover edge/error paths in baseline.py."""
@@ -656,11 +651,11 @@ class TestCoverageEdgeCases:
             if isinstance(cmd, str) and "{output_file}" not in cmd:
                 # Write empty JUnit XML for the test run
                 import re
-
                 m = re.search(r"--output=(\S+)", cmd)
                 if m:
                     Path(m.group(1)).write_text(
-                        '<?xml version="1.0"?><testsuites><testsuite tests="1"><testcase classname="a" name="b"/></testsuite></testsuites>',
+                        '<?xml version="1.0"?><testsuites><testsuite tests="1">'
+                        '<testcase classname="a" name="b"/></testsuite></testsuites>',
                         encoding="utf-8",
                     )
             return result
@@ -672,11 +667,11 @@ class TestCoverageEdgeCases:
             result.stderr = ""
             if isinstance(cmd, str) and "myrunner" in cmd:
                 import re
-
                 m = re.search(r"--output=(\S+)", cmd)
                 if m:
                     Path(m.group(1)).write_text(
-                        '<?xml version="1.0"?><testsuites><testsuite tests="1"><testcase classname="a" name="b"/></testsuite></testsuites>',
+                        '<?xml version="1.0"?><testsuites><testsuite tests="1">'
+                        '<testcase classname="a" name="b"/></testsuite></testsuites>',
                         encoding="utf-8",
                     )
             return result

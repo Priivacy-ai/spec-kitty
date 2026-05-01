@@ -348,7 +348,11 @@ class MachineFileLock:
                     raise
                 # Contention path — consider staleness adoption then sleep.
                 existing = read_lock_record(self.path)
-                if not adopted_once and existing is not None and existing.age_s > self.stale_after_s:
+                if (
+                    not adopted_once
+                    and existing is not None
+                    and existing.age_s > self.stale_after_s
+                ):
                     adopted_once = True
                     # Another process may have already adopted; fall through.
                     with contextlib.suppress(OSError):

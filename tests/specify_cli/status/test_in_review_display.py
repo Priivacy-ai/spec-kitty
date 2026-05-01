@@ -17,6 +17,7 @@ Tests cover three layers:
 
 from __future__ import annotations
 
+import pytest
 
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_state import (
@@ -24,6 +25,7 @@ from specify_cli.status.wp_state import (
     InReviewState,
     wp_state_for,
 )
+from specify_cli.status.transition_context import TransitionContext
 
 
 class TestInReviewDisplayCategory:

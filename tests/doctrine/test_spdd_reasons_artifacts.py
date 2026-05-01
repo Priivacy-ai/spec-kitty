@@ -8,6 +8,7 @@ canonical section headers.
 
 from __future__ import annotations
 
+from pathlib import Path
 
 import pytest
 
@@ -34,12 +35,19 @@ def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
     assert paradigm.name
     assert paradigm.summary
 
-    shipped_path = SHIPPED_ROOT / "paradigms" / "shipped" / "structured-prompt-driven-development.paradigm.yaml"
+    shipped_path = (
+        SHIPPED_ROOT
+        / "paradigms"
+        / "shipped"
+        / "structured-prompt-driven-development.paradigm.yaml"
+    )
     assert shipped_path.is_file(), f"paradigm must live in shipped/: {shipped_path}"
 
 
 @pytest.mark.parametrize("tactic_id", ["reasons-canvas-fill", "reasons-canvas-review"])
-def test_tactic_loads_with_required_shape(service: DoctrineService, tactic_id: str) -> None:
+def test_tactic_loads_with_required_shape(
+    service: DoctrineService, tactic_id: str
+) -> None:
     tactic = service.tactics.get(tactic_id)
     assert tactic is not None, f"tactic {tactic_id} not loaded"
     assert tactic.id == tactic_id
@@ -62,7 +70,12 @@ def test_styleguide_loads_with_required_shape(service: DoctrineService) -> None:
     assert styleguide.scope == "docs"
     assert styleguide.principles, "styleguide must declare principles"
 
-    shipped_path = SHIPPED_ROOT / "styleguides" / "shipped" / "reasons-canvas-writing.styleguide.yaml"
+    shipped_path = (
+        SHIPPED_ROOT
+        / "styleguides"
+        / "shipped"
+        / "reasons-canvas-writing.styleguide.yaml"
+    )
     assert shipped_path.is_file(), f"styleguide must live in shipped/: {shipped_path}"
 
 
@@ -76,16 +89,27 @@ def test_directive_038_lenient_adherence_with_four_allowances(
     assert directive.title
     assert directive.intent
     enforcement_value = getattr(directive.enforcement, "value", directive.enforcement)
-    assert str(enforcement_value) == "lenient-adherence", f"DIRECTIVE_038 enforcement must be 'lenient-adherence', got {enforcement_value!r}"
+    assert str(enforcement_value) == "lenient-adherence", (
+        f"DIRECTIVE_038 enforcement must be 'lenient-adherence', got {enforcement_value!r}"
+    )
     allowances = directive.explicit_allowances or []
-    assert len(allowances) == 4, f"DIRECTIVE_038 must declare exactly 4 explicit_allowances, got {len(allowances)}"
+    assert len(allowances) == 4, (
+        f"DIRECTIVE_038 must declare exactly 4 explicit_allowances, got {len(allowances)}"
+    )
 
-    shipped_path = SHIPPED_ROOT / "directives" / "shipped" / "038-structured-prompt-boundary.directive.yaml"
+    shipped_path = (
+        SHIPPED_ROOT
+        / "directives"
+        / "shipped"
+        / "038-structured-prompt-boundary.directive.yaml"
+    )
     assert shipped_path.is_file(), f"directive must live in shipped/: {shipped_path}"
 
 
 def test_template_fragment_has_all_seven_canvas_sections() -> None:
-    fragment_path = SHIPPED_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
+    fragment_path = (
+        SHIPPED_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
+    )
     assert fragment_path.is_file(), f"template fragment missing at {fragment_path}"
     body = fragment_path.read_text(encoding="utf-8")
 

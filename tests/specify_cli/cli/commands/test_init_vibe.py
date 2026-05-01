@@ -169,7 +169,9 @@ def test_init_vibe_gitignore(
     assert gitignore.exists(), ".gitignore was not created"
     content = gitignore.read_text(encoding="utf-8")
     lines = [ln.strip() for ln in content.splitlines()]
-    assert any(ln in (".vibe/", ".vibe") for ln in lines), f".vibe/ not found in .gitignore; got:\n{content}"
+    assert any(ln in (".vibe/", ".vibe") for ln in lines), (
+        f".vibe/ not found in .gitignore; got:\n{content}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -201,8 +203,12 @@ def test_init_vibe_next_steps_output(
     assert result.exit_code == 0, result.output
 
     output = buf.getvalue()
-    assert "mistral-vibe" in output, f"Install command not found in output; got:\n{output[:500]}"
-    assert "/spec-kitty.specify" in output, f"/spec-kitty.specify not found in output; got:\n{output[:500]}"
+    assert "mistral-vibe" in output, (
+        f"Install command not found in output; got:\n{output[:500]}"
+    )
+    assert "/spec-kitty.specify" in output, (
+        f"/spec-kitty.specify not found in output; got:\n{output[:500]}"
+    )
 
 
 # ---------------------------------------------------------------------------

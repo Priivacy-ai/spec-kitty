@@ -121,7 +121,12 @@ def _normalize_semantic_check_event(event: dict[str, Any]) -> list[SemanticConfl
         term_id = _extract_term_id(term, finding, event)
         if not term or not term_id:
             continue
-        severity = str(finding.get("severity") or event.get("severity") or event.get("overall_severity") or "").lower()
+        severity = str(
+            finding.get("severity")
+            or event.get("severity")
+            or event.get("overall_severity")
+            or ""
+        ).lower()
         records.append(
             SemanticConflictRecord(
                 term=term,

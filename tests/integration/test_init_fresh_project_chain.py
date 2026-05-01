@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -89,8 +90,12 @@ def test_init_then_next_no_missing_schema_error(
     """
     app, _console = cli_app
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+    monkeypatch.setattr(
+        init_module, "get_local_repo_root", lambda override_path=None: None
+    )
+    monkeypatch.setattr(
+        init_module, "copy_specify_base_from_package", _fake_copy_package
+    )
 
     result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
 
@@ -106,13 +111,17 @@ def test_init_then_next_no_missing_schema_error(
 
     # Both stamp fields are present and equal to the canonical values.
     assert spec_kitty["schema_version"] == CURRENT_SCHEMA_VERSION
-    assert dict(spec_kitty["schema_capabilities"]) == CURRENT_SCHEMA_CAPABILITIES
+    assert (
+        dict(spec_kitty["schema_capabilities"]) == CURRENT_SCHEMA_CAPABILITIES
+    )
 
     # The downstream gate is satisfied without hand-editing.
     project_version = get_project_schema_version(tmp_path)
     assert project_version == CURRENT_SCHEMA_VERSION
     compat = check_compatibility(project_version, CURRENT_SCHEMA_VERSION)
-    assert compat.is_compatible, f"fresh project must pass the schema gate; got {compat.status}: {compat.message}"
+    assert compat.is_compatible, (
+        f"fresh project must pass the schema gate; got {compat.status}: {compat.message}"
+    )
     assert compat.exit_code == 0
     # The pre-fix message that used to fire here was about a missing schema.
     assert "missing schema" not in compat.message.lower()
@@ -132,8 +141,12 @@ def test_init_is_idempotent_for_schema_stamp(
     """
     app, _console = cli_app
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+    monkeypatch.setattr(
+        init_module, "get_local_repo_root", lambda override_path=None: None
+    )
+    monkeypatch.setattr(
+        init_module, "copy_specify_base_from_package", _fake_copy_package
+    )
 
     result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
     assert result.exit_code == 0, getattr(result, "output", "")

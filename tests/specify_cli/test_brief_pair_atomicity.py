@@ -18,7 +18,6 @@ is invisible to callers.
 
 These tests pin the new ordering and the reader's tolerance.
 """
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -54,7 +53,9 @@ def test_read_brief_source_returns_none_when_brief_marker_missing(
 ) -> None:
     """source.yaml without brief.md is the kill-mid-write window."""
     kittify = _kittify(tmp_path)
-    (kittify / BRIEF_SOURCE_FILENAME).write_text("source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8")
+    (kittify / BRIEF_SOURCE_FILENAME).write_text(
+        "source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8"
+    )
     # No brief.md on disk.
     assert read_brief_source(tmp_path) is None
     assert read_mission_brief(tmp_path) is None
@@ -64,8 +65,12 @@ def test_read_brief_source_returns_dict_when_both_files_present(
     tmp_path: Path,
 ) -> None:
     kittify = _kittify(tmp_path)
-    (kittify / MISSION_BRIEF_FILENAME).write_text("# brief\n", encoding="utf-8")
-    (kittify / BRIEF_SOURCE_FILENAME).write_text("source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8")
+    (kittify / MISSION_BRIEF_FILENAME).write_text(
+        "# brief\n", encoding="utf-8"
+    )
+    (kittify / BRIEF_SOURCE_FILENAME).write_text(
+        "source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8"
+    )
     out = read_brief_source(tmp_path)
     assert isinstance(out, dict)
     assert out["source_file"] == "/tmp/x.md"
@@ -111,7 +116,8 @@ def test_write_brief_atomic_renames_source_before_brief(tmp_path: Path) -> None:
         )
 
     assert order == [BRIEF_SOURCE_FILENAME, MISSION_BRIEF_FILENAME], (
-        f"FR-010 / P2.5 regression: brief writer must rename source.yaml before brief.md so brief is the commit marker. Got order: {order!r}"
+        f"FR-010 / P2.5 regression: brief writer must rename source.yaml "
+        f"before brief.md so brief is the commit marker. Got order: {order!r}"
     )
     assert brief.exists() and source.exists()
 

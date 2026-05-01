@@ -224,7 +224,9 @@ def _write_meta(feature_dir: Path, slug: str) -> None:
         "purpose_tldr": "data-loss regression pin",
         "purpose_context": "real-merge planning-artifact reach-target test",
     }
-    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _write_lanes_manifest(
@@ -367,7 +369,9 @@ class TestPlanningArtifactReachesTarget:
     state outside git (status emit, dossier sync, SaaS emit, etc.).
     """
 
-    def test_planning_artifact_on_main_reaches_target_after_merge(self, tmp_path: Path) -> None:
+    def test_planning_artifact_on_main_reaches_target_after_merge(
+        self, tmp_path: Path
+    ) -> None:
         """Design-correct case: planning artifact lives on planning_base (main).
 
         Per research.md D4, planning_artifact WPs "execute in the canonical
@@ -447,7 +451,8 @@ class TestPlanningArtifactReachesTarget:
 
         # The actual data-loss check.  Both files must be on main after merge.
         assert _file_on_branch(tmp_path, "main", code_relpath), (
-            f"FR-001 regression: code file {code_relpath} did not reach main after merge.  ``git ls-tree main -- {code_relpath}`` returned empty."
+            f"FR-001 regression: code file {code_relpath} did not reach main "
+            f"after merge.  ``git ls-tree main -- {code_relpath}`` returned empty."
         )
         assert _file_on_branch(tmp_path, "main", planning_relpath), (
             f"FR-001 regression (load-bearing): planning artifact "
@@ -457,7 +462,9 @@ class TestPlanningArtifactReachesTarget:
             f"FR-001 forbids."
         )
 
-    def test_planning_artifact_on_phantom_lane_branch_is_NOT_reached(self, tmp_path: Path) -> None:
+    def test_planning_artifact_on_phantom_lane_branch_is_NOT_reached(
+        self, tmp_path: Path
+    ) -> None:
         """Design-boundary negative case (research.md D4).
 
         Per ``lane_branch_name``, ``lane-planning`` resolves to the
@@ -530,7 +537,9 @@ class TestPlanningArtifactReachesTarget:
             )
 
         # Code file did reach main.
-        assert _file_on_branch(tmp_path, "main", code_relpath), "Sanity: code file from lane-a should still reach main."
+        assert _file_on_branch(tmp_path, "main", code_relpath), (
+            "Sanity: code file from lane-a should still reach main."
+        )
 
         # Phantom planning artifact did NOT reach main — by design.
         # ``lane_branch_name("lane-planning", planning_base_branch="main")``

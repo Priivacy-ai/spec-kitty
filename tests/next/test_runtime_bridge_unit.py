@@ -114,7 +114,8 @@ class TestRuntimeTemplateKey:
         project_dir.mkdir(parents=True)
         project_yaml = project_dir / "mission-runtime.yaml"
         project_yaml.write_text(
-            "mission:\n  key: software-dev\n  name: software-dev\n  version: '9.9.9'\nsteps:\n  - id: x\n    title: x\n",
+            "mission:\n  key: software-dev\n  name: software-dev\n  version: '9.9.9'\n"
+            "steps:\n  - id: x\n    title: x\n",
             encoding="utf-8",
         )
 

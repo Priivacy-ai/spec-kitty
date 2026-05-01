@@ -126,7 +126,11 @@ class MissionTemplateRepository:
         """
         if not self._root.is_dir():
             return []
-        return sorted(d.name for d in self._root.iterdir() if d.is_dir() and (d / "mission.yaml").exists())
+        return sorted(
+            d.name
+            for d in self._root.iterdir()
+            if d.is_dir() and (d / "mission.yaml").exists()
+        )
 
     # ------------------------------------------------------------------
     # Public content-returning methods
@@ -190,7 +194,10 @@ class MissionTemplateRepository:
         cmd_dir = self._root / mission / "command-templates"
         if not cmd_dir.is_dir():
             return []
-        return sorted(p.stem for p in cmd_dir.iterdir() if p.is_file() and p.suffix == ".md" and p.name != "README.md")
+        return sorted(
+            p.stem for p in cmd_dir.iterdir()
+            if p.is_file() and p.suffix == ".md" and p.name != "README.md"
+        )
 
     def list_content_templates(self, mission: str) -> list[str]:
         """Return filenames of all content templates for a mission.
@@ -206,7 +213,10 @@ class MissionTemplateRepository:
         tpl_dir = self._root / mission / "templates"
         if not tpl_dir.is_dir():
             return []
-        return sorted(p.name for p in tpl_dir.iterdir() if p.is_file() and p.name != "README.md")
+        return sorted(
+            p.name for p in tpl_dir.iterdir()
+            if p.is_file() and p.name != "README.md"
+        )
 
     # ------------------------------------------------------------------
     # Public config-returning methods

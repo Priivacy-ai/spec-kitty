@@ -49,13 +49,11 @@ def full_queue(tmp_path: Path):
     MAX = 50
     q = OfflineQueue(db_path=tmp_path / "full_queue.db", max_queue_size=MAX)
     for i in range(MAX):
-        q.queue_event(
-            {
-                "event_id": f"EVT{i:026d}",
-                "event_type": "WPStatusChanged",
-                "payload": {"wp_id": f"WP{i % 14 + 1:02d}", "from_lane": "planned", "to_lane": "claimed"},
-            }
-        )
+        q.queue_event({
+            "event_id": f"EVT{i:026d}",
+            "event_type": "WPStatusChanged",
+            "payload": {"wp_id": f"WP{i % 14 + 1:02d}", "from_lane": "planned", "to_lane": "claimed"},
+        })
     assert q.size() == MAX
     return q
 
@@ -76,17 +74,9 @@ def full_body_queue(tmp_path: Path):
             " content_body, size_bytes, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                "proj-uuid",
-                "047-feat",
-                "main",
-                "software-dev",
-                "1",
-                "spec.md",
-                "a" * 64,
-                "sha256",
-                "# spec",
-                6,
-                time.time(),
+                "proj-uuid", "047-feat", "main", "software-dev",
+                "1", "spec.md", "a" * 64, "sha256",
+                "# spec", 6, time.time(),
             ),
         )
         conn.commit()
@@ -158,11 +148,7 @@ class TestDossierPipelineNoRuntime:
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     def test_creates_body_queue_directly(
-        self,
-        _flag,
-        mock_sync,
-        tmp_path,
-        monkeypatch,
+        self, _flag, mock_sync, tmp_path, monkeypatch,
     ):
         """Body queue is created as a plain OfflineBodyUploadQueue, not via runtime."""
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -182,11 +168,7 @@ class TestDossierPipelineNoRuntime:
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     def test_get_runtime_never_called(
-        self,
-        _flag,
-        mock_sync,
-        tmp_path,
-        monkeypatch,
+        self, _flag, mock_sync, tmp_path, monkeypatch,
     ):
         """get_runtime is never called — proves zero thread/atexit side-effects."""
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -209,9 +191,7 @@ class TestDossierPipelineNoRuntime:
         from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path / "feat",
-            "047-feat",
-            tmp_path,
+            tmp_path / "feat", "047-feat", tmp_path,
         )
         assert result is None
 
@@ -227,9 +207,7 @@ class TestDossierPipelineNoRuntime:
         )
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path / "feat",
-            "047-feat",
-            tmp_path,
+            tmp_path / "feat", "047-feat", tmp_path,
         )
         assert result is None
 
@@ -244,9 +222,7 @@ class TestDossierPipelineNoRuntime:
         )
 
         result = trigger_feature_dossier_sync_if_enabled(
-            tmp_path / "feat",
-            "047-feat",
-            tmp_path,
+            tmp_path / "feat", "047-feat", tmp_path,
         )
         assert result is None
 
@@ -370,10 +346,7 @@ class TestBackgroundStopBounded:
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_final_sync_runs_when_body_queue_has_work(
-        self,
-        _tok,
-        empty_queue,
-        full_body_queue,
+        self, _tok, empty_queue, full_body_queue,
     ):
         """stop() fires _guarded_final_sync when body_queue.size() > 0."""
         svc = self._make_service(empty_queue, body_queue=full_body_queue)
@@ -418,10 +391,11 @@ class TestBackgroundStopBounded:
         def slow_sync():
             time.sleep(2)
 
-        with patch.object(svc, "_guarded_final_sync", side_effect=slow_sync), patch("specify_cli.sync.background.logger") as mock_log:
-            svc.stop()
-            warning_msgs = [str(c) for c in mock_log.warning.call_args_list]
-            assert any("did not complete" in m for m in warning_msgs)
+        with patch.object(svc, "_guarded_final_sync", side_effect=slow_sync):
+            with patch("specify_cli.sync.background.logger") as mock_log:
+                svc.stop()
+                warning_msgs = [str(c) for c in mock_log.warning.call_args_list]
+                assert any("did not complete" in m for m in warning_msgs)
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_final_sync_completes_fast(self, _tok, full_queue):
@@ -450,8 +424,9 @@ class TestBackgroundStopBounded:
                 super().__init__(*args, **kwargs)
                 created_threads.append(self)
 
-        with patch("specify_cli.sync.background.threading.Thread", TrackingThread), patch.object(svc, "_guarded_final_sync"):
-            svc.stop()
+        with patch("specify_cli.sync.background.threading.Thread", TrackingThread):
+            with patch.object(svc, "_guarded_final_sync"):
+                svc.stop()
 
         assert len(created_threads) == 1
         assert created_threads[0].daemon is True
@@ -461,10 +436,7 @@ class TestBackgroundStopBounded:
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="tok")
     @patch("specify_cli.sync.background.batch_sync")
     def test_guarded_final_sync_calls_perform_sync(
-        self,
-        mock_batch,
-        _tok,
-        full_queue,
+        self, mock_batch, _tok, full_queue,
     ):
         """_guarded_final_sync delegates to _perform_sync."""
         from specify_cli.sync.batch import BatchSyncResult
@@ -478,10 +450,7 @@ class TestBackgroundStopBounded:
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="tok")
     @patch("specify_cli.sync.background.batch_sync")
     def test_guarded_final_sync_swallows_exceptions(
-        self,
-        mock_batch,
-        _tok,
-        full_queue,
+        self, mock_batch, _tok, full_queue,
     ):
         """_guarded_final_sync catches and swallows all exceptions."""
         mock_batch.side_effect = RuntimeError("network down")
@@ -509,7 +478,9 @@ class TestBackgroundStopBounded:
         auth_fail = BatchSyncResult()
         auth_fail.error_count = 10
         auth_fail.event_results = [
-            BatchEventResult(event_id="e1", status="rejected", error="Authentication failed", error_category="auth_expired"),
+            BatchEventResult(event_id="e1", status="rejected",
+                             error="Authentication failed",
+                             error_category="auth_expired"),
         ]
         mock_batch.return_value = auth_fail
 
@@ -533,7 +504,9 @@ class TestBackgroundStopBounded:
         auth_fail = BatchSyncResult()
         auth_fail.error_count = 1
         auth_fail.event_results = [
-            BatchEventResult(event_id="e1", status="rejected", error="Authentication failed", error_category="auth_expired"),
+            BatchEventResult(event_id="e1", status="rejected",
+                             error="Authentication failed",
+                             error_category="auth_expired"),
         ]
         mock_batch.return_value = auth_fail
 
@@ -612,7 +585,9 @@ class TestBackgroundStopBounded:
         auth_fail = BatchSyncResult()
         auth_fail.error_count = 10
         auth_fail.event_results = [
-            BatchEventResult(event_id="e1", status="rejected", error="Authentication failed", error_category="auth_expired"),
+            BatchEventResult(event_id="e1", status="rejected",
+                             error="Authentication failed",
+                             error_category="auth_expired"),
         ]
         mock_sync_all.return_value = auth_fail
 
@@ -683,8 +658,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is True
@@ -713,8 +687,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", flaky_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is True
@@ -732,8 +705,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", always_blocked)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is False
@@ -760,8 +732,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", flaky_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is True
@@ -781,8 +752,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", broken_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is False
@@ -804,8 +774,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert fcntl.LOCK_UN not in flock_ops
@@ -828,8 +797,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert fcntl.LOCK_UN in flock_ops
@@ -839,8 +807,7 @@ class TestDaemonBoundedFlock:
         daemon, state_file, lock_file, cfg = self._daemon_env(monkeypatch, tmp_path)
 
         monkeypatch.setattr(
-            daemon,
-            "_ensure_sync_daemon_running_locked",
+            daemon, "_ensure_sync_daemon_running_locked",
             MagicMock(side_effect=RuntimeError("startup boom")),
         )
 
@@ -854,8 +821,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", tracking_flock)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is False
@@ -881,8 +847,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", always_blocked)
 
         daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert sleep_total["s"] == pytest.approx(10.0, abs=0.01)
@@ -896,8 +861,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon, "_daemon_version_matches", lambda *a, **kw: True)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is True
@@ -909,22 +873,19 @@ class TestDaemonBoundedFlock:
 
         # _ensure_sync_daemon_running_locked succeeds
         monkeypatch.setattr(
-            daemon,
-            "_ensure_sync_daemon_running_locked",
+            daemon, "_ensure_sync_daemon_running_locked",
             MagicMock(return_value=("http://127.0.0.1:9400", 9400, True)),
         )
         # State file exists so the parse path is entered
         state_file.write_text("http://127.0.0.1:9400\n9400\ntok\n1234\n")
         # Force _parse_daemon_file to raise (defensive guard)
         monkeypatch.setattr(
-            daemon,
-            "_parse_daemon_file",
+            daemon, "_parse_daemon_file",
             MagicMock(side_effect=OSError("corrupt state")),
         )
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is True
@@ -942,8 +903,7 @@ class TestDaemonBoundedFlock:
         monkeypatch.setattr(daemon.fcntl, "flock", always_blocked)
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.pid is None
@@ -975,10 +935,7 @@ class TestFullQueueExpiredSessionIntegration:
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_with_full_queue_and_body_queue(
-        self,
-        _tok,
-        full_queue,
-        full_body_queue,
+        self, _tok, full_queue, full_body_queue,
     ):
         """stop() also terminates fast when both event and body queues are full."""
         from specify_cli.sync.background import BackgroundSyncService
@@ -1016,8 +973,7 @@ class TestFullQueueExpiredSessionIntegration:
         cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
 
         outcome = daemon.ensure_sync_daemon_running(
-            intent=daemon.DaemonIntent.REMOTE_REQUIRED,
-            config=cfg,
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
         )
 
         assert outcome.started is False
@@ -1026,11 +982,7 @@ class TestFullQueueExpiredSessionIntegration:
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     def test_dossier_sync_no_threads_spawned(
-        self,
-        _flag,
-        mock_sync,
-        tmp_path,
-        monkeypatch,
+        self, _flag, mock_sync, tmp_path, monkeypatch,
     ):
         """After trigger_feature_dossier_sync_if_enabled, no daemon threads remain."""
         import threading

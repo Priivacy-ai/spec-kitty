@@ -1,5 +1,4 @@
 """Unit tests for specify_cli.compat.doctor — classification, shim-existence, and report."""
-
 from __future__ import annotations
 
 from pathlib import Path

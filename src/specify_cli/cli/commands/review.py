@@ -41,7 +41,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -49,7 +50,6 @@ import typer
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.status.reducer import materialize
 from specify_cli.task_utils import TaskCliError, find_repo_root
-import contextlib
 
 
 def review_mission(
@@ -75,7 +75,7 @@ def review_mission(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(2) from None
+        raise typer.Exit(2)
 
     # ------------------------------------------------------------------
     # Resolve mission handle → feature_dir
@@ -83,7 +83,7 @@ def review_mission(
     handle = mission.strip()
     if not handle:
         console.print("[red]Error:[/red] --mission is required.")
-        raise typer.Exit(2) from None
+        raise typer.Exit(2)
 
     resolved = resolve_mission_handle(handle, repo_root)
     feature_dir = resolved.feature_dir
@@ -95,8 +95,10 @@ def review_mission(
     meta_path = feature_dir / "meta.json"
     meta: dict[str, object] = {}
     if meta_path.exists():
-        with contextlib.suppress(json.JSONDecodeError, OSError):
+        try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
 
     friendly_name: str = str(meta.get("friendly_name") or mission_slug)
     _bmc_raw = meta.get("baseline_merge_commit")
@@ -110,21 +112,34 @@ def review_mission(
     # Step 1 — WP lane check
     # ==================================================================
     snapshot = materialize(feature_dir)
-    non_done = [wp_id for wp_id, state in snapshot.work_packages.items() if state.get("lane") != "done"]
+    non_done = [
+        wp_id
+        for wp_id, state in snapshot.work_packages.items()
+        if state.get("lane") != "done"
+    ]
     if non_done:
-        console.print(f"  [red]✗[/red]  WP lane check: {len(non_done)} WP(s) not in done")
+        console.print(
+            f"  [red]✗[/red]  WP lane check: {len(non_done)} WP(s) not in done"
+        )
         for wp_id in non_done:
             lane_val = snapshot.work_packages[wp_id].get("lane", "unknown")
             console.print(f"       {wp_id}: {lane_val}")
-            findings.append({"type": "wp_not_done", "wp_id": wp_id, "lane": str(lane_val)})
+            findings.append(
+                {"type": "wp_not_done", "wp_id": wp_id, "lane": str(lane_val)}
+            )
     else:
-        console.print(f"  [green]✓[/green]  WP lane check: all {len(snapshot.work_packages)} WP(s) in done")
+        console.print(
+            f"  [green]✓[/green]  WP lane check: all {len(snapshot.work_packages)} WP(s) in done"
+        )
 
     # ==================================================================
     # Step 2 — Dead-code scan
     # ==================================================================
     if not baseline_merge_commit:
-        console.print("  [yellow]⚠[/yellow]  Dead-code scan skipped: no baseline_merge_commit in meta.json (pre-083 mission)")
+        console.print(
+            "  [yellow]⚠[/yellow]  Dead-code scan skipped: no baseline_merge_commit in meta.json"
+            " (pre-083 mission)"
+        )
     else:
         diff_result = subprocess.run(
             ["git", "diff", f"{baseline_merge_commit}..HEAD", "--", "src/"],
@@ -155,17 +170,27 @@ def review_mission(
                 capture_output=True,
                 text=True,
             )
-            callers = [f for f in grep_result.stdout.strip().splitlines() if f != defined_in and "test" not in f]
+            callers = [
+                f
+                for f in grep_result.stdout.strip().splitlines()
+                if f != defined_in and "test" not in f
+            ]
             if not callers:
                 dead_symbols.append({"symbol": symbol, "file": defined_in})
-                findings.append({"type": "dead_code", "symbol": symbol, "file": defined_in})
+                findings.append(
+                    {"type": "dead_code", "symbol": symbol, "file": defined_in}
+                )
 
         if dead_symbols:
-            console.print(f"  [red]✗[/red]  Dead-code scan: {len(dead_symbols)} unreferenced public symbol(s)")
+            console.print(
+                f"  [red]✗[/red]  Dead-code scan: {len(dead_symbols)} unreferenced public symbol(s)"
+            )
             for d in dead_symbols:
                 console.print(f"       {d['file']}  {d['symbol']}")
         else:
-            console.print("  [green]✓[/green]  Dead-code scan: 0 unreferenced public symbols")
+            console.print(
+                "  [green]✓[/green]  Dead-code scan: 0 unreferenced public symbols"
+            )
 
     # ==================================================================
     # Step 3 — BLE001 unjustified suppression audit
@@ -194,11 +219,17 @@ def review_mission(
                 # Remove other rule codes (e.g. ", S110") from the tail
                 after = re.sub(r"^[A-Z0-9,\s]+", "", after).strip()
                 if not after or after in ("—", "-", "–"):
-                    ble001_findings.append({"file": file_path, "line": line_no, "content": content.strip()})
-                    findings.append({"type": "ble001_suppression", "file": file_path, "line": line_no})
+                    ble001_findings.append(
+                        {"file": file_path, "line": line_no, "content": content.strip()}
+                    )
+                    findings.append(
+                        {"type": "ble001_suppression", "file": file_path, "line": line_no}
+                    )
 
     if ble001_findings:
-        console.print(f"  [red]✗[/red]  BLE001 audit: {len(ble001_findings)} unjustified suppression(s)")
+        console.print(
+            f"  [red]✗[/red]  BLE001 audit: {len(ble001_findings)} unjustified suppression(s)"
+        )
         for b in ble001_findings:
             console.print(f"       {b['file']}:{b['line']}")
     else:
@@ -215,7 +246,7 @@ def review_mission(
     else:
         verdict = "pass"
 
-    reviewed_at = datetime.now(UTC).isoformat()
+    reviewed_at = datetime.now(timezone.utc).isoformat()
     report_lines = [
         "---",
         f"verdict: {verdict}",
@@ -229,11 +260,17 @@ def review_mission(
         report_lines.append("")
         for f in findings:
             if f["type"] == "wp_not_done":
-                report_lines.append(f"- **wp_not_done** `{f['wp_id']}`: lane is `{f.get('lane', 'unknown')}`")
+                report_lines.append(
+                    f"- **wp_not_done** `{f['wp_id']}`: lane is `{f.get('lane', 'unknown')}`"
+                )
             elif f["type"] == "dead_code":
-                report_lines.append(f"- **dead_code** `{f['file']}` — `{f['symbol']}`: no non-test callers found")
+                report_lines.append(
+                    f"- **dead_code** `{f['file']}` — `{f['symbol']}`: no non-test callers found"
+                )
             elif f["type"] == "ble001_suppression":
-                report_lines.append(f"- **ble001_suppression** `{f['file']}:{f['line']}`: no inline justification")
+                report_lines.append(
+                    f"- **ble001_suppression** `{f['file']}:{f['line']}`: no inline justification"
+                )
     else:
         report_lines.append("No findings.")
 
@@ -243,8 +280,12 @@ def review_mission(
     # ------------------------------------------------------------------
     # Summary output
     # ------------------------------------------------------------------
-    verdict_color = "green" if verdict == "pass" else ("yellow" if verdict == "pass_with_notes" else "red")
-    console.print(f"\nVerdict: [{verdict_color}]{verdict}[/{verdict_color}]  ({len(findings)} finding(s))")
+    verdict_color = (
+        "green" if verdict == "pass" else ("yellow" if verdict == "pass_with_notes" else "red")
+    )
+    console.print(
+        f"\nVerdict: [{verdict_color}]{verdict}[/{verdict_color}]  ({len(findings)} finding(s))"
+    )
     try:
         rel_report = report_path.relative_to(repo_root)
     except ValueError:
@@ -252,7 +293,7 @@ def review_mission(
     console.print(f"Report written: {rel_report}")
 
     if verdict == "fail":
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
 
 
 __all__ = ["review_mission"]

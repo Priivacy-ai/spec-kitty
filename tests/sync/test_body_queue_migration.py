@@ -114,7 +114,9 @@ class TestBodyQueueColumnMigration:
         assert "mission_key" not in columns_after
 
         # Verify all 3 rows preserved with data intact
-        rows = conn.execute("SELECT mission_slug, mission_type, artifact_path FROM body_upload_queue ORDER BY id").fetchall()
+        rows = conn.execute(
+            "SELECT mission_slug, mission_type, artifact_path FROM body_upload_queue ORDER BY id"
+        ).fetchall()
         assert len(rows) == 3
         assert rows[0] == ("feat-a", "sw-dev", "spec.md")
         assert rows[1] == ("feat-b", "research", "plan.md")

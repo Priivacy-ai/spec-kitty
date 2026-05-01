@@ -407,7 +407,10 @@ def test_duplicate_proposal_ids_raises() -> None:
 
 def test_perf_200_findings_under_500ms(tmp_path: Path) -> None:
     """NFR-001: schema validation of a 200-finding record must be < 500 ms."""
-    findings = [make_finding(f"F-{i:03d}", f"Finding note {i}" * 5) for i in range(200)]
+    findings = [
+        make_finding(f"F-{i:03d}", f"Finding note {i}" * 5)
+        for i in range(200)
+    ]
     record = RetrospectiveRecord(
         schema_version="1",
         mission=MISSION,

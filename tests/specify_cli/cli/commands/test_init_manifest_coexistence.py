@@ -116,7 +116,9 @@ def test_subsequent_installer_ops_succeed_after_mixed_install(tmp_path: Path) ->
     # the rename, because manifest_store.load would have seen the legacy
     # file and rejected its schema.
     report = command_installer.install(project, "codex")
-    assert len(report.reused_shared) == 12, f"codex install should reuse the 12 existing vibe entries, got {len(report.reused_shared)}"
+    assert len(report.reused_shared) == 12, (
+        f"codex install should reuse the 12 existing vibe entries, got {len(report.reused_shared)}"
+    )
 
     # Manifest now reflects both agents.
     new_data = json.loads(_new_manifest_path(project).read_text(encoding="utf-8"))
@@ -125,7 +127,9 @@ def test_subsequent_installer_ops_succeed_after_mixed_install(tmp_path: Path) ->
 
     # And remove(codex) works — leaving vibe entries intact.
     remove_report = command_installer.remove(project, "codex")
-    assert len(remove_report.kept) == 12, f"vibe should still need all 12 entries, got kept={remove_report.kept}"
+    assert len(remove_report.kept) == 12, (
+        f"vibe should still need all 12 entries, got kept={remove_report.kept}"
+    )
     final = json.loads(_new_manifest_path(project).read_text(encoding="utf-8"))
     for entry in final["entries"]:
         assert entry["agents"] == ["vibe"], entry
@@ -143,4 +147,6 @@ def test_skill_only_install_alone_does_not_create_legacy_manifest(tmp_path: Path
 
     command_installer.install(project, "vibe")
     assert _new_manifest_path(project).is_file()
-    assert not _legacy_manifest_path(project).exists(), "command_installer must not write the legacy manifest path"
+    assert not _legacy_manifest_path(project).exists(), (
+        "command_installer must not write the legacy manifest path"
+    )

@@ -40,7 +40,9 @@ def _write_lint_report(tmp_path: Path, findings: list, **extra) -> None:
         "duration_seconds": 1.24,
         **extra,
     }
-    (kittify / "lint-report.json").write_text(json.dumps(report), encoding="utf-8")
+    (kittify / "lint-report.json").write_text(
+        json.dumps(report), encoding="utf-8"
+    )
 
 
 class TestLintTileHandlerReportExists:
@@ -129,7 +131,9 @@ class TestLintTileHandlerCorruptReport:
 
         kittify = tmp_path / ".kittify"
         kittify.mkdir(parents=True, exist_ok=True)
-        (kittify / "lint-report.json").write_text("{not valid json!!!", encoding="utf-8")
+        (kittify / "lint-report.json").write_text(
+            "{not valid json!!!", encoding="utf-8"
+        )
 
         handler = _make_handler(tmp_path)
         # Must not raise

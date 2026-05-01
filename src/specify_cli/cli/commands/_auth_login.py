@@ -61,7 +61,10 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         session = tm.get_current_session()
         assert session is not None  # is_authenticated guarantees this
         console.print(f"[green]+ Already logged in as {session.email}[/green]")
-        console.print("Run [bold]spec-kitty auth login --force[/bold] to re-authenticate, or [bold]spec-kitty auth logout[/bold] first.")
+        console.print(
+            "Run [bold]spec-kitty auth login --force[/bold] to re-authenticate, "
+            "or [bold]spec-kitty auth logout[/bold] first."
+        )
         return
 
     if force and tm.is_authenticated:
@@ -94,7 +97,10 @@ async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
         raise typer.Exit(1) from None
     except CallbackValidationError as exc:
         console.print(f"[red]X Callback validation failed: {exc}[/red]")
-        console.print("This may indicate a CSRF attack or a stale browser tab. Run [bold]spec-kitty auth login[/bold] again.")
+        console.print(
+            "This may indicate a CSRF attack or a stale browser tab. "
+            "Run [bold]spec-kitty auth login[/bold] again."
+        )
         raise typer.Exit(1) from exc
     except BrowserLaunchError as exc:
         console.print(f"[red]X Could not launch browser: {exc}[/red]")
@@ -125,7 +131,9 @@ async def _run_device_flow(tm: TokenManager, saas_url: str) -> None:
             DeviceCodeFlow,
         )
     except ImportError as exc:
-        console.print("[red]X Headless login is not yet implemented (waiting on WP05).[/red]")
+        console.print(
+            "[red]X Headless login is not yet implemented (waiting on WP05).[/red]"
+        )
         raise typer.Exit(1) from exc
 
     flow = DeviceCodeFlow(

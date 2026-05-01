@@ -129,7 +129,9 @@ def test_remove_vibe_only(tmp_path: Path) -> None:
 
     # Manifest must be empty
     manifest_after = manifest_store.load(tmp_path)
-    assert len(manifest_after.entries) == 0, f"Expected empty manifest after remove vibe; got {len(manifest_after.entries)} entries"
+    assert len(manifest_after.entries) == 0, (
+        f"Expected empty manifest after remove vibe; got {len(manifest_after.entries)} entries"
+    )
 
     # Skill dirs must be gone
     skills_root = tmp_path / ".agents" / "skills"
@@ -177,17 +179,23 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
 
     # Manifest must still have 12 entries — codex still owns them
     manifest_after = manifest_store.load(tmp_path)
-    assert len(manifest_after.entries) == 12, f"Expected 12 entries (codex still present); got {len(manifest_after.entries)}"
+    assert len(manifest_after.entries) == 12, (
+        f"Expected 12 entries (codex still present); got {len(manifest_after.entries)}"
+    )
 
     # All entries must be codex-only now
     for entry in manifest_after.entries:
-        assert entry.agents == ("codex",), f"Entry {entry.path} has agents={entry.agents}, expected ('codex',)"
+        assert entry.agents == ("codex",), (
+            f"Entry {entry.path} has agents={entry.agents}, expected ('codex',)"
+        )
 
     # Files must be byte-identical (no rewrite)
     for entry in manifest_after.entries:
         abs_path = tmp_path / entry.path
         assert abs_path.exists(), f"File missing: {entry.path}"
-        assert abs_path.read_bytes() == snapshots[entry.path], f"File content changed after removing vibe: {entry.path}"
+        assert abs_path.read_bytes() == snapshots[entry.path], (
+            f"File content changed after removing vibe: {entry.path}"
+        )
 
     # Config must not contain vibe but must still contain codex
     config = load_agent_config(tmp_path)

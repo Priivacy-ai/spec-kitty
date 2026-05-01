@@ -22,7 +22,6 @@ synthesis manifest).  This extension is **additive only** — no schema version
 bump, legacy bundles without synthesis state pass exactly as they did under
 v1.0.0 (C-012 backward-compat guarantee, see ``BundleValidationResult``).
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -69,15 +68,23 @@ class CharterBundleManifest(BaseModel):
         derived = set(self.derived_files)
         overlap = tracked & derived
         if overlap:
-            raise ValueError(f"Paths appear in both tracked and derived: {sorted(str(p) for p in overlap)}")
+            raise ValueError(
+                f"Paths appear in both tracked and derived: {sorted(str(p) for p in overlap)}"
+            )
         # Every key in derivation_sources must appear in derived_files.
         missing_keys = set(self.derivation_sources.keys()) - derived
         if missing_keys:
-            raise ValueError(f"derivation_sources keys not in derived_files: {sorted(str(p) for p in missing_keys)}")
+            raise ValueError(
+                "derivation_sources keys not in derived_files: "
+                f"{sorted(str(p) for p in missing_keys)}"
+            )
         # Every value in derivation_sources must appear in tracked_files.
         missing_values = set(self.derivation_sources.values()) - tracked
         if missing_values:
-            raise ValueError(f"derivation_sources values not in tracked_files: {sorted(str(p) for p in missing_values)}")
+            raise ValueError(
+                "derivation_sources values not in tracked_files: "
+                f"{sorted(str(p) for p in missing_values)}"
+            )
         return self
 
 
@@ -178,7 +185,10 @@ def _check_stale_failed_dirs(repo_root: Path, result: BundleValidationResult) ->
         return
     for d in sorted(staging_root.iterdir()):
         if d.name.endswith(".failed") and d.is_dir():
-            result.warnings.append(f"Stale failed staging directory found: {d.relative_to(repo_root)} (inspect cause.yaml, then remove to suppress this warning)")
+            result.warnings.append(
+                f"Stale failed staging directory found: {d.relative_to(repo_root)} "
+                "(inspect cause.yaml, then remove to suppress this warning)"
+            )
 
 
 def _collect_artifact_files(doctrine_root: Path) -> list[Path]:
@@ -202,7 +212,10 @@ def _check_artifacts_have_provenance(
             continue
         expected_prov = provenance_root / f"{kind}-{slug}.yaml"
         if not expected_prov.exists():
-            result.errors.append(f"Artifact '{artifact_path.relative_to(repo_root)}' has no provenance sidecar (expected: {expected_prov.relative_to(repo_root)})")
+            result.errors.append(
+                f"Artifact '{artifact_path.relative_to(repo_root)}' has no provenance sidecar "
+                f"(expected: {expected_prov.relative_to(repo_root)})"
+            )
 
 
 def _check_provenance_have_artifacts(
@@ -218,14 +231,21 @@ def _check_provenance_have_artifacts(
         stem = prov_file.stem  # e.g. "directive-my-slug"
         parts = stem.split("-", 1)
         if len(parts) != 2:
-            result.errors.append(f"Provenance file has unexpected name format: {prov_file.relative_to(repo_root)}")
+            result.errors.append(
+                f"Provenance file has unexpected name format: {prov_file.relative_to(repo_root)}"
+            )
             continue
         kind, slug = parts[0], parts[1]
         if kind not in _KIND_SUFFIX:
-            result.errors.append(f"Provenance file has unknown kind '{kind}': {prov_file.relative_to(repo_root)}")
+            result.errors.append(
+                f"Provenance file has unknown kind '{kind}': {prov_file.relative_to(repo_root)}"
+            )
             continue
         if _find_artifact(doctrine_root, kind, slug) is None:
-            result.errors.append(f"Provenance sidecar '{prov_file.relative_to(repo_root)}' references non-existent artifact (kind={kind}, slug={slug})")
+            result.errors.append(
+                f"Provenance sidecar '{prov_file.relative_to(repo_root)}' references "
+                f"non-existent artifact (kind={kind}, slug={slug})"
+            )
 
 
 def _check_manifest_integrity(repo_root: Path, result: BundleValidationResult) -> None:
@@ -239,7 +259,6 @@ def _check_manifest_integrity(repo_root: Path, result: BundleValidationResult) -
             verify as verify_manifest,
             verify_manifest_hash,
         )
-
         manifest = load_manifest(manifest_path)
     except Exception as exc:
         result.errors.append(f"Could not load synthesis manifest: {exc}")

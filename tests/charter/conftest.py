@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-import contextlib
 
 _THIS_DIR = Path(__file__).parent
 
@@ -55,12 +54,14 @@ def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
         tmp_path: Path = request.getfixturevalue("tmp_path")
         # Run git init quietly; ignore failure (some tests may not need git
         # but the fixture activates whenever tmp_path is requested).
-        with contextlib.suppress(FileNotFoundError, OSError):
+        try:
             subprocess.run(
                 ["git", "init", "--quiet", str(tmp_path)],
                 check=False,
                 capture_output=True,
             )
+        except (FileNotFoundError, OSError):
+            pass
     yield
     # Drop the cache so paths from previous tests don't shadow this one.
     try:

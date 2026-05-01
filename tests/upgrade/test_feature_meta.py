@@ -10,7 +10,6 @@ from specify_cli.upgrade.feature_meta import build_baseline_feature_meta, infer_
 
 pytestmark = pytest.mark.fast
 
-
 def test_build_baseline_feature_meta_replaces_blank_fields(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -68,83 +67,139 @@ def _setup_feature(tmp_path: Path, doc_name: str, content: str) -> tuple[Path, P
 class TestInferTargetBranch:
     """Tests for infer_target_branch covering all regex patterns and edge cases."""
 
-    def test_no_doc_files_returns_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_no_doc_files_returns_fallback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         repo_root = tmp_path / "repo"
         feature_dir = repo_root / "kitty-specs" / "099-empty"
         feature_dir.mkdir(parents=True)
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "main"
 
-    def test_explicit_fallback_kwarg(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_explicit_fallback_kwarg(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         repo_root = tmp_path / "repo"
         feature_dir = repo_root / "kitty-specs" / "099-empty"
         feature_dir.mkdir(parents=True)
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root, fallback="develop") == "develop"
 
-    def test_pattern_target_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "**Target Branch**: release/1.0\n")
+    def test_pattern_target_branch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "**Target Branch**: release/1.0\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "release/1.0"
 
-    def test_pattern_base_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "**Base Branch**: develop\n")
+    def test_pattern_base_branch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "**Base Branch**: develop\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "develop"
 
-    def test_pattern_target_repo_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "target repo branch: staging\n")
+    def test_pattern_target_repo_branch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "target repo branch: staging\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "staging"
 
-    def test_pattern_branch_colon(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "branch: 2.x\n")
+    def test_pattern_branch_colon(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "branch: 2.x\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "2.x"
 
-    def test_pattern_must_be_done_on_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "All work must be done on the `feature/v3` branch.\n")
+    def test_pattern_must_be_done_on_branch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "All work must be done on the `feature/v3` branch.\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "feature/v3"
 
-    def test_pattern_merge_back_to(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "merge back to `develop`\n")
+    def test_pattern_merge_back_to(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "merge back to `develop`\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "develop"
 
-    def test_pattern_repository_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "repository https://github.com/org/repo branch `2.x`\n")
+    def test_pattern_repository_branch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "repository https://github.com/org/repo branch `2.x`\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "2.x"
 
-    def test_backtick_wrapped_branch_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "**Target Branch**: `hotfix/urgent`\n")
+    def test_backtick_wrapped_branch_name(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "**Target Branch**: `hotfix/urgent`\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "hotfix/urgent"
 
-    def test_multiple_candidates_fallback_among_them(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        content = "**Target Branch**: develop\nbranch: main\n"
+    def test_multiple_candidates_fallback_among_them(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        content = (
+            "**Target Branch**: develop\n"
+            "branch: main\n"
+        )
         feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", content)
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "main"
 
-    def test_multiple_candidates_fallback_not_among_them(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        content = "**Target Branch**: release/1.0\nbranch: staging\n"
+    def test_multiple_candidates_fallback_not_among_them(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        content = (
+            "**Target Branch**: release/1.0\n"
+            "branch: staging\n"
+        )
         feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", content)
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "main"
 
-    def test_branch_found_in_tasks_md(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "tasks.md", "**Target Branch**: release/2.0\n")
+    def test_branch_found_in_tasks_md(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "tasks.md", "**Target Branch**: release/2.0\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "release/2.0"
 
-    def test_or_in_value_rejected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "**Target Branch**: main or develop\n")
+    def test_or_in_value_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md", "**Target Branch**: main or develop\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "main"
 
-    def test_deduplication_same_branch_two_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_deduplication_same_branch_two_files(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         repo_root = tmp_path / "repo"
         feature_dir = repo_root / "kitty-specs" / "099-dedup"
         feature_dir.mkdir(parents=True)
@@ -153,7 +208,12 @@ class TestInferTargetBranch:
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "release/3.0"
 
-    def test_all_work_packages_branch_from_pattern(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        feature_dir, repo_root = _setup_feature(tmp_path, "spec.md", "all work packages branch from and merge back to `2.x`\n")
+    def test_all_work_packages_branch_from_pattern(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir, repo_root = _setup_feature(
+            tmp_path, "spec.md",
+            "all work packages branch from and merge back to `2.x`\n"
+        )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "2.x"

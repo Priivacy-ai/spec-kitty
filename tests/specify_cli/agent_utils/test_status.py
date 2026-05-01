@@ -34,34 +34,32 @@ pytestmark = pytest.mark.fast
 # T008: progress_bucket() regression — all 9 lanes map to expected buckets
 # ---------------------------------------------------------------------------
 
-
-@pytest.mark.parametrize(
-    "lane_str,expected_bucket",
-    [
-        ("planned", "not_started"),
-        ("claimed", "in_flight"),
-        ("in_progress", "in_flight"),
-        ("for_review", "review"),
-        ("in_review", "review"),
-        ("approved", "review"),
-        ("done", "terminal"),
-        ("blocked", "in_flight"),
-        ("canceled", "terminal"),
-    ],
-)
+@pytest.mark.parametrize("lane_str,expected_bucket", [
+    ("planned",    "not_started"),
+    ("claimed",    "in_flight"),
+    ("in_progress","in_flight"),
+    ("for_review", "review"),
+    ("in_review",  "review"),
+    ("approved",   "review"),
+    ("done",       "terminal"),
+    ("blocked",    "in_flight"),
+    ("canceled",   "terminal"),
+])
 def test_progress_bucket_all_9_lanes(lane_str: str, expected_bucket: str) -> None:
     """Each lane produces the expected progress_bucket() value."""
     state = wp_state_for(lane_str)
-    assert state.progress_bucket() == expected_bucket, f"Lane {lane_str!r} -> bucket {state.progress_bucket()!r} != {expected_bucket!r}"
+    assert state.progress_bucket() == expected_bucket, (
+        f"Lane {lane_str!r} -> bucket {state.progress_bucket()!r} != {expected_bucket!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # T008: _analyze_parallelization uses progress_bucket() (not raw strings)
 # ---------------------------------------------------------------------------
 
-
 def _make_wp(wp_id: str, lane: Lane, deps: list | None = None) -> dict:
-    return {"id": wp_id, "title": f"Title for {wp_id}", "lane": lane, "phase": "P1", "file": f"{wp_id}.md", "dependencies": deps or []}
+    return {"id": wp_id, "title": f"Title for {wp_id}", "lane": lane,
+            "phase": "P1", "file": f"{wp_id}.md", "dependencies": deps or []}
 
 
 def test_analyze_parallelization_skips_in_flight_wps() -> None:
@@ -136,7 +134,6 @@ def test_analyze_parallelization_parallel_group_when_multiple_ready() -> None:
 # T008: show_kanban_status() integration test with real filesystem
 # ---------------------------------------------------------------------------
 
-
 def _create_wp_file(tasks_dir: Path, wp_id: str, title: str) -> None:
     """Write a minimal WP frontmatter file."""
     content = textwrap.dedent(f"""\
@@ -200,67 +197,36 @@ def test_show_kanban_status_uses_lane_enum_grouping(mock_project: Path, monkeypa
     _create_wp_file(tasks_dir, "WP03", "Done Work")
     _create_wp_file(tasks_dir, "WP04", "For Review Work")
 
-    _create_events_jsonl(
-        feature_dir,
-        [
-            {
-                "event_id": "01AAA001",
-                "at": "2026-01-01T00:00:00+00:00",
-                "feature_slug": mission_slug,
-                "wp_id": "WP01",
-                "from_lane": "planned",
-                "to_lane": "planned",
-                "actor": "test",
-                "force": False,
-                "reason": None,
-                "evidence": None,
-                "review_ref": None,
-                "execution_mode": "worktree",
-            },
-            {
-                "event_id": "01AAA002",
-                "at": "2026-01-01T00:01:00+00:00",
-                "feature_slug": mission_slug,
-                "wp_id": "WP02",
-                "from_lane": "planned",
-                "to_lane": "in_progress",
-                "actor": "test",
-                "force": True,
-                "reason": None,
-                "evidence": None,
-                "review_ref": None,
-                "execution_mode": "worktree",
-            },
-            {
-                "event_id": "01AAA003",
-                "at": "2026-01-01T00:02:00+00:00",
-                "feature_slug": mission_slug,
-                "wp_id": "WP03",
-                "from_lane": "planned",
-                "to_lane": "done",
-                "actor": "test",
-                "force": True,
-                "reason": None,
-                "evidence": None,
-                "review_ref": None,
-                "execution_mode": "worktree",
-            },
-            {
-                "event_id": "01AAA004",
-                "at": "2026-01-01T00:03:00+00:00",
-                "feature_slug": mission_slug,
-                "wp_id": "WP04",
-                "from_lane": "planned",
-                "to_lane": "for_review",
-                "actor": "test",
-                "force": True,
-                "reason": None,
-                "evidence": None,
-                "review_ref": None,
-                "execution_mode": "worktree",
-            },
-        ],
-    )
+    _create_events_jsonl(feature_dir, [
+        {
+            "event_id": "01AAA001", "at": "2026-01-01T00:00:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP01",
+            "from_lane": "planned", "to_lane": "planned",
+            "actor": "test", "force": False, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
+        },
+        {
+            "event_id": "01AAA002", "at": "2026-01-01T00:01:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP02",
+            "from_lane": "planned", "to_lane": "in_progress",
+            "actor": "test", "force": True, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
+        },
+        {
+            "event_id": "01AAA003", "at": "2026-01-01T00:02:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP03",
+            "from_lane": "planned", "to_lane": "done",
+            "actor": "test", "force": True, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
+        },
+        {
+            "event_id": "01AAA004", "at": "2026-01-01T00:03:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP04",
+            "from_lane": "planned", "to_lane": "for_review",
+            "actor": "test", "force": True, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
+        },
+    ])
 
     monkeypatch.chdir(mock_project)
     monkeypatch.setattr(
@@ -309,18 +275,11 @@ def test_show_kanban_status_all_9_lanes(mock_project: Path, monkeypatch: pytest.
 
     events = [
         {
-            "event_id": f"01AAA{i + 1:03d}",
-            "at": f"2026-01-01T00:{i:02d}:00+00:00",
-            "feature_slug": mission_slug,
-            "wp_id": wp_id,
-            "from_lane": "planned",
-            "to_lane": lane,
-            "actor": "test",
-            "force": True,
-            "reason": None,
-            "evidence": None,
-            "review_ref": None,
-            "execution_mode": "worktree",
+            "event_id": f"01AAA{i+1:03d}", "at": f"2026-01-01T00:{i:02d}:00+00:00",
+            "feature_slug": mission_slug, "wp_id": wp_id,
+            "from_lane": "planned", "to_lane": lane,
+            "actor": "test", "force": True, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
         }
         for i, (wp_id, lane) in enumerate(lanes_to_test)
     ]
@@ -351,7 +310,6 @@ def test_show_kanban_status_all_9_lanes(mock_project: Path, monkeypatch: pytest.
 # Helper factories for StatusEvent
 # ---------------------------------------------------------------------------
 
-
 def _make_status_event(
     wp_id: str,
     at: str,
@@ -376,23 +334,30 @@ def _make_status_event(
 # T023 / T024: _get_wp_review_verdict helper
 # ---------------------------------------------------------------------------
 
-
 def test_get_wp_review_verdict_returns_rejected(tmp_path: Path) -> None:
     """_get_wp_review_verdict returns 'rejected' when latest review cycle has it."""
-    (tmp_path / "review-cycle-1.md").write_text("---\nverdict: rejected\n---\n# Review\n", encoding="utf-8")
+    (tmp_path / "review-cycle-1.md").write_text(
+        "---\nverdict: rejected\n---\n# Review\n", encoding="utf-8"
+    )
     assert _get_wp_review_verdict(tmp_path) == "rejected"
 
 
 def test_get_wp_review_verdict_returns_approved(tmp_path: Path) -> None:
     """_get_wp_review_verdict returns 'approved' for an approved verdict."""
-    (tmp_path / "review-cycle-1.md").write_text("---\nverdict: approved\n---\n# Review\n", encoding="utf-8")
+    (tmp_path / "review-cycle-1.md").write_text(
+        "---\nverdict: approved\n---\n# Review\n", encoding="utf-8"
+    )
     assert _get_wp_review_verdict(tmp_path) == "approved"
 
 
 def test_get_wp_review_verdict_latest_cycle_wins(tmp_path: Path) -> None:
     """_get_wp_review_verdict returns verdict from the highest-numbered cycle."""
-    (tmp_path / "review-cycle-1.md").write_text("---\nverdict: rejected\n---\n", encoding="utf-8")
-    (tmp_path / "review-cycle-2.md").write_text("---\nverdict: approved\n---\n", encoding="utf-8")
+    (tmp_path / "review-cycle-1.md").write_text(
+        "---\nverdict: rejected\n---\n", encoding="utf-8"
+    )
+    (tmp_path / "review-cycle-2.md").write_text(
+        "---\nverdict: approved\n---\n", encoding="utf-8"
+    )
     assert _get_wp_review_verdict(tmp_path) == "approved"
 
 
@@ -403,14 +368,15 @@ def test_get_wp_review_verdict_no_files_returns_none(tmp_path: Path) -> None:
 
 def test_get_wp_review_verdict_no_frontmatter_returns_none(tmp_path: Path) -> None:
     """_get_wp_review_verdict returns None when the review file has no frontmatter."""
-    (tmp_path / "review-cycle-1.md").write_text("# No frontmatter here\n", encoding="utf-8")
+    (tmp_path / "review-cycle-1.md").write_text(
+        "# No frontmatter here\n", encoding="utf-8"
+    )
     assert _get_wp_review_verdict(tmp_path) is None
 
 
 # ---------------------------------------------------------------------------
 # T024: _get_last_event_time helper
 # ---------------------------------------------------------------------------
-
 
 def test_get_last_event_time_returns_most_recent(tmp_path: Path) -> None:
     """_get_last_event_time returns the datetime of the most recent event for wp_id."""
@@ -439,7 +405,6 @@ def test_get_last_event_time_empty_list() -> None:
 # T025 / T026: stall detection in show_kanban_status()
 # ---------------------------------------------------------------------------
 
-
 def _make_project_with_in_review_wp(
     tmp_path: Path,
     mission_slug: str,
@@ -460,18 +425,11 @@ def _make_project_with_in_review_wp(
 
     events = [
         {
-            "event_id": "01AAA001",
-            "at": at_timestamp,
-            "feature_slug": mission_slug,
-            "wp_id": "WP01",
-            "from_lane": "for_review",
-            "to_lane": "in_review",
-            "actor": "test",
-            "force": False,
-            "reason": None,
-            "evidence": None,
-            "review_ref": None,
-            "execution_mode": "worktree",
+            "event_id": "01AAA001", "at": at_timestamp,
+            "feature_slug": mission_slug, "wp_id": "WP01",
+            "from_lane": "for_review", "to_lane": "in_review",
+            "actor": "test", "force": False, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
         }
     ]
     _create_events_jsonl(feature_dir, events)
@@ -493,7 +451,6 @@ def test_stall_detected_above_threshold(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.setattr("specify_cli.agent_utils.status.get_main_repo_root", lambda r: project)
     # Freeze datetime.now() in the status module
     import specify_cli.agent_utils.status as status_mod
-
     monkeypatch.setattr(status_mod, "datetime", _FakeDatetime(fake_now))
 
     result = show_kanban_status(mission_slug)
@@ -518,7 +475,6 @@ def test_stall_not_detected_below_threshold(monkeypatch: pytest.MonkeyPatch, tmp
     monkeypatch.setattr("specify_cli.agent_utils.status.locate_project_root", lambda cwd: project)
     monkeypatch.setattr("specify_cli.agent_utils.status.get_main_repo_root", lambda r: project)
     import specify_cli.agent_utils.status as status_mod
-
     monkeypatch.setattr(status_mod, "datetime", _FakeDatetime(fake_now))
 
     result = show_kanban_status(mission_slug)
@@ -531,8 +487,9 @@ def test_stall_not_detected_below_threshold(monkeypatch: pytest.MonkeyPatch, tmp
 # T023: stale verdict warning in show_kanban_status()
 # ---------------------------------------------------------------------------
 
-
-def test_stale_verdict_warning_shown_in_done_lane(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_stale_verdict_warning_shown_in_done_lane(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """WP in done lane with review-cycle-1.md verdict=rejected appears in stale_verdicts."""
     mission_slug = "test-stale-verdict"
     kittify = tmp_path / ".kittify"
@@ -551,23 +508,18 @@ def test_stale_verdict_warning_shown_in_done_lane(monkeypatch: pytest.MonkeyPatc
     # not tasks/<WP_ID>/.
     wp_dir = tasks_dir / "WP01-stub"
     wp_dir.mkdir()
-    (wp_dir / "review-cycle-1.md").write_text("---\nverdict: rejected\n---\n# Review\n", encoding="utf-8")
+    (wp_dir / "review-cycle-1.md").write_text(
+        "---\nverdict: rejected\n---\n# Review\n", encoding="utf-8"
+    )
 
     # Event: WP01 is done
     events = [
         {
-            "event_id": "01AAA001",
-            "at": "2026-01-01T00:00:00+00:00",
-            "feature_slug": mission_slug,
-            "wp_id": "WP01",
-            "from_lane": "approved",
-            "to_lane": "done",
-            "actor": "test",
-            "force": True,
-            "reason": None,
-            "evidence": None,
-            "review_ref": None,
-            "execution_mode": "worktree",
+            "event_id": "01AAA001", "at": "2026-01-01T00:00:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP01",
+            "from_lane": "approved", "to_lane": "done",
+            "actor": "test", "force": True, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
         }
     ]
     _create_events_jsonl(feature_dir, events)
@@ -585,7 +537,9 @@ def test_stale_verdict_warning_shown_in_done_lane(monkeypatch: pytest.MonkeyPatc
     assert "rejected" in stale[0]["artifact"]
 
 
-def test_stale_verdict_clean_no_warning(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_stale_verdict_clean_no_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """WP in done lane with verdict=approved does NOT appear in stale_verdicts."""
     mission_slug = "test-clean-verdict"
     kittify = tmp_path / ".kittify"
@@ -601,22 +555,17 @@ def test_stale_verdict_clean_no_warning(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
     wp_dir = tasks_dir / "WP01-stub"
     wp_dir.mkdir()
-    (wp_dir / "review-cycle-1.md").write_text("---\nverdict: approved\n---\n# Review\n", encoding="utf-8")
+    (wp_dir / "review-cycle-1.md").write_text(
+        "---\nverdict: approved\n---\n# Review\n", encoding="utf-8"
+    )
 
     events = [
         {
-            "event_id": "01AAA001",
-            "at": "2026-01-01T00:00:00+00:00",
-            "feature_slug": mission_slug,
-            "wp_id": "WP01",
-            "from_lane": "approved",
-            "to_lane": "done",
-            "actor": "test",
-            "force": True,
-            "reason": None,
-            "evidence": None,
-            "review_ref": None,
-            "execution_mode": "worktree",
+            "event_id": "01AAA001", "at": "2026-01-01T00:00:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP01",
+            "from_lane": "approved", "to_lane": "done",
+            "actor": "test", "force": True, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
         }
     ]
     _create_events_jsonl(feature_dir, events)
@@ -634,7 +583,6 @@ def test_stale_verdict_clean_no_warning(monkeypatch: pytest.MonkeyPatch, tmp_pat
 # ---------------------------------------------------------------------------
 # Helper: fake datetime class for monkeypatching datetime.now()
 # ---------------------------------------------------------------------------
-
 
 class _FakeDatetime:
     """Fake datetime replacement that returns a fixed ``now``."""

@@ -166,7 +166,10 @@ class CallbackServer:
                 return dict(params)
             await asyncio.sleep(_POLL_INTERVAL)
 
-        raise CallbackTimeoutError(f"Callback timed out after {self._timeout} seconds. Run `spec-kitty auth login` again.")
+        raise CallbackTimeoutError(
+            f"Callback timed out after {self._timeout} seconds. "
+            "Run `spec-kitty auth login` again."
+        )
 
     def _find_port(self) -> int:
         """Find an available port; try the preferred range first, then OS."""

@@ -7,6 +7,7 @@ authenticated requests trigger refresh failures in the same process.
 
 from __future__ import annotations
 
+import io
 from typing import Any
 
 import pytest
@@ -121,4 +122,7 @@ class TestTokenRefreshDedup:
 
         captured = capsys.readouterr()
         occurrences = captured.err.count("Authentication expired")
-        assert occurrences == 1, f"Expected exactly one user-facing token-refresh line, got {occurrences}\nstderr was:\n{captured.err}"
+        assert occurrences == 1, (
+            f"Expected exactly one user-facing token-refresh line, got {occurrences}\n"
+            f"stderr was:\n{captured.err}"
+        )

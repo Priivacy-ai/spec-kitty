@@ -2,13 +2,12 @@
 
 See ADR-002-mode-derivation.md for the rationale and acceptance mapping.
 """
-
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum
 
 
-class ModeOfWork(StrEnum):
+class ModeOfWork(str, Enum):
     ADVISORY = "advisory"
     TASK_EXECUTION = "task_execution"
     MISSION_STEP = "mission_step"

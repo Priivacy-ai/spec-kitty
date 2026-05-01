@@ -10,8 +10,6 @@ import pytest
 from specify_cli.core.git_ops import run_command
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.flaky]  # flaky: target_branch detection differs between mutmut stats and clean-test phases — TODO: root-cause
-
-
 @pytest.fixture(name="_git_identity")
 def git_identity_fixture(monkeypatch):
     """Ensure git commands can commit even if the user has no global config."""

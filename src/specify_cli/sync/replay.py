@@ -35,8 +35,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any
-from collections.abc import Callable, Iterable
+from typing import Any, Callable, Iterable
 
 
 __all__ = [
@@ -318,7 +317,8 @@ def replay_events(
             _log_conflict(record)
             if raise_on_mismatch:
                 raise TenantMismatch(
-                    f"Replay tenant mismatch: event tenant {decision.tenant_id!r} != target tenant {target.tenant_id!r}",
+                    f"Replay tenant mismatch: event tenant {decision.tenant_id!r} "
+                    f"!= target tenant {target.tenant_id!r}",
                     tenant_id=decision.tenant_id,
                     project_id=decision.project_id,
                     target_tenant_id=target.tenant_id,
@@ -341,7 +341,8 @@ def replay_events(
             _log_conflict(record)
             if raise_on_mismatch:
                 raise ProjectMismatch(
-                    f"Replay project mismatch: event project {decision.project_id!r} != target project {target.project_id!r}",
+                    f"Replay project mismatch: event project {decision.project_id!r} "
+                    f"!= target project {target.project_id!r}",
                     tenant_id=decision.tenant_id,
                     project_id=decision.project_id,
                     target_tenant_id=target.tenant_id,

@@ -1,9 +1,9 @@
 """Regression tests for WP04 T020: resilient write in write_mission_brief."""
-
 from __future__ import annotations
 
 import pytest
 import yaml
+from pathlib import Path
 from specify_cli.mission_brief import (
     BRIEF_SOURCE_FILENAME,
     MISSION_BRIEF_FILENAME,

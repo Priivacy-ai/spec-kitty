@@ -257,7 +257,9 @@ def test_new_mission_feature_dir_uses_human_slug_mid8(tmp_path: Path) -> None:
 
     # Directory name must NOT start with a 3-digit prefix
     dir_name = result.feature_dir.name
-    assert not (len(dir_name) > 3 and dir_name[:3].isdigit() and dir_name[3] == "-"), f"Directory name '{dir_name}' still uses the old NNN-slug format"
+    assert not (len(dir_name) > 3 and dir_name[:3].isdigit() and dir_name[3] == "-"), (
+        f"Directory name '{dir_name}' still uses the old NNN-slug format"
+    )
     # Must end with a mid8 (8 alphanumeric chars) separated by a hyphen
     parts = dir_name.rsplit("-", 1)
     assert len(parts) == 2, f"Expected <slug>-<mid8> format, got '{dir_name}'"

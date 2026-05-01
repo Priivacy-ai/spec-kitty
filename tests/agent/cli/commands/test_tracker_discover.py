@@ -7,6 +7,7 @@ Extended by WP05 of feature 082-stealth-gated-saas-sync-hardening (readiness-awa
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -449,5 +450,6 @@ def test_discover_does_not_require_binding(monkeypatch, tmp_path) -> None:
 
     # And the flag that would enforce binding presence must be False.
     assert captured_kwargs.get("require_mission_binding") is False, (
-        f"discover must pass require_mission_binding=False to the readiness evaluator; got {captured_kwargs.get('require_mission_binding')!r}"
+        f"discover must pass require_mission_binding=False to the "
+        f"readiness evaluator; got {captured_kwargs.get('require_mission_binding')!r}"
     )

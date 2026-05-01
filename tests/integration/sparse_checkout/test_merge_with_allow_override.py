@@ -54,7 +54,9 @@ class TestMergeWithAllowOverride:
         yield
         _reset_session_warning_state()
 
-    def test_override_emits_structured_log_and_does_not_raise(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_override_emits_structured_log_and_does_not_raise(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Override path: preflight returns, structured log captured in caplog."""
         repo = tmp_path / "r"
         _init_git_repo(repo)
@@ -71,8 +73,14 @@ class TestMergeWithAllowOverride:
             mission_id="01HXYZ",
         )
 
-        override_hits = [r for r in caplog.records if "spec_kitty.override.sparse_checkout" in r.getMessage()]
-        assert len(override_hits) == 1, "FR-008 requires exactly one override log record per bypassed call"
+        override_hits = [
+            r
+            for r in caplog.records
+            if "spec_kitty.override.sparse_checkout" in r.getMessage()
+        ]
+        assert len(override_hits) == 1, (
+            "FR-008 requires exactly one override log record per bypassed call"
+        )
         msg = override_hits[0].getMessage()
         assert "command=spec-kitty merge" in msg
         assert "mission_slug=feat-test" in msg
@@ -80,7 +88,9 @@ class TestMergeWithAllowOverride:
         assert "actor=claude" in msg
         assert str(repo) in msg
 
-    def test_override_flag_is_wired_from_cli_to_preflight(self, tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_override_flag_is_wired_from_cli_to_preflight(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Verify the merge command threads ``--allow-sparse-checkout`` to the preflight.
 
         We patch ``require_no_sparse_checkout`` at the merge-module import site
@@ -132,7 +142,10 @@ class TestMergeWithAllowOverride:
         finally:
             os.chdir(original_cwd)
 
-        assert observed.get("override_flag") is True, f"--allow-sparse-checkout must thread through to require_no_sparse_checkout; observed={observed}"
+        assert observed.get("override_flag") is True, (
+            f"--allow-sparse-checkout must thread through to require_no_sparse_checkout; "
+            f"observed={observed}"
+        )
         assert observed.get("command") == "spec-kitty merge"
 
     def test_override_audit_log_carries_resolved_actor_not_unknown(
@@ -166,7 +179,8 @@ class TestMergeWithAllowOverride:
             from specify_cli.git import sparse_checkout as sc_mod_inner
 
             sc_mod_inner.logger.warning(
-                "spec_kitty.override.sparse_checkout command=%s mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
+                "spec_kitty.override.sparse_checkout command=%s "
+                "mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
                 kwargs.get("command"),
                 kwargs.get("mission_slug") or "<none>",
                 kwargs.get("mission_id") or "<none>",
@@ -210,11 +224,16 @@ class TestMergeWithAllowOverride:
         # 1. The preflight arg must carry the resolved identity (not None, not
         #    <unknown>). SPEC_KITTY_AGENT wins over git config per _resolve_merge_actor.
         actor_arg = observed.get("actor")
-        assert actor_arg not in (None, "", "<unknown>"), f"override audit must resolve a real actor; got {actor_arg!r}"
+        assert actor_arg not in (None, "", "<unknown>"), (
+            f"override audit must resolve a real actor; got {actor_arg!r}"
+        )
         assert actor_arg == "claude-integration"
 
         # 2. And the emitted log record must show the resolved identity.
-        override_hits = [r for r in caplog.records if "spec_kitty.override.sparse_checkout" in r.getMessage()]
+        override_hits = [
+            r for r in caplog.records
+            if "spec_kitty.override.sparse_checkout" in r.getMessage()
+        ]
         assert len(override_hits) == 1
         msg = override_hits[0].getMessage()
         assert "actor=claude-integration" in msg

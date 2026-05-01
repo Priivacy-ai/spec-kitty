@@ -256,7 +256,6 @@ def test_materialize_if_stale_skips_when_fresh(tmp_path):
 
     # Set event log mtime to past, derived files to future
     import os
-
     past_time = events_path.stat().st_mtime - 10
     future_time = events_path.stat().st_mtime + 10
     os.utime(events_path, (past_time, past_time))

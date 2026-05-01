@@ -96,7 +96,9 @@ class TestResourcesContract:
     """Contract tests for GET /api/v1/tracker/resources/."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_resources_sends_get_with_provider_param(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_resources_sends_get_with_provider_param(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify GET method, path, and provider query param."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -114,7 +116,9 @@ class TestResourcesContract:
         assert kwargs["params"]["provider"] == "linear"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_resources_parses_response(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_resources_parses_response(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify full contract response shape is parsed correctly."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -155,7 +159,9 @@ class TestResourcesContract:
         assert resource["bound_at"] == "2026-03-01T10:00:00Z"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_resources_empty_list(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_resources_empty_list(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Empty resources list is a valid response, not an error."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -171,7 +177,9 @@ class TestResourcesContract:
         assert result["installation_id"] == "inst_01"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_resources_403_no_installation(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_resources_403_no_installation(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """403 with no_installation error code raises SaaSTrackerClientError."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -198,7 +206,9 @@ class TestBindResolveContract:
     """Contract tests for POST /api/v1/tracker/bind-resolve/."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_sends_post_with_body(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_resolve_sends_post_with_body(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify POST method, path, and body shape with provider + project_identity."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -224,7 +234,9 @@ class TestBindResolveContract:
         assert payload["project_identity"] == PROJECT_IDENTITY
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_exact_match(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_resolve_exact_match(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify exact match response with candidate_token and binding_ref."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -249,7 +261,9 @@ class TestBindResolveContract:
         assert result["candidates"] == []
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_exact_match_no_existing_mapping(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_resolve_exact_match_no_existing_mapping(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Exact match with null binding_ref means CLI must call bind-confirm."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -272,7 +286,9 @@ class TestBindResolveContract:
         assert result["binding_ref"] is None
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_candidates(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_resolve_candidates(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify candidates array parsed with confidence and sort_position."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -322,7 +338,9 @@ class TestBindResolveContract:
         assert second["sort_position"] == 1
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_resolve_none(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_resolve_none(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify none match type: all optional fields are null."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -356,7 +374,9 @@ class TestBindConfirmContract:
     """Contract tests for POST /api/v1/tracker/bind-confirm/."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_sends_post_with_body(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_confirm_sends_post_with_body(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify POST method, path, and body has provider, candidate_token, project_identity."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -386,7 +406,9 @@ class TestBindConfirmContract:
         assert payload["project_identity"] == PROJECT_IDENTITY
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_response_shape(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_confirm_response_shape(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify full 200 response parsed with all contract fields."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -415,12 +437,16 @@ class TestBindConfirmContract:
         assert result["bound_at"] == "2026-04-04T08:32:00Z"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_sends_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_confirm_sends_idempotency_key(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify Idempotency-Key header is sent (not X-Idempotency-Key)."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"binding_ref": "srm_01HXYZ"})
+        mock_http.request.return_value = _make_response(
+            200, {"binding_ref": "srm_01HXYZ"}
+        )
 
         client.bind_confirm(
             "linear",
@@ -434,12 +460,16 @@ class TestBindConfirmContract:
         assert kwargs["headers"]["Idempotency-Key"] == "explicit-key-123"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_auto_generates_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_confirm_auto_generates_key(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """When no idempotency_key provided, a valid UUID4 is auto-generated."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"binding_ref": "srm_01HXYZ"})
+        mock_http.request.return_value = _make_response(
+            200, {"binding_ref": "srm_01HXYZ"}
+        )
 
         client.bind_confirm("linear", "cand_01HXYZ", PROJECT_IDENTITY)
 
@@ -450,7 +480,9 @@ class TestBindConfirmContract:
         assert parsed.version == 4
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_400_invalid_token(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_confirm_400_invalid_token(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """400 invalid_candidate_token raises SaaSTrackerClientError."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -468,7 +500,9 @@ class TestBindConfirmContract:
             client.bind_confirm("linear", "cand_expired", PROJECT_IDENTITY)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_confirm_409_already_bound(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_confirm_409_already_bound(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """409 already_bound raises SaaSTrackerClientError."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -482,7 +516,9 @@ class TestBindConfirmContract:
             },
         )
 
-        with pytest.raises(SaaSTrackerClientError, match="already bound to a different project"):
+        with pytest.raises(
+            SaaSTrackerClientError, match="already bound to a different project"
+        ):
             client.bind_confirm("linear", "cand_01HXYZ", PROJECT_IDENTITY)
 
 
@@ -495,7 +531,9 @@ class TestBindValidateContract:
     """Contract tests for POST /api/v1/tracker/bind-validate/."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_sends_post_with_body(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_validate_sends_post_with_body(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify POST method, path, and body has provider, binding_ref, project_identity."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -516,7 +554,9 @@ class TestBindValidateContract:
         assert payload["project_identity"] == PROJECT_IDENTITY
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_valid_response(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_validate_valid_response(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify valid=true response parsed with display metadata."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -544,7 +584,9 @@ class TestBindValidateContract:
         assert result["provider_context"]["team_name"] == "Engineering"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_invalid_response(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_validate_invalid_response(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Verify valid=false response parsed with reason and guidance."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -555,7 +597,10 @@ class TestBindValidateContract:
                 "valid": False,
                 "binding_ref": "srm_01HXYZ",
                 "reason": "mapping_deleted",
-                "guidance": ("The bound tracker resource no longer exists. Run `tracker bind --provider linear` to rebind."),
+                "guidance": (
+                    "The bound tracker resource no longer exists. "
+                    "Run `tracker bind --provider linear` to rebind."
+                ),
             },
         )
 
@@ -567,14 +612,18 @@ class TestBindValidateContract:
         assert "no longer exists" in result["guidance"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_bind_validate_both_return_200(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_bind_validate_both_return_200(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """Both valid and invalid responses return 200 (not 4xx)."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         # valid=true case: no exception
-        mock_http.request.return_value = _make_response(200, {"valid": True, "binding_ref": "srm_01"})
+        mock_http.request.return_value = _make_response(
+            200, {"valid": True, "binding_ref": "srm_01"}
+        )
         result_valid = client.bind_validate("linear", "srm_01", PROJECT_IDENTITY)
         assert result_valid["valid"] is True
 
@@ -606,12 +655,16 @@ class TestExistingEndpointsBindingRef:
     """
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_status_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_status_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """GET status with binding_ref sends it as query param."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"connected": True, "provider": "linear"})
+        mock_http.request.return_value = _make_response(
+            200, {"connected": True, "provider": "linear"}
+        )
 
         result = client.status("linear", binding_ref="srm_01HXYZ")
 
@@ -622,12 +675,16 @@ class TestExistingEndpointsBindingRef:
         assert "project_slug" not in kwargs["params"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_status_with_project_slug(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_status_with_project_slug(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """GET status with project_slug sends it as query param (legacy path)."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"connected": True, "provider": "linear"})
+        mock_http.request.return_value = _make_response(
+            200, {"connected": True, "provider": "linear"}
+        )
 
         result = client.status("linear", "my-project")
 
@@ -637,12 +694,16 @@ class TestExistingEndpointsBindingRef:
         assert "binding_ref" not in kwargs["params"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_status_binding_ref_takes_precedence(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_status_binding_ref_takes_precedence(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """When both provided, only binding_ref is sent, project_slug excluded."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"connected": True})
+        mock_http.request.return_value = _make_response(
+            200, {"connected": True}
+        )
 
         client.status("linear", "my-project", binding_ref="srm_01HXYZ")
 
@@ -657,12 +718,16 @@ class TestExistingEndpointsBindingRef:
         assert exc_info.value.error_code == "missing_routing_key"
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_push_with_binding_ref_in_body(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_push_with_binding_ref_in_body(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """POST push with binding_ref includes it in the JSON body (not query)."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"pushed": 0, "errors": []})
+        mock_http.request.return_value = _make_response(
+            200, {"pushed": 0, "errors": []}
+        )
 
         client.push("linear", binding_ref="srm_01HXYZ", items=[])
 
@@ -674,12 +739,16 @@ class TestExistingEndpointsBindingRef:
         assert "project_slug" not in kwargs["json"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_run_with_binding_ref_in_body(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_run_with_binding_ref_in_body(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """POST run with binding_ref includes it in the JSON body."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"pulled": 5, "pushed": 3})
+        mock_http.request.return_value = _make_response(
+            200, {"pulled": 5, "pushed": 3}
+        )
 
         result = client.run("linear", binding_ref="srm_01HXYZ")
 
@@ -689,12 +758,16 @@ class TestExistingEndpointsBindingRef:
         assert "project_slug" not in kwargs["json"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_mappings_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_mappings_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """GET mappings with binding_ref sends it as query param."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"fields": [{"src": "title", "dst": "summary"}]})
+        mock_http.request.return_value = _make_response(
+            200, {"fields": [{"src": "title", "dst": "summary"}]}
+        )
 
         result = client.mappings("linear", binding_ref="srm_01HXYZ")
 
@@ -704,12 +777,16 @@ class TestExistingEndpointsBindingRef:
         assert "project_slug" not in kwargs["params"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_pull_with_binding_ref_in_body(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_pull_with_binding_ref_in_body(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """POST pull with binding_ref includes it in the JSON body."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"items": [{"id": "1"}], "cursor": "abc"})
+        mock_http.request.return_value = _make_response(
+            200, {"items": [{"id": "1"}], "cursor": "abc"}
+        )
 
         result = client.pull("linear", binding_ref="srm_01HXYZ")
 
@@ -728,7 +805,9 @@ class TestStaleBindingErrorCodes:
     """Verify enriched error attributes are preserved for stale-binding codes."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_binding_not_found_error_code(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_binding_not_found_error_code(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """404 with error_code=binding_not_found preserved on SaaSTrackerClientError."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -750,7 +829,9 @@ class TestStaleBindingErrorCodes:
         assert "no longer valid" in str(exc_info.value)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_mapping_disabled_error_code(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_mapping_disabled_error_code(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """403 with error_code=mapping_disabled preserved on SaaSTrackerClientError."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -771,7 +852,9 @@ class TestStaleBindingErrorCodes:
         assert exc_info.value.status_code == 403
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_project_mismatch_error_code(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_project_mismatch_error_code(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """403 with error_code=project_mismatch preserved on SaaSTrackerClientError."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -792,7 +875,9 @@ class TestStaleBindingErrorCodes:
         assert exc_info.value.status_code == 403
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_error_code_none_when_missing(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_error_code_none_when_missing(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """500 with no error_code field results in e.error_code is None."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)

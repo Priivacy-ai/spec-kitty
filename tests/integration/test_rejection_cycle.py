@@ -29,7 +29,6 @@ from specify_cli.status.store import append_event
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",
@@ -118,7 +117,6 @@ def _write_cli_wp(wp_path: Path) -> None:
 # T009: _has_prior_rejection helper tests
 # ---------------------------------------------------------------------------
 
-
 class TestHasPriorRejection:
     """Tests for the _has_prior_rejection() detection helper."""
 
@@ -170,36 +168,27 @@ class TestHasPriorRejection:
         _make_artifact(tmp_path, "WP01-some-title")
 
         # First: rejection event
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01AAAA0000000000000000001A",
-                wp_id="WP01",
-                from_lane=Lane.IN_PROGRESS,
-                to_lane=Lane.PLANNED,
-                review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01AAAA0000000000000000001A",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.PLANNED,
+            review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
+        ))
         # Then: approval (for_review -> approved)
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01BBBB0000000000000000002B",
-                wp_id="WP01",
-                from_lane=Lane.FOR_REVIEW,
-                to_lane=Lane.APPROVED,
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01BBBB0000000000000000002B",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.APPROVED,
+        ))
         # Then: re-implementation start (not from for_review)
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01CCCC0000000000000000003C",
-                wp_id="WP01",
-                from_lane=Lane.APPROVED,
-                to_lane=Lane.IN_PROGRESS,
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01CCCC0000000000000000003C",
+            wp_id="WP01",
+            from_lane=Lane.APPROVED,
+            to_lane=Lane.IN_PROGRESS,
+        ))
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is False
@@ -212,15 +201,12 @@ class TestHasPriorRejection:
         _make_artifact(tmp_path, "WP01-some-title")
 
         # Rejection event for WP02 only
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01AAAA0000000000000000001A",
-                wp_id="WP02",  # Different WP
-                from_lane=Lane.FOR_REVIEW,
-                to_lane=Lane.IN_PROGRESS,
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01AAAA0000000000000000001A",
+            wp_id="WP02",  # Different WP
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+        ))
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is False
@@ -244,27 +230,21 @@ class TestHasPriorRejection:
         _make_artifact(tmp_path, "WP01-some-title", cycle=2)
 
         # First rejection
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01AAAA0000000000000000001A",
-                wp_id="WP01",
-                from_lane=Lane.IN_PROGRESS,
-                to_lane=Lane.PLANNED,
-                review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01AAAA0000000000000000001A",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.PLANNED,
+            review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
+        ))
         # Second rejection (latest)
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01BBBB0000000000000000002B",
-                wp_id="WP01",
-                from_lane=Lane.IN_PROGRESS,
-                to_lane=Lane.PLANNED,
-                review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-2.md",
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01BBBB0000000000000000002B",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.PLANNED,
+            review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-2.md",
+        ))
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is True
@@ -276,34 +256,25 @@ class TestHasPriorRejection:
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title", cycle=1)
 
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01AAAA0000000000000000001A",
-                wp_id="WP01",
-                from_lane=Lane.IN_PROGRESS,
-                to_lane=Lane.PLANNED,
-                review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
-            ),
-        )
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01BBBB0000000000000000002B",
-                wp_id="WP01",
-                from_lane=Lane.PLANNED,
-                to_lane=Lane.CLAIMED,
-            ),
-        )
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01CCCC0000000000000000003C",
-                wp_id="WP01",
-                from_lane=Lane.CLAIMED,
-                to_lane=Lane.IN_PROGRESS,
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01AAAA0000000000000000001A",
+            wp_id="WP01",
+            from_lane=Lane.IN_PROGRESS,
+            to_lane=Lane.PLANNED,
+            review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
+        ))
+        append_event(feature_dir, _make_event(
+            event_id="01BBBB0000000000000000002B",
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+        ))
+        append_event(feature_dir, _make_event(
+            event_id="01CCCC0000000000000000003C",
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+        ))
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is True
@@ -312,7 +283,6 @@ class TestHasPriorRejection:
 # ---------------------------------------------------------------------------
 # T010: End-to-end mode switch tests
 # ---------------------------------------------------------------------------
-
 
 class TestModeSwitchProducesFixPrompt:
     """test_mode_switch_produces_fix_prompt — create artifact + rejection event → fix prompt."""
@@ -337,6 +307,7 @@ class TestModeSwitchProducesFixPrompt:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
+
             mission_slug="066-test-mission",
             wp_id="WP01",
         )
@@ -389,15 +360,12 @@ class TestModeSwitchFallsThroughOnResolved:
         _make_artifact(tmp_path, "WP01-some-title")
 
         # Event: claimed -> in_progress (not from for_review)
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01AAAA0000000000000000001A",
-                wp_id="WP01",
-                from_lane=Lane.CLAIMED,
-                to_lane=Lane.IN_PROGRESS,
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01AAAA0000000000000000001A",
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+        ))
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is False
@@ -413,15 +381,12 @@ class TestModeSwitchFallsThroughOnResolved:
         empty_dir.mkdir(parents=True)
 
         # Emit a rejection event
-        append_event(
-            feature_dir,
-            _make_event(
-                event_id="01AAAA0000000000000000001A",
-                wp_id="WP01",
-                from_lane=Lane.FOR_REVIEW,
-                to_lane=Lane.IN_PROGRESS,
-            ),
-        )
+        append_event(feature_dir, _make_event(
+            event_id="01AAAA0000000000000000001A",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+        ))
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is False

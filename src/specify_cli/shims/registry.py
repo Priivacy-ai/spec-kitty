@@ -86,8 +86,12 @@ CLI_DRIVEN_COMMANDS: frozenset[str] = frozenset(
 
 # Invariant: the two classification sets must cover all consumer skills
 # exactly (no gaps, no overlaps).
-assert PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS == CONSUMER_SKILLS, "Command classification sets must cover all consumer skills exactly"
-assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS, "PROMPT_DRIVEN_COMMANDS and CLI_DRIVEN_COMMANDS must be disjoint"
+assert PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS == CONSUMER_SKILLS, (
+    "Command classification sets must cover all consumer skills exactly"
+)
+assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS, (
+    "PROMPT_DRIVEN_COMMANDS and CLI_DRIVEN_COMMANDS must be disjoint"
+)
 
 
 def is_consumer_skill(skill_name: str) -> bool:

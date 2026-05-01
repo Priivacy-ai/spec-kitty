@@ -54,10 +54,7 @@ class TestCheckLaneStaleness:
         _run(["git", "branch", "kitty/mission-feat-lane-a"], repo)
 
         result = check_lane_staleness(
-            _lane(),
-            "kitty/mission-feat-lane-a",
-            "kitty/mission-feat",
-            repo,
+            _lane(), "kitty/mission-feat-lane-a", "kitty/mission-feat", repo,
         )
         assert result.is_stale is False
 
@@ -77,10 +74,7 @@ class TestCheckLaneStaleness:
         _run(["git", "checkout", "main"], repo)
 
         result = check_lane_staleness(
-            _lane(),
-            "kitty/mission-feat-lane-a",
-            "kitty/mission-feat",
-            repo,
+            _lane(), "kitty/mission-feat-lane-a", "kitty/mission-feat", repo,
         )
         assert result.is_stale is False
 
@@ -100,10 +94,7 @@ class TestCheckLaneStaleness:
         _run(["git", "checkout", "main"], repo)
 
         result = check_lane_staleness(
-            _lane(),
-            "kitty/mission-feat-lane-a",
-            "kitty/mission-feat",
-            repo,
+            _lane(), "kitty/mission-feat-lane-a", "kitty/mission-feat", repo,
         )
         assert result.is_stale is True
         assert "src/views.py" in result.stale_files
@@ -128,10 +119,7 @@ class TestCheckLaneStaleness:
         _run(["git", "checkout", "main"], repo)
 
         result = check_lane_staleness(
-            _lane(),
-            "kitty/mission-feat-lane-a",
-            "kitty/mission-feat",
-            repo,
+            _lane(), "kitty/mission-feat-lane-a", "kitty/mission-feat", repo,
         )
         assert result.is_stale is True
         assert result.stale_files == ["src/a.py"]

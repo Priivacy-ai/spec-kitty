@@ -86,8 +86,12 @@ def _drive_issuance_and_advance(
     from specify_cli.cli.commands import next_cmd
 
     if advance_result is not None:
-        next_cmd._pair_previous_lifecycle_record(agent, mission_slug, advance_result, repo_root)
-    next_cmd._write_issuance_lifecycle_record(agent, mission_slug, repo_root, decision)
+        next_cmd._pair_previous_lifecycle_record(
+            agent, mission_slug, advance_result, repo_root
+        )
+    next_cmd._write_issuance_lifecycle_record(
+        agent, mission_slug, repo_root, decision
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +102,9 @@ def _drive_issuance_and_advance(
 class TestNextLifecycleRecordsPairingRate:
     """≥ 5 issuances, one orphan, ≥ 95% pairing on the non-orphan set."""
 
-    def test_five_issuances_one_orphan_pairing_above_95_percent(self, tmp_path: Path) -> None:
+    def test_five_issuances_one_orphan_pairing_above_95_percent(
+        self, tmp_path: Path
+    ) -> None:
         mission_slug = "release-3-2-0a6-tranche-2-test"
         mission_id = "01HMISSIONULID00000000000A"
         _setup_mission(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
@@ -128,7 +134,7 @@ class TestNextLifecycleRecordsPairingRate:
 
         # Issuances 1..3 — each cycle pairs the prior issuance with success
         # and emits a fresh `started`. Four pairs total.
-        for prior_decision, decision in zip(decisions[:3], decisions[1:4], strict=False):
+        for prior_decision, decision in zip(decisions[:3], decisions[1:4]):
             _ = prior_decision  # readability only
             _drive_issuance_and_advance(
                 tmp_path,
@@ -161,7 +167,9 @@ class TestNextLifecycleRecordsPairingRate:
         # Pairing rate ≥ 95% on the non-orphan portion of the set:
         # 4 paired starteds out of (5 - 1 orphan) = 4 expected pairs.
         non_orphan_starteds = len(starteds) - 1
-        pair_rate_non_orphan = len(completions) / non_orphan_starteds if non_orphan_starteds else 1.0
+        pair_rate_non_orphan = (
+            len(completions) / non_orphan_starteds if non_orphan_starteds else 1.0
+        )
         assert pair_rate_non_orphan >= 0.95
 
         # Overall pairing rate is 4/5 = 0.80 — above the 0.50 sanity floor
@@ -189,7 +197,9 @@ class TestNextLifecycleRecordsFullyPairedRun:
     non-orphan-subset calculation.
     """
 
-    def test_five_issuances_all_paired_pairing_rate_at_threshold(self, tmp_path: Path) -> None:
+    def test_five_issuances_all_paired_pairing_rate_at_threshold(
+        self, tmp_path: Path
+    ) -> None:
         mission_slug = "release-3-2-0a6-tranche-2-test"
         mission_id = "01HMISSIONULID00000000000C"
         _setup_mission(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
@@ -233,8 +243,9 @@ class TestNextLifecycleRecordsFullyPairedRun:
         # started record (terminal-like cycle). This balances every
         # started with exactly one completion — no orphans.
         from specify_cli.cli.commands import next_cmd
-
-        next_cmd._pair_previous_lifecycle_record(agent, mission_slug, "success", tmp_path)
+        next_cmd._pair_previous_lifecycle_record(
+            agent, mission_slug, "success", tmp_path
+        )
 
         records = read_lifecycle_records(tmp_path)
         starteds = [r for r in records if r.phase == "started"]
@@ -245,7 +256,9 @@ class TestNextLifecycleRecordsFullyPairedRun:
         assert len(completions) == len(starteds)
 
         overall = compute_pairing_rate(records)
-        assert overall >= 0.95, f"NFR-006 floor not met on canonical healthy run: {overall=}"
+        assert overall >= 0.95, (
+            f"NFR-006 floor not met on canonical healthy run: {overall=}"
+        )
 
 
 class TestOrphanListedByDoctor:
@@ -280,7 +293,9 @@ class TestOrphanListedByDoctor:
         assert orphans[0]["mission_id"] == mission_id
         assert orphans[0]["wp_id"] == "WP01"
 
-    def test_orphan_listed_by_doctor_cli_command(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_orphan_listed_by_doctor_cli_command(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The user-facing ``spec-kitty doctor invocation-pairing`` command."""
         from specify_cli.cli.commands import doctor as doctor_module
 
@@ -304,7 +319,9 @@ class TestOrphanListedByDoctor:
 
         # Pin locate_project_root() to our tmp_path so the doctor command
         # reads the lifecycle log we just produced.
-        monkeypatch.setattr(doctor_module, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(
+            doctor_module, "locate_project_root", lambda: tmp_path
+        )
 
         runner = CliRunner()
         result = runner.invoke(doctor_module.app, ["invocation-pairing", "--json"])
@@ -323,7 +340,9 @@ class TestNoIssuanceWhenDecisionIsNotAStep:
         "decision",
         [
             _FakeDecision(kind="terminal", mission_state="done", action=None, wp_id=None),
-            _FakeDecision(kind="blocked", mission_state="implement", action="implement", wp_id="WP01"),
+            _FakeDecision(
+                kind="blocked", mission_state="implement", action="implement", wp_id="WP01"
+            ),
             _FakeDecision(
                 kind="decision_required",
                 mission_state="implement",
@@ -332,9 +351,13 @@ class TestNoIssuanceWhenDecisionIsNotAStep:
             ),
         ],
     )
-    def test_non_step_decisions_do_not_write_started(self, tmp_path: Path, decision: _FakeDecision) -> None:
+    def test_non_step_decisions_do_not_write_started(
+        self, tmp_path: Path, decision: _FakeDecision
+    ) -> None:
         mission_slug = "release-3-2-0a6-tranche-2-test"
-        _setup_mission(tmp_path, mission_slug=mission_slug, mission_id="01HMISSIONULID00000000000D")
+        _setup_mission(
+            tmp_path, mission_slug=mission_slug, mission_id="01HMISSIONULID00000000000D"
+        )
         _drive_issuance_and_advance(
             tmp_path,
             agent="claude",

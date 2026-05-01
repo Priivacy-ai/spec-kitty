@@ -217,7 +217,9 @@ class TestLivePath:
                 ["decision", "widen", DECISION_ID, "--invited", "101, 102"],
                 cwd=tmp_path,
             )
-        mock_client.post_widen.assert_called_once_with(decision_id=DECISION_ID, invited=[101, 102])
+        mock_client.post_widen.assert_called_once_with(
+            decision_id=DECISION_ID, invited=[101, 102]
+        )
 
     def test_live_saas_error_exits_one(self, tmp_path: Path) -> None:
         """SaasClientError → exit 1."""
@@ -267,7 +269,9 @@ class TestErrorPaths:
                 cwd=tmp_path,
             )
         assert result.exit_code == 0
-        mock_client.post_widen.assert_called_once_with(decision_id=DECISION_ID, invited=[101, 102])
+        mock_client.post_widen.assert_called_once_with(
+            decision_id=DECISION_ID, invited=[101, 102]
+        )
 
     def test_missing_invited_flag_exits_nonzero(self, tmp_path: Path) -> None:
         """Omitting --invited entirely → non-zero exit (required option)."""

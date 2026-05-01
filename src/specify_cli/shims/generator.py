@@ -51,7 +51,6 @@ def _get_cli_version() -> str:
 
         return __version__
 
-
 # Agent-specific argument placeholders.
 # Claude Code passes slash-command arguments as $ARGUMENTS.
 # Codex passes the prompt text as $PROMPT.
@@ -91,7 +90,10 @@ def _canonical_command(command: str, agent_name: str, arg_placeholder: str) -> s
     }
     template = _COMMAND_MAP.get(command)
     if template is None:
-        raise ValueError(f"Unknown CLI-driven command '{command}'. Expected one of: {', '.join(sorted(_COMMAND_MAP))}.")
+        raise ValueError(
+            f"Unknown CLI-driven command '{command}'. "
+            f"Expected one of: {', '.join(sorted(_COMMAND_MAP))}."
+        )
     return template.format(args=arg_placeholder, agent=agent_name)
 
 
@@ -130,7 +132,9 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
     )
 
 
-def generate_shim_content_toml(command: str, agent_name: str, arg_placeholder: str) -> str:
+def generate_shim_content_toml(
+    command: str, agent_name: str, arg_placeholder: str
+) -> str:
     """Return a TOML shim for agents that require TOML format (Gemini, Qwen).
 
     Uses the flat ``description``/``prompt`` schema matching the regression
@@ -156,7 +160,11 @@ def generate_shim_content_toml(command: str, agent_name: str, arg_placeholder: s
         f"`{cli_call}`\n"
     )
     body_escaped = body.replace('"""', '""\\"')
-    return f'description = "{description}"\n\nprompt = """\n{body_escaped}"""\n'
+    return (
+        f'description = "{description}"\n'
+        "\n"
+        f'prompt = """\n{body_escaped}"""\n'
+    )
 
 
 def generate_shim_content_for_agent(command: str, agent_key: str) -> str:
@@ -215,7 +223,6 @@ def generate_all_shims(repo_root: Path) -> list[Path]:
 
         for skill in cli_skills:
             from specify_cli.core.config import AGENT_COMMAND_CONFIG as _ACC
-
             _agent_cfg = _ACC.get(agent_key, {})
             _ext = _agent_cfg.get("ext", "md")
             filename = f"spec-kitty.{skill}.{_ext}"

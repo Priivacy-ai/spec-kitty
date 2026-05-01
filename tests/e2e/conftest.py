@@ -108,7 +108,9 @@ def capture_source_pollution_baseline(repo_root: Path) -> SourcePollutionBaselin
     return SourcePollutionBaseline(git_status_short=status, inventory=inventory)
 
 
-def assert_no_source_pollution(baseline: SourcePollutionBaseline, repo_root: Path) -> None:
+def assert_no_source_pollution(
+    baseline: SourcePollutionBaseline, repo_root: Path
+) -> None:
     """Compare current source-checkout state against `baseline`; raise on drift.
 
     Two-layer guard:
@@ -122,16 +124,25 @@ def assert_no_source_pollution(baseline: SourcePollutionBaseline, repo_root: Pat
 
     if current.git_status_short != baseline.git_status_short:
         raise AssertionError(
-            f"Source-checkout polluted (FR-017 / git status drift):\n  before: {baseline.git_status_short!r}\n  after:  {current.git_status_short!r}"
+            "Source-checkout polluted (FR-017 / git status drift):\n"
+            f"  before: {baseline.git_status_short!r}\n"
+            f"  after:  {current.git_status_short!r}"
         )
 
     for watched, before in baseline.inventory.items():
         after = current.inventory.get(watched, {})
         added = sorted(set(after) - set(before))
         removed = sorted(set(before) - set(after))
-        modified = sorted(p for p in set(before) & set(after) if before[p] != after[p])
+        modified = sorted(
+            p for p in set(before) & set(after) if before[p] != after[p]
+        )
         if added or removed or modified:
-            raise AssertionError(f"Source-checkout polluted (FR-018 / {watched} drift):\n  added:    {added}\n  removed:  {removed}\n  modified: {modified}")
+            raise AssertionError(
+                f"Source-checkout polluted (FR-018 / {watched} drift):\n"
+                f"  added:    {added}\n"
+                f"  removed:  {removed}\n"
+                f"  modified: {modified}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +320,12 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
         "--non-interactive",
     )
     if result.returncode != 0:
-        raise AssertionError(f"spec-kitty init failed for fresh fixture:\n  rc={result.returncode}\n  stdout: {result.stdout}\n  stderr: {result.stderr}")
+        raise AssertionError(
+            "spec-kitty init failed for fresh fixture:\n"
+            f"  rc={result.returncode}\n"
+            f"  stdout: {result.stdout}\n"
+            f"  stderr: {result.stderr}"
+        )
 
     # Step 3: commit the freshly seeded project state so subsequent
     # CLI commands see a clean working tree.

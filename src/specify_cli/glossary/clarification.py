@@ -109,7 +109,10 @@ class ClarificationMiddleware:
                 if choice == "select" and conflict.candidate_senses:
                     # User selected a candidate sense
                     selected_idx = getattr(conflict, "selected_index", 0)
-                    selected_sense = conflict.candidate_senses[selected_idx] if 0 <= selected_idx < len(conflict.candidate_senses) else conflict.candidate_senses[0]
+                    if 0 <= selected_idx < len(conflict.candidate_senses):
+                        selected_sense = conflict.candidate_senses[selected_idx]
+                    else:
+                        selected_sense = conflict.candidate_senses[0]
                     self._handle_candidate_selection(conflict, conflict_id, selected_sense, context)
                     resolved_conflicts.append(conflict)
                 elif choice == "custom" and custom_def:

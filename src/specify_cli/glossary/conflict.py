@@ -133,7 +133,9 @@ def _detect_inconsistent_usage(
         "or",
         "but",
     }
-    definition_words = {word.strip(".,;:!?") for word in definition_lower.split() if len(word) > 3 and word not in stop_words}
+    definition_words = {
+        word.strip(".,;:!?") for word in definition_lower.split() if len(word) > 3 and word not in stop_words
+    }
 
     # Find term occurrences in output with context window
     import re
@@ -176,7 +178,9 @@ def _detect_inconsistent_usage(
         for alt_pattern in alternative_patterns:
             if re.search(alt_pattern, context):
                 # Check if the alternative definition contradicts key concepts
-                context_words = {word.strip(".,;:!?") for word in context.split() if len(word) > 3 and word not in stop_words}
+                context_words = {
+                    word.strip(".,;:!?") for word in context.split() if len(word) > 3 and word not in stop_words
+                }
 
                 # If less than 30% overlap with definition key concepts, flag inconsistency
                 if definition_words:

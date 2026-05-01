@@ -28,7 +28,9 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type")
     @patch("subprocess.run")
-    def test_research_uncommitted_artifacts_blocks_review(self, mock_run: Mock, mock_mission_type: Mock, mock_main_root: Mock, tmp_path: Path):
+    def test_research_uncommitted_artifacts_blocks_review(
+        self, mock_run: Mock, mock_mission_type: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
         """Should detect uncommitted research artifacts and provide actionable guidance."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
@@ -60,7 +62,9 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type")
     @patch("subprocess.run")
-    def test_research_committed_artifacts_allows_review(self, mock_run: Mock, mock_mission_type: Mock, mock_main_root: Mock, tmp_path: Path):
+    def test_research_committed_artifacts_allows_review(
+        self, mock_run: Mock, mock_mission_type: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
         """Should pass when research artifacts are committed."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
@@ -203,7 +207,9 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type")
     @patch("subprocess.run")
-    def test_filters_out_wp_status_files(self, mock_run: Mock, mock_mission_type: Mock, mock_main_root: Mock, tmp_path: Path):
+    def test_filters_out_wp_status_files(
+        self, mock_run: Mock, mock_mission_type: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
         """Should ignore WP status files in tasks/ (auto-committed by move-task)."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 
@@ -271,10 +277,12 @@ class TestMoveTaskPreflightCheck:
 
             assert is_valid is False, "Expected validation to fail"
             assert len(guidance) > 0, "Expected guidance messages"
-            assert any(any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) for line in guidance), (
-                f"No uncommitted/staged message in: {guidance}"
+            assert any(
+                any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) for line in guidance
+            ), f"No uncommitted/staged message in: {guidance}"
+            assert any("git add <deliverable-path-1> <deliverable-path-2>" in line for line in guidance), (
+                f"No explicit staging guidance in: {guidance}"
             )
-            assert any("git add <deliverable-path-1> <deliverable-path-2>" in line for line in guidance), f"No explicit staging guidance in: {guidance}"
             assert any("git commit" in line for line in guidance), f"No 'git commit' in: {guidance}"
 
     def test_validate_ready_for_review_allows_clean_worktree(self, tmp_path):

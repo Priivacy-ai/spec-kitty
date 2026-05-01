@@ -73,7 +73,9 @@ def _me_response(
         "user_id": user_id,
         "email": email,
         "name": name,
-        "teams": teams if teams is not None else [{"id": "t1", "name": "Team One", "role": "owner", "is_private_teamspace": False}],
+        "teams": teams
+        if teams is not None
+        else [{"id": "t1", "name": "Team One", "role": "owner", "is_private_teamspace": False}],
     }
     if refresh_token_expires_at is not None:
         body["refresh_token_expires_at"] = refresh_token_expires_at
@@ -121,6 +123,7 @@ class TestBuildAuthUrl:
 
 
 class TestConstructor:
+
     def test_explicit_url_wins(self, monkeypatch):
         monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.test")
         flow = AuthorizationCodeFlow(saas_base_url="https://explicit.test")
@@ -145,6 +148,7 @@ class TestConstructor:
 
 
 class TestExchangeCode:
+
     @pytest.mark.asyncio
     async def test_happy_path(self):
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
@@ -195,7 +199,9 @@ class TestExchangeCode:
         with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
-            mock_client.post.return_value = _mock_httpx_response(400, {}, text="invalid grant")
+            mock_client.post.return_value = _mock_httpx_response(
+                400, {}, text="invalid grant"
+            )
 
             with pytest.raises(AuthenticationError, match="HTTP 400"):
                 await flow._exchange_code(
@@ -229,6 +235,7 @@ class TestExchangeCode:
 
 
 class TestBuildSession:
+
     @pytest.mark.asyncio
     async def test_happy_path_uses_absolute_expires_at(self):
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
@@ -395,7 +402,9 @@ class TestBuildSession:
 
     @pytest.mark.asyncio
     async def test_storage_backend_is_preserved(self):
-        flow = AuthorizationCodeFlow(saas_base_url="https://saas.test", storage_backend="file")
+        flow = AuthorizationCodeFlow(
+            saas_base_url="https://saas.test", storage_backend="file"
+        )
         tokens = _token_response()
         me = _me_response()
 
@@ -415,17 +424,17 @@ class TestBuildSession:
 
 
 class TestLogin:
+
     @pytest.mark.asyncio
     async def test_no_browser_raises_browser_launch_error(self):
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
 
-        with (
-            patch(
-                "specify_cli.auth.flows.authorization_code.BrowserLauncher.launch",
-                return_value=False,
-            ),
-            patch("specify_cli.auth.flows.authorization_code.CallbackServer") as mock_server_cls,
-        ):
+        with patch(
+            "specify_cli.auth.flows.authorization_code.BrowserLauncher.launch",
+            return_value=False,
+        ), patch(
+            "specify_cli.auth.flows.authorization_code.CallbackServer"
+        ) as mock_server_cls:
             mock_server = Mock()
             mock_server.start.return_value = "http://127.0.0.1:28888/callback"
             mock_server.stop = Mock()
@@ -444,13 +453,13 @@ class TestLogin:
         tokens = _token_response()
         me = _me_response()
 
-        with (
-            patch(
-                "specify_cli.auth.flows.authorization_code.BrowserLauncher.launch",
-                return_value=True,
-            ),
-            patch("specify_cli.auth.flows.authorization_code.CallbackServer") as mock_server_cls,
-        ):
+        with patch(
+            "specify_cli.auth.flows.authorization_code.BrowserLauncher.launch",
+            return_value=True,
+        ), patch(
+            "specify_cli.auth.flows.authorization_code.CallbackServer"
+        ) as mock_server_cls:
+
             mock_server = Mock()
             mock_server.start.return_value = "http://127.0.0.1:28888/callback"
 
@@ -475,14 +484,11 @@ class TestLogin:
                 captured_state["state"] = pkce.state
                 return original_build(self, pkce, callback_url)
 
-            with (
-                patch.object(
-                    AuthorizationCodeFlow,
-                    "_build_auth_url",
-                    _patched_build,
-                ),
-                patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class,
-            ):
+            with patch.object(
+                AuthorizationCodeFlow,
+                "_build_auth_url",
+                _patched_build,
+            ), patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
                 mock_client.post.return_value = _mock_httpx_response(200, tokens)
@@ -501,13 +507,13 @@ class TestLogin:
 
         flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
 
-        with (
-            patch(
-                "specify_cli.auth.flows.authorization_code.BrowserLauncher.launch",
-                return_value=True,
-            ),
-            patch("specify_cli.auth.flows.authorization_code.CallbackServer") as mock_server_cls,
-        ):
+        with patch(
+            "specify_cli.auth.flows.authorization_code.BrowserLauncher.launch",
+            return_value=True,
+        ), patch(
+            "specify_cli.auth.flows.authorization_code.CallbackServer"
+        ) as mock_server_cls:
+
             mock_server = Mock()
             mock_server.start.return_value = "http://127.0.0.1:28888/callback"
             mock_server.stop = Mock()

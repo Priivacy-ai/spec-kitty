@@ -31,7 +31,9 @@ from specify_cli.auth.errors import (
 from specify_cli.sync.config import SyncConfig
 from specify_cli.core.contract_gate import validate_outbound_payload
 
-_SESSION_EXPIRED_MESSAGE = "Session expired. Run `spec-kitty auth login` to re-authenticate."
+_SESSION_EXPIRED_MESSAGE = (
+    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+)
 
 
 class SaaSTrackerClientError(RuntimeError):
@@ -125,7 +127,6 @@ def _current_team_slug_sync() -> str | None:
 # Error-envelope helpers
 # ---------------------------------------------------------------------------
 
-
 def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
     """Extract PRI-12 error envelope fields from a non-2xx response.
 
@@ -160,7 +161,6 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
-
 
 class SaaSTrackerClient:
     """Low-level synchronous HTTP transport for the SaaS tracker API.
@@ -261,11 +261,15 @@ class SaaSTrackerClient:
         """
         access_token = _fetch_access_token_sync()
         if access_token is None:
-            raise SaaSTrackerClientError("No valid access token. Run `spec-kitty auth login` to authenticate.")
+            raise SaaSTrackerClientError(
+                "No valid access token. Run `spec-kitty auth login` to authenticate."
+            )
 
         team_slug = _current_team_slug_sync()
         if not team_slug:
-            raise SaaSTrackerClientError("No team context available. Run `spec-kitty auth login` to authenticate.")
+            raise SaaSTrackerClientError(
+                "No team context available. Run `spec-kitty auth login` to authenticate."
+            )
 
         merged_headers: dict[str, str] = {
             "Authorization": f"Bearer {access_token}",
@@ -286,9 +290,15 @@ class SaaSTrackerClient:
                     params=params,
                 )
         except httpx.ConnectError as exc:
-            raise SaaSTrackerClientError(f"Cannot connect to Spec Kitty SaaS at {url}. Check your network connection.") from exc
+            raise SaaSTrackerClientError(
+                f"Cannot connect to Spec Kitty SaaS at {url}. "
+                "Check your network connection."
+            ) from exc
         except httpx.TimeoutException as exc:
-            raise SaaSTrackerClientError(f"Cannot connect to Spec Kitty SaaS at {url}. Check your network connection.") from exc
+            raise SaaSTrackerClientError(
+                f"Cannot connect to Spec Kitty SaaS at {url}. "
+                "Check your network connection."
+            ) from exc
 
     def _request_with_retry(
         self,
@@ -300,7 +310,9 @@ class SaaSTrackerClient:
         params: dict[str, Any] | None = None,
     ) -> httpx.Response:
         """Issue a request with 401-refresh and 429-rate-limit retry logic."""
-        response = self._request(method, path, json=json, headers=headers, params=params)
+        response = self._request(
+            method, path, json=json, headers=headers, params=params
+        )
 
         # --- 401: one refresh + retry ---
         if response.status_code == 401:
@@ -324,7 +336,9 @@ class SaaSTrackerClient:
                     user_action_required=True,
                 ) from exc
 
-            response = self._request(method, path, json=json, headers=headers, params=params)
+            response = self._request(
+                method, path, json=json, headers=headers, params=params
+            )
             if response.status_code == 401:
                 raise SaaSTrackerClientError(
                     _SESSION_EXPIRED_MESSAGE,
@@ -341,7 +355,9 @@ class SaaSTrackerClient:
                 wait_seconds = 5
             time.sleep(float(wait_seconds))
 
-            response = self._request(method, path, json=json, headers=headers, params=params)
+            response = self._request(
+                method, path, json=json, headers=headers, params=params
+            )
             if response.status_code == 429:
                 envelope = _parse_error_envelope(response)
                 raise SaaSTrackerClientError(
@@ -384,7 +400,9 @@ class SaaSTrackerClient:
         while True:
             elapsed = time.monotonic() - start
             if elapsed >= total_timeout:
-                raise SaaSTrackerClientError(f"Operation {operation_id} timed out after 5 minutes")
+                raise SaaSTrackerClientError(
+                    f"Operation {operation_id} timed out after 5 minutes"
+                )
 
             response = self._request_with_retry(
                 "GET",
@@ -477,7 +495,11 @@ class SaaSTrackerClient:
         binding_ref: str | None = None,
     ) -> dict[str, Any]:
         """GET /api/v1/tracker/mappings -- field mappings."""
-        params = self._routing_params(provider, project_slug, binding_ref) if binding_ref or project_slug else {"provider": provider}
+        params = (
+            self._routing_params(provider, project_slug, binding_ref)
+            if binding_ref or project_slug
+            else {"provider": provider}
+        )
         response = self._request_with_retry(
             "GET",
             self._MAPPINGS_PATH,

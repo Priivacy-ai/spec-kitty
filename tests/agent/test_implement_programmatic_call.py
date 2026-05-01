@@ -34,8 +34,12 @@ def test_implement_has_optioninfo_defaults_for_risky_params() -> None:
     sig = inspect.signature(implement)
     params = sig.parameters
 
-    assert isinstance(params["json_output"].default, OptionInfo), "json_output default must be a typer OptionInfo (used to detect regression guard)"
-    assert isinstance(params["recover"].default, OptionInfo), "recover default must be a typer OptionInfo (used to detect regression guard)"
+    assert isinstance(params["json_output"].default, OptionInfo), (
+        "json_output default must be a typer OptionInfo (used to detect regression guard)"
+    )
+    assert isinstance(params["recover"].default, OptionInfo), (
+        "recover default must be a typer OptionInfo (used to detect regression guard)"
+    )
 
     # Safe params — their default is the Python sentinel None, not OptionInfo
     assert params["mission"].default is None
@@ -55,7 +59,11 @@ def test_workflow_calls_implement_with_explicit_python_bool_literals() -> None:
     tree = ast.parse(source)
 
     implement_calls: list[ast.Call] = [
-        node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "top_level_implement"
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "top_level_implement"
     ]
 
     assert implement_calls, "Expected at least one call to top_level_implement in workflow.py"
@@ -63,11 +71,19 @@ def test_workflow_calls_implement_with_explicit_python_bool_literals() -> None:
     for call in implement_calls:
         kwarg_map = {kw.arg: kw.value for kw in call.keywords}
 
-        assert "json_output" in kwarg_map, "top_level_implement() must pass json_output= explicitly to prevent OptionInfo leakage"
-        assert "recover" in kwarg_map, "top_level_implement() must pass recover= explicitly to prevent OptionInfo leakage"
+        assert "json_output" in kwarg_map, (
+            "top_level_implement() must pass json_output= explicitly to prevent OptionInfo leakage"
+        )
+        assert "recover" in kwarg_map, (
+            "top_level_implement() must pass recover= explicitly to prevent OptionInfo leakage"
+        )
 
         json_output_val = kwarg_map["json_output"]
-        assert isinstance(json_output_val, ast.Constant) and json_output_val.value is False, "json_output must be the Python literal False at the call site"
+        assert isinstance(json_output_val, ast.Constant) and json_output_val.value is False, (
+            "json_output must be the Python literal False at the call site"
+        )
 
         recover_val = kwarg_map["recover"]
-        assert isinstance(recover_val, ast.Constant) and recover_val.value is False, "recover must be the Python literal False at the call site"
+        assert isinstance(recover_val, ast.Constant) and recover_val.value is False, (
+            "recover must be the Python literal False at the call site"
+        )

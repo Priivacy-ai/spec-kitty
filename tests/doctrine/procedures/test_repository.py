@@ -6,8 +6,8 @@ import pytest
 from ruamel.yaml import YAML
 
 from doctrine.procedures.repository import ProcedureRepository
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestProcedureRepository:
@@ -35,7 +35,9 @@ class TestProcedureRepository:
         repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)
         assert repo.get("nonexistent") is None
 
-    def test_project_override_merges(self, tmp_path: Path, sample_procedure_data: dict) -> None:
+    def test_project_override_merges(
+        self, tmp_path: Path, sample_procedure_data: dict
+    ) -> None:
         yaml = YAML()
         yaml.default_flow_style = False
 
@@ -55,7 +57,9 @@ class TestProcedureRepository:
         assert p is not None
         assert p.name == "Overridden Name"
 
-    def test_save_raises_without_project_dir(self, tmp_procedure_dir: Path, sample_procedure_data: dict) -> None:
+    def test_save_raises_without_project_dir(
+        self, tmp_procedure_dir: Path, sample_procedure_data: dict
+    ) -> None:
         from doctrine.procedures.models import Procedure
 
         repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)
@@ -63,8 +67,11 @@ class TestProcedureRepository:
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(procedure)
 
-    def test_save_writes_to_project_dir(self, tmp_path: Path, sample_procedure_data: dict) -> None:
+    def test_save_writes_to_project_dir(
+        self, tmp_path: Path, sample_procedure_data: dict
+    ) -> None:
         from doctrine.procedures.models import Procedure
+
 
         shipped = tmp_path / "shipped"
         shipped.mkdir()
@@ -93,7 +100,9 @@ class TestProcedureRepository:
         repo = ProcedureRepository(shipped_dir=shipped)
         assert repo.list_all() == []
 
-    def test_skips_project_procedures_when_language_scope_does_not_match(self, tmp_path: Path, sample_procedure_data: dict) -> None:
+    def test_skips_project_procedures_when_language_scope_does_not_match(
+        self, tmp_path: Path, sample_procedure_data: dict
+    ) -> None:
         yaml = YAML()
         yaml.default_flow_style = False
 

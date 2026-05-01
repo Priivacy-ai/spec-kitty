@@ -98,19 +98,9 @@ class TestInvocationRecordJsonRoundtrip:
         record = _make_started()
         data = record.model_dump()
         expected_keys = {
-            "event",
-            "invocation_id",
-            "profile_id",
-            "action",
-            "request_text",
-            "governance_context_hash",
-            "governance_context_available",
-            "actor",
-            "router_confidence",
-            "started_at",
-            "completed_at",
-            "outcome",
-            "evidence_ref",
+            "event", "invocation_id", "profile_id", "action", "request_text",
+            "governance_context_hash", "governance_context_available", "actor",
+            "router_confidence", "started_at", "completed_at", "outcome", "evidence_ref",
         }
         assert set(data.keys()) == expected_keys
 
@@ -169,10 +159,8 @@ def test_mvt_policy_storage_paths_present() -> None:
 
 def test_tier_eligible_tier1_always_true() -> None:
     record = InvocationRecord(
-        event="started",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="implement",
+        event="started", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="implement",
     )
     eligibility = tier_eligible(record)
     assert eligibility.tier_1 is True
@@ -180,16 +168,12 @@ def test_tier_eligible_tier1_always_true() -> None:
 
 def test_tier_eligible_tier2_requires_evidence_ref() -> None:
     record_no_ev = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="implement",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="implement",
     )
     record_with_ev = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="implement",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="implement",
         evidence_ref=".kittify/evidence/test/",
     )
     assert tier_eligible(record_no_ev).tier_2 is False
@@ -198,70 +182,56 @@ def test_tier_eligible_tier2_requires_evidence_ref() -> None:
 
 def test_tier_eligible_tier3_for_specify() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="specify",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="specify",
     )
     assert tier_eligible(record).tier_3 is True
 
 
 def test_tier_eligible_tier3_for_plan() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="plan",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="plan",
     )
     assert tier_eligible(record).tier_3 is True
 
 
 def test_tier_eligible_tier3_for_tasks() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="tasks",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="tasks",
     )
     assert tier_eligible(record).tier_3 is True
 
 
 def test_tier_eligible_tier3_for_merge() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="merge",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="merge",
     )
     assert tier_eligible(record).tier_3 is True
 
 
 def test_tier_eligible_tier3_for_accept() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="accept",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="accept",
     )
     assert tier_eligible(record).tier_3 is True
 
 
 def test_tier_eligible_tier3_not_for_advise() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="advise",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="advise",
     )
     assert tier_eligible(record).tier_3 is False
 
 
 def test_tier_eligible_tier3_not_for_implement() -> None:
     record = InvocationRecord(
-        event="completed",
-        invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
-        profile_id="p",
-        action="implement",
+        event="completed", invocation_id="01ABCDEFGHJKMNPQRSTVWXYZ12",
+        profile_id="p", action="implement",
     )
     assert tier_eligible(record).tier_3 is False
 
@@ -273,7 +243,6 @@ def test_tier_eligible_tier3_not_for_implement() -> None:
 
 def test_promote_to_evidence_creates_files(tmp_path: object) -> None:
     from pathlib import Path
-
     tmp = Path(str(tmp_path))  # type: ignore[arg-type]
     record = InvocationRecord(
         event="completed",
@@ -290,7 +259,6 @@ def test_promote_to_evidence_creates_files(tmp_path: object) -> None:
 def test_promote_to_evidence_record_snapshot_is_valid_json(tmp_path: object) -> None:
     import json
     from pathlib import Path
-
     tmp = Path(str(tmp_path))  # type: ignore[arg-type]
     record = InvocationRecord(
         event="completed",
@@ -305,7 +273,6 @@ def test_promote_to_evidence_record_snapshot_is_valid_json(tmp_path: object) -> 
 
 def test_promote_to_evidence_creates_exactly_two_files(tmp_path: object) -> None:
     from pathlib import Path
-
     tmp = Path(str(tmp_path))  # type: ignore[arg-type]
     record = InvocationRecord(
         event="completed",
@@ -320,7 +287,6 @@ def test_promote_to_evidence_creates_exactly_two_files(tmp_path: object) -> None
 
 def test_promote_to_evidence_directory_named_by_invocation_id(tmp_path: object) -> None:
     from pathlib import Path
-
     tmp = Path(str(tmp_path))  # type: ignore[arg-type]
     record = InvocationRecord(
         event="completed",

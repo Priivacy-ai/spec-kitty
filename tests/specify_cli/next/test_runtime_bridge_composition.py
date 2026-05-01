@@ -127,7 +127,9 @@ def test_normalize_collapses_legacy_tasks_step_ids() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_dispatch_via_composition_fires_for_software_dev_specify(feature_dir_with_full_tasks: Path, tmp_path: Path) -> None:
+def test_dispatch_via_composition_fires_for_software_dev_specify(
+    feature_dir_with_full_tasks: Path, tmp_path: Path
+) -> None:
     """``software-dev/specify`` routes through ``StepContractExecutor.execute``.
 
     Verifies (a) the executor is called exactly once with a context whose
@@ -171,7 +173,9 @@ def test_dispatch_via_composition_fires_for_software_dev_specify(feature_dir_wit
 # ---------------------------------------------------------------------------
 
 
-def test_dispatch_via_composition_fires_for_collapsed_tasks(feature_dir_with_full_tasks: Path, tmp_path: Path) -> None:
+def test_dispatch_via_composition_fires_for_collapsed_tasks(
+    feature_dir_with_full_tasks: Path, tmp_path: Path
+) -> None:
     """Each legacy ``tasks_*`` step ID routes to a single composed ``tasks``.
 
     The bridge first normalizes the step_id; then dispatches one composition
@@ -200,7 +204,10 @@ def test_dispatch_via_composition_fires_for_collapsed_tasks(feature_dir_with_ful
                 mode_of_work=None,
                 feature_dir=feature_dir_with_full_tasks,
             )
-        assert mock_execute.call_count == 1, f"Expected one composition call for {legacy_step_id}; got {mock_execute.call_count}"
+        assert mock_execute.call_count == 1, (
+            f"Expected one composition call for {legacy_step_id}; "
+            f"got {mock_execute.call_count}"
+        )
         context = mock_execute.call_args[0][0]
         assert context.action == "tasks"
         assert failures is None
@@ -219,7 +226,9 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
     proves the legacy DAG handler is the only dispatch path.
     """
     # Pre-condition: the executor is never called when the predicate is False.
-    with patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute:
+    with patch(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute"
+    ) as mock_execute:
         for mission in ("other-mission", "documentation", "architecture"):
             for step_id in ("specify", "plan", "tasks", "implement", "review"):
                 assert _should_dispatch_via_composition(mission, step_id) is False
@@ -249,7 +258,9 @@ def test_dispatch_falls_through_for_unknown_step_id() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_missing_contract_surfaces_structured_cli_error(feature_dir_with_full_tasks: Path, tmp_path: Path) -> None:
+def test_missing_contract_surfaces_structured_cli_error(
+    feature_dir_with_full_tasks: Path, tmp_path: Path
+) -> None:
     """A raised ``StepContractExecutionError`` becomes a structured failure.
 
     No Python traceback escapes; the bridge gets a non-empty failure list
@@ -302,7 +313,9 @@ def test_tasks_guard_requires_tasks_md(tmp_path: Path) -> None:
     fd.mkdir(parents=True)
     # Intentionally do NOT create tasks.md.
     failures = _check_composed_action_guard("tasks", fd)
-    assert any("tasks.md" in f for f in failures), f"Expected a failure mentioning tasks.md; got {failures!r}"
+    assert any("tasks.md" in f for f in failures), (
+        f"Expected a failure mentioning tasks.md; got {failures!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +333,9 @@ def test_tasks_guard_requires_wp_files(tmp_path: Path) -> None:
     (fd / "tasks.md").write_text("# tasks", encoding="utf-8")
     (fd / "tasks").mkdir()
     failures = _check_composed_action_guard("tasks", fd)
-    assert any("WP*.md" in f for f in failures), f"Expected a failure mentioning WP*.md; got {failures!r}"
+    assert any("WP*.md" in f for f in failures), (
+        f"Expected a failure mentioning WP*.md; got {failures!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -343,7 +358,9 @@ def test_tasks_guard_requires_dependencies_frontmatter(tmp_path: Path) -> None:
     # WP file without 'dependencies:' frontmatter.
     _write_wp_file(tasks, "WP01", with_dependencies=False)
     failures = _check_composed_action_guard("tasks", fd)
-    assert any("dependencies" in f for f in failures), f"Expected a failure mentioning dependencies; got {failures!r}"
+    assert any("dependencies" in f for f in failures), (
+        f"Expected a failure mentioning dependencies; got {failures!r}"
+    )
     # The remediation hint should also surface the finalize-tasks command.
     assert any("finalize-tasks" in f for f in failures)
 
@@ -361,7 +378,9 @@ def test_specify_guard_requires_spec_md(tmp_path: Path) -> None:
     fd = tmp_path / "kitty-specs" / "feat"
     fd.mkdir(parents=True)
     failures = _check_composed_action_guard("specify", fd)
-    assert any("spec.md" in f for f in failures), f"Expected a failure mentioning spec.md; got {failures!r}"
+    assert any("spec.md" in f for f in failures), (
+        f"Expected a failure mentioning spec.md; got {failures!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +396,9 @@ def test_plan_guard_requires_plan_md(tmp_path: Path) -> None:
     fd = tmp_path / "kitty-specs" / "feat"
     fd.mkdir(parents=True)
     failures = _check_composed_action_guard("plan", fd)
-    assert any("plan.md" in f for f in failures), f"Expected a failure mentioning plan.md; got {failures!r}"
+    assert any("plan.md" in f for f in failures), (
+        f"Expected a failure mentioning plan.md; got {failures!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -430,8 +451,13 @@ def test_dispatch_logs_invocation_chain_on_success(
     assert failures is None
     # The chain must reach the bridge log so it can be consumed by event/trail
     # writers and operator triage tools.
-    composition_logs = [r for r in caplog.records if "composed software-dev/tasks emitted" in r.message]
-    assert composition_logs, f"Expected a composition INFO log forwarding the invocation chain; got {[r.message for r in caplog.records]!r}"
+    composition_logs = [
+        r for r in caplog.records if "composed software-dev/tasks emitted" in r.message
+    ]
+    assert composition_logs, (
+        f"Expected a composition INFO log forwarding the invocation chain; "
+        f"got {[r.message for r in caplog.records]!r}"
+    )
     log_msg = composition_logs[0].getMessage()
     assert "4 invocation(s)" in log_msg
     assert "inv-001" in log_msg
@@ -475,7 +501,9 @@ def test_dispatch_handles_non_sized_invocation_ids_and_returns_guard_failures(
     assert any("emitted 0 invocation(s)" in message for message in log_messages)
 
 
-def test_unexpected_exception_surfaces_structured_cli_error(feature_dir_with_full_tasks: Path, tmp_path: Path) -> None:
+def test_unexpected_exception_surfaces_structured_cli_error(
+    feature_dir_with_full_tasks: Path, tmp_path: Path
+) -> None:
     """FR-009: any executor exception class becomes a structured CLI failure.
 
     Mission-review finding R-3: prior to this test, only
@@ -550,16 +578,25 @@ def test_collapsed_tasks_guard_passes_after_outline_with_only_tasks_md(
     (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
-    failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_outline")
-    assert failures == [], f"tasks_outline must accept only tasks.md being present at this point; got blocking failures {failures!r}"
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_outline"
+    )
+    assert failures == [], (
+        f"tasks_outline must accept only tasks.md being present at this point; "
+        f"got blocking failures {failures!r}"
+    )
 
 
 def test_collapsed_tasks_guard_fails_after_outline_when_tasks_md_missing(
     feature_dir: Path,
 ) -> None:
     """tasks_outline guard still fails when tasks.md is absent."""
-    failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_outline")
-    assert any("tasks.md" in f for f in failures), f"Expected tasks.md missing failure; got {failures!r}"
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_outline"
+    )
+    assert any("tasks.md" in f for f in failures), (
+        f"Expected tasks.md missing failure; got {failures!r}"
+    )
 
 
 def test_collapsed_tasks_guard_passes_after_packages_without_dependencies(
@@ -577,8 +614,13 @@ def test_collapsed_tasks_guard_passes_after_packages_without_dependencies(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
-    failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_packages")
-    assert failures == [], f"tasks_packages must accept WP files without dependencies (finalize-tasks adds them next); got {failures!r}"
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_packages"
+    )
+    assert failures == [], (
+        f"tasks_packages must accept WP files without dependencies "
+        f"(finalize-tasks adds them next); got {failures!r}"
+    )
 
 
 def test_collapsed_tasks_guard_fails_after_packages_when_no_wp_files(
@@ -587,8 +629,12 @@ def test_collapsed_tasks_guard_fails_after_packages_when_no_wp_files(
     """tasks_packages guard requires at least one WP*.md file."""
     (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
     (feature_dir / "tasks").mkdir()
-    failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_packages")
-    assert any("WP*.md" in f for f in failures), f"Expected WP*.md missing failure; got {failures!r}"
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_packages"
+    )
+    assert any("WP*.md" in f for f in failures), (
+        f"Expected WP*.md missing failure; got {failures!r}"
+    )
 
 
 def test_collapsed_tasks_guard_fails_after_packages_when_tasks_md_missing(
@@ -599,8 +645,12 @@ def test_collapsed_tasks_guard_fails_after_packages_when_tasks_md_missing(
     tasks_dir.mkdir()
     _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
 
-    failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_packages")
-    assert any("tasks.md" in f for f in failures), f"tasks_packages must require tasks.md; got {failures!r}"
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_packages"
+    )
+    assert any("tasks.md" in f for f in failures), (
+        f"tasks_packages must require tasks.md; got {failures!r}"
+    )
 
 
 def test_collapsed_tasks_guard_demands_dependencies_on_finalize(
@@ -611,8 +661,12 @@ def test_collapsed_tasks_guard_demands_dependencies_on_finalize(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
-    failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_finalize")
-    assert any("dependencies" in f for f in failures), f"Expected dependencies-missing failure on finalize; got {failures!r}"
+    failures = _check_composed_action_guard(
+        "tasks", feature_dir, legacy_step_id="tasks_finalize"
+    )
+    assert any("dependencies" in f for f in failures), (
+        f"Expected dependencies-missing failure on finalize; got {failures!r}"
+    )
 
 
 def test_collapsed_tasks_guard_terminal_when_no_legacy_step_id(
@@ -627,7 +681,10 @@ def test_collapsed_tasks_guard_terminal_when_no_legacy_step_id(
     legacy checks pass.
     """
     failures = _check_composed_action_guard("tasks", feature_dir_with_full_tasks)
-    assert failures == [], f"Composition-only tasks call against a fully-finalized feature dir must pass; got {failures!r}"
+    assert failures == [], (
+        f"Composition-only tasks call against a fully-finalized feature dir "
+        f"must pass; got {failures!r}"
+    )
 
     # And conversely: terminal-state demand still fails when WP deps missing.
     bare = feature_dir_with_full_tasks.parent / "bare"
@@ -637,10 +694,15 @@ def test_collapsed_tasks_guard_terminal_when_no_legacy_step_id(
     tasks_dir.mkdir()
     _write_wp_file(tasks_dir, "WP02", with_dependencies=False)
     failures2 = _check_composed_action_guard("tasks", bare)
-    assert any("dependencies" in f for f in failures2), f"Composition-only call without deps must surface dependencies failure; got {failures2!r}"
+    assert any("dependencies" in f for f in failures2), (
+        f"Composition-only call without deps must surface dependencies failure; "
+        f"got {failures2!r}"
+    )
 
 
-def test_dispatch_threads_legacy_step_id_to_guard(feature_dir: Path, tmp_path: Path) -> None:
+def test_dispatch_threads_legacy_step_id_to_guard(
+    feature_dir: Path, tmp_path: Path
+) -> None:
     """End-to-end: bridge passes legacy_step_id through to the guard.
 
     Reproduces the reviewer's decide_next() walk in a tighter form: after a
@@ -671,7 +733,10 @@ def test_dispatch_threads_legacy_step_id_to_guard(feature_dir: Path, tmp_path: P
             feature_dir=feature_dir,
             legacy_step_id="tasks_outline",
         )
-    assert failures is None, f"tasks_outline through dispatch must not block on missing WP files; got {failures!r}"
+    assert failures is None, (
+        f"tasks_outline through dispatch must not block on missing WP files; "
+        f"got {failures!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -719,8 +784,12 @@ def _init_git_repo_for_run(path: Path) -> None:
         check=True,
     )
     (path / "README.md").write_text("# test", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=path, capture_output=True, check=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=path, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=path, capture_output=True, check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "init"], cwd=path, capture_output=True, check=True
+    )
 
 
 def _scaffold_software_dev_project(tmp_path: Path) -> tuple[Path, Path, str]:
@@ -744,7 +813,9 @@ def _scaffold_software_dev_project(tmp_path: Path) -> tuple[Path, Path, str]:
     return repo_root, feature_dir, mission_slug
 
 
-def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: str) -> None:
+def _advance_runtime_to_step(
+    repo_root: Path, mission_slug: str, target_step: str
+) -> None:
     """Drive the runtime engine until ``issued_step_id == target_step``."""
     from specify_cli.next._internal_runtime.engine import (
         _read_snapshot,
@@ -758,8 +829,13 @@ def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: st
         snapshot = _read_snapshot(Path(run_ref.run_dir))
         if snapshot.issued_step_id == target_step:
             return
-        engine_next_step(run_ref, agent_id="test", result="success", emitter=NullEmitter())
-    raise RuntimeError(f"Could not drive runtime to step {target_step!r}; current snapshot ={_read_snapshot(Path(run_ref.run_dir))!r}")
+        engine_next_step(
+            run_ref, agent_id="test", result="success", emitter=NullEmitter()
+        )
+    raise RuntimeError(
+        f"Could not drive runtime to step {target_step!r}; current snapshot ="
+        f"{_read_snapshot(Path(run_ref.run_dir))!r}"
+    )
 
 
 def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
@@ -810,7 +886,9 @@ _COMPOSED_SOFTWARE_DEV_ACTIONS = ("specify", "plan", "tasks", "implement", "revi
 
 
 @pytest.mark.parametrize("step_id", _COMPOSED_SOFTWARE_DEV_ACTIONS)
-def test_composition_success_skips_legacy_dispatch(composed_software_dev_project, step_id: str) -> None:
+def test_composition_success_skips_legacy_dispatch(
+    composed_software_dev_project, step_id: str
+) -> None:
     """FR-001 / FR-015: ``runtime_next_step`` is NOT called after composition.
 
     Parametrized over the five composed software-dev actions. We patch the
@@ -898,15 +976,30 @@ def test_composition_success_advances_run_state_and_lane_events(
 
     # Run-state advanced past ``specify``.
     snapshot = _read_snapshot(run_dir)
-    assert "specify" in snapshot.completed_steps, f"Expected 'specify' in completed_steps after composition success; snapshot={snapshot!r}"
+    assert "specify" in snapshot.completed_steps, (
+        f"Expected 'specify' in completed_steps after composition success; "
+        f"snapshot={snapshot!r}"
+    )
 
     # The runtime event log received the canonical ``NextStepAutoCompleted``
     # event for the step we just composed — emitted exactly once for this
     # advance (no duplicate from a legacy fall-through).
     event_log = run_dir / "run.events.jsonl"
-    log_lines = [json.loads(line) for line in event_log.read_text(encoding="utf-8").splitlines() if line.strip()]
-    auto_completed = [ev for ev in log_lines if ev.get("event_type") == "NextStepAutoCompleted" and ev.get("payload", {}).get("step_id") == "specify"]
-    assert len(auto_completed) == 1, f"Expected exactly one NextStepAutoCompleted for 'specify'; got {auto_completed!r}"
+    log_lines = [
+        json.loads(line)
+        for line in event_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    auto_completed = [
+        ev
+        for ev in log_lines
+        if ev.get("event_type") == "NextStepAutoCompleted"
+        and ev.get("payload", {}).get("step_id") == "specify"
+    ]
+    assert len(auto_completed) == 1, (
+        f"Expected exactly one NextStepAutoCompleted for 'specify'; "
+        f"got {auto_completed!r}"
+    )
     # And the returned Decision reflects progression (or terminal).
     assert decision.kind in (
         DecisionKind.step,
@@ -980,14 +1073,27 @@ def test_advancement_helper_persists_decision_required_branch(
     # 1. pending_decisions persisted in the snapshot.
     snapshot_after = _read_snapshot(run_dir)
     assert "dm-test-001" in snapshot_after.pending_decisions, (
-        f"Expected pending_decisions to include 'dm-test-001'; got pending_decisions={dict(snapshot_after.pending_decisions)!r}"
+        f"Expected pending_decisions to include 'dm-test-001'; "
+        f"got pending_decisions={dict(snapshot_after.pending_decisions)!r}"
     )
 
     # 2. Exactly one DecisionInputRequested event appended for this decision.
     event_log = run_dir / "run.events.jsonl"
-    log_lines = [json.loads(line) for line in event_log.read_text(encoding="utf-8").splitlines() if line.strip()]
-    requested = [ev for ev in log_lines if ev.get("event_type") == "DecisionInputRequested" and ev.get("payload", {}).get("decision_id") == "dm-test-001"]
-    assert len(requested) == 1, f"Expected exactly one DecisionInputRequested event for 'dm-test-001'; got {requested!r}"
+    log_lines = [
+        json.loads(line)
+        for line in event_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    requested = [
+        ev
+        for ev in log_lines
+        if ev.get("event_type") == "DecisionInputRequested"
+        and ev.get("payload", {}).get("decision_id") == "dm-test-001"
+    ]
+    assert len(requested) == 1, (
+        f"Expected exactly one DecisionInputRequested event for 'dm-test-001'; "
+        f"got {requested!r}"
+    )
 
     # 3. Returned Decision carries the decision metadata so callers can answer.
     assert decision.kind == DecisionKind.decision_required
@@ -1047,7 +1153,9 @@ def test_decision_shape_unchanged_for_composed_action(
     }
     actual_fields = set(vars(decision).keys())
     assert actual_fields == expected_fields, (
-        f"Decision field set drifted on the composed path; unexpected={actual_fields - expected_fields!r}, missing={expected_fields - actual_fields!r}"
+        f"Decision field set drifted on the composed path; "
+        f"unexpected={actual_fields - expected_fields!r}, "
+        f"missing={expected_fields - actual_fields!r}"
     )
 
 
@@ -1077,8 +1185,12 @@ def test_non_composed_action_uses_legacy_runtime_next_step(
     sentinel_runtime_decision.reason = "Mission complete"
 
     with (
-        patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
-        patch("specify_cli.next.runtime_bridge._advance_run_state_after_composition") as mock_advance,
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute"
+        ) as mock_execute,
+        patch(
+            "specify_cli.next.runtime_bridge._advance_run_state_after_composition"
+        ) as mock_advance,
         patch(
             "specify_cli.next.runtime_bridge.runtime_next_step",
             return_value=sentinel_runtime_decision,
@@ -1156,7 +1268,9 @@ class TestCustomMissionComposition:
     """WP04: composition gate widening + profile_hint plumbing."""
 
     @staticmethod
-    def _patch_frozen_template_agent_profile(run_dir: Path, step_id: str, agent_profile: str) -> None:
+    def _patch_frozen_template_agent_profile(
+        run_dir: Path, step_id: str, agent_profile: str
+    ) -> None:
         """Mutate the run's frozen template to set ``agent_profile`` on a step.
 
         Tests use this to convert one of the existing (built-in) frozen
@@ -1172,10 +1286,14 @@ class TestCustomMissionComposition:
                 step["agent_profile"] = agent_profile
                 break
         else:  # pragma: no cover — guard against test scaffolding drift
-            raise AssertionError(f"step {step_id!r} not found in frozen template at {frozen_path}")
+            raise AssertionError(
+                f"step {step_id!r} not found in frozen template at {frozen_path}"
+            )
         frozen_path.write_text(_yaml.safe_dump(data), encoding="utf-8")
 
-    def test_builtin_software_dev_ignores_template_agent_profile(self, composed_software_dev_project) -> None:
+    def test_builtin_software_dev_ignores_template_agent_profile(
+        self, composed_software_dev_project
+    ) -> None:
         """Built-in dispatch ignores template-side ``agent_profile`` values.
 
         Custom missions read ``agent_profile`` from the frozen template, but
@@ -1193,7 +1311,9 @@ class TestCustomMissionComposition:
         run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
         # Inject a step-level ``agent_profile`` so the call site picks it up
         # via ``_resolve_step_agent_profile`` and threads it through.
-        self._patch_frozen_template_agent_profile(Path(run_ref.run_dir), "specify", "implementer-ivan")
+        self._patch_frozen_template_agent_profile(
+            Path(run_ref.run_dir), "specify", "implementer-ivan"
+        )
 
         fake_result = MagicMock()
         fake_result.invocation_ids = ("inv-001",)
@@ -1236,9 +1356,14 @@ class TestCustomMissionComposition:
         # positionally or via the ``context=`` kwarg. Cover both shapes.
         context = call.args[0] if call.args else call.kwargs["context"]
         assert isinstance(context, StepContractExecutionContext)
-        assert context.profile_hint is None, f"Built-in software-dev dispatch must ignore template-side agent_profile; got {context.profile_hint!r}"
+        assert context.profile_hint is None, (
+            "Built-in software-dev dispatch must ignore template-side "
+            f"agent_profile; got {context.profile_hint!r}"
+        )
 
-    def test_builtin_software_dev_dispatches_with_none_profile_hint(self, composed_software_dev_project) -> None:
+    def test_builtin_software_dev_dispatches_with_none_profile_hint(
+        self, composed_software_dev_project
+    ) -> None:
         """FR-010: built-in dispatch is byte-identical — ``profile_hint`` stays ``None``.
 
         Built-in software-dev frozen templates do NOT set ``agent_profile``,
@@ -1294,7 +1419,9 @@ class TestCustomMissionComposition:
             f"got {context.profile_hint!r}"
         )
 
-    def test_custom_mission_dispatch_resolves_via_registry(self, composed_software_dev_project) -> None:
+    def test_custom_mission_dispatch_resolves_via_registry(
+        self, composed_software_dev_project
+    ) -> None:
         """F-1: ``_dispatch_via_composition`` looks up the synthesized
         contract in :class:`RuntimeContractRegistry` by id
         ``custom:<mission>:<action>`` and passes it to
@@ -1326,7 +1453,9 @@ class TestCustomMissionComposition:
         from specify_cli.next.runtime_bridge import get_or_start_run
 
         run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
-        self._patch_frozen_template_agent_profile(Path(run_ref.run_dir), "specify", "implementer-ivan")
+        self._patch_frozen_template_agent_profile(
+            Path(run_ref.run_dir), "specify", "implementer-ivan"
+        )
 
         # Register a synthesized contract under the id the dispatcher
         # is expected to query.
@@ -1378,12 +1507,18 @@ class TestCustomMissionComposition:
                     return_value=sentinel_decision,
                 ),
             ):
-                decide_next_via_runtime("test", mission_slug, "success", repo_root)
+                decide_next_via_runtime(
+                    "test", mission_slug, "success", repo_root
+                )
 
             assert mock_execute.call_count == 1
             call = mock_execute.call_args
             # ``contract=`` is the second positional or a kwarg; cover both.
-            passed_contract = call.kwargs.get("contract") if "contract" in call.kwargs else (call.args[1] if len(call.args) > 1 else None)
+            passed_contract = (
+                call.kwargs.get("contract")
+                if "contract" in call.kwargs
+                else (call.args[1] if len(call.args) > 1 else None)
+            )
             assert passed_contract is synthesized, (
                 "dispatcher must resolve the synthesized contract from "
                 "RuntimeContractRegistry and pass it via contract=...; "

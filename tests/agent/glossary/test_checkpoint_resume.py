@@ -41,7 +41,6 @@ from specify_cli.glossary.strictness import Strictness
 
 pytestmark = pytest.mark.fast
 
-
 def _checkpoint_event_dict(checkpoint: StepCheckpoint) -> dict[str, Any]:
     """Convert checkpoint to event dict with event_type for JSONL persistence."""
     payload = checkpoint_to_dict(checkpoint)
@@ -517,9 +516,12 @@ class TestGenerationGateCheckpointEmission:
         # The checkpoint is emitted inside the gate's process method,
         # before the blocked event call.
 
-    def test_blocked_still_raised_if_checkpoint_fails(self, mock_context, high_severity_conflict, tmp_path, monkeypatch):
+    def test_blocked_still_raised_if_checkpoint_fails(
+        self, mock_context, high_severity_conflict, tmp_path, monkeypatch
+    ):
         """BlockedByConflict is raised even if checkpoint emission fails."""
         from specify_cli.glossary import events
+
 
         def failing_emit(checkpoint, project_root=None):
             raise RuntimeError("Checkpoint write failure")

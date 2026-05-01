@@ -21,7 +21,6 @@ suite, not by this contract).
 If future CLI work uses additional tracker symbols, update both the
 contract doc and this test in the same PR.
 """
-
 from __future__ import annotations
 
 import importlib
@@ -60,7 +59,9 @@ def test_top_level_symbol_exists(symbol_name: str) -> None:
 # spec_kitty_tracker.models
 # ---------------------------------------------------------------------------
 
-_MODELS_SYMBOLS = ("ExternalRef",)
+_MODELS_SYMBOLS = (
+    "ExternalRef",
+)
 
 
 @pytest.mark.parametrize("symbol_name", _MODELS_SYMBOLS)
@@ -68,7 +69,9 @@ def test_models_symbol_exists(symbol_name: str) -> None:
     """FR-009: Each pinned ``spec_kitty_tracker.models`` symbol must resolve."""
     module = importlib.import_module("spec_kitty_tracker.models")
     assert hasattr(module, symbol_name), (
-        f"spec_kitty_tracker.models.{symbol_name} is missing in spec-kitty-tracker. Update the consumer contract or fix the upstream surface."
+        f"spec_kitty_tracker.models.{symbol_name} is missing in "
+        f"spec-kitty-tracker. Update the consumer contract or fix the "
+        f"upstream surface."
     )
 
 
@@ -89,7 +92,8 @@ def test_ownership_mode_is_enum_like() -> None:
     has_members = hasattr(OwnershipMode, "__members__")
     has_class_callable = callable(getattr(OwnershipMode, "__class__", None))
     assert has_members or has_class_callable, (
-        "spec_kitty_tracker.OwnershipMode no longer exposes an enum-like interface. CLI's tracker integration relies on this surface."
+        "spec_kitty_tracker.OwnershipMode no longer exposes an enum-like "
+        "interface. CLI's tracker integration relies on this surface."
     )
 
 
@@ -98,7 +102,8 @@ def test_field_owner_class_exists() -> None:
     from spec_kitty_tracker import FieldOwner
 
     assert isinstance(FieldOwner, type), (
-        f"spec_kitty_tracker.FieldOwner is not a class (got {type(FieldOwner)}). CLI's tracker integration relies on FieldOwner being a class."
+        f"spec_kitty_tracker.FieldOwner is not a class (got {type(FieldOwner)}). "
+        "CLI's tracker integration relies on FieldOwner being a class."
     )
 
 
@@ -107,5 +112,6 @@ def test_sync_engine_class_exists() -> None:
     from spec_kitty_tracker import SyncEngine
 
     assert isinstance(SyncEngine, type), (
-        f"spec_kitty_tracker.SyncEngine is not a class (got {type(SyncEngine)}). CLI's tracker integration relies on SyncEngine being a class."
+        f"spec_kitty_tracker.SyncEngine is not a class (got {type(SyncEngine)}). "
+        "CLI's tracker integration relies on SyncEngine being a class."
     )

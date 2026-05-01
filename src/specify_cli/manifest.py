@@ -4,7 +4,7 @@ This module generates and checks expected files based on the mission context.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 import subprocess
 
 
@@ -19,7 +19,9 @@ class FileManifest:
 
     def __init__(self, kittify_dir: Path, *, mission_type: str | None = None):
         self.kittify_dir = kittify_dir
-        self.mission_dir = kittify_dir / "missions" / mission_type if mission_type else None
+        self.mission_dir = (
+            kittify_dir / "missions" / mission_type if mission_type else None
+        )
 
     def get_expected_files(self) -> dict[str, list[str]]:
         """
@@ -31,7 +33,12 @@ class FileManifest:
         if not self.mission_dir or not self.mission_dir.exists():
             return {}
 
-        manifest = {"commands": [], "templates": [], "scripts": [], "mission_files": []}
+        manifest = {
+            "commands": [],
+            "templates": [],
+            "scripts": [],
+            "mission_files": []
+        }
 
         # Mission config file
         mission_yaml = self.mission_dir / "mission.yaml"
@@ -100,7 +107,12 @@ class FileManifest:
             Dict with 'present', 'missing', and 'extra' keys
         """
         expected = self.get_expected_files()
-        result = {"present": {}, "missing": {}, "modified": {}, "extra": []}
+        result = {
+            "present": {},
+            "missing": {},
+            "modified": {},
+            "extra": []
+        }
 
         # Check each category
         for category, files in expected.items():
@@ -155,7 +167,7 @@ class WorktreeStatus:
                 if feature_dir.is_dir() and feature_dir.name[0].isdigit() and "-" in feature_dir.name:
                     features.add(feature_dir.name)
 
-        return sorted(features)
+        return sorted(list(features))
 
     def _check_branch_exists(self, feature: str) -> bool:
         """Return True if the local branch ref exists."""
@@ -176,7 +188,6 @@ class WorktreeStatus:
         """Return True if the branch has been merged into the primary branch."""
         try:
             from specify_cli.core.git_ops import resolve_primary_branch
-
             primary = resolve_primary_branch(self.repo_root)
             result = subprocess.run(
                 ["git", "branch", "--merged", primary],
@@ -243,7 +254,13 @@ class WorktreeStatus:
     def get_worktree_summary(self) -> dict[str, int]:
         """Get summary counts of worktree states."""
         features = self.get_all_features()
-        summary = {"total_features": len(features), "active_worktrees": 0, "merged_features": 0, "in_development": 0, "not_started": 0}
+        summary = {
+            "total_features": len(features),
+            "active_worktrees": 0,
+            "merged_features": 0,
+            "in_development": 0,
+            "not_started": 0
+        }
 
         for feature in features:
             status = self.get_feature_status(feature)

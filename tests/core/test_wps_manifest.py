@@ -1,5 +1,4 @@
 """Unit tests for wps_manifest module."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,7 +19,10 @@ class TestLoadWpsManifest:
     def test_load_valid_manifest(self, tmp_path: Path) -> None:
         wps = tmp_path / "wps.yaml"
         wps.write_text(
-            "work_packages:\n  - id: WP01\n    title: 'First WP'\n    dependencies: []\n",
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: 'First WP'\n"
+            "    dependencies: []\n",
             encoding="utf-8",
         )
         manifest = load_wps_manifest(tmp_path)
@@ -56,7 +58,12 @@ class TestLoadWpsManifest:
     def test_load_multiple_work_packages(self, tmp_path: Path) -> None:
         wps = tmp_path / "wps.yaml"
         wps.write_text(
-            "work_packages:\n  - id: WP01\n    title: 'First'\n  - id: WP02\n    title: 'Second'\n    dependencies: [WP01]\n",
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: 'First'\n"
+            "  - id: WP02\n"
+            "    title: 'Second'\n"
+            "    dependencies: [WP01]\n",
             encoding="utf-8",
         )
         manifest = load_wps_manifest(tmp_path)
@@ -67,7 +74,10 @@ class TestLoadWpsManifest:
     def test_invalid_dependency_raises(self, tmp_path: Path) -> None:
         wps = tmp_path / "wps.yaml"
         wps.write_text(
-            "work_packages:\n  - id: WP01\n    title: 'T'\n    dependencies: [NOTAWP]\n",
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: 'T'\n"
+            "    dependencies: [NOTAWP]\n",
             encoding="utf-8",
         )
         with pytest.raises(ValidationError):
@@ -125,7 +135,12 @@ class TestDependenciesAreExplicit:
     def test_multiple_wps_track_independently(self, tmp_path: Path) -> None:
         wps = tmp_path / "wps.yaml"
         wps.write_text(
-            "work_packages:\n  - id: WP01\n    title: 'With deps key'\n    dependencies: []\n  - id: WP02\n    title: 'Without deps key'\n",
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: 'With deps key'\n"
+            "    dependencies: []\n"
+            "  - id: WP02\n"
+            "    title: 'Without deps key'\n",
             encoding="utf-8",
         )
         manifest = load_wps_manifest(tmp_path)

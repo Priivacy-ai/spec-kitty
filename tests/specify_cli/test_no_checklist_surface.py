@@ -107,7 +107,9 @@ def test_no_checklist_filenames_in_scan_roots():
                 continue
             if CHECKLIST_FILENAME_RE.search(str(path)):
                 offenders.append(str(path.relative_to(REPO_ROOT)))
-    assert not offenders, "Found deprecated checklist filenames:\n  " + "\n  ".join(offenders)
+    assert not offenders, (
+        "Found deprecated checklist filenames:\n  " + "\n  ".join(offenders)
+    )
 
 
 def test_no_checklist_command_string_in_scan_roots():
@@ -122,4 +124,6 @@ def test_no_checklist_command_string_in_scan_roots():
                 continue
             if CHECKLIST_CMD_RE.search(text):
                 offenders.append(str(path.relative_to(REPO_ROOT)))
-    assert not offenders, "Found references to /spec-kitty.checklist:\n  " + "\n  ".join(offenders)
+    assert not offenders, (
+        "Found references to /spec-kitty.checklist:\n  " + "\n  ".join(offenders)
+    )

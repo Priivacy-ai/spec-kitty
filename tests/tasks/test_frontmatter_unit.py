@@ -88,7 +88,9 @@ class TestReadValidInput:
     def test_reads_simple_fields(self, tmp_path: Path, fm: FrontmatterManager) -> None:
         """Standard WP frontmatter fields round-trip correctly."""
         # Arrange
-        content = "---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---\n# Setup\n\nBody text.\n"
+        content = (
+            "---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---\n# Setup\n\nBody text.\n"
+        )
         f = tmp_path / "WP01.md"
         f.write_text(content, encoding="utf-8")
 

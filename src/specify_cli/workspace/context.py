@@ -356,7 +356,9 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
                 "Add an explicit execution_mode in the WP frontmatter to silence this default."
             )
         else:
-            diagnostic = f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} from existing mission content."
+            diagnostic = (
+                f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} from existing mission content."
+            )
     else:
         try:
             execution_mode = ExecutionMode(raw_mode)

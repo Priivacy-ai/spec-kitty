@@ -1,6 +1,7 @@
 """Tests for pre-commit ownership guard."""
 
 from specify_cli.policy.commit_guard import (
+    CommitGuardResult,
     is_implementation_branch,
     validate_staged_files,
 )
@@ -105,13 +106,11 @@ class TestOwnershipEnforcement:
 class TestHookInstaller:
     def test_install_creates_hook(self, tmp_path):
         import subprocess
-
         repo = tmp_path / "repo"
         repo.mkdir()
         subprocess.run(["git", "init", str(repo)], capture_output=True, check=True)
 
         from specify_cli.policy.hook_installer import install_commit_guard
-
         hook_path = install_commit_guard(repo, repo)
 
         assert hook_path is not None
@@ -120,13 +119,11 @@ class TestHookInstaller:
 
     def test_install_is_idempotent(self, tmp_path):
         import subprocess
-
         repo = tmp_path / "repo"
         repo.mkdir()
         subprocess.run(["git", "init", str(repo)], capture_output=True, check=True)
 
         from specify_cli.policy.hook_installer import install_commit_guard
-
         path1 = install_commit_guard(repo, repo)
         path2 = install_commit_guard(repo, repo)
         assert path1 == path2

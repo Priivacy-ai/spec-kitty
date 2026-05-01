@@ -122,6 +122,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -152,6 +153,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -178,6 +180,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -217,6 +220,7 @@ class TestEmitCommand:
             with (
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
+
                 patches["saas_fan_out"],
             ):
                 r = runner.invoke(
@@ -248,6 +252,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -280,6 +285,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -307,6 +313,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -336,6 +343,7 @@ class TestEmitCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             result = runner.invoke(
@@ -372,6 +380,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
         ):
             result = runner.invoke(
                 app,
@@ -396,6 +405,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
         ):
             result = runner.invoke(
                 app,
@@ -429,14 +439,14 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patch("builtins.__import__", side_effect=raising_import),
         ):
             result = runner.invoke(
                 app,
                 [
                     "materialize",
-                    "--mission",
-                    "034-test-feature",
+                    "--mission", "034-test-feature",
                 ],
             )
 
@@ -449,6 +459,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
         ):
             result = runner.invoke(
                 app,
@@ -468,6 +479,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
         ):
             result = runner.invoke(
                 app,
@@ -537,6 +549,7 @@ class TestMaterializeCommand:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
         ):
             result = runner.invoke(
                 app,
@@ -572,6 +585,7 @@ class TestEmitThenMaterialize:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
             patches["saas_fan_out"],
         ):
             emit_result = runner.invoke(
@@ -594,6 +608,7 @@ class TestEmitThenMaterialize:
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
+
         ):
             mat_result = runner.invoke(
                 app,

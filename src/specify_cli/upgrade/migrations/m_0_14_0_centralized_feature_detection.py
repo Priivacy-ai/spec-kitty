@@ -92,7 +92,8 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
         """Always returns False — command templates removed in WP10."""
         return (
             False,
-            "Command templates were removed in WP10 (canonical context architecture). Shim generation replaces template-based commands.",
+            "Command templates were removed in WP10 (canonical context architecture). "
+            "Shim generation replaces template-based commands.",
         )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
@@ -180,7 +181,9 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
         try:
             cwd = Path.cwd()
             for parent in [cwd] + list(cwd.parents):
-                template_file = parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "plan.md"
+                template_file = (
+                    parent / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "plan.md"
+                )
                 pyproject = parent / "pyproject.toml"
                 if template_file.exists() and pyproject.exists():
                     try:

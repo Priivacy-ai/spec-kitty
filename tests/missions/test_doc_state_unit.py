@@ -39,7 +39,9 @@ def _make_meta(path: Path, extra: dict | None = None) -> Path:
     if extra:
         data.update(extra)
     meta = path / "meta.json"
-    meta.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    meta.write_text(
+        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return meta
 
 

@@ -202,7 +202,6 @@ class TestPlanningArtifactLane:
     def test_planning_artifacts_get_lane_planning(self):
         """Planning-artifact WPs are assigned to the canonical lane-planning lane."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
-
         graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -237,7 +236,6 @@ class TestPlanningArtifactLane:
     def test_all_planning_artifacts_single_planning_lane(self):
         """All WPs are planning artifacts → only lane-planning lane exists."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
-
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),
@@ -474,7 +472,6 @@ class TestPlanningArtifactDiagnostic:
     def test_planning_artifact_in_lane_planning_and_diagnostic(self):
         """Planning WPs are in lane-planning lane and listed in planning_artifact_wps."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
-
         graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -508,7 +505,6 @@ class TestPlanningArtifactDiagnostic:
     def test_all_planning_artifacts_planning_lane_only(self):
         """When all WPs are planning artifacts, only lane-planning lane exists."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
-
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),

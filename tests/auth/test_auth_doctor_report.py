@@ -123,11 +123,17 @@ def _patch_state(
         def exists(self) -> bool:
             return self._exists
 
-    monkeypatch.setattr(_auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists))
+    monkeypatch.setattr(
+        _auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists)
+    )
     if daemon_status is None:
         daemon_status = SyncDaemonStatus(healthy=False)
-    monkeypatch.setattr(_auth_doctor, "get_sync_daemon_status", lambda: daemon_status)
-    monkeypatch.setattr(_auth_doctor, "enumerate_orphans", lambda: list(orphans or []))
+    monkeypatch.setattr(
+        _auth_doctor, "get_sync_daemon_status", lambda: daemon_status
+    )
+    monkeypatch.setattr(
+        _auth_doctor, "enumerate_orphans", lambda: list(orphans or [])
+    )
     # Disable rollout-enabled finding F-005 unless the test asks for it.
     import sys
 
@@ -151,7 +157,9 @@ def _capture_render(report: DoctorReport) -> str:
 
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy state ⇒ all 7 sections render; findings empty; exit 0."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
@@ -192,8 +200,12 @@ def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_renders_orphan_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """One orphan present ⇒ F-002 warn; exit 0 (warn is not critical)."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
-    orphan = OrphanDaemon(port=9401, pid=12345, package_version="3.2.0a4", protocol_version=1)
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    orphan = OrphanDaemon(
+        port=9401, pid=12345, package_version="3.2.0a4", protocol_version=1
+    )
     _patch_state(monkeypatch, session=session, orphans=[orphan])
 
     report = assemble_report()
@@ -209,7 +221,9 @@ def test_renders_orphan_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lock record 120 s old ⇒ F-003 critical; exit 1."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     lock = LockRecord(
         schema_version=1,
         pid=99999,
@@ -231,7 +245,9 @@ def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 
     report = assemble_report(stuck_threshold_s=60.0)
 
-    assert any(f.id == "F-003" and f.severity == "critical" for f in report.findings)
+    assert any(
+        f.id == "F-003" and f.severity == "critical" for f in report.findings
+    )
     assert compute_exit_code(report.findings) == 1
 
 
@@ -256,7 +272,9 @@ def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     but for this unit test we patch it with a tiny synthetic delay so
     we exercise the *whole* pipeline rather than the network layer.
     """
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
 
     def fake_enumerate() -> list[OrphanDaemon]:
         # Simulate the worst-case 50-port scan completing very quickly.
@@ -278,7 +296,9 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fresh held lock ⇒ section renders holder PID, age, host; no F-003."""
     import socket
 
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     lock = LockRecord(
         schema_version=1,
         pid=42,
@@ -299,7 +319,9 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_renders_active_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy daemon ⇒ section prints PID/Port/Package/Protocol."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     daemon_status = SyncDaemonStatus(
         healthy=True,
         url="http://127.0.0.1:9400",
@@ -328,8 +350,12 @@ def test_renders_active_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_renders_recorded_unhealthy_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
     """Daemon state file exists but health probe fails ⇒ "recorded but not healthy"."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
-    daemon_status = SyncDaemonStatus(healthy=False, port=9400, pid=12345)
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    daemon_status = SyncDaemonStatus(
+        healthy=False, port=9400, pid=12345
+    )
     _patch_state(
         monkeypatch,
         session=session,
@@ -348,8 +374,12 @@ def test_unhealthy_daemon_finding_points_to_reset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Rollout-enabled unhealthy singleton should tell users to run ``--reset``."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
-    daemon_status = SyncDaemonStatus(healthy=False, port=9402, pid=12835)
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    daemon_status = SyncDaemonStatus(
+        healthy=False, port=9402, pid=12835
+    )
     _patch_state(
         monkeypatch,
         session=session,
@@ -367,7 +397,9 @@ def test_unhealthy_daemon_finding_points_to_reset(
 
 def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """F-007 fires when the lock holder host differs from the local hostname."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     lock = LockRecord(
         schema_version=1,
         pid=42,
@@ -384,7 +416,9 @@ def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     """``--json`` payload validates against ``data-model.md`` §5 schema."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
@@ -489,7 +523,6 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
 
     # _check_server_session imports get_token_manager locally from specify_cli.auth
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
@@ -517,7 +550,6 @@ async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None
     mock_client.get = AsyncMock(return_value=mock_response)
 
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
@@ -545,7 +577,6 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     mock_client.get = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
 
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
@@ -570,7 +601,6 @@ async def test_check_server_session_refresh_expired(monkeypatch: pytest.MonkeyPa
     mock_tm.get_access_token = AsyncMock(side_effect=RefreshTokenExpiredError("expired"))
 
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -591,11 +621,13 @@ async def test_check_server_session_refresh_lock_timeout_uses_safe_message(
 
     mock_tm = AsyncMock()
     mock_tm.get_access_token = AsyncMock(
-        side_effect=RefreshLockTimeoutError("Refresh token replay detected and no newer local token is available. Run `spec-kitty auth login` if this persists.")
+        side_effect=RefreshLockTimeoutError(
+            "Refresh token replay detected and no newer local token is available. "
+            "Run `spec-kitty auth login` if this persists."
+        )
     )
 
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -615,7 +647,6 @@ async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPa
     mock_tm.get_access_token = AsyncMock(side_effect=SessionInvalidError("invalidated"))
 
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -635,7 +666,6 @@ async def test_check_server_session_generic_access_token_failure_no_class_name(
     mock_tm.get_access_token = AsyncMock(side_effect=RuntimeError("boom"))
 
     import specify_cli.auth as _auth_module
-
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -656,7 +686,9 @@ def test_doctor_impl_server_false_no_outbound_call(
     """server=False must not call asyncio.run or _check_server_session."""
     import asyncio
 
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     asyncio_run_called = []
@@ -683,7 +715,9 @@ def test_doctor_impl_server_true_renders_active(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """server=True + active session → output contains 'active' and session id."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=True, session_id="s1")
@@ -721,7 +755,9 @@ def test_doctor_impl_server_true_renders_reauthenticate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """server=True + 401 → output contains 're-authenticate' guidance."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=False, error="re-authenticate")
@@ -759,7 +795,9 @@ def test_doctor_impl_server_true_json_includes_server_session(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """server=True + --json → payload includes server_session key."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=True, session_id="s2")
@@ -792,7 +830,9 @@ def test_default_doctor_output_has_server_hint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Default auth doctor output ends with the --server hint line."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
@@ -805,7 +845,9 @@ def test_server_doctor_output_no_hint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """auth doctor --server output does NOT show the hint."""
-    session = _make_session(refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30))
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()

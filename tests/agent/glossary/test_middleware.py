@@ -16,7 +16,6 @@ from specify_cli.glossary.store import GlossaryStore
 
 pytestmark = pytest.mark.fast
 
-
 class TestMiddlewareBasics:
     """Basic middleware functionality tests."""
 
@@ -891,6 +890,7 @@ class TestSemanticCheckMiddleware:
         """Event emission method signature matches WP08 contract."""
         from inspect import signature
 
+
         middleware = SemanticCheckMiddleware(semantic_check_store)
 
         # Check method exists
@@ -981,7 +981,9 @@ class TestSemanticCheckIntegration:
         middleware = SemanticCheckMiddleware(semantic_check_store)
 
         # LLM output that contradicts the glossary definition
-        llm_output_with_contradiction = "The feature is not a unit of work. The feature refers to a plugin or extension module."
+        llm_output_with_contradiction = (
+            "The feature is not a unit of work. The feature refers to a plugin or extension module."
+        )
 
         context = MockContext(
             metadata={},

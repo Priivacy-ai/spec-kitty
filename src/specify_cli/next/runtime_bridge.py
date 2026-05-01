@@ -411,7 +411,9 @@ _COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
 # Legacy run snapshots and project-local templates may still contain the old
 # tasks substep IDs. Normalize them into the single public ``tasks`` action so
 # existing in-flight missions can advance through the composition path.
-_LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset({"tasks_outline", "tasks_packages", "tasks_finalize"})
+_LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset(
+    {"tasks_outline", "tasks_packages", "tasks_finalize"}
+)
 
 
 def _normalize_action_for_composition(step_id: str) -> str:
@@ -535,7 +537,12 @@ def _resolve_runtime_contract_for_step(
             continue
         contract_ref = step.contract_ref.strip() if step.contract_ref else None
         if contract_ref:
-            repository = MissionStepContractRepository(project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts")
+            repository = MissionStepContractRepository(
+                project_dir=repo_root
+                / ".kittify"
+                / "doctrine"
+                / "mission_step_contracts"
+            )
             return lookup_contract(contract_ref, repository)
         profile = step.agent_profile.strip() if step.agent_profile else None
         if profile:
@@ -628,7 +635,11 @@ def _publication_approved(feature_dir: Path) -> bool:
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if isinstance(entry, dict) and entry.get("type") == "gate_passed" and entry.get("name") == "publication_approved":
+            if (
+                isinstance(entry, dict)
+                and entry.get("type") == "gate_passed"
+                and entry.get("name") == "publication_approved"
+            ):
                 return True
     except OSError:
         return False
@@ -717,7 +728,9 @@ def _check_composed_action_guard(  # noqa: C901
             if not _publication_approved(feature_dir):
                 failures.append("Publication approval gate not passed")
         else:
-            failures.append(f"No guard registered for research action: {action}")
+            failures.append(
+                f"No guard registered for research action: {action}"
+            )
         return failures
 
     if mission == "documentation":
@@ -732,7 +745,10 @@ def _check_composed_action_guard(  # noqa: C901
                 failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
         elif action == "generate":
             if not _has_generated_docs(feature_dir):
-                failures.append("Required artifact missing: docs/**/*.md (no Markdown files found under docs/)")
+                failures.append(
+                    "Required artifact missing: docs/**/*.md "
+                    "(no Markdown files found under docs/)"
+                )
         elif action == "validate":
             if not (feature_dir / "audit-report.md").is_file():
                 failures.append("Required artifact missing: audit-report.md")
@@ -740,7 +756,9 @@ def _check_composed_action_guard(  # noqa: C901
             if not (feature_dir / "release.md").is_file():
                 failures.append("Required artifact missing: release.md")
         else:
-            failures.append(f"No guard registered for documentation action: {action}")
+            failures.append(
+                f"No guard registered for documentation action: {action}"
+            )
         return failures
 
     if action == "specify":
@@ -779,12 +797,17 @@ def _check_composed_action_guard(  # noqa: C901
             else:
                 for wp_file in sorted(tasks_dir.glob("WP*.md")):
                     if not _has_raw_dependencies_field(wp_file):
-                        failures.append(f"WP {wp_file.stem} missing 'dependencies' in frontmatter (run 'spec-kitty agent mission finalize-tasks')")
+                        failures.append(
+                            f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
+                            "(run 'spec-kitty agent mission finalize-tasks')"
+                        )
                         break  # One failure message is enough
 
     elif action == "implement":
         if not _should_advance_wp_step("implement", feature_dir):
-            failures.append("Not all work packages have required status (for_review, approved, or done)")
+            failures.append(
+                "Not all work packages have required status (for_review, approved, or done)"
+            )
 
     elif action == "review" and not _should_advance_wp_step("review", feature_dir):
         failures.append("Not all work packages are approved or done")
@@ -850,9 +873,13 @@ def _dispatch_via_composition(
     # lookup for built-in software-dev dispatch.
     from specify_cli.mission_loader.registry import get_runtime_contract_registry
 
-    selected_contract = contract or get_runtime_contract_registry().lookup(f"custom:{mission}:{action}")
+    selected_contract = contract or get_runtime_contract_registry().lookup(
+        f"custom:{mission}:{action}"
+    )
     try:
-        result = StepContractExecutor(repo_root=repo_root).execute(context, contract=selected_contract)
+        result = StepContractExecutor(repo_root=repo_root).execute(
+            context, contract=selected_contract
+        )
     except StepContractExecutionError as exc:
         # Structured CLI failure surface (FR-009) — caller turns this into a
         # Decision; no Python traceback escapes.
@@ -865,8 +892,13 @@ def _dispatch_via_composition(
         # that raises ``ValueError`` from a malformed YAML, or a transient
         # ``OSError`` reading a contract file). The exception detail is logged
         # for operator triage; the structured surface preserves the FR-009 UX.
-        logger.exception("unexpected exception in composition for %s/%s", mission, action)
-        return [f"composition crashed for {mission}/{action}: {type(exc).__name__}: {exc}"]
+        logger.exception(
+            "unexpected exception in composition for %s/%s", mission, action
+        )
+        return [
+            f"composition crashed for {mission}/{action}: "
+            f"{type(exc).__name__}: {exc}"
+        ]
 
     # FR-008: forward the invocation_id chain produced by the executor to the
     # bridge log so downstream event/trail writers and operators can correlate
@@ -886,7 +918,9 @@ def _dispatch_via_composition(
         invocation_ids,
     )
 
-    failures = _check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
+    failures = _check_composed_action_guard(
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
+    )
     if failures:
         return failures
     return None
@@ -998,7 +1032,9 @@ def _advance_run_state_after_composition(
             result="success",
             actor=ac_actor,
         )
-        _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, ac_payload.model_dump(mode="json"))
+        _append_event(
+            run_dir, NEXT_STEP_AUTO_COMPLETED, ac_payload.model_dump(mode="json")
+        )
         sync_emitter.emit_next_step_auto_completed(ac_payload)
 
     # Step 2 — plan the next decision against the frozen template, mirroring
@@ -1069,7 +1105,9 @@ def _advance_run_state_after_composition(
                 input_key=decision.input_key,
                 actor=dr_actor,
             )
-            _append_event(run_dir, DECISION_INPUT_REQUESTED, dr_payload.model_dump(mode="json"))
+            _append_event(
+                run_dir, DECISION_INPUT_REQUESTED, dr_payload.model_dump(mode="json")
+            )
             sync_emitter.emit_decision_input_requested(dr_payload)
     elif decision.kind == "terminal" and did_complete_step:
         # Retrospective lifecycle gate (FR-011..FR-014). Opt-in via charter
@@ -1106,7 +1144,9 @@ def _advance_run_state_after_composition(
             mission_type=snapshot.mission_key,
             actor=mc_actor,
         )
-        _append_event(run_dir, MISSION_RUN_COMPLETED, mc_payload.model_dump(mode="json"))
+        _append_event(
+            run_dir, MISSION_RUN_COMPLETED, mc_payload.model_dump(mode="json")
+        )
         sync_emitter.emit_mission_run_completed(mc_payload)
 
     # Step 4 — persist the new snapshot so the next ``decide_next_via_runtime``
@@ -1257,7 +1297,11 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     ]
     global_tier = [context.user_home / ".kittify" / "missions"]
     builtin_tier = list(context.builtin_roots)
-    tiers = project_tiers + [builtin_tier, global_tier] if mission_type == "software-dev" else project_tiers + [global_tier, builtin_tier]
+    tiers = (
+        project_tiers + [builtin_tier, global_tier]
+        if mission_type == "software-dev"
+        else project_tiers + [global_tier, builtin_tier]
+    )
 
     for roots in tiers:
         for root in roots:
@@ -1540,7 +1584,9 @@ def decide_next_via_runtime(  # noqa: C901
                     mission_type,
                 )
             else:
-                prompt_error = f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
+                prompt_error = (
+                    f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
+                )
             if prompt_file is None:
                 # WP06 (FR-006/FR-013): never issue kind=step with prompt_file=None.
                 # When a prompt cannot be resolved, surface a structured blocked
@@ -1729,7 +1775,11 @@ def decide_next_via_runtime(  # noqa: C901
                 mission=mission_type,
                 mission_state=current_step_id,
                 timestamp=now,
-                reason=(f"Run-state advancement after composition failed for {mission_type}/{composed_action}: {type(exc).__name__}: {exc}"),
+                reason=(
+                    f"Run-state advancement after composition failed for "
+                    f"{mission_type}/{composed_action}: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
                 progress=progress,
                 origin=origin,
                 run_id=run_ref.run_id,
@@ -1783,7 +1833,10 @@ def decide_next_via_runtime(  # noqa: C901
                 mission=mission_type,
                 mission_state=current_step_id or "unknown",
                 timestamp=now,
-                reason=("Cannot read run state.json / run.events.jsonl before speculative engine advance; refusing to advance"),
+                reason=(
+                    "Cannot read run state.json / run.events.jsonl before "
+                    "speculative engine advance; refusing to advance"
+                ),
                 progress=progress,
                 origin=origin,
             )

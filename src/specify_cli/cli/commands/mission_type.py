@@ -186,11 +186,18 @@ def current_cmd(
     detected_mission = _detect_current_feature(project_root)
 
     if mission is None and feature is None and not detected_mission:
-        console.print("[yellow]No active mission detected.[/yellow]\n\nUse [cyan]--mission <slug>[/cyan] to specify one, or run from within a mission worktree.")
+        console.print(
+            "[yellow]No active mission detected.[/yellow]\n"
+            "\nUse [cyan]--mission <slug>[/cyan] to specify one, "
+            "or run from within a mission worktree."
+        )
         # Optionally list available missions
         kitty_specs = project_root / "kitty-specs"
         if kitty_specs.is_dir():
-            missions = sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and d.name[0:1].isdigit())
+            missions = sorted(
+                d.name for d in kitty_specs.iterdir()
+                if d.is_dir() and d.name[0:1].isdigit()
+            )
             if missions:
                 console.print("\n[cyan]Available missions:[/cyan]")
                 for slug in missions[:10]:
@@ -314,8 +321,7 @@ def create_cmd(
     if ":" not in from_ticket:
         typer.secho(
             "Error: --from-ticket requires format provider:KEY (e.g. linear:PRI-42)",
-            err=True,
-            fg=typer.colors.RED,
+            err=True, fg=typer.colors.RED,
         )
         raise typer.Exit(1)
 
@@ -337,9 +343,9 @@ def create_cmd(
     config = load_tracker_config(repo_root)
     if config.provider and config.provider != provider:
         typer.secho(
-            f"Error: This repo is bound to '{config.provider}', not '{provider}'. Run: spec-kitty tracker bind --provider {provider}",
-            err=True,
-            fg=typer.colors.RED,
+            f"Error: This repo is bound to '{config.provider}', not '{provider}'. "
+            f"Run: spec-kitty tracker bind --provider {provider}",
+            err=True, fg=typer.colors.RED,
         )
         raise typer.Exit(1)
 
@@ -359,8 +365,7 @@ def create_cmd(
     if ticket is None:
         typer.secho(
             f"Error: Ticket '{issue_key}' not found in {provider}. Check the key and try again.",
-            err=True,
-            fg=typer.colors.RED,
+            err=True, fg=typer.colors.RED,
         )
         raise typer.Exit(1)
 
@@ -370,11 +375,20 @@ def create_cmd(
 
     # Handoff
     console.print()
-    console.print(f"[green]✓[/green] Ticket [bold]{ticket.get('identifier', issue_key)}[/bold] fetched → [dim]{context_path.relative_to(repo_root)}[/dim]")
+    console.print(
+        f"[green]✓[/green] Ticket [bold]{ticket.get('identifier', issue_key)}[/bold] "
+        f"fetched → [dim]{context_path.relative_to(repo_root)}[/dim]"
+    )
     console.print(f"  [dim]{ticket.get('title', '')}[/dim]")
     console.print()
-    console.print("Run [cyan]/spec-kitty.specify[/cyan] to create the mission from this ticket.")
-    console.print(f"The mission will be linked to [bold]{provider}:{ticket.get('identifier', issue_key)}[/bold] automatically on completion.")
+    console.print(
+        "Run [cyan]/spec-kitty.specify[/cyan] to create the mission from this ticket."
+    )
+    console.print(
+        "The mission will be linked to "
+        f"[bold]{provider}:{ticket.get('identifier', issue_key)}[/bold] "
+        "automatically on completion."
+    )
     console.print()
 
 

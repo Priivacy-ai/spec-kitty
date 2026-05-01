@@ -135,7 +135,10 @@ def test_merge_without_feature_on_lane_branch_validates_inferred_target(monkeypa
 
     assert result.exit_code == 1
     payload = _extract_json(result.stdout)
-    assert payload["error"] == (f"Target branch 'does-not-exist' (from meta.json) does not exist locally or on origin. Check kitty-specs/{slug}/meta.json.")
+    assert payload["error"] == (
+        "Target branch 'does-not-exist' (from meta.json) does not exist locally "
+        f"or on origin. Check kitty-specs/{slug}/meta.json."
+    )
 
 
 def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> None:
@@ -257,4 +260,6 @@ def test_merge_template_has_no_agent_feature_merge_references() -> None:
     merge_templates = list(src_root.glob("**/command-templates/merge.md"))
 
     # WP10: All command-templates were deleted; shim generation replaces them
-    assert len(merge_templates) == 0, f"command-templates/merge.md still present (WP10 deletion incomplete): {merge_templates}"
+    assert len(merge_templates) == 0, (
+        f"command-templates/merge.md still present (WP10 deletion incomplete): {merge_templates}"
+    )

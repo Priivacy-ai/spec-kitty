@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.retrospective.cli import app
@@ -409,10 +410,16 @@ class TestIncludeMalformed:
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA0"
         bad_dir.mkdir()
-        (bad_dir / "retrospective.yaml").write_text("{ not valid yaml: [unclosed\n", encoding="utf-8")
+        (bad_dir / "retrospective.yaml").write_text(
+            "{ not valid yaml: [unclosed\n", encoding="utf-8"
+        )
 
-        result_without = RUNNER.invoke(app, ["--project", str(tmp_path)])
-        result_with = RUNNER.invoke(app, ["--project", str(tmp_path), "--include-malformed"])
+        result_without = RUNNER.invoke(
+            app, ["--project", str(tmp_path)]
+        )
+        result_with = RUNNER.invoke(
+            app, ["--project", str(tmp_path), "--include-malformed"]
+        )
         assert result_without.exit_code == 0
         assert result_with.exit_code == 0
 
@@ -426,11 +433,15 @@ class TestIncludeMalformed:
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA1"
         bad_dir.mkdir()
-        (bad_dir / "retrospective.yaml").write_text("{ not valid yaml: [unclosed\n", encoding="utf-8")
+        (bad_dir / "retrospective.yaml").write_text(
+            "{ not valid yaml: [unclosed\n", encoding="utf-8"
+        )
 
-        json_result = RUNNER.invoke(app, ["--project", str(tmp_path), "--json"])
+        json_result = RUNNER.invoke(
+            app, ["--project", str(tmp_path), "--json"]
+        )
         assert json_result.exit_code == 0
         snap = json.loads(json_result.output)["result"]
         assert len(snap["malformed"]) == 1
         assert snap["malformed"][0]["reason"]  # non-empty reason
-        assert snap["malformed"][0]["path"]  # non-empty path
+        assert snap["malformed"][0]["path"]    # non-empty path

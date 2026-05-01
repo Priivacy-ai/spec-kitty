@@ -72,12 +72,18 @@ class StalenessChecker:
             return []
 
         now = datetime.now(tz=UTC)
-        node_urns: set[str] = {getattr(n, "urn", None) or "" for n in getattr(drg, "nodes", [])}
+        node_urns: set[str] = {
+            getattr(n, "urn", None) or "" for n in getattr(drg, "nodes", [])
+        }
 
         findings: list[LintFinding] = []
         for node in getattr(drg, "nodes", []):
-            findings.extend(self._check_artifact_staleness(node, now, feature_scope))
-            findings.extend(self._check_dangling_context_sources(node, node_urns, feature_scope))
+            findings.extend(
+                self._check_artifact_staleness(node, now, feature_scope)
+            )
+            findings.extend(
+                self._check_dangling_context_sources(node, node_urns, feature_scope)
+            )
 
         return findings
 
@@ -85,11 +91,15 @@ class StalenessChecker:
     # Rule 1 — synthesized-artifact staleness
     # ------------------------------------------------------------------
 
-    def _check_artifact_staleness(self, node: Any, now: datetime, feature_scope: str | None) -> list[LintFinding]:
+    def _check_artifact_staleness(
+        self, node: Any, now: datetime, feature_scope: str | None
+    ) -> list[LintFinding]:
         """Flag synthesized nodes whose timestamp is beyond the threshold."""
         urn: str = getattr(node, "urn", "") or ""
         kind = getattr(node, "kind", None)
-        kind_val: str = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+        kind_val: str = (
+            kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+        )
 
         # Only check node kinds that are likely synthesized artifacts
         if kind_val not in {
@@ -117,7 +127,10 @@ class StalenessChecker:
                 type="stale_synthesized_artifact",
                 id=urn,
                 severity="medium",
-                message=(f"Node '{label}' ({urn}) is a synthesized {kind_val} that is {days_old} days old (threshold: {self._threshold.days} days)."),
+                message=(
+                    f"Node '{label}' ({urn}) is a synthesized {kind_val} that "
+                    f"is {days_old} days old (threshold: {self._threshold.days} days)."
+                ),
                 feature_id=feature_scope,
                 remediation_hint="Re-synthesize or archive this artifact.",
             )
@@ -127,17 +140,25 @@ class StalenessChecker:
     # Rule 2 — dangling context-source references on profile nodes
     # ------------------------------------------------------------------
 
-    def _check_dangling_context_sources(self, node: Any, node_urns: set[str], feature_scope: str | None) -> list[LintFinding]:
+    def _check_dangling_context_sources(
+        self, node: Any, node_urns: set[str], feature_scope: str | None
+    ) -> list[LintFinding]:
         """Flag agent_profile nodes that reference non-existent context-source URNs."""
         kind = getattr(node, "kind", None)
-        kind_val: str = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+        kind_val: str = (
+            kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+        )
         if kind_val != "agent_profile":
             return []
 
         urn: str = getattr(node, "urn", "") or ""
         metadata = getattr(node, "metadata", None) or {}
         # ``context_sources`` may be a direct attribute or nested in metadata
-        context_sources: list[str] = getattr(node, "context_sources", None) or (metadata.get("context_sources") if isinstance(metadata, dict) else None) or []
+        context_sources: list[str] = (
+            getattr(node, "context_sources", None)
+            or (metadata.get("context_sources") if isinstance(metadata, dict) else None)
+            or []
+        )
 
         findings: list[LintFinding] = []
         for src_urn in context_sources:
@@ -149,9 +170,14 @@ class StalenessChecker:
                         type="dangling_context_source",
                         id=urn,
                         severity="low",
-                        message=(f"Agent profile '{label}' ({urn}) references context source '{src_urn}' which no longer exists in the DRG."),
+                        message=(
+                            f"Agent profile '{label}' ({urn}) references "
+                            f"context source '{src_urn}' which no longer exists in the DRG."
+                        ),
                         feature_id=feature_scope,
-                        remediation_hint=(f"Remove or update the context_sources reference to '{src_urn}'."),
+                        remediation_hint=(
+                            f"Remove or update the context_sources reference to '{src_urn}'."
+                        ),
                     )
                 )
 

@@ -564,4 +564,7 @@ def test_nfr_002_timing_200_missions() -> None:
         assert ambiguous == {}  # all distinct human slugs
 
         # NFR-002: must be under 3 seconds
-        assert elapsed < 3.0, f"NFR-002 timing violation: {elapsed:.2f}s for 200 missions (limit: 3.0s). Check for I/O hotspots."
+        assert elapsed < 3.0, (
+            f"NFR-002 timing violation: {elapsed:.2f}s for 200 missions "
+            f"(limit: 3.0s). Check for I/O hotspots."
+        )

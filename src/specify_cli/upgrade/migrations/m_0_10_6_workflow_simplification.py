@@ -46,7 +46,10 @@ class WorkflowSimplificationMigration(BaseMigration):
                 if "Work Package Selection" in content or "Setup (Do This First)" in content:
                     return True
                 # Or doesn't have the new action command
-                if "spec-kitty agent action implement" not in content and "spec-kitty agent workflow implement" not in content:
+                if (
+                    "spec-kitty agent action implement" not in content
+                    and "spec-kitty agent workflow implement" not in content
+                ):
                     return True
 
             # Check review.md for old structure
@@ -57,7 +60,10 @@ class WorkflowSimplificationMigration(BaseMigration):
                 if "Location Pre-flight Check" in content or "Conduct the review:" in content:
                     return True
                 # Or doesn't have the new action command
-                if "spec-kitty agent action review" not in content and "spec-kitty agent workflow review" not in content:
+                if (
+                    "spec-kitty agent action review" not in content
+                    and "spec-kitty agent workflow review" not in content
+                ):
                     return True
 
         return False
@@ -113,7 +119,10 @@ class WorkflowSimplificationMigration(BaseMigration):
                     except OSError as e:
                         warnings.append(f"Failed to copy mission template {template_name}: {e}")
         else:
-            warnings.append("Mission templates not found in package. Slash commands may already be updated or require manual repair.")
+            warnings.append(
+                "Mission templates not found in package. "
+                "Slash commands may already be updated or require manual repair."
+            )
 
         # Update implement.md and review.md in ALL agent directories
         templates_to_update = ["implement.md", "review.md"]

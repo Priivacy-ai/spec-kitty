@@ -449,3 +449,5 @@ def test_resolve_template_and_command_package_tier_assert_path_and_mission(
     assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert command.path is not None
     assert command.mission == "software-dev"
+
+

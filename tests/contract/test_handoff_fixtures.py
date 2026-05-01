@@ -247,7 +247,9 @@ class TestFixtureValidation:
         import re
 
         ulid_pattern = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
-        assert ulid_pattern.match(event_data["event_id"]), f"event_id {event_data['event_id']!r} does not match ULID pattern"
+        assert ulid_pattern.match(event_data["event_id"]), (
+            f"event_id {event_data['event_id']!r} does not match ULID pattern"
+        )
 
     @pytest.mark.parametrize("event_data", FIXTURE_EVENTS, ids=_event_test_id)
     def test_fixture_payload_passes_emitter_rules(self, event_data: dict):
@@ -284,7 +286,9 @@ class TestEventTypeCoverage:
             "ErrorLogged",
             "DependencyResolved",
         }
-        assert fixture_types == expected_types, f"Missing types: {expected_types - fixture_types}, Extra types: {fixture_types - expected_types}"
+        assert fixture_types == expected_types, (
+            f"Missing types: {expected_types - fixture_types}, Extra types: {fixture_types - expected_types}"
+        )
 
     def test_valid_event_types_match_emitter(self):
         """Documented outbound types must match VALID_EVENT_TYPES from the emitter."""

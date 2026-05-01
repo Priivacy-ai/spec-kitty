@@ -254,7 +254,6 @@ def _legacy_alias_collapses_to_current_lane(
     normalized = raw_lane.strip().lower()
     return normalized != resolved_lane and resolved_lane == from_lane
 
-
 def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately
     feature_dir: TransitionRequest | Path | None = None,
     _legacy_mission_slug: str | None = None,
@@ -316,34 +315,30 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     """
     if isinstance(feature_dir, TransitionRequest):
         request = feature_dir
-        mixed_legacy_args = (
-            any(
-                value is not None
-                for value in (
-                    _legacy_mission_slug,
-                    wp_id,
-                    to_lane,
-                    actor,
-                    mission_dir,
-                    mission_slug,
-                    reason,
-                    evidence,
-                    review_ref,
-                    workspace_context,
-                    subtasks_complete,
-                    implementation_evidence_present,
-                    repo_root,
-                    policy_metadata,
-                    review_result,
-                )
+        mixed_legacy_args = any(
+            value is not None
+            for value in (
+                _legacy_mission_slug,
+                wp_id,
+                to_lane,
+                actor,
+                mission_dir,
+                mission_slug,
+                reason,
+                evidence,
+                review_ref,
+                workspace_context,
+                subtasks_complete,
+                implementation_evidence_present,
+                repo_root,
+                policy_metadata,
+                review_result,
             )
-            or force
-            or execution_mode != "worktree"
-            or not ensure_sync_daemon
-            or not sync_dossier
-        )
+        ) or force or execution_mode != "worktree" or not ensure_sync_daemon or not sync_dossier
         if mixed_legacy_args:
-            raise TypeError("emit_status_transition accepts either a TransitionRequest or legacy transition arguments, not both")
+            raise TypeError(
+                "emit_status_transition accepts either a TransitionRequest or legacy transition arguments, not both"
+            )
         feature_dir = request.feature_dir or request.mission_dir
         mission_slug = request.mission_slug or request._legacy_mission_slug
         wp_id = request.wp_id

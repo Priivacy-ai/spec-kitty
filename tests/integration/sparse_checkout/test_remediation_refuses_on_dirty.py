@@ -115,7 +115,9 @@ def test_refuses_when_primary_has_dirty_changes(tmp_path: Path) -> None:
         assert wr.steps_completed == ()
 
     # The operator's uncommitted edit must survive verbatim.
-    assert (repo / "README.md").read_text(encoding="utf-8") == "# Hello — edited\n"
+    assert (
+        (repo / "README.md").read_text(encoding="utf-8") == "# Hello — edited\n"
+    )
 
     # Sparse state on disk must be unchanged.
     after = _snapshot_sparse_state(repo, wt)

@@ -8,6 +8,7 @@ Extended by WP05 of feature 082-stealth-gated-saas-sync-hardening (readiness-awa
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -108,7 +109,9 @@ def test_status_all_local_provider_error(mock_service_fn, monkeypatch) -> None:
     """--all with a local provider produces a clear error and exit 1."""
     app = _make_app(monkeypatch)
     mock_svc = MagicMock()
-    mock_svc.status.side_effect = TrackerServiceError("Installation-wide status (--all) is only available for SaaS providers.")
+    mock_svc.status.side_effect = TrackerServiceError(
+        "Installation-wide status (--all) is only available for SaaS providers."
+    )
     mock_service_fn.return_value = mock_svc
 
     result = runner.invoke(app, ["status", "--all"])

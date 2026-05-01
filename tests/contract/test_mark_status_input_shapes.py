@@ -25,7 +25,10 @@ def test_qualified_task_id_with_slash_is_normalized() -> None:
     from specify_cli.cli.commands.agent.tasks import _normalize_task_id_input
 
     assert _normalize_task_id_input("034-feature-name/T001") == "T001"
-    assert _normalize_task_id_input("stability-and-hygiene-hardening-2026-04/T018") == "T018"
+    assert (
+        _normalize_task_id_input("stability-and-hygiene-hardening-2026-04/T018")
+        == "T018"
+    )
     assert _normalize_task_id_input("042-foo/WP01") == "WP01"
 
 
@@ -84,5 +87,8 @@ def test_normalizer_used_by_mark_status_command(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(tasks_mod, "locate_project_root", fake_locate_project_root)
 
     # Direct call to the helper is sufficient for the contract.
-    normalized = [tasks_mod._normalize_task_id_input(x) for x in ["foo/T001", "T002", "bar:WP03", "garbage"]]
+    normalized = [
+        tasks_mod._normalize_task_id_input(x)
+        for x in ["foo/T001", "T002", "bar:WP03", "garbage"]
+    ]
     assert normalized == ["T001", "T002", "WP03", "garbage"]

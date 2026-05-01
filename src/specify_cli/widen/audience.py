@@ -76,7 +76,9 @@ def _parse_audience_input(raw: str, default_audience: list[str]) -> tuple[list[s
 def _warn_unknown(unknown: list[str], console: Console) -> None:
     """Print a warning for audience names not in the default list."""
     if unknown:
-        console.print(f"[yellow]Note:[/yellow] {', '.join(unknown)} not in default audience — including anyway.")
+        console.print(
+            f"[yellow]Note:[/yellow] {', '.join(unknown)} not in default audience — including anyway."
+        )
 
 
 def _prompt_audience(console: Console) -> str | None:
@@ -139,7 +141,11 @@ def run_audience_review(
 
     display_names = [_member_display_name(member) for member in default_audience]
     display_names = [name for name in display_names if name]
-    user_id_by_display = {_member_display_name(member).lower(): _member_user_id(member) for member in default_audience if _member_display_name(member)}
+    user_id_by_display = {
+        _member_display_name(member).lower(): _member_user_id(member)
+        for member in default_audience
+        if _member_display_name(member)
+    }
     if not display_names:
         console.print("[yellow]Warning:[/yellow] No usable default audience configured for this mission.")
         return None
@@ -175,7 +181,10 @@ def run_audience_review(
             user_ids.append(user_id)
 
     if missing_ids:
-        console.print(f"[red]Widen failed:[/red] SaaS audience entries are missing Teamspace user IDs for {', '.join(missing_ids)}.")
+        console.print(
+            "[red]Widen failed:[/red] SaaS audience entries are missing Teamspace user IDs for "
+            f"{', '.join(missing_ids)}."
+        )
         console.print("Returning to interview prompt.")
         return None
 

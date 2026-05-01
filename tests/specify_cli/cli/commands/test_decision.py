@@ -105,7 +105,10 @@ def _open_decision(
     assert result.exit_code == 0, f"open failed: {result.output}"
     # dry-run emits only the minted-phase line (id="DRY_RUN"); non-dry-run emits two lines.
     lines = [line for line in result.output.splitlines() if line.strip()]
-    data = json.loads(lines[0]) if dry_run else json.loads(lines[-1])
+    if dry_run:
+        data = json.loads(lines[0])
+    else:
+        data = json.loads(lines[-1])
     return data["decision_id"]
 
 
@@ -664,7 +667,9 @@ def test_open_mission_path_traversal_rejected(tmp_path: Path) -> None:
             ],
             cwd=tmp_path,
         )
-        assert result.exit_code != 0, f"Expected non-zero exit for traversal value {bad_mission!r}, got 0"
+        assert result.exit_code != 0, (
+            f"Expected non-zero exit for traversal value {bad_mission!r}, got 0"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -708,7 +713,9 @@ def test_open_emits_minted_phase_first(tmp_path: Path) -> None:
     assert len(first_line["decision_id"]) == 26, "minted decision_id must be a ULID"
 
     second_line = json.loads(lines[1])
-    assert second_line["decision_id"] == first_line["decision_id"], "decision_id in minted-phase line must match the full response"
+    assert second_line["decision_id"] == first_line["decision_id"], (
+        "decision_id in minted-phase line must match the full response"
+    )
 
 
 # ---------------------------------------------------------------------------

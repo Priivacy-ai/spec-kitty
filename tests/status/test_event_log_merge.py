@@ -126,7 +126,9 @@ def test_read_event_file_missing_path_returns_empty_list(tmp_path: Path) -> None
 def test_read_event_file_skips_blank_lines(tmp_path: Path) -> None:
     path = tmp_path / "events.jsonl"
     path.write_text(
-        "\n" + json.dumps(_event("01AAA000000000000000000001", "2026-04-09T06:00:00Z"), sort_keys=True) + "\n\n",
+        "\n"
+        + json.dumps(_event("01AAA000000000000000000001", "2026-04-09T06:00:00Z"), sort_keys=True)
+        + "\n\n",
         encoding="utf-8",
     )
 

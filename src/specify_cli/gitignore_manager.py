@@ -224,7 +224,9 @@ class GitignoreManager:
 
         except PermissionError:
             result.success = False
-            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
+            result.errors.append(
+                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
+            )
         except Exception as exc:
             result.success = False
             result.errors.append(f"Error protecting {error_context}: {exc}")

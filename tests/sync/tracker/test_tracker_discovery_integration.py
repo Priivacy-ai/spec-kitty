@@ -687,6 +687,8 @@ def test_cli_bind_saas_with_project_slug_persists_and_renders(
         patch("specify_cli.cli.commands.tracker._check_readiness"),
         patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc),
     ):
-        result = cli_runner.invoke(app, ["bind", "--provider", "linear", "--bind-ref", "bind-ref-1"])
+        result = cli_runner.invoke(
+            app, ["bind", "--provider", "linear", "--bind-ref", "bind-ref-1"]
+        )
 
     assert result.exit_code == 0

@@ -71,18 +71,30 @@ def test_active_mission_handle_round_trip_on_windows(tmp_path: pytest.TempPathFa
 
     # Handle form 1: full mission_id (26-char ULID)
     resolved = resolve_mission(_MISSION_ID, tmp_path)
-    assert resolved.mission_id == _MISSION_ID, f"Expected mission_id {_MISSION_ID!r}, got {resolved.mission_id!r}"
-    assert resolved.mission_slug == _MISSION_SLUG, f"Expected mission_slug {_MISSION_SLUG!r}, got {resolved.mission_slug!r}"
+    assert resolved.mission_id == _MISSION_ID, (
+        f"Expected mission_id {_MISSION_ID!r}, got {resolved.mission_id!r}"
+    )
+    assert resolved.mission_slug == _MISSION_SLUG, (
+        f"Expected mission_slug {_MISSION_SLUG!r}, got {resolved.mission_slug!r}"
+    )
 
     # Handle form 2: mid8 (first 8 chars of mission_id)
     mid8 = _MISSION_ID[:8]
     resolved_mid8 = resolve_mission(mid8, tmp_path)
-    assert resolved_mid8.mission_id == _MISSION_ID, f"mid8 handle did not resolve correctly: got {resolved_mid8.mission_id!r}"
+    assert resolved_mid8.mission_id == _MISSION_ID, (
+        f"mid8 handle did not resolve correctly: got {resolved_mid8.mission_id!r}"
+    )
 
     # Handle form 3: full slug (directory name, may include numeric prefix)
     resolved_slug = resolve_mission(_MISSION_SLUG, tmp_path)
-    assert resolved_slug.mission_id == _MISSION_ID, f"Full slug handle did not resolve correctly: got {resolved_slug.mission_id!r}"
+    assert resolved_slug.mission_id == _MISSION_ID, (
+        f"Full slug handle did not resolve correctly: got {resolved_slug.mission_id!r}"
+    )
 
     # Verify the resolved path is a plain directory (no symlink involved)
-    assert resolved.feature_dir.is_dir(), f"Resolved feature_dir is not a directory: {resolved.feature_dir}"
-    assert not resolved.feature_dir.is_symlink(), f"Resolved feature_dir unexpectedly uses a symlink: {resolved.feature_dir}"
+    assert resolved.feature_dir.is_dir(), (
+        f"Resolved feature_dir is not a directory: {resolved.feature_dir}"
+    )
+    assert not resolved.feature_dir.is_symlink(), (
+        f"Resolved feature_dir unexpectedly uses a symlink: {resolved.feature_dir}"
+    )

@@ -114,7 +114,11 @@ def test_load_p95_under_250ms(tmp_path: Path) -> None:
 
     p95 = sorted(times)[int(0.95 * len(times))]
     threshold = 0.25 if os.environ.get("CI") != "true" else 0.375
-    assert p95 < threshold, f"p95={p95 * 1000:.1f}ms exceeds {threshold * 1000:.0f}ms (samples: min={min(times) * 1000:.1f}ms, max={max(times) * 1000:.1f}ms)"
+    assert p95 < threshold, (
+        f"p95={p95 * 1000:.1f}ms exceeds {threshold * 1000:.0f}ms "
+        f"(samples: min={min(times) * 1000:.1f}ms, "
+        f"max={max(times) * 1000:.1f}ms)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +148,9 @@ def test_erp_load_under_2s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     fake_run_dir = tmp_path / "runs" / "fake-run-id"
     fake_run_dir.mkdir(parents=True)
 
-    def _fake_get_or_start_run(*, mission_slug: str, repo_root: Path, mission_type: str) -> MissionRunRef:
+    def _fake_get_or_start_run(
+        *, mission_slug: str, repo_root: Path, mission_type: str
+    ) -> MissionRunRef:
         return MissionRunRef(
             run_id="fake-run-id",
             run_dir=str(fake_run_dir),
@@ -167,4 +173,9 @@ def test_erp_load_under_2s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert result.exit_code == 0, result.envelope
     # Local budget: 2s. CI gets 3x slack because cold-start + io variance.
     threshold = 2.0 if os.environ.get("CI") != "true" else 6.0
-    assert elapsed < threshold, f"run_custom_mission start phase took {elapsed:.2f}s (threshold: {threshold:.2f}s)"
+    assert elapsed < threshold, (
+        f"run_custom_mission start phase took {elapsed:.2f}s "
+        f"(threshold: {threshold:.2f}s)"
+    )
+
+

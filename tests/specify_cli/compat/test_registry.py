@@ -1,5 +1,4 @@
 """Unit tests for specify_cli.compat.registry — load_registry() and ShimEntry."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -163,6 +162,7 @@ class TestLoadRegistryHappyPath:
         root = _write_registry(tmp_path, {"shims": [entry]})
         with pytest.raises(RegistrySchemaError, match="future_field"):
             load_registry(root)
+
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +334,10 @@ class TestAdversarialValidation:
         validate_registry({"shims": [entry]})
 
     def test_many_entries_unique_paths(self) -> None:
-        entries = [{**_VALID_ENTRY, "legacy_path": f"module.sub_{i}"} for i in range(50)]
+        entries = [
+            {**_VALID_ENTRY, "legacy_path": f"module.sub_{i}"}
+            for i in range(50)
+        ]
         validate_registry({"shims": entries})
 
 
@@ -481,7 +484,9 @@ class TestValidateEntryMutationKills:
             removal_target_release="3.2.0",
         )
         _validate_entry(0, entry, set(), errors)
-        assert any(">= introduced_in_release" in e for e in errors), "version-order error did not reach caller's errors list"
+        assert any(">= introduced_in_release" in e for e in errors), (
+            "version-order error did not reach caller's errors list"
+        )
 
     def test_non_bool_grandfathered_error_reports_actual_type(self) -> None:
         """Kills mutant 53: type(gf).__name__ → type(None).__name__.

@@ -82,7 +82,9 @@ class TestDashboardPredicateDirect:
         """``--json`` is a safe flag and must not trigger UNSAFE."""
         assert _dashboard_predicate(_inv(raw_args=("--json",))) == Safety.SAFE
 
-    def test_monkeypatched_synthetic_flag_is_unsafe(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_monkeypatched_synthetic_flag_is_unsafe(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Future mutating flags can be added by extending _DASHBOARD_UNSAFE_FLAGS.
 
         This forward-looking test uses monkeypatch to verify the mechanism works
@@ -173,4 +175,6 @@ class TestDashboardGateIntegration:
         monkeypatch.setattr(sys, "argv", ["spec-kitty", "dashboard", "--kill"])
         with pytest.raises(SystemExit) as exc_info:
             check_schema_version(fixture_project_too_new, invoked_subcommand="dashboard")
-        assert exc_info.value.code == 5, f"Expected exit 5 (BLOCK_CLI_UPGRADE), got {exc_info.value.code!r}"
+        assert exc_info.value.code == 5, (
+            f"Expected exit 5 (BLOCK_CLI_UPGRADE), got {exc_info.value.code!r}"
+        )

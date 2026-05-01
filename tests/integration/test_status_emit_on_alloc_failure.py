@@ -75,7 +75,13 @@ def _write_wp_file(feature_dir: Path) -> Path:
     wp_file = feature_dir / "tasks" / "WP01-fixture.md"
     wp_file.parent.mkdir(parents=True, exist_ok=True)
     wp_file.write_text(
-        "---\nwork_package_id: WP01\ndependencies: []\nexecution_mode: code_change\nowned_files:\n  - src/wp01/**\nauthoritative_surface: src/wp01/\n---\n# WP01\n",
+        "---\n"
+        "work_package_id: WP01\n"
+        "dependencies: []\n"
+        "execution_mode: code_change\n"
+        "owned_files:\n  - src/wp01/**\n"
+        "authoritative_surface: src/wp01/\n"
+        "---\n# WP01\n",
         encoding="utf-8",
     )
     return wp_file
@@ -127,7 +133,11 @@ def test_implement_emits_in_progress_before_alloc_and_blocked_on_failure(
 
     assert events_log.exists(), "status.events.jsonl must exist after pre-alloc emit"
 
-    events = [json.loads(line) for line in events_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    events = [
+        json.loads(line)
+        for line in events_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     transitions = [(e["from_lane"], e["to_lane"]) for e in events]
 
     # The runtime must emit planned -> claimed -> in_progress BEFORE alloc.

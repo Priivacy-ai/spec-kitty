@@ -169,7 +169,9 @@ def install_fake_refresh_flow(monkeypatch):
     refresh_module.TokenRefreshFlow = FakeRefreshFlow
 
     monkeypatch.setitem(sys.modules, "specify_cli.auth.flows", flows_pkg)
-    monkeypatch.setitem(sys.modules, "specify_cli.auth.flows.refresh", refresh_module)
+    monkeypatch.setitem(
+        sys.modules, "specify_cli.auth.flows.refresh", refresh_module
+    )
     yield FakeRefreshFlow
 
 
@@ -231,7 +233,6 @@ def test_clear_session_propagates_delete_errors():
     Callers (e.g. _auth_logout.py) are responsible for catching and surfacing
     storage errors to the user; TokenManager must not swallow them.
     """
-
     class DeleteFailsStorage(FakeStorage):
         def delete(self):
             raise RuntimeError("nope")
@@ -372,7 +373,9 @@ async def test_concurrent_get_access_token_is_single_flight(install_fake_refresh
     tasks = [asyncio.create_task(tm.get_access_token()) for _ in range(10)]
     results = await asyncio.gather(*tasks)
 
-    assert install_fake_refresh_flow.call_count == 1, f"Expected 1 refresh, got {install_fake_refresh_flow.call_count}"
+    assert install_fake_refresh_flow.call_count == 1, (
+        f"Expected 1 refresh, got {install_fake_refresh_flow.call_count}"
+    )
     assert len(set(results)) == 1  # all callers see the same fresh token
     assert all(r != "stale" for r in results)
 
@@ -647,7 +650,9 @@ async def test_current_grant_session_invalid_propagates_session_invalid(
 
 
 @pytest.mark.asyncio
-async def test_lock_timeout_adopts_when_persisted_is_fresh(install_fake_refresh_flow, monkeypatch):
+async def test_lock_timeout_adopts_when_persisted_is_fresh(
+    install_fake_refresh_flow, monkeypatch
+):
     """FR-017: lock contention with usable persisted material is non-fatal."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -683,7 +688,9 @@ async def test_lock_timeout_adopts_when_persisted_is_fresh(install_fake_refresh_
 
 
 @pytest.mark.asyncio
-async def test_lock_timeout_error_when_persisted_is_unusable(install_fake_refresh_flow, monkeypatch):
+async def test_lock_timeout_error_when_persisted_is_unusable(
+    install_fake_refresh_flow, monkeypatch
+):
     """FR-016: lock contention with unusable persisted material raises retry hint."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -710,7 +717,9 @@ async def test_lock_timeout_error_when_persisted_is_unusable(install_fake_refres
 
 
 @pytest.mark.asyncio
-async def test_lock_timeout_error_uses_transaction_message(install_fake_refresh_flow, monkeypatch):
+async def test_lock_timeout_error_uses_transaction_message(
+    install_fake_refresh_flow, monkeypatch
+):
     """TokenManager must preserve replay-specific messages from the transaction."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -723,7 +732,10 @@ async def test_lock_timeout_error_uses_transaction_message(install_fake_refresh_
             outcome=RefreshOutcome.LOCK_TIMEOUT_ERROR,
             session=in_memory,
             network_call_made=True,
-            lock_timeout_message=("Refresh token replay detected and no newer local token is available. Run `spec-kitty auth login` if this persists."),
+            lock_timeout_message=(
+                "Refresh token replay detected and no newer local token is available. "
+                "Run `spec-kitty auth login` if this persists."
+            ),
         )
 
     monkeypatch.setattr(tm_module, "run_refresh_transaction", _fake_transaction)
@@ -748,14 +760,19 @@ async def test_refresh_logs_outcome_at_info(install_fake_refresh_flow, caplog):
     with caplog.at_level(logging.INFO, logger="specify_cli.auth.token_manager"):
         await tm.refresh_if_needed()
 
-    matching = [r for r in caplog.records if r.levelno == logging.INFO and "refresh_transaction outcome=" in r.getMessage()]
+    matching = [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and "refresh_transaction outcome=" in r.getMessage()
+    ]
     assert len(matching) == 1
     assert "outcome=refreshed" in matching[0].getMessage()
     assert "network_call=True" in matching[0].getMessage()
 
 
 @pytest.mark.asyncio
-async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(install_fake_refresh_flow, monkeypatch):
+async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(
+    install_fake_refresh_flow, monkeypatch
+):
     """T007 edge case: persisted is None mid-transaction → LOCK_TIMEOUT_ERROR."""
     storage = FakeStorage()
     tm = TokenManager(storage)
@@ -770,7 +787,9 @@ async def test_storage_emptied_mid_transaction_returns_lock_timeout_error(instal
 
 
 @pytest.mark.asyncio
-async def test_network_timeout_raises_lock_timeout_error(install_fake_refresh_flow, monkeypatch):
+async def test_network_timeout_raises_lock_timeout_error(
+    install_fake_refresh_flow, monkeypatch
+):
     """``asyncio.wait_for`` enforces NFR-002's 10 s ceiling on the network leg."""
     storage = FakeStorage()
     tm = TokenManager(storage)

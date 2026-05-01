@@ -81,6 +81,10 @@ def test_codex_and_vibe_are_shared_skill_roots() -> None:
     for key in ("codex", "vibe"):
         assert key in AGENT_SKILL_CONFIG, f"{key!r} missing from AGENT_SKILL_CONFIG"
         entry = AGENT_SKILL_CONFIG[key]
-        assert entry["class"] == SKILL_CLASS_SHARED, f"{key!r} should have class SKILL_CLASS_SHARED, got {entry['class']!r}"
+        assert entry["class"] == SKILL_CLASS_SHARED, (
+            f"{key!r} should have class SKILL_CLASS_SHARED, got {entry['class']!r}"
+        )
         roots: list[str] = entry["skill_roots"]  # type: ignore[assignment]
-        assert ".agents/skills/" in roots, f"{key!r} skill_roots should contain '.agents/skills/', got {roots!r}"
+        assert ".agents/skills/" in roots, (
+            f"{key!r} skill_roots should contain '.agents/skills/', got {roots!r}"
+        )

@@ -7,7 +7,7 @@ import hashlib
 import json
 import socket
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write

@@ -17,7 +17,6 @@ from specify_cli.gap_analysis import (
 
 pytestmark = pytest.mark.fast
 
-
 # T068: Test Framework Detection
 def test_detect_sphinx_framework(tmp_path):
     """Test detects Sphinx from conf.py."""

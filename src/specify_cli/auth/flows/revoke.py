@@ -1,5 +1,4 @@
 """RevokeFlow — RFC 7009 token revocation for spec-kitty auth logout."""
-
 from __future__ import annotations
 
 import logging

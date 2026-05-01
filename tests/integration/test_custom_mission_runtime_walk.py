@@ -148,19 +148,27 @@ def test_erp_full_walk(tmp_path: Path) -> None:
     # First call issues the first step.
     _advance()
     snapshot = _read_snapshot(Path(run_ref.run_dir))
-    assert snapshot.issued_step_id == "query-erp", f"Expected first issued step to be 'query-erp'; got {snapshot.issued_step_id!r}"
+    assert snapshot.issued_step_id == "query-erp", (
+        f"Expected first issued step to be 'query-erp'; got {snapshot.issued_step_id!r}"
+    )
     seen_steps.append(snapshot.issued_step_id)
 
     # Advance through query-erp and into lookup-provider.
     _advance()
     snapshot = _read_snapshot(Path(run_ref.run_dir))
-    assert snapshot.issued_step_id == "lookup-provider", f"Expected 'lookup-provider' after query-erp; got {snapshot.issued_step_id!r}"
+    assert snapshot.issued_step_id == "lookup-provider", (
+        f"Expected 'lookup-provider' after query-erp; got {snapshot.issued_step_id!r}"
+    )
     seen_steps.append(snapshot.issued_step_id)
 
     # Advance: ask-user has requires_inputs:[export_shape] so the engine
     # surfaces a decision_required NextDecision instead of issuing the step.
-    decision = engine_next_step(run_ref, agent_id="test", result="success", emitter=NullEmitter())
-    assert decision.kind == "decision_required", f"Expected ask-user to surface decision_required; got {decision!r}"
+    decision = engine_next_step(
+        run_ref, agent_id="test", result="success", emitter=NullEmitter()
+    )
+    assert decision.kind == "decision_required", (
+        f"Expected ask-user to surface decision_required; got {decision!r}"
+    )
     assert decision.decision_id == "input:export_shape"
     assert decision.input_key == "export_shape"
     assert decision.step_id == "ask-user"
@@ -183,18 +191,27 @@ def test_erp_full_walk(tmp_path: Path) -> None:
     # issues normally.
     _advance()
     snapshot = _read_snapshot(Path(run_ref.run_dir))
-    assert snapshot.issued_step_id == "ask-user", f"Expected ask-user to issue after answer; got {snapshot.issued_step_id!r}"
+    assert snapshot.issued_step_id == "ask-user", (
+        f"Expected ask-user to issue after answer; got {snapshot.issued_step_id!r}"
+    )
 
     # Walk the remaining composed steps + the retrospective marker.
     for expected in ("create-js", "refactor-function", "write-report", "retrospective"):
         _advance()
         snapshot = _read_snapshot(Path(run_ref.run_dir))
-        assert snapshot.issued_step_id == expected, f"Expected step {expected!r}; got {snapshot.issued_step_id!r} (completed_steps={snapshot.completed_steps!r})"
+        assert snapshot.issued_step_id == expected, (
+            f"Expected step {expected!r}; got {snapshot.issued_step_id!r} "
+            f"(completed_steps={snapshot.completed_steps!r})"
+        )
         seen_steps.append(expected)
 
     # One more advance after retrospective lands us at terminal.
-    final = engine_next_step(run_ref, agent_id="test", result="success", emitter=NullEmitter())
-    assert final.kind == "terminal", f"Expected terminal after retrospective; got {final!r}"
+    final = engine_next_step(
+        run_ref, agent_id="test", result="success", emitter=NullEmitter()
+    )
+    assert final.kind == "terminal", (
+        f"Expected terminal after retrospective; got {final!r}"
+    )
 
     # Sanity: the seen_steps cover the full ordered ERP DAG.
     assert seen_steps == [
@@ -234,7 +251,9 @@ def _init_min_repo(repo_root: Path) -> None:
         check=True,
     )
     (repo_root / "README.md").write_text("# test", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=repo_root, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=repo_root, capture_output=True, check=True
+    )
     subprocess.run(
         ["git", "commit", "-m", "init"],
         cwd=repo_root,
@@ -357,7 +376,9 @@ def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     append_event(feature_dir, event)
 
 
-def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: str) -> None:
+def _advance_runtime_to_step(
+    repo_root: Path, mission_slug: str, target_step: str
+) -> None:
     """Drive the runtime engine until ``issued_step_id == target_step``."""
     from specify_cli.next.runtime_bridge import get_or_start_run
 
@@ -366,8 +387,13 @@ def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: st
         snapshot = _read_snapshot(Path(run_ref.run_dir))
         if snapshot.issued_step_id == target_step:
             return
-        engine_next_step(run_ref, agent_id="test", result="success", emitter=NullEmitter())
-    raise RuntimeError(f"Could not drive runtime to {target_step!r}; snapshot ={_read_snapshot(Path(run_ref.run_dir))!r}")
+        engine_next_step(
+            run_ref, agent_id="test", result="success", emitter=NullEmitter()
+        )
+    raise RuntimeError(
+        f"Could not drive runtime to {target_step!r}; snapshot ="
+        f"{_read_snapshot(Path(run_ref.run_dir))!r}"
+    )
 
 
 def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
@@ -435,7 +461,10 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
     assert isinstance(context, StepContractExecutionContext)
     # FR-010: built-in software-dev keeps profile_hint=None so the
     # executor's _ACTION_PROFILE_DEFAULTS fallback path is unchanged.
-    assert context.profile_hint is None, f"Built-in software-dev dispatch must keep profile_hint=None; got {context.profile_hint!r}"
+    assert context.profile_hint is None, (
+        f"Built-in software-dev dispatch must keep profile_hint=None; "
+        f"got {context.profile_hint!r}"
+    )
     assert context.mission == "software-dev"
     assert context.action == "specify"
 
@@ -445,7 +474,9 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_run_custom_mission_starts_runtime_for_erp_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_custom_mission_starts_runtime_for_erp_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-001 / FR-009: the public surface starts the runtime for ERP.
 
     Lighter-weight companion to ``test_erp_full_walk`` that proves the
@@ -462,7 +493,9 @@ def test_run_custom_mission_starts_runtime_for_erp_fixture(tmp_path: Path, monke
 
     captured: dict[str, object] = {}
 
-    def _fake_get_or_start_run(*, mission_slug: str, repo_root: Path, mission_type: str) -> MissionRunRef:
+    def _fake_get_or_start_run(
+        *, mission_slug: str, repo_root: Path, mission_type: str
+    ) -> MissionRunRef:
         captured["mission_slug"] = mission_slug
         captured["repo_root"] = repo_root
         captured["mission_type"] = mission_type

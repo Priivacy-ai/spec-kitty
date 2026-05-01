@@ -21,7 +21,6 @@ pytestmark = pytest.mark.git_repo
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 TEST_MID8 = TEST_MISSION_ID[:8]
 
-
 class TestAssignNextMissionNumber:
     """Tests for merge-time display-number allocation."""
 

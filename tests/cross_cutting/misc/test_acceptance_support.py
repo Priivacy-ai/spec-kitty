@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,9 @@ def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, miss
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
 
 
-def test_detect_mission_slug_prefers_explicit(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_detect_mission_slug_prefers_explicit(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Auto-detection removed; must pass explicit_feature
     assert acc.detect_mission_slug(feature_repo, explicit_feature=mission_slug) == mission_slug
 
@@ -98,7 +101,9 @@ def test_acceptance_succeeds_for_done_wp_without_assignee(feature_repo: Path, mi
 
     # Strict validation should NOT complain about missing assignee for done lane
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
-    assert not any("missing assignee" in issue for issue in summary.metadata_issues), "Done WPs should not require assignee"
+    assert not any("missing assignee" in issue for issue in summary.metadata_issues), (
+        "Done WPs should not require assignee"
+    )
 
 
 # T040: Test that doing/for_review WPs still require assignee (Bug #119)
@@ -117,14 +122,18 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, mission_sl
     run(["git", "commit", "-am", "Move to doing without assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
-    assert any("missing assignee" in issue for issue in summary.metadata_issues), "Doing lane should still require assignee"
+    assert any("missing assignee" in issue for issue in summary.metadata_issues), (
+        "Doing lane should still require assignee"
+    )
 
     # Test for_review lane
     run_tasks_cli(["update", mission_slug, "WP01", "for_review", "--force"], cwd=feature_repo)
     run(["git", "commit", "-am", "Move to for_review without assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
-    assert any("missing assignee" in issue for issue in summary.metadata_issues), "For_review lane should still require assignee"
+    assert any("missing assignee" in issue for issue in summary.metadata_issues), (
+        "For_review lane should still require assignee"
+    )
 
 
 # T041: Test required fields still enforced for active lanes

@@ -72,7 +72,9 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
             ValueError: If project_dir is not configured.
         """
         if self._project_dir is None:
-            raise ValueError("Cannot save styleguide: project_dir not configured")
+            raise ValueError(
+                "Cannot save styleguide: project_dir not configured"
+            )
 
         self._project_dir.mkdir(parents=True, exist_ok=True)
 

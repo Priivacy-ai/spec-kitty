@@ -82,10 +82,14 @@ _CARVE_OUTS: frozenset[str] = frozenset(
 )
 
 # Literal tokens that indicate a direct read of a v1.0.0 derivative.
-_DERIVATIVE_FILENAMES: frozenset[str] = frozenset({"governance.yaml", "directives.yaml", "metadata.yaml"})
+_DERIVATIVE_FILENAMES: frozenset[str] = frozenset(
+    {"governance.yaml", "directives.yaml", "metadata.yaml"}
+)
 
 # Function calls whose presence implies a reader site.
-_CHOKEPOINT_READER_CALLS: frozenset[str] = frozenset({"load_governance_config", "load_directives_config"})
+_CHOKEPOINT_READER_CALLS: frozenset[str] = frozenset(
+    {"load_governance_config", "load_directives_config"}
+)
 
 # The chokepoint symbol whose presence (imported or called) in a file
 # proves that file routes through the chokepoint.
@@ -115,7 +119,12 @@ def _source_mentions_charter_dir(source: str) -> bool:
     sub-directory (via ``".kittify/charter"`` or ``"charter"`` as a Path
     segment) are treated as v1.0.0-derivative reads for coverage.
     """
-    return ".kittify/charter" in source or '"charter"' in source or "'charter'" in source or "_CHARTER_DIRNAME" in source
+    return (
+        ".kittify/charter" in source
+        or '"charter"' in source
+        or "'charter'" in source
+        or "_CHARTER_DIRNAME" in source
+    )
 
 
 def _find_derivative_reader_calls(tree: ast.Module, source: str) -> list[tuple[int, str]]:
@@ -201,7 +210,10 @@ def test_every_manifest_reader_routes_through_chokepoint() -> None:
 
     if violations:
         lines = [f"  {rel}:{lineno} — {reason}" for rel, lineno, reason in violations]
-        pytest.fail("The following files read v1.0.0 manifest derivatives but do not route through ``ensure_charter_bundle_fresh``:\n" + "\n".join(lines))
+        pytest.fail(
+            "The following files read v1.0.0 manifest derivatives but do "
+            "not route through ``ensure_charter_bundle_fresh``:\n" + "\n".join(lines)
+        )
 
 
 def test_carve_out_files_exist() -> None:
@@ -222,4 +234,6 @@ def test_chokepoint_symbol_is_defined_in_charter_sync() -> None:
     sync_src = (_SRC_ROOT / "charter" / "sync.py").read_text(encoding="utf-8")
     tree = ast.parse(sync_src)
     fnames = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
-    assert _CHOKEPOINT_SYMBOL in fnames, f"{_CHOKEPOINT_SYMBOL} not defined in src/charter/sync.py"
+    assert _CHOKEPOINT_SYMBOL in fnames, (
+        f"{_CHOKEPOINT_SYMBOL} not defined in src/charter/sync.py"
+    )

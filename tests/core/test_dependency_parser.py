@@ -93,7 +93,11 @@ class TestInlineDependenciesColonFormat:
 
 class TestBulletListFormat:
     def test_two_deps_with_notes(self) -> None:
-        body = "### Dependencies\n- WP01 (cite Divio standard)\n- WP02 (new path known)\n"
+        body = (
+            "### Dependencies\n"
+            "- WP01 (cite Divio standard)\n"
+            "- WP02 (new path known)\n"
+        )
         content = _make_tasks_md(("WP03", body))
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP03"] == ["WP01", "WP02"]
@@ -117,7 +121,13 @@ class TestBulletListFormat:
         assert result["WP02"] == ["WP01"]
 
     def test_bullet_list_stops_at_next_heading(self) -> None:
-        body = "### Dependencies\n- WP01\n\n### Other Section\n- WP99\n"
+        body = (
+            "### Dependencies\n"
+            "- WP01\n"
+            "\n"
+            "### Other Section\n"
+            "- WP99\n"
+        )
         content = _make_tasks_md(("WP02", body))
         result = parse_dependencies_from_tasks_md(content)
         # WP99 is under "Other Section", not Dependencies
@@ -208,7 +218,10 @@ class TestSectionHeaderVariants:
         assert result["WP02"] == ["WP01"]
 
     def test_numeric_work_package_headers_normalize_to_wp_ids(self) -> None:
-        content = "## Work Package 1 — Foundation\n\nNo deps.\n\n## Work Package 2: Follow Up\n\nDepends on WP01.\n"
+        content = (
+            "## Work Package 1 — Foundation\n\nNo deps.\n\n"
+            "## Work Package 2: Follow Up\n\nDepends on WP01.\n"
+        )
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP01"] == []
         assert result["WP02"] == ["WP01"]
@@ -228,7 +241,12 @@ class TestSectionHeaderVariants:
         assert dependency_parser._match_wp_section_id("Work Package 123") is None
 
     def test_malformed_numeric_heading_does_not_create_section(self) -> None:
-        content = "## Work Package 123\n\nDepends on WP01.\n\n## WP02\n\nDepends on WP01.\n"
+        content = (
+            "## Work Package 123\n\n"
+            "Depends on WP01.\n\n"
+            "## WP02\n\n"
+            "Depends on WP01.\n"
+        )
         result = parse_dependencies_from_tasks_md(content)
         assert "WP123" not in result
         assert result["WP02"] == ["WP01"]
@@ -262,27 +280,49 @@ class TestTrailingProseDoesNotBleedIntoFinalWP:
 
     def test_trailing_appendix_heading_stops_final_wp_section(self) -> None:
         """FR-304 variant: ## Appendix at end must not bleed into final WP."""
-        content = "## WP01\n\nBody of WP01.\n\n## Appendix\n\nThis appendix depends on WP01 for context. Depends on WP01.\n"
+        content = (
+            "## WP01\n\n"
+            "Body of WP01.\n\n"
+            "## Appendix\n\n"
+            "This appendix depends on WP01 for context. Depends on WP01.\n"
+        )
         result = parse_dependencies_from_tasks_md(content)
         assert result.get("WP01", []) == []
 
     def test_subheadings_inside_wp_section_preserved(self) -> None:
         """FR-301 edge case: ### headings inside a WP section are NOT a stop boundary."""
-        content = "## WP01\n\n### Implementation notes\n\nSome notes.\n\nDepends on WP02\n\n## WP02\n\nBody.\n"
+        content = (
+            "## WP01\n\n"
+            "### Implementation notes\n\n"
+            "Some notes.\n\n"
+            "Depends on WP02\n\n"
+            "## WP02\n\n"
+            "Body.\n"
+        )
         result = parse_dependencies_from_tasks_md(content)
         # ### sub-heading inside WP01 must not stop the section early
         assert "WP02" in result.get("WP01", [])
 
     def test_dependencies_h2_inside_final_wp_not_a_stop_boundary(self) -> None:
         """## Dependencies heading inside final WP is Pattern 3, not a stop boundary."""
-        content = "## WP01\n\nSome body.\n\n## Dependencies\n- WP00\n"
+        content = (
+            "## WP01\n\n"
+            "Some body.\n\n"
+            "## Dependencies\n"
+            "- WP00\n"
+        )
         result = parse_dependencies_from_tasks_md(content)
         # ## Dependencies is a valid dep header; WP00 should be parsed
         assert result.get("WP01", []) == ["WP00"]
 
     def test_explicit_empty_dependencies_not_overwritten(self) -> None:
         """FR-302/FR-303: WP with no dependency text in section yields empty list."""
-        content = "## WP01\n\nThis WP has no dependency declarations.\n\n## Notes\n\nThis section depends on WP01 being done. Depends on WP01.\n"
+        content = (
+            "## WP01\n\n"
+            "This WP has no dependency declarations.\n\n"
+            "## Notes\n\n"
+            "This section depends on WP01 being done. Depends on WP01.\n"
+        )
         result = parse_dependencies_from_tasks_md(content)
         # The parser found nothing in WP01's bounded section — result is []
         assert result.get("WP01", []) == []

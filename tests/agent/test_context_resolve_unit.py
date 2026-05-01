@@ -33,7 +33,13 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
 
 def _write_wp(path: Path, wp_id: str, lane: str, dependencies: str = "[]") -> None:
     path.write_text(
-        f'---\nwork_package_id: "{wp_id}"\nlane: "{lane}"\ndependencies: {dependencies}\ntitle: "{wp_id} title"\n---\n# {wp_id}\n',
+        "---\n"
+        f'work_package_id: "{wp_id}"\n'
+        f'lane: "{lane}"\n'
+        f"dependencies: {dependencies}\n"
+        f'title: "{wp_id} title"\n'
+        "---\n"
+        f"# {wp_id}\n",
         encoding="utf-8",
     )
 

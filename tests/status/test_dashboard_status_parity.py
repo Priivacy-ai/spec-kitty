@@ -74,7 +74,7 @@ This WP has an explicit lane.
     # Test dashboard counts
     counts = _count_wps_by_lane(tasks_dir)
     assert counts["planned"] == 1  # WP01 should default to planned
-    assert counts["doing"] == 1  # WP02 in_progress mapped to doing
+    assert counts["doing"] == 1    # WP02 in_progress mapped to doing
 
     # Test dashboard scanner
     assert len(dashboard_lanes["planned"]) == 1

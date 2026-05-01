@@ -80,7 +80,9 @@ def test_check_all_tools_accepts_custom_requirements(monkeypatch):
     # Assumption check
     assert sys.executable
     # Act
-    results = check_all_tools({"py": (sys.executable, "https://example.com"), "missing": ("nope", "https://example.com")})
+    results = check_all_tools(
+        {"py": (sys.executable, "https://example.com"), "missing": ("nope", "https://example.com")}
+    )
     # Assert
     assert results["py"][0] is True
     assert results["missing"][0] is False

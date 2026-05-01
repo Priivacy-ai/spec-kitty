@@ -9,7 +9,7 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
-from collections.abc import Generator
+from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest

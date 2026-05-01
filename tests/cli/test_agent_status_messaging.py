@@ -26,10 +26,17 @@ def test_agent_status_no_legacy_literals_on_windows() -> None:
     # about the substring content of the output.
     output = (result.stdout or "") + (result.stderr or "")
 
-    assert "~/.kittify" not in output, f"Legacy path '~/.kittify' found in agent status output:\n{output}"
-    assert "~/.spec-kitty" not in output, f"Legacy path '~/.spec-kitty' found in agent status output:\n{output}"
+    assert "~/.kittify" not in output, (
+        f"Legacy path '~/.kittify' found in agent status output:\n{output}"
+    )
+    assert "~/.spec-kitty" not in output, (
+        f"Legacy path '~/.spec-kitty' found in agent status output:\n{output}"
+    )
 
     # On Windows, if the output mentions spec-kitty at all, at least one
     # Windows-native path form (drive letter + backslash) must be present.
     if "spec-kitty" in output.lower():
-        assert "\\" in output or ":" in output, f"Windows status output names spec-kitty but contains no native Windows path form (expected '\\' or ':'):\n{output}"
+        assert "\\" in output or ":" in output, (
+            "Windows status output names spec-kitty but contains no native "
+            f"Windows path form (expected '\\' or ':'):\n{output}"
+        )

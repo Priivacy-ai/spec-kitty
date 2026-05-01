@@ -43,7 +43,9 @@ from charter.synthesizer.path_guard import PathGuard
 # ---------------------------------------------------------------------------
 
 
-def _write_artifact(repo: Path, kind: str, slug: str, filename: str, content: bytes) -> Path:
+def _write_artifact(
+    repo: Path, kind: str, slug: str, filename: str, content: bytes
+) -> Path:
     """Write a synthesized artifact file to the doctrine tree."""
     subdir = {"directive": "directives", "tactic": "tactics", "styleguide": "styleguides"}[kind]
     path = repo / ".kittify" / "doctrine" / subdir / filename
@@ -65,14 +67,12 @@ def _tactic_body(slug: str = "my-tactic") -> bytes:
 
 
 def _directive_body(artifact_id: str = "PROJECT_001", slug: str = "my-directive") -> bytes:
-    return canonical_yaml(
-        {
-            "id": artifact_id,
-            "title": "My Directive",
-            "description": "A directive.",
-            "guidance": "Follow this.",
-        }
-    )
+    return canonical_yaml({
+        "id": artifact_id,
+        "title": "My Directive",
+        "description": "A directive.",
+        "guidance": "Follow this.",
+    })
 
 
 def _make_v2_manifest(
@@ -254,7 +254,9 @@ def test_provenance_without_artifact_is_error(tmp_path: Path) -> None:
     # Write provenance but no artifact
     # Create doctrine dir so synthesis_state_present is True
     (repo / ".kittify" / "doctrine" / "tactics").mkdir(parents=True, exist_ok=True)
-    _write_provenance(repo, "tactic", "ghost-tactic", _prov_yaml("tactic", "ghost-tactic", "a" * 64))
+    _write_provenance(
+        repo, "tactic", "ghost-tactic", _prov_yaml("tactic", "ghost-tactic", "a" * 64)
+    )
 
     result = validate_synthesis_state(repo)
 
@@ -294,7 +296,10 @@ def test_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
     # Write artifact with known content
     body = _tactic_body("hash-mismatch-tactic")
     _write_artifact(repo, "tactic", "hash-mismatch-tactic", "hash-mismatch-tactic.tactic.yaml", body)
-    _write_provenance(repo, "tactic", "hash-mismatch-tactic", _prov_yaml("tactic", "hash-mismatch-tactic", "a" * 64))
+    _write_provenance(
+        repo, "tactic", "hash-mismatch-tactic",
+        _prov_yaml("tactic", "hash-mismatch-tactic", "a" * 64)
+    )
 
     # Write manifest with WRONG hash
     guard = PathGuard(repo, extra_allowed_prefixes=[repo])
@@ -500,9 +505,7 @@ def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
     content_hash = hashlib.sha256(body).hexdigest()
     _write_artifact(repo, "tactic", "selfhash-tactic", "selfhash-tactic.tactic.yaml", body)
     _write_provenance(
-        repo,
-        "tactic",
-        "selfhash-tactic",
+        repo, "tactic", "selfhash-tactic",
         _prov_yaml("tactic", "selfhash-tactic", content_hash),
     )
 
@@ -529,4 +532,7 @@ def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
     result = validate_synthesis_state(repo)
 
     assert not result.passed
-    assert any("manifest" in e.lower() or "self-hash" in e.lower() or "mismatch" in e.lower() for e in result.errors), result.errors
+    assert any(
+        "manifest" in e.lower() or "self-hash" in e.lower() or "mismatch" in e.lower()
+        for e in result.errors
+    ), result.errors

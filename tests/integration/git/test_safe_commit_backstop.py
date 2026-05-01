@@ -141,7 +141,14 @@ def test_backstop_catches_sparse_checkout_phantom_deletion(
     def intercepting_run(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
         result = real_run(*args, **kwargs)
         cmd = args[0] if args else kwargs.get("args")
-        if not injected["done"] and isinstance(cmd, list) and len(cmd) >= 2 and cmd[0] == "git" and cmd[1] == "add" and "status.md" in cmd:
+        if (
+            not injected["done"]
+            and isinstance(cmd, list)
+            and len(cmd) >= 2
+            and cmd[0] == "git"
+            and cmd[1] == "add"
+            and "status.md" in cmd
+        ):
             # Inject phantom deletion cascade without using subprocess.run
             # (so we don't recurse). ``--force-remove`` bypasses the sparse
             # filter --- this matches what stash-pop effectively does in the
@@ -177,11 +184,15 @@ def test_backstop_catches_sparse_checkout_phantom_deletion(
 
     err = exc_info.value
     unexpected_paths = {p.path for p in err.unexpected}
-    assert "docs/long-runbook.md" in unexpected_paths, f"expected docs/long-runbook.md in unexpected, got {unexpected_paths!r}"
+    assert "docs/long-runbook.md" in unexpected_paths, (
+        f"expected docs/long-runbook.md in unexpected, got {unexpected_paths!r}"
+    )
 
     # No new commit must exist --- the backstop fired BEFORE git commit.
     commits_after = _head_count(repo)
-    assert commits_after == commits_before, f"Backstop did not prevent the commit: {commits_before} -> {commits_after}"
+    assert commits_after == commits_before, (
+        f"Backstop did not prevent the commit: {commits_before} -> {commits_after}"
+    )
 
 
 def test_backstop_has_no_force_bypass(tmp_path: Path) -> None:
@@ -196,7 +207,9 @@ def test_backstop_has_no_force_bypass(tmp_path: Path) -> None:
     sig = inspect.signature(safe_commit)
     forbidden = {"force", "allow_force", "skip_backstop", "bypass_backstop"}
     offending = forbidden.intersection(sig.parameters)
-    assert not offending, f"safe_commit must NOT expose a backstop bypass parameter; found {offending}"
+    assert not offending, (
+        f"safe_commit must NOT expose a backstop bypass parameter; found {offending}"
+    )
 
 
 def test_backstop_allows_clean_commit(tmp_path: Path) -> None:

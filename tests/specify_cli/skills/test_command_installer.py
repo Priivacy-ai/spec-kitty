@@ -14,6 +14,9 @@ Covers:
 from __future__ import annotations
 
 import hashlib
+import json
+import os
+import stat
 import time
 from pathlib import Path
 
@@ -22,7 +25,10 @@ import pytest
 from specify_cli.skills.command_installer import (
     CANONICAL_COMMANDS,
     SUPPORTED_AGENTS,
+    InstallReport,
     InstallerError,
+    RemoveReport,
+    VerifyReport,
     install,
     remove,
     verify,
@@ -34,7 +40,9 @@ from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
 # Helpers
 # ---------------------------------------------------------------------------
 
-_TEMPLATE_REPO_ROOT = Path(__file__).parent.parent.parent.parent  # tests/specify_cli/skills/../../.. → repo root
+_TEMPLATE_REPO_ROOT = (
+    Path(__file__).parent.parent.parent.parent
+)  # tests/specify_cli/skills/../../.. → repo root
 
 
 def _sha256(data: bytes) -> str:
@@ -85,7 +93,7 @@ def repo(tmp_path: Path) -> Path:
 
 class TestHappyPathInstall:
     def test_creates_all_skill_md_files(self, repo: Path) -> None:
-        install(repo, "vibe")
+        report = install(repo, "vibe")
 
         for command in CANONICAL_COMMANDS:
             path = _skill_path(repo, command)
@@ -110,14 +118,19 @@ class TestHappyPathInstall:
 
         manifest = manifest_store.load(repo)
         for entry in manifest.entries:
-            assert entry.agents == ("vibe",), f"Entry {entry.path!r} has unexpected agents {entry.agents!r}"
+            assert entry.agents == ("vibe",), (
+                f"Entry {entry.path!r} has unexpected agents {entry.agents!r}"
+            )
 
     def test_manifest_entries_have_correct_paths(self, repo: Path) -> None:
         install(repo, "vibe")
 
         manifest = manifest_store.load(repo)
         paths = {e.path for e in manifest.entries}
-        expected = {f".agents/skills/spec-kitty.{cmd}/SKILL.md" for cmd in CANONICAL_COMMANDS}
+        expected = {
+            f".agents/skills/spec-kitty.{cmd}/SKILL.md"
+            for cmd in CANONICAL_COMMANDS
+        }
         assert paths == expected
 
     def test_content_hash_matches_disk(self, repo: Path) -> None:
@@ -126,7 +139,9 @@ class TestHappyPathInstall:
         manifest = manifest_store.load(repo)
         for entry in manifest.entries:
             disk_hash = _sha256_file(repo / entry.path)
-            assert disk_hash == entry.content_hash, f"Hash mismatch for {entry.path!r}"
+            assert disk_hash == entry.content_hash, (
+                f"Hash mismatch for {entry.path!r}"
+            )
 
     def test_skill_md_has_frontmatter(self, repo: Path) -> None:
         install(repo, "vibe")
@@ -164,7 +179,9 @@ class TestIdempotentInstall:
 
         for cmd in CANONICAL_COMMANDS:
             p = _skill_path(repo, cmd)
-            assert _sha256_file(p) == hashes_before[cmd], f"File content changed on second install for {cmd!r}"
+            assert _sha256_file(p) == hashes_before[cmd], (
+                f"File content changed on second install for {cmd!r}"
+            )
 
     def test_second_call_does_not_change_manifest(self, repo: Path) -> None:
         install(repo, "vibe")
@@ -174,7 +191,9 @@ class TestIdempotentInstall:
         install(repo, "vibe")
         content_after_second = manifest_path.read_bytes()
 
-        assert content_after_first == content_after_second, "Manifest changed on idempotent install"
+        assert content_after_first == content_after_second, (
+            "Manifest changed on idempotent install"
+        )
 
     def test_second_call_no_disk_writes(self, repo: Path) -> None:
         install(repo, "vibe")
@@ -191,7 +210,9 @@ class TestIdempotentInstall:
 
         for cmd in CANONICAL_COMMANDS:
             p = _skill_path(repo, cmd)
-            assert p.stat().st_mtime == mtimes_before[cmd], f"File mtime changed (unexpected write) for {cmd!r}"
+            assert p.stat().st_mtime == mtimes_before[cmd], (
+                f"File mtime changed (unexpected write) for {cmd!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +235,9 @@ class TestReusedShared:
 
         manifest = manifest_store.load(repo)
         for entry in manifest.entries:
-            assert entry.agents == ("codex", "vibe"), f"Entry {entry.path!r} has unexpected agents {entry.agents!r}"
+            assert entry.agents == ("codex", "vibe"), (
+                f"Entry {entry.path!r} has unexpected agents {entry.agents!r}"
+            )
 
     def test_file_bytes_unchanged_after_second_agent(self, repo: Path) -> None:
         install(repo, "codex")
@@ -226,7 +249,9 @@ class TestReusedShared:
         install(repo, "vibe")
 
         for cmd in CANONICAL_COMMANDS:
-            assert _sha256_file(_skill_path(repo, cmd)) == hashes_after_codex[cmd], f"File bytes changed when adding vibe to {cmd!r}"
+            assert _sha256_file(_skill_path(repo, cmd)) == hashes_after_codex[cmd], (
+                f"File bytes changed when adding vibe to {cmd!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -245,9 +270,20 @@ class TestThreeTenantCoexistence:
         skills_root.mkdir(parents=True, exist_ok=True)
 
         files: dict[Path, bytes] = {
-            skills_root / "handwritten-review" / "SKILL.md": (b"# handwritten review\nThis is a hand-crafted review skill.\nContents: detailed review steps.\n"),
-            skills_root / "another-tool.lint" / "SKILL.md": (b"# another-tool lint\nLinting workflow from another tool.\nDo not delete me!\n"),
-            skills_root / "my-stuff" / "other-file.txt": (b"This is my personal notes file.\nKeep it here forever.\n"),
+            skills_root / "handwritten-review" / "SKILL.md": (
+                b"# handwritten review\n"
+                b"This is a hand-crafted review skill.\n"
+                b"Contents: detailed review steps.\n"
+            ),
+            skills_root / "another-tool.lint" / "SKILL.md": (
+                b"# another-tool lint\n"
+                b"Linting workflow from another tool.\n"
+                b"Do not delete me!\n"
+            ),
+            skills_root / "my-stuff" / "other-file.txt": (
+                b"This is my personal notes file.\n"
+                b"Keep it here forever.\n"
+            ),
         }
 
         result: dict[str, str] = {}
@@ -259,16 +295,24 @@ class TestThreeTenantCoexistence:
 
         return result
 
-    def _assert_third_party_unchanged(self, repo: Path, expected: dict[str, str], step: str) -> None:
+    def _assert_third_party_unchanged(
+        self, repo: Path, expected: dict[str, str], step: str
+    ) -> None:
         for rel_path, expected_hash in expected.items():
             abs_path = repo / rel_path
-            assert abs_path.exists(), f"[{step}] Third-party file missing: {rel_path!r}"
+            assert abs_path.exists(), (
+                f"[{step}] Third-party file missing: {rel_path!r}"
+            )
             actual_hash = _sha256_file(abs_path)
             assert actual_hash == expected_hash, (
-                f"[{step}] Third-party file mutated: {rel_path!r}\n  expected SHA-256: {expected_hash}\n  actual  SHA-256: {actual_hash}"
+                f"[{step}] Third-party file mutated: {rel_path!r}\n"
+                f"  expected SHA-256: {expected_hash}\n"
+                f"  actual  SHA-256: {actual_hash}"
             )
 
-    def test_full_lifecycle_preserves_third_party_files(self, repo: Path) -> None:
+    def test_full_lifecycle_preserves_third_party_files(
+        self, repo: Path
+    ) -> None:
         third_party_hashes = self._setup_third_party_files(repo)
 
         # Step 1: install codex
@@ -287,7 +331,9 @@ class TestThreeTenantCoexistence:
         remove(repo, "vibe")
         self._assert_third_party_unchanged(repo, third_party_hashes, "after remove(vibe)")
 
-    def test_spec_kitty_files_gone_after_full_remove(self, repo: Path) -> None:
+    def test_spec_kitty_files_gone_after_full_remove(
+        self, repo: Path
+    ) -> None:
         self._setup_third_party_files(repo)
         install(repo, "codex")
         install(repo, "vibe")
@@ -296,7 +342,9 @@ class TestThreeTenantCoexistence:
 
         for cmd in CANONICAL_COMMANDS:
             path = _skill_path(repo, cmd)
-            assert not path.exists(), f"spec-kitty skill file should be deleted: {path}"
+            assert not path.exists(), (
+                f"spec-kitty skill file should be deleted: {path}"
+            )
 
     def test_manifest_empty_after_full_remove(self, repo: Path) -> None:
         self._setup_third_party_files(repo)
@@ -306,9 +354,13 @@ class TestThreeTenantCoexistence:
         remove(repo, "vibe")
 
         manifest = manifest_store.load(repo)
-        assert manifest.entries == [], f"Manifest should be empty after full remove, got: {manifest.entries!r}"
+        assert manifest.entries == [], (
+            f"Manifest should be empty after full remove, got: {manifest.entries!r}"
+        )
 
-    def test_spec_kitty_dirs_gone_after_full_remove(self, repo: Path) -> None:
+    def test_spec_kitty_dirs_gone_after_full_remove(
+        self, repo: Path
+    ) -> None:
         self._setup_third_party_files(repo)
         install(repo, "codex")
         install(repo, "vibe")
@@ -317,10 +369,18 @@ class TestThreeTenantCoexistence:
 
         skills_root = repo / ".agents" / "skills"
         if skills_root.exists():
-            remaining = [d.name for d in skills_root.iterdir() if d.is_dir() and d.name.startswith("spec-kitty.")]
-            assert remaining == [], f"spec-kitty.* directories should be gone, found: {remaining!r}"
+            remaining = [
+                d.name
+                for d in skills_root.iterdir()
+                if d.is_dir() and d.name.startswith("spec-kitty.")
+            ]
+            assert remaining == [], (
+                f"spec-kitty.* directories should be gone, found: {remaining!r}"
+            )
 
-    def test_third_party_dirs_still_present_after_full_remove(self, repo: Path) -> None:
+    def test_third_party_dirs_still_present_after_full_remove(
+        self, repo: Path
+    ) -> None:
         self._setup_third_party_files(repo)
         install(repo, "codex")
         install(repo, "vibe")
@@ -343,7 +403,9 @@ class TestParentDirPreservation:
     must delete SKILL.md (if agents empties) but leave the dir and the
     third-party file intact."""
 
-    def test_remove_deletes_skill_md_but_keeps_extra_file(self, repo: Path) -> None:
+    def test_remove_deletes_skill_md_but_keeps_extra_file(
+        self, repo: Path
+    ) -> None:
         install(repo, "vibe")
 
         # Place a third-party file inside a spec-kitty.specify dir.
@@ -376,7 +438,9 @@ class TestParentDirPreservation:
         remove(repo, "vibe")
 
         # The parent dir should be gone (it was empty after SKILL.md deletion).
-        assert not specify_dir.exists(), "Empty spec-kitty.specify/ dir should be removed"
+        assert not specify_dir.exists(), (
+            "Empty spec-kitty.specify/ dir should be removed"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -385,7 +449,9 @@ class TestParentDirPreservation:
 
 
 class TestCollisionError:
-    def test_unexpected_collision_raised_when_disk_hash_differs(self, repo: Path) -> None:
+    def test_unexpected_collision_raised_when_disk_hash_differs(
+        self, repo: Path
+    ) -> None:
         """Seed a stale manifest entry; install() should raise unexpected_collision."""
         # Build a manifest with a stale entry (wrong hash) pointing to a real path.
         kittify = repo / ".kittify"
@@ -431,7 +497,9 @@ class TestFileMutationOnRemove:
             remove(repo, "vibe")
 
         assert exc_info.value.code == "file_mutation_detected"
-        assert ".agents/skills/spec-kitty.specify/SKILL.md" in (exc_info.value.context.get("path", ""))
+        assert ".agents/skills/spec-kitty.specify/SKILL.md" in (
+            exc_info.value.context.get("path", "")
+        )
 
     def test_manifest_unchanged_when_mutation_detected(self, repo: Path) -> None:
         install(repo, "vibe")
@@ -447,7 +515,9 @@ class TestFileMutationOnRemove:
         with pytest.raises(InstallerError):
             remove(repo, "vibe")
 
-        assert manifest_path.read_bytes() == manifest_before, "Manifest must not be modified when file_mutation_detected is raised"
+        assert manifest_path.read_bytes() == manifest_before, (
+            "Manifest must not be modified when file_mutation_detected is raised"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -485,7 +555,9 @@ class TestVerifyDrift:
 
         verify(repo)
 
-        assert skill_path.read_bytes() == content_before, "verify() must not modify files on disk"
+        assert skill_path.read_bytes() == content_before, (
+            "verify() must not modify files on disk"
+        )
 
 
 class TestVerifyGaps:
@@ -515,7 +587,9 @@ class TestVerifyGaps:
 class TestVerifyOrphans:
     def test_unregistered_spec_kitty_file_is_orphan(self, repo: Path) -> None:
         # Write a spec-kitty.* file without registering it in the manifest.
-        orphan_path = repo / ".agents" / "skills" / "spec-kitty.unknown" / "SKILL.md"
+        orphan_path = (
+            repo / ".agents" / "skills" / "spec-kitty.unknown" / "SKILL.md"
+        )
         orphan_path.parent.mkdir(parents=True, exist_ok=True)
         orphan_path.write_bytes(b"# unknown skill\n")
 
@@ -525,13 +599,17 @@ class TestVerifyOrphans:
 
     def test_third_party_file_is_not_an_orphan(self, repo: Path) -> None:
         """Files in non-spec-kitty dirs must not appear in orphans."""
-        third_party = repo / ".agents" / "skills" / "handwritten-review" / "SKILL.md"
+        third_party = (
+            repo / ".agents" / "skills" / "handwritten-review" / "SKILL.md"
+        )
         third_party.parent.mkdir(parents=True, exist_ok=True)
         third_party.write_bytes(b"# handwritten\n")
 
         report = verify(repo)
 
-        assert report.orphans == [], f"Third-party file wrongly flagged as orphan: {report.orphans!r}"
+        assert report.orphans == [], (
+            f"Third-party file wrongly flagged as orphan: {report.orphans!r}"
+        )
 
     def test_installed_skill_is_not_orphan(self, repo: Path) -> None:
         install(repo, "vibe")
@@ -590,7 +668,10 @@ class TestSelectiveRemove:
         install(repo, "vibe")
 
         # Capture hashes before removing codex.
-        hashes_before: dict[str, str] = {cmd: _sha256_file(_skill_path(repo, cmd)) for cmd in CANONICAL_COMMANDS}
+        hashes_before: dict[str, str] = {
+            cmd: _sha256_file(_skill_path(repo, cmd))
+            for cmd in CANONICAL_COMMANDS
+        }
 
         remove(repo, "codex")
 
@@ -598,7 +679,9 @@ class TestSelectiveRemove:
         for cmd in CANONICAL_COMMANDS:
             path = _skill_path(repo, cmd)
             assert path.exists(), f"File missing after remove(codex): {cmd}"
-            assert _sha256_file(path) == hashes_before[cmd], f"File mutated during remove(codex): {cmd}"
+            assert _sha256_file(path) == hashes_before[cmd], (
+                f"File mutated during remove(codex): {cmd}"
+            )
 
     def test_remove_codex_updates_agents_in_manifest(self, repo: Path) -> None:
         install(repo, "codex")
@@ -607,7 +690,9 @@ class TestSelectiveRemove:
 
         manifest = manifest_store.load(repo)
         for entry in manifest.entries:
-            assert entry.agents == ("vibe",), f"Entry {entry.path!r}: expected agents==('vibe',), got {entry.agents!r}"
+            assert entry.agents == ("vibe",), (
+                f"Entry {entry.path!r}: expected agents==('vibe',), got {entry.agents!r}"
+            )
 
     def test_remove_report_deref_and_kept(self, repo: Path) -> None:
         install(repo, "codex")

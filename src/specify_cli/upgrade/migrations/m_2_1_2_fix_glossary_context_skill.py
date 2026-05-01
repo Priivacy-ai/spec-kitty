@@ -39,12 +39,18 @@ class FixGlossaryContextSkillMigration(BaseMigration):
     """Expand glossary-context skill with full pipeline architecture."""
 
     migration_id = "2.1.2_fix_glossary_context_skill"
-    description = "Expand glossary-context skill with pipeline architecture, extraction methods, checkpoint/resume, step config, and all 8 event types"
+    description = (
+        "Expand glossary-context skill with pipeline architecture, extraction "
+        "methods, checkpoint/resume, step config, and all 8 event types"
+    )
     target_version = "2.1.2"
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any glossary-context SKILL.md lacks the pipeline docs."""
-        return any(file_contains_any(info.path, _OLD_MARKERS) for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]))
+        for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
+            if file_contains_any(info.path, _OLD_MARKERS):
+                return True
+        return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if project has glossary-context skill files."""
@@ -61,11 +67,19 @@ class FixGlossaryContextSkillMigration(BaseMigration):
         # Load canonical content from doctrine package
         try:
             doctrine_root = files("doctrine")
-            canonical_path = doctrine_root.joinpath("skills", _SKILL_NAME, "SKILL.md")
+            canonical_path = doctrine_root.joinpath(
+                "skills", _SKILL_NAME, "SKILL.md"
+            )
             new_content = canonical_path.read_text(encoding="utf-8")
         except Exception:
             # Fallback: try filesystem path relative to this module
-            fallback = Path(__file__).resolve().parents[3] / "doctrine" / "skills" / _SKILL_NAME / "SKILL.md"
+            fallback = (
+                Path(__file__).resolve().parents[3]
+                / "doctrine"
+                / "skills"
+                / _SKILL_NAME
+                / "SKILL.md"
+            )
             if fallback.is_file():
                 new_content = fallback.read_text(encoding="utf-8")
             else:

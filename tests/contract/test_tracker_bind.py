@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import pytest
 
 from specify_cli.sync.project_identity import ProjectIdentity
 

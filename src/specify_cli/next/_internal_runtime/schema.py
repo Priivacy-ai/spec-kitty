@@ -60,10 +60,8 @@ class DecisionAnswer(BaseModel):
 # RACI role model types (WP06)
 # ---------------------------------------------------------------------------
 
-
 class RACIRoleBinding(BaseModel):
     """Single actor-role binding in a RACI assignment."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     actor_type: Literal["human", "llm", "service"]
@@ -75,7 +73,6 @@ class RACIAssignment(BaseModel):
 
     Enforces P0 invariant: accountable must always be human.
     """
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     responsible: RACIRoleBinding
@@ -86,13 +83,15 @@ class RACIAssignment(BaseModel):
     @model_validator(mode="after")
     def _enforce_p0_accountable_human(self) -> RACIAssignment:
         if self.accountable.actor_type != "human":
-            raise ValueError(f"P0 invariant violation: accountable must be human, got '{self.accountable.actor_type}'")
+            raise ValueError(
+                f"P0 invariant violation: accountable must be human, "
+                f"got '{self.accountable.actor_type}'"
+            )
         return self
 
 
 class ResolvedRACIBinding(BaseModel):
     """Fully resolved RACI binding with provenance metadata."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     step_id: str
@@ -107,17 +106,22 @@ class ResolvedRACIBinding(BaseModel):
     @model_validator(mode="after")
     def _validate_provenance(self) -> ResolvedRACIBinding:
         if self.source == "explicit" and not self.override_reason:
-            raise ValueError("ResolvedRACIBinding with source='explicit' requires non-empty override_reason")
+            raise ValueError(
+                "ResolvedRACIBinding with source='explicit' requires non-empty override_reason"
+            )
         if self.source == "inferred" and not self.inferred_rule:
-            raise ValueError("ResolvedRACIBinding with source='inferred' requires non-empty inferred_rule")
+            raise ValueError(
+                "ResolvedRACIBinding with source='inferred' requires non-empty inferred_rule"
+            )
         if self.source == "inferred" and self.override_reason is not None:
-            raise ValueError("ResolvedRACIBinding with source='inferred' must not have override_reason")
+            raise ValueError(
+                "ResolvedRACIBinding with source='inferred' must not have override_reason"
+            )
         return self
 
 
 class RACIEscalationPayload(BaseModel):
     """Structured escalation payload for unresolvable RACI roles."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     run_id: str
@@ -134,17 +138,27 @@ class RACIEscalationPayload(BaseModel):
 # Context contract types (V1)
 # ---------------------------------------------------------------------------
 
-
 class ContextType(BaseModel):
     """Describes a single context type required, optional, or emitted by a step."""
-
     model_config = ConfigDict(frozen=True)
 
     type: str = Field(..., min_length=1, description="Context type name (e.g., 'feature_binding')")
-    deterministic: bool = Field(default=True, description="True if this context resolves deterministically (offline, local-first)")
-    cardinality: Literal["one", "many"] = Field(default="one", description="Expected binding count: 'one' for single binding, 'many' for multiple")
-    validation: dict[str, Any] | None = Field(default=None, description="Validation rules like artifact_exists, path_exists, slug_format")
-    resolver_ref: str | None = Field(default=None, description="Reference to custom resolver for unknown types")
+    deterministic: bool = Field(
+        default=True,
+        description="True if this context resolves deterministically (offline, local-first)"
+    )
+    cardinality: Literal["one", "many"] = Field(
+        default="one",
+        description="Expected binding count: 'one' for single binding, 'many' for multiple"
+    )
+    validation: dict[str, Any] | None = Field(
+        default=None,
+        description="Validation rules like artifact_exists, path_exists, slug_format"
+    )
+    resolver_ref: str | None = Field(
+        default=None,
+        description="Reference to custom resolver for unknown types"
+    )
 
     def validate_binding(self, value: Any) -> tuple[bool, str | None]:
         """Validate a bound value against this context type's rules.
@@ -162,18 +176,25 @@ class ContextType(BaseModel):
         """
         # Avoid circular import at module level — engine imports schema.
         from specify_cli.next._internal_runtime.engine import validate_binding as _engine_validate
-
         return _engine_validate(value, self)
 
 
 class StepContextContract(BaseModel):
     """Contract describing context bindings for a mission step."""
-
     model_config = ConfigDict(frozen=True)
 
-    requires: list[ContextType] = Field(default_factory=list, description="Contexts that MUST resolve before step execution")
-    optional: list[ContextType] = Field(default_factory=list, description="Contexts that may enrich step but are not blocking")
-    emits: list[ContextType] = Field(default_factory=list, description="Contexts produced/updated on step completion")
+    requires: list[ContextType] = Field(
+        default_factory=list,
+        description="Contexts that MUST resolve before step execution"
+    )
+    optional: list[ContextType] = Field(
+        default_factory=list,
+        description="Contexts that may enrich step but are not blocking"
+    )
+    emits: list[ContextType] = Field(
+        default_factory=list,
+        description="Contexts produced/updated on step completion"
+    )
 
     @field_validator("requires", "optional", "emits")
     @classmethod
@@ -186,7 +207,10 @@ class StepContextContract(BaseModel):
         for ctx_type in v:
             # Check if the type is known (registered or has explicit resolver)
             if not registry.is_registered(ctx_type.type) and not ctx_type.resolver_ref:
-                raise ValueError(f"Unknown context type '{ctx_type.type}' - must be registered in ContextTypeRegistry or have resolver_ref provided")
+                raise ValueError(
+                    f"Unknown context type '{ctx_type.type}' - must be registered in ContextTypeRegistry "
+                    f"or have resolver_ref provided"
+                )
         return v
 
     def validate_contract(self, context_type_registry: ContextTypeRegistry | None = None) -> tuple[bool, list[str]]:
@@ -220,20 +244,57 @@ class StepContextContract(BaseModel):
 # Context Type Registry (V1 baseline)
 # ---------------------------------------------------------------------------
 
-
 class ContextTypeRegistry:
     """Registry of built-in and custom context types."""
 
     # V1 baseline context types
     _BUILTIN_TYPES = {
-        "feature_binding": ContextType(type="feature_binding", deterministic=True, cardinality="one"),
-        "spec_artifact": ContextType(type="spec_artifact", deterministic=True, cardinality="one", validation={"artifact_exists": True}),
-        "plan_artifact": ContextType(type="plan_artifact", deterministic=True, cardinality="one", validation={"artifact_exists": True}),
-        "tasks_artifact": ContextType(type="tasks_artifact", deterministic=True, cardinality="one", validation={"artifact_exists": True}),
-        "wp_binding": ContextType(type="wp_binding", deterministic=True, cardinality="many"),
-        "target_branch": ContextType(type="target_branch", deterministic=True, cardinality="one", validation={"slug_format": "[a-z0-9-]+"}),
-        "contracts_dir": ContextType(type="contracts_dir", deterministic=True, cardinality="one", validation={"path_exists": True}),
-        "research_artifact": ContextType(type="research_artifact", deterministic=True, cardinality="one", validation={"artifact_exists": True}),
+        "feature_binding": ContextType(
+            type="feature_binding",
+            deterministic=True,
+            cardinality="one"
+        ),
+        "spec_artifact": ContextType(
+            type="spec_artifact",
+            deterministic=True,
+            cardinality="one",
+            validation={"artifact_exists": True}
+        ),
+        "plan_artifact": ContextType(
+            type="plan_artifact",
+            deterministic=True,
+            cardinality="one",
+            validation={"artifact_exists": True}
+        ),
+        "tasks_artifact": ContextType(
+            type="tasks_artifact",
+            deterministic=True,
+            cardinality="one",
+            validation={"artifact_exists": True}
+        ),
+        "wp_binding": ContextType(
+            type="wp_binding",
+            deterministic=True,
+            cardinality="many"
+        ),
+        "target_branch": ContextType(
+            type="target_branch",
+            deterministic=True,
+            cardinality="one",
+            validation={"slug_format": "[a-z0-9-]+"}
+        ),
+        "contracts_dir": ContextType(
+            type="contracts_dir",
+            deterministic=True,
+            cardinality="one",
+            validation={"path_exists": True}
+        ),
+        "research_artifact": ContextType(
+            type="research_artifact",
+            deterministic=True,
+            cardinality="one",
+            validation={"artifact_exists": True}
+        ),
     }
 
     def __init__(self, custom_types: dict[str, ContextType] | None = None):
@@ -269,7 +330,6 @@ class ContextTypeRegistry:
 # Audit types
 # ---------------------------------------------------------------------------
 
-
 class AuditConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -285,7 +345,6 @@ class SignificanceBlock(BaseModel):
     Declares dimension scores and hard-trigger classes that determine
     the routing band (low/medium/high) for the audit gate.
     """
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     dimensions: dict[str, int]  # dimension_name → score (0-3)
@@ -294,7 +353,6 @@ class SignificanceBlock(BaseModel):
     @model_validator(mode="after")
     def _validate_dimensions(self) -> SignificanceBlock:
         from specify_cli.next._internal_runtime.significance import validate_dimension_scores, HARD_TRIGGER_REGISTRY
-
         validate_dimension_scores(self.dimensions)
         for trigger_id in self.hard_triggers:
             if trigger_id not in HARD_TRIGGER_REGISTRY:
@@ -317,16 +375,19 @@ class AuditStep(BaseModel):
     @model_validator(mode="after")
     def _validate_raci_override_reason(self) -> AuditStep:
         if self.raci is not None and not self.raci_override_reason:
-            raise ValueError(f"Step '{self.id}': explicit raci block requires non-empty raci_override_reason")
+            raise ValueError(
+                f"Step '{self.id}': explicit raci block requires non-empty raci_override_reason"
+            )
         if self.raci is None and self.raci_override_reason is not None:
-            raise ValueError(f"Step '{self.id}': raci_override_reason provided without raci block")
+            raise ValueError(
+                f"Step '{self.id}': raci_override_reason provided without raci block"
+            )
         return self
 
 
 # ---------------------------------------------------------------------------
 # Mission template types
 # ---------------------------------------------------------------------------
-
 
 class MissionMeta(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -363,9 +424,13 @@ class PromptStep(BaseModel):
     @model_validator(mode="after")
     def _validate_raci_override_reason(self) -> PromptStep:
         if self.raci is not None and not self.raci_override_reason:
-            raise ValueError(f"Step '{self.id}': explicit raci block requires non-empty raci_override_reason")
+            raise ValueError(
+                f"Step '{self.id}': explicit raci block requires non-empty raci_override_reason"
+            )
         if self.raci is None and self.raci_override_reason is not None:
-            raise ValueError(f"Step '{self.id}': raci_override_reason provided without raci block")
+            raise ValueError(
+                f"Step '{self.id}': raci_override_reason provided without raci block"
+            )
         return self
 
 
@@ -389,7 +454,6 @@ class MissionTemplate(BaseModel):
 # Discovery types
 # ---------------------------------------------------------------------------
 
-
 class DiscoveredMission(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -404,10 +468,8 @@ class DiscoveredMission(BaseModel):
 # Mission pack manifest types
 # ---------------------------------------------------------------------------
 
-
 class MissionPackMeta(BaseModel):
     """Pack-level metadata."""
-
     model_config = ConfigDict(frozen=True)
 
     name: str = Field(..., min_length=1)
@@ -433,7 +495,6 @@ class MissionPackManifest(BaseModel):
 # Runtime context types
 # ---------------------------------------------------------------------------
 
-
 class StepContextBundle(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -457,10 +518,10 @@ class NextDecision(BaseModel):
     step_title: str | None = None
     prompt: str | None = None
     context: StepContextBundle | None = None
-    decision_id: str | None = None  # for decision_required
-    input_key: str | None = None  # for input-keyed decisions (requires_inputs)
+    decision_id: str | None = None      # for decision_required
+    input_key: str | None = None        # for input-keyed decisions (requires_inputs)
     question: str | None = None
-    options: list[str] | None = None  # suggested answer options
+    options: list[str] | None = None    # suggested answer options
     reason: str | None = None
 
 
@@ -469,13 +530,13 @@ class MissionRunSnapshot(BaseModel):
 
     run_id: str
     mission_key: str
-    template_path: str  # resolved file path for drift detection
-    template_hash: str  # SHA-256 of frozen YAML
+    template_path: str                                          # resolved file path for drift detection
+    template_hash: str                                          # SHA-256 of frozen YAML
     policy_snapshot: MissionPolicySnapshot = Field(default_factory=MissionPolicySnapshot)
     completed_steps: list[str] = Field(default_factory=list)
     issued_step_id: str | None = None
     inputs: dict[str, Any] = Field(default_factory=dict)
-    decisions: dict[str, Any] = Field(default_factory=dict)  # decision_id -> answer data
+    decisions: dict[str, Any] = Field(default_factory=dict)     # decision_id -> answer data
     pending_decisions: dict[str, Any] = Field(default_factory=dict)  # decision_id -> request data
     blocked_reason: str | None = None
 
@@ -484,13 +545,12 @@ class MissionRunSnapshot(BaseModel):
 # Template loading
 # ---------------------------------------------------------------------------
 
-
 def load_mission_template_file(path: Path) -> MissionTemplate:
     """Load a mission template from a mission.yaml file."""
     if not path.exists():
         raise MissionRuntimeError(f"Mission template not found: {path}")
 
-    with open(path, encoding="utf-8") as handle:
+    with open(path, "r", encoding="utf-8") as handle:
         raw = yaml.safe_load(handle) or {}
 
     if not isinstance(raw, dict):

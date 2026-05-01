@@ -25,9 +25,8 @@ from __future__ import annotations
 import logging
 import random
 import time
-from dataclasses import dataclass
-from typing import TypeVar
-from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any, Callable, TypeVar
 
 
 __all__ = [
@@ -109,11 +108,13 @@ class TrackerSyncPolicy:
 
     def backoff_for_attempt(self, attempt: int) -> float:
         """Compute the backoff for *attempt* (1-indexed)."""
-        base = self.initial_backoff_seconds * (self.backoff_multiplier ** max(0, attempt - 1))
+        base = self.initial_backoff_seconds * (
+            self.backoff_multiplier ** max(0, attempt - 1)
+        )
         capped = min(base, self.max_backoff_seconds)
         if self.jitter:
             # Full-jitter: pick uniformly from [0, capped].
-            capped = random.uniform(0, capped)  # noqa: S311 - retry jitter is not cryptographic
+            capped = random.uniform(0, capped)
         return float(capped)
 
 

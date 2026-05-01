@@ -130,7 +130,9 @@ class TestDirectiveSchemaCompatibility:
             "title": "Lenient Directive",
             "intent": "Validate lenient-adherence support.",
             "enforcement": "lenient-adherence",
-            "explicit_allowances": ["Allow proportional preparatory cleanup when it stabilizes the baseline."],
+            "explicit_allowances": [
+                "Allow proportional preparatory cleanup when it stabilizes the baseline."
+            ],
         }
 
         assert validate_directive(valid) == []
@@ -167,7 +169,9 @@ class TestDirectiveSchemaCompatibility:
             ],
             "integrity_rules": ["No enrichment fields are lost."],
             "validation_criteria": ["Loaded directive matches saved values."],
-            "explicit_allowances": ["Allow bounded preparatory cleanup when it reduces validation noise."],
+            "explicit_allowances": [
+                "Allow bounded preparatory cleanup when it reduces validation noise."
+            ],
         }
         directive = Directive.model_validate(directive_data)
 

@@ -9,6 +9,7 @@ Tests that:
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -26,7 +27,6 @@ pytestmark = pytest.mark.git_repo
 # ---------------------------------------------------------------------------
 # Shared fixture: minimal git repo + software-dev mission + worktree
 # ---------------------------------------------------------------------------
-
 
 @pytest.fixture
 def review_handoff_repo(tmp_path: Path) -> tuple[Path, Path, str]:
@@ -102,7 +102,6 @@ def review_handoff_repo(tmp_path: Path) -> tuple[Path, Path, str]:
 # Test 9: Only benign dirty files — validation PASSES
 # ---------------------------------------------------------------------------
 
-
 @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
 def test_validate_with_only_benign_dirtiness_passes(
     _mock_mission: Mock,
@@ -131,7 +130,6 @@ def test_validate_with_only_benign_dirtiness_passes(
 # ---------------------------------------------------------------------------
 # Test 10: Blocking dirty files — validation FAILS with guidance
 # ---------------------------------------------------------------------------
-
 
 @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
 def test_validate_with_blocking_dirtiness_fails(
@@ -163,7 +161,6 @@ def test_validate_with_blocking_dirtiness_fails(
 # Test 11: --force bypasses all validation
 # ---------------------------------------------------------------------------
 
-
 @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
 def test_validate_with_force_bypasses_all(
     _mock_mission: Mock,
@@ -192,7 +189,6 @@ def test_validate_with_force_bypasses_all(
 # ---------------------------------------------------------------------------
 # Test 12: Review prompt includes in-repo feedback path
 # ---------------------------------------------------------------------------
-
 
 def test_review_prompt_includes_in_repo_path(
     review_handoff_repo: tuple[Path, Path, str],

@@ -67,7 +67,9 @@ from specify_cli.diagnostics import report_once
 
 
 logger = logging.getLogger(__name__)
-AUTH_RELOGIN_MESSAGE = "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
+AUTH_RELOGIN_MESSAGE = (
+    "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +295,9 @@ class AuthenticatedClient:
         """
         access_token = _fetch_access_token_sync()
         if access_token is None:
-            raise NotAuthenticatedError("Authentication required. Run `spec-kitty auth login`.")
+            raise NotAuthenticatedError(
+                "Authentication required. Run `spec-kitty auth login`."
+            )
 
         response = self._send(method, url, access_token, kwargs)
 
@@ -303,7 +307,9 @@ class AuthenticatedClient:
             try:
                 _force_refresh_sync()
             except AuthRefreshFailed as exc:
-                _emit_user_facing_failure_once(AUTH_RELOGIN_MESSAGE)
+                _emit_user_facing_failure_once(
+                    AUTH_RELOGIN_MESSAGE
+                )
                 raise exc
 
             access_token = _fetch_access_token_sync()

@@ -46,8 +46,12 @@ def _report_to_dict(report: StaleAssertionReport) -> dict:  # type: ignore[type-
 def stale_check(
     base: Annotated[str, typer.Option("--base", help="Base git ref for the diff")],
     head: Annotated[str, typer.Option("--head", help="Head git ref for the diff")] = "HEAD",
-    repo_root: Annotated[Path, typer.Option("--repo", help="Repository root (default: current directory)")] = Path("."),
-    json_output: Annotated[bool, typer.Option("--json", help="Emit JSON instead of human-readable text")] = False,
+    repo_root: Annotated[
+        Path, typer.Option("--repo", help="Repository root (default: current directory)")
+    ] = Path("."),
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit JSON instead of human-readable text")
+    ] = False,
 ) -> None:
     """Detect test assertions likely invalidated by source changes between two refs.
 
@@ -78,8 +82,15 @@ def stale_check(
         return
 
     # --- Rich human-readable output ---
-    console.print(f"\n[bold]Stale-assertion analysis:[/bold] {report.base_ref!r} → {report.head_ref!r}")
-    console.print(f"  scanned {report.files_scanned} test file(s) in {report.elapsed_seconds:.2f}s | findings/100 LOC: {report.findings_per_100_loc:.2f}")
+    console.print(
+        f"\n[bold]Stale-assertion analysis:[/bold] "
+        f"{report.base_ref!r} → {report.head_ref!r}"
+    )
+    console.print(
+        f"  scanned {report.files_scanned} test file(s) in "
+        f"{report.elapsed_seconds:.2f}s | "
+        f"findings/100 LOC: {report.findings_per_100_loc:.2f}"
+    )
 
     if not report.findings:
         console.print("[green]No stale assertions detected.[/green]\n")
@@ -104,7 +115,9 @@ def stale_check(
 
         for finding in level_findings:
             table.add_row(
-                str(finding.test_file.relative_to(resolved_root) if finding.test_file.is_relative_to(resolved_root) else finding.test_file),
+                str(finding.test_file.relative_to(resolved_root)
+                    if finding.test_file.is_relative_to(resolved_root)
+                    else finding.test_file),
                 str(finding.test_line),
                 finding.changed_symbol,
                 f"{finding.source_file.name}:{finding.source_line}",

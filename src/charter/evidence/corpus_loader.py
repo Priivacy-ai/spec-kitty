@@ -1,5 +1,4 @@
 """Corpus loader for charter synthesis evidence."""
-
 from __future__ import annotations
 
 import datetime

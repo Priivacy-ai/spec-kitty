@@ -6,8 +6,8 @@ import pytest
 from ruamel.yaml import YAML
 
 from doctrine.paradigms.repository import ParadigmRepository
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestParadigmRepository:
@@ -64,6 +64,7 @@ class TestParadigmRepository:
     def test_save_raises_without_project_dir(self, tmp_path: Path, sample_paradigm_data: dict) -> None:
         from doctrine.paradigms.models import Paradigm
 
+
         repo = ParadigmRepository(shipped_dir=tmp_path / "empty")
         paradigm = Paradigm.model_validate(sample_paradigm_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
@@ -101,3 +102,4 @@ class TestParadigmRepository:
         assert paradigm is not None
         assert paradigm.name == "Overridden Name"
         assert paradigm.summary == "Overridden summary"
+

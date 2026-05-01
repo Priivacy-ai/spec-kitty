@@ -79,15 +79,13 @@ def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, act
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=slug, wp_id=wp_id, to_lane="claimed", actor=actor))
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     else:
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=mission_dir,
-                mission_slug=slug,
-                wp_id=wp_id,
-                to_lane=to_lane,
-                actor=actor,
-            )
-        )
+        emit_status_transition(TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=slug,
+            wp_id=wp_id,
+            to_lane=to_lane,
+            actor=actor,
+        ))
 
 
 def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, actor: str = "test") -> None:
@@ -99,27 +97,25 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
-    emit_status_transition(
-        TransitionRequest(
-            feature_dir=mission_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            to_lane="done",
-            actor=actor,
-            evidence={
-                "review": {
-                    "reviewer": "reviewer-agent",
-                    "verdict": "approved",
-                    "reference": "review-001",
-                }
-            },
-            review_result=ReviewResult(
-                reviewer="reviewer-agent",
-                verdict="approved",
-                reference="review-001",
-            ),
-        )
-    )
+    emit_status_transition(TransitionRequest(
+        feature_dir=mission_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane="done",
+        actor=actor,
+        evidence={
+            "review": {
+                "reviewer": "reviewer-agent",
+                "verdict": "approved",
+                "reference": "review-001",
+            }
+        },
+        review_result=ReviewResult(
+            reviewer="reviewer-agent",
+            verdict="approved",
+            reference="review-001",
+        ),
+    ))
 
 
 # ── contract-version ──────────────────────────────────────────────

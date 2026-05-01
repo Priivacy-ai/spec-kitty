@@ -176,18 +176,26 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
     computed = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     if computed != manifest.manifest_hash:
-        raise ValueError(f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., computed {computed[:12]}...)")
+        raise ValueError(
+            f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., "
+            f"computed {computed[:12]}...)"
+        )
 
 
 def _validate_manifest_path(raw_path: str, *, field_name: str, required_prefix: Path) -> Path:
     """Return a safe repo-relative manifest path under ``required_prefix``."""
     path = Path(raw_path.replace("\\", "/"))
     if path.is_absolute() or ".." in path.parts:
-        raise ValueError(f"{field_name} must be repo-relative and stay under {required_prefix.as_posix()}: {raw_path}")
+        raise ValueError(
+            f"{field_name} must be repo-relative and stay under "
+            f"{required_prefix.as_posix()}: {raw_path}"
+        )
     try:
         path.relative_to(required_prefix)
     except ValueError as exc:
-        raise ValueError(f"{field_name} must be under {required_prefix.as_posix()}: {raw_path}") from exc
+        raise ValueError(
+            f"{field_name} must be under {required_prefix.as_posix()}: {raw_path}"
+        ) from exc
     return path
 
 
@@ -198,7 +206,9 @@ def _resolve_under_repo(repo_root: Path, rel_path: Path, *, field_name: str) -> 
     try:
         resolved.relative_to(repo_resolved)
     except ValueError as exc:
-        raise ValueError(f"{field_name} resolves outside repository root: {rel_path.as_posix()}") from exc
+        raise ValueError(
+            f"{field_name} resolves outside repository root: {rel_path.as_posix()}"
+        ) from exc
     return resolved
 
 

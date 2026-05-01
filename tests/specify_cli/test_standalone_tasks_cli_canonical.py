@@ -85,7 +85,9 @@ def test_repo_root_tasks_cli_list_uses_canonical_status(tmp_path: Path, isolated
     assert "planned  WP01" not in result.stdout
 
 
-def test_src_tasks_cli_history_dry_run_omits_lane_segment(tmp_path: Path, isolated_env: dict[str, str]) -> None:
+def test_src_tasks_cli_history_dry_run_omits_lane_segment(
+    tmp_path: Path, isolated_env: dict[str, str]
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)

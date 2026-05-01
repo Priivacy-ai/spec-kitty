@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import Optional, cast
 
 import typer
 from rich.console import Console
-from typing import Annotated
+from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
@@ -19,7 +19,11 @@ from specify_cli.core.execution_context import (
     resolve_action_context,
 )
 
-app = typer.Typer(name="context", help="Agent context management commands", no_args_is_help=True)
+app = typer.Typer(
+    name="context",
+    help="Agent context management commands",
+    no_args_is_help=True
+)
 
 console = Console()
 
@@ -61,7 +65,10 @@ def resolve_context(
         str,
         typer.Option(
             "--action",
-            help=(f"Action to resolve context for ({', '.join(ACTION_NAMES)})"),
+            help=(
+                "Action to resolve context for "
+                f"({', '.join(ACTION_NAMES)})"
+            ),
         ),
     ],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
@@ -117,7 +124,8 @@ def resolve_context(
             print(json.dumps({"success": False, "error_code": exc.code, "error": str(exc)}, indent=2))
         else:
             console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1)
+
 
 
 # update-context command removed — agent_context.py was deleted in WP10.

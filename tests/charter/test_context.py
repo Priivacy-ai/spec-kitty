@@ -290,7 +290,9 @@ class TestBuildContextV2:
         result = self._call(tmp_path)
         assert result.references_count >= 0
 
-    def test_build_context_uses_fallback_summary_when_policy_section_missing(self, tmp_path: Path) -> None:
+    def test_build_context_uses_fallback_summary_when_policy_section_missing(
+        self, tmp_path: Path
+    ) -> None:
         _setup_fixture_repo(tmp_path)
         charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
         charter_path.write_text("# Project Charter\n", encoding="utf-8")
@@ -373,15 +375,21 @@ class TestNoPerActionFiltering:
         # Collect all string literals in the function body (skip docstring)
         body_nodes = func_def.body
         # Skip the first statement if it's the docstring
-        if body_nodes and isinstance(body_nodes[0], ast.Expr) and isinstance(body_nodes[0].value, ast.Constant) and isinstance(body_nodes[0].value.value, str):
+        if (
+            body_nodes
+            and isinstance(body_nodes[0], ast.Expr)
+            and isinstance(body_nodes[0].value, ast.Constant)
+            and isinstance(body_nodes[0].value.value, str)
+        ):
             body_nodes = body_nodes[1:]
 
         action_names = {"specify", "plan", "implement", "review", "tasks"}
         found_literals: list[str] = []
 
         for node in ast.walk(ast.Module(body=body_nodes, type_ignores=[])):
-            if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.lower() in action_names:
-                found_literals.append(node.value)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if node.value.lower() in action_names:
+                    found_literals.append(node.value)
 
         assert not found_literals, (
             f"build_charter_context contains action-name string literals: "
@@ -417,7 +425,9 @@ class TestNoPerActionFiltering:
                         ):
                             # Check if other side has string constants matching actions
                             for other in [test.left, *test.comparators]:
-                                if isinstance(other, ast.Constant) and isinstance(other.value, str):
+                                if isinstance(other, ast.Constant) and isinstance(
+                                    other.value, str
+                                ):
                                     action_names = {
                                         "specify",
                                         "plan",
@@ -426,11 +436,15 @@ class TestNoPerActionFiltering:
                                         "tasks",
                                     }
                                     assert other.value.lower() not in action_names, (
-                                        f"Found conditional on action parameter: comparison with '{other.value}'. FR-009 prohibits per-action filtering."
+                                        f"Found conditional on action parameter: "
+                                        f"comparison with '{other.value}'. "
+                                        f"FR-009 prohibits per-action filtering."
                                     )
 
 
-def test_build_doctrine_service_prefers_repo_src_overlay(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_build_doctrine_service_prefers_repo_src_overlay(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     calls: dict[str, object] = {}
 
     class StubDoctrineService:

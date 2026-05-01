@@ -4,7 +4,6 @@ These tests are marked ``windows_ci`` and run on ``windows-latest`` only.
 On POSIX they are deselected by the marker filter — they still collect
 cleanly, however, so CI configuration errors are caught early.
 """
-
 from __future__ import annotations
 
 import pytest
@@ -18,9 +17,15 @@ def test_sync_daemon_paths_under_localappdata() -> None:
     sync_root = daemon._sync_root()
     assert sync_root is not None, "_sync_root() must not return None"
     s = str(sync_root)
-    assert "AppData" in s and "Local" in s, f"Expected path under AppData\\Local, got: {s}"
-    assert "spec-kitty" in s.lower(), f"Expected 'spec-kitty' in path, got: {s}"
-    assert "sync" in s.lower(), f"Expected 'sync' in path, got: {s}"
+    assert "AppData" in s and "Local" in s, (
+        f"Expected path under AppData\\Local, got: {s}"
+    )
+    assert "spec-kitty" in s.lower(), (
+        f"Expected 'spec-kitty' in path, got: {s}"
+    )
+    assert "sync" in s.lower(), (
+        f"Expected 'sync' in path, got: {s}"
+    )
 
 
 @pytest.mark.windows_ci
@@ -31,9 +36,15 @@ def test_daemon_root_under_localappdata() -> None:
     daemon_root = daemon._daemon_root()
     assert daemon_root is not None, "_daemon_root() must not return None"
     s = str(daemon_root)
-    assert "AppData" in s and "Local" in s, f"Expected path under AppData\\Local, got: {s}"
-    assert "spec-kitty" in s.lower(), f"Expected 'spec-kitty' in path, got: {s}"
-    assert "daemon" in s.lower(), f"Expected 'daemon' in path, got: {s}"
+    assert "AppData" in s and "Local" in s, (
+        f"Expected path under AppData\\Local, got: {s}"
+    )
+    assert "spec-kitty" in s.lower(), (
+        f"Expected 'spec-kitty' in path, got: {s}"
+    )
+    assert "daemon" in s.lower(), (
+        f"Expected 'daemon' in path, got: {s}"
+    )
 
 
 @pytest.mark.windows_ci
@@ -55,4 +66,6 @@ def test_daemon_state_file_under_daemon_root() -> None:
     daemon_root = daemon._daemon_root()
     state_file = daemon.DAEMON_STATE_FILE
     # The state file parent must be (or be under) the daemon root
-    assert str(state_file).startswith(str(daemon_root)), f"DAEMON_STATE_FILE {state_file} not under daemon root {daemon_root}"
+    assert str(state_file).startswith(str(daemon_root)), (
+        f"DAEMON_STATE_FILE {state_file} not under daemon root {daemon_root}"
+    )

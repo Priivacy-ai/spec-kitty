@@ -286,7 +286,9 @@ def test_resolve_active_feature_requires_explicit_selection(tmp_path):
     resolve_active_feature always returns None.
     """
     resolved = scanner.resolve_active_feature(tmp_path)
-    assert resolved is None, "resolve_active_feature must return None after removal of auto-detection"
+    assert resolved is None, (
+        "resolve_active_feature must return None after removal of auto-detection"
+    )
 
 
 def test_project_charter_propagates_to_all_features(tmp_path):
@@ -409,7 +411,9 @@ def test_display_category_matches_kanban_columns():
     }
     for lane, expected_label in expected_mapping.items():
         state = wp_state_for(lane)
-        assert state.display_category() == expected_label, f"Lane {lane}: expected {expected_label!r}, got {state.display_category()!r}"
+        assert state.display_category() == expected_label, (
+            f"Lane {lane}: expected {expected_label!r}, got {state.display_category()!r}"
+        )
 
 
 @pytest.mark.fast
@@ -418,4 +422,6 @@ def test_kanban_column_map_covers_all_lanes():
     from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
 
     for member in Lane:
-        assert member in _KANBAN_COLUMN_FOR_LANE, f"Lane.{member.name} missing from _KANBAN_COLUMN_FOR_LANE"
+        assert member in _KANBAN_COLUMN_FOR_LANE, (
+            f"Lane.{member.name} missing from _KANBAN_COLUMN_FOR_LANE"
+        )

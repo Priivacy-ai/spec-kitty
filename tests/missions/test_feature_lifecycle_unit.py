@@ -165,7 +165,9 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
-def test_merge_command_delegates_to_toplevel(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path):
+def test_merge_command_delegates_to_toplevel(
+    mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
+):
     """Test that merge command delegates to top-level merge() command."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -255,7 +257,9 @@ def test_merge_command_auto_retry_logic(
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
-def test_merge_command_passes_all_flags(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path):
+def test_merge_command_passes_all_flags(
+    mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
+):
     """Test that merge command passes all flags to top-level merge()."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -325,7 +329,9 @@ def test_accept_command_propagates_errors(mock_locate: MagicMock, mock_accept: M
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
-def test_merge_command_propagates_errors(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path):
+def test_merge_command_propagates_errors(
+    mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
+):
     """Test merge command propagates errors from top-level merge()."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

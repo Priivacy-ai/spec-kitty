@@ -226,7 +226,9 @@ class TestPromptConflictResolution:
         assert choice == PromptChoice.SELECT_CANDIDATE
         assert value == 0
         # Verify error message was shown for '99'
-        error_calls = [str(c) for c in mock_echo.call_args_list if "between 1 and" in str(c).lower() or "enter" in str(c).lower()]
+        error_calls = [
+            str(c) for c in mock_echo.call_args_list if "between 1 and" in str(c).lower() or "enter" in str(c).lower()
+        ]
         assert len(error_calls) > 0
 
     @patch("specify_cli.glossary.prompts.typer.echo")
@@ -340,6 +342,7 @@ class TestLogNonInteractiveContext:
     def test_non_interactive_logs(self, mock_sys, mock_is_interactive, caplog):
         """Logs non-interactive context details."""
         import logging
+
 
         mock_sys.stdin.isatty.return_value = False
         with caplog.at_level(logging.INFO):

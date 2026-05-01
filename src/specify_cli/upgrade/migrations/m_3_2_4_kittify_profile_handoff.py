@@ -133,7 +133,9 @@ def _patch_implement(content: str) -> tuple[str, list[str]]:
         content = content.replace("- `tool`", "- `agent`")
         changes.append("fixed stale field: `tool` → `agent`")
     if "If `profile` is empty" in content:
-        content = content.replace("If `profile` is empty", "If `agent_profile` is empty")
+        content = content.replace(
+            "If `profile` is empty", "If `agent_profile` is empty"
+        )
         changes.append("fixed stale Section-2a fallback sentence")
 
     # Insert Section 6 handoff block before ## Output (idempotent)
@@ -196,7 +198,9 @@ def _patch_task_prompt_template(content: str) -> tuple[str, list[str]]:
     return content, changes
 
 
-def _apply_patch_to_file(path: Path, patch_fn: object, dry_run: bool) -> list[str]:
+def _apply_patch_to_file(
+    path: Path, patch_fn: object, dry_run: bool
+) -> list[str]:
     """Read file, apply patch function, write back if changed. Return change list."""
     if not path.exists():
         return []
@@ -217,7 +221,10 @@ class KittifyProfileHandoffMigration(BaseMigration):
     """Add agent-profile load and review-handoff guidance to installed templates."""
 
     migration_id = "3.2.4_kittify_profile_handoff"
-    description = "Insert profile-load and review-handoff blocks into .kittify command templates and .agents/skills skill files"
+    description = (
+        "Insert profile-load and review-handoff blocks into .kittify command "
+        "templates and .agents/skills skill files"
+    )
     target_version = "3.2.4"
 
     def can_apply(self, _project_path: Path) -> tuple[bool, str]:
@@ -226,13 +233,22 @@ class KittifyProfileHandoffMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True if implement.md lacks the handoff sentinel or skills missing it."""
-        implement_path = project_path / ".kittify" / "missions" / "software-dev" / "command-templates" / "implement.md"
+        implement_path = (
+            project_path
+            / ".kittify"
+            / "missions"
+            / "software-dev"
+            / "command-templates"
+            / "implement.md"
+        )
         if implement_path.exists():
             content = implement_path.read_text(encoding="utf-8")
             if _HANDOFF_SENTINEL not in content:
                 return True
 
-        skill_implement = project_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        skill_implement = (
+            project_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        )
         if skill_implement.exists():
             content = skill_implement.read_text(encoding="utf-8")
             if _HANDOFF_SENTINEL not in content:
@@ -245,22 +261,52 @@ class KittifyProfileHandoffMigration(BaseMigration):
         all_changes: list[str] = []
 
         # 1. .kittify implement.md
-        implement_path = project_path / ".kittify" / "missions" / "software-dev" / "command-templates" / "implement.md"
+        implement_path = (
+            project_path
+            / ".kittify"
+            / "missions"
+            / "software-dev"
+            / "command-templates"
+            / "implement.md"
+        )
         all_changes += _apply_patch_to_file(implement_path, _patch_implement, dry_run)
 
         # 2. .kittify review.md
-        review_path = project_path / ".kittify" / "missions" / "software-dev" / "command-templates" / "review.md"
+        review_path = (
+            project_path
+            / ".kittify"
+            / "missions"
+            / "software-dev"
+            / "command-templates"
+            / "review.md"
+        )
         all_changes += _apply_patch_to_file(review_path, _patch_review, dry_run)
 
         # 3. .kittify overrides task-prompt-template.md
-        override_path = project_path / ".kittify" / "overrides" / "missions" / "software-dev" / "templates" / "task-prompt-template.md"
-        all_changes += _apply_patch_to_file(override_path, _patch_task_prompt_template, dry_run)
+        override_path = (
+            project_path
+            / ".kittify"
+            / "overrides"
+            / "missions"
+            / "software-dev"
+            / "templates"
+            / "task-prompt-template.md"
+        )
+        all_changes += _apply_patch_to_file(
+            override_path, _patch_task_prompt_template, dry_run
+        )
 
         # 4. .agents/skills skill files
-        skill_implement = project_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
-        all_changes += _apply_patch_to_file(skill_implement, _patch_implement, dry_run)
+        skill_implement = (
+            project_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        )
+        all_changes += _apply_patch_to_file(
+            skill_implement, _patch_implement, dry_run
+        )
 
-        skill_review = project_path / ".agents" / "skills" / "spec-kitty.review" / "SKILL.md"
+        skill_review = (
+            project_path / ".agents" / "skills" / "spec-kitty.review" / "SKILL.md"
+        )
         all_changes += _apply_patch_to_file(skill_review, _patch_review, dry_run)
 
         return MigrationResult(

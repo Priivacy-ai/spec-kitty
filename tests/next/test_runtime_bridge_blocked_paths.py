@@ -57,7 +57,9 @@ def _runtime_decision(**overrides: object) -> SimpleNamespace:
 class TestWPIterationDecisionBlockedBranch:
     """runtime_bridge.py:2152-2172 (`_build_wp_iteration_decision` blocked path)."""
 
-    def test_wp_iteration_blocked_when_prompt_unresolvable_with_guard_failures(self, tmp_path: Path) -> None:
+    def test_wp_iteration_blocked_when_prompt_unresolvable_with_guard_failures(
+        self, tmp_path: Path
+    ) -> None:
         """Direct unit-level call to `_build_wp_iteration_decision`.
 
         Ensures the blocked branch (line 2156-2172) fires when the helper
@@ -113,7 +115,9 @@ class TestWPIterationDecisionBlockedBranch:
 class TestMapRuntimeDecisionNoActionNoStepId:
     """runtime_bridge.py:2363-2364 (no-action AND no-step_id branch)."""
 
-    def test_map_runtime_decision_emits_blocked_when_no_action_and_no_step_id(self, tmp_path: Path) -> None:
+    def test_map_runtime_decision_emits_blocked_when_no_action_and_no_step_id(
+        self, tmp_path: Path
+    ) -> None:
         """Drive the `else` branch on line 2363-2364.
 
         Pre-condition: `_state_to_action` returns (None, None, None) AND
@@ -177,7 +181,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         )
         return feature_dir
 
-    def test_guard_failure_on_non_wp_step_yields_blocked_with_prompt_error(self, tmp_path: Path) -> None:
+    def test_guard_failure_on_non_wp_step_yields_blocked_with_prompt_error(
+        self, tmp_path: Path
+    ) -> None:
         """Lines 1561-1609 — the prompt-error branch of the guard handler.
 
         Drives the branch where ``_state_to_action`` returns a usable
@@ -212,7 +218,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
-            sync_cls.for_feature.return_value = SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None)
+            sync_cls.for_feature.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -227,7 +235,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         assert decision.action == "specify"
         assert decision.prompt_file is None
 
-    def test_guard_failure_on_non_wp_step_with_resolvable_prompt(self, tmp_path: Path) -> None:
+    def test_guard_failure_on_non_wp_step_with_resolvable_prompt(
+        self, tmp_path: Path
+    ) -> None:
         """Lines 1561-1609 — the prompt-attached branch (line 1609+).
 
         Same setup as above but with a resolvable prompt: the decision is
@@ -263,7 +273,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
-            sync_cls.for_feature.return_value = SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None)
+            sync_cls.for_feature.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -279,7 +291,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         if decision.prompt_file is not None:
             assert Path(decision.prompt_file).exists()
 
-    def test_guard_failure_blocks_if_resolved_prompt_disappears(self, tmp_path: Path) -> None:
+    def test_guard_failure_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
         """A prompt can disappear after resolution; keep the step invariant hard."""
         from specify_cli.next import runtime_bridge as rb
 
@@ -311,7 +325,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
-            sync_cls.for_feature.return_value = SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None)
+            sync_cls.for_feature.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -324,7 +340,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         assert decision.guard_failures == ["specify_guard_failure"]
         assert decision.prompt_file is None
 
-    def test_guard_failure_on_non_wp_step_no_action_mapped(self, tmp_path: Path) -> None:
+    def test_guard_failure_on_non_wp_step_no_action_mapped(
+        self, tmp_path: Path
+    ) -> None:
         """Lines 1584-1587 — `_state_to_action` returns (None, ...) branch.
 
         When no action can be mapped for the current step, the helper
@@ -352,7 +370,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=snapshot,
             ),
         ):
-            sync_cls.for_feature.return_value = SimpleNamespace(seed_from_snapshot=lambda *_a, **_k: None)
+            sync_cls.for_feature.return_value = SimpleNamespace(
+                seed_from_snapshot=lambda *_a, **_k: None
+            )
             decision = rb.decide_next_via_runtime(
                 agent="claude",
                 mission_slug=mission_slug,
@@ -370,7 +390,9 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 class TestResolvedPromptRaceFallbacks:
     """Cover every runtime bridge path that catches ``InvalidStepDecision``."""
 
-    def test_wp_iteration_blocks_if_resolved_prompt_disappears(self, tmp_path: Path) -> None:
+    def test_wp_iteration_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
         from specify_cli.next.runtime_bridge import _build_wp_iteration_decision
 
         prompt_path = tmp_path / "implement-prompt.md"
@@ -405,7 +427,9 @@ class TestResolvedPromptRaceFallbacks:
         assert decision.reason == "prompt_file_not_resolvable"
         assert decision.prompt_file is None
 
-    def test_map_wp_step_blocks_if_resolved_prompt_disappears(self, tmp_path: Path) -> None:
+    def test_map_wp_step_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
         from specify_cli.next.runtime_bridge import _map_runtime_decision
 
         prompt_path = tmp_path / "implement-prompt.md"
@@ -442,7 +466,9 @@ class TestResolvedPromptRaceFallbacks:
         assert decision.reason == "prompt_file_not_resolvable"
         assert decision.prompt_file is None
 
-    def test_map_non_wp_step_blocks_if_resolved_prompt_disappears(self, tmp_path: Path) -> None:
+    def test_map_non_wp_step_blocks_if_resolved_prompt_disappears(
+        self, tmp_path: Path
+    ) -> None:
         from specify_cli.next.runtime_bridge import _map_runtime_decision
 
         prompt_path = tmp_path / "specify-prompt.md"

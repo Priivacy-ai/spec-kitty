@@ -69,8 +69,9 @@ def _has_lane_in_frontmatter(text: str) -> list[str]:
         stripped = line.strip()
         if re.match(r"^lane\s*:", stripped):
             violations.append(f"frontmatter lane: {stripped}")
-        elif re.match(r"lane\s*:", stripped) and f"frontmatter lane: {stripped}" not in violations:
-            violations.append(f"history lane field: {stripped}")
+        elif re.match(r"lane\s*:", stripped):
+            if f"frontmatter lane: {stripped}" not in violations:
+                violations.append(f"history lane field: {stripped}")
     return violations
 
 
@@ -98,7 +99,7 @@ _EXCLUDED_PREFIXES = [
 _EXCLUDED_FILES = [
     "status/history_parser.py",
     "task_metadata_validation.py",
-    "cli/commands/validate_tasks.py",  # legacy command (migration-only)
+    "cli/commands/validate_tasks.py",      # legacy command (migration-only)
 ]
 
 
@@ -107,7 +108,10 @@ def _is_excluded(rel_path: str) -> bool:
     for prefix in _EXCLUDED_PREFIXES:
         if rel_path.startswith(prefix):
             return True
-    return any(rel_path == exc for exc in _EXCLUDED_FILES)
+    for exc in _EXCLUDED_FILES:
+        if rel_path == exc:
+            return True
+    return False
 
 
 SCRIPTS_ROOT = REPO_ROOT / "scripts"
@@ -188,7 +192,10 @@ def test_template_no_lane_in_frontmatter(template_path: Path) -> None:
     """No mission/doctrine template should contain ``lane:`` in YAML frontmatter."""
     text = template_path.read_text(encoding="utf-8")
     violations = _has_lane_in_frontmatter(text)
-    assert not violations, f"{template_path.relative_to(REPO_ROOT)} has lane in frontmatter:\n" + "\n".join(f"  - {v}" for v in violations)
+    assert not violations, (
+        f"{template_path.relative_to(REPO_ROOT)} has lane in frontmatter:\n"
+        + "\n".join(f"  - {v}" for v in violations)
+    )
 
 
 @pytest.mark.parametrize(
@@ -200,7 +207,10 @@ def test_template_no_lane_in_activity_log(template_path: Path) -> None:
     """No mission/doctrine template should contain ``lane=`` in activity log strings."""
     text = template_path.read_text(encoding="utf-8")
     violations = _has_lane_in_activity_log(text)
-    assert not violations, f"{template_path.relative_to(REPO_ROOT)} has lane= in activity log:\n" + "\n".join(f"  - {v}" for v in violations)
+    assert not violations, (
+        f"{template_path.relative_to(REPO_ROOT)} has lane= in activity log:\n"
+        + "\n".join(f"  - {v}" for v in violations)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -242,8 +252,15 @@ def test_runtime_no_frontmatter_lane_access(py_file: Path) -> None:
 def test_standalone_task_scripts_do_not_write_lane_activity_entries(script_path: Path) -> None:
     """Standalone task scripts must not write ``lane=`` into body activity logs."""
     text = script_path.read_text(encoding="utf-8")
-    violations = [f"line {idx}: {line.strip()}" for idx, line in enumerate(text.splitlines(), 1) if re.search(r"""["'].*lane=.*["']""", line)]
-    assert not violations, f"{script_path.relative_to(REPO_ROOT)} still writes lane= activity entries:\n" + "\n".join(f"  - {v}" for v in violations)
+    violations = [
+        f"line {idx}: {line.strip()}"
+        for idx, line in enumerate(text.splitlines(), 1)
+        if re.search(r"""["'].*lane=.*["']""", line)
+    ]
+    assert not violations, (
+        f"{script_path.relative_to(REPO_ROOT)} still writes lane= activity entries:\n"
+        + "\n".join(f"  - {v}" for v in violations)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -340,16 +357,23 @@ def test_runtime_guard_ignores_comments() -> None:
 
 def test_template_files_found() -> None:
     """Ensure we found template files to scan (guard against empty glob)."""
-    assert len(_template_files) >= 10, f"Expected at least 10 template files but found {len(_template_files)}"
+    assert len(_template_files) >= 10, (
+        f"Expected at least 10 template files but found {len(_template_files)}"
+    )
 
 
 def test_runtime_files_found() -> None:
     """Ensure we found runtime .py files to scan (guard against empty glob)."""
-    assert len(_runtime_files) >= 20, f"Expected at least 20 runtime .py files but found {len(_runtime_files)}"
+    assert len(_runtime_files) >= 20, (
+        f"Expected at least 20 runtime .py files but found {len(_runtime_files)}"
+    )
 
 
 def test_excluded_files_exist() -> None:
     """Verify that the files we exclude actually exist (guard against stale exclusions)."""
     for exc_file in _EXCLUDED_FILES:
         path = SRC_ROOT / exc_file
-        assert path.exists(), f"Excluded file {exc_file} does not exist at {path}. Remove it from the exclusion list if the file was deleted."
+        assert path.exists(), (
+            f"Excluded file {exc_file} does not exist at {path}. "
+            "Remove it from the exclusion list if the file was deleted."
+        )

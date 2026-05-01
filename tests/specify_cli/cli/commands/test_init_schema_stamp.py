@@ -65,7 +65,9 @@ def test_existing_metadata_with_operator_keys_preserved(tmp_path: Path) -> None:
     metadata_path = kittify / "metadata.yaml"
     # Pre-existing operator-authored content. No spec_kitty section.
     metadata_path.write_text(
-        "my_custom_key: custom_value\nanother_section:\n  nested: 42\n",
+        "my_custom_key: custom_value\n"
+        "another_section:\n"
+        "  nested: 42\n",
         encoding="utf-8",
     )
 
@@ -89,7 +91,8 @@ def test_existing_schema_version_not_overwritten(tmp_path: Path) -> None:
     kittify.mkdir(parents=True)
     metadata_path = kittify / "metadata.yaml"
     metadata_path.write_text(
-        "spec_kitty:\n  schema_version: 99\n",
+        "spec_kitty:\n"
+        "  schema_version: 99\n",
         encoding="utf-8",
     )
 
@@ -116,7 +119,10 @@ def test_existing_schema_capabilities_not_merged_into(tmp_path: Path) -> None:
     kittify.mkdir(parents=True)
     metadata_path = kittify / "metadata.yaml"
     metadata_path.write_text(
-        "spec_kitty:\n  schema_version: 3\n  schema_capabilities:\n    canonical_context: false\n",
+        "spec_kitty:\n"
+        "  schema_version: 3\n"
+        "  schema_capabilities:\n"
+        "    canonical_context: false\n",
         encoding="utf-8",
     )
 
@@ -155,7 +161,8 @@ def test_stamp_preserves_yaml_round_trip_comments(tmp_path: Path) -> None:
     kittify.mkdir(parents=True)
     metadata_path = kittify / "metadata.yaml"
     metadata_path.write_text(
-        "# operator comment that must survive\nmy_custom_key: custom_value  # inline comment\n",
+        "# operator comment that must survive\n"
+        "my_custom_key: custom_value  # inline comment\n",
         encoding="utf-8",
     )
 

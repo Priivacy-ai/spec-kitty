@@ -2,8 +2,8 @@
 
 from doctrine.directives.validation import validate_directive
 import pytest
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestValidateDirective:

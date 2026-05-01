@@ -23,7 +23,10 @@ pytestmark = pytest.mark.git_repo
 
 def _write_compatible_project_metadata(repo_root: Path) -> None:
     """Write the current project schema; these tests do not exercise migrations."""
-    capabilities = "\n".join(f"    - {capability}" for capability in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA])
+    capabilities = "\n".join(
+        f"    - {capability}"
+        for capability in SCHEMA_CAPABILITIES[MAX_SUPPORTED_SCHEMA]
+    )
     repo_root.joinpath(".kittify", "metadata.yaml").write_text(
         f"""spec_kitty:
   schema_version: {MAX_SUPPORTED_SCHEMA}
@@ -156,7 +159,8 @@ dependencies: []
     # Verify .gitignore in main repo was NOT modified
     final_gitignore = gitignore_path.read_text()
     assert final_gitignore == initial_gitignore, (
-        f"Tracked .gitignore in main repo should not be modified by worktree creation. Expected:\n{initial_gitignore}\nGot:\n{final_gitignore}"
+        "Tracked .gitignore in main repo should not be modified by worktree creation. "
+        f"Expected:\n{initial_gitignore}\nGot:\n{final_gitignore}"
     )
 
     # Verify no uncommitted changes to .gitignore in main repo
@@ -167,7 +171,9 @@ dependencies: []
         text=True,
         check=True,
     )
-    assert git_status.stdout.strip() == "", ".gitignore should not be modified (no git status changes)"
+    assert git_status.stdout.strip() == "", (
+        ".gitignore should not be modified (no git status changes)"
+    )
 
     # CRITICAL TEST: Verify .gitignore in WORKTREE was not created/modified either
     worktree_path = lane_worktree_path(tmp_path, "001-test-feature")
@@ -176,7 +182,9 @@ dependencies: []
     # The worktree should have the same .gitignore as main (or none if not in main)
     if gitignore_path.exists():
         # If .gitignore exists in main, worktree should have same content
-        assert worktree_gitignore.read_text() == initial_gitignore, "Worktree .gitignore should match main repo (not be modified)"
+        assert worktree_gitignore.read_text() == initial_gitignore, (
+            "Worktree .gitignore should match main repo (not be modified)"
+        )
 
     # Check git status in worktree - should show no changes to .gitignore
     worktree_git_status = subprocess.run(
@@ -186,7 +194,9 @@ dependencies: []
         text=True,
         check=True,
     )
-    assert worktree_git_status.stdout.strip() == "", "Worktree .gitignore should not be modified (no git status changes in worktree)"
+    assert worktree_git_status.stdout.strip() == "", (
+        "Worktree .gitignore should not be modified (no git status changes in worktree)"
+    )
 
 
 def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path) -> None:
@@ -308,10 +318,16 @@ dependencies: []
     )
 
     # Only the initial commit should mention .gitignore
-    gitignore_commits = [line for line in git_log.stdout.split("\n") if line.strip()]
+    gitignore_commits = [
+        line for line in git_log.stdout.split("\n")
+        if line.strip()
+    ]
 
     # Should only be 1 commit (initial commit)
-    assert len(gitignore_commits) <= 1, f".gitignore should not appear in merge commits. Found commits: {gitignore_commits}"
+    assert len(gitignore_commits) <= 1, (
+        f".gitignore should not appear in merge commits. "
+        f"Found commits: {gitignore_commits}"
+    )
 
 
 def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path) -> None:
@@ -401,7 +417,9 @@ dependencies: []
         exclude_content = exclude_path.read_text()
         # Verify it does NOT modify tracked .gitignore (regression check for Bug #120)
         # Local excludes should be in .git/info/exclude, not in versioned .gitignore
-        assert ".kittify" in exclude_content or "exclude" in exclude_path.name, ".git/info/exclude should contain local exclusion patterns"
+        assert ".kittify" in exclude_content or "exclude" in exclude_path.name, (
+            ".git/info/exclude should contain local exclusion patterns"
+        )
     else:
         # exclude file not created — acceptable if no local-only paths were excluded
         # The important check is that .gitignore was NOT modified (tested above)

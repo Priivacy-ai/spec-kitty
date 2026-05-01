@@ -14,7 +14,6 @@ These tests pin the post-fix behaviour:
 * File present but undecodable / unreadable / non-mapping →
   raise :class:`IntakeFileUnreadableError`.
 """
-
 from __future__ import annotations
 
 import os
@@ -45,7 +44,9 @@ def test_read_mission_brief_returns_none_when_file_is_absent(tmp_path: Path) -> 
 
 def test_read_mission_brief_returns_text_when_present(tmp_path: Path) -> None:
     (tmp_path / ".kittify").mkdir()
-    (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).write_text("# my brief\n", encoding="utf-8")
+    (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).write_text(
+        "# my brief\n", encoding="utf-8"
+    )
     assert read_mission_brief(tmp_path) == "# my brief\n"
 
 
@@ -83,9 +84,13 @@ def test_read_brief_source_returns_dict_when_valid(tmp_path: Path) -> None:
     # P2.5 pair-atomicity: read_brief_source returns None unless brief.md
     # also exists (it is the commit marker). A complete pair must include
     # both files for the parsed dict to be surfaced.
-    (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).write_text("# brief\n", encoding="utf-8")
+    (tmp_path / ".kittify" / MISSION_BRIEF_FILENAME).write_text(
+        "# brief\n", encoding="utf-8"
+    )
     (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).write_text(
-        "source_file: /tmp/plan.md\ningested_at: 2026-04-26T00:00:00Z\nbrief_hash: abc123\n",
+        "source_file: /tmp/plan.md\n"
+        "ingested_at: 2026-04-26T00:00:00Z\n"
+        "brief_hash: abc123\n",
         encoding="utf-8",
     )
     out = read_brief_source(tmp_path)

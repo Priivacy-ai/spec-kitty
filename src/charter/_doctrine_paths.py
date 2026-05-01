@@ -27,9 +27,9 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 _PROJECT_ROOT_CANDIDATES: tuple[str, ...] = (
-    ".kittify/doctrine",  # NEW — Phase 3 synthesis target (FR-009)
-    "src/doctrine",  # existing — code-local shipped-layer path
-    "doctrine",  # existing — flat shipped-layer fallback
+    ".kittify/doctrine",   # NEW — Phase 3 synthesis target (FR-009)
+    "src/doctrine",        # existing — code-local shipped-layer path
+    "doctrine",            # existing — flat shipped-layer fallback
 )
 
 

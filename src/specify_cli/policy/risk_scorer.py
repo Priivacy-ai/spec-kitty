@@ -104,7 +104,11 @@ def _score_lane_pair(
     shared_tests = _find_shared_test_surfaces(lane_a, lane_b, wp_bodies)
 
     # Weighted score: parent proximity is strongest signal, then imports, then tests.
-    raw = min(len(shared_parents), 5) * 0.12 + min(len(imports), 5) * 0.10 + min(len(shared_tests), 3) * 0.08
+    raw = (
+        min(len(shared_parents), 5) * 0.12
+        + min(len(imports), 5) * 0.10
+        + min(len(shared_tests), 3) * 0.08
+    )
     score = min(1.0, raw)
 
     return LanePairRisk(
@@ -118,8 +122,7 @@ def _score_lane_pair(
 
 
 def _find_shared_parent_dirs(
-    scope_a: tuple[str, ...],
-    scope_b: tuple[str, ...],
+    scope_a: tuple[str, ...], scope_b: tuple[str, ...],
 ) -> list[str]:
     """Find parent directories (depth 2+) shared between two write scopes.
 
@@ -148,8 +151,7 @@ def _extract_parent_dirs(scope: tuple[str, ...]) -> set[str]:
 
 
 def _find_import_coupling(
-    lane_a: ExecutionLane,
-    lane_b: ExecutionLane,
+    lane_a: ExecutionLane, lane_b: ExecutionLane,
     wp_bodies: dict[str, str],
 ) -> list[str]:
     """Find cross-lane import references in WP body text.
@@ -197,8 +199,7 @@ _TEST_FILE_RE = re.compile(r"tests?/[\w/]*test_\w+", re.IGNORECASE)
 
 
 def _find_shared_test_surfaces(
-    lane_a: ExecutionLane,
-    lane_b: ExecutionLane,
+    lane_a: ExecutionLane, lane_b: ExecutionLane,
     wp_bodies: dict[str, str],
 ) -> list[str]:
     """Find test files referenced by both lanes' WP bodies."""

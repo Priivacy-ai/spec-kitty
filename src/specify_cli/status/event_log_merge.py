@@ -25,15 +25,23 @@ def _read_event_file(path: Path) -> list[dict[str, Any]]:
             try:
                 payload = json.loads(stripped)
             except json.JSONDecodeError as exc:
-                raise EventLogMergeError(f"{path}: invalid JSON on line {line_number}: {exc}") from exc
+                raise EventLogMergeError(
+                    f"{path}: invalid JSON on line {line_number}: {exc}"
+                ) from exc
             if not isinstance(payload, dict):
-                raise EventLogMergeError(f"{path}: line {line_number} is not a JSON object")
+                raise EventLogMergeError(
+                    f"{path}: line {line_number} is not a JSON object"
+                )
             event_id = payload.get("event_id")
             at = payload.get("at")
             if not isinstance(event_id, str) or not event_id.strip():
-                raise EventLogMergeError(f"{path}: line {line_number} is missing a valid event_id")
+                raise EventLogMergeError(
+                    f"{path}: line {line_number} is missing a valid event_id"
+                )
             if not isinstance(at, str) or not at.strip():
-                raise EventLogMergeError(f"{path}: line {line_number} is missing a valid at timestamp")
+                raise EventLogMergeError(
+                    f"{path}: line {line_number} is missing a valid at timestamp"
+                )
             events.append(payload)
     return events
 
@@ -46,7 +54,9 @@ def merge_event_payloads(*event_groups: list[dict[str, Any]]) -> list[dict[str, 
             event_id = event["event_id"]
             existing = merged.get(event_id)
             if existing is not None and existing != event:
-                raise EventLogMergeError(f"Conflicting payloads found for event_id {event_id!r}")
+                raise EventLogMergeError(
+                    f"Conflicting payloads found for event_id {event_id!r}"
+                )
             merged[event_id] = event
 
     return sorted(

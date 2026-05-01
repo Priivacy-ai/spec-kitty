@@ -198,17 +198,29 @@ def test_strict_json_parses_in_all_saas_states(
 
     result = runner.invoke(app, argv, catch_exceptions=False)
 
-    assert result.stdout, f"[{label}/{saas_state}] expected stdout output, got empty.\nstderr={result.stderr!r}"
+    assert result.stdout, (
+        f"[{label}/{saas_state}] expected stdout output, got empty.\n"
+        f"stderr={result.stderr!r}"
+    )
 
     try:
         parsed = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        pytest.fail(f"[{label}/{saas_state}] stdout is not strict JSON: {exc}\nstdout={result.stdout!r}\nstderr={result.stderr!r}")
+        pytest.fail(
+            f"[{label}/{saas_state}] stdout is not strict JSON: {exc}\n"
+            f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        )
 
-    assert isinstance(parsed, dict), f"[{label}/{saas_state}] top-level JSON must be an object, got {type(parsed).__name__}"
+    assert isinstance(parsed, dict), (
+        f"[{label}/{saas_state}] top-level JSON must be an object, "
+        f"got {type(parsed).__name__}"
+    )
 
     if expects_success:
-        assert result.exit_code == 0, f"[{label}/{saas_state}] expected exit 0, got {result.exit_code}.\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
+        assert result.exit_code == 0, (
+            f"[{label}/{saas_state}] expected exit 0, got {result.exit_code}.\n"
+            f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +250,10 @@ def test_no_bare_diagnostic_lines_on_stdout(
     result = runner.invoke(app, argv, catch_exceptions=False)
 
     for forbidden in FORBIDDEN_STDOUT_STRINGS:
-        assert forbidden not in result.stdout, f"[{label}] forbidden string {forbidden!r} leaked to stdout.\nstdout={result.stdout!r}\nstderr={result.stderr!r}"
+        assert forbidden not in result.stdout, (
+            f"[{label}] forbidden string {forbidden!r} leaked to stdout.\n"
+            f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +275,9 @@ def test_emit_diagnostic_json_mode_true_no_envelope_writes_to_stderr(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """``json_mode=True`` without an envelope still writes to stderr."""
-    emit_diagnostic("hello-stderr-json", category="sync", json_mode=True, envelope=None)
+    emit_diagnostic(
+        "hello-stderr-json", category="sync", json_mode=True, envelope=None
+    )
     captured = capsys.readouterr()
     assert "hello-stderr-json" not in captured.out
     assert "hello-stderr-json" in captured.err
@@ -271,7 +288,9 @@ def test_emit_diagnostic_json_mode_true_with_envelope_nests_under_diagnostics(
 ) -> None:
     """With an envelope, the message is nested and NEITHER stream sees it."""
     envelope: dict[str, Any] = {"result": "success"}
-    emit_diagnostic("nested-msg", category="tracker", json_mode=True, envelope=envelope)
+    emit_diagnostic(
+        "nested-msg", category="tracker", json_mode=True, envelope=envelope
+    )
     captured = capsys.readouterr()
     assert envelope == {
         "result": "success",
@@ -330,7 +349,9 @@ def test_forbidden_string_list_is_non_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_set_saas_state_disabled_unsets_env_var(set_saas_state: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_set_saas_state_disabled_unsets_env_var(
+    set_saas_state: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     set_saas_state("disabled")
     assert "SPEC_KITTY_ENABLE_SAAS_SYNC" not in os.environ
@@ -346,7 +367,9 @@ def test_set_saas_state_unauthorized_sets_env_var(set_saas_state: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_synthesize_json_stdout_is_strict_json_with_warnings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_synthesize_json_stdout_is_strict_json_with_warnings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``charter synthesize --json`` stdout is one JSON document even with warnings.
 
     This is the load-bearing FR-001 / AC-001 assertion: when the
@@ -367,10 +390,18 @@ def test_synthesize_json_stdout_is_strict_json_with_warnings(tmp_path: Path, mon
 
     # Set up a real git repo with charter.md + interview answers so the
     # fresh-seed path runs end-to-end.
-    subprocess.run(["git", "init", "--initial-branch=main"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "commit.gpgsign", "false"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "commit.gpgsign", "false"], cwd=tmp_path, check=True, capture_output=True
+    )
     interview_dir = tmp_path / ".kittify" / "charter" / "interview"
     interview_dir.mkdir(parents=True, exist_ok=True)
     (interview_dir / "answers.yaml").write_text(
@@ -405,7 +436,10 @@ def test_synthesize_json_stdout_is_strict_json_with_warnings(tmp_path: Path, mon
     # ``_collect_evidence_result`` and is the bug surface for FR-001.
     generated_dir.mkdir(parents=True, exist_ok=True)
     (generated_dir / "001-mission-type-scope-directive.directive.yaml").write_text(
-        "schema_version: '1'\nid: PROJECT_001\ntitle: Test directive\nbody: Test body for FR-001 strict-JSON contract.\n",
+        "schema_version: '1'\n"
+        "id: PROJECT_001\n"
+        "title: Test directive\n"
+        "body: Test body for FR-001 strict-JSON contract.\n",
         encoding="utf-8",
     )
 
@@ -433,8 +467,7 @@ def test_synthesize_json_stdout_is_strict_json_with_warnings(tmp_path: Path, mon
         # YAML), but FR-001 contract holds for SUCCESS and FAILURE
         # envelopes alike — stdout must be strict JSON either way.
         result = runner_local.invoke(
-            charter_app,
-            ["synthesize", "--adapter", "fixture", "--json"],
+            charter_app, ["synthesize", "--adapter", "fixture", "--json"],
             catch_exceptions=False,
         )
 
@@ -443,7 +476,10 @@ def test_synthesize_json_stdout_is_strict_json_with_warnings(tmp_path: Path, mon
     try:
         envelope = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
-        pytest.fail(f"FR-001 violation: stdout is not strict JSON: {exc}\nstdout={result.stdout!r}\nstderr={result.stderr!r}")
+        pytest.fail(
+            f"FR-001 violation: stdout is not strict JSON: {exc}\n"
+            f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        )
 
     assert isinstance(envelope, dict)
     # FR-002: contracted fields present.
@@ -455,8 +491,14 @@ def test_synthesize_json_stdout_is_strict_json_with_warnings(tmp_path: Path, mon
     # Find at least the deterministic warning we injected (it may be
     # accompanied by additional warnings the real evidence collector
     # would also have raised — we only assert presence of ours).
-    matched = [w for w in envelope["warnings"] if "TEST-WARNING: deterministic evidence-collector warning for FR-001" in w]
-    assert matched, f"FR-001: deterministic warning is missing from envelope.warnings. Got warnings={envelope['warnings']!r}"
+    matched = [
+        w for w in envelope["warnings"]
+        if "TEST-WARNING: deterministic evidence-collector warning for FR-001" in w
+    ]
+    assert matched, (
+        f"FR-001: deterministic warning is missing from envelope.warnings. "
+        f"Got warnings={envelope['warnings']!r}"
+    )
 
     # And the warning string MUST NOT also appear on stdout outside the
     # JSON document — we already proved json.loads succeeded over the

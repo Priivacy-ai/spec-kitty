@@ -10,6 +10,7 @@ Verifies that:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from contextlib import contextmanager
@@ -70,7 +71,10 @@ def _append_status_event(
 def _write_feature_tasks_md(feature_dir: Path) -> Path:
     tasks_md = feature_dir / "tasks.md"
     tasks_md.write_text(
-        "# Tasks\n\n## WP01 Test\n- [ ] T001 First task\n- [ ] T002 Second task\n",
+        "# Tasks\n\n"
+        "## WP01 Test\n"
+        "- [ ] T001 First task\n"
+        "- [ ] T002 Second task\n",
         encoding="utf-8",
     )
     return tasks_md
@@ -182,8 +186,9 @@ class TestFeatureStatusLock:
         repo.mkdir()
         subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
 
-        with feature_status_lock(repo, "017-test-feature") as outer_lock, feature_status_lock(repo, "017-test-feature") as inner_lock:
-            assert inner_lock == outer_lock
+        with feature_status_lock(repo, "017-test-feature") as outer_lock:
+            with feature_status_lock(repo, "017-test-feature") as inner_lock:
+                assert inner_lock == outer_lock
 
         with feature_status_lock(repo, "017-test-feature") as reacquired_lock:
             assert reacquired_lock == outer_lock
@@ -193,15 +198,13 @@ class TestFeatureStatusLock:
         repo = tmp_path / "test-repo"
         repo.mkdir()
 
-        with (
-            patch(
-                "specify_cli.status.locking.FileLock.acquire",
-                side_effect=Timeout("test.lock"),
-            ),
-            pytest.raises(FeatureStatusLockTimeoutError, match="Timed out acquiring feature status lock"),
-            feature_status_lock(repo, "017-test-feature", timeout=0),
+        with patch(
+            "specify_cli.status.locking.FileLock.acquire",
+            side_effect=Timeout("test.lock"),
         ):
-            pass
+            with pytest.raises(FeatureStatusLockTimeoutError, match="Timed out acquiring feature status lock"):
+                with feature_status_lock(repo, "017-test-feature", timeout=0):
+                    pass
 
     # test_lock_serializes_parallel_processes removed — pre-existing flaky
     # race condition dependent on OS scheduling (fails intermittently).
@@ -611,7 +614,11 @@ Test content.
         assert extract_scalar(frontmatter, "assignee") == "alice"
         assert extract_scalar(frontmatter, "agent") == "test-agent"
         assert extract_scalar(frontmatter, "shell_pid") == "4242"
-        assert any("Committed status change to main branch" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
+        assert any(
+            "Committed status change to main branch" in str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -636,7 +643,11 @@ Test content.
             )
 
         assert result.exit_code == 0, result.stdout
-        assert any("Failed to auto-commit" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
+        assert any(
+            "Failed to auto-commit" in str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
 
 
 class TestMarkStatusAtomicCommit:
@@ -724,8 +735,16 @@ class TestMarkStatusAtomicCommit:
         content = tasks_md.read_text(encoding="utf-8")
         assert "- [x] T001 First task" in content
         assert "- [ ] T002 Second task" in content
-        assert any("Committed subtask changes to main branch" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
-        assert any("Not found: T999" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
+        assert any(
+            "Committed subtask changes to main branch" in str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
+        assert any(
+            "Not found: T999" in str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -783,7 +802,11 @@ class TestMarkStatusAtomicCommit:
             )
 
         assert result.exit_code == 0, result.stdout
-        assert any("Failed to auto-commit subtask changes" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
+        assert any(
+            "Failed to auto-commit subtask changes" in str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -814,7 +837,11 @@ class TestMarkStatusAtomicCommit:
             )
 
         assert result.exit_code == 0, result.stdout
-        assert any("Auto-commit exception: commit boom" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
+        assert any(
+            "Auto-commit exception: commit boom" in str(call.args[0])
+            for call in mock_print.call_args_list
+            if call.args
+        )
 
 
 def test_workflow_review_holds_feature_lock_through_safe_commit(

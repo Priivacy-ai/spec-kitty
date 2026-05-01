@@ -39,7 +39,7 @@ class TestGitignoreManager:
     @pytest.fixture
     def temp_file(self):
         """Create a temporary file for testing."""
-        with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmpfile:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
             tmpfile.write("test content")
             tmpfile_path = Path(tmpfile.name)
         yield tmpfile_path
@@ -121,19 +121,10 @@ class TestGitignoreManager:
         manager.protect_all_agents()
 
         expected_dirs = [
-            ".claude/",
-            ".codex/",
-            ".opencode/",
-            ".windsurf/",
-            ".gemini/",
-            ".cursor/",
-            ".qwen/",
-            ".kilocode/",
-            ".augment/",
-            ".roo/",
-            ".amazonq/",
-            ".agent/",
-            ".github/copilot/",
+            ".claude/", ".codex/", ".opencode/", ".windsurf/",
+            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
+            ".augment/", ".roo/", ".amazonq/", ".agent/",
+            ".github/copilot/"
         ]
 
         content = manager.gitignore_path.read_text()
@@ -375,12 +366,12 @@ class TestGitignoreManager:
         """Test ProtectionResult object has expected structure."""
         result = manager.protect_all_agents()
 
-        assert hasattr(result, "success")
-        assert hasattr(result, "modified")
-        assert hasattr(result, "entries_added")
-        assert hasattr(result, "entries_skipped")
-        assert hasattr(result, "errors")
-        assert hasattr(result, "warnings")
+        assert hasattr(result, 'success')
+        assert hasattr(result, 'modified')
+        assert hasattr(result, 'entries_added')
+        assert hasattr(result, 'entries_skipped')
+        assert hasattr(result, 'errors')
+        assert hasattr(result, 'warnings')
 
         assert isinstance(result.entries_added, list)
         assert isinstance(result.entries_skipped, list)

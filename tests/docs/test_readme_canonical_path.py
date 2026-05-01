@@ -22,14 +22,18 @@ def test_readme_canonical_workflow_does_not_name_implement() -> None:
     readme = (REPO_ROOT / "README.md").read_text()
     first_30_lines = "\n".join(readme.split("\n")[:30])
     assert "spec-kitty implement WP" not in first_30_lines, (
-        "README canonical workflow line (top 30 lines) still names 'spec-kitty implement WP##'. Replace with 'spec-kitty next'."
+        "README canonical workflow line (top 30 lines) still names "
+        "'spec-kitty implement WP##'. Replace with 'spec-kitty next'."
     )
 
 
 def test_readme_names_spec_kitty_next() -> None:
     """README must reference 'spec-kitty next' as the canonical agent loop."""
     readme = (REPO_ROOT / "README.md").read_text()
-    assert "spec-kitty next" in readme, "README does not mention 'spec-kitty next'. The canonical agent loop command must be documented."
+    assert "spec-kitty next" in readme, (
+        "README does not mention 'spec-kitty next'. "
+        "The canonical agent loop command must be documented."
+    )
 
 
 def test_readme_workflow_table_uses_spec_kitty_next() -> None:
@@ -48,7 +52,7 @@ def test_readme_workflow_table_uses_spec_kitty_next() -> None:
         re.MULTILINE,
     )
     assert bad_row is None, (
-        f"README workflow table at line {readme[: bad_row.start()].count(chr(10)) + 1} "
+        f"README workflow table at line {readme[:bad_row.start()].count(chr(10)) + 1} "
         "still lists `/spec-kitty.implement` as a numbered lifecycle step. "
         "Replace with 'spec-kitty next'."
     )
@@ -68,7 +72,7 @@ def test_readme_lifecycle_list_does_not_name_implement_as_step() -> None:
         re.MULTILINE,
     )
     assert bad is None, (
-        f"README lifecycle list at line {readme[: bad.start()].count(chr(10)) + 1} "
+        f"README lifecycle list at line {readme[:bad.start()].count(chr(10)) + 1} "
         "still names `/spec-kitty.implement` as a numbered step. "
         "Replace with 'spec-kitty next' or 'spec-kitty agent action implement'."
     )

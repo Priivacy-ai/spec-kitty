@@ -48,7 +48,9 @@ def test_mission_slug_starting_with_number_accepted():
     # worktree context, etc.) but NOT for the slug format.
     result = runner.invoke(app, ["create", slug, "--json"])
     # Assert: error must NOT be about the slug format
-    assert "Invalid feature slug" not in result.stdout, "Digit-prefixed slug '123-test-feature' must no longer be rejected for slug format"
+    assert "Invalid feature slug" not in result.stdout, (
+        "Digit-prefixed slug '123-test-feature' must no longer be rejected for slug format"
+    )
 
 
 def test_mission_slug_with_uppercase_rejected():

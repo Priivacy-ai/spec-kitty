@@ -57,7 +57,9 @@ def allocate_lane_worktree(
     """
     lane = lanes_manifest.lane_for_wp(wp_id)
     if lane is None:
-        raise LaneNotFoundError(f"{wp_id} is not assigned to any execution lane in lanes.json")
+        raise LaneNotFoundError(
+            f"{wp_id} is not assigned to any execution lane in lanes.json"
+        )
 
     branch = lane_branch_name(mission_slug, lane.lane_id)
     worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
@@ -90,15 +92,18 @@ def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"git status failed in {worktree_path}: {result.stderr.strip()}")
+        raise RuntimeError(
+            f"git status failed in {worktree_path}: {result.stderr.strip()}"
+        )
     if result.stdout.strip():
-        raise DirtyWorktreeError(f"Lane {lane_id} worktree at {worktree_path} has uncommitted changes. Commit or stash before starting the next WP.")
+        raise DirtyWorktreeError(
+            f"Lane {lane_id} worktree at {worktree_path} has uncommitted changes. "
+            f"Commit or stash before starting the next WP."
+        )
 
 
 def _ensure_mission_branch(
-    repo_root: Path,
-    mission_branch: str,
-    target_branch: str,
+    repo_root: Path, mission_branch: str, target_branch: str,
 ) -> None:
     """Create the mission integration branch if it doesn't exist.
 
@@ -123,14 +128,14 @@ def _ensure_mission_branch(
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"Failed to create mission branch {mission_branch} from {target_branch}: {result.stderr.strip()}")
+        raise RuntimeError(
+            f"Failed to create mission branch {mission_branch} from {target_branch}: "
+            f"{result.stderr.strip()}"
+        )
 
 
 def _create_lane_worktree(
-    repo_root: Path,
-    worktree_path: Path,
-    branch: str,
-    base_branch: str,
+    repo_root: Path, worktree_path: Path, branch: str, base_branch: str,
 ) -> None:
     """Create a git worktree for a lane branch."""
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
@@ -142,13 +147,14 @@ def _create_lane_worktree(
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"Failed to create lane worktree at {worktree_path}: {result.stderr.strip()}")
+        raise RuntimeError(
+            f"Failed to create lane worktree at {worktree_path}: "
+            f"{result.stderr.strip()}"
+        )
 
 
 def _recover_lane_worktree(
-    repo_root: Path,
-    worktree_path: Path,
-    existing_branch: str,
+    repo_root: Path, worktree_path: Path, existing_branch: str,
 ) -> None:
     """Recreate worktree from existing branch (recovery mode).
 
@@ -168,4 +174,7 @@ def _recover_lane_worktree(
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"Failed to recover worktree at {worktree_path}: {result.stderr.strip()}")
+        raise RuntimeError(
+            f"Failed to recover worktree at {worktree_path}: "
+            f"{result.stderr.strip()}"
+        )

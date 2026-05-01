@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.glossary import app

@@ -150,12 +150,18 @@ def test_command_templates_removed():
                     if rel not in allowed:
                         found.append(rel)
 
-    assert len(found) == 0, f"command-templates directories still present (should be deleted in WP10): {found}"
+    assert len(found) == 0, (
+        f"command-templates directories still present (should be deleted in WP10): {found}"
+    )
 
 
 def test_task_prompt_templates_include_branch_contract_metadata():
     """Every bundled WP prompt template should carry explicit branch-intent metadata."""
-    templates = [path for path in find_mission_templates() if path.name == "task-prompt-template.md"]
+    templates = [
+        path
+        for path in find_mission_templates()
+        if path.name == "task-prompt-template.md"
+    ]
 
     assert templates, "No task-prompt-template.md files found"
 
@@ -210,7 +216,9 @@ def test_no_command_templates_in_mission_dirs():
                 if rel not in allowed:
                     violations.append(rel)
 
-    assert not violations, f"command-templates directories must be deleted (WP10): {violations}"
+    assert not violations, (
+        f"command-templates directories must be deleted (WP10): {violations}"
+    )
 
 
 def test_agents_md_shows_flat_structure():

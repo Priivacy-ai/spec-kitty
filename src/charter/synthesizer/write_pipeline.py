@@ -119,7 +119,9 @@ def _artifact_id_from_provenance(prov: ProvenanceEntry) -> str | None:
         return None
     prefix, separator, artifact_id = prov.artifact_urn.partition(":")
     if prefix != "directive" or separator != ":" or not artifact_id:
-        raise ValueError("Directive provenance must carry artifact_urn='directive:<artifact_id>'")
+        raise ValueError(
+            "Directive provenance must carry artifact_urn='directive:<artifact_id>'"
+        )
     if artifact_id == "PROJECT_000":
         raise ValueError("Directive provenance must not surface PROJECT_000")
     return artifact_id
@@ -153,7 +155,13 @@ def compute_written_artifacts(
         slug = prov.artifact_slug
         artifact_id = _artifact_id_from_provenance(prov)
         filename = artifact_filename(kind, slug, artifact_id)
-        live_path = repo_root / ".kittify" / "doctrine" / doctrine_kind_subdir(kind) / filename
+        live_path = (
+            repo_root
+            / ".kittify"
+            / "doctrine"
+            / doctrine_kind_subdir(kind)
+            / filename
+        )
         rel_path = live_path.relative_to(repo_root).as_posix()
         entries.append(
             StagedArtifact(

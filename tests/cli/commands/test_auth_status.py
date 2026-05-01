@@ -99,7 +99,11 @@ def _make_session(
         refresh_exp = now + timedelta(days=refresh_remaining_days)
     else:
         refresh_exp = now + timedelta(days=refresh_remaining_days, seconds=30)
-    access_exp = now + timedelta(seconds=access_remaining_seconds + 30) if access_remaining_seconds >= 0 else now + timedelta(seconds=access_remaining_seconds)
+    access_exp = (
+        now + timedelta(seconds=access_remaining_seconds + 30)
+        if access_remaining_seconds >= 0
+        else now + timedelta(seconds=access_remaining_seconds)
+    )
     return StoredSession(
         user_id="u_alice",
         email=email,

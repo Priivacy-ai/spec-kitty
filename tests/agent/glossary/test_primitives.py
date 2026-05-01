@@ -1,11 +1,11 @@
 """Tests for PrimitiveExecutionContext (T040)."""
 
+
 import pytest
 from specify_cli.glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
-
 
 def _make_context(**overrides):
     """Helper to create a PrimitiveExecutionContext with defaults."""

@@ -50,7 +50,9 @@ _LOCAL_RETROSPECTIVE_EVENT_NAMES: frozenset[str] = frozenset(
     ]
 )
 
-RETROSPECTIVE_EVENT_NAMES: frozenset[str] = _UPSTREAM_RETROSPECTIVE_EVENT_NAMES or _LOCAL_RETROSPECTIVE_EVENT_NAMES
+RETROSPECTIVE_EVENT_NAMES: frozenset[str] = (
+    _UPSTREAM_RETROSPECTIVE_EVENT_NAMES or _LOCAL_RETROSPECTIVE_EVENT_NAMES
+)
 
 # ---------------------------------------------------------------------------
 # Payload models
@@ -190,7 +192,10 @@ def emit_retrospective_event(
         ValueError: If event_name is not in RETROSPECTIVE_EVENT_NAMES.
     """
     if event_name not in RETROSPECTIVE_EVENT_NAMES:
-        raise ValueError(f"Unknown retrospective event name {event_name!r}. Must be one of: {sorted(RETROSPECTIVE_EVENT_NAMES)}")
+        raise ValueError(
+            f"Unknown retrospective event name {event_name!r}. "
+            f"Must be one of: {sorted(RETROSPECTIVE_EVENT_NAMES)}"
+        )
 
     event_id = _generate_ulid()
     at = _now_utc()

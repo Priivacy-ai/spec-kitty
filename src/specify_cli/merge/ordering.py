@@ -81,7 +81,10 @@ def get_merge_order(
     # Check if we have any dependency info
     if not has_dependency_info(graph):
         # No dependency info - fall back to numerical order with warning
-        logger.warning("No dependency information found in WP frontmatter. Falling back to numerical order (WP01, WP02, ...).")
+        logger.warning(
+            "No dependency information found in WP frontmatter. "
+            "Falling back to numerical order (WP01, WP02, ...)."
+        )
         return sorted(wp_workspaces, key=lambda x: x[1])  # Sort by wp_id
 
     # Detect cycles - show full cycle path in error
@@ -90,7 +93,10 @@ def get_merge_order(
         # Format the cycle path clearly: WP01 → WP02 → WP03 → WP01
         cycle = cycles[0]
         cycle_str = " → ".join(cycle)
-        raise MergeOrderError(f"Circular dependency detected: {cycle_str}\nFix the dependencies in the WP frontmatter to remove this cycle.")
+        raise MergeOrderError(
+            f"Circular dependency detected: {cycle_str}\n"
+            "Fix the dependencies in the WP frontmatter to remove this cycle."
+        )
 
     # Topological sort
     try:

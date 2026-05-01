@@ -7,6 +7,7 @@ parity / decision / runtime-bridge / query-mode suites do not cover.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from specify_cli.next._internal_runtime.engine import (
     TransitionGate,
     notify_decision_timeout,
     resolve_context,
+    validate_binding,
 )
 from specify_cli.next._internal_runtime.schema import (
     ActorIdentity,
@@ -53,7 +55,7 @@ _VALID_DIMS_LOW = {
     "cross_team_blast_radius": 0,
 }
 _VALID_DIMS_MEDIUM = {**_VALID_DIMS_LOW, "user_customer_impact": 3, "architectural_system_impact": 2, "operational_reliability_impact": 2}
-_VALID_DIMS_HIGH = dict.fromkeys(_VALID_DIMS_LOW, 3)
+_VALID_DIMS_HIGH = {k: 3 for k in _VALID_DIMS_LOW}
 
 
 def _write_audit_mission(
@@ -418,7 +420,9 @@ def test_transition_gate_ready_when_no_required() -> None:
 
 
 def test_transition_gate_ready_with_resolved_required() -> None:
-    contract = StepContextContract(requires=[ContextType(type="feature_binding")])
+    contract = StepContextContract(
+        requires=[ContextType(type="feature_binding")]
+    )
     gate = TransitionGate(
         contract,
         available_bindings={
@@ -429,7 +433,9 @@ def test_transition_gate_ready_with_resolved_required() -> None:
 
 
 def test_transition_gate_returns_remediation_when_missing() -> None:
-    contract = StepContextContract(requires=[ContextType(type="feature_binding")])
+    contract = StepContextContract(
+        requires=[ContextType(type="feature_binding")]
+    )
     gate = TransitionGate(contract, available_bindings={})
     result = gate.evaluate()
     assert isinstance(result, RemediationPayload)
@@ -437,7 +443,9 @@ def test_transition_gate_returns_remediation_when_missing() -> None:
 
 
 def test_transition_gate_optional_failure_does_not_block() -> None:
-    contract = StepContextContract(optional=[ContextType(type="feature_binding")])
+    contract = StepContextContract(
+        optional=[ContextType(type="feature_binding")]
+    )
     gate = TransitionGate(contract, available_bindings={})
     # Optional missing -> still ready.
     assert gate.evaluate() == "ready"
@@ -510,7 +518,9 @@ def test_resolve_context_local_discovery_hint() -> None:
 def test_resolve_context_ledger_dict_with_value() -> None:
     ctx = ContextType(type="feature_binding")
     available = {
-        "ledger": {"feature_binding": {"value": "from-ledger", "validation_status": "valid"}},
+        "ledger": {
+            "feature_binding": {"value": "from-ledger", "validation_status": "valid"}
+        },
     }
     result = resolve_context(
         "feature_binding",

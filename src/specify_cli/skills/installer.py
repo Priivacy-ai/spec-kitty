@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, UTC
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.core.config import (
@@ -214,7 +214,9 @@ def install_skills_for_agent(
 
         if installation_class == SKILL_CLASS_SHARED:
             if shared_root_installed is not None and skill.name in shared_root_installed:
-                entries = _make_entries_for_existing(skill, target_skill_dir, project_path, installation_class, agent_key)
+                entries = _make_entries_for_existing(
+                    skill, target_skill_dir, project_path, installation_class, agent_key
+                )
             else:
                 entries = _project_skill_files(
                     skill,

@@ -37,7 +37,9 @@ def _setup_skills(tmp_path: Path) -> Path:
     skills_root = tmp_path / "doctrine_skills"
     skill_dir = skills_root / "spec-kitty-test-skill"
     skill_dir.mkdir(parents=True)
-    (skill_dir / "SKILL.md").write_text("---\nname: spec-kitty-test-skill\ndescription: test\n---\n# Test\n")
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: spec-kitty-test-skill\ndescription: test\n---\n# Test\n"
+    )
     ref_dir = skill_dir / "references"
     ref_dir.mkdir()
     (ref_dir / "guide.md").write_text("# Guide\nTest reference.\n")
@@ -167,7 +169,9 @@ class TestApplyReal:
 
     def test_mixed_agents_via_apply(self, tmp_path: Path) -> None:
         """apply() with mixed agents: native + shared + wrapper-only."""
-        project, result = self._apply_with_test_skills(tmp_path, ["claude", "codex", "q"])
+        project, result = self._apply_with_test_skills(
+            tmp_path, ["claude", "codex", "q"]
+        )
 
         assert result.success is True
         # Claude: native root

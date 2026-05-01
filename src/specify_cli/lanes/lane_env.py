@@ -61,9 +61,13 @@ def lane_test_db_name(mission_slug: str, lane_id: str) -> str:
     safe_mission = _slugify(mission_slug)
     safe_lane = _slugify(lane_id)
     if not safe_mission:
-        raise ValueError(f"mission_slug={mission_slug!r} produced an empty slug after sanitization")
+        raise ValueError(
+            f"mission_slug={mission_slug!r} produced an empty slug after sanitization"
+        )
     if not safe_lane:
-        raise ValueError(f"lane_id={lane_id!r} produced an empty slug after sanitization")
+        raise ValueError(
+            f"lane_id={lane_id!r} produced an empty slug after sanitization"
+        )
     return f"test_{safe_mission}_{safe_lane}"
 
 

@@ -120,7 +120,14 @@ def infer_owned_files(wp_content: str, mission_slug: str) -> tuple[list[str], li
     for path in sorted(found_paths):
         # Convert a path like src/foo/bar.py → src/foo/bar.py (keep as-is)
         # Convert a path like src/foo/ → src/foo/**
-        glob = path + "**" if path.endswith("/") else path.rstrip("/") + "/**" if "." not in path.split("/")[-1] else path
+        if path.endswith("/"):
+            glob = path + "**"
+        else:
+            # If it looks like a directory (no extension), append /**
+            if "." not in path.split("/")[-1]:
+                glob = path.rstrip("/") + "/**"
+            else:
+                glob = path
 
         # Deduplicate: skip if a parent prefix already captured this path
         parts = glob.split("/")
@@ -174,7 +181,7 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
     # Split by "/" and find common prefix segments
     split = [s.split("/") for s in stripped]
     common: list[str] = []
-    for segments in zip(*split, strict=False):
+    for segments in zip(*split):
         if len(set(segments)) == 1:
             common.append(segments[0])
         else:

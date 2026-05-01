@@ -301,7 +301,9 @@ class TestSuccessPanel:
                 question_text=_QUESTION,
                 actor=_ACTOR,
             )
-        assert panel_written_before_input == [True], "Success panel was not written before console.input was called"
+        assert panel_written_before_input == [True], (
+            "Success panel was not written before console.input was called"
+        )
 
     def test_panel_shows_slack_thread_url(self) -> None:
         _, output = _run_with_bc_input(bc_input="")

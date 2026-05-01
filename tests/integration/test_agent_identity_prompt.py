@@ -38,7 +38,9 @@ def _render_prompt_identity_block(agent_string: str) -> str:
 
 def test_full_identity_appears_in_rendered_prompt() -> None:
     """Every supplied segment of a 4-arity --agent must appear verbatim."""
-    rendered = _render_prompt_identity_block("claude:opus-4-7:reviewer-default:reviewer")
+    rendered = _render_prompt_identity_block(
+        "claude:opus-4-7:reviewer-default:reviewer"
+    )
 
     # Each of the four supplied tokens must appear as a substring of the
     # rendered prompt. This is the regression covered by issue #833 — prior
@@ -51,7 +53,9 @@ def test_full_identity_appears_in_rendered_prompt() -> None:
 
 def test_full_identity_block_contains_all_field_labels() -> None:
     """The rendered identity block labels every field for human readers."""
-    rendered = _render_prompt_identity_block("claude:opus-4-7:reviewer-default:reviewer")
+    rendered = _render_prompt_identity_block(
+        "claude:opus-4-7:reviewer-default:reviewer"
+    )
     # The renderer must clearly identify which slot each value occupies so
     # an operator reading the prompt can tell tool from model from role.
     assert "tool" in rendered
@@ -78,7 +82,9 @@ def test_partial_identity_renders_supplied_model_and_default_role() -> None:
 
 def test_three_arity_identity_renders_supplied_profile() -> None:
     """A 3-arity input surfaces the supplied profile_id in the rendered prompt."""
-    rendered = _render_prompt_identity_block("claude:opus-4-7:custom-profile-id")
+    rendered = _render_prompt_identity_block(
+        "claude:opus-4-7:custom-profile-id"
+    )
     assert "custom-profile-id" in rendered
     # And the documented role default is still surfaced.
     assert "implementer" in rendered
@@ -89,7 +95,9 @@ def test_three_arity_identity_renders_supplied_profile() -> None:
 
 def test_empty_model_segment_renders_default_marker() -> None:
     """An empty model segment renders the resolved default in the prompt."""
-    rendered = _render_prompt_identity_block("claude::reviewer-default:reviewer")
+    rendered = _render_prompt_identity_block(
+        "claude::reviewer-default:reviewer"
+    )
 
     # Explicitly supplied segments are surfaced.
     assert "reviewer-default" in rendered

@@ -94,11 +94,15 @@ def _force_non_interactive(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_non_interactive_stdin_not_tty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_interactive_stdin_not_tty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When stdin is not a TTY, --fix prints a pointer and exits non-zero."""
     repo = _seed_sparse_repo(tmp_path)
 
-    monkeypatch.setattr("specify_cli.cli.commands.doctor.locate_project_root", lambda: repo)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+    )
     _force_non_interactive(monkeypatch)
 
     runner = CliRunner()
@@ -110,11 +114,15 @@ def test_non_interactive_stdin_not_tty(tmp_path: Path, monkeypatch: pytest.Monke
     # surface. Rich/console may append a trailing newline — splitlines
     # strips it, so the expected count is 1 content line.
     non_empty_lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
-    assert len(non_empty_lines) == 1, f"expected single-line pointer, got {len(non_empty_lines)} lines: {result.stdout!r}"
+    assert len(non_empty_lines) == 1, (
+        f"expected single-line pointer, got {len(non_empty_lines)} lines: {result.stdout!r}"
+    )
     _assert_state_unchanged(repo)
 
 
-def test_non_interactive_via_helper_level(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_interactive_via_helper_level(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The ``_is_interactive_environment`` helper itself respects CI env vars.
 
     Direct unit-level check — independent of CliRunner — verifying that
@@ -164,7 +172,9 @@ def test_non_interactive_via_helper_level(tmp_path: Path, monkeypatch: pytest.Mo
     assert doctor_mod._is_interactive_environment() is False
 
 
-def test_interactive_yes_remediates_primary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_interactive_yes_remediates_primary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Interactive 'y' response runs the full five-step remediation.
 
     This is the WP04 complement to WP03's API-level primary test: we
@@ -173,7 +183,9 @@ def test_interactive_yes_remediates_primary(tmp_path: Path, monkeypatch: pytest.
     """
     repo = _seed_sparse_repo(tmp_path)
 
-    monkeypatch.setattr("specify_cli.cli.commands.doctor.locate_project_root", lambda: repo)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+    )
     _force_interactive(monkeypatch)
 
     # Feed 'y' to the single consent prompt via builtins.input.
@@ -195,11 +207,15 @@ def test_interactive_yes_remediates_primary(tmp_path: Path, monkeypatch: pytest.
     assert not (repo / ".git" / "info" / "sparse-checkout").exists()
 
 
-def test_interactive_no_aborts_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_interactive_no_aborts_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A non-'y' response aborts with exit 0 and leaves state untouched."""
     repo = _seed_sparse_repo(tmp_path)
 
-    monkeypatch.setattr("specify_cli.cli.commands.doctor.locate_project_root", lambda: repo)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+    )
     _force_interactive(monkeypatch)
 
     # Empty response aborts.
@@ -212,13 +228,17 @@ def test_interactive_no_aborts_cleanly(tmp_path: Path, monkeypatch: pytest.Monke
     _assert_state_unchanged(repo)
 
 
-def test_interactive_dirty_refusal_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_interactive_dirty_refusal_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A dirty working tree produces the 'commit or stash' refusal message."""
     repo = _seed_sparse_repo(tmp_path)
     # Introduce an uncommitted modification to a tracked file.
     (repo / "README.md").write_text("# Hello — edited\n", encoding="utf-8")
 
-    monkeypatch.setattr("specify_cli.cli.commands.doctor.locate_project_root", lambda: repo)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+    )
     _force_interactive(monkeypatch)
 
     monkeypatch.setattr("builtins.input", lambda *_a, **_kw: "y")
@@ -230,4 +250,7 @@ def test_interactive_dirty_refusal_surface(tmp_path: Path, monkeypatch: pytest.M
     assert "commit" in result.stdout.lower() or "stash" in result.stdout.lower()
 
     # Operator edit survives the refusal.
-    assert (repo / "README.md").read_text(encoding="utf-8") == "# Hello — edited\n"
+    assert (
+        (repo / "README.md").read_text(encoding="utf-8")
+        == "# Hello — edited\n"
+    )

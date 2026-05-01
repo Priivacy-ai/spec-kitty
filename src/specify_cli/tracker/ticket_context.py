@@ -47,8 +47,8 @@ def write_ticket_context(repo_root: Path, ticket: dict[str, Any]) -> Path:
     # Labels: normalised as a list or comma-string depending on provider
     raw_labels = ticket.get("labels") or []
     if isinstance(raw_labels, str):
-        raw_labels = [label.strip() for label in raw_labels.split(",") if label.strip()]
-    labels_str = ", ".join(str(label) for label in raw_labels) if raw_labels else ""
+        raw_labels = [l.strip() for l in raw_labels.split(",") if l.strip()]
+    labels_str = ", ".join(str(l) for l in raw_labels) if raw_labels else ""
 
     lines = [
         f"# {identifier}: {title}",

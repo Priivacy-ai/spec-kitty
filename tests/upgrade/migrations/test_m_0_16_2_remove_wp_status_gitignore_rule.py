@@ -15,7 +15,6 @@ from specify_cli.upgrade.migrations.m_0_16_2_remove_wp_status_gitignore_rule imp
 
 pytestmark = pytest.mark.fast
 
-
 class TestIsWpStatusIgnorePattern:
     """Pattern matching for stale WP status ignore entries."""
 

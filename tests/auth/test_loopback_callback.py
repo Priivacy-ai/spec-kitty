@@ -81,14 +81,18 @@ def test_callback_handler_oauth_error_without_description() -> None:
 
 
 def test_validate_callback_params_functional_wrapper() -> None:
-    code, state = validate_callback_params({"code": "abc", "state": "xyz"}, expected_state="xyz")
+    code, state = validate_callback_params(
+        {"code": "abc", "state": "xyz"}, expected_state="xyz"
+    )
     assert code == "abc"
     assert state == "xyz"
 
 
 def test_validate_callback_params_rejects_mismatch() -> None:
     with pytest.raises(CallbackValidationError):
-        validate_callback_params({"code": "abc", "state": "wrong"}, expected_state="right")
+        validate_callback_params(
+            {"code": "abc", "state": "wrong"}, expected_state="right"
+        )
 
 
 # ---------------------------------------------------------------------------

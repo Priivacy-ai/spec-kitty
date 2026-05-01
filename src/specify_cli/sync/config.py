@@ -1,5 +1,4 @@
 """Sync configuration management"""
-
 import sys
 from enum import StrEnum
 from pathlib import Path
@@ -29,8 +28,8 @@ class SyncConfig:
     """Manage sync configuration"""
 
     def __init__(self) -> None:
-        self.config_dir = Path.home() / ".spec-kitty"
-        self.config_file = self.config_dir / "config.toml"
+        self.config_dir = Path.home() / '.spec-kitty'
+        self.config_file = self.config_dir / 'config.toml'
 
     def _load(self) -> dict[str, Any]:
         """Load config.toml, returning empty dict when missing or invalid."""
@@ -49,15 +48,15 @@ class SyncConfig:
     def get_server_url(self) -> str:
         """Get server URL from config"""
         config = self._load()
-        url = config.get("sync", {}).get("server_url", "https://spec-kitty-dev.fly.dev")
+        url = config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
         return str(url)
 
     def set_server_url(self, url: str) -> None:
         """Set server URL in config"""
         config = self._load()
-        if "sync" not in config:
-            config["sync"] = {}
-        config["sync"]["server_url"] = url
+        if 'sync' not in config:
+            config['sync'] = {}
+        config['sync']['server_url'] = url
         self._save(config)
 
     def get_max_queue_size(self) -> int:
@@ -106,7 +105,9 @@ class SyncConfig:
         stripped = raw.strip()
 
         if stripped == "":
-            raise ValueError("[sync].background_daemon must be 'auto' or 'manual', not an empty string")
+            raise ValueError(
+                "[sync].background_daemon must be 'auto' or 'manual', not an empty string"
+            )
 
         folded = stripped.casefold()
         policy = _BACKGROUND_DAEMON_VALUES.get(folded)

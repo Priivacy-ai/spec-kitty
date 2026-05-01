@@ -164,7 +164,9 @@ class TestGatePassedGuard:
 
     def test_gate_found(self, tmp_path: Path) -> None:
         log = tmp_path / "mission-events.jsonl"
-        log.write_text(json.dumps({"type": "gate_passed", "name": "planning_complete"}) + "\n")
+        log.write_text(
+            json.dumps({"type": "gate_passed", "name": "planning_complete"}) + "\n"
+        )
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
         model = _make_model(feature_dir=tmp_path)
@@ -172,7 +174,9 @@ class TestGatePassedGuard:
 
     def test_gate_not_found(self, tmp_path: Path) -> None:
         log = tmp_path / "mission-events.jsonl"
-        log.write_text(json.dumps({"type": "gate_passed", "name": "other_gate"}) + "\n")
+        log.write_text(
+            json.dumps({"type": "gate_passed", "name": "other_gate"}) + "\n"
+        )
         factory = GUARD_REGISTRY["gate_passed"]
         guard = factory(["planning_complete"])
         model = _make_model(feature_dir=tmp_path)

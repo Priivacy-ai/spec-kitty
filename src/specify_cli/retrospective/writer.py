@@ -13,7 +13,6 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 from specify_cli.retrospective.schema import RetrospectiveRecord
-import contextlib
 
 
 class WriterError(Exception):
@@ -39,7 +38,10 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
     """
     # Refuse pending records before doing any I/O.
     if record.status == "pending":
-        raise WriterError("Cannot persist a retrospective record with status='pending'. Transition to completed/skipped/failed first.")
+        raise WriterError(
+            "Cannot persist a retrospective record with status='pending'. "
+            "Transition to completed/skipped/failed first."
+        )
 
     # Pydantic round-trip validation to catch any remaining issues.
     try:
@@ -99,12 +101,16 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
         raise
     except OSError as exc:
         # Clean up tempfile if it still exists.
-        with contextlib.suppress(OSError):
+        try:
             tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise WriterError(f"IO error writing retrospective record: {exc}") from exc
     except Exception as exc:
-        with contextlib.suppress(OSError):
+        try:
             tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
 
     return canonical

@@ -53,7 +53,9 @@ def mock_sync_config() -> MagicMock:
 
 
 @pytest.fixture()
-def client(mock_sync_config: MagicMock, monkeypatch) -> SaaSTrackerClient:
+def client(
+    mock_sync_config: MagicMock, monkeypatch
+) -> SaaSTrackerClient:
     monkeypatch.setattr("specify_cli.tracker.saas_client._fetch_access_token_sync", lambda: "test-access-token")
     monkeypatch.setattr("specify_cli.tracker.saas_client._current_team_slug_sync", lambda: "team-acme")
     return SaaSTrackerClient(sync_config=mock_sync_config, timeout=5.0)
@@ -100,7 +102,9 @@ class TestStatusRouting:
     """Verify status() threads routing params to HTTP query params."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_status_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_status_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -115,7 +119,9 @@ class TestStatusRouting:
         assert "project_slug" not in kwargs["params"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_status_with_project_slug(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_status_with_project_slug(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -130,7 +136,9 @@ class TestStatusRouting:
         assert "binding_ref" not in kwargs["params"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_status_binding_ref_precedence(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_status_binding_ref_precedence(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         """When both project_slug and binding_ref supplied, only binding_ref is sent."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
@@ -158,7 +166,9 @@ class TestMappingsRouting:
     """Verify mappings() threads routing params to HTTP query params."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_mappings_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_mappings_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -187,7 +197,9 @@ class TestListTicketsRouting:
     """Verify list_tickets() threads optional routing params into the POST body."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_list_tickets_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_list_tickets_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -202,7 +214,9 @@ class TestListTicketsRouting:
         assert "project_slug" not in kwargs["json"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_list_tickets_provider_only(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_list_tickets_provider_only(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -223,11 +237,15 @@ class TestPullRouting:
     """Verify pull() threads routing params into the JSON body."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_pull_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_pull_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"items": [], "cursor": None})
+        mock_http.request.return_value = _make_response(
+            200, {"items": [], "cursor": None}
+        )
 
         result = client.pull("jira", binding_ref="bind-pull1")
 
@@ -238,7 +256,9 @@ class TestPullRouting:
         assert "project_slug" not in kwargs["json"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_pull_with_project_slug(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_pull_with_project_slug(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -251,7 +271,9 @@ class TestPullRouting:
         assert "binding_ref" not in kwargs["json"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_pull_binding_ref_precedence(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_pull_binding_ref_precedence(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -278,7 +300,9 @@ class TestPushRouting:
     """Verify push() threads routing params into the JSON body."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_push_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_push_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -306,7 +330,9 @@ class TestRunRouting:
     """Verify run() threads routing params into the JSON body."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_run_with_binding_ref(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_run_with_binding_ref(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -321,7 +347,9 @@ class TestRunRouting:
         assert "project_slug" not in kwargs["json"]
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_run_with_project_slug(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_run_with_project_slug(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)

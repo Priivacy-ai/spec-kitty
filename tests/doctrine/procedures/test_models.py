@@ -9,7 +9,6 @@ from doctrine.procedures.models import (
     Procedure,
     ProcedureStep,
 )
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -42,7 +41,9 @@ class TestProcedureModel:
         """Regression test: step-level `tactic_refs` must be rejected by
         extra="forbid" after WP02 inline-ref excision."""
         with pytest.raises(ValidationError):
-            ProcedureStep.model_validate({"title": "test step", "tactic_refs": ["some-tactic"]})
+            ProcedureStep.model_validate(
+                {"title": "test step", "tactic_refs": ["some-tactic"]}
+            )
 
     def test_step_actor_defaults_to_agent(self) -> None:
         step = ProcedureStep(title="test step")

@@ -2,16 +2,20 @@
 
 from doctrine.styleguides.validation import validate_styleguide
 import pytest
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
+
 class TestValidateStyleguide:
-    def test_valid_minimal_styleguide(self, sample_styleguide_data: dict) -> None:
+    def test_valid_minimal_styleguide(
+        self, sample_styleguide_data: dict
+    ) -> None:
         errors = validate_styleguide(sample_styleguide_data)
         assert errors == []
 
-    def test_valid_enriched_styleguide(self, enriched_styleguide_data: dict) -> None:
+    def test_valid_enriched_styleguide(
+        self, enriched_styleguide_data: dict
+    ) -> None:
         errors = validate_styleguide(enriched_styleguide_data)
         assert errors == []
 

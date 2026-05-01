@@ -124,7 +124,10 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
         repair projects created before Codex moved to Agent Skills.
         """
         files: list[Path] = []
-        command_dirs: list[Path] = [project_path / agent_dir / subdir for agent_dir, subdir in get_agent_dirs_for_project(project_path)]
+        command_dirs: list[Path] = [
+            project_path / agent_dir / subdir
+            for agent_dir, subdir in get_agent_dirs_for_project(project_path)
+        ]
 
         legacy_codex_dir = project_path / ".codex" / "prompts"
         if legacy_codex_dir.exists():

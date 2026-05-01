@@ -47,14 +47,18 @@ def test_default_when_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     assert cfg.get_background_daemon() == AUTO
 
 
-def test_default_when_sync_table_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_default_when_sync_table_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Config file exists but has no [sync] table → AUTO."""
     _write_config(tmp_path, "[other]\nfoo = 1\n")
     cfg = _make_config(monkeypatch, tmp_path)
     assert cfg.get_background_daemon() == AUTO
 
 
-def test_default_when_key_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_default_when_key_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """[sync] table present but background_daemon key absent → AUTO."""
     _write_config(tmp_path, '[sync]\nserver_url = "https://example.com"\n')
     cfg = _make_config(monkeypatch, tmp_path)
@@ -111,7 +115,9 @@ def test_manual_mixed_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_unknown_value_warns_and_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_unknown_value_warns_and_defaults(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Unknown value "banana" → returns AUTO and prints warning to stderr."""
     _write_config(tmp_path, '[sync]\nbackground_daemon = "banana"\n')
     cfg = _make_config(monkeypatch, tmp_path)
@@ -123,7 +129,9 @@ def test_unknown_value_warns_and_defaults(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert "auto" in err
 
 
-def test_empty_string_raises(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_empty_string_raises(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Empty string value → raises ValueError."""
     _write_config(tmp_path, '[sync]\nbackground_daemon = ""\n')
     cfg = _make_config(monkeypatch, tmp_path)
@@ -131,7 +139,9 @@ def test_empty_string_raises(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
         cfg.get_background_daemon()
 
 
-def test_whitespace_value_accepted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_whitespace_value_accepted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Whitespace-padded "  auto  " → AUTO (strip then match)."""
     _write_config(tmp_path, '[sync]\nbackground_daemon = "  auto  "\n')
     cfg = _make_config(monkeypatch, tmp_path)
@@ -143,7 +153,9 @@ def test_whitespace_value_accepted(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 # ---------------------------------------------------------------------------
 
 
-def test_backcompat_existing_config_without_new_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_backcompat_existing_config_without_new_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Existing config with server_url + max_queue_size but no background_daemon
     still returns AUTO, and the existing getters still return their values."""
     _write_config(

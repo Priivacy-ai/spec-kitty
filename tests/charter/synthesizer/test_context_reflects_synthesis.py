@@ -50,7 +50,9 @@ def synthesis_request() -> SynthesisRequest:
         "styleguides": {},
     }
     drg_snapshot: dict[str, Any] = {
-        "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+        "nodes": [
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+        ],
         "edges": [],
         "schema_version": "1",
     }
@@ -71,7 +73,11 @@ def synthesis_request() -> SynthesisRequest:
 
 
 def _project_directive_ids(service: Any) -> set[str]:
-    return {directive.id for directive in service.directives.list_all() if directive.id.startswith("PROJECT_")}
+    return {
+        directive.id
+        for directive in service.directives.list_all()
+        if directive.id.startswith("PROJECT_")
+    }
 
 
 def test_no_project_root_before_synthesis(tmp_path: Path) -> None:

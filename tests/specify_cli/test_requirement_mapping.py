@@ -19,7 +19,9 @@ class TestValidateRefs:
     """Test ref validation against spec IDs."""
 
     def test_all_valid(self):
-        valid, unknown = validate_refs(["FR-001", "NFR-002"], {"FR-001", "NFR-002", "FR-003"})
+        valid, unknown = validate_refs(
+            ["FR-001", "NFR-002"], {"FR-001", "NFR-002", "FR-003"}
+        )
         assert valid == ["FR-001", "NFR-002"]
         assert unknown == []
 
@@ -136,7 +138,8 @@ class TestReadAllWpRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - FR-002\n---\n\n# WP01\n',
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - FR-002\n---\n\n# WP01\n",
             encoding="utf-8",
         )
         (tasks_dir / "WP02-test.md").write_text(
@@ -159,7 +162,8 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n',
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -171,7 +175,8 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n',
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -183,7 +188,8 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs: "FR-002, FR-003"\n---\n\n# WP01\n',
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            'requirement_refs: "FR-002, FR-003"\n---\n\n# WP01\n',
             encoding="utf-8",
         )
 
@@ -195,12 +201,15 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - 42\n---\n\n# WP01\n',
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - 42\n---\n\n# WP01\n",
             encoding="utf-8",
         )
 
         result = read_all_wp_raw_requirement_refs(tasks_dir)
         assert "FR-001" in result["WP01"]
-        non_string_tokens = [token for token in result["WP01"] if token.startswith("<NON_STRING:")]
+        non_string_tokens = [
+            token for token in result["WP01"] if token.startswith("<NON_STRING:")
+        ]
         assert len(non_string_tokens) == 1
         assert "42" in non_string_tokens[0]

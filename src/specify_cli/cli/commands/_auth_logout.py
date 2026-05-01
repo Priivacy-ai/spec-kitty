@@ -67,7 +67,10 @@ async def logout_impl(*, force: bool) -> None:
         try:
             saas_url = get_saas_base_url()  # noqa: F841 — validates config
         except ConfigurationError as exc:
-            console.print(f"[yellow]! Cannot reach SaaS (config error): {exc}. Proceeding with local logout only.[/yellow]")
+            console.print(
+                f"[yellow]! Cannot reach SaaS (config error): {exc}. "
+                f"Proceeding with local logout only.[/yellow]"
+            )
         else:
             outcome = await RevokeFlow().revoke(session)
             _print_revoke_outcome(outcome)
@@ -78,8 +81,11 @@ async def logout_impl(*, force: bool) -> None:
     try:
         tm.clear_session()
     except Exception as exc:
-        console.print(f"[red]✗ Local credentials could not be deleted: {type(exc).__name__}. You may need to delete them manually.[/red]")
-        raise typer.Exit(code=1) from None
+        console.print(
+            f"[red]✗ Local credentials could not be deleted: {type(exc).__name__}. "
+            f"You may need to delete them manually.[/red]"
+        )
+        raise typer.Exit(code=1)
 
     console.print("[green]+ Logged out.[/green]")
 
@@ -89,11 +95,20 @@ def _print_revoke_outcome(outcome: RevokeOutcome) -> None:
     if outcome is RevokeOutcome.REVOKED:
         console.print("[green]✓ Server revocation confirmed.[/green]")
     elif outcome is RevokeOutcome.NO_REFRESH_TOKEN:
-        console.print("[yellow]! Server revocation could not be attempted (no refresh token). Local credentials will still be deleted.[/yellow]")
+        console.print(
+            "[yellow]! Server revocation could not be attempted "
+            "(no refresh token). Local credentials will still be deleted.[/yellow]"
+        )
     elif outcome is RevokeOutcome.NETWORK_ERROR:
-        console.print("[yellow]! Server revocation not confirmed (network error). Local credentials will still be deleted.[/yellow]")
+        console.print(
+            "[yellow]! Server revocation not confirmed (network error). "
+            "Local credentials will still be deleted.[/yellow]"
+        )
     else:  # SERVER_FAILURE
-        console.print("[yellow]! Server revocation not confirmed (server error). Local credentials will still be deleted.[/yellow]")
+        console.print(
+            "[yellow]! Server revocation not confirmed (server error). "
+            "Local credentials will still be deleted.[/yellow]"
+        )
 
 
 __all__ = ["logout_impl"]

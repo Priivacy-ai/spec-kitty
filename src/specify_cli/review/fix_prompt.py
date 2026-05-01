@@ -167,7 +167,10 @@ def generate_fix_prompt(
             sections.append("```")
 
             if truncated:
-                sections.append(f"_(File has more than {_MAX_FULL_FILE_LINES} lines; only the first portion is shown. Read the full file if needed.)_")
+                sections.append(
+                    f"_(File has more than {_MAX_FULL_FILE_LINES} lines; "
+                    "only the first portion is shown. Read the full file if needed.)_"
+                )
             sections.append("")
 
     # ── Reproduction ─────────────────────────────────────────────────────────
@@ -187,10 +190,18 @@ def generate_fix_prompt(
     if artifact.reproduction_command:
         sections.append("3. Run the reproduction command to verify your fix")
         sections.append("4. Commit your changes")
-        sections.append(f"5. Move this WP back to for_review:\n   spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}")
+        sections.append(
+            f"5. Move this WP back to for_review:\n"
+            f"   spec-kitty agent tasks move-task {wp_id} --to for_review"
+            f" --mission {mission_slug}"
+        )
     else:
         sections.append("3. Commit your changes")
-        sections.append(f"4. Move this WP back to for_review:\n   spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}")
+        sections.append(
+            f"4. Move this WP back to for_review:\n"
+            f"   spec-kitty agent tasks move-task {wp_id} --to for_review"
+            f" --mission {mission_slug}"
+        )
     sections.append("")
 
     return "\n".join(sections)

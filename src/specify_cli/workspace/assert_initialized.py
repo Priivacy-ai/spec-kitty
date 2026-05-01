@@ -96,7 +96,11 @@ def assert_initialized(root: Path | None = None, *, require_specs: bool = True) 
             # No git repo at all -- treat as uninitialized at the cwd.
             raise SpecKittyNotInitialized(
                 cwd,
-                missing=([cwd / KITTIFY_DIRNAME / CONFIG_FILENAME, cwd / SPECS_DIRNAME] if require_specs else [cwd / KITTIFY_DIRNAME / CONFIG_FILENAME]),
+                missing=(
+                    [cwd / KITTIFY_DIRNAME / CONFIG_FILENAME, cwd / SPECS_DIRNAME]
+                    if require_specs
+                    else [cwd / KITTIFY_DIRNAME / CONFIG_FILENAME]
+                ),
             ) from exc
     else:
         resolved_root = Path(root).resolve()

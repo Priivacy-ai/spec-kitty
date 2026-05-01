@@ -143,12 +143,20 @@ def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
 
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
 
-    fallback_msg = "DoctrineService unavailable; using YAML scanning fallback. Profile-aware compilation requires DoctrineService."
-    assert not any(fallback_msg in d for d in compiled.diagnostics), f"Unexpected legacy fallback diagnostic: {compiled.diagnostics}"
+    fallback_msg = (
+        "DoctrineService unavailable; using YAML scanning fallback. "
+        "Profile-aware compilation requires DoctrineService."
+    )
+    assert not any(fallback_msg in d for d in compiled.diagnostics), (
+        f"Unexpected legacy fallback diagnostic: {compiled.diagnostics}"
+    )
     # The DRG-backed path resolves transitive artifacts. With an explicit shipped
     # directive selection the bundled graph should yield at least one tactic.
     kinds = {reference.kind for reference in compiled.references}
-    assert "tactic" in kinds, f"DRG-backed path should have resolved transitive tactics; got kinds {sorted(kinds)}"
+    assert "tactic" in kinds, (
+        "DRG-backed path should have resolved transitive tactics; "
+        f"got kinds {sorted(kinds)}"
+    )
 
 
 def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None:
@@ -173,7 +181,11 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
     overlay_dir = tmp_path / ".kittify" / "doctrine"
     overlay_dir.mkdir(parents=True)
     (overlay_dir / "graph.yaml").write_text(
-        "schema_version: '1.0'\ngenerated_at: '2026-04-14T00:00:00+00:00'\ngenerated_by: test-compile-with-repo-root\nnodes: []\nedges: []\n"
+        "schema_version: '1.0'\n"
+        "generated_at: '2026-04-14T00:00:00+00:00'\n"
+        "generated_by: test-compile-with-repo-root\n"
+        "nodes: []\n"
+        "edges: []\n"
     )
 
     # Also create a project doctrine overlay dir so _default_doctrine_service
@@ -188,7 +200,9 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
     )
     kinds = {reference.kind for reference in compiled.references}
     # Shipped graph still supplies tactics even with empty project overlay.
-    assert "tactic" in kinds, f"repo_root branch should still resolve shipped tactics; got {sorted(kinds)}"
+    assert "tactic" in kinds, (
+        f"repo_root branch should still resolve shipped tactics; got {sorted(kinds)}"
+    )
 
 
 def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -213,7 +227,9 @@ def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, mo
     )
     # Fallback path: no transitive artifacts beyond directives/paradigms themselves.
     kinds = {reference.kind for reference in compiled.references}
-    assert "tactic" not in kinds, f"FileNotFoundError branch should NOT resolve tactics; got {sorted(kinds)}"
+    assert "tactic" not in kinds, (
+        f"FileNotFoundError branch should NOT resolve tactics; got {sorted(kinds)}"
+    )
 
 
 def test_compile_with_doctrine_service_uses_repositories() -> None:
@@ -239,7 +255,9 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
 
     # The fallback diagnostic must NOT be present when service is provided
     fallback_msg = "DoctrineService unavailable"
-    assert not any(fallback_msg in d for d in compiled.diagnostics), f"Unexpected fallback diagnostic when DoctrineService is present: {compiled.diagnostics}"
+    assert not any(fallback_msg in d for d in compiled.diagnostics), (
+        f"Unexpected fallback diagnostic when DoctrineService is present: {compiled.diagnostics}"
+    )
     # The compilation still succeeds and produces a valid bundle
     assert compiled.mission == "software-dev"
     assert "## Governance Activation" in compiled.markdown
@@ -263,7 +281,9 @@ def test_compile_with_doctrine_service_unknown_directive_in_diagnostics() -> Non
     mock_service.procedures.get.return_value = None
 
     interview_with_directive = default_interview(mission="software-dev", profile="minimal")
-    object.__setattr__(interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"])
+    object.__setattr__(
+        interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"]
+    )
 
     compiled = compile_charter(
         mission="software-dev",
@@ -271,7 +291,9 @@ def test_compile_with_doctrine_service_unknown_directive_in_diagnostics() -> Non
         doctrine_service=mock_service,
     )
 
-    assert any("DIRECTIVE_MISSING" in d for d in compiled.diagnostics), f"Expected a diagnostic about DIRECTIVE_MISSING; got: {compiled.diagnostics}"
+    assert any(
+        "DIRECTIVE_MISSING" in d for d in compiled.diagnostics
+    ), f"Expected a diagnostic about DIRECTIVE_MISSING; got: {compiled.diagnostics}"
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +509,9 @@ def test_compile_local_support_overlap_emits_warning_diagnostic() -> None:
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
-    assert any("shipped content remains primary" in d for d in compiled.diagnostics), f"Expected overlap warning; diagnostics: {compiled.diagnostics}"
+    assert any("shipped content remains primary" in d for d in compiled.diagnostics), (
+        f"Expected overlap warning; diagnostics: {compiled.diagnostics}"
+    )
 
 
 def test_compile_local_support_no_warning_when_no_overlap() -> None:
@@ -542,7 +566,10 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     assert directive_refs, "Expected at least one directive reference in the compiled bundle"
 
     unresolved = [r for r in directive_refs if r.summary == "Definition unavailable in bundled doctrine."]
-    assert not unresolved, f"Directive(s) not found in shipped/ during YAML fallback: {[r.id for r in unresolved]}"
+    assert not unresolved, (
+        f"Directive(s) not found in shipped/ during YAML fallback: "
+        f"{[r.id for r in unresolved]}"
+    )
 
 
 def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> None:

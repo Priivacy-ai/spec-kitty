@@ -221,7 +221,10 @@ def open_decision(
                     "decision_id": existing.decision_id,
                     "status": existing.status.value,
                 },
-                message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
+                message=(
+                    f"Decision {existing.decision_id!r} is already in terminal "
+                    f"state {existing.status.value!r}"
+                ),
             )
 
     # Mint new decision (use caller-supplied id if provided, else mint fresh)
@@ -312,7 +315,11 @@ def _terminal_command(
         # Already terminal — check for idempotency or conflict
         if entry.status == target_status:
             # Same outcome — check payload identity
-            payload_matches = entry.final_answer == final_answer and entry.other_answer == other_answer and entry.rationale == rationale
+            payload_matches = (
+                entry.final_answer == final_answer
+                and entry.other_answer == other_answer
+                and entry.rationale == rationale
+            )
             if payload_matches:
                 return DecisionTerminalResponse(
                     decision_id=decision_id,
@@ -329,7 +336,10 @@ def _terminal_command(
                 "existing_status": entry.status.value,
                 "requested_status": target_status.value,
             },
-            message=(f"Decision {decision_id!r} is already in terminal state {entry.status.value!r}; cannot transition to {target_status.value!r}"),
+            message=(
+                f"Decision {decision_id!r} is already in terminal state "
+                f"{entry.status.value!r}; cannot transition to {target_status.value!r}"
+            ),
         )
 
     # Apply the terminal transition
@@ -347,7 +357,9 @@ def _terminal_command(
     )
 
     # Get the updated entry for artifact + event
-    updated_entry = next(e for e in updated_index.entries if e.decision_id == decision_id)
+    updated_entry = next(
+        e for e in updated_index.entries if e.decision_id == decision_id
+    )
     _store.write_artifact(mission_dir, updated_entry)
     lamport = _emit.emit_decision_resolved(
         repo_root,

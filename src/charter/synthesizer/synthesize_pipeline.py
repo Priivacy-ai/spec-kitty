@@ -37,7 +37,7 @@ import hashlib
 import io
 import json
 from collections.abc import Mapping
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -55,12 +55,10 @@ def _get_synthesizer_version() -> str:
     """Return the installed spec-kitty-cli version, falling back to a dev sentinel."""
     try:
         from importlib.metadata import version
-
         return version("spec-kitty-cli")
     except Exception:  # noqa: BLE001
         try:
             import specify_cli
-
             v: str = str(specify_cli.__version__)
             return v
         except Exception:  # noqa: BLE001
@@ -133,7 +131,10 @@ class ProvenanceEntry(BaseModel):
         has_section = bool(self.source_section)
         has_urns = bool(self.source_urns)
         if not has_section and not has_urns:
-            raise ValueError("ProvenanceEntry requires at least one of 'source_section' (non-empty) or 'source_urns' (non-empty list). Both are absent/empty.")
+            raise ValueError(
+                "ProvenanceEntry requires at least one of 'source_section' (non-empty) "
+                "or 'source_urns' (non-empty list). Both are absent/empty."
+            )
         return self
 
 
@@ -177,7 +178,6 @@ def canonical_yaml(body: Mapping[str, Any]) -> bytes:
 # ---------------------------------------------------------------------------
 # Schema conformance gate (T012)
 # ---------------------------------------------------------------------------
-
 
 # Lazy imports to avoid circular imports at module load time.
 def _get_schema_by_kind() -> dict[str, Any]:
@@ -256,9 +256,15 @@ def _compute_evidence_hashes(request: SynthesisRequest) -> tuple[str | None, str
     """
     if request.evidence is None or request.evidence.is_empty:
         return None, None
-    evidence_bytes = json.dumps(_evidence_to_jsonable(request.evidence), sort_keys=True, ensure_ascii=True).encode("utf-8")
+    evidence_bytes = json.dumps(
+        _evidence_to_jsonable(request.evidence), sort_keys=True, ensure_ascii=True
+    ).encode("utf-8")
     evidence_hash = hashlib.sha256(evidence_bytes).hexdigest()
-    corpus_id = request.evidence.corpus_snapshot.snapshot_id if request.evidence.corpus_snapshot is not None else None
+    corpus_id = (
+        request.evidence.corpus_snapshot.snapshot_id
+        if request.evidence.corpus_snapshot is not None
+        else None
+    )
     return evidence_hash, corpus_id
 
 
@@ -347,7 +353,10 @@ def run(
         If any source URN does not resolve in ``request.drg_snapshot``.
     """
     if adapter is None:
-        raise NotImplementedError("Production adapter wiring is not yet implemented (WP05). Pass a FixtureAdapter instance explicitly.")
+        raise NotImplementedError(
+            "Production adapter wiring is not yet implemented (WP05). "
+            "Pass a FixtureAdapter instance explicitly."
+        )
 
     # Stage 1: resolve sections from the interview snapshot
     sections = resolve_sections(request.interview_snapshot)
@@ -391,7 +400,10 @@ def run(
     outputs: list[AdapterOutput] = _dispatch_batch(adapter, per_target_requests)
 
     if len(outputs) != len(per_target_requests):
-        raise RuntimeError(f"Adapter returned {len(outputs)} outputs for {len(per_target_requests)} requests. Adapter must return element-aligned outputs.")
+        raise RuntimeError(
+            f"Adapter returned {len(outputs)} outputs for {len(per_target_requests)} "
+            "requests. Adapter must return element-aligned outputs."
+        )
 
     # Stages 6 + 7: schema conformance + provenance assembly
     results: list[tuple[Mapping[str, Any], ProvenanceEntry]] = []
@@ -403,7 +415,9 @@ def run(
         effective_adapter_id = output.adapter_id_override or adapter.id
         effective_adapter_version = output.adapter_version_override or adapter.version
 
-        inputs_hash = compute_inputs_hash(target_req, effective_adapter_id, effective_adapter_version)
+        inputs_hash = compute_inputs_hash(
+            target_req, effective_adapter_id, effective_adapter_version
+        )
 
         yaml_bytes = canonical_yaml(output.body)
         content_hash = _content_hash(yaml_bytes)
@@ -426,7 +440,7 @@ def run(
             source_urns=list(target.source_urns),
             source_input_ids=list(target.source_urns),
             generated_at=generated_at_str,
-            produced_at=datetime.now(UTC).isoformat(),
+            produced_at=datetime.now(timezone.utc).isoformat(),
             corpus_snapshot_id=corpus_id or "(none)",
             synthesis_run_id=request.run_id,
             evidence_bundle_hash=evidence_hash,
@@ -489,7 +503,9 @@ def run_all(
         One tuple per synthesized target, in deterministic order.
     """
     if adapter is None:
-        raise NotImplementedError("Production adapter wiring is not yet implemented (WP05).")
+        raise NotImplementedError(
+            "Production adapter wiring is not yet implemented (WP05)."
+        )
 
     sections = resolve_sections(request.interview_snapshot)
     all_targets = build_targets(
@@ -522,7 +538,10 @@ def run_all(
     outputs = _dispatch_batch(adapter, per_target_requests)
 
     if len(outputs) != len(per_target_requests):
-        raise RuntimeError(f"Adapter returned {len(outputs)} outputs for {len(per_target_requests)} requests.")
+        raise RuntimeError(
+            f"Adapter returned {len(outputs)} outputs for "
+            f"{len(per_target_requests)} requests."
+        )
 
     results: list[tuple[Mapping[str, Any], ProvenanceEntry]] = []
     for target, target_req, output in zip(all_targets, per_target_requests, outputs, strict=True):
@@ -531,7 +550,9 @@ def run_all(
         effective_adapter_id = output.adapter_id_override or adapter.id
         effective_adapter_version = output.adapter_version_override or adapter.version
 
-        inputs_hash = compute_inputs_hash(target_req, effective_adapter_id, effective_adapter_version)
+        inputs_hash = compute_inputs_hash(
+            target_req, effective_adapter_id, effective_adapter_version
+        )
 
         yaml_bytes = canonical_yaml(output.body)
         content_hash = _content_hash(yaml_bytes)
@@ -553,7 +574,7 @@ def run_all(
             source_urns=list(target.source_urns),
             source_input_ids=list(target.source_urns),
             generated_at=generated_at_str,
-            produced_at=datetime.now(UTC).isoformat(),
+            produced_at=datetime.now(timezone.utc).isoformat(),
             corpus_snapshot_id=corpus_id or "(none)",
             synthesis_run_id=request.run_id,
             evidence_bundle_hash=evidence_hash,

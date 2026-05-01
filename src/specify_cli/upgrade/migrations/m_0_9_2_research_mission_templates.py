@@ -104,7 +104,8 @@ class ResearchMissionTemplatesMigration(BaseMigration):
         if missing_in_pkg:
             return (
                 False,
-                f"Package research mission is missing: {', '.join(missing_in_pkg)}. Please upgrade spec-kitty-cli to the latest version.",
+                f"Package research mission is missing: {', '.join(missing_in_pkg)}. "
+                "Please upgrade spec-kitty-cli to the latest version.",
             )
 
         return True, ""

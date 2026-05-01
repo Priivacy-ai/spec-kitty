@@ -11,8 +11,12 @@ from specify_cli.frontmatter import write_frontmatter
 
 pytestmark = pytest.mark.fast
 
-
-def create_wp_file(path: Path, wp_id: str, dependencies: list[str], lane: str = "planned") -> None:
+def create_wp_file(
+    path: Path,
+    wp_id: str,
+    dependencies: list[str],
+    lane: str = "planned"
+) -> None:
     """Create a test WP file with frontmatter.
 
     Args:
@@ -33,7 +37,14 @@ def create_wp_file(path: Path, wp_id: str, dependencies: list[str], lane: str = 
         "shell_pid": "",
         "review_status": "",
         "reviewed_by": "",
-        "history": [{"timestamp": "2025-01-01T00:00:00Z", "lane": lane, "agent": "test", "action": "Test"}],
+        "history": [
+            {
+                "timestamp": "2025-01-01T00:00:00Z",
+                "lane": lane,
+                "agent": "test",
+                "action": "Test"
+            }
+        ]
     }
 
     body = f"# Test WP: {wp_id}\n\nTest content."
@@ -173,5 +184,8 @@ def test_in_progress_filter(tmp_path: Path) -> None:
 
     # Only WP03 should trigger warnings (doing)
     # Planned/for_review/done are not in progress for warnings
-    in_progress = [dep for dep in dependents if dep == "WP03"]
+    in_progress = [
+        dep for dep in dependents
+        if dep == "WP03"
+    ]
     assert sorted(in_progress) == ["WP03"]

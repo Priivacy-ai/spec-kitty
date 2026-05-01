@@ -15,7 +15,6 @@ from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import (
 
 pytestmark = pytest.mark.fast
 
-
 def _write_wp(tasks_dir: Path, wp_id: str, lane: str) -> Path:
     wp_file = tasks_dir / f"{wp_id}-upgrade.md"
     wp_file.write_text(
@@ -218,4 +217,6 @@ def test_status_events_need_repair_removed() -> None:
     """Verify _status_events_need_repair was removed from the migration module."""
     from specify_cli.upgrade.migrations import m_2_0_6_consistency_sweep
 
-    assert not hasattr(m_2_0_6_consistency_sweep, "_status_events_need_repair"), "_status_events_need_repair must not exist after WP05 deletion of migrate.py"
+    assert not hasattr(m_2_0_6_consistency_sweep, "_status_events_need_repair"), (
+        "_status_events_need_repair must not exist after WP05 deletion of migrate.py"
+    )

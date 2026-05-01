@@ -60,7 +60,11 @@ _VOLATILE_KEYS = (
 def _strip_volatile(payload: object) -> object:
     """Recursively remove volatile keys from a JSON-shaped payload."""
     if isinstance(payload, dict):
-        return {k: _strip_volatile(v) for k, v in payload.items() if k not in _VOLATILE_KEYS}
+        return {
+            k: _strip_volatile(v)
+            for k, v in payload.items()
+            if k not in _VOLATILE_KEYS
+        }
     if isinstance(payload, list):
         return [_strip_volatile(v) for v in payload]
     return payload
@@ -110,7 +114,9 @@ def _build_e2e_project(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
-    subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "add", "."], cwd=project, check=True, capture_output=True
+    )
     subprocess.run(
         ["git", "commit", "-m", "Initial project"],
         cwd=project,
@@ -151,7 +157,13 @@ def _seed_minimal_wp(feature_dir: Path) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Smoke WP\nphase: 1\nagent: claude\nexecution_mode: code_change\n---\n\n# WP01\n",
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Smoke WP\n"
+        "phase: 1\n"
+        "agent: claude\n"
+        "execution_mode: code_change\n"
+        "---\n\n# WP01\n",
         encoding="utf-8",
     )
 
@@ -178,10 +190,17 @@ def test_feature_alias_routes_to_mission(tmp_path: Path) -> None:
         # (e.g. "Not authenticated, skipping sync") followed by the JSON
         # payload on its own line. Find the JSON line.
         json_line = next(
-            (line for line in create_result.output.splitlines() if line.strip().startswith("{")),
+            (
+                line
+                for line in create_result.output.splitlines()
+                if line.strip().startswith("{")
+            ),
             None,
         )
-        assert json_line is not None, f"could not find JSON in mission-create output:\n{create_result.output}"
+        assert json_line is not None, (
+            f"could not find JSON in mission-create output:\n"
+            f"{create_result.output}"
+        )
         create_payload = json.loads(json_line)
         slug = create_payload["mission_slug"]
         feature_dir = project / "kitty-specs" / slug
@@ -202,8 +221,12 @@ def test_feature_alias_routes_to_mission(tmp_path: Path) -> None:
             catch_exceptions=False,
         )
 
-        assert mission_result.exit_code == 0, f"--mission invocation failed:\n{mission_result.output}"
-        assert feature_result.exit_code == 0, f"--feature invocation failed:\n{feature_result.output}"
+        assert mission_result.exit_code == 0, (
+            f"--mission invocation failed:\n{mission_result.output}"
+        )
+        assert feature_result.exit_code == 0, (
+            f"--feature invocation failed:\n{feature_result.output}"
+        )
 
         # 4. Extract JSON from each and compare modulo volatile fields.
         def _extract_json(out: str) -> object:

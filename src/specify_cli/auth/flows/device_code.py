@@ -125,12 +125,18 @@ class DeviceCodeFlow:
         # Step 2: display the user code and verification URI so the operator
         # can open a browser on another device and approve the request.
         writer("")
-        writer(f"[yellow]Visit:[/yellow] [bold blue]{device_state.verification_uri}[/bold blue]")
-        writer(f"[yellow]Code:[/yellow]  [bold green]{format_user_code(device_state.user_code)}[/bold green]")
+        writer(
+            f"[yellow]Visit:[/yellow] [bold blue]{device_state.verification_uri}[/bold blue]"
+        )
+        writer(
+            f"[yellow]Code:[/yellow]  [bold green]{format_user_code(device_state.user_code)}[/bold green]"
+        )
         if device_state.verification_uri_complete:
             writer(f"[dim]Or open: {device_state.verification_uri_complete}[/dim]")
         writer("")
-        writer(f"[dim]Waiting for authorization (timeout in {device_state.expires_in // 60} minutes)...[/dim]")
+        writer(
+            f"[dim]Waiting for authorization (timeout in {device_state.expires_in // 60} minutes)...[/dim]"
+        )
 
         # Step 3: poll the token endpoint until approval, denial, or expiry.
         # The poller uses WP03's primitives and respects the 10-second ceiling
@@ -161,21 +167,29 @@ class DeviceCodeFlow:
             try:
                 response = await client.post(url, data=data)
             except httpx.RequestError as exc:
-                raise NetworkError(f"Network error requesting device code: {exc}") from exc
+                raise NetworkError(
+                    f"Network error requesting device code: {exc}"
+                ) from exc
 
         if response.status_code != 200:
             body = response.text[:500]
-            raise AuthenticationError(f"Device code request failed: HTTP {response.status_code} - {body}")
+            raise AuthenticationError(
+                f"Device code request failed: HTTP {response.status_code} - {body}"
+            )
 
         try:
             payload = response.json()
         except ValueError as exc:
-            raise AuthenticationError(f"Device code response was not JSON: {exc}") from exc
+            raise AuthenticationError(
+                f"Device code response was not JSON: {exc}"
+            ) from exc
 
         try:
             return DeviceFlowState.from_oauth_response(payload)
         except KeyError as exc:
-            raise AuthenticationError(f"Device code response missing required field: {exc}") from exc
+            raise AuthenticationError(
+                f"Device code response missing required field: {exc}"
+            ) from exc
 
     # ---- Token polling ---------------------------------------------------
 
@@ -202,7 +216,9 @@ class DeviceCodeFlow:
             try:
                 response = await client.post(url, data=data)
             except httpx.RequestError as exc:
-                raise NetworkError(f"Network error polling for token: {exc}") from exc
+                raise NetworkError(
+                    f"Network error polling for token: {exc}"
+                ) from exc
 
         # RFC 8628 §3.5: both success and pending/error responses are JSON.
         # The poller classifies via the ``error`` key.
@@ -210,9 +226,13 @@ class DeviceCodeFlow:
             try:
                 return cast(dict[str, Any], response.json())
             except ValueError as exc:
-                raise AuthenticationError(f"Token poll response was not JSON: {exc}") from exc
+                raise AuthenticationError(
+                    f"Token poll response was not JSON: {exc}"
+                ) from exc
 
-        raise AuthenticationError(f"Unexpected response from /oauth/token: HTTP {response.status_code}")
+        raise AuthenticationError(
+            f"Unexpected response from /oauth/token: HTTP {response.status_code}"
+        )
 
     # ---- User info + StoredSession ---------------------------------------
 
@@ -236,15 +256,21 @@ class DeviceCodeFlow:
             try:
                 response = await client.get(url, headers=headers)
             except httpx.RequestError as exc:
-                raise NetworkError(f"Network error fetching user info: {exc}") from exc
+                raise NetworkError(
+                    f"Network error fetching user info: {exc}"
+                ) from exc
 
         if response.status_code != 200:
-            raise AuthenticationError(f"User info fetch failed: HTTP {response.status_code}")
+            raise AuthenticationError(
+                f"User info fetch failed: HTTP {response.status_code}"
+            )
 
         try:
             me = response.json()
         except ValueError as exc:
-            raise AuthenticationError(f"User info response was not JSON: {exc}") from exc
+            raise AuthenticationError(
+                f"User info response was not JSON: {exc}"
+            ) from exc
 
         teams = [
             Team(
@@ -256,7 +282,9 @@ class DeviceCodeFlow:
             for t in me.get("teams", [])
         ]
         if not teams:
-            raise AuthenticationError("User has no team memberships. Contact your administrator.")
+            raise AuthenticationError(
+                "User has no team memberships. Contact your administrator."
+            )
         # Client-picked default (see C-011): the SaaS does not return
         # ``default_team_id``; we prefer Private Teamspace when available.
         default_team_id = pick_default_team_id(teams)
@@ -265,7 +293,9 @@ class DeviceCodeFlow:
         try:
             expires_in = int(tokens["expires_in"])
         except (KeyError, TypeError, ValueError) as exc:
-            raise AuthenticationError("Token response missing or invalid 'expires_in' field.") from exc
+            raise AuthenticationError(
+                "Token response missing or invalid 'expires_in' field."
+            ) from exc
 
         refresh_token_expires_at = self._resolve_refresh_expiry(tokens, me, now)
 
@@ -303,7 +333,9 @@ class DeviceCodeFlow:
         3. ``refresh_token_expires_in`` from the token response (relative).
         4. ``None`` — server-managed, client learns expiry on refresh.
         """
-        absolute = tokens.get("refresh_token_expires_at") or me.get("refresh_token_expires_at")
+        absolute = tokens.get("refresh_token_expires_at") or me.get(
+            "refresh_token_expires_at"
+        )
         if absolute is not None:
             return _parse_iso_utc(absolute)
 
@@ -312,7 +344,9 @@ class DeviceCodeFlow:
             try:
                 return now + timedelta(seconds=int(relative))
             except (TypeError, ValueError):
-                log.warning("refresh_token_expires_in was not an int: %r", relative)
+                log.warning(
+                    "refresh_token_expires_in was not an int: %r", relative
+                )
                 return None
         return None
 

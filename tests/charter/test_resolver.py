@@ -17,7 +17,6 @@ from charter.resolver import (
 
 pytestmark = pytest.mark.fast
 
-
 def _write_charter_files(
     root: Path,
     *,
@@ -31,17 +30,23 @@ def _write_charter_files(
     return charter_dir
 
 
-def test_resolve_governance_reads_charter_selections_first(tmp_path: Path, monkeypatch) -> None:
+def test_resolve_governance_reads_charter_selections_first(
+    tmp_path: Path, monkeypatch
+) -> None:
     """Charter selections (paradigms, directives, tools, template_set) are used
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
     doctrine_root = tmp_path / "doctrine_root"
     (doctrine_root / "paradigms" / "shipped").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "shipped" / "test-first.paradigm.yaml").write_text("id: test-first\n")
+    (doctrine_root / "paradigms" / "shipped" / "test-first.paradigm.yaml").write_text(
+        "id: test-first\n"
+    )
     (doctrine_root / "directives" / "shipped").mkdir(parents=True)
     (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
-    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
+    (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
+        "name: software-dev\n"
+    )
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
@@ -404,7 +409,9 @@ def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> 
     paradigms_shipped = doctrine_root / "paradigms" / "shipped"
     paradigms_shipped.mkdir(parents=True)
     if with_paradigm:
-        (paradigms_shipped / f"{with_paradigm}.paradigm.yaml").write_text(f"id: {with_paradigm}\n")
+        (paradigms_shipped / f"{with_paradigm}.paradigm.yaml").write_text(
+            f"id: {with_paradigm}\n"
+        )
     (doctrine_root / "directives" / "shipped").mkdir(parents=True)
     (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)

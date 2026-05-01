@@ -9,7 +9,9 @@ Tests cover:
 """
 
 import pytest
+import tempfile
 import os
+from pathlib import Path
 from specify_cli.dossier.hasher import hash_file, hash_file_with_validation, Hasher
 
 
@@ -50,7 +52,7 @@ class TestHashFile:
         chunk_size = 1024 * 1024  # 1MB chunks
         num_chunks = 10
         with open(large_file, "wb") as f:
-            for _i in range(num_chunks):
+            for i in range(num_chunks):
                 f.write(b"A" * chunk_size)
 
         # Should complete without memory explosion
@@ -160,7 +162,9 @@ class TestHashFileWithValidation:
         """UTF-8 with CJK (Chinese/Japanese/Korean) characters validates."""
         test_file = tmp_path / "cjk.txt"
         # CJK characters (Chinese, Japanese, Korean)
-        test_file.write_text("Hello 世界 こんにちは 안녕하세요", encoding="utf-8")
+        test_file.write_text(
+            "Hello 世界 こんにちは 안녕하세요", encoding="utf-8"
+        )
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None
@@ -272,7 +276,9 @@ class TestHasher:
     def test_hasher_order_independence_many_hashes(self):
         """Adding 100+ hashes in different order produces identical parity."""
         # Create 100 different hashes
-        hash_list = [format(i, "064x") for i in range(100)]  # 100 different hex values
+        hash_list = [
+            format(i, "064x") for i in range(100)
+        ]  # 100 different hex values
 
         hasher1 = Hasher()
         for h in hash_list:

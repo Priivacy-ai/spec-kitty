@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from specify_cli.next._internal_runtime.retrospective_hook import (
+    MissionCompletionBlocked,
     before_mark_done,
 )
 from specify_cli.retrospective.events import (
@@ -76,7 +77,9 @@ def _mission_slug_from_feature_dir(feature_dir: Path) -> str:
 
 def _record_path_str(record: RetrospectiveRecord, repo_root: Path) -> str:
     """Return canonical record path as string for event payload."""
-    canonical = repo_root / ".kittify" / "missions" / record.mission.mission_id / "retrospective.yaml"
+    canonical = (
+        repo_root / ".kittify" / "missions" / record.mission.mission_id / "retrospective.yaml"
+    )
     return str(canonical)
 
 
@@ -151,7 +154,10 @@ def run_terminus(
     # 2. Emit retrospective.requested.
     #    Actor: runtime in autonomous; operator_actor in HiC.
     # ------------------------------------------------------------------
-    requested_actor = _RUNTIME_ACTOR if mode.value == "autonomous" else operator_actor
+    if mode.value == "autonomous":
+        requested_actor = _RUNTIME_ACTOR
+    else:
+        requested_actor = operator_actor
 
     emit_retrospective_event(
         feature_dir=feature_dir,
@@ -331,7 +337,10 @@ def _run_hic(
             event_name="retrospective.failed",
             payload=FailedPayload(
                 failure_code="prompt_not_configured",
-                message=("Human-in-command retrospective requires an interactive prompt callback; none was supplied to run_terminus."),
+                message=(
+                    "Human-in-command retrospective requires an interactive "
+                    "prompt callback; none was supplied to run_terminus."
+                ),
                 record_path=None,
             ),
         )

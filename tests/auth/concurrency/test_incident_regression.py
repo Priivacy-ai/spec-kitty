@@ -40,7 +40,10 @@ from .conftest import _build_handler_class
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32",
-    reason=("Subprocess + file-barrier ordering is exercised on POSIX; Windows lock semantics are covered by the WP01 platform test."),
+    reason=(
+        "Subprocess + file-barrier ordering is exercised on POSIX; "
+        "Windows lock semantics are covered by the WP01 platform test."
+    ),
 )
 
 
@@ -278,7 +281,9 @@ def test_incident_regression_two_subprocess_workers(
         # Make sure subprocesses can find ``specify_cli`` even when this
         # test runs from a non-editable checkout. Inheriting sys.path
         # via PYTHONPATH is the standard contract.
-        env["PYTHONPATH"] = os.pathsep.join([p for p in sys.path if p])
+        env["PYTHONPATH"] = os.pathsep.join(
+            [p for p in sys.path if p]
+        )
 
         # --- Spawn both workers --------------------------------------------
         proc_a = subprocess.Popen(
@@ -301,19 +306,30 @@ def test_incident_regression_two_subprocess_workers(
             if remaining <= 0:
                 proc.kill()
                 proc.wait(timeout=2.0)
-                pytest.fail("NFR-005: subprocess regression exceeded the 30 s ceiling")
+                pytest.fail(
+                    "NFR-005: subprocess regression exceeded the 30 s ceiling"
+                )
             try:
                 proc.wait(timeout=remaining)
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait(timeout=2.0)
-                pytest.fail("NFR-005: subprocess regression exceeded the 30 s ceiling")
+                pytest.fail(
+                    "NFR-005: subprocess regression exceeded the 30 s ceiling"
+                )
 
         # --- Assertions ----------------------------------------------------
         out_a, err_a = proc_a.communicate(timeout=5.0)
         out_b, err_b = proc_b.communicate(timeout=5.0)
-        assert proc_a.returncode == 0, f"worker-a exit={proc_a.returncode}\nstdout={out_a!r}\nstderr={err_a!r}"
-        assert proc_b.returncode == 0, f"worker-b exit={proc_b.returncode} (non-zero indicates FR-006 regression)\nstdout={out_b!r}\nstderr={err_b!r}"
+        assert proc_a.returncode == 0, (
+            f"worker-a exit={proc_a.returncode}\n"
+            f"stdout={out_a!r}\nstderr={err_a!r}"
+        )
+        assert proc_b.returncode == 0, (
+            f"worker-b exit={proc_b.returncode} "
+            f"(non-zero indicates FR-006 regression)\n"
+            f"stdout={out_b!r}\nstderr={err_b!r}"
+        )
 
         # WP02's FR-004 fast path adopts the rotated material without a
         # second network call; the fake server therefore sees exactly
@@ -322,12 +338,20 @@ def test_incident_regression_two_subprocess_workers(
         # here as a count of 2 (worker B unnecessarily contacting the
         # server with the persisted token).
         request_count = counter_path.stat().st_size
-        assert request_count == 1, f"Expected exactly 1 fake-refresh request (worker A's rotation; worker B should adopt via FR-004), saw {request_count}"
+        assert request_count == 1, (
+            f"Expected exactly 1 fake-refresh request "
+            f"(worker A's rotation; worker B should adopt via FR-004), "
+            f"saw {request_count}"
+        )
 
         # The on-disk session must still exist and contain the rotated
         # material — this is the FR-006 invariant the bug violated.
-        on_disk = FileFallbackStorage(base_dir=tmp_path / ".spec-kitty" / "auth").read()
-        assert on_disk is not None, "FR-006 regression: on-disk session was deleted by worker-b"
+        on_disk = FileFallbackStorage(
+            base_dir=tmp_path / ".spec-kitty" / "auth"
+        ).read()
+        assert on_disk is not None, (
+            "FR-006 regression: on-disk session was deleted by worker-b"
+        )
         assert on_disk.refresh_token == "rt_rotated_v2"
         assert on_disk.session_id == "sess_seed"
         # Sanity: the persisted access token reflects the rotation, not

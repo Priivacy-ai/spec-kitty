@@ -17,12 +17,13 @@ from specify_cli.core.config import (
 )
 from specify_cli.skills.installer import install_all_skills, install_skills_for_agent
 from specify_cli.skills.manifest import (
+    ManagedFileEntry,
     ManagedSkillManifest,
     compute_content_hash,
     load_manifest,
     save_manifest,
 )
-from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.verifier import repair_skills, verify_installed_skills
 
 
@@ -193,7 +194,7 @@ def test_manifest_persistence(tmp_path: Path) -> None:
 
     # Verify entries match
     assert len(loaded.entries) == len(original_manifest.entries)
-    for orig, reloaded in zip(original_manifest.entries, loaded.entries, strict=False):
+    for orig, reloaded in zip(original_manifest.entries, loaded.entries):
         assert reloaded.skill_name == orig.skill_name
         assert reloaded.source_file == orig.source_file
         assert reloaded.installed_path == orig.installed_path
@@ -258,7 +259,9 @@ def test_drift_detection_and_repair(tmp_path: Path) -> None:
     # Verify the manifest hash was updated after repair
     reloaded_manifest = load_manifest(project)
     assert reloaded_manifest is not None
-    repaired_entry = reloaded_manifest.find_by_installed_path(".claude/skills/drift-skill/SKILL.md")
+    repaired_entry = reloaded_manifest.find_by_installed_path(
+        ".claude/skills/drift-skill/SKILL.md"
+    )
     assert repaired_entry is not None
     assert repaired_entry.content_hash == compute_content_hash(installed_file)
 

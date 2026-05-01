@@ -73,7 +73,9 @@ class TestVersionReading:
             pytest.skip(f"Could not read package metadata: {exc}")
 
         # Versions should match
-        assert module_version == metadata_version, f"Module __version__ ({module_version}) should match package metadata ({metadata_version})"
+        assert module_version == metadata_version, (
+            f"Module __version__ ({module_version}) should match package metadata ({metadata_version})"
+        )
 
     def test_cli_version_matches_package_metadata(self):
         """Verify spec-kitty --version command shows package metadata version."""
@@ -105,9 +107,11 @@ class TestVersionReading:
 
         # Should NOT have hardcoded version like __version__ = "0.4.13"
         # Should use version_utils or importlib.metadata
-        assert "version_utils" in init_content or "importlib.metadata" in init_content or "importlib_metadata" in init_content, (
-            "__init__.py should use version_utils.get_version() or importlib.metadata to read version dynamically"
-        )
+        assert (
+            "version_utils" in init_content
+            or "importlib.metadata" in init_content
+            or "importlib_metadata" in init_content
+        ), "__init__.py should use version_utils.get_version() or importlib.metadata to read version dynamically"
 
         # Should not have pattern like __version__ = "0.x.x"
         import re
@@ -176,9 +180,13 @@ class TestVersionConsistency:
         cli_output = result.stdout + result.stderr
 
         # All should agree
-        assert module_version == metadata_version, f"Module version ({module_version}) should match metadata ({metadata_version})"
+        assert module_version == metadata_version, (
+            f"Module version ({module_version}) should match metadata ({metadata_version})"
+        )
 
-        assert metadata_version in cli_output, f"CLI should show metadata version ({metadata_version}), got: {cli_output}"
+        assert metadata_version in cli_output, (
+            f"CLI should show metadata version ({metadata_version}), got: {cli_output}"
+        )
 
 
 class TestEdgeCases:
@@ -245,7 +253,9 @@ class TestVersionUpdateWorkflow:
                 parsed = Version(pyproject_version)
             except InvalidVersion as exc:  # pragma: no cover - explicit failure path
                 pytest.fail(f"pyproject.toml version '{pyproject_version}' is invalid: {exc}")
-            assert len(parsed.release) >= 3, f"pyproject.toml version '{pyproject_version}' should include major.minor.patch"
+            assert len(parsed.release) >= 3, (
+                f"pyproject.toml version '{pyproject_version}' should include major.minor.patch"
+            )
 
     def test_version_not_imported_from_pyproject(self):
         """Verify version prioritizes importlib.metadata over pyproject.toml."""
@@ -257,7 +267,9 @@ class TestVersionUpdateWorkflow:
         init_content = init_file.read_text()
 
         # Should delegate to version_utils
-        assert "version_utils" in init_content or "importlib.metadata" in init_content, "Should use version_utils.get_version() or importlib.metadata"
+        assert "version_utils" in init_content or "importlib.metadata" in init_content, (
+            "Should use version_utils.get_version() or importlib.metadata"
+        )
 
         # __init__.py should NOT parse pyproject.toml directly
         assert "pyproject.toml" not in init_content, "Should not parse pyproject.toml directly in __init__.py"
@@ -327,7 +339,9 @@ class TestPackageMetadataIntegrity:
         """Verify package metadata can be accessed."""
         try:
             pkg_version = get_venv_metadata_version()
-            result = run_venv_python("from importlib.metadata import metadata; m = metadata('spec-kitty-cli'); print(m.get('Name'))")
+            result = run_venv_python(
+                "from importlib.metadata import metadata; m = metadata('spec-kitty-cli'); print(m.get('Name'))"
+            )
             pkg_name = result.stdout.strip()
 
             assert pkg_version, "Should have version in metadata"

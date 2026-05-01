@@ -108,7 +108,9 @@ def _fake_get_or_start_run_factory(run_dir: Path) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def test_run_command_starts_runtime_with_json_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_command_starts_runtime_with_json_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-001 / FR-013: success envelope shape locked.
 
     Drives the functional core directly so the assertion targets the
@@ -162,7 +164,9 @@ def test_run_command_starts_runtime_with_json_output(tmp_path: Path, monkeypatch
 # ---------------------------------------------------------------------------
 
 
-def test_missing_retrospective_returns_error_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_retrospective_returns_error_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-005 / FR-013: missing retrospective marker → exit 2 + structured error."""
     repo_root = _setup_project(tmp_path, fixture="missing-retrospective")
 
@@ -170,7 +174,9 @@ def test_missing_retrospective_returns_error_envelope(tmp_path: Path, monkeypatc
     from specify_cli.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
-        raise AssertionError("get_or_start_run must not be called when validation fails")
+        raise AssertionError(
+            "get_or_start_run must not be called when validation fails"
+        )
 
     monkeypatch.setattr(runtime_bridge, "get_or_start_run", _should_not_run)
 
@@ -191,14 +197,18 @@ def test_missing_retrospective_returns_error_envelope(tmp_path: Path, monkeypatc
     assert envelope["warnings"] == []
 
 
-def test_reserved_key_shadow_returns_error_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reserved_key_shadow_returns_error_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-011 / FR-013: a project mission keyed ``software-dev`` is rejected."""
     repo_root = _setup_project(tmp_path, fixture="reserved-shadow")
 
     from specify_cli.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
-        raise AssertionError("get_or_start_run must not be called when validation fails")
+        raise AssertionError(
+            "get_or_start_run must not be called when validation fails"
+        )
 
     monkeypatch.setattr(runtime_bridge, "get_or_start_run", _should_not_run)
 
@@ -232,14 +242,18 @@ def test_reserved_key_shadow_returns_error_envelope(tmp_path: Path, monkeypatch:
     assert "software-dev" in envelope["details"]["reserved_keys"]
 
 
-def test_unknown_mission_key_returns_error_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unknown_mission_key_returns_error_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-013: unknown key → exit 2 + ``MISSION_KEY_UNKNOWN`` envelope."""
     repo_root = _setup_project(tmp_path, fixture="erp-integration")
 
     from specify_cli.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
-        raise AssertionError("get_or_start_run must not be called when validation fails")
+        raise AssertionError(
+            "get_or_start_run must not be called when validation fails"
+        )
 
     monkeypatch.setattr(runtime_bridge, "get_or_start_run", _should_not_run)
 

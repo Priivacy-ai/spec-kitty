@@ -92,11 +92,13 @@ class InstallSkillsMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
         if dry_run:
-            changes.append(f"Would install {len(skills)} skill(s) for {len(agent_keys)} agent(s)")
+            changes.append(
+                f"Would install {len(skills)} skill(s) for {len(agent_keys)} agent(s)"
+            )
             return MigrationResult(success=True, changes_made=changes)
 
         # Install skills
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         manifest = ManagedSkillManifest(
             created_at=datetime.now(UTC).isoformat(),
@@ -121,7 +123,10 @@ class InstallSkillsMigration(BaseMigration):
         # Save manifest only if files were actually installed
         if manifest.entries:
             save_manifest(manifest, project_path)
-            changes.append(f"Installed {len(skills)} skill(s) for {len(agent_keys)} agent(s) ({len(manifest.entries)} managed files)")
+            changes.append(
+                f"Installed {len(skills)} skill(s) for {len(agent_keys)} agent(s) "
+                f"({len(manifest.entries)} managed files)"
+            )
             changes.append("Created .kittify/skills-manifest.json")
         else:
             # No files installed — report failure so the runner does not
@@ -129,4 +134,6 @@ class InstallSkillsMigration(BaseMigration):
             errors.append("No skill files were installed for any configured agent")
 
         success = len(errors) == 0
-        return MigrationResult(success=success, changes_made=changes, errors=errors, warnings=warnings)
+        return MigrationResult(
+            success=success, changes_made=changes, errors=errors, warnings=warnings
+        )

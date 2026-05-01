@@ -31,7 +31,11 @@ app = typer.Typer(
 console = Console()
 
 # Reverse mapping: key to (dir, subdir)
-KEY_TO_AGENT_DIR = {AGENT_DIR_TO_KEY[agent_dir]: (agent_dir, subdir) for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS if agent_dir in AGENT_DIR_TO_KEY}
+KEY_TO_AGENT_DIR = {
+    AGENT_DIR_TO_KEY[agent_dir]: (agent_dir, subdir)
+    for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS
+    if agent_dir in AGENT_DIR_TO_KEY
+}
 SKILL_ONLY_AGENTS = {"codex", "vibe"}
 GLOBAL_COMMAND_AGENTS = frozenset(AGENT_COMMAND_CONFIG)
 VALID_AGENTS = set(AGENT_DIR_TO_KEY.values()) | SKILL_ONLY_AGENTS
@@ -129,7 +133,10 @@ def _register_skill_agent(repo_root: Path, config: AgentConfig, agent_key: str) 
             ensure_project_skill_path(repo_root)
         installed = len(report.added) + len(report.reused_shared)
         config.available.append(agent_key)
-        console.print(f"[green]✓[/green] Registered {agent_key} ({installed} command skills in .agents/skills/)")
+        console.print(
+            f"[green]✓[/green] Registered {agent_key} "
+            f"({installed} command skills in .agents/skills/)"
+        )
         return True, None
     except Exception as exc:
         return False, f"Failed to install {agent_key} skills: {exc}"
@@ -139,7 +146,10 @@ def _register_global_command_agent(config: AgentConfig, agent_key: str) -> None:
     """Register a slash-command agent whose command files are global."""
     global_dir = get_global_command_dir(agent_key)
     config.available.append(agent_key)
-    console.print(f"[green]✓[/green] Registered {agent_key} (global commands at {_display_path(global_dir)})")
+    console.print(
+        f"[green]✓[/green] Registered {agent_key} "
+        f"(global commands at {_display_path(global_dir)})"
+    )
 
 
 def _create_project_agent_dir(repo_root: Path, config: AgentConfig, agent_key: str) -> tuple[bool, str | None]:
@@ -173,7 +183,11 @@ def _remove_orphaned_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
     changes_made = False
     all_agent_keys = set(AGENT_DIR_TO_KEY.values())
     orphaned = [
-        key for key in all_agent_keys if key not in config.available and (surface := _project_agent_surface(repo_root, key)) is not None and surface[1].exists()
+        key
+        for key in all_agent_keys
+        if key not in config.available
+        and (surface := _project_agent_surface(repo_root, key)) is not None
+        and surface[1].exists()
     ]
 
     for agent_key in orphaned:
@@ -198,9 +212,13 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
         if agent_key in GLOBAL_COMMAND_AGENTS:
             global_dir = get_global_command_dir(agent_key)
             if global_dir.exists():
-                console.print(f"  [green]✓[/green] Global commands present for {agent_key} at {_display_path(global_dir)}")
+                console.print(
+                    f"  [green]✓[/green] Global commands present for {agent_key} at {_display_path(global_dir)}"
+                )
             else:
-                console.print(f"  [yellow]⚠[/yellow] Global commands missing for {agent_key} at {_display_path(global_dir)}")
+                console.print(
+                    f"  [yellow]⚠[/yellow] Global commands missing for {agent_key} at {_display_path(global_dir)}"
+                )
             continue
 
         agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
@@ -381,7 +399,6 @@ def remove_agents(
     for agent_key in agents:
         if agent_key in ("codex", "vibe"):
             from specify_cli.skills import command_installer
-
             try:
                 report = command_installer.remove(repo_root, agent_key)
                 removed.append(agent_key)
@@ -454,7 +471,11 @@ def agent_status():
             status = "[green]OK[/green]"
         elif agent_key in config.available and not exists_bool:
             status = "[yellow]Missing[/yellow]"
-        elif agent_key not in config.available and (surface := _project_agent_surface(repo_root, agent_key)) is not None and surface[1].exists():
+        elif (
+            agent_key not in config.available
+            and (surface := _project_agent_surface(repo_root, agent_key)) is not None
+            and surface[1].exists()
+        ):
             status = "[red]Orphaned[/red]"
         else:
             status = "[dim]Not used[/dim]"
@@ -465,11 +486,18 @@ def agent_status():
 
     # Summary
     orphaned = [
-        key for key in all_agent_keys if key not in config.available and (surface := _project_agent_surface(repo_root, key)) is not None and surface[1].exists()
+        key
+        for key in all_agent_keys
+        if key not in config.available
+        and (surface := _project_agent_surface(repo_root, key)) is not None
+        and surface[1].exists()
     ]
 
     if orphaned:
-        console.print(f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] (present but not configured)")
+        console.print(
+            f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
+            f"(present but not configured)"
+        )
         console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 

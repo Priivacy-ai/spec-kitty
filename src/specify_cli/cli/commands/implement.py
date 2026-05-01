@@ -484,17 +484,15 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             inference = scan_spec_file(feature_dir)
             if inference.triggered and not acknowledge_not_bulk_edit:
                 matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
-                console.print(
-                    Panel(
-                        f"This mission's spec contains language suggesting a bulk edit "
-                        f"(score: {inference.score}/{inference.threshold}):\n"
-                        f"  Matched: {matched}\n\n"
-                        f"If this IS a bulk edit, set change_mode to 'bulk_edit' in meta.json.\n"
-                        f"If it is NOT, re-run with --acknowledge-not-bulk-edit to suppress.",
-                        title="[bold yellow]Bulk Edit Inference Warning[/]",
-                        border_style="yellow",
-                    )
-                )
+                console.print(Panel(
+                    f"This mission's spec contains language suggesting a bulk edit "
+                    f"(score: {inference.score}/{inference.threshold}):\n"
+                    f"  Matched: {matched}\n\n"
+                    f"If this IS a bulk edit, set change_mode to 'bulk_edit' in meta.json.\n"
+                    f"If it is NOT, re-run with --acknowledge-not-bulk-edit to suppress.",
+                    title="[bold yellow]Bulk Edit Inference Warning[/]",
+                    border_style="yellow",
+                ))
                 raise typer.Exit(1)
 
         resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
@@ -502,7 +500,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         lanes_manifest = None
         lane = None
         from specify_cli.lanes.compute import PLANNING_LANE_ID
-
         if resolved_workspace.lane_id != PLANNING_LANE_ID:
             lanes_manifest = require_lanes_json(feature_dir)
             lane = lanes_manifest.lane_for_wp(wp_id)
@@ -526,7 +523,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     # we emit `in_progress -> blocked` with reason=worktree_alloc_failed
     # so the WP never appears inactive when it actually started.
     import os as _os
-
     pre_alloc_status_emitted = False
     try:
         current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
@@ -535,28 +531,24 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             status_execution_mode_pre = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
             update_fields(wp_file, {"shell_pid": shell_pid_pre})
 
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=wp_id,
-                    to_lane=Lane.CLAIMED,
-                    actor="implement-command",
-                    execution_mode=status_execution_mode_pre,
-                    repo_root=repo_root,
-                )
-            )
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=wp_id,
-                    to_lane=Lane.IN_PROGRESS,
-                    actor="implement-command",
-                    execution_mode=status_execution_mode_pre,
-                    repo_root=repo_root,
-                )
-            )
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=Lane.CLAIMED,
+                actor="implement-command",
+                execution_mode=status_execution_mode_pre,
+                repo_root=repo_root,
+            ))
+            emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=Lane.IN_PROGRESS,
+                actor="implement-command",
+                execution_mode=status_execution_mode_pre,
+                repo_root=repo_root,
+            ))
             pre_alloc_status_emitted = True
     except Exception as _emit_exc:
         # If the pre-alloc emit itself fails, surface but do not block
@@ -619,21 +611,21 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # not look inactive after a worktree allocation failure.
         if pre_alloc_status_emitted:
             try:
-                emit_status_transition(
-                    TransitionRequest(
-                        feature_dir=feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=wp_id,
-                        to_lane=Lane.BLOCKED,
-                        actor="implement-command",
-                        execution_mode="worktree",
-                        reason="worktree_alloc_failed",
-                        policy_metadata={"evidence": str(exc)},
-                        repo_root=repo_root,
-                    )
-                )
+                emit_status_transition(TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    to_lane=Lane.BLOCKED,
+                    actor="implement-command",
+                    execution_mode="worktree",
+                    reason="worktree_alloc_failed",
+                    policy_metadata={"evidence": str(exc)},
+                    repo_root=repo_root,
+                ))
             except Exception as _blocked_exc:
-                console.print(f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}")
+                console.print(
+                    f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}"
+                )
         raise typer.Exit(1) from exc
 
     try:
@@ -686,7 +678,11 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     # planning-artifact workspaces (lane_id is None) or
                     # when the result type doesn't carry a real dict
                     # (e.g. a MagicMock in unit tests).
-                    "lane_test_env": (result.lane_test_env if isinstance(getattr(result, "lane_test_env", None), dict) else {}),
+                    "lane_test_env": (
+                        result.lane_test_env
+                        if isinstance(getattr(result, "lane_test_env", None), dict)
+                        else {}
+                    ),
                 }
             )
         )
@@ -726,7 +722,10 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         console.print("[bold cyan]Lane-specific test environment (FR-006):[/bold cyan]")
         for key, value in sorted(lane_env.items()):
             console.print(f"  export {key}={value}")
-        console.print("[dim]Two parallel SaaS / Django lanes will collide on a single shared test DB unless these are exported in the lane's test process.[/dim]")
+        console.print(
+            "[dim]Two parallel SaaS / Django lanes will collide on a single shared test DB"
+            " unless these are exported in the lane's test process.[/dim]"
+        )
 
 
 __all__ = ["_ensure_vcs_in_meta", "detect_feature_context", "find_wp_file", "implement"]

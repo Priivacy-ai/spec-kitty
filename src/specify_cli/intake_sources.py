@@ -202,7 +202,9 @@ def scan_for_plans(cwd: Path) -> list[tuple[Path, str, str | None]]:
                             if child.is_symlink():
                                 continue  # never follow symlinks
                             if child.is_file() and child.suffix == ".md":
-                                results.append((child, harness_key, source_agent_value))
+                                results.append(
+                                    (child, harness_key, source_agent_value)
+                                )
                         except (PermissionError, OSError):
                             pass
             except (PermissionError, OSError):
