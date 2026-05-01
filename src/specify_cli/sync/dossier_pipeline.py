@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from specify_cli.dossier.models import MissionDossier
-    from specify_cli.sync.project_identity import ProjectIdentity
+    from specify_cli.identity.project import ProjectIdentity
 
     from .body_queue import OfflineBodyUploadQueue
     from .namespace import NamespaceRef, UploadOutcome
@@ -226,7 +226,7 @@ def trigger_feature_dossier_sync_if_enabled(
         from specify_cli.core.paths import get_feature_target_branch
         from specify_cli.mission import get_mission_type
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
-        from specify_cli.sync.project_identity import ensure_identity
+        from specify_cli.identity.project import ensure_identity
         from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 
         # Resolve namespace components

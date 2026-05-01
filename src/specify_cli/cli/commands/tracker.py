@@ -25,7 +25,7 @@ from specify_cli.tracker.config import (
     load_tracker_config,
     require_repo_root,
 )
-from specify_cli.sync.project_identity import ensure_identity
+from specify_cli.identity.project import ensure_identity
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.saas.readiness import evaluate_readiness

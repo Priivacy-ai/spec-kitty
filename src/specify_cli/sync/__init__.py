@@ -130,14 +130,15 @@ __all__ = [
 # dossier/events.py depending on the sync package.
 #
 # This block must remain at the BOTTOM of the file (after all imports
-# and __all__). The contextlib.suppress is intentional: if any sync
-# sub-module fails to import in a minimal/test environment, registration
-# is silently skipped and the corresponding fire_* / fire_dossier_event
-# functions become no-ops. That preserves the existing behavior where
-# SaaS sync is absent in environments without the optional deps.
+# and __all__). We narrow contextlib.suppress to ImportError only so
+# that real bugs (SyntaxError, AttributeError, broken APIs) surface
+# during sync package init rather than producing a silent no-op
+# fan-out. ImportError covers the legitimate compatibility case where
+# optional sync sub-modules are absent (0.1x environments / test
+# stubs); anything else is a defect.
 import contextlib as _contextlib  # noqa: E402
 
-with _contextlib.suppress(Exception):
+with _contextlib.suppress(ImportError):
     from specify_cli.status.adapters import (
         register_dossier_sync_handler,
         register_saas_fanout_handler,
@@ -164,7 +165,7 @@ with _contextlib.suppress(Exception):
     register_dossier_sync_handler(_dossier_sync_handler)
     register_saas_fanout_handler(_saas_fanout_handler)
 
-with _contextlib.suppress(Exception):
+with _contextlib.suppress(ImportError):
     # Register dossier emitter (WP01 inversion). The wrapper routes
     # through get_emitter() lazily so the late-binding behavior of the
     # emitter singleton is preserved across resets.

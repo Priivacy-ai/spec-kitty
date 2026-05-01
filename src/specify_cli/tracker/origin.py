@@ -446,7 +446,7 @@ def _resolve_repo_root(feature_dir: Path) -> Path:
 
 def _project_identity_payload(repo_root: Path) -> dict[str, Any]:
     """Build the SaaS project-identity payload for bind resolution calls."""
-    from specify_cli.sync.project_identity import ensure_identity
+    from specify_cli.identity.project import ensure_identity
 
     identity = ensure_identity(repo_root)
     return {
