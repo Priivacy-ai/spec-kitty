@@ -626,3 +626,4 @@ This test guards against the regression where the registry pattern silently drop
 - 2026-05-01T07:14:46Z – claude – shell_pid=90882 – WP02 complete: status/adapters.py + emit.py + sync/__init__.py registration + 2 architectural tests + fan-out preservation regression test. 537 status + 1456 sync tests pass.
 - 2026-05-01T07:15:16Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=79820 – Started review via action command
 - 2026-05-01T07:21:31Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=79820 – Review passed: status fan-out adapter removes status-to-sync imports, registration smoke and status/sync/contract/architectural checks pass
+- 2026-05-01T07:53:24Z – codex:gpt-4o:python-pedro:reviewer – shell_pid=79820 – Done override: Mission merged to main
