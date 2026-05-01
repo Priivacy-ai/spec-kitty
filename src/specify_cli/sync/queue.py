@@ -736,7 +736,7 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
                 event_ids,
             )
             conn.commit()
@@ -757,7 +757,7 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
                 event_ids,
             )
             conn.commit()
@@ -814,7 +814,7 @@ class OfflineQueue:
 
             placeholders = ",".join("?" * len(matching_ids))
             conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
                 matching_ids,
             )
             conn.commit()
@@ -846,13 +846,13 @@ class OfflineQueue:
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 conn.execute(
-                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
                     synced_or_duplicate,
                 )
             if rejected:
                 placeholders = ",".join("?" * len(rejected))
                 conn.execute(
-                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only  # nosec B608
                     rejected,
                 )
             conn.commit()

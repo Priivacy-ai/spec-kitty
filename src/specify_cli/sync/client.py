@@ -10,6 +10,7 @@ state directly.
 import asyncio
 import json
 import random
+import sys
 from contextlib import suppress
 from collections.abc import Callable
 from typing import Any
@@ -63,6 +64,9 @@ class WebSocketClient:
     BASE_DELAY_SECONDS = 0.5  # 500ms
     MAX_DELAY_SECONDS = 30.0
     JITTER_RANGE = 1.0  # +/- 1 second
+    OPEN_TIMEOUT_SECONDS = 5.0
+    INITIAL_SNAPSHOT_TIMEOUT_SECONDS = 5.0
+    CLOSE_TIMEOUT_SECONDS = 2.0
 
     def __init__(
         self,
@@ -166,12 +170,17 @@ class WebSocketClient:
                 uri,
                 ping_interval=None,  # We handle heartbeat manually
                 ping_timeout=None,
+                open_timeout=self.OPEN_TIMEOUT_SECONDS,
+                close_timeout=self.CLOSE_TIMEOUT_SECONDS,
             )
             self.connected = True
             self.status = ConnectionStatus.CONNECTED
 
             # Receive initial snapshot
-            await self._receive_snapshot()
+            await asyncio.wait_for(
+                self._receive_snapshot(),
+                timeout=self.INITIAL_SNAPSHOT_TIMEOUT_SECONDS,
+            )
 
             # Start message listener
             self._listen_task = asyncio.create_task(self._listen())
@@ -187,7 +196,17 @@ class WebSocketClient:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
             raise
+        except TimeoutError:
+            await self._close_after_failed_connect()
+            print(
+                "Warning: WebSocket connection timed out; events will be queued for batch sync.",
+                file=sys.stderr,
+            )
+            self.connected = False
+            self.status = ConnectionStatus.BATCH_MODE
+            raise
         except Exception as e:
+            await self._close_after_failed_connect()
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
             print(f"❌ Connection failed: {e}")
@@ -195,6 +214,7 @@ class WebSocketClient:
 
     async def disconnect(self):
         """Close WebSocket connection"""
+        had_ws = self.ws is not None
         if self._listen_task:
             self._listen_task.cancel()
             with suppress(asyncio.CancelledError):
@@ -202,11 +222,28 @@ class WebSocketClient:
             self._listen_task = None
 
         if self.ws:
-            await self.ws.close()
-            self.ws = None
-            self.connected = False
-            self.status = ConnectionStatus.OFFLINE
+            with suppress(Exception):
+                await asyncio.wait_for(
+                    self.ws.close(),
+                    timeout=self.CLOSE_TIMEOUT_SECONDS,
+                )
+        self.ws = None
+        self.connected = False
+        self.status = ConnectionStatus.OFFLINE
+        if had_ws:
             print("Disconnected from sync server")
+
+    async def _close_after_failed_connect(self) -> None:
+        """Best-effort cleanup when connect fails after a socket was opened."""
+        ws = self.ws
+        self.ws = None
+        if ws is None:
+            return
+        with suppress(Exception):
+            await asyncio.wait_for(
+                ws.close(),
+                timeout=self.CLOSE_TIMEOUT_SECONDS,
+            )
 
     async def reconnect(self) -> bool:
         """
