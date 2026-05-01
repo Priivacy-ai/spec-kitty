@@ -65,7 +65,7 @@ async def logout_impl(*, force: bool) -> None:
         # Try to revoke the refresh token server-side. Any failure is
         # reported to the user but does NOT block local cleanup below.
         try:
-            saas_url = get_saas_base_url()  # noqa: F841 — validates config
+            get_saas_base_url()
         except ConfigurationError as exc:
             console.print(
                 f"[yellow]! Cannot reach SaaS (config error): {exc}. "

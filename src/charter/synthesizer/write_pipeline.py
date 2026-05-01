@@ -50,6 +50,11 @@ from .request import SynthesisRequest
 from .staging import StagingDir
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version, canonical_yaml
 
+_KITTIFY_DIRNAME = ".kittify"
+_DOCTRINE_DIRNAME = "doctrine"
+_CHARTER_DIRNAME = "charter"
+_PROVENANCE_DIRNAME = "provenance"
+
 
 # ---------------------------------------------------------------------------
 # Typed staged-artifact entry (WP02 — Charter Contract Cleanup Tranche 1)
@@ -157,8 +162,8 @@ def compute_written_artifacts(
         filename = artifact_filename(kind, slug, artifact_id)
         live_path = (
             repo_root
-            / ".kittify"
-            / "doctrine"
+            / _KITTIFY_DIRNAME
+            / _DOCTRINE_DIRNAME
             / doctrine_kind_subdir(kind)
             / filename
         )
@@ -450,12 +455,12 @@ def promote(
     # Ensure destination directories exist.
     for kind_subdir in ("directives", "tactics", "styleguides"):
         guard.mkdir(
-            repo_root / ".kittify" / "doctrine" / kind_subdir,
+            repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / kind_subdir,
             caller="write_pipeline.promote[mkdir-doctrine]",
         )
 
     guard.mkdir(
-        repo_root / ".kittify" / "charter" / "provenance",
+        repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME / _PROVENANCE_DIRNAME,
         caller="write_pipeline.promote[mkdir-provenance]",
     )
 
@@ -474,12 +479,24 @@ def promote(
 
             # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
             staged_content = staging_dir.path_for_content(kind, filename)
-            live_content = repo_root / ".kittify" / "doctrine" / _doctrine_kind_subdir(kind) / filename
+            live_content = (
+                repo_root
+                / _KITTIFY_DIRNAME
+                / _DOCTRINE_DIRNAME
+                / _doctrine_kind_subdir(kind)
+                / filename
+            )
             guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
 
             # Provenance: staging → .kittify/charter/provenance/<kind>-<slug>.yaml
             staged_prov = staging_dir.path_for_provenance(kind, slug)
-            live_prov = repo_root / ".kittify" / "charter" / "provenance" / f"{kind}-{slug}.yaml"
+            live_prov = (
+                repo_root
+                / _KITTIFY_DIRNAME
+                / _CHARTER_DIRNAME
+                / _PROVENANCE_DIRNAME
+                / f"{kind}-{slug}.yaml"
+            )
             guard.replace(staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]")
 
             rel_content = str(live_content.relative_to(repo_root))
@@ -498,7 +515,7 @@ def promote(
         # Check for a staged DRG overlay graph and promote it
         staged_graph = staging_dir.root / "doctrine" / "graph.yaml"
         if staged_graph.exists():
-            live_graph = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+            live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / "graph.yaml"
             guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
 
     except Exception as exc:

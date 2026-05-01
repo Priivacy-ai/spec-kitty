@@ -680,9 +680,9 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
         table.add_column("Package version")
         for orphan in report.orphans:
             table.add_row(
-                str(orphan.pid) if orphan.pid is not None else "(unknown)",
+                str(orphan.pid) if orphan.pid is not None else UNKNOWN_DISPLAY,
                 str(orphan.port),
-                orphan.package_version or "(unknown)",
+                orphan.package_version or UNKNOWN_DISPLAY,
             )
         console.print(table)
     console.print()
@@ -778,6 +778,9 @@ def _finding_to_dict(finding: Finding) -> dict[str, Any]:
     return payload
 
 
+UNKNOWN_DISPLAY = "(unknown)"
+
+
 # ---------------------------------------------------------------------------
 # Orchestration entry point (T027)
 # ---------------------------------------------------------------------------
@@ -867,7 +870,7 @@ def doctor_impl(
     if server and server_status is not None:
         console.print("[bold]Server Session[/bold]")
         if server_status.active:
-            sid = server_status.session_id or "(unknown)"
+            sid = server_status.session_id or UNKNOWN_DISPLAY
             console.print(f"  Status:  [green]active[/green] (session: {sid})")
         else:
             reason = server_status.error or "unknown"

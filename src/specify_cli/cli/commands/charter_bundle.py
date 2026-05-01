@@ -42,6 +42,10 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+_KITTIFY_DIRNAME = ".kittify"
+_CHARTER_DIR = (_KITTIFY_DIRNAME, "charter")
+_PROVENANCE_DIR = (*_CHARTER_DIR, "provenance")
+
 
 @app.callback()
 def _bundle_callback() -> None:
@@ -84,7 +88,7 @@ def _enumerate_out_of_scope_files(
     ``references.yaml`` and ``context-state.json`` are preserved; all other
     undeclared files fall through to a generic warning.
     """
-    charter_dir = canonical_root / ".kittify" / "charter"
+    charter_dir = canonical_root.joinpath(*_CHARTER_DIR)
     if not charter_dir.is_dir():
         return [], []
 
@@ -259,7 +263,7 @@ def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
     """Return provenance validation errors for sidecars and manifest references."""
     yaml_loader = _YAML(typ="safe")
     sidecar_errors: list[str] = []
-    provenance_dir = canonical_root / ".kittify" / "charter" / "provenance"
+    provenance_dir = canonical_root.joinpath(*_PROVENANCE_DIR)
 
     if provenance_dir.exists():
         for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
@@ -278,7 +282,7 @@ def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
             except ValidationError as e:
                 sidecar_errors.append(f"{sidecar_path.name}: {e}")
 
-    manifest_path = canonical_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path = canonical_root.joinpath(*_CHARTER_DIR, "synthesis-manifest.yaml")
     if not manifest_path.exists():
         return sidecar_errors
 
@@ -336,7 +340,7 @@ def validate(
 
     # FR-009: Incompatible bundles fail validation, but --json still emits the
     # same parseable envelope as other public validation failures.
-    charter_dir = canonical_root / ".kittify" / "charter"
+    charter_dir = canonical_root.joinpath(*_CHARTER_DIR)
     compatibility_error: str | None = None
     if (charter_dir / "metadata.yaml").exists():
         compatibility_error = _bundle_compatibility_error(charter_dir)

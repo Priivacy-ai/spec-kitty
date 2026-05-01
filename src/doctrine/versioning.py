@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Callable
 
 from ruamel.yaml import YAML
 
@@ -190,6 +190,7 @@ def get_bundle_schema_version(charter_dir: Path) -> int | None:
 
 # Maps from_version → migration_function
 _MIGRATIONS: dict[int, Callable[[Path, bool], MigrationResult]] = {}
+PRE_PHASE7_MIGRATION_SENTINEL = "(pre-phase7-migration)"
 
 
 def _register_migration(
@@ -257,17 +258,17 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
                 continue  # Already migrated — skip (idempotent).
 
             # Add missing v2 fields using sentinel values where needed.
-            data.setdefault("synthesizer_version", "(pre-phase7-migration)")
-            data.setdefault("synthesis_run_id", "(pre-phase7-migration)")
+            data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
+            data.setdefault("synthesis_run_id", PRE_PHASE7_MIGRATION_SENTINEL)
 
             if "produced_at" not in data:
                 try:
                     mtime = sidecar_path.stat().st_mtime
                     data["produced_at"] = datetime.fromtimestamp(
-                        mtime, tz=timezone.utc
+                        mtime, tz=UTC
                     ).isoformat()
                 except OSError:
-                    data["produced_at"] = "(pre-phase7-migration)"
+                    data["produced_at"] = PRE_PHASE7_MIGRATION_SENTINEL
 
             if "source_input_ids" not in data:
                 data["source_input_ids"] = list(data.get("source_urns", []))
@@ -302,7 +303,7 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
             manifest_data = None
 
         if isinstance(manifest_data, dict) and manifest_data.get("schema_version") != "2":
-            manifest_data.setdefault("synthesizer_version", "(pre-phase7-migration)")
+            manifest_data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
 
             # Compute manifest_hash over all fields except manifest_hash itself.
             fields_for_hash = {
