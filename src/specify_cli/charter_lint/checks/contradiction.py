@@ -59,7 +59,7 @@ class ContradictionChecker:
 
         for node in getattr(drg, "nodes", []):
             kind = getattr(node, "kind", None)
-            kind_val = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+            kind_val = getattr(kind, "value", str(kind) if kind else "")
             if kind_val != "adr":
                 continue
 
@@ -120,7 +120,7 @@ class ContradictionChecker:
 
         for node in getattr(drg, "nodes", []):
             kind = getattr(node, "kind", None)
-            kind_val = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+            kind_val = getattr(kind, "value", str(kind) if kind else "")
             if kind_val != "glossary_scope":
                 continue
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.migration.backfill_identity import (
@@ -71,7 +72,7 @@ def _needs_derived_refresh(feature_dir: Path, derived_dir: Path) -> bool:
 def _load_meta_for_normalization(
     feature_dir: Path,
     result: NormalizeMissionLifecycleResult,
-) -> dict | None:
+) -> dict[str, Any] | None:
     try:
         meta = load_meta(feature_dir)
     except Exception as exc:  # noqa: BLE001 - keep one broken mission from aborting the run
@@ -87,11 +88,11 @@ def _load_meta_for_normalization(
 def _apply_identity_normalization(
     feature_dir: Path,
     repo_root: Path,
-    meta: dict,
+    meta: dict[str, Any],
     result: NormalizeMissionLifecycleResult,
     *,
     dry_run: bool,
-) -> tuple[dict, bool] | None:
+) -> tuple[dict[str, Any], bool] | None:
     refresh_derived = False
     try:
         backfill = backfill_mission(feature_dir, dry_run=dry_run)
@@ -122,7 +123,7 @@ def _apply_identity_normalization(
 
 def _normalize_event_log(
     feature_dir: Path,
-    meta: dict,
+    meta: dict[str, Any],
     result: NormalizeMissionLifecycleResult,
     *,
     dry_run: bool,

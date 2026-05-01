@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from .adapter import AdapterOutput, SynthesisAdapter
     from .request import SynthesisRequest
+    from .resynthesize_pipeline import ResynthesisResult
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +143,7 @@ def synthesize(
     results = _run_all(request, adapter=adapter)
 
     shipped_drg = _DRGGraph.model_validate(_shipped_drg_from_snapshot(request.drg_snapshot))
-    sections = _resolve_sections(request.interview_snapshot)
+    sections = _resolve_sections(dict(request.interview_snapshot))
     targets = _build_targets(
         interview_snapshot=dict(request.interview_snapshot),
         mappings=sections,
@@ -217,7 +218,7 @@ def resynthesize(
     request: SynthesisRequest,
     topic: str,
     adapter: SynthesisAdapter | None = None,
-) -> SynthesisResult:
+) -> SynthesisResult | ResynthesisResult:
     """Run bounded resynthesis for a single structured topic selector.
 
     Delegates to resynthesize_pipeline.run() (implemented in WP05).

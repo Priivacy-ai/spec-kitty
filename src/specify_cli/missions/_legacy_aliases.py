@@ -20,6 +20,7 @@ helper only owns the *declaration shape*, not the precedence logic.
 from __future__ import annotations
 
 import typer
+from typing import cast
 
 __all__ = ["LEGACY_FEATURE_HELP", "hidden_feature_option"]
 
@@ -40,9 +41,9 @@ def hidden_feature_option(
     in ``--help`` output. Help text defaults to the canonical deprecation
     message; callers may override it for command-specific phrasing.
     """
-    return typer.Option(
+    return cast(typer.models.OptionInfo, typer.Option(
         None,
         "--feature",
         hidden=True,
         help=help_text,
-    )
+    ))

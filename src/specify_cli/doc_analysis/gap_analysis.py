@@ -108,7 +108,8 @@ def parse_frontmatter(content: str) -> dict[str, Any] | None:
     yaml.preserve_quotes = True
     try:
         frontmatter_text = "\n".join(lines[1:end_idx])
-        return yaml.load(frontmatter_text)
+        parsed = yaml.load(frontmatter_text)
+        return parsed if isinstance(parsed, dict) else None
     except Exception:
         return None
 
@@ -791,10 +792,13 @@ def analyze_documentation_gaps(docs_dir: Path, project_root: Path | None = None)
     gap_tuples = coverage_matrix.get_gaps()
 
     # Prioritize gaps
-    prioritized_gaps = prioritize_gaps(gap_tuples, project_areas, classified)
+    classified_by_type = {
+        path: divio_type for path, (divio_type, _confidence) in classified.items()
+    }
+    prioritized_gaps = prioritize_gaps(gap_tuples, project_areas, classified_by_type)
 
     # Detect version mismatches (Python only for now)
-    outdated = []
+    outdated: list[Any] = []
     # TODO: Implement version mismatch detection (T038)
 
     return GapAnalysis(

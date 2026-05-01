@@ -594,7 +594,9 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     if healthy and token:
         healthy = data.get("token") == token
 
-    sync_data: dict[str, object] = data.get("sync") if isinstance(data.get("sync"), dict) else {}
+    raw_sync_data = data.get("sync")
+    sync_data: dict[str, object] = raw_sync_data if isinstance(raw_sync_data, dict) else {}
+    raw_consecutive_failures = sync_data.get("consecutive_failures")
     websocket_status = str(data.get("websocket_status") or "Offline")
     return SyncDaemonStatus(
         healthy=healthy,
@@ -604,7 +606,11 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
         pid=pid,
         sync_running=bool(sync_data.get("running")),
         last_sync=str(sync_data.get("last_sync")) if sync_data.get("last_sync") else None,
-        consecutive_failures=int(sync_data.get("consecutive_failures") or 0),
+        consecutive_failures=(
+            int(raw_consecutive_failures)
+            if isinstance(raw_consecutive_failures, (str, bytes, int))
+            else 0
+        ),
         websocket_status=websocket_status,
         protocol_version=data.get("protocol_version"),
         package_version=data.get("package_version"),

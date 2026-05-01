@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from specify_cli.glossary.semantic_events import iter_semantic_conflicts
 
@@ -62,7 +63,7 @@ def _count_orphaned_terms(project_dir: Path) -> int:
         return 0
 
 
-def _collect_all_senses(repo_root: Path) -> list:
+def _collect_all_senses(repo_root: Path) -> list[Any]:
     """Load all TermSense objects from seed files across all scopes.
 
     Returns a flat list of TermSense objects, or an empty list on any error.
@@ -93,6 +94,8 @@ class GlossaryHandler(DashboardHandler):
         self.end_headers()
 
         try:
+            if self.project_dir is None:
+                raise RuntimeError("dashboard project_dir is not configured")
             project_dir = Path(self.project_dir)
             senses = _collect_all_senses(project_dir)
 
@@ -147,6 +150,8 @@ class GlossaryHandler(DashboardHandler):
         self.end_headers()
 
         try:
+            if self.project_dir is None:
+                raise RuntimeError("dashboard project_dir is not configured")
             senses = _collect_all_senses(Path(self.project_dir))
             records: list[GlossaryTermRecord] = [
                 {

@@ -206,8 +206,8 @@ def detect_conflicts(proposals: list[Proposal]) -> list[ConflictGroup]:
     #   same key, different definition_hash
     # ------------------------------------------------------------------
     upd_gloss_by_key: dict[str, list[tuple[str, str]]] = {}
-    for pid, pay in update_glossary:
-        upd_gloss_by_key.setdefault(pay.term_key, []).append((pid, pay.definition_hash))
+    for pid, update_payload in update_glossary:
+        upd_gloss_by_key.setdefault(update_payload.term_key, []).append((pid, update_payload.definition_hash))
 
     for term_key, entries in upd_gloss_by_key.items():
         if len(entries) > 1:

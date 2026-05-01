@@ -524,7 +524,7 @@ def _resolve_tracker_config_for_origin(
 def _resolve_origin_resource_context(
     *,
     provider: str,
-    tracker_config,
+    tracker_config: TrackerProjectConfig,
     resource_type: str | None,
     resource_id: str | None,
 ) -> tuple[str, str]:

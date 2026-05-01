@@ -45,7 +45,7 @@ def load_max_brief_bytes(repo_root: Path) -> int:
     if not config_path.is_file():
         return DEFAULT_MAX_BRIEF_BYTES
     try:
-        import yaml  # type: ignore[import-untyped]
+        import yaml
 
         data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except Exception:  # noqa: BLE001 — config errors fall back to default
@@ -56,8 +56,10 @@ def load_max_brief_bytes(repo_root: Path) -> int:
     if not isinstance(intake_section, dict):
         return DEFAULT_MAX_BRIEF_BYTES
     raw = intake_section.get("max_brief_bytes")
+    if not isinstance(raw, str | int | float):
+        return DEFAULT_MAX_BRIEF_BYTES
     try:
-        value = int(raw)  # type: ignore[arg-type]
+        value = int(raw)
     except (TypeError, ValueError):
         return DEFAULT_MAX_BRIEF_BYTES
     if value <= 0:
@@ -71,7 +73,7 @@ def load_allow_cross_fs(repo_root: Path) -> bool:
     if not config_path.is_file():
         return False
     try:
-        import yaml  # type: ignore[import-untyped]
+        import yaml
 
         data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except Exception:  # noqa: BLE001
@@ -230,7 +232,8 @@ def read_stdin_capped(
     if len(buf) > cap:
         raise IntakeTooLargeError(path=label, size=len(buf), cap=cap)
     try:
-        return buf.decode("utf-8")
+        decoded = buf.decode("utf-8")
+        return str(decoded)
     except UnicodeDecodeError as exc:
         raise IntakeFileUnreadableError(path=label, cause=exc) from exc
 

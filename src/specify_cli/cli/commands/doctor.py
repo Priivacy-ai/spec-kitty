@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from rich.console import Console
@@ -625,10 +625,10 @@ def sparse_checkout(
     raise typer.Exit(0 if rep.overall_success and not any_failure else 1)
 
 
-def _print_overdue_details(report: object, console: Console) -> None:
+def _print_overdue_details(report: Any, console: Console) -> None:
     console.print()
     console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
-    for e in report.entries:  # type: ignore[union-attr]
+    for e in report.entries:
         if e.status.value == "overdue":
             canonical = (
                 ", ".join(e.entry.canonical_import)

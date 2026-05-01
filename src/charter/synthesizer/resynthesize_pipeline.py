@@ -542,15 +542,15 @@ def _load_merged_drg(
 
     project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
     if not project_graph_path.exists():
-        return request.drg_snapshot  # type: ignore[no-any-return]
+        return request.drg_snapshot
 
     yaml = YAML()
     try:
         project_graph = yaml.load(project_graph_path.read_text(encoding="utf-8"))
         if not isinstance(project_graph, dict):
-            return request.drg_snapshot  # type: ignore[no-any-return]
+            return request.drg_snapshot
     except Exception:  # noqa: BLE001
-        return request.drg_snapshot  # type: ignore[no-any-return]
+        return request.drg_snapshot
 
     # Merge: combine nodes from both graphs (project overlay + shipped snapshot)
     shipped_nodes = list(request.drg_snapshot.get("nodes", []))

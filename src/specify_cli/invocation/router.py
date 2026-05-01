@@ -266,7 +266,7 @@ class ActionRouter:
                 candidates.append({
                     "profile_id": p.profile_id,
                     "action": action,
-                    "match_reason": f"token '{token}' matched {role.value} canonical verb",
+                    "match_reason": f"token '{token}' matched {getattr(role, 'value', str(role))} canonical verb",
                     "_confidence": "canonical_verb",
                 })
 

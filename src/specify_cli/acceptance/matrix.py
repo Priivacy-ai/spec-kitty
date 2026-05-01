@@ -117,7 +117,11 @@ def write_acceptance_matrix(feature_dir: Path, matrix: AcceptanceMatrix) -> Path
     if (feature_dir / "meta.json").exists():
         identity = resolve_mission_identity(feature_dir)
         matrix.mission_slug = identity.mission_slug
-        matrix.mission_number = identity.mission_number
+        matrix.mission_number = (
+            str(identity.mission_number)
+            if identity.mission_number is not None
+            else None
+        )
         matrix.mission_type = identity.mission_type
     path = feature_dir / MATRIX_FILENAME
     path.write_text(

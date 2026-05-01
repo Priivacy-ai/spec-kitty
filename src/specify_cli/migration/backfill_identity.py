@@ -168,7 +168,7 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
             raise ValueError(
                 f"Cannot coerce mission_number {raw_number!r} in {slug}: {exc}"
             ) from exc
-        if coerced != raw_number:
+        if coerced is not None:
             meta["mission_number"] = coerced
             number_coerced = True
             changed = True

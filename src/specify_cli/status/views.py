@@ -41,7 +41,11 @@ def generate_status_view(feature_dir: Path) -> dict[str, Any]:
     events = read_events(feature_dir)
     snapshot = reduce(events)
     identity = resolve_mission_identity(feature_dir)
-    snapshot.mission_number = identity.mission_number
+    snapshot.mission_number = (
+        str(identity.mission_number)
+        if identity.mission_number is not None
+        else None
+    )
     snapshot.mission_type = identity.mission_type
     return snapshot.to_dict()
 
@@ -164,7 +168,11 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     # Return snapshot without writing (T002 covers any write needed by derived views)
     snapshot = reduce(read_events(feature_dir))
     identity = resolve_mission_identity(feature_dir)
-    snapshot.mission_number = identity.mission_number
+    snapshot.mission_number = (
+        str(identity.mission_number)
+        if identity.mission_number is not None
+        else None
+    )
     snapshot.mission_type = identity.mission_type
     return snapshot
 

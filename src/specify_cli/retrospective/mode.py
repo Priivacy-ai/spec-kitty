@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from pathlib import Path
+from types import ModuleType
 from typing import Literal, cast
 
 from ruamel.yaml import YAML as _YAML
@@ -20,10 +21,13 @@ from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 # Optional psutil — import lazily so a missing psutil does not crash the module.
 # ---------------------------------------------------------------------------
 
+psutil: ModuleType | None
 try:
-    import psutil  # type: ignore[import-untyped]
+    import psutil as _psutil
 except ImportError:
     psutil = None
+else:
+    psutil = _psutil
 
 # ---------------------------------------------------------------------------
 # Public constants

@@ -9,6 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.legacy_detector import is_legacy_format
@@ -62,7 +63,7 @@ def find_repo_root(start: Path | None = None) -> Path:
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
 
-def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
     """Run a git command inside the repository."""
     try:
         return subprocess.run(
@@ -80,7 +81,12 @@ def run_git(args: list[str], cwd: Path, check: bool = True) -> subprocess.Comple
         if check:
             message = exc.stderr.strip() or exc.stdout.strip() or "Unknown git error"
             raise TaskCliError(message) from exc
-        return exc
+        return subprocess.CompletedProcess(
+            args=exc.cmd,
+            returncode=exc.returncode,
+            stdout=exc.stdout,
+            stderr=exc.stderr,
+        )
 
 
 def ensure_lane(value: str) -> str:
@@ -125,7 +131,7 @@ def detect_conflicting_wp_status(status_lines: list[str], feature: str, old_path
     return conflicts
 
 
-def match_frontmatter_line(frontmatter: str, key: str) -> re.Match | None:
+def match_frontmatter_line(frontmatter: str, key: str) -> re.Match[str] | None:
     pattern = re.compile(
         rf"^({re.escape(key)}:\s*)(\".*?\"|'.*?'|[^#\n]*)(.*)$",
         flags=re.MULTILINE,
@@ -352,10 +358,11 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     )
 
 
-def load_meta(meta_path: Path) -> dict:
+def load_meta(meta_path: Path) -> dict[str, Any]:
     if not meta_path.exists():
         raise TaskCliError(f"Meta file not found at {meta_path}")
-    return json.loads(meta_path.read_text(encoding="utf-8-sig"))
+    data = json.loads(meta_path.read_text(encoding="utf-8-sig"))
+    return cast(dict[str, Any], data) if isinstance(data, dict) else {}
 
 
 def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:  # noqa: ARG001

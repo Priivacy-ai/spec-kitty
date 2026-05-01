@@ -175,8 +175,8 @@ def _resolve_wp_id(
                 candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
                 if not candidate_wp_id:
                     continue
-                lane = get_wp_lane(feature_dir, candidate_wp_id)
-                if lane == Lane.FOR_REVIEW:
+                candidate_lane = get_wp_lane(feature_dir, candidate_wp_id)
+                if candidate_lane == Lane.FOR_REVIEW:
                     return candidate_wp_id
 
             for wp_file in sorted(tasks_dir.glob("WP*.md")):
@@ -185,8 +185,8 @@ def _resolve_wp_id(
                 candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
                 if not candidate_wp_id:
                     continue
-                lane = get_wp_lane(feature_dir, candidate_wp_id)
-                if lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW) and _is_review_claimed(candidate_wp_id):
+                candidate_lane = get_wp_lane(feature_dir, candidate_wp_id)
+                if candidate_lane in (Lane.IN_PROGRESS, Lane.IN_REVIEW) and _is_review_claimed(candidate_wp_id):
                     return candidate_wp_id
         except CanonicalStatusNotFoundError as exc:
             raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc

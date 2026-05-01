@@ -105,7 +105,7 @@ class LintEngine:
 
         for check_name in sorted(active_checks):
             checker_cls = _CHECK_MAP[check_name]
-            kwargs: dict = {}
+            kwargs: dict[str, object] = {}
             if check_name == "staleness":
                 kwargs["staleness_threshold_days"] = self._staleness_days
             checker = checker_cls(**kwargs)

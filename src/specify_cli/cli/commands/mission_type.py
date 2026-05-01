@@ -210,7 +210,8 @@ def current_cmd(
     if mission is None and feature is None:
         # Neither flag was explicitly provided — use auto-detected mission as-is.
         # (We already exited above when detected_mission was also None.)
-        mission_slug = detected_mission  # type: ignore[assignment]
+        assert detected_mission is not None
+        mission_slug = detected_mission
     else:
         try:
             resolved = resolve_selector(
@@ -232,7 +233,7 @@ def current_cmd(
             console.print(f"[red]Mission not found:[/red] {mission_slug}")
             raise typer.Exit(1)
 
-        mission = get_mission_for_feature(feature_dir, project_root)
+        loaded_mission = get_mission_for_feature(feature_dir, project_root)
         context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:
@@ -243,7 +244,7 @@ def current_cmd(
         raise typer.Exit(1) from exc
 
     panel = Panel(
-        "\n".join(_mission_details_lines(mission)),
+        "\n".join(_mission_details_lines(loaded_mission)),
         title=f"Active Mission ({context})",
         border_style="cyan",
     )

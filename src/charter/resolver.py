@@ -19,6 +19,7 @@ from charter.sync import (
 )
 
 if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
     from doctrine.service import DoctrineService
     from charter.interview import CharterInterview
 
@@ -197,7 +198,7 @@ def resolve_governance_for_profile(
     doctrine_service: DoctrineService,
     interview: CharterInterview,
     *,
-    graph: object | None = None,
+    graph: DRGGraph | None = None,
     repo_root: Path | None = None,
 ) -> GovernanceResolution:
     """Resolve governance selections for a specific agent profile."""

@@ -97,9 +97,7 @@ class StalenessChecker:
         """Flag synthesized nodes whose timestamp is beyond the threshold."""
         urn: str = getattr(node, "urn", "") or ""
         kind = getattr(node, "kind", None)
-        kind_val: str = (
-            kind.value if hasattr(kind, "value") else str(kind) if kind else ""
-        )
+        kind_val: str = getattr(kind, "value", str(kind) if kind else "")
 
         # Only check node kinds that are likely synthesized artifacts
         if kind_val not in {
@@ -145,9 +143,7 @@ class StalenessChecker:
     ) -> list[LintFinding]:
         """Flag agent_profile nodes that reference non-existent context-source URNs."""
         kind = getattr(node, "kind", None)
-        kind_val: str = (
-            kind.value if hasattr(kind, "value") else str(kind) if kind else ""
-        )
+        kind_val: str = getattr(kind, "value", str(kind) if kind else "")
         if kind_val != "agent_profile":
             return []
 

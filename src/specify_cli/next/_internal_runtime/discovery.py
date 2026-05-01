@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 from specify_cli.next._internal_runtime.schema import (

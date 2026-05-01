@@ -29,8 +29,8 @@ def load_merged_drg(repo_root: Path) -> Any | None:
         graph.yaml > merged_drg.json > drg.json > compiled_drg.json
     """
     try:
-        from doctrine.drg.models import DRGGraph  # type: ignore[import]
-        from ruamel.yaml import YAML  # type: ignore[import]
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
 
         drg_dir = repo_root / ".kittify" / "doctrine"
         candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
@@ -61,7 +61,7 @@ def get_nodes_by_kind(drg: Any, kind_str: str) -> list[Any]:
     result: list[Any] = []
     for node in getattr(drg, "nodes", []):
         kind = getattr(node, "kind", None)
-        kind_val = kind.value if hasattr(kind, "value") else str(kind) if kind else ""
+        kind_val = getattr(kind, "value", str(kind) if kind else "")
         if kind_val == kind_str:
             result.append(node)
     return result
@@ -81,9 +81,7 @@ def get_incoming_edges(drg: Any, node_urn: str, relation_strs: set[str]) -> list
         if target != node_urn:
             continue
         relation = getattr(edge, "relation", None)
-        relation_val = (
-            relation.value if hasattr(relation, "value") else str(relation) if relation else ""
-        )
+        relation_val = getattr(relation, "value", str(relation) if relation else "")
         if relation_val in relation_strs:
             result.append(edge)
     return result

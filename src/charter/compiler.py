@@ -119,7 +119,7 @@ def compile_charter(
 
     # Validate and normalize local support file declarations.
     valid_local, local_errors = validate_local_support_declarations(
-        list(interview.local_supporting_files)
+        list(interview.local_supporting_files or [])
     )
     diagnostics.extend(local_errors)
 
@@ -669,7 +669,11 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
     config = repo.get_mission_config(mission)
     mission_path = repo._mission_config_path(mission) or (doctrine_root / "missions" / mission / "mission.yaml")
     raw_parsed = config.parsed if config is not None else {"name": mission}
-    source: dict[str, object] = raw_parsed if isinstance(raw_parsed, dict) else {"name": mission}
+    source: dict[str, object] = (
+        {str(key): value for key, value in raw_parsed.items()}
+        if isinstance(raw_parsed, dict)
+        else {"name": mission}
+    )
 
     summary = str(source.get("description") or f"Mission template set for {mission}.")
     content = (
