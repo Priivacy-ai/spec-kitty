@@ -751,6 +751,44 @@ def test_doctor_impl_server_true_renders_active(
     assert exit_code == 0
 
 
+def test_doctor_impl_server_true_renders_unknown_session_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = _make_session(
+        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+
+    fake_status = ServerSessionStatus(active=True, session_id=None)
+
+    import asyncio
+
+    def _fake_run(coro):  # type: ignore[no-untyped-def]
+        coro.close()
+        return fake_status
+
+    monkeypatch.setattr(asyncio, "run", _fake_run)
+
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        _auth_doctor,
+        "console",
+        Console(file=buf, width=120, record=False, force_terminal=False),
+    )
+
+    exit_code = doctor_impl(
+        json_output=False,
+        reset=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=True,
+    )
+
+    output = buf.getvalue()
+    assert "(unknown)" in output
+    assert exit_code == 0
+
+
 def test_doctor_impl_server_true_renders_reauthenticate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -26,6 +26,12 @@ from specify_cli.task_utils import extract_scalar, split_frontmatter
 console = Console()
 
 
+def _review_cycle_number(path: Path) -> int:
+    """Return the numeric review-cycle suffix for sorting review artifacts."""
+    match = re.search(r"review-cycle-(\d+)\.md", path.name)
+    return int(match.group(1)) if match else 0
+
+
 def _get_wp_review_verdict(wp_dir: Path) -> str | None:
     """Return the verdict from the latest review-cycle-N.md in wp_dir, or None.
 
@@ -35,7 +41,7 @@ def _get_wp_review_verdict(wp_dir: Path) -> str | None:
     """
     cycles = sorted(
         wp_dir.glob("review-cycle-*.md"),
-        key=lambda p: int(m.group(1)) if (m := re.search(r"review-cycle-(\d+)\.md", p.name)) else 0,
+        key=_review_cycle_number,
     )
     if not cycles:
         return None

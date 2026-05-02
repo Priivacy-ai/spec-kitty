@@ -19,6 +19,51 @@ from doctrine.versioning import (
 )
 
 
+def _write_v1_bundle(bundle_root: Path) -> Path:
+    provenance_dir = bundle_root / "provenance"
+    provenance_dir.mkdir(parents=True, exist_ok=True)
+    (bundle_root / "metadata.yaml").write_text(
+        "timestamp_utc: 2026-01-01T00:00:00Z\n",
+        encoding="utf-8",
+    )
+    (provenance_dir / "directive-use-prs.yaml").write_text(
+        "\n".join(
+            [
+                "schema_version: '1'",
+                "artifact_urn: drg:directive:directive-use-prs",
+                "artifact_kind: directive",
+                "artifact_slug: directive-use-prs",
+                f"artifact_content_hash: {'a' * 64}",
+                f"inputs_hash: {'b' * 64}",
+                "adapter_id: fixture",
+                "adapter_version: 1.0.0",
+                "generated_at: '2026-01-01T00:00:00Z'",
+                "source_section: review_policy",
+                "source_urns:",
+                "  - drg:directive:DIR-001",
+                "corpus_snapshot_id: null",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (bundle_root / "synthesis-manifest.yaml").write_text(
+        "\n".join(
+            [
+                "schema_version: '1'",
+                "created_at: '2026-01-01T00:00:00Z'",
+                "run_id: '01TEST000000000000000000001'",
+                "adapter_id: fixture",
+                "adapter_version: 1.0.0",
+                "artifacts: []",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return provenance_dir / "directive-use-prs.yaml"
+
+
 # ---------------------------------------------------------------------------
 # Constants sanity check
 # ---------------------------------------------------------------------------
@@ -268,6 +313,44 @@ def test_run_migration_v1_returns_migration_result(tmp_path: Path) -> None:
     assert result.to_version == 2
     assert result.errors == []
     assert any("metadata.yaml" in change for change in result.changes_made)
+
+
+def test_run_migration_v1_backfills_manifest_and_sidecar_fields(tmp_path: Path) -> None:
+    _write_v1_bundle(tmp_path)
+
+    result = run_migration(1, tmp_path)
+
+    assert result.errors == []
+    manifest = (tmp_path / "synthesis-manifest.yaml").read_text(encoding="utf-8")
+    sidecar = (tmp_path / "provenance" / "directive-use-prs.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "synthesizer_version: (pre-phase7-migration)" in manifest
+    assert "synthesizer_version: (pre-phase7-migration)" in sidecar
+    assert "synthesis_run_id: (pre-phase7-migration)" in sidecar
+    assert "source_input_ids:" in sidecar
+
+
+def test_run_migration_v1_uses_sentinel_when_sidecar_stat_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target_sidecar = _write_v1_bundle(tmp_path)
+    original_stat = Path.stat
+
+    def _patched_stat(path: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if path == target_sidecar:
+            raise OSError("stat blocked for test")
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", _patched_stat)
+
+    result = run_migration(1, tmp_path)
+
+    assert result.errors == []
+    sidecar = (tmp_path / "provenance" / "directive-use-prs.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "produced_at: (pre-phase7-migration)" in sidecar
 
 
 # ---------------------------------------------------------------------------

@@ -262,6 +262,24 @@ def test_validate_reports_out_of_scope_files_as_warnings(
     assert len(payload["warnings"]) >= 2
 
 
+def test_enumerate_out_of_scope_files_without_charter_dir_returns_empty(
+    tmp_path: Path,
+) -> None:
+    out_of_scope, warnings = charter_bundle._enumerate_out_of_scope_files(  # type: ignore[attr-defined]
+        tmp_path,
+        charter_bundle.CANONICAL_MANIFEST,
+    )
+    assert out_of_scope == []
+    assert warnings == []
+
+
+def test_collect_provenance_validation_errors_without_manifest_returns_empty(
+    tmp_path: Path,
+) -> None:
+    errors = charter_bundle._collect_provenance_validation_errors(tmp_path)  # type: ignore[attr-defined]
+    assert errors == []
+
+
 def test_validate_fails_on_missing_tracked_file(compliant_repo: Path) -> None:
     (compliant_repo / _TRACKED).unlink()
     result = _invoke_validate_json()
@@ -616,6 +634,20 @@ def test_validate_passes_complete_v2_bundle(compliant_repo: Path) -> None:
     assert ss["passed"] is True
     assert ss["errors"] == []
     assert payload["errors"] == []
+
+
+def test_validate_reports_provenance_yaml_parse_error(
+    compliant_repo: Path,
+) -> None:
+    sidecar = compliant_repo / ".kittify" / "charter" / "provenance" / "broken.yaml"
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    sidecar.write_text(":\n", encoding="utf-8")
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert any("broken.yaml" in error for error in payload["errors"])
 
 
 # ---------------------------------------------------------------------------

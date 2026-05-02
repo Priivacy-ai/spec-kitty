@@ -26,6 +26,7 @@ from charter.sync import ensure_charter_bundle_fresh
 from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
 
 logger = logging.getLogger(__name__)
+METADATA_FILENAME = "metadata.yaml"
 
 app = typer.Typer(
     name="charter",
@@ -133,7 +134,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         )
         charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
-        metadata_path = output_dir / "metadata.yaml"
+        metadata_path = output_dir / METADATA_FILENAME
 
         stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
 
@@ -141,7 +142,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         for filename in [
             "governance.yaml",
             "directives.yaml",
-            "metadata.yaml",
+            METADATA_FILENAME,
             "references.yaml",
         ]:
             file_path = output_dir / filename
@@ -1539,7 +1540,7 @@ def status(  # noqa: C901
     try:
         repo_root = find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
-        if (charter_dir / "metadata.yaml").exists():
+        if (charter_dir / METADATA_FILENAME).exists():
             _assert_bundle_compatible(charter_dir)
         payload: dict[str, Any] = {
             "result": "success",
@@ -2740,7 +2741,7 @@ def charter_resynthesize(  # noqa: C901
     try:
         repo_root = find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
-        if (charter_dir / "metadata.yaml").exists():
+        if (charter_dir / METADATA_FILENAME).exists():
             _assert_bundle_compatible(charter_dir)
         evidence_result = _collect_evidence_result(
             repo_root,

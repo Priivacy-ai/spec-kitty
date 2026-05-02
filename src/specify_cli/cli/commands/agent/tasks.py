@@ -114,6 +114,12 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 )
 
 
+def _review_cycle_number(path: Path) -> int:
+    """Return the numeric review-cycle suffix for sorting review artifacts."""
+    match = re.search(r"review-cycle-(\d+)\.md", path.name)
+    return int(match.group(1)) if match else 0
+
+
 def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
     """Return (verdict_value, artifact_path) for the latest review-cycle-N.md.
 
@@ -130,7 +136,7 @@ def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | N
     """
     cycles = sorted(
         wp_dir.glob("review-cycle-*.md"),
-        key=lambda p: int(m.group(1)) if (m := re.search(r"review-cycle-(\d+)\.md", p.name)) else 0,
+        key=_review_cycle_number,
     )
     if not cycles:
         return None, None
