@@ -266,3 +266,50 @@ def _make_mock_resolved(feature_dir: Path) -> object:
         feature_dir=feature_dir,
         mid8=_MISSION_ID[:8],
     )
+
+
+def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done"},
+        baseline_merge_commit="abc123",
+    )
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    from types import SimpleNamespace
+
+    def _fake_run(cmd, cwd=None, capture_output=False, text=False):  # type: ignore[no-untyped-def]
+        if cmd[:2] == ["git", "diff"]:
+            return SimpleNamespace(
+                stdout="+++ b/src/pkg/example.py\n+def PublicSymbol():\n",
+                returncode=0,
+            )
+        if cmd[:3] == ["grep", "-r", "--include=*.py"]:
+            return SimpleNamespace(stdout="", returncode=1)
+        if cmd[:2] == ["grep", "-rn"]:
+            return SimpleNamespace(stdout="", returncode=1)
+        raise AssertionError(f"unexpected command: {cmd!r}")
+
+    monkeypatch.setattr("specify_cli.cli.commands.review.subprocess.run", _fake_run)
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG])
+
+    assert result.exit_code == 0, result.output
+    report_path = feature_dir / "mission-review-report.md"
+    content = report_path.read_text(encoding="utf-8")
+    assert "verdict: pass_with_notes" in content
+    assert "dead_code" in content
