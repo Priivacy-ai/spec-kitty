@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAQ0",
+  "mission_slug": "034-mission-alpha",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

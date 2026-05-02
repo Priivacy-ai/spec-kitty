@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import typer
 from rich.console import Console
@@ -625,10 +625,10 @@ def sparse_checkout(
     raise typer.Exit(0 if rep.overall_success and not any_failure else 1)
 
 
-def _print_overdue_details(report: Any, console: Console) -> None:
+def _print_overdue_details(report: object, console: Console) -> None:
     console.print()
     console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
-    for e in report.entries:
+    for e in report.entries:  # type: ignore[union-attr]
         if e.status.value == "overdue":
             canonical = (
                 ", ".join(e.entry.canonical_import)
@@ -849,3 +849,140 @@ def invocation_pairing(
     )
     console.print()
     raise typer.Exit(1)
+
+
+def _print_rich_audit_report(report: object) -> None:
+    """Print a Rich table summarising audit findings per mission."""
+    from specify_cli.audit import RepoAuditReport
+
+    assert isinstance(report, RepoAuditReport)
+
+    missions_with_findings = [r for r in report.missions if r.findings]
+
+    if not missions_with_findings:
+        console.print("[green]No findings — all missions are clean.[/green]")
+        return
+
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("Mission", style="cyan", min_width=28)
+    table.add_column("Errors", justify="right", min_width=7)
+    table.add_column("Warnings", justify="right", min_width=9)
+    table.add_column("Info", justify="right", min_width=6)
+    table.add_column("Codes")
+
+    for result in missions_with_findings:
+        from specify_cli.audit.models import Severity
+
+        errors = sum(1 for f in result.findings if f.severity == Severity.ERROR)
+        warnings = sum(1 for f in result.findings if f.severity == Severity.WARNING)
+        infos = sum(1 for f in result.findings if f.severity == Severity.INFO)
+        codes = ", ".join(sorted({f.code for f in result.findings}))
+
+        err_str = f"[red]{errors}[/red]" if errors else str(errors)
+        warn_str = f"[yellow]{warnings}[/yellow]" if warnings else str(warnings)
+        table.add_row(result.mission_slug, err_str, warn_str, str(infos), codes)
+
+    console.print(table)
+    console.print()
+
+    summary = report.repo_summary
+    console.print(
+        f"Total missions: {summary['total_missions']} | "
+        f"With errors: {summary['missions_with_errors']} | "
+        f"With warnings: {summary['missions_with_warnings']}"
+    )
+
+
+@app.command(name="mission-state")
+def mission_state(
+    audit: Annotated[
+        bool,
+        typer.Option("--audit", help="Run mission-state audit (required to proceed)"),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit JSON report to stdout"),
+    ] = False,
+    mission: Annotated[
+        Optional[str],
+        typer.Option("--mission", help="Scope to a single mission handle"),
+    ] = None,
+    fail_on: Annotated[
+        Optional[str],
+        typer.Option("--fail-on", help="Exit 1 if any finding meets this severity (error|warning|info)"),
+    ] = None,
+    fixture_dir: Annotated[
+        Optional[Path],
+        typer.Option("--fixture-dir", help="Override scan root (for testing)"),
+    ] = None,
+) -> None:
+    """Audit mission-state shapes across kitty-specs/."""
+    from specify_cli.audit import AuditOptions, Severity, build_report_json, run_audit
+
+    if not audit:
+        typer.echo("Use --audit to run the audit. See --help for options.")
+        raise typer.Exit(0)
+
+    # Validate --fail-on
+    fail_on_severity: Optional[Severity] = None
+    if fail_on is not None:
+        try:
+            fail_on_severity = Severity(fail_on)
+        except ValueError:
+            valid = ", ".join(s.value for s in Severity)
+            typer.echo(f"Invalid --fail-on value: {fail_on!r}. Valid values: {valid}", err=True)
+            raise typer.Exit(2)
+
+    # Resolve repo root
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+
+    if repo_root is None:
+        if fixture_dir is None:
+            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            raise typer.Exit(1)
+        repo_root = fixture_dir.parent
+
+    from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError
+
+    options = AuditOptions(
+        repo_root=repo_root,
+        scan_root=fixture_dir,
+        mission_filter=mission,
+        fail_on=fail_on_severity,
+    )
+    try:
+        report = run_audit(options)
+    except MissionNotFoundError as exc:
+        if json_output:
+            import json as _json
+            sys.stdout.write(_json.dumps({"error": "MISSION_NOT_FOUND", "handle": mission}) + "\n")
+            sys.stdout.flush()
+        else:
+            typer.echo(f"Error: Mission not found: {mission!r}", err=True)
+        raise typer.Exit(1) from exc
+    except AmbiguousHandleError as exc:
+        if json_output:
+            import json as _json
+            sys.stdout.write(_json.dumps({"error": "AMBIGUOUS_HANDLE", "handle": mission}) + "\n")
+            sys.stdout.flush()
+        else:
+            typer.echo(f"Error: Ambiguous handle: {mission!r}", err=True)
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        sys.stdout.write(build_report_json(report))
+        sys.stdout.flush()
+    else:
+        _print_rich_audit_report(report)
+
+    if fail_on_severity is not None:
+        if any(
+            f.severity <= fail_on_severity
+            for result in report.missions
+            for f in result.findings
+        ):
+            raise typer.Exit(1)

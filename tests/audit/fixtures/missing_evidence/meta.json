@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAN0",
+  "mission_slug": "missing-evidence",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

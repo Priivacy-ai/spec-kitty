@@ -1,0 +1,1 @@
+{"actor":"claude","at":"2026-01-01T00:00:00+00:00","event_id":"01JAAAAAAAAAAAAAAAAAAAAAE0","evidence":null,"execution_mode":"direct_repo","force":false,"from_lane":"planned","legacy_aggregate_id":"some-old-id","mission_slug":"legacy-agg","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}

@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAM0",
+  "mission_slug": "actor-drift",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

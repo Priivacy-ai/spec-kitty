@@ -1,0 +1,8 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAF0",
+  "mission_slug": "legacy-mission-key",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git",
+  "mission_key": "OLD-KEY-123"
+}

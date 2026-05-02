@@ -1,0 +1,28 @@
+{
+  "event_count": 999,
+  "last_event_id": "01JAAAAAAAAAAAAAAAAAAAAALE",
+  "materialized_at": "2026-01-01T00:00:00+00:00",
+  "mission_number": "",
+  "mission_slug": "snapshot-drift",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 1,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "01JAAAAAAAAAAAAAAAAAAAAALE",
+      "last_transition_at": "2026-01-01T00:00:00+00:00"
+    }
+  }
+}

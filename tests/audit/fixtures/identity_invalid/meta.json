@@ -1,0 +1,6 @@
+{
+  "mission_id": "NOT-A-VALID-ULID",
+  "mission_slug": "identity-invalid",
+  "mission_type": "software-dev",
+  "target_branch": "main"
+}
