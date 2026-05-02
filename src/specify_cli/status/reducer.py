@@ -248,7 +248,7 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
     proposals_pending = max(0, proposals_total - proposals_applied - proposals_rejected)
 
     return RetrospectiveSnapshot(
-        status=status,  # type: ignore[arg-type]
+        status=status,
         mode=mode,
         record_path=record_path,
         proposals_total=proposals_total,
@@ -276,18 +276,12 @@ def materialize_to_json(snapshot: StatusSnapshot) -> str:
     )
 
 
-def materialize(feature_dir: Path) -> StatusSnapshot:
-    """Read events, reduce to snapshot, and write status.json atomically.
+def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
+    """Read events and reduce them to the exact snapshot materialize() writes.
 
-    Skips the write when content is byte-identical to the existing file.
-    Writes to a temporary file first, then uses ``os.replace`` for an
-    atomic rename to avoid partial writes.
-
-    WP03 (additive): Also scans raw events for retrospective.* entries and
-    attaches a RetrospectiveSnapshot to the snapshot under ``retrospective``.
-    Default is None for missions with no retrospective events (backwards-compat).
-
-    Returns the materialized snapshot.
+    This helper is intentionally read-only. It keeps production materialization
+    semantics in one place so callers such as doctor/audit can compare a
+    persisted status.json without creating temp files or replacing status.json.
     """
     events = read_events(feature_dir)
     snapshot = reduce(events)
@@ -308,6 +302,23 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     if retro_snapshot.status != "absent":
         snapshot.retrospective = retro_snapshot
 
+    return snapshot
+
+
+def materialize(feature_dir: Path) -> StatusSnapshot:
+    """Read events, reduce to snapshot, and write status.json atomically.
+
+    Skips the write when content is byte-identical to the existing file.
+    Writes to a temporary file first, then uses ``os.replace`` for an
+    atomic rename to avoid partial writes.
+
+    WP03 (additive): Also scans raw events for retrospective.* entries and
+    attaches a RetrospectiveSnapshot to the snapshot under ``retrospective``.
+    Default is None for missions with no retrospective events (backwards-compat).
+
+    Returns the materialized snapshot.
+    """
+    snapshot = materialize_snapshot(feature_dir)
     json_str = materialize_to_json(snapshot)
 
     out_path = feature_dir / SNAPSHOT_FILENAME

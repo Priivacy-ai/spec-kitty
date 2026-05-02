@@ -44,7 +44,7 @@ def classify_status_json(
     except json.JSONDecodeError as exc:
         return [
             MissionFinding(
-                code="CORRUPT_JSONL",
+                code="CORRUPT_JSON",
                 severity=Severity.ERROR,
                 artifact_path="status.json",
                 detail=f"JSON decode error: {exc.msg}",
@@ -60,15 +60,13 @@ def classify_status_json(
     if skip_drift:
         return findings
 
-    # Read-only drift check (C-001 compliance)
+    # Read-only drift check (C-001 compliance).
     # NEVER call reducer.materialize() — it writes status.json to disk.
-    # Use reduce() + materialize_to_json() which are read-only.
+    # materialize_snapshot() keeps parity with materialize() without writing.
     try:
-        from specify_cli.status.reducer import materialize_to_json, reduce
-        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
 
-        events = read_events(mission_dir)
-        snapshot = reduce(events)
+        snapshot = materialize_snapshot(mission_dir)
         computed_json = materialize_to_json(snapshot)
     except Exception as exc:
         findings.append(

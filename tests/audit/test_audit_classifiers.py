@@ -121,11 +121,11 @@ def test_meta_classifier_identity_invalid(tmp_path: Path) -> None:
 
 
 def test_meta_classifier_corrupt_json(tmp_path: Path) -> None:
-    """Corrupt meta.json → CORRUPT_JSONL finding."""
+    """Corrupt meta.json → CORRUPT_JSON finding."""
     (tmp_path / "meta.json").write_text("not valid json {{{", encoding="utf-8")
     findings = classify_meta_json(tmp_path)
     assert len(findings) == 1
-    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].code == "CORRUPT_JSON"
     assert findings[0].severity == Severity.ERROR
 
 
@@ -224,10 +224,10 @@ def test_status_json_absent_file(tmp_path: Path) -> None:
 
 
 def test_status_json_corrupt_json(tmp_path: Path) -> None:
-    """Corrupt status.json → CORRUPT_JSONL finding."""
+    """Corrupt status.json → CORRUPT_JSON finding."""
     (tmp_path / "status.json").write_text("{broken", encoding="utf-8")
     findings = classify_status_json(tmp_path)
-    assert "CORRUPT_JSONL" in _codes(findings)
+    assert "CORRUPT_JSON" in _codes(findings)
 
 
 def test_status_json_skip_drift_true(tmp_path: Path) -> None:
@@ -256,6 +256,40 @@ def test_snapshot_drift_detected(tmp_path: Path) -> None:
     drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
     assert len(drift) >= 1
     assert drift[0].severity == Severity.ERROR
+
+
+def test_status_json_retrospective_materialized_snapshot_is_not_drift(
+    tmp_path: Path,
+) -> None:
+    """Freshly materialized retrospective state must not produce SNAPSHOT_DRIFT."""
+    from specify_cli.status.reducer import materialize
+
+    _write_json(
+        tmp_path / "meta.json",
+        {
+            "mission_id": _VALID_ULID,
+            "mission_slug": "test-mission",
+            "mission_number": 1,
+            "mission_type": "software-dev",
+        },
+    )
+    _write_jsonl(
+        tmp_path / "status.events.jsonl",
+        [
+            _MODERN_EVENT,
+            {
+                "at": "2026-05-01T12:01:00+00:00",
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+                "event_name": "retrospective.requested",
+                "payload": {"mode": "append"},
+            },
+        ],
+    )
+    materialize(tmp_path)
+
+    findings = classify_status_json(tmp_path)
+
+    assert "SNAPSHOT_DRIFT" not in _codes(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -313,15 +347,11 @@ def test_decisions_events_absent_file(tmp_path: Path) -> None:
 
 
 def test_decisions_events_clean(tmp_path: Path) -> None:
-    """Clean decision event row without forbidden keys → no findings.
-
-    Note: real decisions/events.jsonl rows carry ``event_type`` which
-    is in FORBIDDEN_KEYS (a discriminator used by legacy status producers).
-    For a truly clean row we use only the known-safe keys.
-    """
+    """Clean decision event row with canonical event_type → no findings."""
     row = {
         "at": "2026-05-01T12:00:00+00:00",
         "event_id": _VALID_ULID,
+        "event_type": "DecisionPointOpened",
         "payload": {"question": "Which approach?"},
     }
     _write_jsonl(tmp_path / "decisions" / "events.jsonl", [row])

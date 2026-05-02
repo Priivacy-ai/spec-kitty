@@ -38,7 +38,7 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
     except json.JSONDecodeError as exc:
         return [
             MissionFinding(
-                code="CORRUPT_JSONL",
+                code="CORRUPT_JSON",
                 severity=Severity.ERROR,
                 artifact_path="meta.json",
                 detail=f"JSON decode error: {exc.msg}",

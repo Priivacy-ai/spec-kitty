@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..detectors import detect_forbidden_keys, detect_legacy_keys
+from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
 from ..shape_registry import check_unknown_keys
 
@@ -19,7 +19,7 @@ def _classify_jsonl_file(
 
     Reads *path* line by line.  For each non-blank line:
     - On decode error: emits ``CORRUPT_JSONL`` and continues (collects all).
-    - On valid line: runs legacy-key, forbidden-key, and unknown-key checks.
+    - On valid line: runs legacy-key and unknown-key checks.
 
     Args:
         path: Absolute path to the JSONL file.
@@ -77,7 +77,6 @@ def _classify_jsonl_file(
             continue
 
         findings.extend(detect_legacy_keys(obj, artifact_path))
-        findings.extend(detect_forbidden_keys(obj, artifact_path))
         findings.extend(check_unknown_keys(artifact_type, obj, artifact_path))
 
     return findings

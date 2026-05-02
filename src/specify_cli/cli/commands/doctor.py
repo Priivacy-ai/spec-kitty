@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.console import Console
@@ -904,15 +904,15 @@ def mission_state(
         typer.Option("--json", help="Emit JSON report to stdout"),
     ] = False,
     mission: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--mission", help="Scope to a single mission handle"),
     ] = None,
     fail_on: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--fail-on", help="Exit 1 if any finding meets this severity (error|warning|info)"),
     ] = None,
     fixture_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--fixture-dir", help="Override scan root (for testing)"),
     ] = None,
 ) -> None:
@@ -924,14 +924,14 @@ def mission_state(
         raise typer.Exit(0)
 
     # Validate --fail-on
-    fail_on_severity: Optional[Severity] = None
+    fail_on_severity: Severity | None = None
     if fail_on is not None:
         try:
             fail_on_severity = Severity(fail_on)
         except ValueError:
             valid = ", ".join(s.value for s in Severity)
             typer.echo(f"Invalid --fail-on value: {fail_on!r}. Valid values: {valid}", err=True)
-            raise typer.Exit(2)
+            raise typer.Exit(2) from None
 
     # Resolve repo root
     try:
@@ -979,10 +979,9 @@ def mission_state(
     else:
         _print_rich_audit_report(report)
 
-    if fail_on_severity is not None:
-        if any(
-            f.severity <= fail_on_severity
-            for result in report.missions
-            for f in result.findings
-        ):
-            raise typer.Exit(1)
+    if fail_on_severity is not None and any(
+        f.severity <= fail_on_severity
+        for result in report.missions
+        for f in result.findings
+    ):
+        raise typer.Exit(1)
