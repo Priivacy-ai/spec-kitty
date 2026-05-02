@@ -8,5 +8,7 @@
   "purpose_context": "This stabilization mission addresses the highest-priority blockers found during the mission-state-audit-01KQHRB8 run so agents can rely on observable status transitions, isolated review prompts, canonical diffs, active work-package ownership, parseable sync diagnostics, deterministic merge/ship recovery, and review artifact consistency before 3.2.0 stable release.",
   "purpose_tldr": "Make the 3.2.0 implement, review, merge, and ship loop trustworthy enough for stable release work.",
   "slug": "release-320-workflow-reliability-01KQKV85",
-  "target_branch": "main"
+  "source_description": "start-here.md requested one software-dev mission for the 3.2.0 stable-release workflow reliability blockers found during mission-state-audit-01KQHRB8.",
+  "target_branch": "main",
+  "vcs": "git"
 }
