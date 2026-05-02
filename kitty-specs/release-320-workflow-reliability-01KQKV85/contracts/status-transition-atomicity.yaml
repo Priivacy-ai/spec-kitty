@@ -1,0 +1,34 @@
+contract: status-transition-atomicity
+version: 1
+mission: release-320-workflow-reliability-01KQKV85
+scope:
+  commands:
+    - spec-kitty agent tasks move-task
+    - spec-kitty agent action implement
+    - spec-kitty agent action review
+    - spec-kitty agent status emit
+invariants:
+  - id: STA-001
+    statement: A command that reports transition success must append the expected event to status.events.jsonl.
+  - id: STA-002
+    statement: The command must read back the appended event before reporting success.
+  - id: STA-003
+    statement: If event append or readback fails, the command exits non-zero with a diagnostic naming mission, work_package_id, requested lane, and event path when known.
+  - id: STA-004
+    statement: Interrupted, backgrounded, or slow implement/review paths must not leave a work package stranded in claimed without a recoverable transition or diagnostic.
+test_fixtures:
+  - subagent_worktree_move_task_approval_event
+  - interrupted_action_claimed_recovery
+  - missing_event_readback_failure
+observable_outputs:
+  success:
+    requires:
+      - event_id
+      - work_package_id
+      - to_lane
+      - status_events_path
+  failure:
+    requires:
+      - diagnostic_code
+      - violated_invariant
+      - remediation
