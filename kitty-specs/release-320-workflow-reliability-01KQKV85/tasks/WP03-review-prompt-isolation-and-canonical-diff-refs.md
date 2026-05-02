@@ -24,7 +24,7 @@ subtasks:
 - T018
 phase: Phase 2 - Review Correctness
 assignee: ''
-agent: claude
+agent: codex
 history:
 - at: '2026-05-02T08:10:17Z'
   actor: system

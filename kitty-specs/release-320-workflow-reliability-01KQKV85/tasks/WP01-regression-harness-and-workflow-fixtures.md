@@ -23,7 +23,7 @@ subtasks:
 - T006
 phase: Phase 1 - Regression Foundation
 assignee: ''
-agent: claude
+agent: codex
 history:
 - at: '2026-05-02T08:10:17Z'
   actor: system
