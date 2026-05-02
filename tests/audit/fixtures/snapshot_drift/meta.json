@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAALE",
+  "mission_slug": "snapshot-drift",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

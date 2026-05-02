@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAW0",
+  "mission_slug": "wp-frontmatter-class-a",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

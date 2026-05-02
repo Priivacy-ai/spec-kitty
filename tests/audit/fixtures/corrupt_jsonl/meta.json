@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAK0",
+  "mission_slug": "corrupt-jsonl",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

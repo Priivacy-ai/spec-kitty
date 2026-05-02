@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAE0",
+  "mission_slug": "legacy-aggregate-id",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

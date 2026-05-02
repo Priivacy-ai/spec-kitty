@@ -1,0 +1,7 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAT0",
+  "mission_slug": "001-my-feature",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git"
+}

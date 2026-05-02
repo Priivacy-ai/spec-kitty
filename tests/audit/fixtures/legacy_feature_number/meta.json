@@ -1,0 +1,8 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAG0",
+  "mission_slug": "legacy-feature-number",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git",
+  "feature_number": 42
+}

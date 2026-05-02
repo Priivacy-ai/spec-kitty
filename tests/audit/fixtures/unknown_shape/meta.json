@@ -1,0 +1,8 @@
+{
+  "mission_id": "01JAAAAAAAAAAAAAAAAAAAAAB0",
+  "mission_slug": "unknown-shape",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "vcs": "git",
+  "future_key_not_in_registry": "some value"
+}
