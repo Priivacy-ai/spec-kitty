@@ -13,16 +13,16 @@
 | T001 | Audit scanner entry points; document each I/O shape in `src/specify_cli/dashboard/scanner.py` module docstring; add `# TODO(remove with mission-registry-and-api-boundary-doctrine-01KQPDBB)` markers on functions the registry will subsume | WP01 | — | [D] |
 | T002 | Replace the `git update-index --assume-unchanged` workaround for daemon-driven `kitty-specs/*/status.json` drift; chosen direction (stop daemon vs gitignore snapshot) recorded in WP01 review record | WP01 | [D] |
 | T003 | Author `tests/test_dashboard/test_scanner_entrypoint_parity.py` baseline test asserting `scan_all_features` and `build_mission_registry` produce structurally compatible mission identity for the same fixture | WP01 | [D] |
-| T004 | Author `src/doctrine/directives/shipped/api-dependency-direction.directive.yaml` per `contracts/doctrine-artefact-shapes.md` § 1; cross-link to `tests/architectural/test_transport_does_not_import_scanner.py` | WP02 | — |
-| T005 | Author `src/doctrine/directives/shipped/rest-resource-orientation.directive.yaml` per `contracts/doctrine-artefact-shapes.md` § 2; cross-link to `tests/architectural/test_url_naming_convention.py` | WP02 | [P] |
-| T006 | Author `src/doctrine/paradigms/shipped/hateoas-lite.paradigm.yaml` per `contracts/doctrine-artefact-shapes.md` § 3; verify all three artefacts pass `tests/doctrine/` schema validation; if any field is rejected, land an additive schema extension in the same WP | WP02 | — |
-| T007 | Define `MissionRecord`, `WorkPackageRecord`, `LaneCounts`, `CacheEntry` Python dataclasses in `src/dashboard/services/registry.py` per `data-model.md` (frozen=True; no Pydantic; full type annotations) | WP03 | — |
-| T008 | Implement `MissionRegistry` class in `src/dashboard/services/registry.py` with `list_missions()`, `get_mission()`, `workpackages_for()`, `invalidate_all()` per `contracts/registry-interface.md`; mtime-cache with `(mtime_ns, file_size, sorted_dirent_names_hash)` triple key | WP03 | — |
-| T009 | Implement `WorkPackageRegistry` class in `src/dashboard/services/registry.py` with `list_work_packages()`, `get_work_package()`, `lane_counts()`; per-mission cache scope; shared cache instances via `WeakValueDictionary` | WP03 | — |
-| T010 | Author `tests/test_dashboard/test_mission_registry.py` with explicit mtime-edge-case coverage: file deleted then recreated with identical mtime; truncated file with same length; concurrent writes during a scan; missing meta.json (legacy mission); cache-stale check syscall count assertion | WP03 | [P] |
-| T011 | Wire `MissionRegistry` into FastAPI `app.state.mission_registry` at startup via `src/dashboard/api/app.py:create_app`; add `get_mission_registry()` Depends helper to `src/dashboard/api/deps.py` | WP04 | — |
-| T012 | Migrate `src/dashboard/api/routers/features.py` and `src/dashboard/api/routers/kanban.py` from `MissionScanService` scanner calls to registry calls; update `src/dashboard/services/mission_scan.py` to delegate to the registry rather than calling the scanner directly | WP04 | — |
-| T013 | Migrate CLI `src/specify_cli/cli/commands/dashboard.py` `--json` mode (line ~59) from `build_mission_registry(project_root)` direct call to `MissionRegistry(project_root).list_missions()` | WP04 | [P] |
+| T004 | Author `src/doctrine/directives/shipped/api-dependency-direction.directive.yaml` per `contracts/doctrine-artefact-shapes.md` § 1; cross-link to `tests/architectural/test_transport_does_not_import_scanner.py` | WP02 | — | [D] |
+| T005 | Author `src/doctrine/directives/shipped/rest-resource-orientation.directive.yaml` per `contracts/doctrine-artefact-shapes.md` § 2; cross-link to `tests/architectural/test_url_naming_convention.py` | WP02 | [D] |
+| T006 | Author `src/doctrine/paradigms/shipped/hateoas-lite.paradigm.yaml` per `contracts/doctrine-artefact-shapes.md` § 3; verify all three artefacts pass `tests/doctrine/` schema validation; if any field is rejected, land an additive schema extension in the same WP | WP02 | — | [D] |
+| T007 | Define `MissionRecord`, `WorkPackageRecord`, `LaneCounts`, `CacheEntry` Python dataclasses in `src/dashboard/services/registry.py` per `data-model.md` (frozen=True; no Pydantic; full type annotations) | WP03 | — | [D] |
+| T008 | Implement `MissionRegistry` class in `src/dashboard/services/registry.py` with `list_missions()`, `get_mission()`, `workpackages_for()`, `invalidate_all()` per `contracts/registry-interface.md`; mtime-cache with `(mtime_ns, file_size, sorted_dirent_names_hash)` triple key | WP03 | — | [D] |
+| T009 | Implement `WorkPackageRegistry` class in `src/dashboard/services/registry.py` with `list_work_packages()`, `get_work_package()`, `lane_counts()`; per-mission cache scope; shared cache instances via `WeakValueDictionary` | WP03 | — | [D] |
+| T010 | Author `tests/test_dashboard/test_mission_registry.py` with explicit mtime-edge-case coverage: file deleted then recreated with identical mtime; truncated file with same length; concurrent writes during a scan; missing meta.json (legacy mission); cache-stale check syscall count assertion | WP03 | [D] |
+| T011 | Wire `MissionRegistry` into FastAPI `app.state.mission_registry` at startup via `src/dashboard/api/app.py:create_app`; add `get_mission_registry()` Depends helper to `src/dashboard/api/deps.py` | WP04 | — | [D] |
+| T012 | Migrate `src/dashboard/api/routers/features.py` and `src/dashboard/api/routers/kanban.py` from `MissionScanService` scanner calls to registry calls; update `src/dashboard/services/mission_scan.py` to delegate to the registry rather than calling the scanner directly | WP04 | — | [D] |
+| T013 | Migrate CLI `src/specify_cli/cli/commands/dashboard.py` `--json` mode (line ~59) from `build_mission_registry(project_root)` direct call to `MissionRegistry(project_root).list_missions()` | WP04 | [D] |
 | T014 | Add `Link` and `ResourceModel` Pydantic marker classes to `src/dashboard/api/models.py`; document the marker contract in the class docstring referencing `HATEOAS-LITE` paradigm | WP05 | — |
 | T015 | Author `tests/architectural/test_transport_does_not_import_scanner.py` per `contracts/architectural-test-contracts.md` § 1; AST-walk `src/dashboard/api/routers/` and `src/specify_cli/cli/commands/dashboard.py`; positive + negative meta-tests | WP05 | [P] |
 | T016 | Author `tests/architectural/test_url_naming_convention.py` per `contracts/architectural-test-contracts.md` § 2; walk the FastAPI app's OpenAPI paths; resource-noun regex + action allowlist; positive + negative meta-tests | WP05 | [P] |
@@ -88,9 +88,9 @@ Lane parallelization opportunities (per planner's lane assignment, materialised 
 **Independent test**: three new YAML files exist; `pytest tests/doctrine/` passes; each artefact references its enforcement test.
 
 **Subtasks**:
-- [ ] T004 `DIRECTIVE_API_DEPENDENCY_DIRECTION` YAML
-- [ ] T005 `DIRECTIVE_REST_RESOURCE_ORIENTATION` YAML
-- [ ] T006 `HATEOAS-LITE` paradigm YAML + schema-extension if needed
+- [x] T004 `DIRECTIVE_API_DEPENDENCY_DIRECTION` YAML
+- [x] T005 `DIRECTIVE_REST_RESOURCE_ORIENTATION` YAML
+- [x] T006 `HATEOAS-LITE` paradigm YAML + schema-extension if needed
 
 **Dependencies**: WP01.
 **Estimated prompt size**: ~260 lines.
@@ -103,10 +103,10 @@ Lane parallelization opportunities (per planner's lane assignment, materialised 
 **Independent test**: `pytest tests/test_dashboard/test_mission_registry.py` passes; mtime-edge-case tests cover deleted+recreated, truncated, concurrent writes, missing meta.json.
 
 **Subtasks**:
-- [ ] T007 Dataclasses (`MissionRecord`, `WorkPackageRecord`, `LaneCounts`, `CacheEntry`)
-- [ ] T008 `MissionRegistry` implementation with cache
-- [ ] T009 `WorkPackageRegistry` implementation with per-mission cache
-- [ ] T010 Edge-case unit tests
+- [x] T007 Dataclasses (`MissionRecord`, `WorkPackageRecord`, `LaneCounts`, `CacheEntry`)
+- [x] T008 `MissionRegistry` implementation with cache
+- [x] T009 `WorkPackageRegistry` implementation with per-mission cache
+- [x] T010 Edge-case unit tests
 
 **Dependencies**: WP01.
 **Estimated prompt size**: ~440 lines (4 subtasks, registry is the centrepiece).
@@ -119,9 +119,9 @@ Lane parallelization opportunities (per planner's lane assignment, materialised 
 **Independent test**: existing dashboard parity tests pass against the registry-backed routers; CLI `--json` output count matches FastAPI `/api/features` count.
 
 **Subtasks**:
-- [ ] T011 Wire `MissionRegistry` into FastAPI app state
-- [ ] T012 Migrate FastAPI `features` + `kanban` routers + `MissionScanService`
-- [ ] T013 Migrate CLI `dashboard --json` consumer
+- [x] T011 Wire `MissionRegistry` into FastAPI app state
+- [x] T012 Migrate FastAPI `features` + `kanban` routers + `MissionScanService`
+- [x] T013 Migrate CLI `dashboard --json` consumer
 
 **Dependencies**: WP02, WP03.
 **Estimated prompt size**: ~320 lines.

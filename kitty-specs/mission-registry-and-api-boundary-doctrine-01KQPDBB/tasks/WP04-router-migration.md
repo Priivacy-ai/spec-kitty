@@ -16,7 +16,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "opencode:claude-sonnet-4.6:python-pedro:implementer"
+shell_pid: "1498620"
 history:
 - date: '2026-05-03'
   event: created
@@ -201,3 +202,11 @@ Lane-less on `feature/650-dashboard-ui-ux-overhaul`. Three coordinated changes; 
 - **`features` shape divergence**: the `kanban_stats.weighted_percentage` field was added by mission #01KQN2JA's post-merge fix. Confirm the registry's `MissionRecord.lane_counts` + `weighted_percentage` fields are mapped into the wire `kanban_stats` dict identically.
 - **CLI `display_order` ordering**: the existing `sort_missions_for_display` may sort by display_number THEN by mission_slug; confirm the registry's `list_missions()` returns the same order (it does per the `data-model.md` ordering contract, but verify against the CLI smoke test).
 - **`MissionScanService` constructor backward compat**: external callers (if any) construct `MissionScanService(project_dir=..., _scan_all=...)` with explicit injectables. The registry parameter is additive (default constructs its own); no breakage.
+
+## Activity Log
+
+- 2026-05-03T14:34:22Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1427345 – Started implementation via action command
+- 2026-05-03T17:02:03Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1427345 – Stale agent recovery — previous claude agent (pid=1427345) did not complete. Resuming implementation.
+- 2026-05-03T17:02:09Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1427345 – Stale agent recovery — force-advancing to for_review so we can reject and re-queue cleanly.
+- 2026-05-03T17:02:17Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1427345 – Moved to planned
+- 2026-05-03T17:02:31Z – opencode:claude-sonnet-4.6:python-pedro:implementer – shell_pid=1498620 – Started implementation via action command

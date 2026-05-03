@@ -19,7 +19,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "1414155"
 history:
 - date: '2026-05-03'
   event: created
@@ -400,3 +401,10 @@ Lane-less on `feature/650-dashboard-ui-ux-overhaul`. Single mission, single bran
 - **Scanner divergence found by parity test**: WP01's parity baseline test may have surfaced a pre-existing scanner bug. The registry must NOT mask the divergence — if `scan_all_features` and `build_mission_registry` already disagree on the same fixture, the registry's `list_missions()` should match `scan_all_features` and document the divergence in `# TODO(scanner-fix)` markers, not silently consolidate.
 - **Edge-case test for identical-mtime drift may be hard to hit reliably** on filesystems with sub-second mtime resolution. Document this in the test's docstring; mark `@pytest.mark.skipif` for filesystems known to have nanosecond resolution that prevents the artificial collision.
 - **WeakValueDictionary subtlety**: `WorkPackageRegistry` instances may be GC'd between calls if no consumer holds a reference. This is intentional — fresh instances are cheap; cache state lives in the underlying mtime-keyed entries.
+
+## Activity Log
+
+- 2026-05-03T14:21:33Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1377703 – Started implementation via action command
+- 2026-05-03T14:30:35Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1377703 – Ready for review: registry core (MissionRegistry + WorkPackageRegistry) with mtime cache, frozen dataclasses, and 24 edge-case unit tests covering cache invalidation (mtime/size/dirent-hash), corrupted event log, missing meta.json, zero-WP missions, pre-merge mission_number=null, ULID/mid8/slug resolution, ambiguous-mid8 refusal, threading safety, and TOCTOU immutability.
+- 2026-05-03T14:31:22Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1414155 – Started review via action command
+- 2026-05-03T14:33:45Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1414155 – Review passed: MissionRegistry + WorkPackageRegistry implemented with mtime cache (mtime_ns + dirent_count + sorted-dirent-names-hash triple per scope), canonical reducers (materialize, compute_weighted_progress) consumed correctly, 24/24 edge-case tests pass (cache hit/miss, dirent rename invalidation, corrupted event log, missing meta.json, zero WPs, mission_number=null, mid8 ambiguity returns None, 20-thread concurrency, frozen TOCTOU safety), 270/270 dashboard suite passes, ruff clean, no new # type: ignore in production code. Scope respected (no WP04/05/06 wiring).
