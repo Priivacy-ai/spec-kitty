@@ -48,12 +48,12 @@
 **Requirement Refs**: FR-001, FR-002, FR-003, NFR-001, NFR-003, NFR-005
 
 ### Included Subtasks
-- [ ] T007 Add focused regression tests for `move-task` approval event persistence and missing event readback failure.
-- [ ] T008 Add verification coverage for backgrounded, interrupted, or slow implement/review paths not stranding WPs in `claimed`.
-- [ ] T009 Implement post-write event readback invariants in status transition command paths.
-- [ ] T010 Ensure worktree/subagent transition paths resolve the canonical mission event log.
-- [ ] T011 Harden dirty/unowned-file handling so blocked event emission is reported as a hard transition failure.
-- [ ] T012 Run targeted status/task lifecycle tests and update diagnostics for reviewer clarity.
+- [x] T007 Add focused regression tests for `move-task` approval event persistence and missing event readback failure.
+- [x] T008 Add verification coverage for backgrounded, interrupted, or slow implement/review paths not stranding WPs in `claimed`.
+- [x] T009 Implement post-write event readback invariants in status transition command paths.
+- [x] T010 Ensure worktree/subagent transition paths resolve the canonical mission event log.
+- [x] T011 Harden dirty/unowned-file handling so blocked event emission is reported as a hard transition failure.
+- [x] T012 Run targeted status/task lifecycle tests and update diagnostics for reviewer clarity.
 
 ### Implementation Notes
 - Prefer helpers in `src/specify_cli/status/` for readback and invariant checks.
@@ -241,12 +241,12 @@
 | T004 | Add review prompt collision fixtures | WP01 | P0 | Yes | [D] |
 | T005 | Add fixture smoke test | WP01 | P0 | No | [D] |
 | T006 | Document fixture contracts and sync flag rule | WP01 | P0 | No | [D] |
-| T007 | Add move-task event persistence tests | WP02 | P1 | No |
-| T008 | Add #944 claimed recovery coverage | WP02 | P1 | Yes |
-| T009 | Implement transition event readback invariants | WP02 | P1 | No |
-| T010 | Resolve canonical event log from worktrees | WP02 | P1 | No |
-| T011 | Harden dirty/unowned-file transition diagnostics | WP02 | P1 | No |
-| T012 | Run status/task lifecycle tests | WP02 | P1 | No |
+| T007 | Add move-task event persistence tests | WP02 | P1 | No | [D] |
+| T008 | Add #944 claimed recovery coverage | WP02 | P1 | Yes | [D] |
+| T009 | Implement transition event readback invariants | WP02 | P1 | No | [D] |
+| T010 | Resolve canonical event log from worktrees | WP02 | P1 | No | [D] |
+| T011 | Harden dirty/unowned-file transition diagnostics | WP02 | P1 | No | [D] |
+| T012 | Run status/task lifecycle tests | WP02 | P1 | No | [D] |
 | T013 | Add concurrent prompt tests | WP03 | P1 | Yes |
 | T014 | Add mission-prefixed slug diff test | WP03 | P1 | Yes |
 | T015 | Implement invocation-specific prompt metadata | WP03 | P1 | No |
