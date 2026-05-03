@@ -1142,7 +1142,7 @@ def _validate_ready_for_review(
                     _meta = _load_meta_lggrd(feature_dir)
                     if _meta:
                         _planning_branch = _meta.get("planning_base_branch") or _meta.get("target_branch")
-                except Exception as _lane_meta_exc:  # noqa: BLE001
+                except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
                     logger.debug(
                         "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
                     )
