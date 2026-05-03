@@ -23,7 +23,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '47989'
+shell_pid: "47989"
+agent: "codex:gpt-5:default:implementer"
 history:
 - at: '2026-05-03T20:58:32Z'
   actor: system
@@ -114,3 +115,7 @@ Add `tests/review/test_cycle.py` covering:
 ```bash
 spec-kitty agent action implement WP01 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-05-03T21:14:06Z – codex:gpt-5:default:implementer – shell_pid=47989 – Assigned agent via action command
