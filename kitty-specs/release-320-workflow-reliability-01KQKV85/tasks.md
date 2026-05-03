@@ -78,12 +78,12 @@
 **Requirement Refs**: FR-004, FR-005, FR-006, FR-014, NFR-001, NFR-005, C-004, C-005
 
 ### Included Subtasks
-- [ ] T013 Add concurrent review prompt tests for two repos, two missions, and repeated invocations.
-- [ ] T014 Add a regression for mission slugs beginning with `mission-` and canonical review diff refs.
-- [ ] T015 Implement invocation-specific review prompt paths and structured prompt metadata.
-- [ ] T016 Add fail-closed validation before reviewer dispatch.
-- [ ] T017 Move review diff command construction to canonical mission/lane refs.
-- [ ] T018 Add latest-review-artifact verdict helper coverage for approved/done versus rejected contradictions.
+- [x] T013 Add concurrent review prompt tests for two repos, two missions, and repeated invocations.
+- [x] T014 Add a regression for mission slugs beginning with `mission-` and canonical review diff refs.
+- [x] T015 Implement invocation-specific review prompt paths and structured prompt metadata.
+- [x] T016 Add fail-closed validation before reviewer dispatch.
+- [x] T017 Move review diff command construction to canonical mission/lane refs.
+- [x] T018 Add latest-review-artifact verdict helper coverage for approved/done versus rejected contradictions.
 
 ### Implementation Notes
 - Keep review prompt identity logic under review/workflow surfaces, not ad hoc shell string assembly.
@@ -247,12 +247,12 @@
 | T010 | Resolve canonical event log from worktrees | WP02 | P1 | No | [D] |
 | T011 | Harden dirty/unowned-file transition diagnostics | WP02 | P1 | No | [D] |
 | T012 | Run status/task lifecycle tests | WP02 | P1 | No | [D] |
-| T013 | Add concurrent prompt tests | WP03 | P1 | Yes |
-| T014 | Add mission-prefixed slug diff test | WP03 | P1 | Yes |
-| T015 | Implement invocation-specific prompt metadata | WP03 | P1 | No |
-| T016 | Add fail-closed prompt validation | WP03 | P1 | No |
-| T017 | Use canonical refs for review diffs | WP03 | P1 | No |
-| T018 | Add latest review artifact helper coverage | WP03 | P1 | No |
+| T013 | Add concurrent prompt tests | WP03 | P1 | Yes | [D] |
+| T014 | Add mission-prefixed slug diff test | WP03 | P1 | Yes | [D] |
+| T015 | Implement invocation-specific prompt metadata | WP03 | P1 | No | [D] |
+| T016 | Add fail-closed prompt validation | WP03 | P1 | No | [D] |
+| T017 | Use canonical refs for review diffs | WP03 | P1 | No | [D] |
+| T018 | Add latest review artifact helper coverage | WP03 | P1 | No | [D] |
 | T019 | Add shared-lane ownership tests | WP04 | P1 | Yes |
 | T020 | Add stale-context diagnostic tests | WP04 | P1 | Yes |
 | T021 | Resolve active WP id at guard time | WP04 | P1 | No |
