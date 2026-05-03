@@ -85,7 +85,10 @@ def test_missing_record_completed_mission_creates_record_and_returns_json(tmp_pa
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
+    assert payload["status"] == "ok"
     assert payload["outcome"] == "retrospective_record_created"
+    assert payload["mission_id"] == MISSION_ID
+    assert payload["mission_slug"] == MISSION_SLUG
     assert payload["result"]["planned"] == []
     assert (repo / ".kittify" / "missions" / MISSION_ID / "retrospective.yaml").is_file()
 
@@ -105,8 +108,12 @@ def test_missing_record_insufficient_artifacts_returns_parseable_json(tmp_path: 
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
+    assert payload["status"] == "error"
     assert payload["outcome"] == "insufficient_mission_artifacts"
+    assert payload["mission_id"] == MISSION_ID
+    assert payload["mission_slug"] == MISSION_SLUG
     assert payload["error"] == "record_not_found"
+    assert payload["next_action"]
 
 
 def test_existing_record_json_includes_synthesized_outcome(tmp_path: Path) -> None:
@@ -126,4 +133,24 @@ def test_existing_record_json_includes_synthesized_outcome(tmp_path: Path) -> No
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output
     payload = json.loads(second.output)
+    assert payload["status"] == "ok"
     assert payload["outcome"] == "retrospective_synthesized"
+    assert payload["mission_id"] == MISSION_ID
+    assert payload["mission_slug"] == MISSION_SLUG
+
+
+def test_missing_mission_returns_parseable_json_outcome(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".kittify").mkdir()
+    (repo / "kitty-specs").mkdir()
+
+    with patch("specify_cli.cli.commands.agent_retrospect.locate_project_root", return_value=repo):
+        result = runner.invoke(app, ["retrospect", "synthesize", "--mission", "does-not-exist", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "error"
+    assert payload["outcome"] == "mission_not_found"
+    assert payload["error"] == "mission_not_found"
+    assert payload["next_action"]

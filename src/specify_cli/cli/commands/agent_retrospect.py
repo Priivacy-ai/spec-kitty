@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
 from specify_cli.core.paths import locate_project_root
 from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
@@ -49,6 +49,11 @@ app = typer.Typer(
 
 _console = Console()
 _err_console = Console(stderr=True)
+
+
+def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False):
+    """Resolve a mission handle for this command without pre-rendering JSON errors."""
+    return resolve_mission(handle, repo_root)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -142,6 +147,10 @@ def _build_json_envelope(
     dry_run: bool,
     outcome: str = "retrospective_synthesized",
     retrospective_path: Path | None = None,
+    mission_id: str | None = None,
+    mission_slug: str | None = None,
+    status: str = "ok",
+    next_action: str | None = None,
 ) -> dict[str, object]:
     """Build the JSON output envelope per cli_surfaces.md / CHK034."""
     envelope: dict[str, object] = {
@@ -149,11 +158,18 @@ def _build_json_envelope(
         "command": "agent.retrospect.synthesize",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "dry_run": dry_run,
+        "status": status,
         "outcome": outcome,
         "result": result.model_dump(),
     }
+    if mission_id is not None:
+        envelope["mission_id"] = mission_id
+    if mission_slug is not None:
+        envelope["mission_slug"] = mission_slug
     if retrospective_path is not None:
         envelope["retrospective_path"] = str(retrospective_path)
+    if next_action is not None:
+        envelope["next_action"] = next_action
     return envelope
 
 
@@ -278,9 +294,45 @@ def synthesize_cmd(
     # the contract's exit=1 for unresolvable).
     # ------------------------------------------------------------------
     try:
-        resolved = resolve_mission_handle(mission, repo_root, json_mode=json_only)
+        resolved = resolve_mission_handle(mission, repo_root, json_mode=False)
+    except MissionNotFoundError as exc:
+        if json_only:
+            _console.print_json(
+                json.dumps(
+                    {
+                        "schema_version": "1",
+                        "command": "agent.retrospect.synthesize",
+                        "status": "error",
+                        "outcome": "mission_not_found",
+                        "error": "mission_not_found",
+                        "handle": exc.handle,
+                        "next_action": "Check the mission handle or run `spec-kitty agent mission list`.",
+                    }
+                )
+            )
+        else:
+            _err_console.print(
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
+                f"Check that the handle is correct and that the mission exists in kitty-specs/."
+            )
+        raise typer.Exit(1)
+    except AmbiguousHandleError as exc:
+        if json_only:
+            _console.print_json(
+                json.dumps(
+                    {
+                        **exc.to_dict(),
+                        "schema_version": "1",
+                        "command": "agent.retrospect.synthesize",
+                        "status": "error",
+                        "outcome": "ambiguous_mission_handle",
+                    }
+                )
+            )
+        else:
+            _err_console.print(str(exc))
+        raise typer.Exit(1)
     except SystemExit:
-        # resolve_mission_handle already printed the error; exit 1 per contract
         raise typer.Exit(1)
 
     mission_id = resolved.mission_id
@@ -314,10 +366,14 @@ def synthesize_cmd(
                             {
                                 "schema_version": "1",
                                 "command": "agent.retrospect.synthesize",
+                                "status": "error",
                                 "outcome": "insufficient_mission_artifacts",
+                                "mission_id": mission_id,
+                                "mission_slug": resolved.mission_slug,
                                 "error": "record_create_failed",
                                 "detail": str(exc),
                                 "path": str(retro_file),
+                                "next_action": "Create or repair retrospective source artifacts, then rerun synthesize.",
                             }
                         )
                     )
@@ -332,9 +388,13 @@ def synthesize_cmd(
                         {
                             "schema_version": "1",
                             "command": "agent.retrospect.synthesize",
+                            "status": "error",
                             "outcome": "insufficient_mission_artifacts",
+                            "mission_id": mission_id,
+                            "mission_slug": resolved.mission_slug,
                             "error": "record_not_found",
                             "path": str(retro_file),
+                            "next_action": "Complete mission artifacts and approved/done WP status, then rerun synthesize.",
                         }
                     )
                 )
@@ -395,6 +455,8 @@ def synthesize_cmd(
         dry_run=dry_run,
         outcome=outcome,
         retrospective_path=retro_file,
+        mission_id=mission_id,
+        mission_slug=resolved.mission_slug,
     )
 
     if json_only:

@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app
+from specify_cli.cli.commands.agent import workflow
 from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.doctrine_synthesizer import SynthesisResult
 from specify_cli.next.runtime_bridge import _finalized_task_board_override_step
@@ -105,6 +106,16 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
 
     resolved = resolve_review_cycle_pointer(repo, cycle.pointer)
     assert resolved.path == cycle.artifact_path.resolve()
+    has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+        feature_dir,
+        repo,
+        "WP01",
+        "",
+    )
+    assert has_feedback is True
+    assert ref == cycle.pointer
+    assert path == cycle.artifact_path.resolve()
+    assert source == "canonical"
 
     progress = _compute_wp_progress(feature_dir)
     assert _finalized_task_board_override_step(feature_dir, progress) == "implement"
