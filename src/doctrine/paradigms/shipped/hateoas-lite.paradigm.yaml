@@ -1,0 +1,75 @@
+schema_version: "1.0"
+id: hateoas-lite
+name: HATEOAS-LITE
+summary: >
+  Resource responses include a ``_links`` block carrying the canonical URL of
+  every related resource the consumer might navigate to. This is the smallest
+  step toward discoverability that does not over-engineer the local-dashboard
+  scope; consumers do not need out-of-band knowledge of the URL scheme.
+description: |
+  HATEOAS-LITE is "lite" because we deliberately do not adopt full HAL or
+  JSON:API. We add only the ``_links`` convention. Every Pydantic response
+  model that represents a resource declares a ``_links`` mapping whose values
+  are link objects with an ``href`` and a ``method`` (default ``GET``).
+
+  The paradigm complements DIRECTIVE_040 (REST Resource Orientation): once
+  URLs are noun-shaped, ``_links`` lets a consumer follow relationships
+  without hard-coding the URL scheme. The pair gives the API a stable,
+  discoverable surface for the consumer set this initiative targets (UI,
+  CLI, MCP, future SDK) without committing to a heavier hypermedia spec.
+shape: |
+  Every Pydantic response model that represents a resource subclasses the
+  marker base class ``dashboard.api.models.ResourceModel`` and declares:
+
+      _links: dict[str, Link]
+
+  where ``Link`` is:
+
+      class Link(BaseModel):
+          href: str
+          method: str = "GET"
+
+  ``ResourceModel`` and the architectural test signature are forward-
+  compatible: when a future migration ships, the new fields ride alongside
+  ``_links`` and existing consumers keep working.
+example: |
+  GET /api/missions/01KQN2JA... ->
+  {
+    "mission_id": "01KQN2JA...",
+    "mission_slug": "frontend-api-fastapi-openapi-migration-01KQN2JA",
+    "lane_counts": {"done": 6},
+    "_links": {
+      "self":         {"href": "/api/missions/01KQN2JA..."},
+      "status":       {"href": "/api/missions/01KQN2JA.../status"},
+      "workpackages": {"href": "/api/missions/01KQN2JA.../workpackages"}
+    }
+  }
+referenced_tests:
+  - tests/architectural/test_resource_models_have_links.py
+future_graduation_triggers:
+  - First public or external SDK consumer where HAL ``_embedded`` saves a
+    measurable number of round-trips.
+  - First paginated collection where the client genuinely needs included
+    sub-resources alongside the page.
+  - First multi-tenant deployment where bandwidth cost between dashboard and
+    consumer becomes a concern.
+  - First case where a consumer needs to discover state-transition
+    operations (for example, a UI that learns "this WP can be moved to
+    for_review" from the response rather than from out-of-band knowledge).
+future_migration_shape: |
+  When any graduation trigger fires, file a follow-up ADR documenting the
+  trigger, the chosen target spec (HAL vs JSON:API), and the migration plan.
+
+  Migration is additive: new fields ship alongside existing ``_links``.
+  - For HAL: ``_embedded`` joins ``_links`` on the same response.
+  - For JSON:API: a ``data`` envelope plus an ``included`` list joins
+    ``_links`` on the same response.
+
+  Both old and new shapes remain valid for the deprecation period. The
+  marker ``ResourceModel`` and the architectural test signature do not
+  change shape; the new fields are added to the model's schema.
+
+  Detailed rationale and trigger table:
+  architecture/2.x/initiatives/2026-05-stable-application-api-surface/README.md § 3.3.
+introduced_by_mission: mission-registry-and-api-boundary-doctrine-01KQPDBB
+introduced_at: "2026-05-03"

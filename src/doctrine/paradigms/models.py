@@ -26,3 +26,16 @@ class Paradigm(BaseModel):
     summary: str
     directive_refs: list[str] = Field(default_factory=list)
     opposed_by: list[Contradiction] = Field(default_factory=list)
+
+    # Additive enrichment fields (mission
+    # mission-registry-and-api-boundary-doctrine-01KQPDBB WP02). Optional and
+    # default to benign empty values so existing shipped paradigms continue to
+    # validate without modification.
+    description: str | None = None
+    shape: str | None = None
+    example: str | None = None
+    referenced_tests: list[str] = Field(default_factory=list)
+    future_graduation_triggers: list[str] = Field(default_factory=list)
+    future_migration_shape: str | None = None
+    introduced_by_mission: str | None = None
+    introduced_at: str | None = None

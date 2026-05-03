@@ -1,0 +1,56 @@
+schema_version: "1.0"
+id: DIRECTIVE_039
+title: API Dependency Direction
+intent: >
+  Public transport surfaces (HTTP routers, CLI commands, future MCP tool
+  surfaces) MUST consume mission, work-package, and artifact data exclusively
+  through the canonical service-layer interface. Direct imports from scanner
+  modules and direct filesystem walks on kitty-specs/* inside transport
+  modules are forbidden, so multiple transports cannot diverge by reading the
+  same data through inconsistent paths.
+enforcement: required
+scope: >
+  Applies to modules under src/dashboard/api/routers/,
+  src/specify_cli/cli/commands/dashboard.py, and any future MCP tool surface
+  that exposes mission, work-package, or artifact data to external consumers.
+  The canonical service interface is dashboard.services.registry.MissionRegistry
+  (introduced by mission
+  mission-registry-and-api-boundary-doctrine-01KQPDBB).
+procedures:
+  - Route every transport-side read of kitty-specs/* through MissionRegistry
+    or another sanctioned service-layer interface; never import scanner
+    modules directly from a transport module.
+  - When adding a new transport (e.g., an MCP tool surface), depend only on
+    the registry's public methods; do not bypass it for "convenience" reads.
+  - When the registry lacks a method a transport needs, extend the registry
+    rather than reach around it; record the registry extension as the
+    canonical change.
+  - When refactoring an existing transport, remove direct scanner imports
+    and direct filesystem walks before the refactor lands.
+integrity_rules:
+  - No transport module may import specify_cli.dashboard.scanner,
+    specify_cli.scanner, or any module path matching ``*scanner*``.
+  - No transport module may invoke Path.rglob, os.walk, or glob.glob against
+    kitty-specs/* paths inside a route function or CLI command body.
+  - A registry consumer MUST treat the registry's return contract as the
+    source of truth; transports never re-derive fields the registry already
+    computes.
+validation_criteria:
+  - The architectural test enumerated under ``referenced_tests`` passes in
+    CI for every commit that touches a transport module.
+  - The list under ``forbidden_imports`` matches the AST patterns the
+    architectural test detects; a divergence between this YAML and the test
+    is a defect.
+  - New transports added in later missions cite this directive in their
+    plan.md and pass the same architectural test.
+referenced_tests:
+  - tests/architectural/test_transport_does_not_import_scanner.py
+forbidden_imports:
+  - specify_cli.dashboard.scanner
+  - specify_cli.scanner
+forbidden_patterns:
+  - Path(...).rglob(...) inside route function bodies
+  - open(...) on kitty-specs/* paths inside CLI command bodies
+  - os.walk(...) on kitty-specs/* paths inside transport modules
+introduced_by_mission: mission-registry-and-api-boundary-doctrine-01KQPDBB
+introduced_at: "2026-05-03"

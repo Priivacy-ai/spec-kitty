@@ -9,10 +9,14 @@ because the handler does not perform HTTP-layer side effects.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Query, Request
 
-__all__ = ["verify_project_token", "get_project_dir"]
+if TYPE_CHECKING:  # pragma: no cover - type-only import
+    from dashboard.services.registry import MissionRegistry
+
+__all__ = ["verify_project_token", "get_project_dir", "get_mission_registry"]
 
 
 def verify_project_token(
@@ -46,3 +50,23 @@ def get_project_dir(request: Request) -> Path:
     if project_dir is None:
         raise RuntimeError("dashboard project_dir is not configured")
     return Path(project_dir)
+
+
+def get_mission_registry(request: Request) -> "MissionRegistry":
+    """Pull the ``MissionRegistry`` from ``app.state``.
+
+    Per ``DIRECTIVE_API_DEPENDENCY_DIRECTION`` (mission
+    ``mission-registry-and-api-boundary-doctrine-01KQPDBB``), routers consume
+    mission/WP data exclusively through this registry rather than importing
+    ``specify_cli.scanner`` directly. The architectural test in
+    ``tests/architectural/test_transport_does_not_import_scanner.py`` (WP05)
+    enforces this at import time.
+
+    Raises ``RuntimeError`` (mapped to 500 by the exception handler) when
+    ``app.state.mission_registry`` is absent — matches the existing
+    ``get_project_dir`` dependency's pattern.
+    """
+    registry = getattr(request.app.state, "mission_registry", None)
+    if registry is None:
+        raise RuntimeError("dashboard mission_registry is not configured")
+    return registry

@@ -391,6 +391,36 @@ class ShutdownResponse(_DashboardModel):
     status: Literal["stopping"]
 
 
+# --- HATEOAS-LITE marker classes (introduced by mission
+# mission-registry-and-api-boundary-doctrine-01KQPDBB; mission B will
+# subclass ResourceModel for the new resource-oriented endpoints) ---
+
+
+class Link(BaseModel):
+    """A single HATEOAS-LITE hyperlink. Subset of HAL's link object.
+
+    See doctrine paradigm ``hateoas-lite`` (src/doctrine/paradigms/shipped/
+    hateoas-lite.paradigm.yaml) for the full convention and future-graduation
+    triggers (HAL / JSON:API).
+    """
+
+    href: str
+    method: str = "GET"
+
+
+class ResourceModel(BaseModel):
+    """Marker base class for resource-oriented response models.
+
+    Subclasses MUST declare a ``_links: dict[str, Link]`` field. Enforced by
+    ``tests/architectural/test_resource_models_have_links.py``.
+
+    No subclass exists in this mission (per spec C-006). Mission B introduces
+    the first subclass when it ships the new resource-oriented endpoints.
+    """
+
+    pass
+
+
 __all__ = [
     "ArtifactDirectoryFile",
     "ArtifactDirectoryResponse",
@@ -427,4 +457,6 @@ __all__ = [
     "SyncTriggerUnavailableResponse",
     "WorkflowStatus",
     "WorktreeInfo",
+    "Link",
+    "ResourceModel",
 ]

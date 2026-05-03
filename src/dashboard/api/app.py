@@ -48,6 +48,16 @@ def create_app(project_dir: Path, project_token: str | None) -> FastAPI:
     app.state.project_dir = Path(project_dir).resolve()
     app.state.project_token = project_token
 
+    # Per DIRECTIVE_API_DEPENDENCY_DIRECTION (mission
+    # mission-registry-and-api-boundary-doctrine-01KQPDBB), the FastAPI app
+    # owns a single MissionRegistry instance. Routers consume mission/WP data
+    # exclusively through this registry via the `get_mission_registry`
+    # Depends helper in `deps.py`. Construction is local to avoid pulling
+    # the registry module at process import time.
+    from dashboard.services.registry import MissionRegistry
+
+    app.state.mission_registry = MissionRegistry(project_dir=app.state.project_dir)
+
     register_exception_handlers(app)
     _register_api_docs_alias(app)
     _wire_routers(app)

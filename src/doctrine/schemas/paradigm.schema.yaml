@@ -53,3 +53,52 @@ properties:
     type: array
     items:
       $ref: '#/definitions/contradiction'
+  description:
+    description: |
+      Long-form prose explaining the paradigm beyond the one-line ``summary``.
+      Optional; ``summary`` remains required.
+    type: string
+    minLength: 1
+  shape:
+    description: |
+      Concrete shape the paradigm imposes on artefacts (e.g., a marker base
+      class plus a structured field). Used by paradigms that codify a small
+      set of opinions on production code, not just a worldview.
+    type: string
+    minLength: 1
+  example:
+    description: Inline illustrative example (typically a sample payload).
+    type: string
+    minLength: 1
+  referenced_tests:
+    description: |
+      Architectural test file paths (repo-relative) that enforce this paradigm
+      in CI. Forward references are permitted.
+    type: array
+    items:
+      type: string
+      minLength: 1
+  future_graduation_triggers:
+    description: |
+      Documented future conditions under which the paradigm should graduate to
+      a richer specification (HAL, JSON:API, etc.). Each entry is a
+      human-readable sentence describing the trigger.
+    type: array
+    items:
+      type: string
+      minLength: 1
+  future_migration_shape:
+    description: |
+      Description of the additive migration path when a graduation trigger
+      fires. Documents that the future evolution remains backward-compatible.
+    type: string
+    minLength: 1
+  introduced_by_mission:
+    description: |
+      Identifier of the mission that introduced the paradigm.
+    type: string
+    minLength: 1
+  introduced_at:
+    description: ISO-8601 date (YYYY-MM-DD) when the paradigm was introduced.
+    type: string
+    pattern: ^\d{4}-\d{2}-\d{2}$

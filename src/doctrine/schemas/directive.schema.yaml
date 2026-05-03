@@ -102,6 +102,44 @@ properties:
     type: array
     items:
       $ref: '#/definitions/contradiction'
+  referenced_tests:
+    description: |
+      Architectural test file paths (repo-relative) that enforce this directive
+      in CI. Forward references are permitted: the test file may not yet exist
+      when the directive is introduced (the test lands in a later WP). The
+      cross-link is the audit trail from rule to enforcement.
+    type: array
+    items:
+      type: string
+      minLength: 1
+  forbidden_imports:
+    description: |
+      Module paths whose import is prohibited inside the directive's scope.
+      Architectural tests use this list as machine-readable input.
+    type: array
+    items:
+      type: string
+      minLength: 1
+  forbidden_patterns:
+    description: |
+      Human-readable AST or call-site patterns the directive prohibits. These
+      complement ``forbidden_imports`` for cases that cannot be reduced to a
+      single import path (e.g., filesystem walks inside route function bodies).
+    type: array
+    items:
+      type: string
+      minLength: 1
+  introduced_by_mission:
+    description: |
+      Identifier of the mission that introduced the directive. Optional but
+      recommended for any directive added after the doctrine baseline so the
+      audit trail back to the spec is unambiguous.
+    type: string
+    minLength: 1
+  introduced_at:
+    description: ISO-8601 date (YYYY-MM-DD) when the directive was introduced.
+    type: string
+    pattern: ^\d{4}-\d{2}-\d{2}$
 allOf:
 - if:
     properties:
