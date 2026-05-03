@@ -17,6 +17,8 @@ subtasks:
 - T012
 - T013
 - T014
+agent: "codex:gpt-5:default:implementer"
+shell_pid: "4888"
 history:
 - at: '2026-05-03T20:58:32Z'
   actor: system
@@ -81,3 +83,7 @@ Assert the generated implement/fix prompt includes the rejected review-cycle bod
 ```bash
 spec-kitty agent action implement WP03 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-05-03T21:40:49Z – codex:gpt-5:default:implementer – shell_pid=4888 – Started implementation via action command
