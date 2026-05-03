@@ -84,6 +84,26 @@ def test_start_implementation_batches_planned_to_in_progress(tmp_path: Path) -> 
     assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
 
 
+def test_backgrounded_implementation_start_does_not_strand_claimed(tmp_path: Path) -> None:
+    """A normal start writes claim and progress evidence as one durable batch."""
+    feature_dir = _feature_dir(tmp_path)
+
+    result = start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="claude",
+        workspace_context="worktree:/tmp/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    assert result.to_lane == Lane.IN_PROGRESS
+    events = read_events(feature_dir)
+    assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+    assert reduce(events).work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
+
+
 def test_start_implementation_resumes_claimed_same_actor(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
     append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
@@ -101,6 +121,28 @@ def test_start_implementation_resumes_claimed_same_actor(tmp_path: Path) -> None
     assert result.from_lane == Lane.CLAIMED
     assert result.status_changed is True
     assert read_events(feature_dir)[-1].to_lane == Lane.IN_PROGRESS
+
+
+def test_interrupted_implementation_claim_recovers_with_progress_event(tmp_path: Path) -> None:
+    """If only a claim exists, the same actor records recovery into progress."""
+    feature_dir = _feature_dir(tmp_path)
+    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+
+    result = start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="claude",
+        workspace_context="worktree:/tmp/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    events = read_events(feature_dir)
+    assert result.from_lane == Lane.CLAIMED
+    assert events[-1].from_lane == Lane.CLAIMED
+    assert events[-1].to_lane == Lane.IN_PROGRESS
+    assert reduce(events).work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
 
 
 def test_start_implementation_rejects_claimed_different_actor(tmp_path: Path) -> None:
@@ -123,6 +165,29 @@ def test_start_implementation_rejects_claimed_different_actor(tmp_path: Path) ->
 
     assert exc_info.value.claimed_by == "other-agent"
     assert len(read_events(feature_dir)) == 1
+
+
+def test_interrupted_claim_by_different_actor_returns_claim_diagnostic(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+    append_event(
+        feature_dir,
+        _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor="other-agent"),
+    )
+
+    with pytest.raises(WorkPackageClaimConflict, match="already claimed") as exc_info:
+        start_implementation_status(
+            feature_dir=feature_dir,
+            mission_slug="099-lifecycle-test",
+            wp_id="WP01",
+            actor="claude",
+            workspace_context="worktree:/tmp/wp01",
+            execution_mode="worktree",
+            repo_root=tmp_path,
+        )
+
+    assert exc_info.value.claimed_by == "other-agent"
+    assert exc_info.value.requesting_actor == "claude"
+    assert reduce(read_events(feature_dir)).work_packages["WP01"]["lane"] == Lane.CLAIMED
 
 
 def test_start_implementation_noops_in_progress_same_actor(tmp_path: Path) -> None:
@@ -225,6 +290,31 @@ def test_start_review_allows_reviewer_after_implementer_for_review(tmp_path: Pat
 
     assert result.from_lane == Lane.FOR_REVIEW
     assert read_events(feature_dir)[-1].to_lane == Lane.IN_REVIEW
+
+
+def test_slow_review_claim_uses_in_review_not_claimed(tmp_path: Path) -> None:
+    """Review starts never reuse the implementation-only claimed lane."""
+    feature_dir = _feature_dir(tmp_path)
+    append_event(
+        feature_dir,
+        _event("01CCCC0000000000000000003C", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW, actor="implementer"),
+    )
+
+    result = start_review_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="reviewer",
+        workspace_context="review:/tmp/repo",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    events = read_events(feature_dir)
+    assert result.to_lane == Lane.IN_REVIEW
+    assert events[-1].from_lane == Lane.FOR_REVIEW
+    assert events[-1].to_lane == Lane.IN_REVIEW
+    assert reduce(events).work_packages["WP01"]["lane"] == Lane.IN_REVIEW
 
 
 def test_start_review_noops_same_reviewer(tmp_path: Path) -> None:

@@ -310,11 +310,11 @@ class SyncRuntime:
         Disconnects WebSocket and stops background sync service.
         Safe to call multiple times or if not started.
 
-        FR-008: When ``invocation_succeeded()`` returns True, any warnings
-        emitted by the inner shutdown path (background sync, websocket
-        teardown) should be downgraded so they don't paint red over a
-        clean stdout JSON payload (#735). The ``BackgroundSyncService.stop``
-        path consults the same flag.
+        FR-008: When ``invocation_succeeded()`` returns True, WebSocket
+        teardown warnings should be downgraded so they don't paint red
+        over a clean stdout JSON payload (#735). Final sync failures are
+        reported by ``BackgroundSyncService.stop`` as structured non-fatal
+        diagnostics on stderr.
         """
         if not self.started:
             return

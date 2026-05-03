@@ -32,6 +32,15 @@ import pytest
 pytestmark = pytest.mark.fast
 
 
+@pytest.fixture(autouse=True)
+def _reset_diagnostics():
+    from specify_cli.diagnostics import reset_for_invocation
+
+    reset_for_invocation()
+    yield
+    reset_for_invocation()
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Shared fixtures
 # ═══════════════════════════════════════════════════════════════════════
@@ -314,8 +323,8 @@ class TestBackgroundStopBounded:
         svc.stop()
         assert not svc._running
 
-    def test_stop_when_lock_not_acquired_logs_warning(self, full_queue):
-        """When lock acquisition fails, a warning is logged."""
+    def test_stop_when_lock_not_acquired_emits_structured_warning(self, full_queue, capsys):
+        """When lock acquisition fails, a structured warning is emitted."""
         svc = self._make_service(full_queue)
         svc._running = True
 
@@ -328,10 +337,11 @@ class TestBackgroundStopBounded:
 
         svc._lock = NeverAcquireLock()
 
-        with patch("specify_cli.sync.background.logger") as mock_log:
-            svc.stop()
-            warning_msgs = [str(c) for c in mock_log.warning.call_args_list]
-            assert any("Could not acquire" in m for m in warning_msgs)
+        svc.stop()
+
+        captured = capsys.readouterr()
+        assert "diagnostic_code=sync.final_sync_lock_unavailable" in captured.err
+        assert "fatal=false" in captured.err
 
     # ── Final sync behaviour ──────────────────────────────────────
 
@@ -384,18 +394,19 @@ class TestBackgroundStopBounded:
 
     @patch("specify_cli.sync.background._STOP_SYNC_TIMEOUT_SECONDS", 0.05)
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
-    def test_stop_logs_warning_when_sync_times_out(self, _tok, full_queue):
-        """A warning is logged when the final sync does not complete in time."""
+    def test_stop_emits_structured_warning_when_sync_times_out(self, _tok, full_queue, capsys):
+        """A structured warning is emitted when final sync does not complete in time."""
         svc = self._make_service(full_queue)
 
         def slow_sync():
             time.sleep(2)
 
         with patch.object(svc, "_guarded_final_sync", side_effect=slow_sync):
-            with patch("specify_cli.sync.background.logger") as mock_log:
-                svc.stop()
-                warning_msgs = [str(c) for c in mock_log.warning.call_args_list]
-                assert any("did not complete" in m for m in warning_msgs)
+            svc.stop()
+
+        captured = capsys.readouterr()
+        assert "diagnostic_code=sync.final_sync_timeout" in captured.err
+        assert "fatal=false" in captured.err
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_final_sync_completes_fast(self, _tok, full_queue):

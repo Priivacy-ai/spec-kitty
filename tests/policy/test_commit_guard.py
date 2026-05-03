@@ -2,6 +2,7 @@
 
 from specify_cli.policy.commit_guard import (
     CommitGuardResult,
+    OwnershipScope,
     is_implementation_branch,
     validate_staged_files,
 )
@@ -101,6 +102,69 @@ class TestOwnershipEnforcement:
             policy=CommitGuardConfig(mode="block"),
         )
         assert result.allowed is True
+
+    def test_active_wp_scope_violation_includes_active_context(self):
+        result = validate_staged_files(
+            staged_files=["src/previous.py"],
+            owned_files=["src/active.py"],
+            branch_name="kitty/mission-057-feat-lane-a",
+            policy=CommitGuardConfig(mode="block"),
+            ownership_scope=OwnershipScope(
+                owned_files=["src/active.py"],
+                active_wp_id="WP04",
+                lane_id="lane-a",
+                context_source="canonical_status",
+            ),
+        )
+
+        assert result.allowed is False
+        assert result.violations == [
+            "ACTIVE_WP_SCOPE_VIOLATION: src/previous.py is outside active_wp=WP04 owned_files ['src/active.py']; lane_id=lane-a; context_source=canonical_status"
+        ]
+
+    def test_stale_or_ambiguous_context_diagnostic_is_not_scope_violation(self):
+        result = validate_staged_files(
+            staged_files=["src/previous.py"],
+            owned_files=[],
+            branch_name="kitty/mission-057-feat-lane-a",
+            policy=CommitGuardConfig(mode="block"),
+            ownership_scope=OwnershipScope(
+                owned_files=[],
+                active_wp_id=None,
+                lane_id="lane-a",
+                context_source="canonical_status",
+                diagnostic_code="ACTIVE_WP_CONTEXT_AMBIGUOUS",
+                diagnostic_message=(
+                    "ACTIVE_WP_CONTEXT_AMBIGUOUS: Cannot prove active WP for branch "
+                    "kitty/mission-057-feat-lane-a; lane_id=lane-a; active candidates: WP01, WP04"
+                ),
+            ),
+        )
+
+        assert result.allowed is False
+        assert result.violations == [
+            "ACTIVE_WP_CONTEXT_AMBIGUOUS: Cannot prove active WP for branch kitty/mission-057-feat-lane-a; lane_id=lane-a; active candidates: WP01, WP04"
+        ]
+        assert "Out of scope" not in result.violations[0]
+
+    def test_active_wp_without_owned_files_fails_closed(self):
+        result = validate_staged_files(
+            staged_files=["src/anything.py"],
+            owned_files=[],
+            branch_name="kitty/mission-057-feat-lane-a",
+            policy=CommitGuardConfig(mode="block"),
+            ownership_scope=OwnershipScope(
+                owned_files=[],
+                active_wp_id="WP04",
+                lane_id="lane-a",
+                context_source="canonical_status",
+            ),
+        )
+
+        assert result.allowed is False
+        assert result.violations == [
+            "ACTIVE_WP_OWNERSHIP_MISSING: active_wp=WP04 has no owned_files; lane_id=lane-a; context_source=canonical_status"
+        ]
 
 
 class TestHookInstaller:

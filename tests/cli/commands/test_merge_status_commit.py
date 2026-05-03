@@ -112,6 +112,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
             patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
@@ -126,6 +127,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.clear_state"),
             patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
+            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -183,6 +185,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
@@ -286,6 +289,7 @@ class TestMergeDoneTransitions:
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
             patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
@@ -300,6 +304,7 @@ class TestMergeDoneTransitions:
             patch("specify_cli.cli.commands.merge.clear_state"),
             patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
+            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -414,6 +419,8 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.cli.commands.merge.clear_state"),
             patch("specify_cli.cli.commands.merge.emit_mission_closed"),
             patch("specify_cli.merge.state.MergeState"),
+            patch("specify_cli.status.emit._saas_fan_out"),
+            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []
@@ -492,6 +499,7 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.cli.commands.merge.load_state", return_value=None),
             patch("specify_cli.cli.commands.merge.save_state"),
             patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
             patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
@@ -506,6 +514,7 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.cli.commands.merge.clear_state"),
             patch("specify_cli.cli.commands.merge.emit_mission_closed") as mock_emit_mission_closed,
             patch("specify_cli.merge.state.MergeState"),
+            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
         ):
             stale_report = MagicMock()
             stale_report.findings = []

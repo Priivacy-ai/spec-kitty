@@ -13,8 +13,8 @@ The contract has three observable invariants:
 2. The two ``Not authenticated, skipping sync`` callsites in
    ``sync/background.py`` are gated by ``report_once("sync.unauthenticated")``
    so a second call does not log.
-3. ``BackgroundSyncService.stop`` and ``SyncRuntime.stop`` consult
-   ``invocation_succeeded()`` and downgrade their warnings when True.
+3. Final-sync shutdown diagnostics are structured, non-fatal, and routed
+   to stderr without corrupting successful stdout surfaces.
 
 We verify each of these in the smallest in-process way that proves the
 operator-visible contract holds, without depending on the installed
@@ -24,8 +24,11 @@ binary version or the network.
 from __future__ import annotations
 
 import logging
+import json
 import re
+from pathlib import Path
 from collections.abc import Iterator
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -39,6 +42,23 @@ from specify_cli.diagnostics import (
 
 ANSI_RED_RE = re.compile(r"\x1b\[(?:1;)?31m|\[red\]|\[bold red\]", re.IGNORECASE)
 NOT_AUTH_RE = re.compile(r"Not authenticated, skipping sync")
+
+
+def _queued_background_service(tmp_path: Path):
+    from specify_cli.sync.background import BackgroundSyncService
+    from specify_cli.sync.queue import OfflineQueue
+
+    queue = OfflineQueue(db_path=tmp_path / "queue.db")
+    queue.queue_event(
+        {
+            "event_id": "EVT000000000000000000000001",
+            "event_type": "WPStatusChanged",
+            "payload": {"wp_id": "WP05", "from_lane": "doing", "to_lane": "for_review"},
+        }
+    )
+    cfg = MagicMock()
+    cfg.get_server_url.return_value = "https://test.example.com"
+    return BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
 
 
 @pytest.fixture(autouse=True)
@@ -113,27 +133,31 @@ def test_not_authenticated_warning_is_deduplicated_in_process(
     )
 
 
-def test_atexit_handlers_consult_invocation_succeeded() -> None:
-    """``BackgroundSyncService.stop`` and ``SyncRuntime.stop`` must read
-    ``invocation_succeeded()`` so post-success shutdown warnings are
-    downgraded. Verified by source inspection (the modules import the
-    accessor and reference it from their stop paths).
-    """
-    from pathlib import Path
+def test_final_sync_shutdown_diagnostic_preserves_clean_success_output(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Final sync failures after local success are clean stderr diagnostics."""
+    service = _queued_background_service(tmp_path)
 
-    from specify_cli.sync import background as background_module
-    from specify_cli.sync import runtime as runtime_module
+    print(json.dumps({"result": "success", "mission_slug": "demo"}))
+    mark_invocation_succeeded()
 
-    bg_source = Path(background_module.__file__).read_text(encoding="utf-8")
-    rt_source = Path(runtime_module.__file__).read_text(encoding="utf-8")
+    with patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")):
+        service.stop()
 
-    assert "invocation_succeeded" in bg_source, (
-        "src/specify_cli/sync/background.py must consult invocation_succeeded() "
-        "in its shutdown path (FR-008)."
-    )
-    assert "invocation_succeeded" in rt_source, (
-        "src/specify_cli/sync/runtime.py must consult invocation_succeeded() "
-        "in its shutdown path (FR-008)."
+    captured = capsys.readouterr()
+    assert json.loads(captured.out) == {"result": "success", "mission_slug": "demo"}
+    assert "sync_diagnostic" not in captured.out
+
+    assert "sync_diagnostic" in captured.err
+    assert "severity=warning" in captured.err
+    assert "diagnostic_code=sync.final_sync_failed" in captured.err
+    assert "fatal=false" in captured.err
+    assert "sync_phase=final_sync" in captured.err
+    assert "network down" in captured.err
+    assert not ANSI_RED_RE.search(captured.err), (
+        "Non-fatal final-sync diagnostics must not paint successful commands red."
     )
 
 

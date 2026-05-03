@@ -19,6 +19,7 @@ from rich.table import Table
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +98,10 @@ def _output_result(json_mode: bool, data: dict, success_message: str | None = No
         console.print(success_message)
 
 
-def _output_error(json_mode: bool, error_message: str):
+def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None = None):
     """Output error in JSON or human-readable format."""
     if json_mode:
-        print(json.dumps({"error": error_message}))
+        print(json.dumps(diagnostic if diagnostic is not None else {"error": error_message}))
     else:
         console.print(f"[red]Error:[/red] {error_message}")
 
@@ -251,8 +252,10 @@ def emit(
         result = {
             "event_id": event.event_id,
             "wp_id": event.wp_id,
+            "work_package_id": event.wp_id,
             "from_lane": str(event.from_lane),
             "to_lane": str(event.to_lane),
+            "status_events_path": str(feature_dir / EVENTS_FILENAME),
             "actor": event.actor,
         }
 
@@ -275,7 +278,8 @@ def emit(
                 raise typer.Exit(1)
         except ImportError:
             pass
-        _output_error(json_output, str(exc))
+        diagnostic = exc.to_diagnostic() if isinstance(exc, EventPersistenceError) else None
+        _output_error(json_output, str(exc), diagnostic=diagnostic)
         raise typer.Exit(1)
 
 

@@ -20,6 +20,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
+
 
 def _make_yaml() -> YAML:
     """Create a configured ruamel.yaml instance for frontmatter serialization."""
@@ -51,6 +53,15 @@ class AffectedFile:
             path=data["path"],
             line_range=data.get("line_range"),
         )
+
+
+@dataclass(frozen=True)
+class LatestReviewArtifactVerdict:
+    """Verdict summary for the latest ``review-cycle-N.md`` artifact."""
+
+    path: Path
+    cycle_number: int
+    verdict: str
 
 
 @dataclass(frozen=True)
@@ -201,3 +212,41 @@ class ReviewCycleArtifact:
         """
         candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
         return len(candidates) + 1
+
+
+def latest_review_artifact_verdict(sub_artifact_dir: Path) -> LatestReviewArtifactVerdict | None:
+    """Return verdict metadata for the highest-numbered review artifact.
+
+    This helper is intentionally limited to review artifact state.  Callers can
+    use it in merge or status gates, but it does not decide whether a workflow
+    transition should pass.
+    """
+    candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
+    if not candidates:
+        return None
+
+    def _cycle_num(p: Path) -> int:
+        m = re.search(r"review-cycle-(\d+)\.md$", p.name)
+        return int(m.group(1)) if m else 0
+
+    candidates.sort(key=_cycle_num)
+    path = candidates[-1]
+    artifact = ReviewCycleArtifact.from_file(path)
+    return LatestReviewArtifactVerdict(
+        path=path,
+        cycle_number=artifact.cycle_number,
+        verdict=artifact.verdict,
+    )
+
+
+def rejected_review_artifact_for_terminal_lane(
+    sub_artifact_dir: Path,
+    lane: str,
+) -> LatestReviewArtifactVerdict | None:
+    """Return the latest rejected artifact when a WP is approved or done."""
+    state = latest_review_artifact_verdict(sub_artifact_dir)
+    if state is None:
+        return None
+    if str(lane) in TERMINAL_REVIEW_LANES and state.verdict == "rejected":
+        return state
+    return None

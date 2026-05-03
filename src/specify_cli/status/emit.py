@@ -462,8 +462,8 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         mission_id=mission_id,
     )
 
-    # Step 5: Persist event to JSONL log
-    _store.append_event(feature_dir, event)
+    # Step 5: Persist event to JSONL log and require readback before success.
+    _store.append_event_verified(feature_dir, event)
 
     # Step 6: Materialize snapshot from event log
     try:
@@ -593,7 +593,7 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
         return []
 
     events = [event for event, _request in built]
-    _store.append_events_atomic(feature_dir, events)
+    _store.append_events_atomic_verified(feature_dir, events)
 
     try:
         _reducer.materialize(feature_dir)

@@ -1,0 +1,9 @@
+**Issue 1**: WP05 leaves an enforced clean-output contract test failing after the rejection fix.
+
+`SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run pytest tests/e2e/test_mission_create_clean_output.py -q` fails in `test_atexit_handlers_consult_invocation_succeeded` because `src/specify_cli/sync/background.py` no longer references `invocation_succeeded()`. The new WP05 behavior may intentionally supersede that source-inspection assertion, but the implementation did not update the existing e2e contract test, so the branch currently contains a known regression outside the focused sync gate.
+
+The focused WP05 gate passed: `SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run pytest tests/sync tests/contract/test_body_sync.py -q` reported `1488 passed, 8 skipped`. The blocker is that the older e2e clean-output contract still asserts the previous shutdown contract and will fail until it is updated or replaced with an assertion for the new structured non-fatal diagnostic behavior.
+
+Fix by updating `tests/e2e/test_mission_create_clean_output.py` to reflect the WP05 contract: final-sync shutdown diagnostics should be structured, non-red, non-fatal, and routed away from stdout for both JSON and text local-success surfaces. Avoid keeping a brittle source-inspection requirement for `BackgroundSyncService.stop` to consult `invocation_succeeded()` if the new contract intentionally routes structured diagnostics regardless of the JSON success flag.
+
+**Known workflow bug hit during rejection**: If `spec-kitty agent tasks move-task WP05 --to planned --review-feedback-file ...` fails from `in_review` with `Transition from in_review requires review_result (structured review outcome)`, use the canonical status emitter workaround with `ReviewResult(verdict="changes_requested", reviewer="codex:gpt-5.3-codex:reviewer-renata:reviewer", reference="feedback://WP05/review-cycle-2", feedback_path="<this file>")` to move only WP05 back to `planned`.

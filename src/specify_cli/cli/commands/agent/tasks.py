@@ -26,7 +26,7 @@ from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
-from specify_cli.status.store import read_events
+from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME, read_events
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -488,7 +488,7 @@ def _output_result(json_mode: bool, data: dict, success_message: str | None = No
         console.print(success_message)
 
 
-def _output_error(json_mode: bool, error_message: str):
+def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None = None):
     """Output error in JSON or human-readable format.
 
     Args:
@@ -496,9 +496,28 @@ def _output_error(json_mode: bool, error_message: str):
         error_message: Error message to display
     """
     if json_mode:
-        print(json.dumps({"error": error_message}))
+        print(json.dumps(diagnostic if diagnostic is not None else {"error": error_message}))
     else:
         console.print(f"[red]Error:[/red] {error_message}")
+
+
+def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
+    """Return JSON-safe status event fields for command output."""
+    if event is None:
+        return {"event_id": None, "to_lane": None}
+
+    event_id = getattr(event, "event_id", None)
+    if not isinstance(event_id, str):
+        event_id = None
+
+    to_lane = getattr(event, "to_lane", None)
+    if to_lane is None:
+        to_lane_value = None
+    else:
+        raw_value = getattr(to_lane, "value", to_lane)
+        to_lane_value = raw_value if isinstance(raw_value, str) else str(raw_value)
+
+    return {"event_id": event_id, "to_lane": to_lane_value}
 
 
 def _mission_identity_payload(feature_dir: Path) -> dict[str, str]:
@@ -1789,7 +1808,18 @@ def move_task(
                 )
 
         # Output result
-        result = {"result": "success", "task_id": task_id, "old_lane": old_lane, "new_lane": target_lane, "path": str(wp.path)}
+        event_fields = _status_event_result_fields(event)
+        result = {
+            "result": "success",
+            "task_id": task_id,
+            "old_lane": old_lane,
+            "new_lane": target_lane,
+            "path": str(wp.path),
+            "event_id": event_fields["event_id"],
+            "work_package_id": task_id,
+            "to_lane": event_fields["to_lane"] or canonical_lane,
+            "status_events_path": str(feature_dir / EVENTS_FILENAME),
+        }
         if review_feedback_pointer is not None:
             result["review_feedback"] = review_feedback_pointer
 
@@ -1810,7 +1840,12 @@ def move_task(
                 stack_trace=traceback.format_exc(),
                 agent_id=agent if "agent" in dir() else None,
             )
-        _output_error(json_output, str(e))
+        diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
+        if diagnostic is not None and "canonical_lane" in locals():
+            diagnostic["failed_event_to_lane"] = diagnostic.get("to_lane")
+            diagnostic["to_lane"] = canonical_lane
+            diagnostic["requested_lane"] = canonical_lane
+        _output_error(json_output, str(e), diagnostic=diagnostic)
         raise typer.Exit(1) from None
 
 

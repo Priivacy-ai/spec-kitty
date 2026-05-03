@@ -24,10 +24,11 @@ from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
-from specify_cli.diagnostics import invocation_succeeded, report_once
+from specify_cli.diagnostics import report_once
 
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
+from .diagnostics import SyncDiagnostic, emit_sync_diagnostic
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 
@@ -40,6 +41,22 @@ logger = logging.getLogger(__name__)
 # Maximum seconds the stop() best-effort sync may run before being
 # abandoned.  Events stay in the durable queue for the daemon to drain.
 _STOP_SYNC_TIMEOUT_SECONDS = 5
+
+
+def _emit_nonfatal_final_sync_diagnostic(
+    diagnostic_code: str,
+    message: str,
+) -> None:
+    """Report a final-sync problem without failing the local command result."""
+    emit_sync_diagnostic(
+        SyncDiagnostic(
+            severity="warning",
+            diagnostic_code=diagnostic_code,
+            fatal=False,
+            sync_phase="final_sync",
+            message=message,
+        )
+    )
 
 
 def _safe_optional_queue_size(queue_obj: object | None) -> int:
@@ -165,21 +182,14 @@ class BackgroundSyncService:
             if acquired:
                 self._lock.release()
 
-        # FR-008: when a JSON-emitting command marked the invocation as
-        # successful, downgrade shutdown warnings to debug so they don't
-        # paint red over a clean stdout payload (#735). On failure paths
-        # the warnings stay visible for operators.
-        succeeded = invocation_succeeded()
-
         if not acquired:
             # Timer thread is stuck holding the lock; skip the final sync
             # rather than blocking shutdown.
-            if succeeded:
-                logger.debug(
-                    "Could not acquire sync lock within 5 s; skipping final sync (post-success)"
-                )
-            else:
-                logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
+            _emit_nonfatal_final_sync_diagnostic(
+                "sync.final_sync_lock_unavailable",
+                "Could not acquire sync lock within 5 s; skipping final sync. "
+                "Queued events will be drained by the daemon.",
+            )
             return
 
         # Best-effort final sync with a bounded timeout so atexit never
@@ -190,27 +200,34 @@ class BackgroundSyncService:
             sync_thread = threading.Thread(
                 target=self._guarded_final_sync, daemon=True,
             )
-            sync_thread.start()
+            try:
+                sync_thread.start()
+            except RuntimeError as exc:
+                _emit_nonfatal_final_sync_diagnostic(
+                    "sync.final_sync_shutdown_unavailable",
+                    "Could not start final sync during interpreter shutdown. "
+                    f"Queued events will be drained by the daemon. Detail: {exc}",
+                )
+                return
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
-                if succeeded:
-                    logger.debug(
-                        "Final sync did not complete within %ds (post-success); "
-                        "queued events will be drained by the daemon",
-                        _STOP_SYNC_TIMEOUT_SECONDS,
-                    )
-                else:
-                    logger.warning(
-                        "Final sync did not complete within %ds; "
-                        "queued events will be drained by the daemon",
-                        _STOP_SYNC_TIMEOUT_SECONDS,
-                    )
+                _emit_nonfatal_final_sync_diagnostic(
+                    "sync.final_sync_timeout",
+                    f"Final sync did not complete within {_STOP_SYNC_TIMEOUT_SECONDS}s. "
+                    "Queued events will be drained by the daemon.",
+                )
         logger.debug("Background sync service stopped")
 
     def _guarded_final_sync(self) -> None:
         """Run a single sync batch; swallows all exceptions."""
-        with contextlib.suppress(Exception):
+        try:
             self._perform_sync()
+        except Exception as exc:
+            _emit_nonfatal_final_sync_diagnostic(
+                "sync.final_sync_failed",
+                "Final sync failed after local command success. "
+                f"Queued events remain durable and will be retried. Detail: {exc}",
+            )
 
     @property
     def last_sync(self) -> datetime | None:

@@ -35,7 +35,6 @@ contract.
 from __future__ import annotations
 
 import logging
-import re
 import subprocess
 import tempfile
 from datetime import UTC
@@ -53,6 +52,12 @@ from specify_cli.core.paths import get_main_repo_root, is_worktree_context, loca
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
+from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.review.prompt_metadata import (
+    build_review_prompt_metadata,
+    validate_review_prompt_metadata,
+    write_review_prompt_with_metadata,
+)
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import AgentAssignment, Lane
 from specify_cli.status.work_package_lifecycle import (
@@ -1070,7 +1075,7 @@ def _resolve_review_context(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
-    wp_frontmatter: str,
+    _wp_frontmatter: str,
 ) -> dict:
     """Resolve git branch and base context for review prompts.
 
@@ -1079,14 +1084,18 @@ def _resolve_review_context(
     exactly what to diff against instead of guessing.
 
     Strategy:
-    1. Get actual branch name from the worktree
-    2. Extract WP dependencies from frontmatter to try dependency branches
-    3. Also try common base branches (main, 2.x, master, develop)
-    4. Pick the candidate with fewest commits ahead (closest ancestor)
+    1. Get actual branch name from the worktree.
+    2. Read canonical mission/lane branch state from workspace context and
+       lanes.json.
+    3. Use that state directly for review diffs; do not reconstruct branch
+       names from slug strings.
     """
     ctx: dict = {
         "branch_name": "unknown",
         "base_branch": "unknown",
+        "mission_branch": "unknown",
+        "lane_branch": "unknown",
+        "base_ref": "unknown",
         "commit_count": 0,
     }
 
@@ -1094,6 +1103,22 @@ def _resolve_review_context(
         return ctx
 
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    lanes_manifest = None
+    try:
+        from specify_cli.lanes.persistence import read_lanes_json
+
+        lanes_manifest = read_lanes_json(feature_dir)
+    except Exception:
+        lanes_manifest = None
+
+    mission_branch = "unknown"
+    if lanes_manifest is not None and lanes_manifest.mission_branch:
+        mission_branch = lanes_manifest.mission_branch
+    elif workspace.context is not None and workspace.context.base_branch:
+        mission_branch = workspace.context.base_branch
+    ctx["mission_branch"] = mission_branch
+
     if workspace.resolution_kind == "repo_root":
         wp_paths = sorted((repo_root / "kitty-specs" / mission_slug / "tasks").glob(f"{wp_id}*.md"))
         claim = subprocess.run(
@@ -1133,6 +1158,8 @@ def _resolve_review_context(
         commit_count = int(count.stdout.strip()) if count.returncode == 0 and count.stdout.strip().isdigit() else 1
         ctx["branch_name"] = "HEAD"
         ctx["base_branch"] = claim_commit
+        ctx["lane_branch"] = "HEAD"
+        ctx["base_ref"] = claim_commit
         ctx["commit_count"] = commit_count
         return ctx
 
@@ -1142,79 +1169,32 @@ def _resolve_review_context(
     branch = get_current_branch(workspace_path)
     if branch:
         ctx["branch_name"] = branch
+        ctx["lane_branch"] = branch
     else:
         return ctx
 
-    branch = ctx["branch_name"]
+    base_ref = "unknown"
+    if workspace.context is not None and workspace.context.base_branch:
+        base_ref = workspace.context.base_branch
+    elif mission_branch != "unknown":
+        base_ref = mission_branch
 
-    # Build candidate base branches
-    candidates: list[str] = []
+    if base_ref == "unknown":
+        return ctx
 
-    if workspace.context and workspace.context.base_branch:
-        candidates.append(workspace.context.base_branch)
-
-    # From WP dependencies (e.g., dependencies: ["WP01"]). Skip dependencies
-    # whose workspace has no branch — that's the case for planning-artifact
-    # WPs that resolve to the repository root (FR-002/FR-004). Their lack of
-    # a branch is intentional and they cannot serve as a merge-base candidate
-    # for the current code-change branch. Letting None flow into the
-    # candidates list crashes git merge-base with TypeError.
-    dep_match = re.search(r"dependencies:\s*\[([^\]]*)\]", wp_frontmatter)
-    if dep_match:
-        dep_content = dep_match.group(1).strip()
-        if dep_content:
-            dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
-            for dep_id in dep_ids:
-                try:
-                    dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
-                except (ValueError, FileNotFoundError):
-                    # A malformed or missing dependency workspace must not
-                    # poison the review-context resolution for the current WP.
-                    continue
-                dep_branch = dep_workspace.branch_name
-                if dep_branch and dep_branch != branch:
-                    candidates.append(dep_branch)
-
-    # Common base branches
-    candidates.extend(["main", "2.x", "master", "develop"])
-
-    # Find closest ancestor (fewest commits ahead = most specific base)
-    best_base = None
-    best_count = -1
-
-    for candidate in candidates:
-        mb = subprocess.run(
-            ["git", "merge-base", branch, candidate],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        if mb.returncode != 0:
-            continue
-
-        count_r = subprocess.run(
-            ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        if count_r.returncode != 0:
-            continue
-
-        count = int(count_r.stdout.strip())
-        if best_count == -1 or count < best_count:
-            best_count = count
-            best_base = candidate
-
-    if best_base:
-        ctx["base_branch"] = best_base
-        ctx["commit_count"] = best_count
+    count_r = subprocess.run(
+        ["git", "rev-list", "--count", f"{base_ref}..{ctx['branch_name']}"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    commit_count = int(count_r.stdout.strip()) if count_r.returncode == 0 and count_r.stdout.strip().isdigit() else 0
+    ctx["base_branch"] = base_ref
+    ctx["base_ref"] = base_ref
+    ctx["commit_count"] = commit_count
 
     return ctx
 
@@ -1419,7 +1399,13 @@ def review(
             # still resolves because the mission branch exists until merge
             # cleanup. If the branch cannot be resolved, fall back to the
             # target_branch captured earlier in this function.
-            _base_ref = f"kitty/mission-{mission_slug}"
+            try:
+                from specify_cli.lanes.persistence import read_lanes_json as _read_lanes_json
+
+                _lanes_manifest = _read_lanes_json(feature_dir)
+                _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
+            except Exception:
+                _base_ref = target_branch
             _diff_result = check_review_diff_compliance(
                 feature_dir=feature_dir,
                 repo_root=main_repo_root,
@@ -1815,7 +1801,19 @@ def review(
 
         # Write full prompt to file
         full_content = "\n".join(lines)
-        prompt_file = _write_prompt_to_file("review", normalized_wp_id, full_content)
+        _mission_identity = resolve_mission_identity(main_repo_root / "kitty-specs" / mission_slug)
+        _review_metadata = build_review_prompt_metadata(
+            repo_root=main_repo_root,
+            mission_id=_mission_identity.mission_id,
+            mission_slug=mission_slug,
+            work_package_id=normalized_wp_id,
+            lane_worktree=Path(workspace_path),
+            mission_branch=str(review_ctx.get("mission_branch") or target_branch),
+            lane_branch=str(review_ctx.get("lane_branch") or review_ctx.get("branch_name") or "HEAD"),
+            base_ref=str(review_ctx.get("base_ref") or review_ctx.get("base_branch") or target_branch),
+        )
+        prompt_file = write_review_prompt_with_metadata(full_content, _review_metadata)
+        validate_review_prompt_metadata(prompt_file, _review_metadata)
 
         # Output concise summary with directive to read the prompt
         print()

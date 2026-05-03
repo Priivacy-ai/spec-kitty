@@ -14,13 +14,26 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app, _validate_ready_for_review
-from specify_cli.status.store import append_event
+from specify_cli.status.store import append_event, read_events
 from specify_cli.status.models import StatusEvent, Lane
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _disable_move_task_sync_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep command unit tests hermetic even when global SaaS test flag is on."""
+    import specify_cli.status.emit as status_emit
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.tasks.emit_error_logged",
+        lambda *args, **kwargs: None,
+    )
 
 
 @pytest.fixture
@@ -250,6 +263,78 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_move_to_for_review_persists_transition_event(
+        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Successful move-task output requires a durable transition event."""
+        repo_root, _worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+
+        assert result.exit_code == 0, result.stdout
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+        assert output["new_lane"] == "for_review"
+        assert output["event_id"]
+        assert output["work_package_id"] == "WP01"
+        assert output["to_lane"] == "for_review"
+        assert output["status_events_path"] == str(
+            repo_root / "kitty-specs" / "017-test-feature" / "status.events.jsonl"
+        )
+
+        events = read_events(repo_root / "kitty-specs" / "017-test-feature")
+        assert any(
+            event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW
+            for event in events
+        )
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_move_to_for_review_fails_when_event_readback_is_blocked(
+        self,
+        mock_slug: Mock,
+        mock_root: Mock,
+        git_repo_with_worktree: tuple[Path, Path],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """move-task must fail non-zero if the expected event is not readable."""
+        repo_root, _worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        import specify_cli.status.store as status_store
+
+        monkeypatch.setattr(status_store, "append_event", lambda _feature_dir, _event: None)
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.agent.tasks.emit_error_logged",
+            lambda *args, **kwargs: None,
+        )
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split("\n")[0]
+        output = json.loads(first_line)
+        assert output["diagnostic_code"] == "STATUS_EVENT_PERSISTENCE_VERIFICATION_FAILED"
+        assert output["violated_invariant"] == "STA-002"
+        assert output["remediation"]
+        assert output["mission_slug"] == "017-test-feature"
+        assert output["work_package_id"] == "WP01"
+        assert output["wp_id"] == "WP01"
+        assert output["to_lane"] == "for_review"
+        assert output["status_events_path"] == str(
+            repo_root / "kitty-specs" / "017-test-feature" / "status.events.jsonl"
+        )
+        assert "persistence verification failed" in output["error"]
+        assert "mission_slug=017-test-feature" in output["error"]
+        assert "wp_id=WP01" in output["error"]
+        assert "target_lane=" in output["error"]
+        assert "status.events.jsonl" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_after_branch_merged_succeeds_without_override(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -470,3 +555,8 @@ class TestMoveTaskGitValidation:
         assert "Move WP01 to for_review" in main_head_msg
         assert "Move WP01 to for_review" not in wp_head_msg
         assert "Add implementation" in wp_head_msg
+
+        main_events = read_events(repo_root / "kitty-specs" / "017-test-feature")
+        worktree_events = read_events(worktree / "kitty-specs" / "017-test-feature")
+        assert any(event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW for event in main_events)
+        assert not any(event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW for event in worktree_events)

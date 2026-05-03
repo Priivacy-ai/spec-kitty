@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -145,6 +145,21 @@ class ResolvedWorkspace:
     def exists(self) -> bool:
         """Return True when the resolved worktree currently exists on disk."""
         return self.worktree_path.exists()
+
+
+@dataclass(frozen=True)
+class ActiveWPResolution:
+    """Active WP ownership resolved for a lane branch at guard time."""
+
+    mission_slug: str | None = None
+    wp_id: str | None = None
+    owned_files: list[str] = field(default_factory=list)
+    lane_id: str | None = None
+    branch_name: str | None = None
+    context_source: str = "absent"
+    diagnostic_code: str | None = None
+    diagnostic_message: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 def get_workspaces_dir(repo_root: Path) -> Path:
@@ -304,6 +319,152 @@ def find_context_for_wp(
 ) -> WorkspaceContext | None:
     """Return the lane workspace context for a work package."""
     return build_feature_context_index(repo_root, mission_slug).get(wp_id)
+
+
+def resolve_active_wp_for_branch(
+    repo_root: Path,
+    branch_name: str,
+) -> ActiveWPResolution:
+    """Resolve the active WP for a lane branch from canonical status state.
+
+    Shared lane worktrees are reused across sequential WPs. The workspace
+    context can therefore identify the lane while its ``current_wp`` field may
+    lag behind the canonical task board. This resolver treats canonical status
+    as authoritative for the active WP and returns diagnostics instead of
+    falling back to stale ownership when the active WP cannot be proven.
+    """
+    matching_contexts = [
+        context
+        for context in list_contexts(repo_root)
+        if context.branch_name == branch_name
+    ]
+    if not matching_contexts:
+        return ActiveWPResolution(branch_name=branch_name, context_source="absent")
+
+    if len(matching_contexts) > 1:
+        lanes = ", ".join(sorted(context.lane_id for context in matching_contexts))
+        return ActiveWPResolution(
+            branch_name=branch_name,
+            context_source="workspace_context",
+            diagnostic_code="ACTIVE_WP_CONTEXT_AMBIGUOUS",
+            diagnostic_message=(
+                "ACTIVE_WP_CONTEXT_AMBIGUOUS: Multiple workspace contexts match "
+                f"branch {branch_name}; lanes: {lanes}"
+            ),
+        )
+
+    context = matching_contexts[0]
+    feature_dir = repo_root / "kitty-specs" / context.mission_slug
+    lane_wp_ids = _context_lane_wp_ids(context)
+
+    if not feature_dir.is_dir():
+        return _active_wp_diagnostic(
+            context,
+            code="ACTIVE_WP_CONTEXT_MISSING",
+            message=f"Mission directory not found: {feature_dir}",
+        )
+
+    try:
+        from specify_cli.status.lane_reader import get_all_wp_lanes
+        from specify_cli.status.models import Lane
+
+        lanes_by_wp = get_all_wp_lanes(feature_dir)
+        active_candidates = [
+            wp_id
+            for wp_id in lane_wp_ids
+            if str(lanes_by_wp.get(wp_id)) == Lane.IN_PROGRESS.value
+        ]
+    except Exception as exc:
+        return _active_wp_diagnostic(
+            context,
+            code="ACTIVE_WP_STATUS_UNAVAILABLE",
+            message=f"Could not read canonical status for mission {context.mission_slug}: {exc}",
+        )
+
+    if len(active_candidates) != 1:
+        candidates = ", ".join(active_candidates) if active_candidates else "none"
+        lane_states = ", ".join(
+            f"{wp_id}={lanes_by_wp.get(wp_id, 'uninitialized')}"
+            for wp_id in lane_wp_ids
+        )
+        return _active_wp_diagnostic(
+            context,
+            code="ACTIVE_WP_CONTEXT_AMBIGUOUS",
+            message=(
+                f"Cannot prove active WP for branch {branch_name}; "
+                f"lane_id={context.lane_id}; active candidates: {candidates}; "
+                f"lane states: {lane_states}"
+            ),
+        )
+
+    active_wp_id = active_candidates[0]
+    warnings: list[str] = []
+    if context.current_wp and context.current_wp != active_wp_id:
+        warnings.append(
+            "ACTIVE_WP_CONTEXT_STALE: "
+            f"workspace context current_wp={context.current_wp}, "
+            f"canonical active_wp={active_wp_id}; lane_id={context.lane_id}"
+        )
+
+    wp_path = _find_wp_file(feature_dir / "tasks", active_wp_id)
+    if wp_path is None:
+        return _active_wp_diagnostic(
+            context,
+            code="ACTIVE_WP_METADATA_MISSING",
+            message=f"Could not find task file for active_wp={active_wp_id}",
+            wp_id=active_wp_id,
+        )
+
+    try:
+        metadata, _body = read_wp_frontmatter(wp_path)
+    except Exception as exc:
+        return _active_wp_diagnostic(
+            context,
+            code="ACTIVE_WP_METADATA_INVALID",
+            message=f"Could not read task frontmatter for active_wp={active_wp_id}: {exc}",
+            wp_id=active_wp_id,
+        )
+
+    return ActiveWPResolution(
+        mission_slug=context.mission_slug,
+        wp_id=active_wp_id,
+        owned_files=list(metadata.owned_files),
+        lane_id=context.lane_id,
+        branch_name=branch_name,
+        context_source="canonical_status",
+        warnings=warnings,
+    )
+
+
+def _context_lane_wp_ids(context: WorkspaceContext) -> list[str]:
+    lane_wp_ids = list(context.lane_wp_ids)
+    if not lane_wp_ids:
+        lane_wp_ids = [wp_id for wp_id in (context.current_wp, context.wp_id) if wp_id]
+    return lane_wp_ids
+
+
+def _active_wp_diagnostic(
+    context: WorkspaceContext,
+    *,
+    code: str,
+    message: str,
+    wp_id: str | None = None,
+) -> ActiveWPResolution:
+    return ActiveWPResolution(
+        mission_slug=context.mission_slug,
+        wp_id=wp_id,
+        lane_id=context.lane_id,
+        branch_name=context.branch_name,
+        context_source="canonical_status",
+        diagnostic_code=code,
+        diagnostic_message=f"{code}: {message}",
+    )
+
+
+def _find_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
+    if not tasks_dir.is_dir():
+        return None
+    return next(iter(sorted(tasks_dir.glob(f"{wp_id}*.md"))), None)
 
 
 def _normalized_feature_cache_key(repo_root: Path, mission_slug: str) -> tuple[str, str]:
@@ -620,6 +781,7 @@ def cleanup_orphaned_contexts(repo_root: Path) -> int:
 
 
 __all__ = [
+    "ActiveWPResolution",
     "NormalizedWorkPackage",
     "ResolvedWorkspace",
     "WorkspaceContext",
@@ -631,6 +793,7 @@ __all__ = [
     "get_context_path",
     "save_context",
     "load_context",
+    "resolve_active_wp_for_branch",
     "delete_context",
     "list_contexts",
     "find_context_for_wp",
