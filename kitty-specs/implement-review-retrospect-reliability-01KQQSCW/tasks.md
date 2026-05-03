@@ -16,11 +16,11 @@
 | T003 | Implement pointer resolver with legacy `feedback://` normalization warnings | WP01 |  | [D] |
 | T004 | Add review artifact required-frontmatter validation and fail-closed errors | WP01 |  | [D] |
 | T005 | Add focused unit tests for artifact, pointer, and result invariants | WP01 |  | [D] |
-| T006 | Replace `move-task` rejection artifact creation with the shared boundary | WP02 |  |
-| T007 | Derive rejected `ReviewResult` before outbound `in_review` mutation | WP02 |  |
-| T008 | Add fail-before-mutation CLI regressions for missing, empty, and invalid feedback | WP02 |  |
-| T009 | Add `in_review -> planned` rejection integration coverage for #960 | WP02 |  |
-| T010 | Run targeted status transition and emit regression tests | WP02 |  |
+| T006 | Replace `move-task` rejection artifact creation with the shared boundary | WP02 |  | [D] |
+| T007 | Derive rejected `ReviewResult` before outbound `in_review` mutation | WP02 |  | [D] |
+| T008 | Add fail-before-mutation CLI regressions for missing, empty, and invalid feedback | WP02 |  | [D] |
+| T009 | Add `in_review -> planned` rejection integration coverage for #960 | WP02 |  | [D] |
+| T010 | Run targeted status transition and emit regression tests | WP02 |  | [D] |
 | T011 | Route fix-mode feedback resolution through the shared pointer resolver | WP03 |  |
 | T012 | Preserve sentinel handling while warning on legacy or missing pointers | WP03 |  |
 | T013 | Add fix-mode prompt tests for canonical and legacy review pointers | WP03 |  |
@@ -80,11 +80,11 @@ Risk: the boundary grows into a review runtime. Mitigation: keep it limited to a
 **Requirement Refs**: FR-001, FR-002, FR-003, FR-006, FR-007, NFR-001, NFR-003, NFR-004
 
 #### Included Subtasks
-- [ ] T006 Replace `move-task` rejection artifact creation with the shared boundary (WP02)
-- [ ] T007 Derive rejected `ReviewResult` before outbound `in_review` mutation (WP02)
-- [ ] T008 Add fail-before-mutation CLI regressions for missing, empty, and invalid feedback (WP02)
-- [ ] T009 Add `in_review -> planned` rejection integration coverage for #960 (WP02)
-- [ ] T010 Run targeted status transition and emit regression tests (WP02)
+- [x] T006 Replace `move-task` rejection artifact creation with the shared boundary (WP02)
+- [x] T007 Derive rejected `ReviewResult` before outbound `in_review` mutation (WP02)
+- [x] T008 Add fail-before-mutation CLI regressions for missing, empty, and invalid feedback (WP02)
+- [x] T009 Add `in_review -> planned` rejection integration coverage for #960 (WP02)
+- [x] T010 Run targeted status transition and emit regression tests (WP02)
 
 #### Implementation Sketch
 Modify `src/specify_cli/cli/commands/agent/tasks.py` so rejection rollback calls the WP01 boundary before `emit_status_transition`. Pass both `review_ref` and `review_result` into the transition request. Add tests that inspect the event log after failure to prove no partial state was written.
