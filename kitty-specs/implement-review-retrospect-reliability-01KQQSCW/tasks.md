@@ -25,10 +25,10 @@
 | T012 | Preserve sentinel handling while warning on legacy or missing pointers | WP03 |  | [D] |
 | T013 | Add fix-mode prompt tests for canonical and legacy review pointers | WP03 |  | [D] |
 | T014 | Add regression coverage that focused rejection context loads from the canonical pointer | WP03 |  | [D] |
-| T015 | Add a finalized-task routing fixture with stale discovery runtime state | WP04 |  |
-| T016 | Make `spec-kitty next` prefer finalized task/WP lane state over stale phase state | WP04 |  |
-| T017 | Cover implement, review, approved/done, blocked, and terminal routing outcomes | WP04 |  |
-| T018 | Preserve existing `Decision` JSON contract and prompt-file invariant | WP04 |  |
+| T015 | Add a finalized-task routing fixture with stale discovery runtime state | WP04 |  | [D] |
+| T016 | Make `spec-kitty next` prefer finalized task/WP lane state over stale phase state | WP04 |  | [D] |
+| T017 | Cover implement, review, approved/done, blocked, and terminal routing outcomes | WP04 |  | [D] |
+| T018 | Preserve existing `Decision` JSON contract and prompt-file invariant | WP04 |  | [D] |
 | T019 | Add structured missing-record outcomes for `agent retrospect synthesize --json` | WP05 |  |
 | T020 | Add explicit retrospective capture/init path or deterministic auto-initialization | WP05 |  |
 | T021 | Distinguish missing mission, insufficient artifacts, record created, and synthesized states | WP05 |  |
@@ -137,10 +137,10 @@ Risk: old prompt tests are branch-gated or still assert legacy "feature" wording
 **Requirement Refs**: FR-008, NFR-001, NFR-002, NFR-003, C-003
 
 #### Included Subtasks
-- [ ] T015 Add a finalized-task routing fixture with stale discovery runtime state (WP04)
-- [ ] T016 Make `spec-kitty next` prefer finalized task/WP lane state over stale phase state (WP04)
-- [ ] T017 Cover implement, review, approved/done, blocked, and terminal routing outcomes (WP04)
-- [ ] T018 Preserve existing `Decision` JSON contract and prompt-file invariant (WP04)
+- [x] T015 Add a finalized-task routing fixture with stale discovery runtime state (WP04)
+- [x] T016 Make `spec-kitty next` prefer finalized task/WP lane state over stale phase state (WP04)
+- [x] T017 Cover implement, review, approved/done, blocked, and terminal routing outcomes (WP04)
+- [x] T018 Preserve existing `Decision` JSON contract and prompt-file invariant (WP04)
 
 #### Implementation Sketch
 Modify the existing `src/specify_cli/next/runtime_bridge.py` and, only if necessary, helper logic in `src/specify_cli/next/decision.py`. Keep the runtime package boundary intact. Tests should assert public `Decision` JSON shape rather than private runtime internals.
