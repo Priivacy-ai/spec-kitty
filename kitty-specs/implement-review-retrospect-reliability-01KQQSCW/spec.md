@@ -181,4 +181,4 @@ The focused command-line smoke path must:
 7. Verify `spec-kitty next` routes from task/WP state.
 8. Verify `agent retrospect` has a first-class path on the completed mission.
 
-For this run, the operator explicitly requested this mission be run with `SPEC_KITTY_ENABLE_SAAS_SYNC=0`. Any later verification path that deliberately tests hosted auth, tracker, SaaS sync, or sync finalization must call out the environment choice and rationale.
+For purely local fixture tests that do not touch hosted auth, tracker, SaaS sync, or sync finalization, this mission may run with `SPEC_KITTY_ENABLE_SAAS_SYNC=0` and must state why sync is out of scope. On this computer, any command path that touches hosted auth, tracker, SaaS sync, or sync finalization must run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`.

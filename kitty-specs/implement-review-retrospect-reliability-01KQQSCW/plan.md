@@ -19,7 +19,7 @@ Implement a narrow shared review-cycle domain boundary that owns rejected review
 **Target Platform**: Cross-platform Spec Kitty CLI on Linux, macOS, and Windows 10+  
 **Project Type**: Single Python CLI/library package  
 **Performance Goals**: Typical affected CLI paths remain under the charter target of 2 seconds for normal projects; pointer resolution and artifact validation perform bounded filesystem reads for one WP review cycle  
-**Constraints**: Do not redesign the review runtime; do not replace the event log; do not duplicate merged PR #959 scope unless a relevant fix is still absent; run Spec Kitty commands for this mission with `SPEC_KITTY_ENABLE_SAAS_SYNC=0` unless a later hosted-sync verification explicitly states otherwise  
+**Constraints**: Do not redesign the review runtime; do not replace the event log; do not duplicate merged PR #959 scope unless a relevant fix is still absent; local-only fixture commands may use `SPEC_KITTY_ENABLE_SAAS_SYNC=0` only when they do not touch hosted auth, tracker, SaaS sync, or sync finalization; any hosted/sync path on this computer must use `SPEC_KITTY_ENABLE_SAAS_SYNC=1`  
 **Scale/Scope**: One narrow domain boundary plus adapters in existing review/status/workflow/next/retrospective surfaces; regression coverage for #960, #962, #963, #961, and #965; #967, #966, #964, and #968 deferred unless naturally adjacent
 
 ## Engineering Alignment
@@ -100,7 +100,7 @@ tests/
 ├── integration/review/
 │   └── test_reject_from_in_review.py
 ├── agent/
-│   └── test_workflow_feedback_pointer_2x_unit.py or successor 3.x coverage
+│   └── test_workflow_review_cycle_pointer.py
 ├── next/
 │   └── test_finalized_task_routing.py
 └── cli/
@@ -143,6 +143,6 @@ See:
 | Mission terminology | Pass | Contracts use `--mission` and active Mission wording. |
 | Testing expectations | Pass | Quickstart and contracts identify focused unit, integration, and smoke verification. |
 
-## Stop Point
+## Historical Stop Point
 
-This plan stops after Phase 1 planning artifacts. Do not generate `tasks.md` or WP files until the user explicitly runs `/spec-kitty.tasks`.
+This was the `/spec-kitty.plan` stop point before `/spec-kitty.tasks` ran. It is now historical: `tasks.md` and flat WP prompt files have been generated and finalized for this mission.

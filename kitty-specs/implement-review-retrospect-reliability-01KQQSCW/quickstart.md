@@ -2,10 +2,16 @@
 
 ## Environment
 
-Run Spec Kitty commands for this mission with sync disabled unless deliberately testing hosted sync behavior:
+For purely local fixture and artifact-validation commands that do not touch hosted auth, tracker, SaaS sync, or sync finalization, run with sync disabled:
 
 ```bash
 SPEC_KITTY_ENABLE_SAAS_SYNC=0 <command>
+```
+
+On this computer, any command path that touches hosted auth, tracker, SaaS sync, or sync finalization must use:
+
+```bash
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 <command>
 ```
 
 ## Planning Artifacts
@@ -33,7 +39,7 @@ uv run pytest tests/integration/review/test_reject_from_in_review.py -q
 Fix-mode pointer loading:
 
 ```bash
-uv run pytest tests/agent/test_workflow_feedback_pointer_2x_unit.py -q
+uv run pytest tests/agent/test_workflow_review_cycle_pointer.py -q
 ```
 
 Next routing:

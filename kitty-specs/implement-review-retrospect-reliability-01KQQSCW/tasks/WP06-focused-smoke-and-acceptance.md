@@ -8,9 +8,19 @@ dependencies:
 - WP05
 requirement_refs:
 - FR-011
+- NFR-001
+- NFR-002
+- NFR-005
+- NFR-006
+- C-001
+- C-002
+- C-004
+- C-005
+- C-006
+- C-007
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T023
 - T024
@@ -71,7 +81,7 @@ Run the targeted acceptance set from `quickstart.md`. Update the quickstart if i
 
 ### T026 - Record local sync rationale
 
-For purely local fixtures, document that SaaS sync is out of scope and that commands were run with `SPEC_KITTY_ENABLE_SAAS_SYNC=0` per user instruction.
+For purely local fixtures, document that SaaS sync is out of scope and that commands may run with `SPEC_KITTY_ENABLE_SAAS_SYNC=0`. If any acceptance path touches hosted auth, tracker, SaaS sync, or sync finalization on this computer, run it with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`.
 
 ## Definition of Done
 
