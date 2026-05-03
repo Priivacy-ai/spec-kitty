@@ -584,51 +584,23 @@ def _persist_review_feedback(
     reviewer_agent: str = "unknown",
     affected_files: list[dict[str, str]] | None = None,
 ) -> tuple[Path, str]:
-    """Persist review feedback as a versioned ReviewCycleArtifact in kitty-specs/.
+    """Persist review feedback through the shared review-cycle boundary.
 
-    Creates a committed artifact at:
-      kitty-specs/<mission>/tasks/<WP-slug>/review-cycle-{N}.md
-
-    Returns:
-        Tuple of (persisted_path, pointer) where pointer is a
-        ``review-cycle://`` URI.
+    Returns the created artifact path and canonical ``review-cycle://`` URI.
     """
-    from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
+    from specify_cli.review.cycle import create_rejected_review_cycle
 
     wp_slug = _resolve_wp_slug(main_repo_root, mission_slug, task_id)
-    sub_artifact_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
-    cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
-
-    body = feedback_source.read_text(encoding="utf-8")
-    reviewed_at = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-
-    parsed_affected: list[AffectedFile] = []
-    if affected_files:
-        for af in affected_files:
-            parsed_affected.append(
-                AffectedFile(
-                    path=af["path"],
-                    line_range=af.get("line_range"),
-                )
-            )
-
-    artifact = ReviewCycleArtifact(
-        cycle_number=cycle_n,
-        wp_id=task_id,
+    cycle = create_rejected_review_cycle(
+        main_repo_root=main_repo_root,
         mission_slug=mission_slug,
+        wp_id=task_id,
+        wp_slug=wp_slug,
+        feedback_source=feedback_source,
         reviewer_agent=reviewer_agent,
-        verdict="rejected",
-        reviewed_at=reviewed_at,
-        affected_files=parsed_affected,
-        body=body,
+        affected_files=affected_files,
     )
-
-    filename = f"review-cycle-{cycle_n}.md"
-    persisted_path = sub_artifact_dir / filename
-    artifact.write(persisted_path)
-
-    pointer = f"review-cycle://{mission_slug}/{wp_slug}/{filename}"
-    return persisted_path, pointer
+    return cycle.artifact_path, cycle.pointer
 
 
 def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
@@ -1443,6 +1415,7 @@ def move_task(
             resolved_feedback_source = feedback_candidate
 
         review_feedback_pointer: str | None = None
+        rejected_review_result = None
 
         # Strictly enforce deterministic review feedback capture on planned rollbacks.
         # This requirement is never bypassed, including with --force.
@@ -1464,13 +1437,18 @@ def move_task(
                 )
                 raise typer.Exit(1)
 
-            _, review_feedback_pointer = _persist_review_feedback(
+            from specify_cli.review.cycle import create_rejected_review_cycle
+
+            _review_cycle = create_rejected_review_cycle(
                 main_repo_root=main_repo_root,
                 mission_slug=mission_slug,
-                task_id=task_id,
+                wp_id=task_id,
+                wp_slug=_resolve_wp_slug(main_repo_root, mission_slug, task_id),
                 feedback_source=resolved_feedback_source,
                 reviewer_agent=agent or "unknown",
             )
+            review_feedback_pointer = _review_cycle.pointer
+            rejected_review_result = _review_cycle.review_result
 
         # Validate subtasks are complete when moving to for_review/approved/done (Issue #72)
         if target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE) and not force:
@@ -1679,12 +1657,31 @@ def move_task(
                 # (the review_result_required guard needs a structured outcome)
                 hop_review_result = None
                 if (
-                    event is not None
-                    and event.to_lane == Lane.IN_REVIEW
-                    and evidence_dict is not None
-                    or event is None
-                    and current_event_lane == Lane.IN_REVIEW
-                    and evidence_dict is not None
+                    (
+                        event is not None
+                        and event.to_lane == Lane.IN_REVIEW
+                        and target == Lane.PLANNED
+                        and rejected_review_result is not None
+                    )
+                    or (
+                        event is None
+                        and current_event_lane == Lane.IN_REVIEW
+                        and target == Lane.PLANNED
+                        and rejected_review_result is not None
+                    )
+                ):
+                    hop_review_result = rejected_review_result
+                elif (
+                    (
+                        event is not None
+                        and event.to_lane == Lane.IN_REVIEW
+                        and evidence_dict is not None
+                    )
+                    or (
+                        event is None
+                        and current_event_lane == Lane.IN_REVIEW
+                        and evidence_dict is not None
+                    )
                 ):
                     from specify_cli.status.models import ReviewResult
 
