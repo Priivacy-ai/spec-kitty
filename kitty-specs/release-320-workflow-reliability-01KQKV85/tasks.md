@@ -138,12 +138,12 @@
 **Requirement Refs**: FR-009, FR-010, FR-011, NFR-002, NFR-004, C-002
 
 ### Included Subtasks
-- [ ] T025 Add strict JSON stdout tests for final-sync warning paths.
-- [ ] T026 Add duplicate sync-lock/interpreter-shutdown diagnostic tests.
-- [ ] T027 Implement structured non-fatal sync diagnostics after local mutation success.
-- [ ] T028 Route diagnostics to stderr or explicit JSON fields according to command contracts.
-- [ ] T029 Deduplicate repeated sync diagnostics per invocation.
-- [ ] T030 Run targeted sync tests with mocked external services and the machine sync flag where applicable.
+- [x] T025 Add strict JSON stdout tests for final-sync warning paths.
+- [x] T026 Add duplicate sync-lock/interpreter-shutdown diagnostic tests.
+- [x] T027 Implement structured non-fatal sync diagnostics after local mutation success.
+- [x] T028 Route diagnostics to stderr or explicit JSON fields according to command contracts.
+- [x] T029 Deduplicate repeated sync diagnostics per invocation.
+- [x] T030 Run targeted sync tests with mocked external services and the machine sync flag where applicable.
 
 ### Implementation Notes
 - The local mutation result remains authoritative once durable local state is written.
@@ -259,12 +259,12 @@
 | T022 | Update commit guard ownership detection | WP04 | P1 | No | [D] |
 | T023 | Add stale/ambiguous context diagnostics | WP04 | P1 | No | [D] |
 | T024 | Run policy/workspace tests | WP04 | P1 | No | [D] |
-| T025 | Add strict JSON sync warning tests | WP05 | P2 | Yes |
-| T026 | Add sync diagnostic dedupe tests | WP05 | P2 | Yes |
-| T027 | Implement non-fatal sync diagnostics | WP05 | P2 | No |
-| T028 | Route diagnostics correctly | WP05 | P2 | No |
-| T029 | Deduplicate sync diagnostics | WP05 | P2 | No |
-| T030 | Run targeted sync tests | WP05 | P2 | No |
+| T025 | Add strict JSON sync warning tests | WP05 | P2 | Yes | [D] |
+| T026 | Add sync diagnostic dedupe tests | WP05 | P2 | Yes | [D] |
+| T027 | Implement non-fatal sync diagnostics | WP05 | P2 | No | [D] |
+| T028 | Route diagnostics correctly | WP05 | P2 | No | [D] |
+| T029 | Deduplicate sync diagnostics | WP05 | P2 | No | [D] |
+| T030 | Run targeted sync tests | WP05 | P2 | No | [D] |
 | T031 | Add diverged target branch tests | WP06 | P2 | Yes |
 | T032 | Add rejected review artifact consistency tests | WP06 | P2 | Yes |
 | T033 | Implement merge/ship branch divergence detection | WP06 | P2 | No |
