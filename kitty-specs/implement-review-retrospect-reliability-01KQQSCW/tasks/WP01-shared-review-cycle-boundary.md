@@ -122,3 +122,4 @@ spec-kitty agent action implement WP01 --agent <name>
 - 2026-05-03T21:40:00Z – codex:gpt-5:default:implementer – shell_pid=47989 – Ready for review
 - 2026-05-03T21:40:15Z – codex:gpt-5:default:reviewer – shell_pid=3047 – Started review via action command
 - 2026-05-03T21:40:18Z – codex:gpt-5:default:reviewer – shell_pid=3047 – Review passed: focused tests cover shared review-cycle boundary
+- 2026-05-03T21:59:05Z – codex:gpt-5:default:reviewer – shell_pid=3047 – Moved to done
