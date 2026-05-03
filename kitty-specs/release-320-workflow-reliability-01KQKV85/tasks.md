@@ -17,12 +17,12 @@
 **Requirement Refs**: NFR-001, NFR-002, NFR-003, NFR-004, C-001, C-002, C-003, C-006
 
 ### Included Subtasks
-- [ ] T001 Create shared reliability fixture helpers under `tests/reliability/fixtures/`.
-- [ ] T002 Add mission/work-package fixture builders for event logs, review artifacts, lane context, and merge state.
-- [ ] T003 [P] Add sync-failure fakes that do not perform real hosted network calls.
-- [ ] T004 [P] Add review prompt collision fixtures for two repos, two missions, and same-second invocations.
-- [ ] T005 Add a fixture smoke test proving the harness can support every linked blocker scenario.
-- [ ] T006 Document the fixture contracts and machine sync flag rule for implementers.
+- [x] T001 Create shared reliability fixture helpers under `tests/reliability/fixtures/`.
+- [x] T002 Add mission/work-package fixture builders for event logs, review artifacts, lane context, and merge state.
+- [x] T003 [P] Add sync-failure fakes that do not perform real hosted network calls.
+- [x] T004 [P] Add review prompt collision fixtures for two repos, two missions, and same-second invocations.
+- [x] T005 Add a fixture smoke test proving the harness can support every linked blocker scenario.
+- [x] T006 Document the fixture contracts and machine sync flag rule for implementers.
 
 ### Implementation Notes
 - Keep this package limited to fixture and helper surfaces. Do not fix production behavior here.
@@ -235,12 +235,12 @@
 
 | Subtask ID | Summary | Work Package | Priority | Parallel? |
 |------------|---------|--------------|----------|-----------|
-| T001 | Create shared reliability fixture helpers | WP01 | P0 | No |
-| T002 | Add mission/work-package fixture builders | WP01 | P0 | No |
-| T003 | Add sync-failure fakes | WP01 | P0 | Yes |
-| T004 | Add review prompt collision fixtures | WP01 | P0 | Yes |
-| T005 | Add fixture smoke test | WP01 | P0 | No |
-| T006 | Document fixture contracts and sync flag rule | WP01 | P0 | No |
+| T001 | Create shared reliability fixture helpers | WP01 | P0 | No | [D] |
+| T002 | Add mission/work-package fixture builders | WP01 | P0 | No | [D] |
+| T003 | Add sync-failure fakes | WP01 | P0 | Yes | [D] |
+| T004 | Add review prompt collision fixtures | WP01 | P0 | Yes | [D] |
+| T005 | Add fixture smoke test | WP01 | P0 | No | [D] |
+| T006 | Document fixture contracts and sync flag rule | WP01 | P0 | No | [D] |
 | T007 | Add move-task event persistence tests | WP02 | P1 | No |
 | T008 | Add #944 claimed recovery coverage | WP02 | P1 | Yes |
 | T009 | Implement transition event readback invariants | WP02 | P1 | No |
