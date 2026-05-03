@@ -17,6 +17,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0a9] - 2026-05-03
+
+3.2.0a9 is a prerelease that adds mission-state audit diagnostics and hardens
+the 3.2.0 workflow reliability path for implementation, review, merge, and
+release-blocker triage.
+
+### Added
+
+- Added a read-only mission-state audit engine for inspecting mission status,
+  work package state, review artifacts, and lifecycle consistency without
+  mutating project state.
+- Added reliability fixture coverage for branch, mission, review prompt, and
+  sync workflows used by the 3.2.0 release-blocker tranche.
+
+### Fixed
+
+- Implementation start is now idempotent across planned, claimed, and
+  in-progress task states, preventing duplicate or inconsistent lifecycle
+  transitions (#946).
+- Merge preflight now refreshes the target branch tracking ref before enforcing
+  target-branch synchronization, so stale local `origin/main` state cannot
+  allow an unsafe merge (#959).
+- Merge, review prompt, worktree ownership, sync finalization, and review
+  artifact consistency checks now have tighter diagnostics and regression
+  coverage for the 3.2.0 workflow reliability tranche (#959).
+- Command JSON output now avoids leaking non-serializable status event mocks in
+  covered move-task paths, preserving strict JSON command contracts.
+
+### Internal
+
+- Recorded the atomic work-package start lifecycle ADR and expanded regression
+  coverage around status persistence, bootstrap seeding, merge preflight, and
+  test sync isolation.
+- Restored CI release confidence by covering the previously failing
+  `fast-tests-core-misc`, `integration-tests-merge`, `integration-tests-cli`,
+  and `diff-coverage` gates.
+
 ## [3.2.0a8] - 2026-05-01
 
 3.2.0a8 is a prerelease that hardens direct SaaS sync ingress around the
