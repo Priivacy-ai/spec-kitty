@@ -81,6 +81,8 @@ dependencies = [
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
     "cryptography>=42.0",  # AES-256-GCM + scrypt KDF for encrypted auth session storage (feature 080)
+    "fastapi>=0.136.1",
+    "uvicorn[standard]>=0.46.0",
 ]
 
 [project.urls]

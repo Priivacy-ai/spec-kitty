@@ -368,6 +368,7 @@ def ensure_dashboard_running(
     project_dir: Path,
     preferred_port: int | None = None,
     background_process: bool = True,
+    transport: str | None = None,
 ) -> tuple[str, int, bool]:
     """
     Ensure a dashboard server is running for the provided project directory.
@@ -437,6 +438,7 @@ def ensure_dashboard_running(
             port=port_to_use,
             background_process=background_process,
             project_token=token,
+            transport=transport,
         )
     except RuntimeError as e:
         # If port exhaustion, try cleaning up orphaned dashboards and retry once
@@ -449,6 +451,7 @@ def ensure_dashboard_running(
                     port=port_to_use,
                     background_process=background_process,
                     project_token=token,
+            transport=transport,
                 )
             else:
                 # No orphans found or couldn't clean up - re-raise original error
@@ -498,6 +501,7 @@ def ensure_dashboard_running(
                 port=port_to_use,
                 background_process=background_process,
                 project_token=token,
+            transport=transport,
             )
             url = f"http://127.0.0.1:{port}"
 

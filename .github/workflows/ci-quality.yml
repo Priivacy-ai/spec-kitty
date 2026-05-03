@@ -59,6 +59,7 @@ jobs:
       next: ${{ steps.filter.outputs.next }}
       lanes: ${{ steps.filter.outputs.lanes }}
       dashboard: ${{ steps.filter.outputs.dashboard }}
+      dashboard_api: ${{ steps.filter.outputs.dashboard_api }}
       upgrade: ${{ steps.filter.outputs.upgrade }}
       cli: ${{ steps.filter.outputs.cli }}
       orchestrator_api: ${{ steps.filter.outputs.orchestrator_api }}
@@ -107,8 +108,35 @@ jobs:
               - 'src/specify_cli/lanes/**'
               - 'tests/lanes/**'
             dashboard:
+              # Legacy BaseHTTPServer transport + extracted service layer.
+              # The new FastAPI subpackage (`src/dashboard/api/`) has its
+              # own filter (`dashboard_api`) so the FastAPI-only test job
+              # can run independently when only the API surface changes.
               - 'src/specify_cli/dashboard/**'
+              - 'src/dashboard/services/**'
+              - 'src/dashboard/file_reader.py'
+              - 'src/dashboard/api_types.py'
+              - 'src/dashboard/__init__.py'
+              - 'src/specify_cli/dashboard_charter_path.py'
+              - 'src/specify_cli/dashboard_diagnostics.py'
+              - 'src/specify_cli/dashboard_templates.py'
+              - 'src/specify_cli/scanner.py'
               - 'tests/test_dashboard/**'
+            dashboard_api:
+              # FastAPI/OpenAPI subpackage from mission
+              # frontend-api-fastapi-openapi-migration-01KQN2JA.
+              # Tests cover the FastAPI app factory, deps, error handlers,
+              # routers, OpenAPI snapshot, validity, transport-parity smoke,
+              # and the handler-purity architectural test.
+              - 'src/dashboard/api/**'
+              - 'tests/test_dashboard/test_fastapi_app.py'
+              - 'tests/test_dashboard/test_openapi_snapshot.py'
+              - 'tests/test_dashboard/test_openapi_validity.py'
+              - 'tests/test_dashboard/test_transport_parity.py'
+              - 'tests/test_dashboard/test_typeddict_pydantic_parity.py'
+              - 'tests/test_dashboard/snapshots/**'
+              - 'tests/architectural/test_fastapi_handler_purity.py'
+              - 'tests/architectural/test_dashboard_boundary.py'
             upgrade:
               - 'src/specify_cli/upgrade/**'
               - 'tests/upgrade/**'
@@ -992,10 +1020,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[test]
       - run: mkdir -p out/reports/coverage
-      - name: "Run fast tests — dashboard"
+      - name: "Run fast tests — dashboard (legacy + service layer)"
+        # Excludes the FastAPI-only test files which are owned by
+        # fast-tests-dashboard-api.
         run: |
           python -m pytest tests/test_dashboard/ -m "fast and not windows_ci" -q --tb=short \
+            --ignore=tests/test_dashboard/test_fastapi_app.py \
+            --ignore=tests/test_dashboard/test_openapi_snapshot.py \
+            --ignore=tests/test_dashboard/test_openapi_validity.py \
+            --ignore=tests/test_dashboard/test_transport_parity.py \
+            --ignore=tests/test_dashboard/test_typeddict_pydantic_parity.py \
             --cov=src/specify_cli/dashboard \
+            --cov=src/dashboard/services \
+            --cov=src/dashboard/file_reader \
             --cov-report=xml:out/reports/coverage/coverage-fast-dashboard.xml \
             || test $? -eq 5
       - name: "Upload fast-dashboard coverage"
@@ -1005,6 +1042,89 @@ jobs:
           name: fast-test-dashboard-reports
           path: out/reports/
           if-no-files-found: ignore
+
+  fast-tests-dashboard-api:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-status]
+    if: >-
+      always() &&
+      (needs.changes.outputs.dashboard_api == 'true' || needs.changes.outputs.dashboard == 'true') &&
+      needs.fast-tests-status.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - run: mkdir -p out/reports/coverage out/reports/openapi
+      - name: "Run fast tests — dashboard FastAPI surface"
+        # Targets only the FastAPI-specific test surface plus the
+        # architectural enforcement that lives at the API boundary.
+        run: |
+          python -m pytest \
+            tests/test_dashboard/test_fastapi_app.py \
+            tests/test_dashboard/test_openapi_snapshot.py \
+            tests/test_dashboard/test_openapi_validity.py \
+            tests/test_dashboard/test_transport_parity.py \
+            tests/test_dashboard/test_typeddict_pydantic_parity.py \
+            tests/architectural/test_fastapi_handler_purity.py \
+            tests/architectural/test_dashboard_boundary.py \
+            -m "not windows_ci" \
+            -q --tb=short \
+            --cov=src/dashboard/api \
+            --cov-report=xml:out/reports/coverage/coverage-fast-dashboard-api.xml \
+            || test $? -eq 5
+      - name: "Generate OpenAPI document and archive"
+        # The FastAPI app's auto-generated OpenAPI spec is a release
+        # artefact: downstream consumers (typed-client codegen, MCP
+        # adapters, external SDKs) read it. We dump both .json and .yaml
+        # forms so the CI artefact is browsable without a JSON viewer.
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          from dashboard.api import create_app
+          app = create_app(project_dir=Path('.'), project_token=None)
+          spec = app.openapi()
+          out_dir = Path('out/reports/openapi')
+          out_dir.mkdir(parents=True, exist_ok=True)
+          (out_dir / 'openapi.json').write_text(
+              json.dumps(spec, sort_keys=True, indent=2) + '\n', encoding='utf-8'
+          )
+          try:
+              import yaml
+              (out_dir / 'openapi.yaml').write_text(
+                  yaml.safe_dump(spec, sort_keys=True, default_flow_style=False),
+                  encoding='utf-8',
+              )
+          except ImportError:
+              # YAML support is optional; the JSON artefact is the contract.
+              print("yaml unavailable; skipped openapi.yaml")
+          paths = sorted(spec.get('paths', {}).keys())
+          print(f"OpenAPI spec generated: {len(paths)} paths")
+          for path in paths:
+              print(f"  - {path}")
+          PY
+      - name: "Upload fast-dashboard-api coverage + OpenAPI spec"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-dashboard-api-reports
+          path: out/reports/
+          if-no-files-found: ignore
+      - name: "Upload OpenAPI spec as standalone artefact"
+        # Separately uploaded so downstream consumers can subscribe to
+        # just the spec without pulling the full coverage bundle.
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dashboard-openapi-spec
+          path: out/reports/openapi/
+          retention-days: 90
 
   fast-tests-upgrade:
     runs-on: ubuntu-latest
@@ -1040,7 +1160,7 @@ jobs:
   # ---------------------------------------------------------------------------
   fast-tests-cli:
     runs-on: ubuntu-latest
-    needs: [changes, fast-tests-lanes, fast-tests-next, fast-tests-review, fast-tests-dashboard, fast-tests-upgrade]
+    needs: [changes, fast-tests-lanes, fast-tests-next, fast-tests-review, fast-tests-dashboard, fast-tests-dashboard-api, fast-tests-upgrade]
     if: >-
       always() &&
       needs.changes.outputs.cli == 'true'
@@ -1583,12 +1703,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[test]
       - run: mkdir -p out/reports/coverage
-      - name: "Run integration tests — dashboard"
+      - name: "Run integration tests — dashboard (legacy + service layer)"
         run: |
           python -m pytest tests/test_dashboard/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            --ignore=tests/test_dashboard/test_fastapi_app.py \
+            --ignore=tests/test_dashboard/test_openapi_snapshot.py \
+            --ignore=tests/test_dashboard/test_openapi_validity.py \
+            --ignore=tests/test_dashboard/test_transport_parity.py \
+            --ignore=tests/test_dashboard/test_typeddict_pydantic_parity.py \
             --cov=src/specify_cli/dashboard \
+            --cov=src/dashboard/services \
+            --cov=src/dashboard/file_reader \
             --cov-report=xml:out/reports/coverage/coverage-integration-dashboard.xml \
             || test $? -eq 5
       - name: "Upload integration-dashboard coverage"
@@ -1596,6 +1723,45 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: integration-test-dashboard-reports
+          path: out/reports/
+
+  integration-tests-dashboard-api:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-dashboard-api]
+    if: >-
+      always() &&
+      (needs.changes.outputs.dashboard_api == 'true' || needs.changes.outputs.dashboard == 'true') &&
+      needs.fast-tests-dashboard-api.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
+      - name: "Run integration tests — dashboard FastAPI surface"
+        run: |
+          python -m pytest \
+            tests/test_dashboard/test_fastapi_app.py \
+            tests/test_dashboard/test_openapi_snapshot.py \
+            tests/test_dashboard/test_openapi_validity.py \
+            tests/test_dashboard/test_transport_parity.py \
+            tests/test_dashboard/test_typeddict_pydantic_parity.py \
+            tests/architectural/test_fastapi_handler_purity.py \
+            tests/architectural/test_dashboard_boundary.py \
+            -m 'not windows_ci' \
+            -q --tb=short \
+            --cov=src/dashboard/api \
+            --cov-report=xml:out/reports/coverage/coverage-integration-dashboard-api.xml \
+            || test $? -eq 5
+      - name: "Upload integration-dashboard-api coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-dashboard-api-reports
           path: out/reports/
 
   integration-tests-upgrade:

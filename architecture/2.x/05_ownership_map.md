@@ -208,6 +208,47 @@ may_call = runtime["dependency_rules"]["may_call"]
 
 ---
 
+## Dashboard
+
+| Field                        | Value                                                                                                                        |
+|------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `canonical_package`          | `dashboard` (= `src/dashboard/`)                                                                                             |
+| `extraction_sequencing_notes`| Service extraction shipped in mission `dashboard-service-extraction-01KQMCA6`. Transport migration (FastAPI/OpenAPI) is mission `frontend-api-fastapi-openapi-migration-01KQN2JA` and adds `src/dashboard/api/` as a sibling subpackage. Scanner, status, and sync subsystems remain in `src/specify_cli/` until their own extraction missions; `src/dashboard/` retains intentional cross-layer imports from those subsystems until they are extracted (staged approach). Full boundary isolation — "no imports from `src/specify_cli/`" — requires scanner (#613) and status (#614) extraction missions as prerequisites. |
+
+**`current_state`** (post-service-extraction; FastAPI migration in progress):
+- `src/dashboard/services/{mission_scan,project_state,sync}.py` — extracted business logic
+- `src/dashboard/file_reader.py` — path-traversal-safe artifact reads
+- `src/dashboard/api_types.py` — TypedDict response shapes (canonical home post-extraction)
+- `src/dashboard/api/` — FastAPI app subpackage (mission `frontend-api-fastapi-openapi-migration-01KQN2JA`); contains `app.py`, `deps.py`, `errors.py`, `models.py`, and `routers/<family>.py`
+- `src/specify_cli/dashboard/handlers/{features,api,charter,diagnostics,glossary,lint,static}.py` — thin single-call adapters; legacy stack retained until a separate retirement mission removes it
+- `src/specify_cli/dashboard/server.py` — strangler boundary that selects between legacy and FastAPI transport via `dashboard.transport` config
+
+**`adapter_responsibilities`** (post-FastAPI migration):
+- **Legacy stack (retained for rollback)**: HTTP dispatch via `handlers/router.py`, `BaseHTTPRequestHandler` I/O, inline token guards
+- **FastAPI stack (`src/dashboard/api/`)**: route registration via `APIRouter` per family; `Depends(verify_project_token)` for token validation; `StaticFiles` mount for assets; auto-generated OpenAPI at `/openapi.json` + Swagger UI at `/docs` + ReDoc at `/redoc`
+- **Transport-independent**: HTTP server bootstrap selects the active stack at process start; the strangler boundary in `server.py` reads the config and dispatches
+
+**`shims`**:
+- path: `src/specify_cli/dashboard/api_types.py`
+  canonical_import: `dashboard.api_types`
+  removal_release: FastAPI transport migration milestone
+- path: `src/specify_cli/scanner.py`
+  canonical_import: `specify_cli.dashboard.scanner` (will move with scanner extraction mission #613)
+  removal_release: scanner extraction mission completion (#613) — the canonical scanner location moves out of `specify_cli.dashboard.scanner` at that point and this shim updates to point at the new home, then retires when `dashboard.*` imports the canonical path directly. See [scanner-shim-ownership-addendum.md](../../kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md).
+
+**`seams`**:
+- `FeatureHandler.handle_features_list` delegates to `MissionScanService.get_features_list`
+- `FeatureHandler.handle_kanban` delegates to `MissionScanService.get_kanban`
+- `APIHandler.handle_health` delegates to `ProjectStateService.get_health`
+- `APIHandler.handle_sync_trigger` delegates to `SyncService.trigger_sync`
+- File-serving handlers (`handle_research`, `handle_contracts`, `handle_checklists`, `handle_artifact`) delegate to `DashboardFileReader`
+
+> **ADR references**:
+> - [2026-05-02-1-dashboard-service-extraction](./adr/2026-05-02-1-dashboard-service-extraction.md) — handler-to-service extraction
+> - [2026-05-02-2-fastapi-openapi-transport](./adr/2026-05-02-2-fastapi-openapi-transport.md) — FastAPI / OpenAPI transport migration
+
+---
+
 ## Lifecycle Status
 
 | Field                        | Value                                                                                                                               |

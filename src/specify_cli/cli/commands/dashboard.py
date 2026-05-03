@@ -35,6 +35,21 @@ def dashboard(
             "Does not start the dashboard server."
         ),
     ),
+    transport: str | None = typer.Option(
+        None,
+        "--transport",
+        help=(
+            "Dashboard transport stack: 'legacy' (BaseHTTPServer) or 'fastapi'. "
+            "Overrides the dashboard.transport value in .kittify/config.yaml. "
+            "Default (when neither flag nor config is set) is 'fastapi'."
+        ),
+    ),
+    bench_exit_after_first_byte: bool = typer.Option(
+        False,
+        "--bench-exit-after-first-byte",
+        hidden=True,
+        help="Exit immediately after the first byte is served (used by scripts/bench_dashboard_startup.py).",
+    ),
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""
     project_root = get_project_root_or_exit()
@@ -65,8 +80,16 @@ def dashboard(
         console.print()
         raise typer.Exit(1)
 
+    if transport is not None and transport not in ("legacy", "fastapi"):
+        console.print(
+            f"[red]❌ Unknown --transport value: {transport!r}. Use 'legacy' or 'fastapi'.[/red]"
+        )
+        raise typer.Exit(1)
+
     try:
-        dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
+        dashboard_url, active_port, started = ensure_dashboard_running(
+            project_root, preferred_port=port, transport=transport,
+        )
     except FileNotFoundError as exc:  # Missing .kittify directory
         console.print("[red]❌ Dashboard metadata not found[/red]")
         console.print(f"   {exc}")

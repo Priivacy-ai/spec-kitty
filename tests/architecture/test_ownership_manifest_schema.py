@@ -20,6 +20,7 @@ REQUIRED_SLICE_KEYS = frozenset(
         "doctrine",
         "runtime_mission_execution",
         "glossary",
+        "dashboard",
         "lifecycle_status",
         "orchestrator_sync_tracker_saas",
         "migration_versioning",
@@ -58,8 +59,8 @@ def test_manifest_exists_and_parses(manifest: dict[str, Any]) -> None:
     assert isinstance(manifest, dict), "Manifest must be a YAML mapping at top level"
 
 
-# Assertion 2 — exactly the 8 canonical slice keys
-def test_manifest_has_exactly_eight_canonical_keys(manifest: dict[str, Any]) -> None:
+# Assertion 2 — exactly the canonical slice keys (9 after dashboard added by mission dashboard-service-extraction-01KQMCA6)
+def test_manifest_has_exactly_the_canonical_slice_keys(manifest: dict[str, Any]) -> None:
     assert set(manifest.keys()) == REQUIRED_SLICE_KEYS
 
 

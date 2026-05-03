@@ -106,6 +106,57 @@ glossary:
     #613 and the deprecation scaffolding in #615 landing first. Import-graph tooling
     (an AC in #612) is nice-to-have, not blocking, for the glossary slice.
 
+dashboard:
+  canonical_package: dashboard
+  current_state:
+    - src/dashboard/services/mission_scan.py
+    - src/dashboard/services/project_state.py
+    - src/dashboard/services/sync.py
+    - src/dashboard/file_reader.py
+    - src/dashboard/api_types.py
+    - src/dashboard/api/app.py
+    - src/dashboard/api/deps.py
+    - src/dashboard/api/errors.py
+    - src/dashboard/api/models.py
+    - src/dashboard/api/routers/
+    - src/specify_cli/dashboard/handlers/features.py
+    - src/specify_cli/dashboard/handlers/api.py
+    - src/specify_cli/dashboard/handlers/charter.py
+    - src/specify_cli/dashboard/handlers/diagnostics.py
+    - src/specify_cli/dashboard/handlers/glossary.py
+    - src/specify_cli/dashboard/handlers/lint.py
+    - src/specify_cli/dashboard/handlers/static.py
+    - src/specify_cli/dashboard/server.py
+  adapter_responsibilities:
+    - Legacy stack (retained for rollback) — HTTP dispatch via handlers/router.py, BaseHTTPRequestHandler I/O, inline token guards
+    - FastAPI stack (src/dashboard/api/) — route registration via APIRouter per family
+    - FastAPI stack — Depends(verify_project_token) for token validation
+    - FastAPI stack — StaticFiles mount for dashboard.css/dashboard.js assets
+    - FastAPI stack — auto-generated OpenAPI at /openapi.json + Swagger /docs + ReDoc /redoc
+    - Transport-independent — strangler boundary in src/specify_cli/dashboard/server.py selects legacy or FastAPI via dashboard.transport config
+  shims:
+    - path: src/specify_cli/dashboard/api_types.py
+      canonical_import: dashboard.api_types
+      removal_release: FastAPI transport migration milestone
+    - path: src/specify_cli/scanner.py
+      canonical_import: specify_cli.dashboard.scanner
+      removal_release: scanner extraction mission completion (#613)
+  seams:
+    - FeatureHandler.handle_features_list delegates to MissionScanService.get_features_list
+    - FeatureHandler.handle_kanban delegates to MissionScanService.get_kanban
+    - APIHandler.handle_health delegates to ProjectStateService.get_health
+    - APIHandler.handle_sync_trigger delegates to SyncService.trigger_sync
+    - File-serving handlers (research, contracts, checklists, artifact) delegate to DashboardFileReader
+  extraction_sequencing_notes: >
+    Target for mission dashboard-service-extraction-01KQMCA6. Governance WP01 must
+    land before any code change. Scanner, status, and sync subsystems remain in
+    src/specify_cli/ until their own extraction missions; src/dashboard/ will have
+    intentional cross-layer imports from those subsystems until they are extracted.
+    The architectural boundary test asserts the narrower invariant (no imports from
+    src/specify_cli/dashboard/ inside src/dashboard/) to prevent circular dependency.
+    Full boundary isolation requires scanner (#613) and status (#614) extraction missions
+    as prerequisites.
+
 lifecycle_status:
   canonical_package: src/lifecycle/
   current_state:
