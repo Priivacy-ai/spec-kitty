@@ -16,6 +16,8 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "codex:gpt-5:default:implementer"
+shell_pid: "5852"
 history:
 - at: '2026-05-03T20:58:32Z'
   actor: system
@@ -80,3 +82,7 @@ Assert `Decision` output shape remains compatible and `kind="step"` still includ
 ```bash
 spec-kitty agent action implement WP04 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-05-03T21:41:07Z – codex:gpt-5:default:implementer – shell_pid=5852 – Started implementation via action command
