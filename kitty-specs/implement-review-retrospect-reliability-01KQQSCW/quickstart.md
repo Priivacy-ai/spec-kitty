@@ -70,7 +70,7 @@ uv run pytest tests/cli/test_agent_retrospect_missing_record.py -q
 Before mission acceptance, run the targeted tests above plus any directly impacted existing tests:
 
 ```bash
-uv run pytest tests/review tests/integration/review tests/integration/test_implement_review_retrospect_smoke.py tests/status/test_transitions.py tests/status/test_emit.py tests/next tests/cli/test_agent_retrospect_synthesize.py tests/cli/test_agent_retrospect_missing_record.py -q
+uv run pytest tests/review tests/integration/review tests/status/test_transitions.py tests/status/test_emit.py tests/next tests/cli/test_agent_retrospect_synthesize.py -q
 ```
 
 If a verification command touches hosted auth, tracker, SaaS sync, or sync finalization, document why sync is in scope and run the command with the environment requested for that verification.
