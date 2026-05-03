@@ -22,7 +22,8 @@ subtasks:
 - T012
 phase: Phase 2 - Workflow State Trust
 assignee: ''
-agent: codex
+agent: "codex:gpt-5.3-codex:python-pedro:implementer"
+shell_pid: "83940"
 history:
 - at: '2026-05-02T08:10:17Z'
   actor: system
@@ -159,3 +160,4 @@ Reviewers should focus on the atomicity invariant: success means durable event e
 
 **Initial entry**:
 - 2026-05-02T08:10:17Z – system – Prompt created.
+- 2026-05-03T12:45:37Z – codex:gpt-5.3-codex:python-pedro:implementer – shell_pid=83940 – Started implementation via action command
