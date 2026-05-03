@@ -184,7 +184,7 @@ def test_legacy_feedback_pointer_resolution(tmp_path: Path) -> None:
     pointer = "feedback://066-test/WP01/20260406T120000Z-abcd1234.md"
 
     with patch(
-        "specify_cli.cli.commands.agent.workflow._resolve_git_common_dir",
+        "specify_cli.review.cycle._resolve_git_common_dir",
         return_value=tmp_path / ".git",
     ):
         result = _resolve_review_feedback_pointer(tmp_path, pointer)
@@ -210,7 +210,12 @@ def test_new_review_cycle_pointer_resolution(tmp_path: Path) -> None:
     )
     artifact_dir.mkdir(parents=True)
     artifact_file = artifact_dir / "review-cycle-1.md"
-    artifact_file.write_text("---\n---\n", encoding="utf-8")
+    _sample_artifact(
+        mission_slug="066-review-loop-stabilization",
+        wp_id="WP01",
+        cycle_number=1,
+        body="## Feedback\n\nCanonical content.",
+    ).write(artifact_file)
 
     pointer = "review-cycle://066-review-loop-stabilization/WP01-persisted-review-artifact-model/review-cycle-1.md"
     result = _resolve_review_feedback_pointer(tmp_path, pointer)

@@ -53,6 +53,7 @@ from specify_cli.next.decision import (
     _build_prompt_or_error,
     _build_prompt_safe,
     _compute_wp_progress,
+    _find_first_wp_by_lane,
     _state_to_action,
 )
 from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
@@ -245,11 +246,52 @@ def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRu
 # ---------------------------------------------------------------------------
 
 _WP_ITERATION_STEPS = frozenset({"implement", "review"})
+_PRE_FINALIZED_TASK_STEPS = frozenset(
+    {"discovery", "specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize"}
+)
 
 
 def _is_wp_iteration_step(step_id: str) -> bool:
     """Check if a step is a WP-iteration step (implement, review)."""
     return step_id in _WP_ITERATION_STEPS
+
+
+def _finalized_task_board_override_step(
+    feature_dir: Path,
+    progress: dict[str, int | float] | None,
+) -> str | None:
+    """Return the next step implied by finalized WP state, if available.
+
+    This is intentionally narrow: it only overrides stale early runtime phases
+    after a mission already has tasks.md, finalized WP files, and canonical WP
+    lane state. It does not reorder non-finalized mission DAG execution.
+    """
+    if progress is None:
+        return None
+    total = int(progress.get("total_wps", 0) or 0)
+    if total <= 0:
+        return None
+    if not (feature_dir / "tasks.md").is_file() or not (feature_dir / "tasks").is_dir():
+        return None
+
+    if _find_first_wp_by_lane(feature_dir, "planned") is not None:
+        return "implement"
+    if _find_first_wp_by_lane(feature_dir, "claimed") is not None:
+        return "implement"
+    if _find_first_wp_by_lane(feature_dir, "in_progress") is not None:
+        return "implement"
+    if _find_first_wp_by_lane(feature_dir, "for_review") is not None:
+        return "review"
+    if _find_first_wp_by_lane(feature_dir, "in_review") is not None:
+        return "blocked:review_in_progress"
+
+    done = int(progress.get("done_wps", 0) or 0)
+    approved = int(progress.get("approved_wps", 0) or 0)
+    if done == total:
+        return "done"
+    if approved + done == total:
+        return "accept"
+    return "blocked:no_actionable_wp"
 
 
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
@@ -1510,6 +1552,25 @@ def decide_next_via_runtime(  # noqa: C901
     except Exception:
         current_step_id = None
 
+    finalized_override = _finalized_task_board_override_step(feature_dir, progress)
+    if (
+        result == "success"
+        and (current_step_id is None or current_step_id in _PRE_FINALIZED_TASK_STEPS)
+        and finalized_override is not None
+    ):
+        return _build_finalized_task_board_decision(
+            override_step=finalized_override,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission_type=mission_type,
+            feature_dir=feature_dir,
+            repo_root=repo_root,
+            timestamp=now,
+            progress=progress,
+            origin=origin,
+            run_ref=run_ref,
+        )
+
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
@@ -2021,6 +2082,34 @@ def query_current_state(
         if ephemeral_run_store is None:
             emitted_run_id = getattr(run_ref, "run_id", None)
 
+        finalized_override = _finalized_task_board_override_step(feature_dir, progress)
+        if finalized_override is not None:
+            if finalized_override == "done":
+                mission_state = "done"
+                preview_step = None
+                reason = "All work packages are done"
+            elif finalized_override.startswith("blocked:"):
+                mission_state = "blocked"
+                preview_step = None
+                reason = finalized_override.split(":", 1)[1].replace("_", " ")
+            else:
+                mission_state = finalized_override
+                preview_step = finalized_override
+                reason = None
+            return Decision(
+                kind=DecisionKind.query,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=mission_state,
+                timestamp=now,
+                is_query=True,
+                reason=reason,
+                progress=progress,
+                run_id=emitted_run_id,
+                preview_step=preview_step,
+            )
+
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
             if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
                 return Decision(
@@ -2234,6 +2323,117 @@ def _build_wp_iteration_decision(
             run_id=run_ref.run_id,
             step_id=step_id,
         )
+
+
+def _build_finalized_task_board_decision(
+    *,
+    override_step: str,
+    agent: str,
+    mission_slug: str,
+    mission_type: str,
+    feature_dir: Path,
+    repo_root: Path,
+    timestamp: str,
+    progress: dict | None,
+    origin: dict,
+    run_ref: MissionRunRef,
+) -> Decision:
+    """Build a public Decision from finalized task/WP state."""
+    if override_step in _WP_ITERATION_STEPS:
+        return _build_wp_iteration_decision(
+            override_step,
+            agent,
+            mission_slug,
+            mission_type,
+            feature_dir,
+            repo_root,
+            timestamp,
+            progress,
+            origin,
+            run_ref,
+        )
+
+    if override_step == "done":
+        return Decision(
+            kind=DecisionKind.terminal,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="done",
+            timestamp=timestamp,
+            reason="All work packages are done",
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id="done",
+        )
+
+    if override_step.startswith("blocked:"):
+        reason = override_step.split(":", 1)[1].replace("_", " ")
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="blocked",
+            timestamp=timestamp,
+            reason=reason,
+            guard_failures=[reason],
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id="blocked",
+        )
+
+    action, wp_id, workspace_path = _state_to_action(
+        override_step,
+        mission_slug,
+        feature_dir,
+        repo_root,
+        mission_type,
+    )
+    prompt_file, prompt_error = _build_prompt_or_error(
+        action or override_step,
+        feature_dir,
+        mission_slug,
+        wp_id,
+        agent,
+        repo_root,
+        mission_type,
+    )
+    if prompt_file is None:
+        return Decision(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=override_step,
+            timestamp=timestamp,
+            reason=prompt_error or "prompt_file_not_resolvable",
+            action=action or override_step,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            progress=progress,
+            origin=origin,
+            run_id=run_ref.run_id,
+            step_id=override_step,
+        )
+    return Decision(
+        kind=DecisionKind.step,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission=mission_type,
+        mission_state=override_step,
+        timestamp=timestamp,
+        action=action or override_step,
+        wp_id=wp_id,
+        workspace_path=workspace_path,
+        prompt_file=prompt_file,
+        progress=progress,
+        origin=origin,
+        run_id=run_ref.run_id,
+        step_id=override_step,
+    )
 
 
 def _map_runtime_decision(

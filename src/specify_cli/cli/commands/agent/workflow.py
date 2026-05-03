@@ -59,6 +59,7 @@ from specify_cli.review.prompt_metadata import (
     write_review_prompt_with_metadata,
 )
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_cycle_pointer
 from specify_cli.status.models import AgentAssignment, Lane
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
@@ -79,7 +80,7 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 
 logger = logging.getLogger(__name__)
 
-_REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
+_REVIEW_FEEDBACK_SENTINELS = REVIEW_FEEDBACK_SENTINELS
 
 
 def _write_prompt_to_file(
@@ -161,34 +162,10 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
     ``"action-review-claim"``, or any
     unrecognised / non-existent pointer.
     """
-    value = pointer.strip()
-    if not value or value in _REVIEW_FEEDBACK_SENTINELS:
+    try:
+        return resolve_review_cycle_pointer(repo_root, pointer).path
+    except ValueError:
         return None
-
-    if value.startswith("review-cycle://"):
-        relative = value[len("review-cycle://") :]
-        parts = [p for p in relative.split("/") if p]
-        if len(parts) != 3:
-            return None
-        # parts: mission_slug / wp_slug / filename
-        candidate = repo_root / "kitty-specs" / parts[0] / "tasks" / parts[1] / parts[2]
-    elif value.startswith("feedback://"):
-        relative = value[len("feedback://") :]
-        parts = [p for p in relative.split("/") if p]
-        if len(parts) != 3:
-            return None
-        common_dir = _resolve_git_common_dir(repo_root)
-        if common_dir is None:
-            return None
-        candidate = common_dir / "spec-kitty" / "feedback" / parts[0] / parts[1] / parts[2]
-    else:
-        legacy = Path(value).expanduser()
-        candidate = legacy if legacy.is_absolute() else (repo_root / legacy)
-
-    candidate = candidate.resolve()
-    if candidate.exists() and candidate.is_file():
-        return candidate
-    return None
 
 
 def _read_wp_events(feature_dir: Path, wp_id: str):
@@ -967,6 +944,8 @@ def implement(
             lines.append("⚠️  This work package has review feedback.")
             if review_feedback_ref:
                 lines.append(f"   Canonical feedback reference: {review_feedback_ref}")
+                if review_feedback_ref.startswith("feedback://"):
+                    lines.append("   WARNING: legacy feedback:// reference detected; readable but deprecated.")
                 if review_feedback_file is not None:
                     lines.append(f'   Read it first: cat "{review_feedback_file}"')
                 else:
@@ -1050,6 +1029,8 @@ def implement(
         if has_feedback:
             if review_feedback_ref:
                 print(f"⚠️  Has review feedback - read reference: {review_feedback_ref}")
+                if review_feedback_ref.startswith("feedback://"):
+                    print("   Warning: legacy feedback:// reference detected; readable but deprecated.")
             else:
                 print("⚠️  Has review feedback - but no review_feedback reference is set")
         if mission_type == "research" and deliverables_path:
