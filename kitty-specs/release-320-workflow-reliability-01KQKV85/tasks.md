@@ -168,12 +168,12 @@
 **Requirement Refs**: FR-012, FR-013, FR-014, NFR-001, NFR-005, C-004, C-005
 
 ### Included Subtasks
-- [ ] T031 Add preflight tests for local `main` diverged from `origin/main`.
-- [ ] T032 Add tests for approved/done WPs with latest rejected review-cycle frontmatter.
-- [ ] T033 Implement merge/ship target-branch divergence detection.
-- [ ] T034 Provide deterministic focused PR branch synthesis guidance from mission-owned changes.
-- [ ] T035 Integrate review artifact consistency checks before mission-review or ship signoff.
-- [ ] T036 Run merge/post-merge/integration tests and verify final smoke expectations.
+- [x] T031 Add preflight tests for local `main` diverged from `origin/main`.
+- [x] T032 Add tests for approved/done WPs with latest rejected review-cycle frontmatter.
+- [x] T033 Implement merge/ship target-branch divergence detection.
+- [x] T034 Provide deterministic focused PR branch synthesis guidance from mission-owned changes.
+- [x] T035 Integrate review artifact consistency checks before mission-review or ship signoff.
+- [x] T036 Run merge/post-merge/integration tests and verify final smoke expectations.
 
 ### Implementation Notes
 - Use the actual branch values from canonical state; for this mission the helper resolved current `main`, planning/base `main`, and merge target `main`.
@@ -265,9 +265,9 @@
 | T028 | Route diagnostics correctly | WP05 | P2 | No | [D] |
 | T029 | Deduplicate sync diagnostics | WP05 | P2 | No | [D] |
 | T030 | Run targeted sync tests | WP05 | P2 | No | [D] |
-| T031 | Add diverged target branch tests | WP06 | P2 | Yes |
-| T032 | Add rejected review artifact consistency tests | WP06 | P2 | Yes |
-| T033 | Implement merge/ship branch divergence detection | WP06 | P2 | No |
-| T034 | Add focused PR branch remediation guidance | WP06 | P2 | No |
-| T035 | Integrate review artifact consistency checks | WP06 | P2 | No |
-| T036 | Run merge/post-merge integration tests | WP06 | P2 | No |
+| T031 | Add diverged target branch tests | WP06 | P2 | Yes | [D] |
+| T032 | Add rejected review artifact consistency tests | WP06 | P2 | Yes | [D] |
+| T033 | Implement merge/ship branch divergence detection | WP06 | P2 | No | [D] |
+| T034 | Add focused PR branch remediation guidance | WP06 | P2 | No | [D] |
+| T035 | Integrate review artifact consistency checks | WP06 | P2 | No | [D] |
+| T036 | Run merge/post-merge integration tests | WP06 | P2 | No | [D] |
