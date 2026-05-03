@@ -1,0 +1,49 @@
+{
+  "event_count": 4,
+  "last_event_id": "01KQQVTMPV8J25ESK4ECT288EG",
+  "materialized_at": "2026-05-03T21:27:35.387823+00:00",
+  "mission_number": "",
+  "mission_slug": "resource-oriented-mission-api-01KQQRF2",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 4
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQVTMNTVEZNT15BQZ2EXANW",
+      "last_transition_at": "2026-05-03T21:27:35.354777+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQVTMPGHCEY63D1PNPW54QC",
+      "last_transition_at": "2026-05-03T21:27:35.376896+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQVTMPPBRAV8MHKMSGENH7J",
+      "last_transition_at": "2026-05-03T21:27:35.382380+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQVTMPV8J25ESK4ECT288EG",
+      "last_transition_at": "2026-05-03T21:27:35.387823+00:00"
+    }
+  }
+}
