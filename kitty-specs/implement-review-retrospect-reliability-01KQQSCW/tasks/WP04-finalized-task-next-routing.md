@@ -89,3 +89,4 @@ spec-kitty agent action implement WP04 --agent <name>
 - 2026-05-03T21:41:11Z – codex:gpt-5:default:implementer – shell_pid=5852 – Ready for review
 - 2026-05-03T21:41:12Z – codex:gpt-5:default:reviewer – shell_pid=6344 – Started review via action command
 - 2026-05-03T21:41:14Z – codex:gpt-5:default:reviewer – shell_pid=6344 – Review passed: finalized next routing tests passed
+- 2026-05-03T21:59:11Z – codex:gpt-5:default:reviewer – shell_pid=6344 – Moved to done
