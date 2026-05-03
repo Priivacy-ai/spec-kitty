@@ -33,7 +33,7 @@ _STATIC_DIR = (
 
 def register(app: FastAPI) -> None:
     """Mount the static asset tree and the dashboard shell route."""
-    router = APIRouter()
+    router = APIRouter(tags=["static"])
 
     @router.get("/", response_class=HTMLResponse)
     def home():

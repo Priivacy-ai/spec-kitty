@@ -26,7 +26,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from dashboard.api.deps import get_mission_registry
@@ -47,13 +47,16 @@ def _failure(detail: str) -> JSONResponse:
 
 def register(app: FastAPI) -> None:
     """Mount the features router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["kanban"])
 
     @router.get("/api/features", response_model=FeaturesListResponse)
     def list_features(
+        response: Response,
         request: Request,
         registry: Annotated[MissionRegistry, Depends(get_mission_registry)],
     ):
+        response.headers["Deprecation"] = "true"
+        response.headers["Link"] = '</api/missions>; rel="successor-version"'
         project_dir = Path(request.app.state.project_dir)
         try:
             return MissionScanService(project_dir, registry=registry).get_features_list()

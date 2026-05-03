@@ -30,7 +30,7 @@ def _reader(request: Request) -> DashboardFileReader:
 
 def register(app: FastAPI) -> None:
     """Mount the artifacts router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["artifacts"])
 
     @router.get("/api/research/{feature_id}", response_model=ResearchResponse)
     def get_research(feature_id: str, request: Request):

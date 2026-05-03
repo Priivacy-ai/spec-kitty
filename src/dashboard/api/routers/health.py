@@ -18,7 +18,7 @@ __all__ = ["register"]
 
 def register(app: FastAPI) -> None:
     """Mount the health router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["health"])
 
     @router.get("/api/health", response_model=HealthResponse)
     def get_health(request: Request):

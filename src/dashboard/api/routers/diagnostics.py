@@ -29,7 +29,7 @@ def _failure() -> JSONResponse:
 
 def register(app: FastAPI) -> None:
     """Mount the diagnostics router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["health"])
 
     @router.get("/api/diagnostics", response_model=DiagnosticsResponse)
     def get_diagnostics(request: Request):

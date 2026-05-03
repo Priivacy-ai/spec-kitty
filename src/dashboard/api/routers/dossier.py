@@ -62,7 +62,7 @@ def _collect_artifact_filters(
 
 def register(app: FastAPI) -> None:
     """Mount the dossier router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["dossier"])
 
     @router.get("/api/dossier/overview")
     def get_overview(request: Request, mission_slug: Annotated[str | None, Query(default=None, alias="feature")]):

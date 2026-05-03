@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 def register(app: FastAPI) -> None:
     """Mount the shutdown router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["lifecycle"])
 
     @router.post("/api/shutdown", response_model=ShutdownResponse)
     def shutdown(request: Request, _token: Annotated[str | None, Depends(verify_project_token)]):

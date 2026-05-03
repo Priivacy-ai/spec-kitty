@@ -155,7 +155,7 @@ def _build_glossary_terms(project_dir: Path) -> list[dict[str, Any]]:
 
 def register(app: FastAPI) -> None:
     """Mount the glossary router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["glossary"])
 
     @router.get("/api/glossary-health", response_model=GlossaryHealthResponse)
     def glossary_health(request: Request):

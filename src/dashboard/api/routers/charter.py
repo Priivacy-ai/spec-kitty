@@ -19,7 +19,7 @@ __all__ = ["register"]
 
 def register(app: FastAPI) -> None:
     """Mount the charter router on ``app``."""
-    router = APIRouter()
+    router = APIRouter(tags=["charter"])
 
     @router.get("/api/charter", response_class=PlainTextResponse)
     def get_charter(request: Request):
