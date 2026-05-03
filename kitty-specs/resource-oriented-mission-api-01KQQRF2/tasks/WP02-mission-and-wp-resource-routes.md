@@ -127,21 +127,31 @@ def _wp_links(mission_id: str, wp_id: str) -> dict[str, Link]:
 
 
 def _get_mission_or_raise(registry: MissionRegistry, mission_id: str) -> MissionRecord:
-    """Resolve mission_id/mid8/slug; raise 404 or 409 appropriately."""
-    try:
-        record = registry.get_mission(mission_id)
-    except Exception as exc:
-        # Catch AmbiguousMissionSelector or equivalent from the registry
-        error_str = str(exc)
-        if "ambiguous" in error_str.lower() or "AMBIGUOUS" in error_str:
+    """Resolve mission_id/mid8/slug; raise 404 or 409 appropriately.
+
+    IMPORTANT: registry.get_mission() NEVER raises — it returns None for both
+    "not found" and "ambiguous mid8" cases (see registry.py:661–694).
+    Ambiguity detection must be done explicitly.
+    """
+    record = registry.get_mission(mission_id)
+    if record is not None:
+        return record
+
+    # None returned — distinguish ambiguous mid8 from not-found.
+    # A mid8 handle is exactly 8 chars. Check how many missions share it.
+    if len(mission_id) == 8:
+        candidates = [m for m in registry.list_missions() if m.mid8 == mission_id]
+        if len(candidates) > 1:
             raise HTTPException(
                 status_code=409,
-                detail={"error": "MISSION_AMBIGUOUS_SELECTOR", "input": mission_id},
+                detail={
+                    "error": "MISSION_AMBIGUOUS_SELECTOR",
+                    "input": mission_id,
+                    "candidates": [m.mission_slug for m in candidates],
+                },
             )
-        raise
-    if record is None:
-        raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id}")
-    return record
+
+    raise HTTPException(status_code=404, detail=f"Mission not found: {mission_id}")
 
 
 def _record_to_summary(record: MissionRecord) -> MissionSummary:
@@ -271,7 +281,14 @@ async def list_work_packages(
     ]
 ```
 
-**Important**: Check `MissionRegistry`'s actual API for accessing per-mission WP data. It may be `registry.list_work_packages(mission_id_or_slug)` directly rather than a separate `WorkPackageRegistry` object. Read `registry.py` carefully and adjust.
+**Actual API** (`registry.py:696–718`): Use `registry.workpackages_for(record.mission_slug)` to obtain a `WorkPackageRegistry` instance, then call its `.list_work_packages()` method:
+
+```python
+wp_registry = registry.workpackages_for(record.mission_slug)
+wps = wp_registry.list_work_packages()
+```
+
+Note: `workpackages_for()` raises `ValueError` if the mission doesn't exist — but we already resolved the mission record via `_get_mission_or_raise`, so this won't happen here.
 
 ---
 
@@ -285,7 +302,9 @@ async def get_work_package(
     registry: MissionRegistry = Depends(get_mission_registry),
 ) -> WorkPackage:
     record = _get_mission_or_raise(registry, mission_id)
-    wp = registry.get_work_package(mission_id, wp_id)  # adjust API as needed
+    # Actual API: workpackages_for() → WorkPackageRegistry → get_work_package(wp_id)
+    wp_registry = registry.workpackages_for(record.mission_slug)
+    wp = wp_registry.get_work_package(wp_id)
     if wp is None:
         raise HTTPException(status_code=404, detail=f"Work package not found: {wp_id}")
     prompt_ref = str(wp.prompt_path) if wp.prompt_path and wp.prompt_path.exists() else None
@@ -369,9 +388,10 @@ Must pass. The new `/api/missions/**` paths follow the resource-noun convention.
 - [ ] `test_transport_does_not_import_scanner.py` passes.
 - [ ] `test_url_naming_convention.py` passes.
 - [ ] Zero new `# type: ignore` added.
+- [ ] `mypy --strict src/dashboard/api/routers/missions.py src/dashboard/api/app.py` exits 0.
 
 ## Risks
 
 - **Registry WP access API**: The exact method signatures for accessing per-mission WPs may differ from what's shown above. Read `registry.py` before coding and adjust accordingly.
-- **Ambiguity exception type**: The `_get_mission_or_raise` helper catches generic `Exception` as a fallback. Identify the specific exception class in the registry and catch it precisely.
+- **No exception for ambiguous mid8**: `registry.get_mission()` returns `None` silently for ambiguous mid8 — see the updated `_get_mission_or_raise` helper. Do not attempt to catch an exception; use the explicit mid8 count check instead.
 - **`_links` field aliasing**: When constructing `ResourceModel` subclasses, the field is accessed via its alias `_links`. Using `**{"_links": ...}` is the safe pattern; do not use `_links=...` as a keyword argument (Python interprets leading-underscore attributes specially).

@@ -1,28 +1,28 @@
 {
-  "event_count": 4,
-  "last_event_id": "01KQQVTMPV8J25ESK4ECT288EG",
-  "materialized_at": "2026-05-03T21:27:35.387823+00:00",
+  "event_count": 13,
+  "last_event_id": "01KQRT9EQEJWW6HEZFD4T15Q8F",
+  "materialized_at": "2026-05-04T06:19:58.062291+00:00",
   "mission_number": "",
   "mission_slug": "resource-oriented-mission-api-01KQQRF2",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
-    "planned": 4
+    "in_review": 1,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude:claude-sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQQVTMNTVEZNT15BQZ2EXANW",
-      "last_transition_at": "2026-05-03T21:27:35.354777+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KQRT3BHP22506F2XSV2T2GHZ",
+      "last_transition_at": "2026-05-04T06:16:38.198990+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-05-03T21:27:35.376896+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "user",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQQVTMPPBRAV8MHKMSGENH7J",
-      "last_transition_at": "2026-05-03T21:27:35.382380+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQRT9EQEJWW6HEZFD4T15Q8F",
+      "last_transition_at": "2026-05-04T06:19:58.062291+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",

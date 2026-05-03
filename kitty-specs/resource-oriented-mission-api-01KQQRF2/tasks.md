@@ -11,12 +11,12 @@ WP01 is a strict prerequisite for WP02. WP04 depends on all three predecessors.
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|---------|
-| T001 | Extend `WorkPackageRecord` dataclass with `claimed_at: datetime \| None` and `blocked_reason: str \| None` fields in `registry.py` | WP01 | — |
-| T002 | Update `WorkPackageRegistry` per-WP scan to populate `claimed_at` and `blocked_reason` from `status.events.jsonl` | WP01 | — |
-| T003 | Add `ReviewEvidence` and `WorkPackageAssignment` Pydantic v2 models to `src/dashboard/api/models.py` | WP01 | [P] |
-| T004 | Add `MissionSummary` and `Mission` resource models (subclass `ResourceModel`, declare `_links`) | WP01 | [P] |
-| T005 | Add `MissionStatus` resource model | WP01 | [P] |
-| T006 | Add `WorkPackageSummary` and `WorkPackage` resource models; run arch test to confirm non-vacuous | WP01 | [P] |
+| T001 | Extend `WorkPackageRecord` dataclass with `claimed_at: datetime \| None` and `blocked_reason: str \| None` fields in `registry.py` | WP01 | — | [D] |
+| T002 | Update `WorkPackageRegistry` per-WP scan to populate `claimed_at` and `blocked_reason` from `status.events.jsonl` | WP01 | — | [D] |
+| T003 | Add `ReviewEvidence` and `WorkPackageAssignment` Pydantic v2 models to `src/dashboard/api/models.py` | WP01 | [D] |
+| T004 | Add `MissionSummary` and `Mission` resource models (subclass `ResourceModel`, declare `_links`) | WP01 | [D] |
+| T005 | Add `MissionStatus` resource model | WP01 | [D] |
+| T006 | Add `WorkPackageSummary` and `WorkPackage` resource models; run arch test to confirm non-vacuous | WP01 | [D] |
 | T007 | Create `src/dashboard/api/routers/missions.py` skeleton: `_mission_links()`, `_wp_links()`, `get_or_404()` helpers | WP02 | — |
 | T008 | Implement `GET /api/missions` → `list[MissionSummary]` | WP02 | — |
 | T009 | Implement `GET /api/missions/{mission_id}` → `Mission` (404 / 409) | WP02 | — |
@@ -27,14 +27,14 @@ WP01 is a strict prerequisite for WP02. WP04 depends on all three predecessors.
 | T014 | Add `tests/test_dashboard/test_missions_api.py`: list, detail, status, WP list, WP detail, 404, 409 | WP02 | — |
 | T015 | Verify `test_transport_does_not_import_scanner.py` passes after all routes wired | WP02 | — |
 | T016 | Verify `test_url_naming_convention.py` accepts all new paths | WP02 | — |
-| T017 | Add `tags=["kanban"]` to `features.py` and `kanban.py` `APIRouter` constructors | WP03 | — |
-| T018 | Add domain tags to all remaining routers (research, artifacts, charter, dossier, glossary, health, diagnostics, sync, shutdown, static_mount, lint) | WP03 | [P] |
-| T019 | Add `Deprecation: true` and `Link` headers to `GET /api/features` response | WP03 | — |
-| T020 | Add `Deprecation: true` and `Link` headers to `GET /api/kanban/{feature_id}` response | WP03 | [P] |
-| T021 | Add `tests/test_dashboard/test_deprecation_headers.py`: assert headers present on deprecated routes | WP03 | — |
-| T022 | Assert deprecated route response bodies are unchanged (structural parity against pre-mission snapshot) | WP03 | — |
-| T023 | Run full architectural test suite; confirm no regressions | WP03 | — |
-| T024 | Run full dashboard test suite; confirm no regressions | WP03 | — |
+| T017 | Add `tags=["kanban"]` to `features.py` and `kanban.py` `APIRouter` constructors | WP03 | — | [D] |
+| T018 | Add domain tags to all remaining routers (research, artifacts, charter, dossier, glossary, health, diagnostics, sync, shutdown, static_mount, lint) | WP03 | [D] |
+| T019 | Add `Deprecation: true` and `Link` headers to `GET /api/features` response | WP03 | — | [D] |
+| T020 | Add `Deprecation: true` and `Link` headers to `GET /api/kanban/{feature_id}` response | WP03 | [D] |
+| T021 | Add `tests/test_dashboard/test_deprecation_headers.py`: assert headers present on deprecated routes | WP03 | — | [D] |
+| T022 | Assert deprecated route response bodies are unchanged (structural parity against pre-mission snapshot) | WP03 | — | [D] |
+| T023 | Run full architectural test suite; confirm no regressions | WP03 | — | [D] |
+| T024 | Run full dashboard test suite; confirm no regressions | WP03 | — | [D] |
 | T025 | Run full test suite; confirm `test_resource_models_have_links.py` green and non-vacuous (≥5 subclasses) | WP04 | — |
 | T026 | Regenerate `tests/test_dashboard/snapshots/openapi.json` (once; all routes and tags in place) | WP04 | — |
 | T027 | Author `architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md` | WP04 | [P] |
@@ -68,12 +68,12 @@ Lane parallelization:
 **Independent test**: `pytest tests/architectural/test_resource_models_have_links.py` passes and reports ≥5 `ResourceModel` subclasses verified; `pytest tests/test_dashboard/ -q` exits 0.
 
 **Subtasks**:
-- [ ] T001 Extend `WorkPackageRecord` dataclass in `registry.py`
-- [ ] T002 Update `WorkPackageRegistry` scan to populate new fields from JSONL
-- [ ] T003 Add `ReviewEvidence` and `WorkPackageAssignment` models to `models.py`
-- [ ] T004 Add `MissionSummary` and `Mission` models
-- [ ] T005 Add `MissionStatus` model
-- [ ] T006 Add `WorkPackageSummary` and `WorkPackage` models; verify arch test
+- [x] T001 Extend `WorkPackageRecord` dataclass in `registry.py`
+- [x] T002 Update `WorkPackageRegistry` scan to populate new fields from JSONL
+- [x] T003 Add `ReviewEvidence` and `WorkPackageAssignment` models to `models.py`
+- [x] T004 Add `MissionSummary` and `Mission` models
+- [x] T005 Add `MissionStatus` model
+- [x] T006 Add `WorkPackageSummary` and `WorkPackage` models; verify arch test
 
 **Estimated prompt size**: ~400 lines
 **Owned files**: `src/dashboard/services/registry.py`, `src/dashboard/api/models.py`
@@ -114,14 +114,14 @@ Lane parallelization:
 **Independent test**: Every path in the app's `/openapi.json` has a non-empty tag; `GET /api/features` response contains `Deprecation: true` header; `pytest tests/test_dashboard/test_deprecation_headers.py` passes; full dashboard test suite exits 0.
 
 **Subtasks**:
-- [ ] T017 Tags on features.py and kanban.py
-- [ ] T018 Tags on all remaining existing routers
-- [ ] T019 Deprecation headers on GET /api/features
-- [ ] T020 Deprecation headers on GET /api/kanban/{id}
-- [ ] T021 Test file: assert headers present on deprecated routes
-- [ ] T022 Assert deprecated response bodies structurally unchanged
-- [ ] T023 Run architectural tests
-- [ ] T024 Run full dashboard tests
+- [x] T017 Tags on features.py and kanban.py
+- [x] T018 Tags on all remaining existing routers
+- [x] T019 Deprecation headers on GET /api/features
+- [x] T020 Deprecation headers on GET /api/kanban/{id}
+- [x] T021 Test file: assert headers present on deprecated routes
+- [x] T022 Assert deprecated response bodies structurally unchanged
+- [x] T023 Run architectural tests
+- [x] T024 Run full dashboard tests
 
 **Estimated prompt size**: ~420 lines
 **Owned files**: `src/dashboard/api/routers/artifacts.py`, `src/dashboard/api/routers/charter.py`, `src/dashboard/api/routers/dossier.py`, `src/dashboard/api/routers/features.py`, `src/dashboard/api/routers/glossary.py`, `src/dashboard/api/routers/health.py`, `src/dashboard/api/routers/kanban.py`, `src/dashboard/api/routers/lint.py`, `src/dashboard/api/routers/shutdown.py`, `src/dashboard/api/routers/static_mount.py`, `src/dashboard/api/routers/sync.py`, `src/dashboard/api/routers/diagnostics.py`, `tests/test_dashboard/test_deprecation_headers.py`

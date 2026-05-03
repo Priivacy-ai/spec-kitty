@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/650-dashboard-ui-ux-overhaul
 merge_target_branch: feature/650-dashboard-ui-ux-overhaul
 branch_strategy: Planning artifacts for this feature were generated on feature/650-dashboard-ui-ux-overhaul. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/650-dashboard-ui-ux-overhaul unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-resource-oriented-mission-api-01KQQRF2
+base_commit: 69c389648ab979c1f3a530c2eef3c7bb0fe9d60a
+created_at: '2026-05-03T21:33:11.966698+00:00'
 subtasks:
 - T017
 - T018
@@ -18,7 +21,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: claude
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "1715554"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/dashboard/api/routers/
@@ -244,3 +248,10 @@ Must pass with 0 failures. The deprecated routes return the same body, so existi
 - **`Response` parameter injection**: FastAPI requires `Response` to be listed as a parameter for the decorator-based pattern to inject headers correctly. If the existing route uses a `return Response(...)` pattern instead of the `Response` parameter, use a different injection approach — e.g., set headers on the returned `Response` object directly.
 - **Artifacts router ambiguity**: `artifacts.py` may serve research, contracts, and checklist artifacts. Read its route paths first before assigning a tag — `["artifacts"]` is a safe fallback if it mixes types.
 - **Header case sensitivity**: HTTP headers are case-insensitive but the test should use `.lower()` or `casefold()` when reading response headers in case the framework normalises them.
+
+## Activity Log
+
+- 2026-05-03T21:33:13Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=1620544 – Assigned agent via action command
+- 2026-05-03T21:40:12Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=1620544 – Ready for review: all routers tagged, deprecation headers on /api/features and /api/kanban, 278 dashboard tests passing, 114 architectural tests passing
+- 2026-05-04T06:17:43Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1715554 – Started review via action command
+- 2026-05-04T06:19:58Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1715554 – Review passed: all routers tagged, deprecation headers present on /api/features and /api/kanban, test_deprecation_headers.py passes (8 tests), openapi snapshot updated and snapshot stability test passes, no type: ignore added

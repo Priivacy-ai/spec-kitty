@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/650-dashboard-ui-ux-overhaul
 merge_target_branch: feature/650-dashboard-ui-ux-overhaul
 branch_strategy: Planning artifacts for this feature were generated on feature/650-dashboard-ui-ux-overhaul. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/650-dashboard-ui-ux-overhaul unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-resource-oriented-mission-api-01KQQRF2
+base_commit: 69c389648ab979c1f3a530c2eef3c7bb0fe9d60a
+created_at: '2026-05-03T21:32:48.867903+00:00'
 subtasks:
 - T001
 - T002
@@ -16,7 +19,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "1714916"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/dashboard/
@@ -246,9 +250,16 @@ The test must report ≥5 `ResourceModel` subclasses verified and exit 0. If it 
 - [ ] `pytest tests/architectural/test_resource_models_have_links.py -v` passes and is non-vacuous.
 - [ ] `pytest tests/test_dashboard/ -q` exits 0 (no regressions).
 - [ ] Zero new `# type: ignore` directives added.
+- [ ] `mypy --strict src/dashboard/services/registry.py src/dashboard/api/models.py` exits 0.
 
 ## Risks
 
 - **Frozen dataclass field ordering**: If existing `WorkPackageRecord` fields have no defaults, the new `| None` fields must come last (Python requires non-default fields before default fields). Inspect the dataclass carefully before adding.
 - **Test breakage from positional construction**: Tests that construct `WorkPackageRecord` with positional arguments will fail. Grep and fix.
 - **`_links` field visibility in Pydantic v2**: The `ResourceModel` base uses `Field(alias="_links")`. Verify that subclasses inherit this correctly and that `model.model_dump(by_alias=True)` includes `_links` in output. Run a quick smoke test: `MissionSummary(mission_id="x", ..., **{"_links": {}}).model_dump(by_alias=True)`.
+
+## Activity Log
+
+- 2026-05-03T21:32:50Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=1619835 – Assigned agent via action command
+- 2026-05-04T06:16:09Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=1619835 – Ready: WorkPackageRecord extended with claimed_at/blocked_reason, 7 resource models added, arch test non-vacuous (5 subclasses), 384 tests pass
+- 2026-05-04T06:16:38Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1714916 – Started review via action command

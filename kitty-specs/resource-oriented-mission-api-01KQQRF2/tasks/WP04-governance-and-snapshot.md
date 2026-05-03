@@ -23,7 +23,7 @@ agent: claude
 history: []
 agent_profile: curator-carla
 authoritative_surface: architecture/2.x/
-execution_mode: planning_artifact
+execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
 - tests/test_dashboard/snapshots/openapi.json
@@ -269,6 +269,9 @@ See ADR `2026-05-03-2-resource-oriented-mission-api.md` for the full pathway.
 - [ ] Ownership map updated; #957 and #958 marked done.
 - [ ] `issue-matrix.md` present and complete.
 - [ ] Migration runbook updated.
+- [ ] `mypy --strict src/dashboard/` exits 0 (charter quality gate).
+- [ ] `pytest --cov=src/dashboard/ --cov-report=term-missing tests/test_dashboard/` reports ≥90% coverage for new modules (`models.py` new classes, `routers/missions.py`, `test_missions_api.py`).
+- [ ] Swagger UI at `/docs` visually shows tag accordion groups (operator verifies manually; note result in `issue-matrix.md`).
 
 ## Risks
 
