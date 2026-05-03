@@ -163,3 +163,4 @@ Reviewers should focus on the atomicity invariant: success means durable event e
 - 2026-05-03T12:45:37Z – codex:gpt-5.3-codex:python-pedro:implementer – shell_pid=83940 – Started implementation via action command
 - 2026-05-03T13:08:41Z – codex:gpt-5.3-codex:python-pedro:implementer – shell_pid=83940 – Ready for review: verified transition persistence and claimed recovery regressions
 - 2026-05-03T13:10:35Z – codex:gpt-5.3-codex:reviewer-renata:reviewer – shell_pid=83940 – Started review via action command
+- 2026-05-03T13:21:01Z – codex:gpt-5.3-codex:reviewer-renata:reviewer – shell_pid=83940 – Moved to planned
