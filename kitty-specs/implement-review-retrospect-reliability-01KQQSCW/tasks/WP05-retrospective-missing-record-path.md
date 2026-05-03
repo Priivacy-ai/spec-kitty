@@ -15,6 +15,8 @@ subtasks:
 - T020
 - T021
 - T022
+agent: "codex:gpt-5:default:implementer"
+shell_pid: "6815"
 history:
 - at: '2026-05-03T20:58:32Z'
   actor: system
@@ -88,3 +90,7 @@ Add tests for JSON parseability, missing mission, missing record, insufficient a
 ```bash
 spec-kitty agent action implement WP05 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-05-03T21:41:25Z – codex:gpt-5:default:implementer – shell_pid=6815 – Started implementation via action command
