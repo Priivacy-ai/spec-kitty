@@ -1,12 +1,14 @@
 {
   "created_at": "2026-05-03T20:45:07.656020+00:00",
-  "friendly_name": "implement review retrospect reliability",
+  "friendly_name": "Implement Review Retrospect Reliability",
   "mission_id": "01KQQSCWP7HAJRR93F98AESKH4",
   "mission_number": null,
   "mission_slug": "implement-review-retrospect-reliability-01KQQSCW",
   "mission_type": "software-dev",
-  "purpose_context": "This mission advances implement review retrospect reliability on main so stakeholders can track the work from mission creation onward.",
-  "purpose_tldr": "implement review retrospect reliability",
+  "purpose_context": "Create a focused software-development mission to make the Spec Kitty implement-review-retrospect control loop reliable across rejection transitions, feedback pointers, review artifacts, next-action routing, and completed-mission retrospective capture.",
+  "purpose_tldr": "Make implement-review-retrospect routing and recovery reliable.",
+  "source_description": "Derived from /Users/robert/spec-kitty-dev/spec-kitty-20260503-145921-NcXBVN/start-here.md with user-confirmed issue traceability and scope corrections.",
   "slug": "implement-review-retrospect-reliability-01KQQSCW",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git"
 }
