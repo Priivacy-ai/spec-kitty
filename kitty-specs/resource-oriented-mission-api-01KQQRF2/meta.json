@@ -8,5 +8,7 @@
   "purpose_context": "Dashboard, CLI, and future MCP consumers currently target verb-shaped endpoints (/api/features, /api/kanban/{id}) with no domain grouping in the OpenAPI document. This mission replaces them with canonical mission-and-workpackage resource URLs backed by MissionRegistry, a formal WorkPackageAssignment ownership schema, _links discoverability on every resource response, and OpenAPI tag grouping — closing the HATEOAS-LITE architectural test gap left by mission 112 and resolving issues #957 and #958 from epic #645.",
   "purpose_tldr": "Introduce canonical /api/missions resource endpoints, WorkPackageAssignment contract, and HATEOAS-LITE _links on every resource so all consumers navigate the API by stable, noun-shaped URLs.",
   "slug": "resource-oriented-mission-api-01KQQRF2",
-  "target_branch": "feature/650-dashboard-ui-ux-overhaul"
+  "source_description": "Mission B of epic #645 — https://github.com/Priivacy-ai/spec-kitty/issues/645. Trackers: #957 (resource-oriented endpoints), #958 (OpenAPI tag grouping).",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "vcs": "git"
 }
