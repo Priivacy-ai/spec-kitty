@@ -15,8 +15,8 @@ subtasks:
 - T020
 - T021
 - T022
-agent: "codex:gpt-5:default:implementer"
-shell_pid: "6815"
+agent: "codex:gpt-5:default:reviewer"
+shell_pid: "7315"
 history:
 - at: '2026-05-03T20:58:32Z'
   actor: system
@@ -95,3 +95,4 @@ spec-kitty agent action implement WP05 --agent <name>
 
 - 2026-05-03T21:41:25Z – codex:gpt-5:default:implementer – shell_pid=6815 – Started implementation via action command
 - 2026-05-03T21:41:29Z – codex:gpt-5:default:implementer – shell_pid=6815 – Ready for review
+- 2026-05-03T21:41:30Z – codex:gpt-5:default:reviewer – shell_pid=7315 – Started review via action command
