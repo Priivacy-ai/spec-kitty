@@ -1,7 +1,7 @@
 {
-  "event_count": 18,
-  "last_event_id": "01KQQWJWFEACQQAXT3PBFBC4ZN",
-  "materialized_at": "2026-05-03T21:40:49.774722+00:00",
+  "event_count": 19,
+  "last_event_id": "01KQQWK0112RSF1W7BNZ1QV1KX",
+  "materialized_at": "2026-05-03T21:40:53.409374+00:00",
   "mission_number": "",
   "mission_slug": "implement-review-retrospect-reliability-01KQQSCW",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 3
   },
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-05-03T21:40:39.681817+00:00"
     },
     "WP03": {
-      "actor": "codex:gpt-5:default:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KQQWJWFEACQQAXT3PBFBC4ZN",
-      "last_transition_at": "2026-05-03T21:40:49.774722+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KQQWK0112RSF1W7BNZ1QV1KX",
+      "last_transition_at": "2026-05-03T21:40:53.409374+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
