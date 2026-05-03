@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "mission_slug": "dashboard-extraction-followup-01KQMNTW",
+  "mission_id": "01KQMNTWES1V299MVQBCNMKQJZ",
+  "mission_branch": "kitty/mission-dashboard-extraction-followup-01KQMNTW",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/sync/test_daemon_intent_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/dashboard/services/mission_scan.py",
+        "src/dashboard/services/sync.py",
+        "src/specify_cli/dashboard/handlers/api.py",
+        "src/specify_cli/dashboard/handlers/features.py",
+        "tests/test_dashboard/test_seams.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02",
+        "WP04"
+      ],
+      "write_scope": [
+        "architecture/2.x/05_ownership_manifest.yaml",
+        "architecture/2.x/05_ownership_map.md",
+        "architecture/2.x/adr/2026-05-02-1-dashboard-service-extraction.md",
+        "kitty-specs/dashboard-extraction-followup-01KQMNTW/release-checklist.md",
+        "kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-02T19:50:07.819781+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02",
+    "WP04"
+  ]
+}

@@ -221,7 +221,16 @@ def test_dashboard_sync_trigger_unavailable_reason_returns_503() -> None:
 # tests/sync/test_daemon_intent_gate.py -> tests/sync -> tests -> repo_root
 _THIS_FILE = Path(__file__).resolve()
 REPO_ROOT = _THIS_FILE.parents[2]
-SRC_ROOT = REPO_ROOT / "src" / "specify_cli"
+
+# Roots scanned for unauthorized callers. The dashboard service-extraction
+# mission (#111) introduced a parallel package at src/dashboard/ that hosts
+# sync orchestration; the gate must cover both trees so future direct calls
+# to ensure_sync_daemon_running() are caught regardless of which package they
+# land in.
+SCAN_ROOTS: tuple[Path, ...] = (
+    REPO_ROOT / "src" / "specify_cli",
+    REPO_ROOT / "src" / "dashboard",
+)
 
 # Authoritative allowlist — every file permitted to call ensure_sync_daemon_running().
 # Pre-declares tracker.py for WP05 so WP04 and WP05 can merge in either order.
@@ -231,21 +240,63 @@ ALLOWED_CALL_SITES: set[str] = {
     "src/specify_cli/sync/events.py",
     "src/specify_cli/sync/daemon.py",  # the definition itself
     "src/specify_cli/cli/commands/tracker.py",  # added by WP05
+    # SyncService imports ensure_sync_daemon_running for its DI default; the
+    # production callers (handlers/api.py) already provide explicit overrides,
+    # but the import-as-default is itself an authorized reference.
+    "src/dashboard/services/sync.py",
 }
 
 
-def test_no_unauthorized_daemon_call_sites() -> None:
-    """Walk src/specify_cli/ and assert no file outside the allowlist calls ensure_sync_daemon_running()."""
+def _scan_for_callers(roots: tuple[Path, ...]) -> set[str]:
+    """Walk each root and return repo-relative paths of files that reference the daemon entry point."""
     hits: set[str] = set()
-    for path in SRC_ROOT.rglob("*.py"):
-        text = path.read_text(encoding="utf-8")
-        if "ensure_sync_daemon_running(" in text:
-            rel = str(path.relative_to(REPO_ROOT))
-            hits.add(rel)
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if "ensure_sync_daemon_running(" in text:
+                rel = str(path.relative_to(REPO_ROOT))
+                hits.add(rel)
+    return hits
+
+
+def test_no_unauthorized_daemon_call_sites() -> None:
+    """Walk src/specify_cli/ AND src/dashboard/ and assert no file outside the allowlist calls ensure_sync_daemon_running()."""
+    hits = _scan_for_callers(SCAN_ROOTS)
 
     unauthorized = hits - ALLOWED_CALL_SITES
     assert not unauthorized, (
         f"Unauthorized callers of ensure_sync_daemon_running: {unauthorized!r}. "
         "Add to ALLOWED_CALL_SITES in tests/sync/test_daemon_intent_gate.py "
         "and to tasks/WP04 caller audit table if this new call site is intentional."
+    )
+
+
+def test_gate_detects_unauthorized_call_in_dashboard_tree(tmp_path: Path) -> None:
+    """Negative-path proof that the scan covers src/dashboard/.
+
+    The real gate runs against the live tree; this test wires the same scanner
+    against a synthetic root that mimics src/dashboard/ layout, drops in an
+    unauthorized caller, and asserts the scanner finds it.
+    """
+    fake_dashboard = tmp_path / "src" / "dashboard" / "services"
+    fake_dashboard.mkdir(parents=True)
+    bad_caller = fake_dashboard / "rogue.py"
+    bad_caller.write_text(
+        "from specify_cli.sync.daemon import ensure_sync_daemon_running\n"
+        "ensure_sync_daemon_running(intent=None)\n",
+        encoding="utf-8",
+    )
+
+    # Reuse the same scanner logic but rooted at the synthetic tree.
+    hits: set[str] = set()
+    for path in (tmp_path / "src" / "dashboard").rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "ensure_sync_daemon_running(" in text:
+            hits.add(str(path.relative_to(tmp_path)))
+
+    assert "src/dashboard/services/rogue.py" in hits, (
+        "Scanner should have detected the unauthorized call in the synthetic dashboard tree. "
+        "If this test fails, _scan_for_callers no longer covers src/dashboard/."
     )

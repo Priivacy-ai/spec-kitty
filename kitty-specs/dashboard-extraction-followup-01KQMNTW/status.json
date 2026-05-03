@@ -1,0 +1,49 @@
+{
+  "event_count": 28,
+  "last_event_id": "01KQN438PHKD1W37M1PF2V8F6Q",
+  "materialized_at": "2026-05-02T19:54:23.313342+00:00",
+  "mission_number": "",
+  "mission_slug": "dashboard-extraction-followup-01KQMNTW",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN42ZCCT9JKKTFJBTWFB0QD",
+      "last_transition_at": "2026-05-02T19:54:13.772984+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN432GCJCQPJMTYMNGJE1CA",
+      "last_transition_at": "2026-05-02T19:54:16.972442+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN435MM4D24809KY5M7EFMN",
+      "last_transition_at": "2026-05-02T19:54:20.180221+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN438PHKD1W37M1PF2V8F6Q",
+      "last_transition_at": "2026-05-02T19:54:23.313342+00:00"
+    }
+  }
+}
