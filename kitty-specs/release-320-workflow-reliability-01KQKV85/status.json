@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01KQPX6DV3QRC5SG3B0WX4V9HN",
-  "materialized_at": "2026-05-03T12:32:15.715505+00:00",
+  "event_count": 15,
+  "last_event_id": "01KQPXFH0N35P438WW8CKEW8P0",
+  "materialized_at": "2026-05-03T12:37:13.877432+00:00",
   "mission_number": "",
   "mission_slug": "release-320-workflow-reliability-01KQKV85",
   "mission_type": "software-dev",
@@ -11,18 +11,18 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 5
   },
   "work_packages": {
     "WP01": {
-      "actor": "codex:gpt-5.3-codex:python-pedro:implementer",
+      "actor": "user",
       "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KQPX6DV3QRC5SG3B0WX4V9HN",
-      "last_transition_at": "2026-05-03T12:32:15.715505+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KQPXFH0N35P438WW8CKEW8P0",
+      "last_transition_at": "2026-05-03T12:37:13.877432+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
