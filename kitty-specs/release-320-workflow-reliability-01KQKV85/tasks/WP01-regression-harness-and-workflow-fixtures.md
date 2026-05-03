@@ -168,3 +168,4 @@ Reviewers should check that the fixture layer is narrow, deterministic, and genu
 - 2026-05-02T08:10:17Z – system – Prompt created.
 - 2026-05-03T12:25:45Z – codex – shell_pid=83940 – Implemented regression harness fixtures and verified with uv run pytest tests/reliability -q
 - 2026-05-03T12:26:07Z – codex:gpt-5.3-codex:reviewer-renata:reviewer – shell_pid=83940 – Started review via action command
+- 2026-05-03T12:30:49Z – codex:gpt-5.3-codex:reviewer-renata:reviewer – shell_pid=83940 – Review rejected: fixture review artifact path does not match production review-cycle contract
