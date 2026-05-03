@@ -21,6 +21,8 @@ subtasks:
 - T008
 - T009
 - T010
+agent: "codex:gpt-5:default:implementer"
+shell_pid: "3912"
 history:
 - at: '2026-05-03T20:58:32Z'
   actor: system
@@ -95,3 +97,7 @@ uv run pytest tests/status/test_transitions.py tests/status/test_emit.py tests/i
 ```bash
 spec-kitty agent action implement WP02 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-05-03T21:40:32Z – codex:gpt-5:default:implementer – shell_pid=3912 – Started implementation via action command
