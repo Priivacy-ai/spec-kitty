@@ -19,7 +19,8 @@ subtasks:
 - T023
 - T024
 - T025
-agent: claude
+agent: "opencode"
+shell_pid: "1539810"
 history:
 - date: '2026-05-03'
   event: created
@@ -243,3 +244,7 @@ Lane-less on `feature/650-dashboard-ui-ux-overhaul`. Five files; commit as one o
 - **Snapshot drift larger than expected**: WP05's `Link` + `ResourceModel` types add to the components/schemas section. WP04's `Depends` annotations may add path parameters. The diff might be 50-200 lines. Each addition is reviewed inline; if a delta is unexpected, route back to the responsible WP.
 - **Test suite regression discovered late**: if T024 finds a failing test introduced by an earlier WP, the fix lives in that WP, not this one. WP07 is housekeeping, not bug fixing. Route the failure back; the merge for this mission blocks until the responsible WP pushes a fix.
 - **Migration runbook drift across missions**: each mission that touches the dashboard transport adds a section to this runbook. Keep sections in chronological order with dated headers; resist the temptation to refactor the runbook holistically as part of this WP — that's a separate mission.
+
+## Activity Log
+
+- 2026-05-03T17:54:27Z – opencode – shell_pid=1539810 – Started implementation via action command

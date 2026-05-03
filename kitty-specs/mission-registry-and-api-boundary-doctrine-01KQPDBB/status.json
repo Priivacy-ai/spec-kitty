@@ -1,12 +1,12 @@
 {
-  "event_count": 39,
-  "last_event_id": "01KQQD3EYP7A623VN1T12HV50N",
-  "materialized_at": "2026-05-03T17:10:15.766611+00:00",
+  "event_count": 44,
+  "last_event_id": "01KQQFMC5W2MNHQVMVNDMWH85P",
+  "materialized_at": "2026-05-03T17:54:27.132021+00:00",
   "mission_number": "",
   "mission_slug": "mission-registry-and-api-boundary-doctrine-01KQPDBB",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -53,18 +53,18 @@
       "last_transition_at": "2026-05-03T17:10:01.505157+00:00"
     },
     "WP06": {
-      "actor": "opencode:claude-sonnet-4.6:python-pedro:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KQQD3EYP7A623VN1T12HV50N",
-      "last_transition_at": "2026-05-03T17:10:15.766611+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQQFKW384S1K5WR2G7SNGTJE",
+      "last_transition_at": "2026-05-03T17:54:10.664070+00:00"
     },
     "WP07": {
-      "actor": "finalize-tasks",
+      "actor": "opencode",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KQQ1SEH3C0G9PCT68TGBVGFN",
-      "last_transition_at": "2026-05-03T13:52:33.315345+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KQQFMC5W2MNHQVMVNDMWH85P",
+      "last_transition_at": "2026-05-03T17:54:27.132021+00:00"
     }
   }
 }

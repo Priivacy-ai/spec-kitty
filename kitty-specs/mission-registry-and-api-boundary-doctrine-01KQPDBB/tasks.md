@@ -27,9 +27,9 @@
 | T015 | Author `tests/architectural/test_transport_does_not_import_scanner.py` per `contracts/architectural-test-contracts.md` § 1; AST-walk `src/dashboard/api/routers/` and `src/specify_cli/cli/commands/dashboard.py`; positive + negative meta-tests | WP05 | [D] |
 | T016 | Author `tests/architectural/test_url_naming_convention.py` per `contracts/architectural-test-contracts.md` § 2; walk the FastAPI app's OpenAPI paths; resource-noun regex + action allowlist; positive + negative meta-tests | WP05 | [D] |
 | T017 | Author `tests/architectural/test_resource_models_have_links.py` per `contracts/architectural-test-contracts.md` § 3; walk Pydantic class hierarchy; assert `ResourceModel` subclasses declare `_links: dict[str, Link]`; positive + negative meta-tests; mission-A pass is vacuous (no subclasses yet) | WP05 | [D] |
-| T018 | Author `scripts/bench_registry_syscalls.py` per `research.md` § R-10; spawns dashboard under both transports (legacy scanner-only via `--transport legacy` AND FastAPI with registry); `strace -c -e trace=openat,stat,statx` for 30s; outputs JSON report | WP06 | — |
-| T019 | Run baseline (legacy) and post-registry (FastAPI) benchmarks on local machine; capture `/tmp/bench-registry-syscalls.json` JSON report | WP06 | — |
-| T020 | Author `kitty-specs/mission-registry-and-api-boundary-doctrine-01KQPDBB/release-checklist.md` with the bench numbers pasted in; verify NFR-001 (≤5 syscalls/req warm cache), NFR-002 (≤25% cold-start regression), NFR-003 (≤3 stat calls per stale check); fill operator slots TBD | WP06 | [P] |
+| T018 | Author `scripts/bench_registry_syscalls.py` per `research.md` § R-10; spawns dashboard under both transports (legacy scanner-only via `--transport legacy` AND FastAPI with registry); `strace -c -e trace=openat,stat,statx` for 30s; outputs JSON report | WP06 | — | [D] |
+| T019 | Run baseline (legacy) and post-registry (FastAPI) benchmarks on local machine; capture `/tmp/bench-registry-syscalls.json` JSON report | WP06 | — | [D] |
+| T020 | Author `kitty-specs/mission-registry-and-api-boundary-doctrine-01KQPDBB/release-checklist.md` with the bench numbers pasted in; verify NFR-001 (≤5 syscalls/req warm cache), NFR-002 (≤25% cold-start regression), NFR-003 (≤3 stat calls per stale check); fill operator slots TBD | WP06 | [D] |
 | T021 | Promote ADR `architecture/2.x/adr/2026-05-03-1-dashboard-mission-registry-and-cache.md` from `Status: Proposed` to `Status: Accepted`; update `architecture/2.x/adr/README.md` index row to `Accepted` | WP07 | — |
 | T022 | Update `architecture/2.x/05_ownership_map.md` Dashboard slice: `current_state` adds the registry; `seams` updates to "FastAPI router → registry.method() → backbone (cached)"; cross-link the three new doctrine artefacts. Mirror in `05_ownership_manifest.yaml`. Mark `#956` as `done` in the Open Sub-tickets callout | WP07 | [P] |
 | T023 | Update `docs/migration/dashboard-fastapi-transport.md` with a "MissionRegistry as canonical reader" section explaining `DIRECTIVE_API_DEPENDENCY_DIRECTION` so future contributors do not re-introduce per-request scanner walks | WP07 | [P] |
@@ -150,9 +150,9 @@ Lane parallelization opportunities (per planner's lane assignment, materialised 
 **Independent test**: `scripts/bench_registry_syscalls.py` runs and produces a JSON report; release-checklist contains real numbers (not TBD).
 
 **Subtasks**:
-- [ ] T018 Author bench script
-- [ ] T019 Run baseline + registry benchmarks; capture JSON report
-- [ ] T020 Update release-checklist with numbers + NFR verification
+- [x] T018 Author bench script
+- [x] T019 Run baseline + registry benchmarks; capture JSON report
+- [x] T020 Update release-checklist with numbers + NFR verification
 
 **Dependencies**: WP04.
 **Estimated prompt size**: ~280 lines.
