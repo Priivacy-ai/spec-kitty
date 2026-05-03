@@ -381,6 +381,7 @@ class TestBodyNotesNoLane:
 class TestMoveTaskHardFail:
     """move_task must raise RuntimeError when WP has no canonical status."""
 
+    @patch("specify_cli.cli.commands.agent.tasks.emit_error_logged")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks.read_events")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -399,6 +400,7 @@ class TestMoveTaskHardFail:
         mock_review_valid: MagicMock,
         mock_read_events: MagicMock,
         mock_lock: MagicMock,
+        _mock_emit_error_logged: MagicMock,
         tmp_path: Path,
     ):
         """move_task exits with error when WP has no canonical status events."""

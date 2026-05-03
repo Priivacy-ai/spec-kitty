@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,7 @@ from specify_cli.status.store import (
     append_events_atomic_verified,
     read_events,
     read_events_raw,
+    verify_event_readback,
 )
 
 pytestmark = pytest.mark.fast
@@ -27,6 +29,8 @@ pytestmark = pytest.mark.fast
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",
+    mission_slug: str = "034-feature-name",
+    mission_id: str | None = None,
     wp_id: str = "WP01",
     from_lane: Lane = Lane.PLANNED,
     to_lane: Lane = Lane.CLAIMED,
@@ -34,7 +38,7 @@ def _make_event(
     """Helper to build a minimal StatusEvent for testing."""
     return StatusEvent(
         event_id=event_id,
-        mission_slug="034-feature-name",
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -42,6 +46,7 @@ def _make_event(
         actor="claude-opus",
         force=False,
         execution_mode="worktree",
+        mission_id=mission_id,
     )
 
 
@@ -166,10 +171,74 @@ def test_append_events_atomic_verified_fails_when_batch_readback_misses_event(
     assert "event_id=01AAAA0000000000000000001A" in str(exc_info.value)
 
 
+def test_verify_event_readback_rejects_wrong_mission_slug(tmp_path: Path) -> None:
+    expected = _make_event()
+    append_event(tmp_path, replace(expected, mission_slug="999-other-mission"))
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        verify_event_readback(tmp_path, expected)
+
+    assert "expected event missing after append" in str(exc_info.value)
+
+
+def test_verify_event_readback_rejects_wrong_mission_id(tmp_path: Path) -> None:
+    expected = _make_event(mission_id="01HQ0000000000000000000001")
+    append_event(tmp_path, replace(expected, mission_id="01HQ0000000000000000000002"))
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        verify_event_readback(tmp_path, expected)
+
+    assert "expected event missing after append" in str(exc_info.value)
+
+
+def test_verify_event_readback_wraps_read_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = _make_event()
+
+    import specify_cli.status.store as status_store
+
+    def _raise_read(_feature_dir: Path) -> list[StatusEvent]:
+        raise ValueError("bad json")
+
+    monkeypatch.setattr(status_store, "read_events", _raise_read)
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        verify_event_readback(tmp_path, event)
+
+    assert "readback failed: bad json" in str(exc_info.value)
+
+
 def test_append_events_atomic_empty_batch_is_noop(tmp_path: Path) -> None:
     append_events_atomic(tmp_path, [])
 
     assert not (tmp_path / EVENTS_FILENAME).exists()
+
+
+def test_append_events_atomic_verified_empty_batch_is_noop(tmp_path: Path) -> None:
+    append_events_atomic_verified(tmp_path, [])
+
+    assert not (tmp_path / EVENTS_FILENAME).exists()
+
+
+def test_append_events_atomic_verified_wraps_append_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = _make_event()
+
+    import specify_cli.status.store as status_store
+
+    def _raise_append(_feature_dir: Path, _events: list[StatusEvent]) -> None:
+        raise OSError("readonly")
+
+    monkeypatch.setattr(status_store, "append_events_atomic", _raise_append)
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        append_events_atomic_verified(tmp_path, [event])
+
+    assert "append failed: readonly" in str(exc_info.value)
 
 
 def test_append_events_atomic_repairs_missing_trailing_newline(tmp_path: Path) -> None:

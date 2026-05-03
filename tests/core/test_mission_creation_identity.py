@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
 import subprocess
 import threading
@@ -45,16 +46,24 @@ def _mission_summary(slug: str) -> dict[str, str]:
     }
 
 
-def _run_create(tmp_path: Path, slug: str) -> object:
-    """Helper: call create_mission_core with standard mocks."""
+@contextmanager
+def _patched_mission_creation_context(tmp_path: Path):
+    """Patch side-effecting mission creation dependencies for identity tests."""
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
+        yield
+
+
+def _run_create(tmp_path: Path, slug: str) -> object:
+    """Helper: call create_mission_core with standard mocks."""
+    with _patched_mission_creation_context(tmp_path):
         return create_mission_core(tmp_path, slug, **_mission_summary(slug))
 
 
@@ -121,25 +130,20 @@ def test_concurrent_creates_no_collision(tmp_path: Path) -> None:
     results: list[dict] = []
     errors: list[Exception] = []
 
-    counter = [0]
-    counter_lock = threading.Lock()
-
     def create_and_capture(slug: str) -> None:
-        with counter_lock:
-            counter[0] += 1
-            n = counter[0]
         try:
-            result = _run_create(tmp_path, slug)
+            result = create_mission_core(tmp_path, slug, **_mission_summary(slug))
             results.append(result.meta)
         except Exception as exc:
             errors.append(exc)
 
-    t1 = threading.Thread(target=create_and_capture, args=("concurrent-alpha",))
-    t2 = threading.Thread(target=create_and_capture, args=("concurrent-beta",))
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
+    with _patched_mission_creation_context(tmp_path):
+        t1 = threading.Thread(target=create_and_capture, args=("concurrent-alpha",))
+        t2 = threading.Thread(target=create_and_capture, args=("concurrent-beta",))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
 
     assert not errors, f"Thread errors: {errors}"
     assert len(results) == 2

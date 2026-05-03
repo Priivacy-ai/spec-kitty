@@ -74,6 +74,7 @@ def _create_mission(repo: Path, slug: str) -> Path:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
     ):
         result = create_mission_core(repo, slug, **_summary(slug))
     feature_dir: Path = result.feature_dir

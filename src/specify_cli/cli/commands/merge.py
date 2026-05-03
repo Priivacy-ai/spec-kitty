@@ -42,6 +42,7 @@ from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.preflight import (
     TargetBranchSyncStatus,
     inspect_target_branch_sync,
+    refresh_target_branch_tracking_ref,
     target_branch_sync_remediation,
 )
 from specify_cli.merge.state import (
@@ -722,6 +723,29 @@ def _target_branch_sync_payload(
     }
 
 
+def _target_branch_refresh_failed_payload(
+    *,
+    target_branch: str,
+    remote_name: str,
+    error: str | None,
+) -> dict[str, object]:
+    return {
+        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "diagnostic_code": "TARGET_BRANCH_REFRESH_FAILED",
+        "branch_or_work_package": target_branch,
+        "violated_invariant": TARGET_BRANCH_SYNC_INVARIANT,
+        "error": "Could not refresh target branch tracking ref before merge.",
+        "target_branch": target_branch,
+        "remote_name": remote_name,
+        "detail": error or "",
+        "remediation": [
+            f"Run: git fetch {remote_name} {target_branch}",
+            "Resolve the fetch problem, then retry spec-kitty merge.",
+            "Spec Kitty stopped before mutating merge state or reconstructing branches.",
+        ],
+    }
+
+
 def _enforce_target_branch_sync_preflight(
     repo_root: Path,
     *,
@@ -731,6 +755,27 @@ def _enforce_target_branch_sync_preflight(
     json_output: bool = False,
 ) -> None:
     """Stop merge before mutation when the target branch is not synced."""
+    refresh = refresh_target_branch_tracking_ref(repo_root, target_branch)
+    if not refresh.success:
+        payload = _target_branch_refresh_failed_payload(
+            target_branch=target_branch,
+            remote_name=refresh.remote_name,
+            error=refresh.error,
+        )
+        if json_output:
+            print(json.dumps(payload))
+        else:
+            console.print(f"[red]Error:[/red] {payload['error']}")
+            console.print(f"  diagnostic_code: {payload['diagnostic_code']}")
+            console.print(f"  branch_or_work_package: {payload['branch_or_work_package']}")
+            console.print(f"  violated_invariant: {payload['violated_invariant']}")
+            if payload["detail"]:
+                console.print(f"  detail: {payload['detail']}")
+            console.print("  remediation:")
+            for line in payload["remediation"]:
+                console.print(f"  - {line}")
+        raise typer.Exit(1)
+
     status = inspect_target_branch_sync(repo_root, target_branch)
     if status.is_safe:
         return

@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from specify_cli.status.bootstrap import (
     BootstrapResult,
     bootstrap_canonical_state,
@@ -57,6 +59,14 @@ def _write_event(feature_dir: Path, wp_id: str, mission_slug: str = "test-featur
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bootstrap tests assert local state seeding, not SaaS sync behavior."""
+    import specify_cli.status.emit as emit_module
+
+    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
+
 
 class TestBootstrapSeedsUninitialized:
     """T002-a: Seeds planned events for uninitialized WPs."""

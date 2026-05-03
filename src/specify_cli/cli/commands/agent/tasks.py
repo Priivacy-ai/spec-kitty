@@ -501,6 +501,25 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
         console.print(f"[red]Error:[/red] {error_message}")
 
 
+def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
+    """Return JSON-safe status event fields for command output."""
+    if event is None:
+        return {"event_id": None, "to_lane": None}
+
+    event_id = getattr(event, "event_id", None)
+    if not isinstance(event_id, str):
+        event_id = None
+
+    to_lane = getattr(event, "to_lane", None)
+    if to_lane is None:
+        to_lane_value = None
+    else:
+        raw_value = getattr(to_lane, "value", to_lane)
+        to_lane_value = raw_value if isinstance(raw_value, str) else str(raw_value)
+
+    return {"event_id": event_id, "to_lane": to_lane_value}
+
+
 def _mission_identity_payload(feature_dir: Path) -> dict[str, str]:
     identity = resolve_mission_identity(feature_dir)
     return {
@@ -1789,15 +1808,16 @@ def move_task(
                 )
 
         # Output result
+        event_fields = _status_event_result_fields(event)
         result = {
             "result": "success",
             "task_id": task_id,
             "old_lane": old_lane,
             "new_lane": target_lane,
             "path": str(wp.path),
-            "event_id": event.event_id if event is not None else None,
+            "event_id": event_fields["event_id"],
             "work_package_id": task_id,
-            "to_lane": str(event.to_lane) if event is not None else canonical_lane,
+            "to_lane": event_fields["to_lane"] or canonical_lane,
             "status_events_path": str(feature_dir / EVENTS_FILENAME),
         }
         if review_feedback_pointer is not None:

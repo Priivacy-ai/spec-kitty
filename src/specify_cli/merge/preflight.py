@@ -32,6 +32,17 @@ class TargetBranchSyncStatus:
         return self.state in {"in_sync", "no_tracking_branch"}
 
 
+@dataclass(frozen=True)
+class TargetBranchRefreshStatus:
+    """Result of refreshing a target branch tracking ref before preflight."""
+
+    target_branch: str
+    remote_name: str
+    attempted: bool
+    success: bool
+    error: str | None = None
+
+
 def _git(
     repo_root: Path,
     args: list[str],
@@ -68,14 +79,64 @@ def _resolve_tracking_branch(repo_root: Path, target_branch: str) -> str | None:
     return None
 
 
+def refresh_target_branch_tracking_ref(
+    repo_root: Path,
+    target_branch: str,
+    *,
+    remote_name: str = "origin",
+) -> TargetBranchRefreshStatus:
+    """Refresh ``origin/<target_branch>`` before enforcing sync safety.
+
+    The sync inspector remains read-only so callers can use it for diagnostics,
+    but merge enforcement must compare against current remote state. If the
+    checkout has no ``origin`` remote, there is nothing to refresh and the
+    local-only preflight can continue.
+    """
+    remote = _git(repo_root, ["remote", "get-url", remote_name])
+    if remote.returncode != 0:
+        return TargetBranchRefreshStatus(
+            target_branch=target_branch,
+            remote_name=remote_name,
+            attempted=False,
+            success=True,
+        )
+
+    fetch = _git(
+        repo_root,
+        [
+            "fetch",
+            "--quiet",
+            remote_name,
+            f"+refs/heads/{target_branch}:refs/remotes/{remote_name}/{target_branch}",
+        ],
+    )
+    if fetch.returncode != 0:
+        detail = (fetch.stderr or fetch.stdout or "").strip()
+        return TargetBranchRefreshStatus(
+            target_branch=target_branch,
+            remote_name=remote_name,
+            attempted=True,
+            success=False,
+            error=detail or f"git fetch {remote_name} {target_branch} failed",
+        )
+
+    return TargetBranchRefreshStatus(
+        target_branch=target_branch,
+        remote_name=remote_name,
+        attempted=True,
+        success=True,
+    )
+
+
 def inspect_target_branch_sync(
     repo_root: Path,
     target_branch: str,
 ) -> TargetBranchSyncStatus:
     """Compare a local target branch with its tracking branch.
 
-    The check is read-only. It uses the locally-known tracking ref so callers can
-    decide whether to run ``git fetch`` before retrying.
+    The check is read-only and compares against the locally-known tracking ref.
+    Merge enforcement should call :func:`refresh_target_branch_tracking_ref`
+    first so it cannot miss a recently advanced remote target.
     """
     if not _branch_commit_exists(repo_root, f"refs/heads/{target_branch}"):
         return TargetBranchSyncStatus(
@@ -176,4 +237,3 @@ def target_branch_sync_remediation(
 
     lines.append("Do not use reset, rebase, or force-push as part of this preflight remediation.")
     return lines
-
