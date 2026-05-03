@@ -26,7 +26,7 @@ subtasks:
 - T006
 phase: Phase 1 - Regression Foundation
 assignee: ''
-agent: codex
+agent: "codex"
 shell_pid: '83940'
 history:
 - at: '2026-05-02T08:10:17Z'
@@ -166,3 +166,4 @@ Reviewers should check that the fixture layer is narrow, deterministic, and genu
 
 **Initial entry**:
 - 2026-05-02T08:10:17Z – system – Prompt created.
+- 2026-05-03T12:25:45Z – codex – shell_pid=83940 – Implemented regression harness fixtures and verified with uv run pytest tests/reliability -q
