@@ -1,0 +1,63 @@
+{
+  "event_count": 6,
+  "last_event_id": "01KQQTC1S6XTXNC9ME6JQ62A4Q",
+  "materialized_at": "2026-05-03T21:02:08.678950+00:00",
+  "mission_number": "",
+  "mission_slug": "implement-review-retrospect-reliability-01KQQSCW",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 6
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQTC1F3XXMKDXZCF5CMTS5A",
+      "last_transition_at": "2026-05-03T21:02:08.355784+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQTC1P3FVQQ920AN8QT1RCC",
+      "last_transition_at": "2026-05-03T21:02:08.579176+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQTC1PV138K9JP70XRTP49J",
+      "last_transition_at": "2026-05-03T21:02:08.603528+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQTC1QMW91V8T57BWR5JACH",
+      "last_transition_at": "2026-05-03T21:02:08.628598+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQTC1RD7N86VSRMQR684V39",
+      "last_transition_at": "2026-05-03T21:02:08.653361+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQTC1S6XTXNC9ME6JQ62A4Q",
+      "last_transition_at": "2026-05-03T21:02:08.678950+00:00"
+    }
+  }
+}
