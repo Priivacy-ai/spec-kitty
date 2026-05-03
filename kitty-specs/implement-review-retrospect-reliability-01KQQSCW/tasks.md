@@ -33,10 +33,10 @@
 | T020 | Add explicit retrospective capture/init path or deterministic auto-initialization | WP05 |  | [D] |
 | T021 | Distinguish missing mission, insufficient artifacts, record created, and synthesized states | WP05 |  | [D] |
 | T022 | Add retrospective JSON and Rich/JSON compatibility regressions | WP05 |  | [D] |
-| T023 | Build one focused end-to-end smoke fixture for reject -> fix -> approve -> next -> retrospect | WP06 |  |
-| T024 | Verify #967, #966, #964, and #968 remain explicitly deferred unless adjacent | WP06 |  |
-| T025 | Run the mission acceptance test set and update quickstart if commands differ | WP06 |  |
-| T026 | Record local-sync-disabled verification rationale for purely local fixtures | WP06 |  |
+| T023 | Build one focused end-to-end smoke fixture for reject -> fix -> approve -> next -> retrospect | WP06 |  | [D] |
+| T024 | Verify #967, #966, #964, and #968 remain explicitly deferred unless adjacent | WP06 |  | [D] |
+| T025 | Run the mission acceptance test set and update quickstart if commands differ | WP06 |  | [D] |
+| T026 | Record local-sync-disabled verification rationale for purely local fixtures | WP06 |  | [D] |
 
 ---
 
@@ -193,10 +193,10 @@ Risk: fabricated retrospective data. Mitigation: fail with `insufficient_mission
 **Requirement Refs**: FR-011, NFR-001, NFR-002, NFR-005, NFR-006, C-001, C-002, C-004, C-005, C-006, C-007
 
 #### Included Subtasks
-- [ ] T023 Build one focused end-to-end smoke fixture for reject -> fix -> approve -> next -> retrospect (WP06)
-- [ ] T024 Verify #967, #966, #964, and #968 remain explicitly deferred unless adjacent (WP06)
-- [ ] T025 Run the mission acceptance test set and update quickstart if commands differ (WP06)
-- [ ] T026 Record local-sync-disabled verification rationale for purely local fixtures (WP06)
+- [x] T023 Build one focused end-to-end smoke fixture for reject -> fix -> approve -> next -> retrospect (WP06)
+- [x] T024 Verify #967, #966, #964, and #968 remain explicitly deferred unless adjacent (WP06)
+- [x] T025 Run the mission acceptance test set and update quickstart if commands differ (WP06)
+- [x] T026 Record local-sync-disabled verification rationale for purely local fixtures (WP06)
 
 #### Implementation Sketch
 Add a focused integration smoke test after WP02-WP05 land. Keep this package limited to end-to-end coverage and acceptance documentation; do not add new production behavior unless a small adjacent #967/#966/#964/#968 fix falls out naturally and is approved by the existing scope.
