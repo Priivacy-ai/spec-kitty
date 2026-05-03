@@ -15,7 +15,8 @@ subtasks:
 - T018
 - T019
 - T020
-agent: claude
+agent: "opencode:claude-sonnet-4.6:python-pedro:implementer"
+shell_pid: "1514613"
 history:
 - date: '2026-05-03'
   event: created
@@ -290,3 +291,7 @@ Lane-less on `feature/650-dashboard-ui-ux-overhaul`. Two files (script + checkli
 - **`strace -p` permission denied** on hardened systems: some Linux distros require `kernel.yama.ptrace_scope=0` for non-root strace. Document this in the bench script's docstring; fall back to running the dashboard process under `strace` from the start (rather than attaching) if attach is forbidden.
 - **30s wall time is sometimes too short**: if the cache is warming during the first poll, the per-request average gets skewed. Mitigation: discard the first 5 polls in the count, OR increase duration to 60s with `--duration 60`.
 - **Spec C-003 says "syscall tracing not file-walk counting"**: the script DOES use syscall tracing (strace). Confirm no fallback path silently substitutes a heuristic count if strace is unavailable — that would violate C-003. Better to fail loud.
+
+## Activity Log
+
+- 2026-05-03T17:10:15Z – opencode:claude-sonnet-4.6:python-pedro:implementer – shell_pid=1514613 – Started implementation via action command

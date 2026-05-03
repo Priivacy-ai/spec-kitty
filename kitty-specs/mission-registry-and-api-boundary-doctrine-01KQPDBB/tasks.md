@@ -23,10 +23,10 @@
 | T011 | Wire `MissionRegistry` into FastAPI `app.state.mission_registry` at startup via `src/dashboard/api/app.py:create_app`; add `get_mission_registry()` Depends helper to `src/dashboard/api/deps.py` | WP04 | — | [D] |
 | T012 | Migrate `src/dashboard/api/routers/features.py` and `src/dashboard/api/routers/kanban.py` from `MissionScanService` scanner calls to registry calls; update `src/dashboard/services/mission_scan.py` to delegate to the registry rather than calling the scanner directly | WP04 | — | [D] |
 | T013 | Migrate CLI `src/specify_cli/cli/commands/dashboard.py` `--json` mode (line ~59) from `build_mission_registry(project_root)` direct call to `MissionRegistry(project_root).list_missions()` | WP04 | [D] |
-| T014 | Add `Link` and `ResourceModel` Pydantic marker classes to `src/dashboard/api/models.py`; document the marker contract in the class docstring referencing `HATEOAS-LITE` paradigm | WP05 | — |
-| T015 | Author `tests/architectural/test_transport_does_not_import_scanner.py` per `contracts/architectural-test-contracts.md` § 1; AST-walk `src/dashboard/api/routers/` and `src/specify_cli/cli/commands/dashboard.py`; positive + negative meta-tests | WP05 | [P] |
-| T016 | Author `tests/architectural/test_url_naming_convention.py` per `contracts/architectural-test-contracts.md` § 2; walk the FastAPI app's OpenAPI paths; resource-noun regex + action allowlist; positive + negative meta-tests | WP05 | [P] |
-| T017 | Author `tests/architectural/test_resource_models_have_links.py` per `contracts/architectural-test-contracts.md` § 3; walk Pydantic class hierarchy; assert `ResourceModel` subclasses declare `_links: dict[str, Link]`; positive + negative meta-tests; mission-A pass is vacuous (no subclasses yet) | WP05 | [P] |
+| T014 | Add `Link` and `ResourceModel` Pydantic marker classes to `src/dashboard/api/models.py`; document the marker contract in the class docstring referencing `HATEOAS-LITE` paradigm | WP05 | — | [D] |
+| T015 | Author `tests/architectural/test_transport_does_not_import_scanner.py` per `contracts/architectural-test-contracts.md` § 1; AST-walk `src/dashboard/api/routers/` and `src/specify_cli/cli/commands/dashboard.py`; positive + negative meta-tests | WP05 | [D] |
+| T016 | Author `tests/architectural/test_url_naming_convention.py` per `contracts/architectural-test-contracts.md` § 2; walk the FastAPI app's OpenAPI paths; resource-noun regex + action allowlist; positive + negative meta-tests | WP05 | [D] |
+| T017 | Author `tests/architectural/test_resource_models_have_links.py` per `contracts/architectural-test-contracts.md` § 3; walk Pydantic class hierarchy; assert `ResourceModel` subclasses declare `_links: dict[str, Link]`; positive + negative meta-tests; mission-A pass is vacuous (no subclasses yet) | WP05 | [D] |
 | T018 | Author `scripts/bench_registry_syscalls.py` per `research.md` § R-10; spawns dashboard under both transports (legacy scanner-only via `--transport legacy` AND FastAPI with registry); `strace -c -e trace=openat,stat,statx` for 30s; outputs JSON report | WP06 | — |
 | T019 | Run baseline (legacy) and post-registry (FastAPI) benchmarks on local machine; capture `/tmp/bench-registry-syscalls.json` JSON report | WP06 | — |
 | T020 | Author `kitty-specs/mission-registry-and-api-boundary-doctrine-01KQPDBB/release-checklist.md` with the bench numbers pasted in; verify NFR-001 (≤5 syscalls/req warm cache), NFR-002 (≤25% cold-start regression), NFR-003 (≤3 stat calls per stale check); fill operator slots TBD | WP06 | [P] |
@@ -134,10 +134,10 @@ Lane parallelization opportunities (per planner's lane assignment, materialised 
 **Independent test**: each new test passes (positive + negative meta-tests + the main scan); `tests/architectural/test_transport_does_not_import_scanner.py` proves WP04's migration succeeded.
 
 **Subtasks**:
-- [ ] T014 `Link` + `ResourceModel` Pydantic marker classes in `models.py`
-- [ ] T015 `test_transport_does_not_import_scanner.py`
-- [ ] T016 `test_url_naming_convention.py`
-- [ ] T017 `test_resource_models_have_links.py`
+- [x] T014 `Link` + `ResourceModel` Pydantic marker classes in `models.py`
+- [x] T015 `test_transport_does_not_import_scanner.py`
+- [x] T016 `test_url_naming_convention.py`
+- [x] T017 `test_resource_models_have_links.py`
 
 **Dependencies**: WP02, WP04.
 **Estimated prompt size**: ~480 lines (4 architectural tests, all need positive+negative meta-tests).

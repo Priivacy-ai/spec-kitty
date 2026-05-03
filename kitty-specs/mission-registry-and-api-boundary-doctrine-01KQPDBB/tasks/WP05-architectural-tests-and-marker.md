@@ -19,7 +19,8 @@ subtasks:
 - T015
 - T016
 - T017
-agent: claude
+agent: "opencode:claude-sonnet-4.6:python-pedro:reviewer"
+shell_pid: "1513391"
 history:
 - date: '2026-05-03'
   event: created
@@ -451,3 +452,10 @@ Lane-less on `feature/650-dashboard-ui-ux-overhaul`. Four files; commit as a sin
 - **WP04's migration left a sneaky scanner import**: T015's main scan would catch it; the WP04 reviewer should have caught it earlier. If T015 fails, send the violation back to WP04, do not patch it from this WP.
 - **The action allowlist grows large**: every URL today that doesn't match the resource-noun convention goes in the allowlist with rationale. That's fine for mission A (no rename); mission B prunes the allowlist as it renames URLs.
 - **Pydantic field-name policy on `_links`**: Pydantic v2 may warn or reject leading-underscore field names. If so, switch to `links` and update the paradigm YAML + the test accordingly. Document the change in the WP review.
+
+## Activity Log
+
+- 2026-05-03T17:06:22Z – opencode:claude-sonnet-4.6:python-pedro:implementer – shell_pid=1508347 – Started implementation via action command
+- 2026-05-03T17:09:37Z – opencode:claude-sonnet-4.6:python-pedro:implementer – shell_pid=1508347 – T014-T017 complete: Link+ResourceModel markers in models.py; 3 architectural tests (scanner boundary, URL naming, HATEOAS-LITE); all 10 new tests pass; 383 total pass.
+- 2026-05-03T17:09:45Z – opencode:claude-sonnet-4.6:python-pedro:reviewer – shell_pid=1513391 – Started review via action command
+- 2026-05-03T17:10:01Z – opencode:claude-sonnet-4.6:python-pedro:reviewer – shell_pid=1513391 – Review passed: all DoD items verified — Link+ResourceModel in models.__all__; all 3 architectural tests present with main+positive+negative meta-tests; 10/10 new tests pass; failure messages actionable with doctrine references; no noqa/skip escapes in production code. Two minor deviations from skeleton: (1) try/except on relative_to in meta-test to handle tmp_path outside REPO_ROOT — correct fix; (2) localns kwarg in get_type_hints for inline test class — correct for Pydantic + Python scoping. Both are improvements, not regressions.

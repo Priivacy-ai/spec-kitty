@@ -16,8 +16,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: "opencode:claude-sonnet-4.6:python-pedro:implementer"
-shell_pid: "1498620"
+agent: "opencode:claude-sonnet-4.6:python-pedro:reviewer"
+shell_pid: "1505960"
 history:
 - date: '2026-05-03'
   event: created
@@ -210,3 +210,6 @@ Lane-less on `feature/650-dashboard-ui-ux-overhaul`. Three coordinated changes; 
 - 2026-05-03T17:02:09Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1427345 – Stale agent recovery — force-advancing to for_review so we can reject and re-queue cleanly.
 - 2026-05-03T17:02:17Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1427345 – Moved to planned
 - 2026-05-03T17:02:31Z – opencode:claude-sonnet-4.6:python-pedro:implementer – shell_pid=1498620 – Started implementation via action command
+- 2026-05-03T17:04:47Z – opencode:claude-sonnet-4.6:python-pedro:implementer – shell_pid=1498620 – T011/T012/T013 complete: MissionRegistry wired into FastAPI app state + deps + routers + CLI; 270 tests pass; no scanner imports in transport layer
+- 2026-05-03T17:04:54Z – opencode:claude-sonnet-4.6:python-pedro:reviewer – shell_pid=1505960 – Started review via action command
+- 2026-05-03T17:06:10Z – opencode:claude-sonnet-4.6:python-pedro:reviewer – shell_pid=1505960 – Review passed: all DoD items verified — app.state.mission_registry set at startup; get_mission_registry in deps.__all__; features.py + kanban.py use Depends(get_mission_registry); get_features_list drives iteration via registry.list_missions(); get_kanban pre-resolves via registry.get_mission(); no banned scanner imports in transport layer; 270 tests pass; seams + OpenAPI snapshot clean.
