@@ -246,6 +246,16 @@ may_call = runtime["dependency_rules"]["may_call"]
 > **ADR references**:
 > - [2026-05-02-1-dashboard-service-extraction](./adr/2026-05-02-1-dashboard-service-extraction.md) — handler-to-service extraction
 > - [2026-05-02-2-fastapi-openapi-transport](./adr/2026-05-02-2-fastapi-openapi-transport.md) — FastAPI / OpenAPI transport migration
+> - [2026-05-03-1-dashboard-mission-registry-and-cache](./adr/2026-05-03-1-dashboard-mission-registry-and-cache.md) — registry abstraction between FastAPI routers and the filesystem (planned; tracked at [#956](https://github.com/Priivacy-ai/spec-kitty/issues/956))
+>
+> **Open dashboard sub-tickets** (children of [#645](https://github.com/Priivacy-ai/spec-kitty/issues/645)):
+> - [#956](https://github.com/Priivacy-ai/spec-kitty/issues/956) — `MissionRegistry` + cache layer (must land first)
+> - [#957](https://github.com/Priivacy-ai/spec-kitty/issues/957) — resource-oriented mission + workpackage endpoints + `WorkPackageAssignment` schema
+> - [#958](https://github.com/Priivacy-ai/spec-kitty/issues/958) — OpenAPI tag grouping (Swagger / ReDoc navigation)
+> - [#954](https://github.com/Priivacy-ai/spec-kitty/issues/954) — glossary service extraction (transport-only migration follow-up)
+> - [#955](https://github.com/Priivacy-ai/spec-kitty/issues/955) — lint service extraction (transport-only migration follow-up)
+>
+> Engineering log: [`docs/implementation/2026-05-03-dashboard-api-review.md`](../../docs/implementation/2026-05-03-dashboard-api-review.md).
 
 ---
 

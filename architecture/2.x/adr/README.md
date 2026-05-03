@@ -22,6 +22,8 @@ Legacy links through `architecture/adrs/` are compatibility aliases.
 
 | ID | Title | Status | Mission |
 |----|-------|--------|---------|
+| 2026-05-03-1 | [Dashboard Mission Registry and Cache](./2026-05-03-1-dashboard-mission-registry-and-cache.md) | Proposed | TBD — tracked at [#956](https://github.com/Priivacy-ai/spec-kitty/issues/956) |
+| 2026-05-02-2 | [FastAPI / OpenAPI Transport](./2026-05-02-2-fastapi-openapi-transport.md) | Accepted | `frontend-api-fastapi-openapi-migration-01KQN2JA` |
 | 2026-05-02-1 | [Dashboard Service Extraction](./2026-05-02-1-dashboard-service-extraction.md) | Accepted | `dashboard-service-extraction-01KQMCA6` |
 | 2026-05-01-1 | [Atomic Work Package Start Lifecycle](./2026-05-01-1-atomic-work-package-start-lifecycle.md) | Accepted | — |
 | 2026-04-27-1 | [Retrospective Gate Shared Module](./2026-04-27-1-retrospective-gate-shared-module.md) | Accepted | — |
