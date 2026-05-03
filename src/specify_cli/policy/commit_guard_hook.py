@@ -12,6 +12,10 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from specify_cli.policy.commit_guard import OwnershipScope
 
 
 def main() -> int:
@@ -65,11 +69,17 @@ def main() -> int:
     if not policy.commit_guard.enabled or policy.commit_guard.mode == "off":
         return 0
 
-    # Try to find owned_files from WP context.
-    owned_files = _detect_owned_files(worktree_root, repo_root, branch)
+    # Try to find owned_files from active WP context.
+    ownership_scope = _detect_ownership_scope(worktree_root, repo_root, branch)
 
     # Run guard.
-    guard_result = validate_staged_files(staged, owned_files, branch, policy.commit_guard)
+    guard_result = validate_staged_files(
+        staged,
+        ownership_scope.owned_files,
+        branch,
+        policy.commit_guard,
+        ownership_scope=ownership_scope,
+    )
 
     if guard_result.warnings:
         for w in guard_result.warnings:
@@ -90,26 +100,38 @@ def _detect_owned_files(
     branch: str,
 ) -> list[str]:
     """Try to detect owned_files for the current WP from workspace context or lanes."""
-    # Try workspace context.
+    return _detect_ownership_scope(worktree_root, repo_root, branch).owned_files
+
+
+def _detect_ownership_scope(
+    worktree_root: Path,
+    repo_root: Path,
+    branch: str,
+) -> OwnershipScope:
+    """Resolve active WP ownership scope for the current lane branch."""
+    from specify_cli.policy.commit_guard import OwnershipScope
+
+    _ = worktree_root  # Reserved for future path-based diagnostics.
     try:
-        from specify_cli.workspace.context import list_contexts
+        from specify_cli.workspace.context import resolve_active_wp_for_branch
 
-        for ctx in list_contexts(repo_root):
-            if ctx.branch_name == branch:
-                # Found matching context — try to read WP frontmatter for owned_files.
-                from specify_cli.status.wp_metadata import read_wp_frontmatter
-
-                feature_dir = repo_root / "kitty-specs" / ctx.mission_slug
-                tasks_dir = feature_dir / "tasks"
-                wp_id = ctx.current_wp or ctx.wp_id
-                for wp_file in tasks_dir.glob(f"{wp_id}*.md"):
-                    meta, _ = read_wp_frontmatter(wp_file)
-                    if meta.owned_files:
-                        return list(meta.owned_files)
-    except Exception:
-        pass
-
-    return []
+        resolved = resolve_active_wp_for_branch(repo_root, branch)
+        return OwnershipScope(
+            owned_files=list(resolved.owned_files),
+            active_wp_id=resolved.wp_id,
+            lane_id=resolved.lane_id,
+            context_source=resolved.context_source,
+            diagnostic_code=resolved.diagnostic_code,
+            diagnostic_message=resolved.diagnostic_message,
+            warnings=list(resolved.warnings),
+        )
+    except Exception as exc:
+        return OwnershipScope(
+            owned_files=[],
+            context_source="workspace_context",
+            diagnostic_code="ACTIVE_WP_CONTEXT_ERROR",
+            diagnostic_message=f"ACTIVE_WP_CONTEXT_ERROR: Could not resolve active WP ownership: {exc}",
+        )
 
 
 if __name__ == "__main__":

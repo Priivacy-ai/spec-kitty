@@ -2,7 +2,7 @@
   "created_at": "2026-05-02T08:00:32.257612+00:00",
   "friendly_name": "3.2.0 Workflow Reliability Blockers",
   "mission_id": "01KQKV85G0STH8VF1RB66TW8DJ",
-  "mission_number": null,
+  "mission_number": 111,
   "mission_slug": "release-320-workflow-reliability-01KQKV85",
   "mission_type": "software-dev",
   "purpose_context": "This stabilization mission addresses the highest-priority blockers found during the mission-state-audit-01KQHRB8 run so agents can rely on observable status transitions, isolated review prompts, canonical diffs, active work-package ownership, parseable sync diagnostics, deterministic merge/ship recovery, and review artifact consistency before 3.2.0 stable release.",

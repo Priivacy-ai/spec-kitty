@@ -39,6 +39,11 @@ from specify_cli.git.sparse_checkout import (
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.ordering import assign_next_mission_number
+from specify_cli.merge.preflight import (
+    TargetBranchSyncStatus,
+    inspect_target_branch_sync,
+    target_branch_sync_remediation,
+)
 from specify_cli.merge.state import (
     MergeLockError,
     MergeState,
@@ -52,6 +57,12 @@ from specify_cli.merge.state import (
 )
 from specify_cli.mission_metadata import resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace, get_merge_runtime_dir
+from specify_cli.post_merge.review_artifact_consistency import (
+    REJECTED_REVIEW_ARTIFACT_REMEDIATION,
+    find_rejected_review_artifact_conflicts,
+    format_review_artifact_conflict,
+    review_artifact_conflict_diagnostic,
+)
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -59,6 +70,9 @@ from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 logger = logging.getLogger(__name__)
+
+TARGET_BRANCH_NOT_SYNCHRONIZED = "TARGET_BRANCH_NOT_SYNCHRONIZED"
+TARGET_BRANCH_SYNC_INVARIANT = "local_target_branch_must_match_tracking_branch"
 
 # T011 — FR-009: push-error parser tokens (locked tuple — do not reorder or extend without a spec change)
 LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
@@ -682,6 +696,108 @@ def _validate_target_branch(
     raise typer.Exit(1)
 
 
+def _target_branch_sync_payload(
+    status: TargetBranchSyncStatus,
+    *,
+    mission_slug: str | None,
+    mission_branch: str | None = None,
+) -> dict[str, object]:
+    remediation = target_branch_sync_remediation(
+        status,
+        mission_slug=mission_slug,
+        mission_branch=mission_branch,
+    )
+    return {
+        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "diagnostic_code": TARGET_BRANCH_NOT_SYNCHRONIZED,
+        "branch_or_work_package": status.target_branch,
+        "violated_invariant": TARGET_BRANCH_SYNC_INVARIANT,
+        "error": "Target branch is not synchronized with its tracking branch.",
+        "target_branch": status.target_branch,
+        "tracking_branch": status.tracking_branch,
+        "state": status.state,
+        "ahead_count": status.ahead_count,
+        "behind_count": status.behind_count,
+        "remediation": remediation,
+    }
+
+
+def _enforce_target_branch_sync_preflight(
+    repo_root: Path,
+    *,
+    target_branch: str,
+    mission_slug: str | None,
+    mission_branch: str | None = None,
+    json_output: bool = False,
+) -> None:
+    """Stop merge before mutation when the target branch is not synced."""
+    status = inspect_target_branch_sync(repo_root, target_branch)
+    if status.is_safe:
+        return
+
+    payload = _target_branch_sync_payload(
+        status,
+        mission_slug=mission_slug,
+        mission_branch=mission_branch,
+    )
+    if json_output:
+        print(json.dumps(payload))
+    else:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        console.print(f"  diagnostic_code: {payload['diagnostic_code']}")
+        console.print(f"  branch_or_work_package: {payload['branch_or_work_package']}")
+        console.print(f"  violated_invariant: {payload['violated_invariant']}")
+        console.print("  remediation:")
+        for line in payload["remediation"]:
+            console.print(f"  - {line}")
+    raise typer.Exit(1)
+
+
+def _enforce_review_artifact_consistency(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_ids: list[str],
+) -> None:
+    """Block terminal signoff when the latest review artifact is rejected."""
+    findings = find_rejected_review_artifact_conflicts(feature_dir, wp_ids)
+    if not findings:
+        return
+
+    console.print(
+        "[red]Error:[/red] Review artifact consistency gate failed. "
+        "Approved/done work packages cannot have a latest rejected review artifact."
+    )
+    for finding in findings:
+        diagnostic = review_artifact_conflict_diagnostic(
+            finding,
+            repo_root=repo_root,
+        )
+        console.print(
+            f"  - {format_review_artifact_conflict(finding, repo_root=repo_root)}"
+        )
+        console.print(f"    diagnostic_code: {diagnostic['diagnostic_code']}")
+        console.print(
+            f"    branch_or_work_package: {diagnostic['branch_or_work_package']}"
+        )
+        console.print(
+            f"    violated_invariant: {diagnostic['violated_invariant']}"
+        )
+        console.print(
+            f"    latest_review_cycle_path: {diagnostic['latest_review_cycle_path']}"
+        )
+        console.print(
+            f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
+        )
+        for line in REJECTED_REVIEW_ARTIFACT_REMEDIATION:
+            console.print(f"    remediation: {line}")
+    console.print(
+        f"  Mission: {mission_slug}"
+    )
+    raise typer.Exit(1)
+
+
 def _run_lane_based_merge(
     repo_root: Path,
     mission_slug: str,
@@ -740,6 +856,13 @@ def _run_lane_based_merge(
     lanes_manifest = require_lanes_json(feature_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
+
+    _enforce_target_branch_sync_preflight(
+        main_repo,
+        target_branch=lanes_manifest.target_branch,
+        mission_slug=mission_slug,
+        mission_branch=lanes_manifest.mission_branch,
+    )
 
     # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
     identity = resolve_mission_identity(feature_dir)
@@ -826,6 +949,13 @@ def _run_lane_based_merge_locked(
     if not gate_eval.overall_pass:
         console.print("\n[red]Error:[/red] Merge gates failed.")
         raise typer.Exit(1)
+
+    _enforce_review_artifact_consistency(
+        repo_root=main_repo,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_ids=all_wp_ids,
+    )
 
     # -- Lane merges (skip lanes whose WPs are all already completed) --
     for lane in lanes_manifest.lanes:
@@ -1288,6 +1418,14 @@ def merge(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1) from exc
 
+        _enforce_target_branch_sync_preflight(
+            get_main_repo_root(repo_root),
+            target_branch=resolved_target_branch,
+            mission_slug=resolved_feature,
+            mission_branch=lanes_manifest.mission_branch,
+            json_output=json_output,
+        )
+
         # WP10/T053: dry-run preview of merge-time mission_number assignment.
         feature_dir_for_preview = (
             get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
@@ -1360,6 +1498,8 @@ __all__ = [
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",
+    "_enforce_target_branch_sync_preflight",
+    "_enforce_review_artifact_consistency",
     "_bake_mission_number_into_mission_branch",
     "LINEAR_HISTORY_REJECTION_TOKENS",
     "merge",

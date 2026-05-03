@@ -40,6 +40,55 @@ class StoreError(Exception):
     """Raised when the event store encounters corruption or I/O errors."""
 
 
+class EventPersistenceError(StoreError):
+    """Raised when an appended transition cannot be verified by readback."""
+
+    def __init__(
+        self,
+        *,
+        problem: str,
+        feature_dir: Path,
+        expected: StatusEvent,
+    ) -> None:
+        self.problem = problem
+        self.feature_dir = feature_dir
+        self.event_path = _events_path(feature_dir)
+        self.expected_event_id = expected.event_id
+        self.mission_slug = expected.mission_slug
+        self.mission_id = expected.mission_id
+        self.wp_id = expected.wp_id
+        self.target_lane = str(expected.to_lane)
+        mission_id_text = self.mission_id or "unknown"
+        super().__init__(
+            "Status transition event persistence verification failed: "
+            f"{problem}; mission_slug={self.mission_slug}; "
+            f"mission_id={mission_id_text}; wp_id={self.wp_id}; "
+            f"target_lane={self.target_lane}; event_id={self.expected_event_id}; "
+            f"event_path={self.event_path}"
+        )
+
+    def to_diagnostic(self) -> dict[str, str | None]:
+        """Return the contract-required structured diagnostic payload."""
+        return {
+            "error": str(self),
+            "diagnostic_code": "STATUS_EVENT_PERSISTENCE_VERIFICATION_FAILED",
+            "violated_invariant": "STA-002",
+            "remediation": (
+                "Inspect status_events_path for filesystem errors or event log "
+                "corruption, then rerun the transition command after local "
+                "status persistence is healthy."
+            ),
+            "mission_slug": self.mission_slug,
+            "mission_id": self.mission_id,
+            "work_package_id": self.wp_id,
+            "wp_id": self.wp_id,
+            "to_lane": self.target_lane,
+            "requested_lane": self.target_lane,
+            "event_id": self.expected_event_id,
+            "status_events_path": str(self.event_path),
+        }
+
+
 def _events_path(feature_dir: Path) -> Path:
     """Return the canonical path to the events JSONL file."""
     return feature_dir / EVENTS_FILENAME
@@ -147,6 +196,49 @@ def append_event(feature_dir: Path, event: StatusEvent) -> None:
         fh.write(line + "\n")
 
 
+def _event_matches_expected(actual: StatusEvent, expected: StatusEvent) -> bool:
+    """Return True when *actual* is durable evidence for *expected*."""
+    if actual.event_id != expected.event_id:
+        return False
+    if actual.mission_slug != expected.mission_slug:
+        return False
+    if expected.mission_id is not None and actual.mission_id != expected.mission_id:
+        return False
+    return actual.wp_id == expected.wp_id and actual.to_lane == expected.to_lane
+
+
+def verify_event_readback(feature_dir: Path, expected: StatusEvent) -> None:
+    """Fail unless the expected event can be read back from JSONL."""
+    try:
+        events = read_events(feature_dir)
+    except Exception as exc:
+        raise EventPersistenceError(
+            problem=f"readback failed: {exc}",
+            feature_dir=feature_dir,
+            expected=expected,
+        ) from exc
+
+    if not any(_event_matches_expected(actual, expected) for actual in events):
+        raise EventPersistenceError(
+            problem="expected event missing after append",
+            feature_dir=feature_dir,
+            expected=expected,
+        )
+
+
+def append_event_verified(feature_dir: Path, event: StatusEvent) -> None:
+    """Append one event and require a successful post-write readback."""
+    try:
+        append_event(feature_dir, event)
+    except Exception as exc:
+        raise EventPersistenceError(
+            problem=f"append failed: {exc}",
+            feature_dir=feature_dir,
+            expected=event,
+        ) from exc
+    verify_event_readback(feature_dir, event)
+
+
 def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
     """Atomically persist a batch of StatusEvents as JSONL lines.
 
@@ -174,6 +266,22 @@ def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
         fh.flush()
         os.fsync(fh.fileno())
     os.replace(tmp_path, path)
+
+
+def append_events_atomic_verified(feature_dir: Path, events: list[StatusEvent]) -> None:
+    """Atomically append a batch and require every event to be readable."""
+    if not events:
+        return
+    try:
+        append_events_atomic(feature_dir, events)
+    except Exception as exc:
+        raise EventPersistenceError(
+            problem=f"append failed: {exc}",
+            feature_dir=feature_dir,
+            expected=events[0],
+        ) from exc
+    for event in events:
+        verify_event_readback(feature_dir, event)
 
 
 def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:

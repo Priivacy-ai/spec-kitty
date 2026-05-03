@@ -48,6 +48,11 @@ from typing import Annotated
 import typer
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.post_merge.review_artifact_consistency import (
+    find_rejected_review_artifact_conflicts,
+    format_review_artifact_conflict,
+    review_artifact_conflict_diagnostic,
+)
 from specify_cli.status.reducer import materialize
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -130,6 +135,53 @@ def review_mission(
     else:
         console.print(
             f"  [green]✓[/green]  WP lane check: all {len(snapshot.work_packages)} WP(s) in done"
+        )
+
+    review_artifact_conflicts = find_rejected_review_artifact_conflicts(feature_dir)
+    if review_artifact_conflicts:
+        console.print(
+            "  [red]✗[/red]  Review artifact consistency: latest rejected artifact "
+            "exists for terminal WP(s)"
+        )
+        for conflict in review_artifact_conflicts:
+            diagnostic = review_artifact_conflict_diagnostic(
+                conflict,
+                repo_root=repo_root,
+            )
+            console.print(
+                f"       {format_review_artifact_conflict(conflict, repo_root=repo_root)}"
+            )
+            console.print(f"       diagnostic_code: {diagnostic['diagnostic_code']}")
+            console.print(
+                f"       branch_or_work_package: {diagnostic['branch_or_work_package']}"
+            )
+            console.print(
+                f"       violated_invariant: {diagnostic['violated_invariant']}"
+            )
+            for line in diagnostic["remediation"]:
+                console.print(f"       remediation: {line}")
+            findings.append(
+                {
+                    "type": "rejected_review_artifact",
+                    "wp_id": conflict.wp_id,
+                    "lane": conflict.lane,
+                    "artifact_path": str(conflict.artifact_path),
+                    "diagnostic_code": str(diagnostic["diagnostic_code"]),
+                    "branch_or_work_package": str(
+                        diagnostic["branch_or_work_package"]
+                    ),
+                    "violated_invariant": str(diagnostic["violated_invariant"]),
+                    "remediation": "; ".join(
+                        str(line) for line in diagnostic["remediation"]
+                    ),
+                    "latest_review_cycle_verdict": str(
+                        diagnostic["latest_review_cycle_verdict"]
+                    ),
+                }
+            )
+    else:
+        console.print(
+            "  [green]✓[/green]  Review artifact consistency: no terminal WP has a latest rejected artifact"
         )
 
     # ==================================================================
@@ -238,8 +290,12 @@ def review_mission(
     # ==================================================================
     # Step 4 — Write report
     # ==================================================================
-    wp_not_done_count = sum(1 for f in findings if f["type"] == "wp_not_done")
-    if wp_not_done_count > 0:
+    hard_failure_count = sum(
+        1
+        for f in findings
+        if f["type"] in {"wp_not_done", "rejected_review_artifact"}
+    )
+    if hard_failure_count > 0:
         verdict = "fail"
     elif findings:
         verdict = "pass_with_notes"
@@ -270,6 +326,16 @@ def review_mission(
             elif f["type"] == "ble001_suppression":
                 report_lines.append(
                     f"- **ble001_suppression** `{f['file']}:{f['line']}`: no inline justification"
+                )
+            elif f["type"] == "rejected_review_artifact":
+                report_lines.append(
+                    f"- **rejected_review_artifact** `{f['wp_id']}`: lane is "
+                    f"`{f.get('lane', 'unknown')}`, latest artifact is "
+                    f"`{f.get('artifact_path', 'unknown')}`; "
+                    f"diagnostic_code=`{f.get('diagnostic_code', 'unknown')}`, "
+                    f"branch_or_work_package=`{f.get('branch_or_work_package', 'unknown')}`, "
+                    f"violated_invariant=`{f.get('violated_invariant', 'unknown')}`, "
+                    f"remediation=`{f.get('remediation', 'unknown')}`"
                 )
     else:
         report_lines.append("No findings.")

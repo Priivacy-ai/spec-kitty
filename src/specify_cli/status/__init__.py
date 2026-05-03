@@ -30,8 +30,11 @@ from .reducer import (
 )
 from .store import (
     EVENTS_FILENAME,
+    EventPersistenceError,
     StoreError,
     append_event,
+    append_event_verified,
+    append_events_atomic_verified,
     read_events,
     read_events_raw,
 )
@@ -122,6 +125,7 @@ __all__ = [
     "CANONICAL_LANES",
     "DoneEvidence",
     "EVENTS_FILENAME",
+    "EventPersistenceError",
     "Lane",
     "get_all_lanes",
     "get_all_lane_values",
@@ -139,6 +143,8 @@ __all__ = [
     "VerificationResult",
     "WPMetadata",
     "append_event",
+    "append_event_verified",
+    "append_events_atomic_verified",
     "emit_status_transition",
     "generate_status_view",
     "get_all_wp_lanes",

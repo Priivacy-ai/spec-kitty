@@ -23,6 +23,17 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import typer
+
+from specify_cli.cli.commands.review import review_mission
+from specify_cli.review.artifacts import ReviewCycleArtifact
+from specify_cli.status.models import Lane
+from tests.reliability.fixtures import (
+    WorkPackageSpec,
+    append_status_event,
+    create_mission_fixture,
+    write_work_package,
+)
 
 pytestmark = [pytest.mark.integration]
 
@@ -165,3 +176,52 @@ def test_pytest_is_available_for_gate() -> None:
         f"pytest is not importable from {sys.executable!r}; the gate "
         f"cannot run.\nstderr:\n{result.stderr}"
     )
+
+
+def test_mission_review_fails_when_done_wp_latest_review_artifact_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A done WP cannot pass mission review with a latest rejected artifact."""
+    mission = create_mission_fixture(tmp_path)
+    subprocess.run(
+        ["git", "init", "-b", "main"],
+        cwd=mission.repo_root,
+        check=True,
+        capture_output=True,
+    )
+    write_work_package(mission, WorkPackageSpec(lane="done"))
+    append_status_event(
+        mission,
+        from_lane=Lane.APPROVED,
+        to_lane=Lane.DONE,
+        event_id="01KQKV85DONE00000000001",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    ReviewCycleArtifact(
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug=mission.mission_slug,
+        reviewer_agent="reviewer-renata",
+        verdict="rejected",
+        reviewed_at="2026-05-03T12:00:00+00:00",
+        body="# Review\n\nVerdict: rejected\n",
+    ).write(artifact_dir / "review-cycle-1.md")
+
+    monkeypatch.chdir(mission.repo_root)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        review_mission(mission=mission.mission_slug)
+
+    assert exc_info.value.exit_code == 1
+    report = mission.mission_dir / "mission-review-report.md"
+    report_text = report.read_text(encoding="utf-8")
+    assert "verdict: fail" in report_text
+    assert "rejected_review_artifact" in report_text
+    assert "diagnostic_code=`REJECTED_REVIEW_ARTIFACT_CONFLICT`" in report_text
+    assert "branch_or_work_package=`WP01`" in report_text
+    assert (
+        "violated_invariant="
+        "`terminal_wp_latest_review_artifact_must_not_be_rejected`"
+    ) in report_text
+    assert "remediation=`Run another review cycle" in report_text

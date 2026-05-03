@@ -10,10 +10,13 @@ import pytest
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import (
     EVENTS_FILENAME,
+    EventPersistenceError,
     _SlugResolver,
     StoreError,
     append_event,
+    append_event_verified,
     append_events_atomic,
+    append_events_atomic_verified,
     read_events,
     read_events_raw,
 )
@@ -55,6 +58,56 @@ def test_append_and_read_round_trip(tmp_path: Path) -> None:
     assert events[0] == event
 
 
+def test_append_event_verified_fails_when_readback_misses_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verified append requires durable readback of the exact transition."""
+    event = _make_event(to_lane=Lane.IN_PROGRESS)
+
+    import specify_cli.status.store as status_store
+
+    monkeypatch.setattr(status_store, "append_event", lambda _feature_dir, _event: None)
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        append_event_verified(tmp_path, event)
+
+    message = str(exc_info.value)
+    assert "expected event missing after append" in message
+    assert "mission_slug=034-feature-name" in message
+    assert "wp_id=WP01" in message
+    assert "target_lane=in_progress" in message
+    assert str(tmp_path / EVENTS_FILENAME) in message
+    diagnostic = exc_info.value.to_diagnostic()
+    assert diagnostic["diagnostic_code"] == "STATUS_EVENT_PERSISTENCE_VERIFICATION_FAILED"
+    assert diagnostic["violated_invariant"] == "STA-002"
+    assert diagnostic["work_package_id"] == "WP01"
+    assert diagnostic["to_lane"] == "in_progress"
+    assert diagnostic["status_events_path"] == str(tmp_path / EVENTS_FILENAME)
+
+
+def test_append_event_verified_wraps_append_failures_in_diagnostic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Append failures surface the same structured persistence diagnostic."""
+    event = _make_event(to_lane=Lane.IN_PROGRESS)
+
+    import specify_cli.status.store as status_store
+
+    def _raise_append(_feature_dir: Path, _event: StatusEvent) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(status_store, "append_event", _raise_append)
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        append_event_verified(tmp_path, event)
+
+    assert "append failed: disk full" in str(exc_info.value)
+    diagnostic = exc_info.value.to_diagnostic()
+    assert diagnostic["diagnostic_code"] == "STATUS_EVENT_PERSISTENCE_VERIFICATION_FAILED"
+    assert diagnostic["work_package_id"] == "WP01"
+    assert diagnostic["to_lane"] == "in_progress"
+    assert diagnostic["status_events_path"] == str(tmp_path / EVENTS_FILENAME)
+
+
 def test_multiple_appends_preserve_order(tmp_path: Path) -> None:
     """Events appended in sequence are returned in the same order."""
     e1 = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
@@ -88,6 +141,29 @@ def test_append_events_atomic_persists_full_batch(tmp_path: Path) -> None:
         (Lane.PLANNED, Lane.CLAIMED),
         (Lane.CLAIMED, Lane.IN_PROGRESS),
     ]
+
+
+def test_append_events_atomic_verified_fails_when_batch_readback_misses_event(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    e1 = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
+    e2 = _make_event(
+        event_id="01BBBB0000000000000000002B",
+        wp_id="WP01",
+        from_lane=Lane.CLAIMED,
+        to_lane=Lane.IN_PROGRESS,
+    )
+
+    import specify_cli.status.store as status_store
+
+    monkeypatch.setattr(status_store, "append_events_atomic", lambda _feature_dir, _events: None)
+
+    with pytest.raises(EventPersistenceError) as exc_info:
+        append_events_atomic_verified(tmp_path, [e1, e2])
+
+    assert "expected event missing after append" in str(exc_info.value)
+    assert "event_id=01AAAA0000000000000000001A" in str(exc_info.value)
 
 
 def test_append_events_atomic_empty_batch_is_noop(tmp_path: Path) -> None:

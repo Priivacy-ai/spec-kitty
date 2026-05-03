@@ -10,7 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
+from specify_cli.review.artifacts import (
+    AffectedFile,
+    ReviewCycleArtifact,
+    latest_review_artifact_verdict,
+    rejected_review_artifact_for_terminal_lane,
+)
 
 pytestmark = pytest.mark.git_repo
 
@@ -269,3 +274,35 @@ def test_persist_review_feedback_creates_artifact(tmp_path: Path) -> None:
     assert artifact.reviewer_agent == "claude"
     assert artifact.verdict == "rejected"
     assert "Please fix." in artifact.body
+
+
+def test_latest_review_artifact_verdict_reads_highest_cycle(tmp_path: Path) -> None:
+    _sample_artifact(cycle_number=1, verdict="rejected").write(tmp_path / "review-cycle-1.md")
+    _sample_artifact(cycle_number=2, verdict="approved").write(tmp_path / "review-cycle-2.md")
+
+    state = latest_review_artifact_verdict(tmp_path)
+
+    assert state is not None
+    assert state.path == tmp_path / "review-cycle-2.md"
+    assert state.cycle_number == 2
+    assert state.verdict == "approved"
+
+
+def test_terminal_lane_rejected_artifact_helper_flags_approved_or_done(tmp_path: Path) -> None:
+    _sample_artifact(cycle_number=1, verdict="rejected").write(tmp_path / "review-cycle-1.md")
+
+    approved_state = rejected_review_artifact_for_terminal_lane(tmp_path, "approved")
+    done_state = rejected_review_artifact_for_terminal_lane(tmp_path, "done")
+
+    assert approved_state is not None
+    assert approved_state.verdict == "rejected"
+    assert done_state is not None
+    assert done_state.verdict == "rejected"
+
+
+def test_terminal_lane_rejected_artifact_helper_ignores_non_rejected_latest(tmp_path: Path) -> None:
+    _sample_artifact(cycle_number=1, verdict="rejected").write(tmp_path / "review-cycle-1.md")
+    _sample_artifact(cycle_number=2, verdict="approved").write(tmp_path / "review-cycle-2.md")
+
+    assert rejected_review_artifact_for_terminal_lane(tmp_path, "approved") is None
+    assert rejected_review_artifact_for_terminal_lane(tmp_path, "for_review") is None

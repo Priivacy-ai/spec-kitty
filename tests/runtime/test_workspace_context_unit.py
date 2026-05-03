@@ -9,14 +9,18 @@ import specify_cli.workspace.context as workspace_context_module
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 from specify_cli.workspace.context import (
     WorkspaceContext,
+    ActiveWPResolution,
     build_normalized_wp_index,
     build_feature_context_index,
     clear_workspace_resolution_caches,
     find_orphaned_contexts,
     list_contexts,
     load_context,
+    resolve_active_wp_for_branch,
     resolve_feature_worktree,
     resolve_workspace_for_wp,
     save_context,
@@ -108,6 +112,23 @@ def _write_wp(
     return wp_path
 
 
+def _seed_lane_event(feature_dir: Path, wp_id: str, lane: Lane) -> None:
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"seed-{wp_id}-{lane.value}",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=lane,
+            at="2026-01-25T12:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+
+
 class TestOrphanedContext:
     def test_orphaned_context_detected(self, kittify_project: Path) -> None:
         save_context(kittify_project, _context())
@@ -129,6 +150,84 @@ class TestCorruptedContext:
 
 
 class TestContextIndexAndResolution:
+    def test_active_wp_resolution_uses_canonical_status_after_shared_lane_advances(self, kittify_project: Path) -> None:
+        feature_dir = _seed_mission(kittify_project)
+        tasks_dir = feature_dir / "tasks"
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "Previous work",
+            "Update src/previous.py.",
+            execution_mode="code_change",
+            owned_files=["src/previous.py"],
+        )
+        _write_wp(
+            tasks_dir,
+            "WP04",
+            "Active work",
+            "Update src/active.py.",
+            execution_mode="code_change",
+            owned_files=["src/active.py"],
+        )
+        save_context(
+            kittify_project,
+            WorkspaceContext(
+                wp_id="WP01",
+                mission_slug="001-feature",
+                worktree_path=".worktrees/001-feature-lane-a",
+                branch_name="kitty/mission-001-feature-lane-a",
+                base_branch="kitty/mission-001-feature",
+                base_commit="abc123",
+                dependencies=[],
+                created_at="2026-01-25T12:00:00Z",
+                created_by="implement-command-lane",
+                vcs_backend="git",
+                lane_id="lane-a",
+                lane_wp_ids=["WP01", "WP04"],
+                current_wp="WP01",
+            ),
+        )
+        _seed_lane_event(feature_dir, "WP01", Lane.DONE)
+        _seed_lane_event(feature_dir, "WP04", Lane.IN_PROGRESS)
+
+        resolved = resolve_active_wp_for_branch(
+            kittify_project,
+            "kitty/mission-001-feature-lane-a",
+        )
+
+        assert resolved == ActiveWPResolution(
+            mission_slug="001-feature",
+            wp_id="WP04",
+            owned_files=["src/active.py"],
+            lane_id="lane-a",
+            branch_name="kitty/mission-001-feature-lane-a",
+            context_source="canonical_status",
+            diagnostic_code=None,
+            diagnostic_message=None,
+            warnings=[
+                "ACTIVE_WP_CONTEXT_STALE: workspace context current_wp=WP01, canonical active_wp=WP04; lane_id=lane-a"
+            ],
+        )
+
+    def test_active_wp_resolution_diagnoses_ambiguous_status_context(self, kittify_project: Path) -> None:
+        feature_dir = _seed_mission(kittify_project)
+        tasks_dir = feature_dir / "tasks"
+        _write_wp(tasks_dir, "WP01", "First", "Update src/a.py.", execution_mode="code_change", owned_files=["src/a.py"])
+        _write_wp(tasks_dir, "WP02", "Second", "Update src/b.py.", execution_mode="code_change", owned_files=["src/b.py"])
+        save_context(kittify_project, _context(current_wp="WP01"))
+        _seed_lane_event(feature_dir, "WP01", Lane.IN_PROGRESS)
+        _seed_lane_event(feature_dir, "WP02", Lane.IN_PROGRESS)
+
+        resolved = resolve_active_wp_for_branch(
+            kittify_project,
+            "kitty/mission-001-feature-lane-a",
+        )
+
+        assert resolved.wp_id is None
+        assert resolved.owned_files == []
+        assert resolved.diagnostic_code == "ACTIVE_WP_CONTEXT_AMBIGUOUS"
+        assert "active candidates: WP01, WP02" in (resolved.diagnostic_message or "")
+
     def test_build_normalized_wp_index_caches_inferred_execution_mode(self, kittify_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         feature_dir = _seed_mission(kittify_project)
         tasks_dir = feature_dir / "tasks"
