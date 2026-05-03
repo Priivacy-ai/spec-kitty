@@ -11,11 +11,11 @@
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Add the narrow `specify_cli.review.cycle` boundary and result types | WP01 |  |
-| T002 | Implement canonical `review-cycle://` pointer builder and validator | WP01 |  |
-| T003 | Implement pointer resolver with legacy `feedback://` normalization warnings | WP01 |  |
-| T004 | Add review artifact required-frontmatter validation and fail-closed errors | WP01 |  |
-| T005 | Add focused unit tests for artifact, pointer, and result invariants | WP01 |  |
+| T001 | Add the narrow `specify_cli.review.cycle` boundary and result types | WP01 |  | [D] |
+| T002 | Implement canonical `review-cycle://` pointer builder and validator | WP01 |  | [D] |
+| T003 | Implement pointer resolver with legacy `feedback://` normalization warnings | WP01 |  | [D] |
+| T004 | Add review artifact required-frontmatter validation and fail-closed errors | WP01 |  | [D] |
+| T005 | Add focused unit tests for artifact, pointer, and result invariants | WP01 |  | [D] |
 | T006 | Replace `move-task` rejection artifact creation with the shared boundary | WP02 |  |
 | T007 | Derive rejected `ReviewResult` before outbound `in_review` mutation | WP02 |  |
 | T008 | Add fail-before-mutation CLI regressions for missing, empty, and invalid feedback | WP02 |  |
@@ -51,11 +51,11 @@
 **Requirement Refs**: FR-003, FR-004, FR-006, FR-007, NFR-001, NFR-003, NFR-004, C-003
 
 #### Included Subtasks
-- [ ] T001 Add the narrow `specify_cli.review.cycle` boundary and result types (WP01)
-- [ ] T002 Implement canonical `review-cycle://` pointer builder and validator (WP01)
-- [ ] T003 Implement pointer resolver with legacy `feedback://` normalization warnings (WP01)
-- [ ] T004 Add review artifact required-frontmatter validation and fail-closed errors (WP01)
-- [ ] T005 Add focused unit tests for artifact, pointer, and result invariants (WP01)
+- [x] T001 Add the narrow `specify_cli.review.cycle` boundary and result types (WP01)
+- [x] T002 Implement canonical `review-cycle://` pointer builder and validator (WP01)
+- [x] T003 Implement pointer resolver with legacy `feedback://` normalization warnings (WP01)
+- [x] T004 Add review artifact required-frontmatter validation and fail-closed errors (WP01)
+- [x] T005 Add focused unit tests for artifact, pointer, and result invariants (WP01)
 
 #### Implementation Sketch
 Create `src/specify_cli/review/cycle.py` and reuse `ReviewCycleArtifact` from `src/specify_cli/review/artifacts.py`. The new module should produce a single validated result object containing the artifact path, canonical pointer, and rejected `ReviewResult`. It must validate before returning data that callers can persist.
