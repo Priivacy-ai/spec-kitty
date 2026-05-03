@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-03T20:45:07.656020+00:00",
+  "friendly_name": "implement review retrospect reliability",
+  "mission_id": "01KQQSCWP7HAJRR93F98AESKH4",
+  "mission_number": null,
+  "mission_slug": "implement-review-retrospect-reliability-01KQQSCW",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances implement review retrospect reliability on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "implement review retrospect reliability",
+  "slug": "implement-review-retrospect-reliability-01KQQSCW",
+  "target_branch": "main"
+}
