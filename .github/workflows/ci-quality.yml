@@ -28,12 +28,6 @@ on:
     # to avoid GitHub Actions' busiest scheduling window.
     - cron: '17 2 * * *'
   workflow_dispatch:
-    inputs:
-      run_extended:
-        description: 'Run slow/e2e suite'
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: ci-quality-${{ github.ref }}
@@ -49,29 +43,44 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      sync: ${{ steps.filter.outputs.sync }}
-      merge: ${{ steps.filter.outputs.merge }}
-      missions: ${{ steps.filter.outputs.missions }}
-      post_merge: ${{ steps.filter.outputs.post_merge }}
-      release: ${{ steps.filter.outputs.release }}
-      status: ${{ steps.filter.outputs.status }}
-      review: ${{ steps.filter.outputs.review }}
-      next: ${{ steps.filter.outputs.next }}
-      lanes: ${{ steps.filter.outputs.lanes }}
-      dashboard: ${{ steps.filter.outputs.dashboard }}
-      dashboard_api: ${{ steps.filter.outputs.dashboard_api }}
-      upgrade: ${{ steps.filter.outputs.upgrade }}
-      cli: ${{ steps.filter.outputs.cli }}
-      orchestrator_api: ${{ steps.filter.outputs.orchestrator_api }}
-      core_misc: ${{ steps.filter.outputs.core_misc }}
-      charter: ${{ steps.filter.outputs.charter }}
-      agent: ${{ steps.filter.outputs.agent }}
-      kernel: ${{ steps.filter.outputs.kernel }}
-      doctrine: ${{ steps.filter.outputs.doctrine }}
+      sync: ${{ steps.override.outputs.sync || steps.filter.outputs.sync }}
+      merge: ${{ steps.override.outputs.merge || steps.filter.outputs.merge }}
+      missions: ${{ steps.override.outputs.missions || steps.filter.outputs.missions }}
+      post_merge: ${{ steps.override.outputs.post_merge || steps.filter.outputs.post_merge }}
+      release: ${{ steps.override.outputs.release || steps.filter.outputs.release }}
+      status: ${{ steps.override.outputs.status || steps.filter.outputs.status }}
+      review: ${{ steps.override.outputs.review || steps.filter.outputs.review }}
+      next: ${{ steps.override.outputs.next || steps.filter.outputs.next }}
+      lanes: ${{ steps.override.outputs.lanes || steps.filter.outputs.lanes }}
+      dashboard: ${{ steps.override.outputs.dashboard || steps.filter.outputs.dashboard }}
+      dashboard_api: ${{ steps.override.outputs.dashboard_api || steps.filter.outputs.dashboard_api }}
+      upgrade: ${{ steps.override.outputs.upgrade || steps.filter.outputs.upgrade }}
+      cli: ${{ steps.override.outputs.cli || steps.filter.outputs.cli }}
+      orchestrator_api: ${{ steps.override.outputs.orchestrator_api || steps.filter.outputs.orchestrator_api }}
+      core_misc: ${{ steps.override.outputs.core_misc || steps.filter.outputs.core_misc }}
+      charter: ${{ steps.override.outputs.charter || steps.filter.outputs.charter }}
+      agent: ${{ steps.override.outputs.agent || steps.filter.outputs.agent }}
+      kernel: ${{ steps.override.outputs.kernel || steps.filter.outputs.kernel }}
+      doctrine: ${{ steps.override.outputs.doctrine || steps.filter.outputs.doctrine }}
     steps:
       - uses: actions/checkout@v6
+
+      # When triggered manually, treat every module as changed so the full
+      # chain runs. paths-filter has nothing to diff against in this case and
+      # outputs 'false' for everything, which would cause all jobs to skip.
+      - name: "Override change flags for manual dispatch"
+        id: override
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          for flag in sync merge missions post_merge release status review next \
+                      lanes dashboard dashboard_api upgrade cli orchestrator_api \
+                      core_misc charter agent kernel doctrine; do
+            echo "${flag}=true" >> "$GITHUB_OUTPUT"
+          done
+
       - uses: dorny/paths-filter@v4
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
           filters: |
             sync:
@@ -1849,7 +1858,7 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     timeout-minutes: 30
 
     steps:
@@ -1915,7 +1924,7 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     timeout-minutes: 40
 
     steps:
@@ -2359,9 +2368,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: "[ENFORCED] Assert uv.lock is up-to-date with pyproject.toml"
         run: |

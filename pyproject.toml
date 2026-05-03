@@ -128,7 +128,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter", "src/dashboard"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]
