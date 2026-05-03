@@ -108,12 +108,12 @@
 **Requirement Refs**: FR-007, FR-008, NFR-001, NFR-005, C-004
 
 ### Included Subtasks
-- [ ] T019 Add shared-lane sequential-WP tests with disjoint `owned_files`.
-- [ ] T020 Add guard-output tests distinguishing stale context from true scope violations.
-- [ ] T021 Resolve active WP id at guard invocation time from workspace/status context.
-- [ ] T022 Update commit guard ownership detection to read the active WP's frontmatter.
-- [ ] T023 Add diagnostics for stale or ambiguous active-WP context.
-- [ ] T024 Run targeted policy/workspace tests and document guard expectations.
+- [x] T019 Add shared-lane sequential-WP tests with disjoint `owned_files`.
+- [x] T020 Add guard-output tests distinguishing stale context from true scope violations.
+- [x] T021 Resolve active WP id at guard invocation time from workspace/status context.
+- [x] T022 Update commit guard ownership detection to read the active WP's frontmatter.
+- [x] T023 Add diagnostics for stale or ambiguous active-WP context.
+- [x] T024 Run targeted policy/workspace tests and document guard expectations.
 
 ### Implementation Notes
 - Keep the guard conservative: if the active WP cannot be proven, report context ambiguity rather than pretending a stale ownership set is authoritative.
@@ -253,12 +253,12 @@
 | T016 | Add fail-closed prompt validation | WP03 | P1 | No | [D] |
 | T017 | Use canonical refs for review diffs | WP03 | P1 | No | [D] |
 | T018 | Add latest review artifact helper coverage | WP03 | P1 | No | [D] |
-| T019 | Add shared-lane ownership tests | WP04 | P1 | Yes |
-| T020 | Add stale-context diagnostic tests | WP04 | P1 | Yes |
-| T021 | Resolve active WP id at guard time | WP04 | P1 | No |
-| T022 | Update commit guard ownership detection | WP04 | P1 | No |
-| T023 | Add stale/ambiguous context diagnostics | WP04 | P1 | No |
-| T024 | Run policy/workspace tests | WP04 | P1 | No |
+| T019 | Add shared-lane ownership tests | WP04 | P1 | Yes | [D] |
+| T020 | Add stale-context diagnostic tests | WP04 | P1 | Yes | [D] |
+| T021 | Resolve active WP id at guard time | WP04 | P1 | No | [D] |
+| T022 | Update commit guard ownership detection | WP04 | P1 | No | [D] |
+| T023 | Add stale/ambiguous context diagnostics | WP04 | P1 | No | [D] |
+| T024 | Run policy/workspace tests | WP04 | P1 | No | [D] |
 | T025 | Add strict JSON sync warning tests | WP05 | P2 | Yes |
 | T026 | Add sync diagnostic dedupe tests | WP05 | P2 | Yes |
 | T027 | Implement non-fatal sync diagnostics | WP05 | P2 | No |
