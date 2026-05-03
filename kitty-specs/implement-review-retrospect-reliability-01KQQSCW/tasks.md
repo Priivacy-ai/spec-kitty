@@ -29,10 +29,10 @@
 | T016 | Make `spec-kitty next` prefer finalized task/WP lane state over stale phase state | WP04 |  | [D] |
 | T017 | Cover implement, review, approved/done, blocked, and terminal routing outcomes | WP04 |  | [D] |
 | T018 | Preserve existing `Decision` JSON contract and prompt-file invariant | WP04 |  | [D] |
-| T019 | Add structured missing-record outcomes for `agent retrospect synthesize --json` | WP05 |  |
-| T020 | Add explicit retrospective capture/init path or deterministic auto-initialization | WP05 |  |
-| T021 | Distinguish missing mission, insufficient artifacts, record created, and synthesized states | WP05 |  |
-| T022 | Add retrospective JSON and Rich/JSON compatibility regressions | WP05 |  |
+| T019 | Add structured missing-record outcomes for `agent retrospect synthesize --json` | WP05 |  | [D] |
+| T020 | Add explicit retrospective capture/init path or deterministic auto-initialization | WP05 |  | [D] |
+| T021 | Distinguish missing mission, insufficient artifacts, record created, and synthesized states | WP05 |  | [D] |
+| T022 | Add retrospective JSON and Rich/JSON compatibility regressions | WP05 |  | [D] |
 | T023 | Build one focused end-to-end smoke fixture for reject -> fix -> approve -> next -> retrospect | WP06 |  |
 | T024 | Verify #967, #966, #964, and #968 remain explicitly deferred unless adjacent | WP06 |  |
 | T025 | Run the mission acceptance test set and update quickstart if commands differ | WP06 |  |
@@ -165,10 +165,10 @@ Risk: changing next routing destabilizes custom missions. Mitigation: test only 
 **Requirement Refs**: FR-009, FR-010, NFR-001, NFR-003
 
 #### Included Subtasks
-- [ ] T019 Add structured missing-record outcomes for `agent retrospect synthesize --json` (WP05)
-- [ ] T020 Add explicit retrospective capture/init path or deterministic auto-initialization (WP05)
-- [ ] T021 Distinguish missing mission, insufficient artifacts, record created, and synthesized states (WP05)
-- [ ] T022 Add retrospective JSON and Rich/JSON compatibility regressions (WP05)
+- [x] T019 Add structured missing-record outcomes for `agent retrospect synthesize --json` (WP05)
+- [x] T020 Add explicit retrospective capture/init path or deterministic auto-initialization (WP05)
+- [x] T021 Distinguish missing mission, insufficient artifacts, record created, and synthesized states (WP05)
+- [x] T022 Add retrospective JSON and Rich/JSON compatibility regressions (WP05)
 
 #### Implementation Sketch
 Modify `src/specify_cli/cli/commands/agent_retrospect.py` and use existing `src/specify_cli/retrospective/reader.py`, `writer.py`, and schema models. Prefer explicit `capture` or `init` when records cannot be synthesized deterministically; allow synthesize to initialize only when completed mission artifacts are sufficient.
