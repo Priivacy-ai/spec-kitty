@@ -164,6 +164,39 @@ surprising, see ADR
 [`2026-05-02-2-fastapi-openapi-transport.md`](../../architecture/2.x/adr/2026-05-02-2-fastapi-openapi-transport.md)
 § Consequences for the trade-off rationale.
 
+## MissionRegistry as canonical reader
+
+Mission `mission-registry-and-api-boundary-doctrine-01KQPDBB` (2026-05-03)
+introduced the `MissionRegistry` (`src/dashboard/services/registry.py`) as
+the single sanctioned reader for mission and work-package data. Every
+transport — FastAPI dashboard routers, the CLI `spec-kitty dashboard --json`,
+and (when introduced) MCP tools — consumes the registry. Direct imports of
+`specify_cli.dashboard.scanner` or `specify_cli.scanner` from any transport
+module are forbidden by `DIRECTIVE_API_DEPENDENCY_DIRECTION`
+(`src/doctrine/directives/shipped/api-dependency-direction.directive.yaml`),
+enforced in CI by `tests/architectural/test_transport_does_not_import_scanner.py`.
+
+If you are adding a new transport (a new FastAPI route, a new CLI subcommand,
+a new MCP tool):
+
+1. Construct a `MissionRegistry` with the project root, OR pull one from
+   `Depends(get_mission_registry)` if you are inside FastAPI.
+2. Call `registry.list_missions()`, `registry.get_mission(handle)`,
+   `registry.workpackages_for(handle).list_work_packages()`, etc.
+3. Do not import the scanner. The architectural test will fail your PR
+   if you do.
+
+### Why this exists
+
+Before this mission, every dashboard request walked `kitty-specs/*/` from
+disk. With ~144 missions and a 1-Hz client poll, a single open browser tab
+generated ~720 file `open()` syscalls per second. The registry mtime-caches
+its filesystem reads; warm-cache requests cost ≤ 5 stat syscalls per request.
+
+See ADR
+[`architecture/2.x/adr/2026-05-03-1-dashboard-mission-registry-and-cache.md`](../../architecture/2.x/adr/2026-05-03-1-dashboard-mission-registry-and-cache.md)
+for the architectural decision and rejected alternatives.
+
 ## Future deprecation
 
 The legacy `BaseHTTPServer` stack stays in tree for the duration of one

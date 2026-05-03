@@ -1,7 +1,7 @@
 # ADR: Dashboard `MissionRegistry` Abstraction Between FastAPI Routers and the Filesystem
 
 **Date**: 2026-05-03
-**Status**: Proposed (mission tracked at [#956](https://github.com/Priivacy-ai/spec-kitty/issues/956))
+**Status**: Accepted (mission `mission-registry-and-api-boundary-doctrine-01KQPDBB` shipped 2026-05-03)
 **Mission**: TBD — to be filed under epic [#645](https://github.com/Priivacy-ai/spec-kitty/issues/645)
 **Replaces / refines**: ADR `2026-05-02-2-fastapi-openapi-transport.md` (which migrated transport but kept the per-request filesystem-walk strategy)
 

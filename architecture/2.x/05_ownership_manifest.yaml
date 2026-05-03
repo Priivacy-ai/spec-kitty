@@ -109,6 +109,7 @@ glossary:
 dashboard:
   canonical_package: dashboard
   current_state:
+    - src/dashboard/services/registry.py  # canonical reader (mission-registry-and-api-boundary-doctrine-01KQPDBB)
     - src/dashboard/services/mission_scan.py
     - src/dashboard/services/project_state.py
     - src/dashboard/services/sync.py
@@ -130,6 +131,7 @@ dashboard:
   adapter_responsibilities:
     - Legacy stack (retained for rollback) — HTTP dispatch via handlers/router.py, BaseHTTPRequestHandler I/O, inline token guards
     - FastAPI stack (src/dashboard/api/) — route registration via APIRouter per family
+    - FastAPI stack — Depends(get_mission_registry) injects MissionRegistry into routers
     - FastAPI stack — Depends(verify_project_token) for token validation
     - FastAPI stack — StaticFiles mount for dashboard.css/dashboard.js assets
     - FastAPI stack — auto-generated OpenAPI at /openapi.json + Swagger /docs + ReDoc /redoc
@@ -142,8 +144,8 @@ dashboard:
       canonical_import: specify_cli.dashboard.scanner
       removal_release: scanner extraction mission completion (#613)
   seams:
-    - FeatureHandler.handle_features_list delegates to MissionScanService.get_features_list
-    - FeatureHandler.handle_kanban delegates to MissionScanService.get_kanban
+    - FastAPI features router → MissionScanService.get_features_list → MissionRegistry.list_missions → scanner.scan_all_features (cached)
+    - FastAPI kanban router → MissionScanService.get_kanban → WorkPackageRegistry.list_work_packages → scanner.scan_feature_kanban (cached)
     - APIHandler.handle_health delegates to ProjectStateService.get_health
     - APIHandler.handle_sync_trigger delegates to SyncService.trigger_sync
     - File-serving handlers (research, contracts, checklists, artifact) delegate to DashboardFileReader

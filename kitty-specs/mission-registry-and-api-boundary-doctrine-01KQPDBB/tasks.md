@@ -30,11 +30,11 @@
 | T018 | Author `scripts/bench_registry_syscalls.py` per `research.md` § R-10; spawns dashboard under both transports (legacy scanner-only via `--transport legacy` AND FastAPI with registry); `strace -c -e trace=openat,stat,statx` for 30s; outputs JSON report | WP06 | — | [D] |
 | T019 | Run baseline (legacy) and post-registry (FastAPI) benchmarks on local machine; capture `/tmp/bench-registry-syscalls.json` JSON report | WP06 | — | [D] |
 | T020 | Author `kitty-specs/mission-registry-and-api-boundary-doctrine-01KQPDBB/release-checklist.md` with the bench numbers pasted in; verify NFR-001 (≤5 syscalls/req warm cache), NFR-002 (≤25% cold-start regression), NFR-003 (≤3 stat calls per stale check); fill operator slots TBD | WP06 | [D] |
-| T021 | Promote ADR `architecture/2.x/adr/2026-05-03-1-dashboard-mission-registry-and-cache.md` from `Status: Proposed` to `Status: Accepted`; update `architecture/2.x/adr/README.md` index row to `Accepted` | WP07 | — |
-| T022 | Update `architecture/2.x/05_ownership_map.md` Dashboard slice: `current_state` adds the registry; `seams` updates to "FastAPI router → registry.method() → backbone (cached)"; cross-link the three new doctrine artefacts. Mirror in `05_ownership_manifest.yaml`. Mark `#956` as `done` in the Open Sub-tickets callout | WP07 | [P] |
-| T023 | Update `docs/migration/dashboard-fastapi-transport.md` with a "MissionRegistry as canonical reader" section explaining `DIRECTIVE_API_DEPENDENCY_DIRECTION` so future contributors do not re-introduce per-request scanner walks | WP07 | [P] |
-| T024 | Run full test suite — `.venv/bin/python -m pytest tests/test_dashboard/ tests/architectural/ tests/sync/test_daemon_intent_gate.py -q --timeout=120`; confirm zero regressions | WP07 | — |
-| T025 | Regenerate OpenAPI snapshot ONCE at end of mission per spec C-003 (single regen, not per WP); `.venv/bin/python -c "from dashboard.api import create_app; ..."`; update spec FR checkbox status (book-keeping only — mark FR-001..FR-017 as `[x]` once their owning WP is done) | WP07 | — |
+| T021 | Promote ADR `architecture/2.x/adr/2026-05-03-1-dashboard-mission-registry-and-cache.md` from `Status: Proposed` to `Status: Accepted`; update `architecture/2.x/adr/README.md` index row to `Accepted` | WP07 | — | [D] |
+| T022 | Update `architecture/2.x/05_ownership_map.md` Dashboard slice: `current_state` adds the registry; `seams` updates to "FastAPI router → registry.method() → backbone (cached)"; cross-link the three new doctrine artefacts. Mirror in `05_ownership_manifest.yaml`. Mark `#956` as `done` in the Open Sub-tickets callout | WP07 | [D] |
+| T023 | Update `docs/migration/dashboard-fastapi-transport.md` with a "MissionRegistry as canonical reader" section explaining `DIRECTIVE_API_DEPENDENCY_DIRECTION` so future contributors do not re-introduce per-request scanner walks | WP07 | [D] |
+| T024 | Run full test suite — `.venv/bin/python -m pytest tests/test_dashboard/ tests/architectural/ tests/sync/test_daemon_intent_gate.py -q --timeout=120`; confirm zero regressions | WP07 | — | [D] |
+| T025 | Regenerate OpenAPI snapshot ONCE at end of mission per spec C-003 (single regen, not per WP); `.venv/bin/python -c "from dashboard.api import create_app; ..."`; update spec FR checkbox status (book-keeping only — mark FR-001..FR-017 as `[x]` once their owning WP is done) | WP07 | — | [D] |
 
 ## Dependencies
 
@@ -165,11 +165,11 @@ Lane parallelization opportunities (per planner's lane assignment, materialised 
 **Independent test**: ADR status reads `Accepted`; ownership map reflects the registry; full test suite green; OpenAPI snapshot test green.
 
 **Subtasks**:
-- [ ] T021 ADR promotion (Proposed → Accepted)
-- [ ] T022 Ownership map + manifest updates
-- [ ] T023 Migration runbook section
-- [ ] T024 Full test suite confirmation
-- [ ] T025 OpenAPI snapshot regen (single, end-of-mission) + spec FR checkbox book-keeping
+- [x] T021 ADR promotion (Proposed → Accepted)
+- [x] T022 Ownership map + manifest updates
+- [x] T023 Migration runbook section
+- [x] T024 Full test suite confirmation
+- [x] T025 OpenAPI snapshot regen (single, end-of-mission) + spec FR checkbox book-keeping
 
 **Dependencies**: WP05, WP06.
 **Estimated prompt size**: ~360 lines.
