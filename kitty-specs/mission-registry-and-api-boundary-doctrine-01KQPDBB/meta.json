@@ -8,5 +8,7 @@
   "purpose_context": "Every dashboard request, CLI invocation, and (future) MCP tool today reads kitty-specs/ from disk via independent code paths, with no caching, no shared service contract, and no architectural test forbidding it. This mission introduces a MissionRegistry + WorkPackageRegistry that mtime-cache filesystem reads and serve every transport-side consumer, codifies three new doctrine artefacts (DIRECTIVE_API_DEPENDENCY_DIRECTION, DIRECTIVE_REST_RESOURCE_ORIENTATION, HATEOAS-LITE paradigm), and lands three architectural tests that enforce the single-entry-point invariant in CI. Mission A of the rescoped epic #645 (Stable Application API Surface for UI/CLI/MCP/SDK).",
   "purpose_tldr": "Make the MissionRegistry the single sanctioned reader of mission/WP data for every transport, enforced by new doctrine and CI tests.",
   "slug": "mission-registry-and-api-boundary-doctrine-01KQPDBB",
-  "target_branch": "feature/650-dashboard-ui-ux-overhaul"
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-03T13:58:21.313146+00:00"
 }

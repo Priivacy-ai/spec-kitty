@@ -1,0 +1,70 @@
+{
+  "event_count": 14,
+  "last_event_id": "01KQQ2PJADD2M4T7T6NCKP3DD4",
+  "materialized_at": "2026-05-03T14:08:27.469122+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-registry-and-api-boundary-doctrine-01KQPDBB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 5
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KQQ2NPQTE6SSQ3AFZ2DY1KCQ",
+      "last_transition_at": "2026-05-03T14:07:59.226417+00:00"
+    },
+    "WP02": {
+      "actor": "claude:opus-4-7:architect-alphonso:architect",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KQQ2PJADD2M4T7T6NCKP3DD4",
+      "last_transition_at": "2026-05-03T14:08:27.469122+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQ1SEGAEK54F1PH76FJ8W0M",
+      "last_transition_at": "2026-05-03T13:52:33.290066+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQ1SEGGXTMR6TS0740RDXVC",
+      "last_transition_at": "2026-05-03T13:52:33.296670+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQ1SEGP94G94PBDJDQV30AY",
+      "last_transition_at": "2026-05-03T13:52:33.302156+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQ1SEGW43JJV80SE3ZKXWWW",
+      "last_transition_at": "2026-05-03T13:52:33.308993+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQQ1SEH3C0G9PCT68TGBVGFN",
+      "last_transition_at": "2026-05-03T13:52:33.315345+00:00"
+    }
+  }
+}
