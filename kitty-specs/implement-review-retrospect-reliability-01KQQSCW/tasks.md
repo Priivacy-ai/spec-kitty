@@ -21,10 +21,10 @@
 | T008 | Add fail-before-mutation CLI regressions for missing, empty, and invalid feedback | WP02 |  | [D] |
 | T009 | Add `in_review -> planned` rejection integration coverage for #960 | WP02 |  | [D] |
 | T010 | Run targeted status transition and emit regression tests | WP02 |  | [D] |
-| T011 | Route fix-mode feedback resolution through the shared pointer resolver | WP03 |  |
-| T012 | Preserve sentinel handling while warning on legacy or missing pointers | WP03 |  |
-| T013 | Add fix-mode prompt tests for canonical and legacy review pointers | WP03 |  |
-| T014 | Add regression coverage that focused rejection context loads from the canonical pointer | WP03 |  |
+| T011 | Route fix-mode feedback resolution through the shared pointer resolver | WP03 |  | [D] |
+| T012 | Preserve sentinel handling while warning on legacy or missing pointers | WP03 |  | [D] |
+| T013 | Add fix-mode prompt tests for canonical and legacy review pointers | WP03 |  | [D] |
+| T014 | Add regression coverage that focused rejection context loads from the canonical pointer | WP03 |  | [D] |
 | T015 | Add a finalized-task routing fixture with stale discovery runtime state | WP04 |  |
 | T016 | Make `spec-kitty next` prefer finalized task/WP lane state over stale phase state | WP04 |  |
 | T017 | Cover implement, review, approved/done, blocked, and terminal routing outcomes | WP04 |  |
@@ -109,10 +109,10 @@ Risk: approval paths accidentally change. Mitigation: keep changes conditional o
 **Requirement Refs**: FR-004, FR-005, NFR-001, NFR-002, NFR-003
 
 #### Included Subtasks
-- [ ] T011 Route fix-mode feedback resolution through the shared pointer resolver (WP03)
-- [ ] T012 Preserve sentinel handling while warning on legacy or missing pointers (WP03)
-- [ ] T013 Add fix-mode prompt tests for canonical and legacy review pointers (WP03)
-- [ ] T014 Add regression coverage that focused rejection context loads from the canonical pointer (WP03)
+- [x] T011 Route fix-mode feedback resolution through the shared pointer resolver (WP03)
+- [x] T012 Preserve sentinel handling while warning on legacy or missing pointers (WP03)
+- [x] T013 Add fix-mode prompt tests for canonical and legacy review pointers (WP03)
+- [x] T014 Add regression coverage that focused rejection context loads from the canonical pointer (WP03)
 
 #### Implementation Sketch
 Modify `src/specify_cli/cli/commands/agent/workflow.py` to call the WP01 pointer resolver for feedback context. Keep `force-override` and `action-review-claim` sentinel behavior. Update or replace the current pointer tests with active 3.x coverage where needed.
