@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.review.cycle import (
     ReviewCycleError,
     build_review_cycle_pointer,
