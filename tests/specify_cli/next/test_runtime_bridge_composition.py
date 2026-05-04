@@ -45,6 +45,23 @@ from specify_cli.next.runtime_bridge import (
 pytestmark = pytest.mark.fast
 
 
+@pytest.fixture(autouse=True)
+def _local_only_sync_emitter(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Composition dispatch tests are local runtime tests, not SaaS sync tests."""
+    from specify_cli.next import runtime_bridge
+    from specify_cli.next._internal_runtime.events import NullEmitter
+
+    class LocalOnlyEmitter(NullEmitter):
+        def seed_from_snapshot(self, *_args, **_kwargs) -> None:
+            return None
+
+    monkeypatch.setattr(
+        runtime_bridge.SyncRuntimeEventEmitter,
+        "for_feature",
+        staticmethod(lambda **_: LocalOnlyEmitter()),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

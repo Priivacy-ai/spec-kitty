@@ -643,6 +643,21 @@ class TestAnswerDecision:
 class TestFullLoop:
     pytestmark = pytest.mark.git_repo
 
+    @pytest.fixture(autouse=True)
+    def _disable_sync_emitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.next import runtime_bridge
+        from specify_cli.next._internal_runtime.events import NullEmitter
+
+        class LocalOnlyEmitter(NullEmitter):
+            def seed_from_snapshot(self, *_args, **_kwargs) -> None:
+                return None
+
+        monkeypatch.setattr(
+            runtime_bridge.SyncRuntimeEventEmitter,
+            "for_feature",
+            staticmethod(lambda **_: LocalOnlyEmitter()),
+        )
+
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
         repo_root = _scaffold_project(tmp_path)

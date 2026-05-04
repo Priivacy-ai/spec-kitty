@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -71,40 +70,48 @@ def test_query_prefers_finalized_planned_wps_over_discovery(tmp_path: Path) -> N
     assert decision.preview_step == "implement"
 
 
-def test_success_decision_routes_finalized_planned_wps_to_implement_step(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_query_routes_finalized_for_review_wps_to_review(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    _, mission_slug = _scaffold(repo, {"WP01": Lane.PLANNED})
-    prompt = tmp_path / "prompt.md"
-    prompt.write_text("implement prompt", encoding="utf-8")
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.FOR_REVIEW})
 
-    import specify_cli.next.runtime_bridge as rb
+    from specify_cli.next.runtime_bridge import query_current_state
 
-    monkeypatch.setattr(rb, "_state_to_action", lambda *_args, **_kwargs: ("implement", "WP01", "/tmp/worktree"))
-    monkeypatch.setattr(rb, "_build_prompt_or_error", lambda *_args, **_kwargs: (str(prompt), None))
+    decision = query_current_state("codex", mission_slug, repo)
 
-    progress = rb._compute_wp_progress(feature_dir := repo / "kitty-specs" / mission_slug)
-    decision = rb._build_finalized_task_board_decision(
-        override_step=rb._finalized_task_board_override_step(feature_dir, progress),
-        agent="codex",
-        mission_slug=mission_slug,
-        mission_type="software-dev",
-        feature_dir=feature_dir,
-        repo_root=repo,
-        timestamp="2026-01-01T00:00:00+00:00",
-        progress=progress,
-        origin={},
-        run_ref=SimpleNamespace(run_id="run-1"),
-    )
+    assert decision.kind == DecisionKind.query
+    assert decision.mission_state == "review"
+    assert decision.preview_step == "review"
 
-    assert decision.kind == DecisionKind.step
-    assert decision.mission_state == "implement"
-    assert decision.action == "implement"
-    assert decision.wp_id == "WP01"
-    assert decision.prompt_file == str(prompt)
+
+def test_query_blocks_finalized_in_review_wps_without_discovery(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.IN_REVIEW})
+
+    from specify_cli.next.runtime_bridge import query_current_state
+
+    decision = query_current_state("codex", mission_slug, repo)
+
+    assert decision.kind == DecisionKind.query
+    assert decision.mission_state == "blocked"
+    assert decision.preview_step is None
+    assert decision.reason == "review in progress"
+
+
+def test_query_marks_all_done_finalized_wps_terminal_without_discovery(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.DONE, "WP02": Lane.DONE})
+
+    from specify_cli.next.runtime_bridge import query_current_state
+
+    decision = query_current_state("codex", mission_slug, repo)
+
+    assert decision.kind == DecisionKind.query
+    assert decision.mission_state == "done"
+    assert decision.preview_step is None
+    assert decision.reason == "All work packages are done"
 
 
 def test_finalized_for_review_routes_to_review(tmp_path: Path) -> None:

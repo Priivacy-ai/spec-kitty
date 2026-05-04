@@ -53,6 +53,7 @@ _err_console = Console(stderr=True)
 
 def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False):
     """Resolve a mission handle for this command without pre-rendering JSON errors."""
+    del json_mode
     return resolve_mission(handle, repo_root)
 
 # ---------------------------------------------------------------------------
@@ -215,6 +216,7 @@ def _create_empty_retrospective_record(
     feature_dir: Path,
     actor: ActorRef,
 ) -> Path:
+    del feature_dir
     now = datetime.now(timezone.utc).isoformat()
     record = RetrospectiveRecord(
         schema_version="1",

@@ -37,6 +37,14 @@ def _git_common_dir(repo: Path) -> Path:
     return common_dir
 
 
+def _prompt_path_from_output(output: str) -> Path:
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("cat "):
+            return Path(stripped[4:].strip())
+    raise AssertionError(f"Prompt path not found in output: {output}")
+
+
 def _wp_path(repo: Path) -> Path:
     return repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
 
@@ -329,7 +337,7 @@ def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_
     result = runner.invoke(workflow.app, ["review", "WP01", "--feature", "001-test-feature", "--agent", "reviewer"])
 
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert (
         "move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer"

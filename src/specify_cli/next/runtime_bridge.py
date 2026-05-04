@@ -246,9 +246,6 @@ def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRu
 # ---------------------------------------------------------------------------
 
 _WP_ITERATION_STEPS = frozenset({"implement", "review"})
-_PRE_FINALIZED_TASK_STEPS = frozenset(
-    {"discovery", "specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize"}
-)
 
 
 def _is_wp_iteration_step(step_id: str) -> bool:
@@ -1552,25 +1549,6 @@ def decide_next_via_runtime(  # noqa: C901
     except Exception:
         current_step_id = None
 
-    finalized_override = _finalized_task_board_override_step(feature_dir, progress)
-    if (
-        result == "success"
-        and (current_step_id is None or current_step_id in _PRE_FINALIZED_TASK_STEPS)
-        and finalized_override is not None
-    ):
-        return _build_finalized_task_board_decision(
-            override_step=finalized_override,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission_type=mission_type,
-            feature_dir=feature_dir,
-            repo_root=repo_root,
-            timestamp=now,
-            progress=progress,
-            origin=origin,
-            run_ref=run_ref,
-        )
-
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
@@ -2323,117 +2301,6 @@ def _build_wp_iteration_decision(
             run_id=run_ref.run_id,
             step_id=step_id,
         )
-
-
-def _build_finalized_task_board_decision(
-    *,
-    override_step: str,
-    agent: str,
-    mission_slug: str,
-    mission_type: str,
-    feature_dir: Path,
-    repo_root: Path,
-    timestamp: str,
-    progress: dict | None,
-    origin: dict,
-    run_ref: MissionRunRef,
-) -> Decision:
-    """Build a public Decision from finalized task/WP state."""
-    if override_step in _WP_ITERATION_STEPS:
-        return _build_wp_iteration_decision(
-            override_step,
-            agent,
-            mission_slug,
-            mission_type,
-            feature_dir,
-            repo_root,
-            timestamp,
-            progress,
-            origin,
-            run_ref,
-        )
-
-    if override_step == "done":
-        return Decision(
-            kind=DecisionKind.terminal,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state="done",
-            timestamp=timestamp,
-            reason="All work packages are done",
-            progress=progress,
-            origin=origin,
-            run_id=run_ref.run_id,
-            step_id="done",
-        )
-
-    if override_step.startswith("blocked:"):
-        reason = override_step.split(":", 1)[1].replace("_", " ")
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state="blocked",
-            timestamp=timestamp,
-            reason=reason,
-            guard_failures=[reason],
-            progress=progress,
-            origin=origin,
-            run_id=run_ref.run_id,
-            step_id="blocked",
-        )
-
-    action, wp_id, workspace_path = _state_to_action(
-        override_step,
-        mission_slug,
-        feature_dir,
-        repo_root,
-        mission_type,
-    )
-    prompt_file, prompt_error = _build_prompt_or_error(
-        action or override_step,
-        feature_dir,
-        mission_slug,
-        wp_id,
-        agent,
-        repo_root,
-        mission_type,
-    )
-    if prompt_file is None:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=override_step,
-            timestamp=timestamp,
-            reason=prompt_error or "prompt_file_not_resolvable",
-            action=action or override_step,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            progress=progress,
-            origin=origin,
-            run_id=run_ref.run_id,
-            step_id=override_step,
-        )
-    return Decision(
-        kind=DecisionKind.step,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=override_step,
-        timestamp=timestamp,
-        action=action or override_step,
-        wp_id=wp_id,
-        workspace_path=workspace_path,
-        prompt_file=prompt_file,
-        progress=progress,
-        origin=origin,
-        run_id=run_ref.run_id,
-        step_id=override_step,
-    )
 
 
 def _map_runtime_decision(

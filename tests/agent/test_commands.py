@@ -274,6 +274,11 @@ def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        merge_module,
+        "_enforce_target_branch_sync_preflight",
+        lambda *_args, **_kwargs: None,
+    )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
 
     result = runner.invoke(
@@ -309,6 +314,11 @@ def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) 
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        merge_module,
+        "_enforce_target_branch_sync_preflight",
+        lambda *_args, **_kwargs: None,
+    )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
 
     result = runner.invoke(
@@ -366,6 +376,11 @@ def test_merge_json_dry_run_requires_feature_resolution(monkeypatch, tmp_path: P
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        merge_module,
+        "_enforce_target_branch_sync_preflight",
+        lambda *_args, **_kwargs: None,
+    )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
 
     result = runner.invoke(
@@ -393,6 +408,11 @@ def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> No
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        merge_module,
+        "_enforce_target_branch_sync_preflight",
+        lambda *_args, **_kwargs: None,
+    )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
     result = runner.invoke(
         cli_app,

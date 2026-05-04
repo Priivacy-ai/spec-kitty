@@ -65,6 +65,14 @@ def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
     write_frontmatter(path, frontmatter, body)
 
 
+def _prompt_path_from_output(output: str) -> Path:
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("cat "):
+            return Path(stripped[4:].strip())
+    raise AssertionError(f"Prompt path not found in output: {output}")
+
+
 @pytest.fixture()
 def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path
@@ -385,7 +393,7 @@ def test_review_prompt_points_to_shared_mission_artifacts(workflow_repo: Path) -
     )
 
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     content = prompt_file.read_text(encoding="utf-8")
     assert "📚 SHARED MISSION ARTIFACTS:" in content
     assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
