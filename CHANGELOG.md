@@ -17,6 +17,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0a10] - 2026-05-04
+
+3.2.0a10 is a prerelease that stabilizes the implement-review-retrospect
+control loop after the 3.2.0 release-blocker triage.
+
+### Fixed
+
+- Rejection transitions from `in_review` now derive or require structured
+  rejected review results before mutating task state, closing the gap where
+  reviewer feedback could fail without a durable review result (#960).
+- Review feedback pointers are canonicalized to `review-cycle://...` URIs and
+  legacy `feedback://` references are normalized or resolved with a warning,
+  preserving focused fix-mode context across rejection cycles (#962).
+- Written `review-cycle-N.md` artifacts now include required YAML frontmatter
+  before they can be referenced, and invalid review artifacts fail closed
+  instead of leaving dangling status pointers (#963).
+- `spec-kitty next` now treats finalized task boards and work-package lane
+  state as authoritative in query mode without bypassing mutating runtime
+  composition or retrospective terminus handling (#961).
+- Completed missions now have a usable `agent retrospect synthesize` path when
+  `retrospective.yaml` is missing, with JSON output that distinguishes created,
+  synthesized, insufficient-artifacts, and mission-not-found outcomes (#965).
+
+### Internal
+
+- Added targeted regression coverage for the shared review-cycle domain,
+  rejection transitions, canonical feedback resolution, finalized routing,
+  retrospective synthesis, and the focused implement-review-retrospect smoke
+  path.
+
 ## [3.2.0a9] - 2026-05-03
 
 3.2.0a9 is a prerelease that adds mission-state audit diagnostics and hardens

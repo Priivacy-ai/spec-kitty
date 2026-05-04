@@ -45,7 +45,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get on `main` (`3.2.0a9`)
+## 🚀 What You Get on `main` (`3.2.0a10`)
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
@@ -107,7 +107,7 @@ graph LR
 
 **Current stable release line:** `v3.1.x` (current stable release: `3.1.8` on GitHub Releases and PyPI)
 
-**Current `main` development version:** `3.2.0a9`
+**Current `main` development version:** `3.2.0a10`
 
 **Current `main` highlights:**
 - **Brief-first and ticket-first intake** — `spec-kitty intake` ingests external plans into `.kittify/mission-brief.md`, and `spec-kitty mission create --from-ticket <provider:KEY>` seeds tracker context before `/spec-kitty.specify`
@@ -130,18 +130,18 @@ graph LR
 
 ## 📌 Release Channels
 
-Spec Kitty currently ships stable `3.1.x` releases while `main` carries the active `3.2.0a9` prerelease/dev line.
+Spec Kitty currently ships stable `3.1.x` releases while `main` carries the active `3.2.0a10` prerelease/dev line.
 The former `1.x` line is deprecated and lives on `1.x-maintenance` for maintenance-only fixes.
 
 | Source | Version | Status | Install |
 |--------|---------|--------|---------|
 | **PyPI / GitHub Releases** | **3.1.8** | Current stable line | `pip install spec-kitty-cli` |
-| **main** | **3.2.0a9** | Active prerelease / development line | Install from a source checkout or a published prerelease tag |
+| **main** | **3.2.0a10** | Active prerelease / development line | Install from a source checkout or a published prerelease tag |
 | **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
 **For testers following `main`:** use a source checkout or published prerelease builds to get the intake, profile-invocation, hosted tracker-read, and Teamspace-routing work that is newer than stable `3.1.x`.
-After `3.2.0a9` is published, testers can install the exact prerelease with `pip install "spec-kitty-cli==3.2.0a9"` or opt into prereleases with `pip install --pre spec-kitty-cli`.
+After `3.2.0a10` is published, testers can install the exact prerelease with `pip install "spec-kitty-cli==3.2.0a10"` or opt into prereleases with `pip install --pre spec-kitty-cli`.
 **For existing 3.0.x users:** upgrade to `3.1.x` and run `spec-kitty upgrade` in each project — the charter rename, mission identity, and prompt-neutrality migrations remain automatic.
 **For existing 1.x or 2.x users:** migrate to `3.1.x`; `1.x-maintenance` is maintenance-only and will no longer publish new PyPI releases.
 
