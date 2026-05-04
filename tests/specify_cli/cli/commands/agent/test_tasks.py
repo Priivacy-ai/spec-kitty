@@ -186,7 +186,7 @@ class TestVerdictGuardInMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
     @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
-    def test_force_approve_blocked_by_rejected_verdict(
+    def test_approve_blocked_by_rejected_verdict_without_force(
         self,
         _mock_auto_commit: MagicMock,
         _mock_sparse: MagicMock,
@@ -202,7 +202,7 @@ class TestVerdictGuardInMoveTask:
         mock_safe_commit: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Force-approve exits 1 when latest review artifact has verdict: rejected."""
+        """Approve exits 1 when latest review artifact has verdict: rejected."""
         mission_slug = "test-mission-001"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
@@ -238,12 +238,83 @@ class TestVerdictGuardInMoveTask:
 
         result = runner.invoke(
             app,
-            ["move-task", wp_id, "--to", "approved", "--force", "--mission", mission_slug, "--no-auto-commit"],
+            ["move-task", wp_id, "--to", "approved", "--mission", mission_slug, "--no-auto-commit"],
         )
 
         assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}. Output:\n{result.output}"
         assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
         assert "rejected" in result.output, f"Expected 'rejected' in output:\n{result.output}"
+
+    @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
+    @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
+    @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
+    @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
+    @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
+    def test_malformed_latest_review_artifact_blocks_approval(
+        self,
+        _mock_auto_commit: MagicMock,
+        _mock_sparse: MagicMock,
+        mock_locate_wp: MagicMock,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        mock_unchecked: MagicMock,
+        mock_review_valid: MagicMock,
+        mock_lock: MagicMock,
+        mock_read_events: MagicMock,
+        mock_emit: MagicMock,
+        mock_safe_commit: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Malformed latest review artifacts fail diagnostically before mutation."""
+        mission_slug = "test-mission-malformed"
+        wp_id = "WP01"
+        feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
+        _seed_wp_event(feature_dir, wp_id, "in_review")
+
+        wp_dir = wp_file.parent / wp_file.stem
+        wp_dir.mkdir(parents=True)
+        (wp_dir / "review-cycle-1.md").write_text("not frontmatter", encoding="utf-8")
+
+        from specify_cli.tasks_support import WorkPackage
+
+        mock_wp = WorkPackage(
+            feature=mission_slug,
+            path=wp_file,
+            current_lane="in_review",
+            relative_subpath=Path(f"tasks/{wp_file.name}"),
+            frontmatter=f"work_package_id: {wp_id}\ntitle: Test\nagent: testbot\n",
+            body="\n## Activity Log\n",
+            padding="\n",
+        )
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+        mock_unchecked.return_value = []
+        mock_review_valid.return_value = (True, [])
+        mock_lock.return_value.__enter__ = MagicMock(return_value=None)
+        mock_lock.return_value.__exit__ = MagicMock(return_value=False)
+        mock_locate_wp.return_value = mock_wp
+
+        from specify_cli.status.store import read_events as _real_re
+        mock_read_events.return_value = _real_re(feature_dir)
+        mock_emit.return_value = MagicMock()
+
+        result = runner.invoke(
+            app,
+            ["move-task", wp_id, "--to", "approved", "--mission", mission_slug, "--no-auto-commit"],
+        )
+
+        assert result.exit_code == 1
+        assert "no parseable review verdict" in result.output
+        mock_emit.assert_not_called()
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
@@ -316,7 +387,7 @@ class TestVerdictGuardInMoveTask:
 
 
 class TestSkipReviewArtifactCheck:
-    """--skip-review-artifact-check suppresses the rejected-verdict block."""
+    """--skip-review-artifact-check records a durable override."""
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
@@ -346,8 +417,97 @@ class TestSkipReviewArtifactCheck:
         mock_safe_commit: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """With --skip-review-artifact-check, rejected verdict does not block."""
+        """With --skip-review-artifact-check, rejected verdict is durably overridden."""
         mission_slug = "test-mission-004"
+        wp_id = "WP01"
+        feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
+        _seed_wp_event(feature_dir, wp_id, "in_review")
+
+        wp_dir = wp_file.parent / wp_file.stem
+        artifact = _write_review_cycle(wp_dir, 1, "rejected")
+
+        from specify_cli.tasks_support import WorkPackage
+
+        mock_wp = WorkPackage(
+            feature=mission_slug,
+            path=wp_file,
+            current_lane="in_review",
+            relative_subpath=Path(f"tasks/{wp_file.name}"),
+            frontmatter=f"work_package_id: {wp_id}\ntitle: Test\nagent: testbot\n",
+            body="\n## Activity Log\n",
+            padding="\n",
+        )
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+        mock_unchecked.return_value = []
+        mock_review_valid.return_value = (True, [])
+        mock_lock.return_value.__enter__ = MagicMock(return_value=None)
+        mock_lock.return_value.__exit__ = MagicMock(return_value=False)
+        mock_locate_wp.return_value = mock_wp
+
+        from specify_cli.status.store import read_events as _real_re
+        mock_read_events.return_value = _real_re(feature_dir)
+        mock_emit.return_value = MagicMock()
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                wp_id,
+                "--to",
+                "approved",
+                "--force",
+                "--skip-review-artifact-check",
+                "--note",
+                "Arbiter override: latest rejection was superseded by manual release review",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+        # Must NOT exit with the rejected-verdict guard (exit 1 with artifact name)
+        # The guard message is: "Error: WP01 review-cycle-1.md has verdict: rejected."
+        guard_triggered = result.exit_code == 1 and "review-cycle-1.md" in result.output and "rejected" in result.output
+        assert not guard_triggered, (
+            f"Verdict guard fired despite --skip-review-artifact-check.\nOutput:\n{result.output}"
+        )
+        artifact_text = artifact.read_text(encoding="utf-8")
+        assert "review_artifact_override_at:" in artifact_text
+        assert "review_artifact_override_actor:" in artifact_text
+        assert "review_artifact_override_reason:" in artifact_text
+
+    @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
+    @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
+    @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
+    @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
+    @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
+    def test_skip_flag_requires_note(
+        self,
+        _mock_auto_commit: MagicMock,
+        _mock_sparse: MagicMock,
+        mock_locate_wp: MagicMock,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        mock_unchecked: MagicMock,
+        mock_review_valid: MagicMock,
+        mock_lock: MagicMock,
+        mock_read_events: MagicMock,
+        mock_emit: MagicMock,
+        mock_safe_commit: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Override attempts without a note fail before mutation."""
+        mission_slug = "test-mission-skip-no-note"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
         _seed_wp_event(feature_dir, wp_id, "in_review")
@@ -394,12 +554,9 @@ class TestSkipReviewArtifactCheck:
             ],
         )
 
-        # Must NOT exit with the rejected-verdict guard (exit 1 with artifact name)
-        # The guard message is: "Error: WP01 review-cycle-1.md has verdict: rejected."
-        guard_triggered = result.exit_code == 1 and "review-cycle-1.md" in result.output and "rejected" in result.output
-        assert not guard_triggered, (
-            f"Verdict guard fired despite --skip-review-artifact-check.\nOutput:\n{result.output}"
-        )
+        assert result.exit_code == 1
+        assert "--skip-review-artifact-check requires --note" in result.output
+        mock_emit.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ def _make_skill(
     root: Path,
     name: str,
     *,
+    skill_md_content: str | None = None,
     references: list[str] | None = None,
     scripts: list[str] | None = None,
     assets: list[str] | None = None,
@@ -27,7 +28,10 @@ def _make_skill(
     skill_dir = root / name
     skill_dir.mkdir(parents=True, exist_ok=True)
     skill_md = skill_dir / "SKILL.md"
-    skill_md.write_text(f"---\nname: {name}\n---\n# {name}\nPlaceholder.\n")
+    skill_md.write_text(
+        skill_md_content or f"---\nname: {name}\n---\n# {name}\nPlaceholder.\n",
+        encoding="utf-8",
+    )
 
     ref_paths: list[Path] = []
     script_paths: list[Path] = []
@@ -106,6 +110,53 @@ class TestInstallSharedRootAgent:
         assert entries[0].installed_path == ".agents/skills/my-skill/SKILL.md"
         assert entries[0].installation_class == SKILL_CLASS_SHARED
         assert entries[0].agent_key == "codex"
+
+    def test_codex_advise_generation_adds_missing_frontmatter(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        skill = _make_skill(
+            skills_root,
+            "spec-kitty.advise",
+            skill_md_content=(
+                "# spec-kitty.advise\n\n"
+                "Get governance context for an action and open an invocation record.\n"
+            ),
+        )
+
+        entries = install_skills_for_agent(project, "codex", [skill])
+
+        installed = project / ".agents" / "skills" / "spec-kitty.advise" / "SKILL.md"
+        content = installed.read_text(encoding="utf-8")
+        assert content.startswith("---\n")
+        assert "name: spec-kitty.advise\n" in content
+        assert "description: Get governance context for an action and open an invocation record.\n" in content
+        assert entries[0].content_hash == compute_content_hash(installed)
+
+    def test_native_generation_adds_missing_frontmatter(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        skill = _make_skill(
+            skills_root,
+            "plain-skill",
+            skill_md_content="# Plain Skill\n\nUse the plain skill.\n",
+        )
+
+        install_skills_for_agent(project, "claude", [skill])
+
+        installed = project / ".claude" / "skills" / "plain-skill" / "SKILL.md"
+        content = installed.read_text(encoding="utf-8")
+        assert content.startswith("---\n")
+        assert "name: plain-skill\n" in content
 
 
 class TestInstallWrapperOnlyAgentSkipped:

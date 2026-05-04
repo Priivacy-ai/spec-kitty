@@ -4,7 +4,7 @@
       "agents": [
         "codex"
       ],
-      "content_hash": "3f76a5ec6458923400cbfaf1435eca489fa2327a4f939b1a9d2e2baa68429a64",
+      "content_hash": "4a9591df49a7ff6e18a2fe06d25e9d7c4e167f8853af71ec509badf355f53bcd",
       "installed_at": "2026-04-22T00:00:00+00:00",
       "path": ".agents/skills/spec-kitty.advise/SKILL.md",
       "spec_kitty_version": "3.2.0"

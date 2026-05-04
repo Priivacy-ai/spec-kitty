@@ -1,7 +1,7 @@
 """Bootstrap user-global canonical slash commands for all configured agents.
 
-On every CLI startup, ``ensure_global_agent_commands()`` installs all 16
-consumer-facing command files (9 prompt-driven + 7 CLI-driven shims) into the
+On every CLI startup, ``ensure_global_agent_commands()`` installs all 15
+consumer-facing command files (8 prompt-driven + 7 CLI-driven shims) into the
 user-global agent command roots:
 
     ~/.claude/commands/
@@ -116,9 +116,9 @@ def _compute_output_filename(command: str, agent_key: str) -> str:
 
 
 def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) -> None:
-    """Install all 16 command files for *agent_key* into its global root.
+    """Install all 15 command files for *agent_key* into its global root.
 
-    * Prompt-driven commands (9): rendered from full template files via
+    * Prompt-driven commands (8): rendered from full template files via
       ``render_command_template()``.
     * CLI-driven commands (7): thin shims via ``generate_shim_content()``.
     * Stale ``spec-kitty.*`` files no longer in the canonical set are removed.

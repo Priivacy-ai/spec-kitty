@@ -153,6 +153,30 @@ def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | N
         return None, artifact
 
 
+def _persist_review_artifact_override(
+    artifact_path: Path,
+    *,
+    repo_root: Path,
+    wp_id: str,
+    actor: str,
+    reason: str,
+) -> None:
+    """Record durable evidence that a rejected latest review was superseded."""
+    text = artifact_path.read_text(encoding="utf-8-sig")
+    frontmatter, body, padding = split_frontmatter(text)
+    timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
+    frontmatter = set_scalar(frontmatter, "review_artifact_override_at", timestamp)
+    frontmatter = set_scalar(frontmatter, "review_artifact_override_actor", actor)
+    frontmatter = set_scalar(frontmatter, "review_artifact_override_wp_id", wp_id)
+    frontmatter = set_scalar(frontmatter, "review_artifact_override_reason", reason)
+    write_text_within_directory(
+        artifact_path,
+        build_document(frontmatter, body, padding),
+        root=repo_root,
+        encoding="utf-8",
+    )
+
+
 def _review_artifact_dir_for_wp(tasks_dir: Path, wp: dict) -> Path | None:
     """Return the review-cycle artifact dir for a WP status row."""
     wp_file = wp.get("file")
@@ -1291,7 +1315,7 @@ def move_task(
         bool,
         typer.Option(
             "--skip-review-artifact-check",
-            help="Suppress the rejected-verdict check when force-approving a WP.",
+            help="Override a rejected latest review artifact; requires --note and records audit evidence.",
         ),
     ] = False,
     auto_commit: Annotated[
@@ -1378,20 +1402,43 @@ def move_task(
             raise typer.Exit(1)
 
         # FR-005 / FR-007: rejected-verdict guard.
-        # When --force is used to approve/done a WP whose latest review-cycle
-        # artifact carries verdict: rejected, block and surface the file name.
-        # Bypass with --skip-review-artifact-check when the stale verdict is
-        # acknowledged.
-        if force and target_lane in (Lane.APPROVED, Lane.DONE) and not skip_review_artifact_check:
+        # Terminal transitions must fail closed before any status mutation when
+        # the latest review-cycle artifact still rejects the WP.  The explicit
+        # override path is durable: --skip-review-artifact-check requires a
+        # human-readable note and writes override evidence into the artifact.
+        if target_lane in (Lane.APPROVED, Lane.DONE):
             _verdict_wp_dir = wp.path.parent / wp.path.stem
             _verdict, _artifact_path = _get_latest_review_cycle_verdict(_verdict_wp_dir)
-            if _verdict == "rejected" and _artifact_path is not None:
+            if _artifact_path is not None and _verdict is None:
                 _output_error(
                     json_output,
-                    f"{task_id} {_artifact_path.name} has verdict: rejected.\n"
-                    "Update the review artifact or pass --skip-review-artifact-check to suppress.",
+                    f"{task_id} {_artifact_path.name} has no parseable review verdict.\n"
+                    "Repair the review artifact before approving or marking done.",
                 )
                 raise typer.Exit(1)
+            if _verdict == "rejected" and _artifact_path is not None:
+                if not skip_review_artifact_check:
+                    _output_error(
+                        json_output,
+                        f"{task_id} {_artifact_path.name} has verdict: rejected.\n"
+                        "Run another review cycle, move the WP out of approved/done, "
+                        "or pass --skip-review-artifact-check with --note to record an override.",
+                    )
+                    raise typer.Exit(1)
+                override_reason = note.strip() if isinstance(note, str) else ""
+                if not override_reason:
+                    _output_error(
+                        json_output,
+                        "--skip-review-artifact-check requires --note so override evidence is durable.",
+                    )
+                    raise typer.Exit(1)
+                _persist_review_artifact_override(
+                    _artifact_path,
+                    repo_root=main_repo_root,
+                    wp_id=task_id,
+                    actor=agent or "operator",
+                    reason=override_reason,
+                )
 
         resolved_feedback_source: Path | None = None
         if review_feedback_file is not None:

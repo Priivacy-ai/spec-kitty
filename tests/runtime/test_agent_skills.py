@@ -8,11 +8,11 @@ from specify_cli.runtime.agent_skills import ensure_global_agent_skills
 from specify_cli.skills.registry import SkillRegistry
 
 
-def _create_skill(root: Path, name: str) -> None:
+def _create_skill(root: Path, name: str, content: str | None = None) -> None:
     skill_dir = root / name
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(
-        f"---\nname: {name}\ndescription: test\n---\n# {name}\n",
+        content or f"---\nname: {name}\ndescription: test\n---\n# {name}\n",
         encoding="utf-8",
     )
 
@@ -45,3 +45,31 @@ def test_global_bootstrap_preserves_non_spec_kitty_user_skills(tmp_path: Path, m
     mode = managed_skill.stat().st_mode
     assert mode & 0o200 == 0
 
+
+def test_global_bootstrap_adds_frontmatter_to_plain_skill(
+    tmp_path: Path, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+
+    skills_root = tmp_path / "doctrine_skills"
+    _create_skill(
+        skills_root,
+        "spec-kitty.advise",
+        "# spec-kitty.advise\n\nGet governance context for an action.\n",
+    )
+    registry = SkillRegistry(skills_root)
+
+    monkeypatch.setattr(
+        "specify_cli.runtime.agent_skills._discover_registry",
+        lambda: registry,
+    )
+
+    ensure_global_agent_skills()
+
+    managed_skill = home / ".agents" / "skills" / "spec-kitty.advise" / "SKILL.md"
+    content = managed_skill.read_text(encoding="utf-8")
+    assert content.startswith("---\n")
+    assert "name: spec-kitty.advise\n" in content
+    assert "description: Get governance context for an action.\n" in content

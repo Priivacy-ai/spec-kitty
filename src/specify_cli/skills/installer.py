@@ -11,6 +11,7 @@ from specify_cli.core.config import (
     SKILL_CLASS_SHARED,
     SKILL_CLASS_WRAPPER,
 )
+from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
@@ -35,6 +36,17 @@ def _make_tree_read_only(root: Path) -> None:
         file_path.chmod(mode & ~0o222)
 
 
+def _normalize_skill_md(skill: CanonicalSkill, dest_dir: Path) -> None:
+    """Ensure generated host-visible SKILL.md files have YAML frontmatter."""
+    skill_md = dest_dir / "SKILL.md"
+    if not skill_md.is_file():
+        return
+    content = skill_md.read_text(encoding="utf-8")
+    normalized = ensure_skill_frontmatter(content, skill.name)
+    if normalized != content:
+        skill_md.write_text(normalized, encoding="utf-8")
+
+
 def _sync_global_skill(skill: CanonicalSkill, target_root: Path) -> Path:
     """Install one canonical skill into the user-global root."""
     target_root.mkdir(parents=True, exist_ok=True)
@@ -45,6 +57,7 @@ def _sync_global_skill(skill: CanonicalSkill, target_root: Path) -> Path:
         else:
             shutil.rmtree(dest_dir)
     shutil.copytree(skill.skill_dir, dest_dir)
+    _normalize_skill_md(skill, dest_dir)
     _make_tree_read_only(dest_dir)
     return dest_dir
 

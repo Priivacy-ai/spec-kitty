@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from specify_cli.skills.manifest import (
 )
 from specify_cli.skills.paths import get_primary_global_skill_root
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.template import get_local_repo_root
 
 logger = logging.getLogger(__name__)
@@ -131,7 +133,7 @@ def repair_skills(
                 if global_root is None:
                     raise OSError(f"No global skill root configured for agent {entry.agent_key}")
                 global_source = global_root / entry.skill_name / entry.source_file
-                if not global_source.exists():
+                if not global_source.exists() or entry.source_file == "SKILL.md":
                     _sync_skill_to_global_root(skill, global_root)
                 if dest.exists() or dest.is_symlink():
                     if dest.is_symlink() or dest.is_file():
@@ -141,10 +143,10 @@ def repair_skills(
                 try:
                     dest.symlink_to(global_source)
                 except OSError:
-                    shutil.copy2(source_path, dest)
+                    _copy_skill_file(source_path, dest, entry.skill_name, entry.source_file)
                     delivery_mode = "copy"
             else:
-                shutil.copy2(source_path, dest)
+                _copy_skill_file(source_path, dest, entry.skill_name, entry.source_file)
             new_hash = compute_content_hash(dest)
             # Update the manifest entry with the new hash
             manifest.add_entry(
@@ -211,7 +213,9 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
         if global_root is not None:
             global_source = global_root / entry.skill_name / entry.source_file
             if global_source.is_file():
-                return compute_content_hash(global_source)
+                return _expected_content_hash(
+                    global_source, entry.skill_name, entry.source_file
+                )
 
     if registry is None:
         return None
@@ -224,7 +228,7 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
     if source_path is None:
         return None
 
-    return compute_content_hash(source_path)
+    return _expected_content_hash(source_path, entry.skill_name, entry.source_file)
 
 
 def _sync_skill_to_global_root(skill: Any, global_root: Path) -> None:
@@ -237,6 +241,12 @@ def _sync_skill_to_global_root(skill: Any, global_root: Path) -> None:
         else:
             shutil.rmtree(dest_dir)
     shutil.copytree(skill.skill_dir, dest_dir)
+    skill_md = dest_dir / "SKILL.md"
+    if skill_md.is_file():
+        content = skill_md.read_text(encoding="utf-8")
+        normalized = ensure_skill_frontmatter(content, skill.name)
+        if normalized != content:
+            skill_md.write_text(normalized, encoding="utf-8")
 
 
 def _project_managed_path(project_path: Path, installed_path: str) -> Path:
@@ -245,3 +255,21 @@ def _project_managed_path(project_path: Path, installed_path: str) -> Path:
     if not normalized.is_absolute():
         normalized = (project_path / normalized).absolute()
     return normalized
+
+
+def _copy_skill_file(source: Path, dest: Path, skill_name: str, source_file: str) -> None:
+    """Copy a managed skill file, normalizing SKILL.md frontmatter if needed."""
+    if source_file == "SKILL.md":
+        content = source.read_text(encoding="utf-8")
+        dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
+        return
+    shutil.copy2(source, dest)
+
+
+def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> str:
+    """Return the hash that install/repair should produce for a source file."""
+    if source_file != "SKILL.md":
+        return compute_content_hash(source)
+    content = source.read_text(encoding="utf-8")
+    normalized = ensure_skill_frontmatter(content, skill_name).encode("utf-8")
+    return "sha256:" + hashlib.sha256(normalized).hexdigest()

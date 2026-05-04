@@ -30,6 +30,7 @@ from specify_cli.skills.command_renderer import (
     SUPPORTED_AGENTS,
     RenderedSkill,
     SkillRenderError,
+    ensure_skill_frontmatter,
     render,
 )
 
@@ -140,6 +141,23 @@ def test_template_not_found(tmp_path: Path) -> None:
     with pytest.raises(SkillRenderError) as exc_info:
         render(missing, "codex", _TEST_VERSION)
     assert exc_info.value.code == "template_not_found"
+
+
+def test_ensure_skill_frontmatter_adds_metadata_for_plain_markdown() -> None:
+    content = "# spec-kitty.advise\n\nGet governance context for an action.\n"
+
+    normalized = ensure_skill_frontmatter(content, "spec-kitty.advise")
+
+    assert normalized.startswith("---\n")
+    assert "name: spec-kitty.advise\n" in normalized
+    assert "description: Get governance context for an action.\n" in normalized
+    assert normalized.endswith(content)
+
+
+def test_ensure_skill_frontmatter_preserves_existing_frontmatter() -> None:
+    content = "---\nname: existing\n---\n# Existing\n"
+
+    assert ensure_skill_frontmatter(content, "spec-kitty.advise") == content
 
 
 def test_user_input_block_missing(tmp_path: Path) -> None:

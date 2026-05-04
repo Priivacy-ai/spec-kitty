@@ -1,3 +1,8 @@
+---
+name: spec-kitty.advise
+description: Get governance context for an action and open an invocation record.
+---
+
 # spec-kitty.advise
 
 Get governance context for an action and open an invocation record.

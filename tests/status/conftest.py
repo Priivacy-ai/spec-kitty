@@ -25,6 +25,26 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.fast)
 
 
+@pytest.fixture(autouse=True)
+def _disable_saas_fanout_for_local_status_tests(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep status persistence tests local even when SaaS sync is enabled.
+
+    The dedicated fan-out preservation tests opt out by file name because they
+    intentionally exercise the adapter registry. Ordinary status tests assert
+    JSONL/materialization semantics and should not start auth, tracker, or
+    dashboard-daemon flows.
+    """
+    if Path(str(request.node.fspath)).name == "test_emit_fanout_after_adapter.py":
+        return
+
+    import specify_cli.status.emit as emit_module
+
+    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
+
+
 @pytest.fixture
 def sample_review_approval() -> ReviewApproval:
     return ReviewApproval(

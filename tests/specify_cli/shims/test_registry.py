@@ -33,7 +33,6 @@ class TestConsumerSkills:
             "merge",
             "status",
             "dashboard",
-            "checklist",
             "analyze",
             "research",
             "charter",
@@ -44,6 +43,9 @@ class TestConsumerSkills:
 
     def test_consumer_skills_is_frozenset(self) -> None:
         assert isinstance(CONSUMER_SKILLS, frozenset)
+
+    def test_retired_checklist_is_not_consumer_facing(self) -> None:
+        assert "checklist" not in CONSUMER_SKILLS
 
     def test_internal_skills_not_in_consumer(self) -> None:
         for skill in INTERNAL_SKILLS:
@@ -107,8 +109,8 @@ class TestPromptDrivenCommands:
     def test_is_frozenset(self) -> None:
         assert isinstance(PROMPT_DRIVEN_COMMANDS, frozenset)
 
-    def test_has_nine_commands(self) -> None:
-        assert len(PROMPT_DRIVEN_COMMANDS) == 9
+    def test_has_eight_commands(self) -> None:
+        assert len(PROMPT_DRIVEN_COMMANDS) == 8
 
     @pytest.mark.parametrize(
         "skill",
@@ -118,7 +120,6 @@ class TestPromptDrivenCommands:
             "tasks",
             "tasks-outline",
             "tasks-packages",
-            "checklist",
             "analyze",
             "research",
             "charter",
@@ -132,6 +133,9 @@ class TestPromptDrivenCommands:
 
     def test_disjoint_from_cli_driven(self) -> None:
         assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS
+
+    def test_retired_checklist_is_not_prompt_driven(self) -> None:
+        assert "checklist" not in PROMPT_DRIVEN_COMMANDS
 
 
 class TestCliDrivenCommands:

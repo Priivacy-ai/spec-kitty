@@ -156,13 +156,20 @@ class BackgroundSyncService:
         and we want near-live replay rather than waiting for the steady-state
         timer interval.
         """
-        with self._lock:
+        acquired = self._lock.acquire(blocking=False)
+        if not acquired:
+            logger.debug("Skipping background sync wake; service lock is already held")
+            return
+
+        try:
             if not self._running:
                 return
             if self._timer is not None:
                 self._timer.cancel()
                 self._timer = None
             self._schedule_next_sync(delay_seconds=delay_seconds)
+        finally:
+            self._lock.release()
 
     def stop(self) -> None:
         """Stop the background sync service gracefully.

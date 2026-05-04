@@ -23,6 +23,7 @@ def _make_entry(
     agent_key: str = "claude",
     content_hash: str = "sha256:abc123",
     installed_at: str = "2026-01-01T00:00:00+00:00",
+    delivery_mode: str = "copy",
 ) -> ManagedFileEntry:
     return ManagedFileEntry(
         skill_name=skill_name,
@@ -32,6 +33,7 @@ def _make_entry(
         agent_key=agent_key,
         content_hash=content_hash,
         installed_at=installed_at,
+        delivery_mode=delivery_mode,
     )
 
 
@@ -180,7 +182,7 @@ def test_verify_multiple_issues(tmp_path: Path) -> None:
 
 def test_repair_restores_missing_file(tmp_path: Path) -> None:
     """Repair copies a missing file from the registry."""
-    skill_content = "# Test Skill\nCanonical content.\n"
+    skill_content = "---\nname: test-skill\n---\n# Test Skill\nCanonical content.\n"
     registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": skill_content})
 
     # Create manifest entry pointing to a file that doesn't exist
@@ -206,7 +208,7 @@ def test_repair_restores_missing_file(tmp_path: Path) -> None:
 
 def test_repair_restores_drifted_file(tmp_path: Path) -> None:
     """Repair overwrites a drifted file with canonical content."""
-    canonical = "# Canonical\nCorrect content.\n"
+    canonical = "---\nname: test-skill\n---\n# Canonical\nCorrect content.\n"
     registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
 
     installed_path = ".claude/skills/test-skill/SKILL.md"
@@ -253,7 +255,7 @@ def test_repair_handles_missing_source(tmp_path: Path) -> None:
 
 def test_repair_updates_manifest(tmp_path: Path) -> None:
     """After repair, manifest entries have updated content hashes."""
-    canonical = "# Canonical\nFresh content.\n"
+    canonical = "---\nname: test-skill\n---\n# Canonical\nFresh content.\n"
     registry = _create_registry(tmp_path, "test-skill", {"SKILL.md": canonical})
 
     entry = _make_entry(
@@ -278,6 +280,35 @@ def test_repair_updates_manifest(tmp_path: Path) -> None:
     expected_hash = compute_content_hash(tmp_path / ".claude/skills/test-skill/SKILL.md")
     assert reloaded.entries[0].content_hash == expected_hash
     assert reloaded.entries[0].content_hash != "sha256:old-stale-hash"
+
+
+def test_repair_adds_frontmatter_to_plain_skill(tmp_path: Path) -> None:
+    """Repair normalizes plain Markdown SKILL.md files from older generated packs."""
+    canonical = "# spec-kitty.advise\n\nGet governance context for an action.\n"
+    registry = _create_registry(tmp_path, "spec-kitty.advise", {"SKILL.md": canonical})
+
+    entry = _make_entry(
+        skill_name="spec-kitty.advise",
+        source_file="SKILL.md",
+        installed_path=".agents/skills/spec-kitty.advise/SKILL.md",
+        agent_key="codex",
+        content_hash="sha256:old-stale-hash",
+        delivery_mode="copy",
+    )
+    manifest = ManagedSkillManifest(entries=[entry])
+    save_manifest(manifest, tmp_path)
+
+    verify_result = VerifyResult(ok=False, missing=[entry])
+
+    repaired, failed = repair_skills(tmp_path, verify_result, registry)
+    assert repaired == 1
+    assert failed == 0
+
+    restored = tmp_path / ".agents/skills/spec-kitty.advise/SKILL.md"
+    content = restored.read_text(encoding="utf-8")
+    assert content.startswith("---\n")
+    assert "name: spec-kitty.advise\n" in content
+    assert "description: Get governance context for an action.\n" in content
 
 
 def test_verify_rejects_path_traversal(tmp_path: Path) -> None:

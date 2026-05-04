@@ -49,6 +49,10 @@ _RE_ANY_HEADING = re.compile(r"^#{1,6} +\S", re.MULTILINE)
 # Maximum length for the description field.
 _DESC_MAX_LEN = 140
 
+# Host skill loaders expect frontmatter to start at byte 0. Keep this stricter
+# than the command-template parser, which tolerates leading whitespace.
+_RE_LEADING_FRONTMATTER = re.compile(r"^---\n.*?\n---\n?", re.DOTALL)
+
 
 # ---------------------------------------------------------------------------
 # Public types
@@ -295,6 +299,31 @@ def _extract_first_paragraph_description(body: str) -> str | None:
         if cleaned:
             return cleaned[:_DESC_MAX_LEN]
     return None
+
+
+def ensure_skill_frontmatter(content: str, skill_name: str) -> str:
+    """Return ``content`` with host-required ``SKILL.md`` frontmatter.
+
+    Command-template skills already flow through :class:`RenderedSkill`.
+    Canonical skill-pack installers and repair paths use this helper for older
+    generated skills that were authored as plain Markdown, including the
+    ``spec-kitty.advise`` repro from #964. Existing frontmatter is preserved
+    byte-for-byte.
+    """
+    if _RE_LEADING_FRONTMATTER.match(content):
+        return content
+
+    description = _extract_first_paragraph_description(content) or "Spec Kitty skill"
+    frontmatter = "\n".join(
+        [
+            "---",
+            f"name: {_yaml_scalar(skill_name)}",
+            f"description: {_yaml_scalar(description)}",
+            "---",
+            "",
+        ]
+    )
+    return frontmatter + content
 
 
 def _build_frontmatter(

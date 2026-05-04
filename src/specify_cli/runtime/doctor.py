@@ -175,7 +175,7 @@ _VERSION_MARKER_HEAD_LINES = 15
 def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
     """Check all agent command files for correctness.
 
-    For each configured agent and each of the 16 consumer commands, this
+    For each configured agent and each of the 15 consumer commands, this
     function verifies that:
 
     - The command file exists.
