@@ -210,3 +210,67 @@ release after FastAPI default-on. A separate retirement mission will:
 
 Until that mission ships, the legacy code remains the sanctioned rollback
 target.
+
+## Resource-Oriented Mission Endpoints (Mission B — `resource-oriented-mission-api-01KQQRF2`)
+
+As of this mission, the canonical endpoints for mission and WP data are:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/missions` | List all missions with HATEOAS-LITE `_links` |
+| `GET /api/missions/{id}` | Single mission (by `mission_id`, `mid8`, or `mission_slug`) |
+| `GET /api/missions/{id}/status` | Lane counts + weighted progress — polling-friendly |
+| `GET /api/missions/{id}/workpackages` | WP list for a mission |
+| `GET /api/missions/{id}/workpackages/{wp_id}` | Single WP detail with `WorkPackageAssignment` |
+
+The `{id}` parameter resolves via `MissionRegistry.get_mission()` using the precedence:
+`mission_id` (ULID, full) → `mid8` (8-char prefix) → `mission_slug`. Ambiguous `mid8`
+returns HTTP 409; unknown selector returns HTTP 404.
+
+### Deprecated aliases
+
+`/api/features` and `/api/kanban/{feature_id}` continue to work but now emit:
+
+```http
+Deprecation: true
+Link: </api/missions>; rel="successor-version"
+```
+
+Clients should migrate to the canonical URLs before the retirement mission removes these aliases.
+
+### HATEOAS-LITE navigation
+
+Every resource response includes a `_links` block with server-relative hrefs:
+
+```json
+{
+  "mission_id": "01KQQRF2ZKPQW1CT7H6BYTN5BG",
+  "friendly_name": "Resource-Oriented Mission API and HATEOAS-LITE",
+  "_links": {
+    "self":        { "href": "/api/missions/01KQQRF2ZKPQW1CT7H6BYTN5BG" },
+    "status":      { "href": "/api/missions/01KQQRF2ZKPQW1CT7H6BYTN5BG/status" },
+    "workpackages":{ "href": "/api/missions/01KQQRF2ZKPQW1CT7H6BYTN5BG/workpackages" }
+  }
+}
+```
+
+Hrefs always use the canonical `mission_id` (ULID), so links are stable regardless of
+how the resource was fetched (by slug, mid8, or full ID).
+
+### OpenAPI tag grouping
+
+Every router declares `tags=[...]`; Swagger UI at `/docs` and ReDoc at `/redoc` render
+routes grouped by domain: `missions`, `kanban`, `research`, `artifacts`, `charter`,
+`dossier`, `glossary`, `health`, `sync`, `lifecycle`, `static`.
+
+### MCP exposure pathway
+
+Each new endpoint is a thin FastAPI handler wrapping a `MissionRegistry` method call.
+An MCP tool can reuse the same handler body as a plain Python callable without the HTTP
+transport. Example: calling `GET /api/missions/{id}/workpackages/{wp_id}` from an MCP
+tool gives it a `WorkPackageAssignment` (lane, assignee, `claimed_at`, `blocked_reason`,
+`review_evidence`) without reading `status.events.jsonl` directly.
+
+See ADR
+[`architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md`](../../architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md)
+for the full decision and deprecation timeline.

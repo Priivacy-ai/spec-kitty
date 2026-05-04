@@ -34,7 +34,7 @@ owned_files:
 - docs/migration/dashboard-fastapi-transport.md
 role: curator
 tags: []
-shell_pid: "1772843"
+shell_pid: "1788168"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -285,3 +285,7 @@ See ADR `2026-05-03-2-resource-oriented-mission-api.md` for the full pathway.
 - 2026-05-04T07:39:55Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=1759332 – Ready: ADR authored, ownership map updated (#957/#958 marked done), issue-matrix authored, runbook updated. OpenAPI snapshot regenerated post-merge after all lanes combine.
 - 2026-05-04T07:51:20Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1772843 – Started review via action command
 - 2026-05-04T07:54:52Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1772843 – T030 missing: migration runbook section not added to docs/migration/dashboard-fastapi-transport.md
+- 2026-05-04T07:58:22Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=1782229 – Started implementation via action command
+- 2026-05-04T07:58:36Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=1782229 – T030 fixed: migration runbook section now committed to main checkout
+- 2026-05-04T08:00:42Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1788168 – Started review via action command
+- 2026-05-04T08:01:58Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1788168 – Review passed (cycle 2): all 5 criteria met. Migration runbook has Resource-Oriented Mission Endpoints section (commit 7b3f3b4bb). T026 snapshot regen deferred to post-merge.
