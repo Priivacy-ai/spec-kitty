@@ -53,10 +53,12 @@ uv run mypy --strict src/specify_cli src/charter src/doctrine
 - #968: Fresh generated command surface contains no active `spec-kitty.checklist*` command and inventory counts agree.
 - #964: Fresh generated `SKILL.md` files contain required YAML frontmatter, including the Codex/global `spec-kitty.advise` repro.
 
-## Next Spec Kitty Phase
-
-After this planning phase is reviewed, run:
+## Merge And Review
 
 ```bash
-/spec-kitty.tasks --mission stable-320-p0-cli-stabilization-01KQSNGY
+spec-kitty merge --mission stable-320-p0-cli-stabilization-01KQSNGY
+spec-kitty review --mission stable-320-p0-cli-stabilization-01KQSNGY
 ```
+
+After merge, rerun the focused validation from the merged branch and append any
+new findings to `release-evidence.md`.
