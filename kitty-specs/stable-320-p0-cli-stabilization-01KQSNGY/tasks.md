@@ -32,10 +32,10 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 | T014 | Preserve manifest-owned stale checklist cleanup without deleting user-owned files | WP03 | No | [D] |
 | T015 | Align runtime doctor/count diagnostics and docs/comments with active command reality | WP03 | Yes | [D] |
 | T016 | Add fresh command surface inventory tests for #968 | WP03 | Yes | [D] |
-| T017 | Reproduce #964 with fresh Codex/global skill generation, including `spec-kitty.advise` | WP04 | No |
-| T018 | Ensure generated `SKILL.md` files include required YAML frontmatter | WP04 | No |
-| T019 | Add generated-skill frontmatter tests across relevant host surfaces | WP04 | Yes |
-| T020 | Update snapshots or verifier expectations only after generated output is fixed | WP04 | Yes |
+| T017 | Reproduce #964 with fresh Codex/global skill generation, including `spec-kitty.advise` | WP04 | No | [D] |
+| T018 | Ensure generated `SKILL.md` files include required YAML frontmatter | WP04 | No | [D] |
+| T019 | Add generated-skill frontmatter tests across relevant host surfaces | WP04 | Yes | [D] |
+| T020 | Update snapshots or verifier expectations only after generated output is fixed | WP04 | Yes | [D] |
 | T021 | Run focused validation for WP01 status hang evidence | WP05 | No |
 | T022 | Run focused validation for WP02 review consistency evidence | WP05 | No |
 | T023 | Run focused validation for WP03/WP04 command and skill surface evidence | WP05 | No |
@@ -165,10 +165,10 @@ The retired command may appear through multiple surfaces. The fresh generation t
 
 ### Included Subtasks
 
-- [ ] T017 Reproduce #964 with fresh Codex/global skill generation, including `spec-kitty.advise` (WP04)
-- [ ] T018 Ensure generated `SKILL.md` files include required YAML frontmatter (WP04)
-- [ ] T019 [P] Add generated-skill frontmatter tests across relevant host surfaces (WP04)
-- [ ] T020 [P] Update snapshots or verifier expectations only after generated output is fixed (WP04)
+- [x] T017 Reproduce #964 with fresh Codex/global skill generation, including `spec-kitty.advise` (WP04)
+- [x] T018 Ensure generated `SKILL.md` files include required YAML frontmatter (WP04)
+- [x] T019 [P] Add generated-skill frontmatter tests across relevant host surfaces (WP04)
+- [x] T020 [P] Update snapshots or verifier expectations only after generated output is fixed (WP04)
 
 ### Implementation Notes
 
