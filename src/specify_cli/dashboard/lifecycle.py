@@ -451,7 +451,7 @@ def ensure_dashboard_running(
                     port=port_to_use,
                     background_process=background_process,
                     project_token=token,
-            transport=transport,
+                    transport=transport,
                 )
             else:
                 # No orphans found or couldn't clean up - re-raise original error
@@ -501,7 +501,7 @@ def ensure_dashboard_running(
                 port=port_to_use,
                 background_process=background_process,
                 project_token=token,
-            transport=transport,
+                transport=transport,
             )
             url = f"http://127.0.0.1:{port}"
 

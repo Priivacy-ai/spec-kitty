@@ -21,7 +21,7 @@ __all__ = ["register"]
 
 def register(app: FastAPI) -> None:
     """Mount the sync-trigger router on ``app``."""
-    router = APIRouter(tags=["sync"])
+    router = APIRouter(tags=["sync", "actions"])
 
     @router.post("/api/sync/trigger", response_model=SyncTriggerResponse)
     def trigger_sync(

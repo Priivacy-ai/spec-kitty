@@ -412,16 +412,23 @@ class Link(BaseModel):
 class ResourceModel(BaseModel):
     """Marker base class for resource-oriented response models.
 
-    Subclasses MUST declare a ``_links: dict[str, Link]`` field. Enforced by
-    ``tests/architectural/test_resource_models_have_links.py``.
+    Declares ``_links`` as a proper Pydantic field (alias ``_links``, stored
+    internally as ``links``) so it appears in the OpenAPI schema and is
+    visible to generated clients. Subclasses inherit this field and must also
+    carry a ``_links: dict[str, Link]`` type annotation (for the arch test
+    ``test_resource_models_have_links.py``).
 
-    ``extra="allow"`` is required so that subclasses can receive ``_links``
-    via the ``**{"_links": ...}`` construction pattern (Pydantic v2 does not
-    allow single-underscore identifiers as regular field names; they must be
-    passed through the extras mechanism).
+    Construction: pass links via either keyword arg:
+      - ``ResourceModel(**{"_links": {...}})``  (alias — existing pattern)
+      - ``ResourceModel(links={...})``          (field name — with populate_by_name)
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(populate_by_name=True)
+    links: dict[str, Link] = Field(
+        default_factory=dict,
+        alias="_links",
+        serialization_alias="_links",
+    )
 
 
 # ---------------------------------------------------------------------------

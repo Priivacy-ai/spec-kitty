@@ -1216,10 +1216,35 @@
         "title": "LaneCounts",
         "type": "object"
       },
+      "Link": {
+        "description": "A single HATEOAS-LITE hyperlink. Subset of HAL's link object.\n\nSee doctrine paradigm ``hateoas-lite`` (src/doctrine/paradigms/shipped/\nhateoas-lite.paradigm.yaml) for the full convention and future-graduation\ntriggers (HAL / JSON:API).",
+        "properties": {
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "method": {
+            "default": "GET",
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "title": "Link",
+        "type": "object"
+      },
       "Mission": {
-        "additionalProperties": true,
         "description": "Full mission detail representation.",
         "properties": {
+          "_links": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "title": "Links",
+            "type": "object"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -1384,9 +1409,15 @@
         "type": "object"
       },
       "MissionStatus": {
-        "additionalProperties": true,
         "description": "Lane counts and progress for a single mission \u2014 polling-friendly.",
         "properties": {
+          "_links": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "title": "Links",
+            "type": "object"
+          },
           "current_phase": {
             "default": 2,
             "title": "Current Phase",
@@ -1429,9 +1460,15 @@
         "type": "object"
       },
       "MissionSummary": {
-        "additionalProperties": true,
         "description": "Lightweight mission representation for list responses.",
         "properties": {
+          "_links": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "title": "Links",
+            "type": "object"
+          },
           "friendly_name": {
             "title": "Friendly Name",
             "type": "string"
@@ -1784,9 +1821,15 @@
         "type": "object"
       },
       "WorkPackage": {
-        "additionalProperties": true,
         "description": "Full WP detail representation.",
         "properties": {
+          "_links": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "title": "Links",
+            "type": "object"
+          },
           "assignment": {
             "$ref": "#/components/schemas/WorkPackageAssignment"
           },
@@ -1941,9 +1984,15 @@
         "type": "object"
       },
       "WorkPackageSummary": {
-        "additionalProperties": true,
         "description": "Lightweight WP representation for list responses.",
         "properties": {
+          "_links": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Link"
+            },
+            "title": "Links",
+            "type": "object"
+          },
           "assignment": {
             "$ref": "#/components/schemas/WorkPackageAssignment"
           },
@@ -2137,7 +2186,7 @@
         },
         "summary": "Charter Lint",
         "tags": [
-          "glossary"
+          "charter"
         ]
       }
     },
@@ -3088,7 +3137,8 @@
         },
         "summary": "Shutdown",
         "tags": [
-          "lifecycle"
+          "lifecycle",
+          "actions"
         ]
       }
     },
@@ -3151,7 +3201,8 @@
         },
         "summary": "Trigger Sync",
         "tags": [
-          "sync"
+          "sync",
+          "actions"
         ]
       }
     },

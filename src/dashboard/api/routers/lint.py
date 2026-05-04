@@ -73,7 +73,7 @@ def _build_charter_lint(project_dir: Path) -> dict[str, Any]:
 
 def register(app: FastAPI) -> None:
     """Mount the lint router on ``app``."""
-    router = APIRouter(tags=["glossary"])
+    router = APIRouter(tags=["charter"])
 
     @router.get("/api/charter-lint", response_model=DecayWatchTileResponse)
     def charter_lint(request: Request):
