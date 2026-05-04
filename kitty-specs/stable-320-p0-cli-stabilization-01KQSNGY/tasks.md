@@ -16,11 +16,11 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Reproduce or characterize the #967 status bootstrap/emit hang under bounded timeout | WP01 | No |
-| T002 | Isolate background sync, adapter, event-loop, file-lock, or fixture teardown involvement | WP01 | No |
-| T003 | Implement the smallest deterministic status fixture/runtime boundary fix | WP01 | No |
-| T004 | Add bounded regression tests and diagnostics for bootstrap and emit paths | WP01 | Yes |
-| T005 | Capture #967 validation evidence for release closeout | WP01 | Yes |
+| T001 | Reproduce or characterize the #967 status bootstrap/emit hang under bounded timeout | WP01 | No | [D] |
+| T002 | Isolate background sync, adapter, event-loop, file-lock, or fixture teardown involvement | WP01 | No | [D] |
+| T003 | Implement the smallest deterministic status fixture/runtime boundary fix | WP01 | No | [D] |
+| T004 | Add bounded regression tests and diagnostics for bootstrap and emit paths | WP01 | Yes | [D] |
+| T005 | Capture #967 validation evidence for release closeout | WP01 | Yes | [D] |
 | T006 | Add latest review-cycle artifact fixtures and tests for rejected/approved precedence | WP02 | No |
 | T007 | Enforce rejected-verdict fail-closed checks before approved/done WP state mutation | WP02 | No |
 | T008 | Add durable explicit override support for rejected verdict supersession | WP02 | No |
@@ -56,11 +56,11 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 
 ### Included Subtasks
 
-- [ ] T001 Reproduce or characterize the #967 status bootstrap/emit hang under bounded timeout (WP01)
-- [ ] T002 Isolate background sync, adapter, event-loop, file-lock, or fixture teardown involvement (WP01)
-- [ ] T003 Implement the smallest deterministic status fixture/runtime boundary fix (WP01)
-- [ ] T004 [P] Add bounded regression tests and diagnostics for bootstrap and emit paths (WP01)
-- [ ] T005 [P] Capture #967 validation evidence for release closeout (WP01)
+- [x] T001 Reproduce or characterize the #967 status bootstrap/emit hang under bounded timeout (WP01)
+- [x] T002 Isolate background sync, adapter, event-loop, file-lock, or fixture teardown involvement (WP01)
+- [x] T003 Implement the smallest deterministic status fixture/runtime boundary fix (WP01)
+- [x] T004 [P] Add bounded regression tests and diagnostics for bootstrap and emit paths (WP01)
+- [x] T005 [P] Capture #967 validation evidence for release closeout (WP01)
 
 ### Implementation Notes
 
