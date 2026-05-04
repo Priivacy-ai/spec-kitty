@@ -35,12 +35,12 @@ WP01 is a strict prerequisite for WP02. WP04 depends on all three predecessors.
 | T022 | Assert deprecated route response bodies are unchanged (structural parity against pre-mission snapshot) | WP03 | — | [D] |
 | T023 | Run full architectural test suite; confirm no regressions | WP03 | — | [D] |
 | T024 | Run full dashboard test suite; confirm no regressions | WP03 | — | [D] |
-| T025 | Run full test suite; confirm `test_resource_models_have_links.py` green and non-vacuous (≥5 subclasses) | WP04 | — |
-| T026 | Regenerate `tests/test_dashboard/snapshots/openapi.json` (once; all routes and tags in place) | WP04 | — |
-| T027 | Author `architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md` | WP04 | [P] |
-| T028 | Update `architecture/2.x/05_ownership_map.md` and `05_ownership_manifest.yaml`; mark #957/#958 done | WP04 | [P] |
-| T029 | Author `kitty-specs/resource-oriented-mission-api-01KQQRF2/issue-matrix.md` | WP04 | [P] |
-| T030 | Update `docs/migration/dashboard-fastapi-transport.md` with resource-oriented endpoints section | WP04 | [P] |
+| T025 | Run full test suite; confirm `test_resource_models_have_links.py` green and non-vacuous (≥5 subclasses) | WP04 | — | [D] |
+| T026 | Regenerate `tests/test_dashboard/snapshots/openapi.json` (once; all routes and tags in place) | WP04 | — | [D] |
+| T027 | Author `architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md` | WP04 | [D] |
+| T028 | Update `architecture/2.x/05_ownership_map.md` and `05_ownership_manifest.yaml`; mark #957/#958 done | WP04 | [D] |
+| T029 | Author `kitty-specs/resource-oriented-mission-api-01KQQRF2/issue-matrix.md` | WP04 | [D] |
+| T030 | Update `docs/migration/dashboard-fastapi-transport.md` with resource-oriented endpoints section | WP04 | [D] |
 
 ## Dependencies
 
@@ -137,12 +137,12 @@ Lane parallelization:
 **Independent test**: `pytest tests/test_dashboard/snapshots/ tests/architectural/ -q` exits 0; snapshot file matches the running app's `/openapi.json`; ADR, issue matrix, and ownership map committed.
 
 **Subtasks**:
-- [ ] T025 Full test run; confirm test_resource_models_have_links non-vacuous
-- [ ] T026 Regenerate OpenAPI snapshot
-- [ ] T027 Author ADR 2026-05-03-2
-- [ ] T028 Update ownership map + manifest
-- [ ] T029 Author issue-matrix.md
-- [ ] T030 Update migration runbook
+- [x] T025 Full test run; confirm test_resource_models_have_links non-vacuous
+- [x] T026 Regenerate OpenAPI snapshot
+- [x] T027 Author ADR 2026-05-03-2
+- [x] T028 Update ownership map + manifest
+- [x] T029 Author issue-matrix.md
+- [x] T030 Update migration runbook
 
 **Estimated prompt size**: ~380 lines
 **Owned files**: `tests/test_dashboard/snapshots/openapi.json`, `architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md`, `architecture/2.x/05_ownership_map.md`, `architecture/2.x/05_ownership_manifest.yaml`, `kitty-specs/resource-oriented-mission-api-01KQQRF2/issue-matrix.md`, `docs/migration/dashboard-fastapi-transport.md`

@@ -238,7 +238,8 @@ may_call = runtime["dependency_rules"]["may_call"]
   removal_release: scanner extraction mission completion (#613) — the canonical scanner location moves out of `specify_cli.dashboard.scanner` at that point and this shim updates to point at the new home, then retires when `dashboard.*` imports the canonical path directly. See [scanner-shim-ownership-addendum.md](../../kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md).
 
 **`seams`**:
-- `FastAPI features router` → `MissionScanService.get_features_list` → `MissionRegistry.list_missions` → `scanner.scan_all_features` (cached)
+- `FastAPI missions router` → `MissionRegistry.list_missions / get_mission / workpackages_for` → cached scan (canonical path)
+- `FastAPI features router` → `MissionScanService.get_features_list` → `MissionRegistry.list_missions` → `scanner.scan_all_features` (deprecated alias, emits Deprecation header)
 - `FastAPI kanban router` → `MissionScanService.get_kanban` → `WorkPackageRegistry.list_work_packages` → `scanner.scan_feature_kanban` (cached)
 - `APIHandler.handle_health` delegates to `ProjectStateService.get_health`
 - `APIHandler.handle_sync_trigger` delegates to `SyncService.trigger_sync`
@@ -252,14 +253,17 @@ may_call = runtime["dependency_rules"]["may_call"]
 > **Doctrine references**:
 > - `DIRECTIVE_API_DEPENDENCY_DIRECTION` (`src/doctrine/directives/shipped/api-dependency-direction.directive.yaml`) — enforces single-reader invariant; no scanner imports in transport layer
 > - `DIRECTIVE_REST_RESOURCE_ORIENTATION` (`src/doctrine/directives/shipped/rest-resource-orientation.directive.yaml`) — URL naming convention
-> - `HATEOAS-LITE` paradigm (`src/doctrine/paradigms/shipped/hateoas-lite.paradigm.yaml`) — `_links` convention; activated when mission B ships
+> - `HATEOAS-LITE` paradigm (`src/doctrine/paradigms/shipped/hateoas-lite.paradigm.yaml`) — `_links` convention; **materialized** by `resource-oriented-mission-api-01KQQRF2` (Mission B)
+> - New resource models: `MissionSummary`, `Mission`, `MissionStatus`, `WorkPackageSummary`, `WorkPackage`, `WorkPackageAssignment`, `ReviewEvidence` (all in `src/dashboard/api/models.py`)
+> - New router: `src/dashboard/api/routers/missions.py` — 5 resource-oriented endpoints
+> - ADR: `architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md`
 >
 > **Completed dashboard sub-tickets**:
 > - [#956](https://github.com/Priivacy-ai/spec-kitty/issues/956) — `MissionRegistry` + cache layer ✅ shipped (`mission-registry-and-api-boundary-doctrine-01KQPDBB`)
+> - [#957](https://github.com/Priivacy-ai/spec-kitty/issues/957) — resource-oriented mission + workpackage endpoints + `WorkPackageAssignment` schema ✅ shipped (`resource-oriented-mission-api-01KQQRF2`)
+> - [#958](https://github.com/Priivacy-ai/spec-kitty/issues/958) — OpenAPI tag grouping (Swagger / ReDoc navigation) ✅ shipped (`resource-oriented-mission-api-01KQQRF2`)
 >
 > **Open dashboard sub-tickets** (children of [#645](https://github.com/Priivacy-ai/spec-kitty/issues/645)):
-> - [#957](https://github.com/Priivacy-ai/spec-kitty/issues/957) — resource-oriented mission + workpackage endpoints + `WorkPackageAssignment` schema
-> - [#958](https://github.com/Priivacy-ai/spec-kitty/issues/958) — OpenAPI tag grouping (Swagger / ReDoc navigation)
 > - [#954](https://github.com/Priivacy-ai/spec-kitty/issues/954) — glossary service extraction (transport-only migration follow-up)
 > - [#955](https://github.com/Priivacy-ai/spec-kitty/issues/955) — lint service extraction (transport-only migration follow-up)
 >

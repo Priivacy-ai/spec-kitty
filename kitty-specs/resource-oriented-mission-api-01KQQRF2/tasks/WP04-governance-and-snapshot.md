@@ -19,7 +19,7 @@ subtasks:
 - T028
 - T029
 - T030
-agent: "claude:claude-sonnet-4-6:curator-carla:curator"
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
 history: []
 agent_profile: curator-carla
 authoritative_surface: architecture/2.x/
@@ -34,7 +34,7 @@ owned_files:
 - docs/migration/dashboard-fastapi-transport.md
 role: curator
 tags: []
-shell_pid: "1759332"
+shell_pid: "1772843"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -282,3 +282,6 @@ See ADR `2026-05-03-2-resource-oriented-mission-api.md` for the full pathway.
 ## Activity Log
 
 - 2026-05-04T07:35:48Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=1759332 – Started implementation via action command
+- 2026-05-04T07:39:55Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=1759332 – Ready: ADR authored, ownership map updated (#957/#958 marked done), issue-matrix authored, runbook updated. OpenAPI snapshot regenerated post-merge after all lanes combine.
+- 2026-05-04T07:51:20Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1772843 – Started review via action command
+- 2026-05-04T07:54:52Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=1772843 – T030 missing: migration runbook section not added to docs/migration/dashboard-fastapi-transport.md

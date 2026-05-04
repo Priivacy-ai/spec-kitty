@@ -22,6 +22,7 @@ Legacy links through `architecture/adrs/` are compatibility aliases.
 
 | ID | Title | Status | Mission |
 |----|-------|--------|---------|
+| 2026-05-03-2 | [Resource-Oriented Mission API and HATEOAS-LITE](./2026-05-03-2-resource-oriented-mission-api.md) | Accepted | `resource-oriented-mission-api-01KQQRF2` |
 | 2026-05-03-1 | [Dashboard Mission Registry and Cache](./2026-05-03-1-dashboard-mission-registry-and-cache.md) | Accepted | `mission-registry-and-api-boundary-doctrine-01KQPDBB` |
 | 2026-05-02-2 | [FastAPI / OpenAPI Transport](./2026-05-02-2-fastapi-openapi-transport.md) | Accepted | `frontend-api-fastapi-openapi-migration-01KQN2JA` |
 | 2026-05-02-1 | [Dashboard Service Extraction](./2026-05-02-1-dashboard-service-extraction.md) | Accepted | `dashboard-service-extraction-01KQMCA6` |
