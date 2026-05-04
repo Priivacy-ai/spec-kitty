@@ -11,6 +11,7 @@ non-runtime consumers can validate payloads.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -421,6 +422,123 @@ class ResourceModel(BaseModel):
     pass
 
 
+# ---------------------------------------------------------------------------
+# HATEOAS-LITE resource models (introduced by mission
+# resource-oriented-mission-api-01KQQRF2, WP01)
+# ---------------------------------------------------------------------------
+
+
+class ReviewEvidence(BaseModel):
+    """Evidence from a review event (in_review -> approved/rejected)."""
+
+    reviewed_by: str
+    reviewed_at: datetime
+    verdict: Literal["approved", "rejected"]
+    notes: str | None = None
+
+
+class WorkPackageAssignment(BaseModel):
+    """Ownership contract for a single WP."""
+
+    wp_id: str
+    lane: str
+    assignee: str | None = None
+    agent_profile: str | None = None
+    role: str | None = None
+    claimed_at: datetime | None = None
+    last_event_id: str | None = None
+    blocked_reason: str | None = None
+    review_evidence: ReviewEvidence | None = None
+
+
+class LaneCounts(BaseModel):
+    """Lane-keyed integer counts for a mission's work packages."""
+
+    total: int = 0
+    planned: int = 0
+    claimed: int = 0
+    in_progress: int = 0
+    for_review: int = 0
+    in_review: int = 0
+    approved: int = 0
+    done: int = 0
+    blocked: int = 0
+    canceled: int = 0
+
+
+class MissionSummary(ResourceModel):
+    """Lightweight mission representation for list responses."""
+
+    mission_id: str
+    mission_slug: str
+    mission_number: int | None = None
+    mid8: str
+    friendly_name: str
+    mission_type: str
+    target_branch: str
+    lane_counts: LaneCounts
+    weighted_percentage: float | None = None
+    is_legacy: bool = False
+    # _links keys: self, status, workpackages
+    _links: dict[str, Link]
+
+
+class Mission(ResourceModel):
+    """Full mission detail representation."""
+
+    mission_id: str
+    mission_slug: str
+    mission_number: int | None = None
+    mid8: str
+    friendly_name: str
+    mission_type: str
+    target_branch: str
+    created_at: datetime | None = None
+    lane_counts: LaneCounts
+    weighted_percentage: float | None = None
+    is_legacy: bool = False
+    # _links keys: self, status, workpackages
+    _links: dict[str, Link]
+
+
+class MissionStatus(ResourceModel):
+    """Lane counts and progress for a single mission — polling-friendly."""
+
+    mission_id: str
+    lane_counts: LaneCounts
+    weighted_percentage: float | None = None
+    done_count: int
+    total_count: int
+    current_phase: int = 2
+    # _links keys: self, mission
+    _links: dict[str, Link]
+
+
+class WorkPackageSummary(ResourceModel):
+    """Lightweight WP representation for list responses."""
+
+    wp_id: str
+    title: str
+    assignment: WorkPackageAssignment
+    # _links keys: self, mission
+    _links: dict[str, Link]
+
+
+class WorkPackage(ResourceModel):
+    """Full WP detail representation."""
+
+    wp_id: str
+    title: str
+    assignment: WorkPackageAssignment
+    subtasks_done: int
+    subtasks_total: int
+    dependencies: list[str]
+    requirement_refs: list[str]
+    prompt_ref: str | None = None
+    # _links keys: self, mission, workpackages
+    _links: dict[str, Link]
+
+
 __all__ = [
     "ArtifactDirectoryFile",
     "ArtifactDirectoryResponse",
@@ -459,4 +577,12 @@ __all__ = [
     "WorktreeInfo",
     "Link",
     "ResourceModel",
+    "ReviewEvidence",
+    "WorkPackageAssignment",
+    "LaneCounts",
+    "MissionSummary",
+    "Mission",
+    "MissionStatus",
+    "WorkPackageSummary",
+    "WorkPackage",
 ]

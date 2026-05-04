@@ -108,6 +108,8 @@ class WorkPackageRecord:
     requirement_refs: tuple[str, ...]
     last_event_id: str | None
     last_event_at: datetime | None
+    claimed_at: datetime | None = None    # timestamp of most recent →claimed event
+    blocked_reason: str | None = None     # reason from most recent →blocked event
 
 
 @dataclass(frozen=True)
@@ -502,6 +504,8 @@ class WorkPackageRegistry:
 
         wp_lanes: dict[str, str] = {}
         last_event_by_wp: dict[str, tuple[str, datetime | None]] = {}
+        claimed_at_by_wp: dict[str, datetime | None] = {}
+        blocked_reason_by_wp: dict[str, str | None] = {}
         if has_event_log(self._feature_dir):
             try:
                 from specify_cli.status.reducer import materialize
@@ -516,7 +520,8 @@ class WorkPackageRegistry:
                     exc,
                 )
 
-            # Last-event metadata per WP from raw events.
+            # Last-event metadata per WP from raw events; also capture claimed_at
+            # and blocked_reason by scanning events in chronological order.
             try:
                 from specify_cli.status.store import read_events_raw
 
@@ -528,6 +533,12 @@ class WorkPackageRegistry:
                     at = _parse_iso_datetime(ev.get("at"))
                     if isinstance(event_id, str):
                         last_event_by_wp[wp_id] = (event_id, at)
+                    to_lane = ev.get("to_lane")
+                    if to_lane == "claimed":
+                        claimed_at_by_wp[wp_id] = _parse_iso_datetime(ev.get("at"))
+                    elif to_lane == "blocked":
+                        reason = ev.get("reason")
+                        blocked_reason_by_wp[wp_id] = reason if isinstance(reason, str) else None
             except Exception as exc:
                 logger.debug(
                     "registry: cannot read raw events for %s (%s)",
@@ -590,6 +601,8 @@ class WorkPackageRegistry:
                     requirement_refs=tuple(meta.requirement_refs or ()),
                     last_event_id=last_event_id,
                     last_event_at=last_event_at,
+                    claimed_at=claimed_at_by_wp.get(wp_id),
+                    blocked_reason=blocked_reason_by_wp.get(wp_id),
                 )
             )
 
