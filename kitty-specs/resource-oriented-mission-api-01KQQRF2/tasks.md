@@ -17,16 +17,16 @@ WP01 is a strict prerequisite for WP02. WP04 depends on all three predecessors.
 | T004 | Add `MissionSummary` and `Mission` resource models (subclass `ResourceModel`, declare `_links`) | WP01 | [D] |
 | T005 | Add `MissionStatus` resource model | WP01 | [D] |
 | T006 | Add `WorkPackageSummary` and `WorkPackage` resource models; run arch test to confirm non-vacuous | WP01 | [D] |
-| T007 | Create `src/dashboard/api/routers/missions.py` skeleton: `_mission_links()`, `_wp_links()`, `get_or_404()` helpers | WP02 | — |
-| T008 | Implement `GET /api/missions` → `list[MissionSummary]` | WP02 | — |
-| T009 | Implement `GET /api/missions/{mission_id}` → `Mission` (404 / 409) | WP02 | — |
-| T010 | Implement `GET /api/missions/{mission_id}/status` → `MissionStatus` | WP02 | [P] |
-| T011 | Implement `GET /api/missions/{mission_id}/workpackages` → `list[WorkPackageSummary]` | WP02 | [P] |
-| T012 | Implement `GET /api/missions/{mission_id}/workpackages/{wp_id}` → `WorkPackage` (404) | WP02 | — |
-| T013 | Register missions router in `src/dashboard/api/app.py` | WP02 | — |
-| T014 | Add `tests/test_dashboard/test_missions_api.py`: list, detail, status, WP list, WP detail, 404, 409 | WP02 | — |
-| T015 | Verify `test_transport_does_not_import_scanner.py` passes after all routes wired | WP02 | — |
-| T016 | Verify `test_url_naming_convention.py` accepts all new paths | WP02 | — |
+| T007 | Create `src/dashboard/api/routers/missions.py` skeleton: `_mission_links()`, `_wp_links()`, `get_or_404()` helpers | WP02 | — | [D] |
+| T008 | Implement `GET /api/missions` → `list[MissionSummary]` | WP02 | — | [D] |
+| T009 | Implement `GET /api/missions/{mission_id}` → `Mission` (404 / 409) | WP02 | — | [D] |
+| T010 | Implement `GET /api/missions/{mission_id}/status` → `MissionStatus` | WP02 | [D] |
+| T011 | Implement `GET /api/missions/{mission_id}/workpackages` → `list[WorkPackageSummary]` | WP02 | [D] |
+| T012 | Implement `GET /api/missions/{mission_id}/workpackages/{wp_id}` → `WorkPackage` (404) | WP02 | — | [D] |
+| T013 | Register missions router in `src/dashboard/api/app.py` | WP02 | — | [D] |
+| T014 | Add `tests/test_dashboard/test_missions_api.py`: list, detail, status, WP list, WP detail, 404, 409 | WP02 | — | [D] |
+| T015 | Verify `test_transport_does_not_import_scanner.py` passes after all routes wired | WP02 | — | [D] |
+| T016 | Verify `test_url_naming_convention.py` accepts all new paths | WP02 | — | [D] |
 | T017 | Add `tags=["kanban"]` to `features.py` and `kanban.py` `APIRouter` constructors | WP03 | — | [D] |
 | T018 | Add domain tags to all remaining routers (research, artifacts, charter, dossier, glossary, health, diagnostics, sync, shutdown, static_mount, lint) | WP03 | [D] |
 | T019 | Add `Deprecation: true` and `Link` headers to `GET /api/features` response | WP03 | — | [D] |
@@ -89,16 +89,16 @@ Lane parallelization:
 **Independent test**: `GET /api/missions` returns 200 with `_links` on each item; `GET /api/missions/{id}/workpackages/{wp_id}` returns 200 or 404; `pytest tests/test_dashboard/test_missions_api.py` passes; both arch tests pass.
 
 **Subtasks**:
-- [ ] T007 Create `missions.py` skeleton with helpers
-- [ ] T008 GET /api/missions route
-- [ ] T009 GET /api/missions/{id} route
-- [ ] T010 GET /api/missions/{id}/status route
-- [ ] T011 GET /api/missions/{id}/workpackages route
-- [ ] T012 GET /api/missions/{id}/workpackages/{wp_id} route
-- [ ] T013 Register router in app.py
-- [ ] T014 Test file: all routes + error cases
-- [ ] T015 Verify test_transport_does_not_import_scanner passes
-- [ ] T016 Verify test_url_naming_convention passes
+- [x] T007 Create `missions.py` skeleton with helpers
+- [x] T008 GET /api/missions route
+- [x] T009 GET /api/missions/{id} route
+- [x] T010 GET /api/missions/{id}/status route
+- [x] T011 GET /api/missions/{id}/workpackages route
+- [x] T012 GET /api/missions/{id}/workpackages/{wp_id} route
+- [x] T013 Register router in app.py
+- [x] T014 Test file: all routes + error cases
+- [x] T015 Verify test_transport_does_not_import_scanner passes
+- [x] T016 Verify test_url_naming_convention passes
 
 **Estimated prompt size**: ~550 lines
 **Owned files**: `src/dashboard/api/routers/missions.py`, `src/dashboard/api/app.py`, `tests/test_dashboard/test_missions_api.py`

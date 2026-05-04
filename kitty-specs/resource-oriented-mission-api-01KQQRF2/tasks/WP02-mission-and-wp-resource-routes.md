@@ -25,7 +25,7 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/dashboard/api/routers/
@@ -37,6 +37,7 @@ owned_files:
 - tests/test_dashboard/test_missions_api.py
 role: implementer
 tags: []
+shell_pid: "1732228"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -395,3 +396,8 @@ Must pass. The new `/api/missions/**` paths follow the resource-noun convention.
 - **Registry WP access API**: The exact method signatures for accessing per-mission WPs may differ from what's shown above. Read `registry.py` before coding and adjust accordingly.
 - **No exception for ambiguous mid8**: `registry.get_mission()` returns `None` silently for ambiguous mid8 — see the updated `_get_mission_or_raise` helper. Do not attempt to catch an exception; use the explicit mid8 count check instead.
 - **`_links` field aliasing**: When constructing `ResourceModel` subclasses, the field is accessed via its alias `_links`. Using `**{"_links": ...}` is the safe pattern; do not use `_links=...` as a keyword argument (Python interprets leading-underscore attributes specially).
+
+## Activity Log
+
+- 2026-05-04T06:45:13Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=1732228 – Started implementation via action command
+- 2026-05-04T06:53:39Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=1732228 – Ready: 5 new routes (GET /api/missions/**), 23 tests passing, arch tests green, OpenAPI snapshot regenerated
