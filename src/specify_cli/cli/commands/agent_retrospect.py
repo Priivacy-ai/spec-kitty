@@ -22,14 +22,24 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
 from specify_cli.core.paths import locate_project_root
 from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
     apply_proposals,
 )
 from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_record
-from specify_cli.retrospective.schema import ActorRef
+from specify_cli.retrospective.schema import (
+    ActorRef,
+    MissionIdentity,
+    Mode,
+    ModeSourceSignal,
+    RecordProvenance,
+    RetrospectiveRecord,
+)
+from specify_cli.retrospective.writer import WriterError, write_record
+from specify_cli.status.reducer import reduce as reduce_status_events
+from specify_cli.status.store import read_events
 
 app = typer.Typer(
     name="retrospect",
@@ -39,6 +49,12 @@ app = typer.Typer(
 
 _console = Console()
 _err_console = Console(stderr=True)
+
+
+def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False):
+    """Resolve a mission handle for this command without pre-rendering JSON errors."""
+    del json_mode
+    return resolve_mission(handle, repo_root)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -126,15 +142,112 @@ def _render_rich(result: SynthesisResult, *, dry_run: bool) -> None:
     )
 
 
-def _build_json_envelope(result: SynthesisResult, *, dry_run: bool) -> dict[str, object]:
+def _build_json_envelope(
+    result: SynthesisResult,
+    *,
+    dry_run: bool,
+    outcome: str = "retrospective_synthesized",
+    retrospective_path: Path | None = None,
+    mission_id: str | None = None,
+    mission_slug: str | None = None,
+    status: str = "ok",
+    next_action: str | None = None,
+) -> dict[str, object]:
     """Build the JSON output envelope per cli_surfaces.md / CHK034."""
-    return {
+    envelope: dict[str, object] = {
         "schema_version": "1",
         "command": "agent.retrospect.synthesize",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "dry_run": dry_run,
+        "status": status,
+        "outcome": outcome,
         "result": result.model_dump(),
     }
+    if mission_id is not None:
+        envelope["mission_id"] = mission_id
+    if mission_slug is not None:
+        envelope["mission_slug"] = mission_slug
+    if retrospective_path is not None:
+        envelope["retrospective_path"] = str(retrospective_path)
+    if next_action is not None:
+        envelope["next_action"] = next_action
+    return envelope
+
+
+def _empty_synthesis_result(*, dry_run: bool) -> SynthesisResult:
+    return SynthesisResult(
+        dry_run=dry_run,
+        planned=[],
+        applied=[],
+        conflicts=[],
+        rejected=[],
+        events_emitted=[],
+    )
+
+
+def _mission_artifacts_sufficient_for_empty_record(feature_dir: Path) -> bool:
+    """Return True when mission artifacts can support an empty retrospective."""
+    for required in ("spec.md", "plan.md", "tasks.md"):
+        if not (feature_dir / required).is_file():
+            return False
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
+        return False
+    try:
+        events = read_events(feature_dir)
+        if not events:
+            return False
+        snapshot = reduce_status_events(events)
+    except Exception:
+        return False
+    if not snapshot.work_packages:
+        return False
+    return all(
+        str(state.get("lane")) in {"approved", "done"}
+        for state in snapshot.work_packages.values()
+    )
+
+
+def _create_empty_retrospective_record(
+    *,
+    repo_root: Path,
+    mission_id: str,
+    mission_slug: str,
+    feature_dir: Path,
+    actor: ActorRef,
+) -> Path:
+    del feature_dir
+    now = datetime.now(timezone.utc).isoformat()
+    record = RetrospectiveRecord(
+        schema_version="1",
+        mission=MissionIdentity(
+            mission_id=mission_id,
+            mid8=mission_id[:8],
+            mission_slug=mission_slug,
+            mission_type="software-dev",
+            mission_started_at=now,
+            mission_completed_at=now,
+        ),
+        mode=Mode(
+            value="autonomous",
+            source_signal=ModeSourceSignal(kind="environment", evidence="agent retrospect synthesize"),
+        ),
+        status="completed",
+        started_at=now,
+        completed_at=now,
+        actor=actor,
+        helped=[],
+        not_helpful=[],
+        gaps=[],
+        proposals=[],
+        provenance=RecordProvenance(
+            authored_by=actor,
+            runtime_version="spec-kitty-cli",
+            written_at=now,
+            schema_version="1",
+        ),
+    )
+    return write_record(record, repo_root=repo_root)
 
 
 # ---------------------------------------------------------------------------
@@ -183,27 +296,113 @@ def synthesize_cmd(
     # the contract's exit=1 for unresolvable).
     # ------------------------------------------------------------------
     try:
-        resolved = resolve_mission_handle(mission, repo_root, json_mode=json_only)
+        resolved = resolve_mission_handle(mission, repo_root, json_mode=False)
+    except MissionNotFoundError as exc:
+        if json_only:
+            _console.print_json(
+                json.dumps(
+                    {
+                        "schema_version": "1",
+                        "command": "agent.retrospect.synthesize",
+                        "status": "error",
+                        "outcome": "mission_not_found",
+                        "error": "mission_not_found",
+                        "handle": exc.handle,
+                        "next_action": "Check the mission handle or run `spec-kitty agent mission list`.",
+                    }
+                )
+            )
+        else:
+            _err_console.print(
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
+                f"Check that the handle is correct and that the mission exists in kitty-specs/."
+            )
+        raise typer.Exit(1)
+    except AmbiguousHandleError as exc:
+        if json_only:
+            _console.print_json(
+                json.dumps(
+                    {
+                        **exc.to_dict(),
+                        "schema_version": "1",
+                        "command": "agent.retrospect.synthesize",
+                        "status": "error",
+                        "outcome": "ambiguous_mission_handle",
+                    }
+                )
+            )
+        else:
+            _err_console.print(str(exc))
+        raise typer.Exit(1)
     except SystemExit:
-        # resolve_mission_handle already printed the error; exit 1 per contract
         raise typer.Exit(1)
 
     mission_id = resolved.mission_id
+    actor = _build_actor(actor_id)
 
     # ------------------------------------------------------------------
     # Step 3: Load retrospective record
     # Exit 2 = I/O error, 3 = malformed/missing
     # ------------------------------------------------------------------
     retro_file = _retro_path(repo_root, mission_id)
+    outcome = "retrospective_synthesized"
     try:
         record = read_record(retro_file)
     except FileNotFoundError:
-        msg = f"Retrospective record not found: {retro_file}"
-        if json_only:
-            _err_console.print_json(json.dumps({"error": "record_not_found", "path": str(retro_file)}))
+        feature_dir = resolved.feature_dir
+        if feature_dir is not None and _mission_artifacts_sufficient_for_empty_record(feature_dir):
+            try:
+                retro_file = _create_empty_retrospective_record(
+                    repo_root=repo_root,
+                    mission_id=mission_id,
+                    mission_slug=resolved.mission_slug,
+                    feature_dir=feature_dir,
+                    actor=actor,
+                )
+                record = read_record(retro_file)
+                outcome = "retrospective_record_created"
+            except (WriterError, OSError, YAMLParseError, SchemaError) as exc:
+                if json_only:
+                    _console.print_json(
+                        json.dumps(
+                            {
+                                "schema_version": "1",
+                                "command": "agent.retrospect.synthesize",
+                                "status": "error",
+                                "outcome": "insufficient_mission_artifacts",
+                                "mission_id": mission_id,
+                                "mission_slug": resolved.mission_slug,
+                                "error": "record_create_failed",
+                                "detail": str(exc),
+                                "path": str(retro_file),
+                                "next_action": "Create or repair retrospective source artifacts, then rerun synthesize.",
+                            }
+                        )
+                    )
+                else:
+                    _err_console.print(f"[red]Error:[/red] Could not create retrospective record: {exc}")
+                raise typer.Exit(3)
         else:
+            msg = f"Retrospective record not found and mission artifacts are insufficient: {retro_file}"
+            if json_only:
+                _console.print_json(
+                    json.dumps(
+                        {
+                            "schema_version": "1",
+                            "command": "agent.retrospect.synthesize",
+                            "status": "error",
+                            "outcome": "insufficient_mission_artifacts",
+                            "mission_id": mission_id,
+                            "mission_slug": resolved.mission_slug,
+                            "error": "record_not_found",
+                            "path": str(retro_file),
+                            "next_action": "Complete mission artifacts and approved/done WP status, then rerun synthesize.",
+                        }
+                    )
+                )
+                raise typer.Exit(0)
             _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(3)
+            raise typer.Exit(3)
     except (YAMLParseError, SchemaError) as exc:
         msg = f"Retrospective record malformed: {exc}"
         if json_only:
@@ -236,7 +435,6 @@ def synthesize_cmd(
             p.id for p in all_proposals if p.state.status == "accepted"
         }
 
-    actor = _build_actor(actor_id)
     dry_run = not apply
 
     # ------------------------------------------------------------------
@@ -254,7 +452,14 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     # Step 6: Render output (Rich + optional JSON)
     # ------------------------------------------------------------------
-    envelope = _build_json_envelope(result, dry_run=dry_run)
+    envelope = _build_json_envelope(
+        result,
+        dry_run=dry_run,
+        outcome=outcome,
+        retrospective_path=retro_file,
+        mission_id=mission_id,
+        mission_slug=resolved.mission_slug,
+    )
 
     if json_only:
         _console.print_json(json.dumps(envelope))

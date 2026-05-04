@@ -1,0 +1,63 @@
+{
+  "event_count": 42,
+  "last_event_id": "01KQQXMJZDCQ3NZFN38JAAFZX8",
+  "materialized_at": "2026-05-03T21:59:14.157409+00:00",
+  "mission_number": "",
+  "mission_slug": "implement-review-retrospect-reliability-01KQQSCW",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "codex:gpt-5:default:reviewer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQQXMAS8GW0G56N3CT4P3ZQ2",
+      "last_transition_at": "2026-05-03T21:59:05.768619+00:00"
+    },
+    "WP02": {
+      "actor": "codex:gpt-5:default:reviewer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQQXMCDDJJTQ2C0KNXWE0SAN",
+      "last_transition_at": "2026-05-03T21:59:07.437897+00:00"
+    },
+    "WP03": {
+      "actor": "codex:gpt-5:default:reviewer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQQXME3AZZJ5SV2Y20H2B4NG",
+      "last_transition_at": "2026-05-03T21:59:09.162591+00:00"
+    },
+    "WP04": {
+      "actor": "codex:gpt-5:default:reviewer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQQXMFQFBSBGCHFJBRDCMSTN",
+      "last_transition_at": "2026-05-03T21:59:10.831772+00:00"
+    },
+    "WP05": {
+      "actor": "codex:gpt-5:default:reviewer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQQXMHBH3FQ6YE2N791F1XBS",
+      "last_transition_at": "2026-05-03T21:59:12.497866+00:00"
+    },
+    "WP06": {
+      "actor": "codex:gpt-5:default:reviewer",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQQXMJZDCQ3NZFN38JAAFZX8",
+      "last_transition_at": "2026-05-03T21:59:14.157409+00:00"
+    }
+  }
+}

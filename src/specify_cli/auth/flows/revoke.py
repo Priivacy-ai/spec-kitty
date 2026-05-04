@@ -53,7 +53,7 @@ class RevokeFlow:
         except httpx.RequestError as exc:
             log.warning("Revoke network error: %s", type(exc).__name__)
             return RevokeOutcome.NETWORK_ERROR
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - revoke must never block local logout cleanup
             log.warning("Revoke unexpected error: %s", type(exc).__name__)
             return RevokeOutcome.SERVER_FAILURE
 

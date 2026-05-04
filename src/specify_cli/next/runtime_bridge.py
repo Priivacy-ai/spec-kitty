@@ -53,6 +53,7 @@ from specify_cli.next.decision import (
     _build_prompt_or_error,
     _build_prompt_safe,
     _compute_wp_progress,
+    _find_first_wp_by_lane,
     _state_to_action,
 )
 from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
@@ -250,6 +251,44 @@ _WP_ITERATION_STEPS = frozenset({"implement", "review"})
 def _is_wp_iteration_step(step_id: str) -> bool:
     """Check if a step is a WP-iteration step (implement, review)."""
     return step_id in _WP_ITERATION_STEPS
+
+
+def _finalized_task_board_override_step(
+    feature_dir: Path,
+    progress: dict[str, int | float] | None,
+) -> str | None:
+    """Return the next step implied by finalized WP state, if available.
+
+    This is intentionally narrow: it only overrides stale early runtime phases
+    after a mission already has tasks.md, finalized WP files, and canonical WP
+    lane state. It does not reorder non-finalized mission DAG execution.
+    """
+    if progress is None:
+        return None
+    total = int(progress.get("total_wps", 0) or 0)
+    if total <= 0:
+        return None
+    if not (feature_dir / "tasks.md").is_file() or not (feature_dir / "tasks").is_dir():
+        return None
+
+    if _find_first_wp_by_lane(feature_dir, "planned") is not None:
+        return "implement"
+    if _find_first_wp_by_lane(feature_dir, "claimed") is not None:
+        return "implement"
+    if _find_first_wp_by_lane(feature_dir, "in_progress") is not None:
+        return "implement"
+    if _find_first_wp_by_lane(feature_dir, "for_review") is not None:
+        return "review"
+    if _find_first_wp_by_lane(feature_dir, "in_review") is not None:
+        return "blocked:review_in_progress"
+
+    done = int(progress.get("done_wps", 0) or 0)
+    approved = int(progress.get("approved_wps", 0) or 0)
+    if done == total:
+        return "done"
+    if approved + done == total:
+        return "accept"
+    return "blocked:no_actionable_wp"
 
 
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
@@ -2020,6 +2059,34 @@ def query_current_state(
         emitted_run_id: str | None = None
         if ephemeral_run_store is None:
             emitted_run_id = getattr(run_ref, "run_id", None)
+
+        finalized_override = _finalized_task_board_override_step(feature_dir, progress)
+        if finalized_override is not None:
+            if finalized_override == "done":
+                mission_state = "done"
+                preview_step = None
+                reason = "All work packages are done"
+            elif finalized_override.startswith("blocked:"):
+                mission_state = "blocked"
+                preview_step = None
+                reason = finalized_override.split(":", 1)[1].replace("_", " ")
+            else:
+                mission_state = finalized_override
+                preview_step = finalized_override
+                reason = None
+            return Decision(
+                kind=DecisionKind.query,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=mission_state,
+                timestamp=now,
+                is_query=True,
+                reason=reason,
+                progress=progress,
+                run_id=emitted_run_id,
+                preview_step=preview_step,
+            )
 
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
             if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:

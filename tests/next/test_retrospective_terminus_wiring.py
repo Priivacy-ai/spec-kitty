@@ -315,18 +315,21 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypat
     4. roll back state.json so it does not say all-completed.
     """
     from specify_cli.next import runtime_bridge as bridge
+    from specify_cli.next._internal_runtime.events import NullEmitter
 
     repo_root, feature_dir = _scaffold_opt_in_project(tmp_path)
 
-    # Patch the SyncRuntimeEventEmitter factory to wrap the real instance
-    # in a recorder. The bridge will use the wrapper everywhere; we'll
-    # inspect its call list at the end.
-    real_for_feature = bridge.SyncRuntimeEventEmitter.for_feature
+    class _LocalOnlyEmitter(NullEmitter):
+        def seed_from_snapshot(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+    # Patch the SyncRuntimeEventEmitter factory to a local recorder. The bridge
+    # will use the wrapper everywhere; we'll inspect its call list at the end.
     recorders: list[_RecordingSyncEmitter] = []
 
     def _wrapped_for_feature(*args: Any, **kwargs: Any) -> Any:
-        real = real_for_feature(*args, **kwargs)
-        recorder = _RecordingSyncEmitter(real)
+        del args, kwargs
+        recorder = _RecordingSyncEmitter(_LocalOnlyEmitter())
         recorders.append(recorder)
         return recorder
 

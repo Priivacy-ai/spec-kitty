@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "mission_slug": "implement-review-retrospect-reliability-01KQQSCW",
+  "mission_id": "01KQQSCWP7HAJRR93F98AESKH4",
+  "mission_branch": "kitty/mission-implement-review-retrospect-reliability-01KQQSCW",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "kitty-specs/implement-review-retrospect-reliability-01KQQSCW/quickstart.md",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/next/decision.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "src/specify_cli/retrospective/reader.py",
+        "src/specify_cli/retrospective/schema.py",
+        "src/specify_cli/retrospective/writer.py",
+        "src/specify_cli/review/artifacts.py",
+        "src/specify_cli/review/cycle.py",
+        "tests/agent/test_workflow_review_cycle_pointer.py",
+        "tests/cli/test_agent_retrospect_missing_record.py",
+        "tests/cli/test_agent_retrospect_synthesize.py",
+        "tests/integration/review/test_reject_from_in_review.py",
+        "tests/integration/test_implement_review_retrospect_smoke.py",
+        "tests/next/test_finalized_task_routing.py",
+        "tests/review/test_cycle.py",
+        "tests/status/test_emit.py",
+        "tests/status/test_transitions.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-03T21:02:08.707498+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}
