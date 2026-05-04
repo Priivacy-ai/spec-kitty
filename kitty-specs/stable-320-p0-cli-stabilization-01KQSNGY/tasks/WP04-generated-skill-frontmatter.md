@@ -27,6 +27,8 @@ authoritative_surface: src/specify_cli/skills/
 execution_mode: code_change
 lane: planned
 owned_files:
+- .agents/skills/spec-kitty.advise/SKILL.md
+- .kittify/command-skills-manifest.json
 - src/specify_cli/skills/command_renderer.py
 - src/specify_cli/skills/installer.py
 - src/specify_cli/skills/verifier.py
