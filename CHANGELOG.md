@@ -11,9 +11,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Resource-oriented mission API** (`GET /api/missions`, `GET /api/missions/{id}`,
+  `GET /api/missions/{id}/status`, `GET /api/missions/{id}/workpackages`,
+  `GET /api/missions/{id}/workpackages/{wp_id}`) backed by `MissionRegistry` —
+  resolves [#957](https://github.com/Priivacy-ai/spec-kitty/issues/957) from epic [#645](https://github.com/Priivacy-ai/spec-kitty/issues/645).
+- `WorkPackageAssignment` and `ReviewEvidence` Pydantic models exposing WP ownership
+  (lane, assignee, `claimed_at`, `blocked_reason`, review evidence) without requiring
+  consumers to read `status.events.jsonl` directly.
+- HATEOAS-LITE `_links` on every resource response so clients can navigate the
+  mission/WP hierarchy without hardcoding URL patterns. The arch test
+  `test_resource_models_have_links.py` is now enforcing (5 `ResourceModel` subclasses).
+- OpenAPI tag grouping (`tags=[...]`) on every router: `missions`, `kanban`,
+  `research`, `artifacts`, `charter`, `dossier`, `glossary`, `health`, `sync`,
+  `lifecycle`, `static` — resolves [#958](https://github.com/Priivacy-ai/spec-kitty/issues/958).
+- `WorkPackageRecord` gains `claimed_at` and `blocked_reason` populated from
+  `status.events.jsonl` by the `MissionRegistry` scan.
+- `dashboard/` top-level Python package now included in the built wheel.
+
 ### Changed
 
+- `/api/features` and `/api/kanban/{feature_id}` are now **deprecated aliases**:
+  they continue to work for one release but emit `Deprecation: true` and
+  `Link: <canonical>; rel="successor-version"` response headers.
+
 ### Fixed
+
+- FastAPI `Annotated[..., Depends()]` and `Annotated[..., Query()]` patterns
+  adopted across all dashboard routers (resolves 12 Sonar BLOCKER S8410 issues).
+- `test_wheel_contains_only_known_packages` allowlist updated to include `dashboard/`.
+- CI `workflow_dispatch` now correctly sets all path-filter flags via an override
+  step, preventing manual runs from silently skipping all jobs.
+- `tests/specify_cli/__init__.py` added so test files in `tests/specify_cli/dashboard/`
+  collect correctly after `src/dashboard` became a top-level wheel package.
+- Star import in `specify_cli/dashboard/api_types.py` replaced with explicit
+  named imports (Sonar S2208).
+- Repeated `"application/json"` literal in `specify_cli/dashboard/handlers/api.py`
+  extracted to `_CONTENT_TYPE_JSON` constant (Sonar S1192).
+- `dossier.py` router: `Query` defaults moved outside `Annotated[...]` to satisfy
+  FastAPI's parameter validation (fixes 56 post-merge test failures).
 
 ### Removed
 
