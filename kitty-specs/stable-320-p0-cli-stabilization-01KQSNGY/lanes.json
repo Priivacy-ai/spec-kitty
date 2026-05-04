@@ -77,6 +77,8 @@
         "WP04"
       ],
       "write_scope": [
+        ".agents/skills/spec-kitty.advise/SKILL.md",
+        ".kittify/command-skills-manifest.json",
         "src/specify_cli/runtime/agent_skills.py",
         "src/specify_cli/skills/command_renderer.py",
         "src/specify_cli/skills/installer.py",
