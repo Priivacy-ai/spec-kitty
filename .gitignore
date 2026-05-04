@@ -65,6 +65,7 @@ pyproject.local.toml
 .kittify/workspaces/
 .kittify/merge-state.json
 .kittify/.migration-backup/
+kitty-specs/**/.kittify/config.yaml
 kitty-specs/**/.kittify/dossiers/
 
 # Dossier snapshots are mutable derived artifacts; recomputable from dossier source.
