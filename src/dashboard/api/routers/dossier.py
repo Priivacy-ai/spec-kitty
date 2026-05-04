@@ -65,7 +65,7 @@ def register(app: FastAPI) -> None:
     router = APIRouter(tags=["dossier"])
 
     @router.get("/api/dossier/overview")
-    def get_overview(request: Request, mission_slug: Annotated[str | None, Query(default=None, alias="feature")]):
+    def get_overview(request: Request, mission_slug: Annotated[str | None, Query(alias="feature")] = None):
         if not mission_slug:
             raise _missing_feature()
         handler = DossierAPIHandler(repo_root=Path(request.app.state.project_dir).resolve())
@@ -74,11 +74,11 @@ def register(app: FastAPI) -> None:
     @router.get("/api/dossier/artifacts")
     def list_artifacts(
         request: Request,
-        mission_slug: Annotated[str | None, Query(default=None, alias="feature")],
-        artifact_class: Annotated[str | None, Query(default=None, alias="class")],
-        wp_id: Annotated[str | None, Query(default=None)],
-        step_id: Annotated[str | None, Query(default=None)],
-        required_only: Annotated[str | None, Query(default=None)],
+        mission_slug: Annotated[str | None, Query(alias="feature")] = None,
+        artifact_class: Annotated[str | None, Query(alias="class")] = None,
+        wp_id: Annotated[str | None, Query()] = None,
+        step_id: Annotated[str | None, Query()] = None,
+        required_only: Annotated[str | None, Query()] = None,
     ):
         if not mission_slug:
             raise _missing_feature()
@@ -90,7 +90,7 @@ def register(app: FastAPI) -> None:
     def get_artifact_detail(
         artifact_key: str,
         request: Request,
-        mission_slug: Annotated[str | None, Query(default=None, alias="feature")],
+        mission_slug: Annotated[str | None, Query(alias="feature")] = None,
     ):
         if not mission_slug:
             raise _missing_feature()
@@ -98,7 +98,7 @@ def register(app: FastAPI) -> None:
         return _to_response(handler.handle_dossier_artifact_detail(mission_slug, artifact_key))
 
     @router.get("/api/dossier/snapshots/export")
-    def export_snapshot(request: Request, mission_slug: Annotated[str | None, Query(default=None, alias="feature")]):
+    def export_snapshot(request: Request, mission_slug: Annotated[str | None, Query(alias="feature")] = None):
         if not mission_slug:
             raise _missing_feature()
         handler = DossierAPIHandler(repo_root=Path(request.app.state.project_dir).resolve())
